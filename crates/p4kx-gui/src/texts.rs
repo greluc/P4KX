@@ -4,7 +4,7 @@ use unic_langid::LanguageIdentifier;
 mod dataforge_text;
 mod extraction_text;
 
-pub use dataforge_text::DataForgeText;
+pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use extraction_text::ExtractionText;
 
 use crate::Language;

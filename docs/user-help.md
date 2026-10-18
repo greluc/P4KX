@@ -41,6 +41,17 @@ on the node; the rest of the window keeps working.
 The **DataForge** tab of the preview shows the version, the numbers of Records, structs and enums,
 and the first 10 Records in the order DataForge stores them.
 
+### Searching Records
+
+While the DataForge node or one of its Records is selected, the list panel searches Records instead
+of Entries. Type into **Search Records** to find Records by record path or type name, with the
+same rules as the Entry search: text with `*` or `?` is a glob over the whole record path or type
+name, any other text matches anywhere in it; case and `/` or `\` do not matter. The Record's name
+alone does not match. The search runs in the background and starts again with every change; the
+matches list name, type and record path, sorted by record path, and their number shows next to the
+field. Clicking a match, or pressing Enter on it, selects the Record in the tree, opens the folders
+above it and shows the **DataForge** tab. Selecting a folder of the Archive returns to the Entries.
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

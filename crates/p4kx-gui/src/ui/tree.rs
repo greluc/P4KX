@@ -19,6 +19,7 @@ enum Action {
 }
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
+    let scroll = model.browser_mut().and_then(Browser::take_tree_scroll);
     let Some(browser) = model.browser() else {
         return;
     };
@@ -30,7 +31,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let mut action = None;
     ui.spacing_mut().scroll.bar_width = SCROLLBAR_THIN;
     ui.spacing_mut().item_spacing.y = 0.0;
-    ScrollArea::vertical().auto_shrink(false).show_rows(
+    let mut area = ScrollArea::vertical().auto_shrink(false);
+    if let Some(row) = scroll {
+        let rows = u16::try_from(row).map_or(f32::MAX, f32::from);
+        let above = (ui.available_height() - ROW_HEIGHT).max(0.0) / 2.0;
+        area = area.vertical_scroll_offset(rows.mul_add(ROW_HEIGHT, -above).max(0.0));
+    }
+    area.show_rows(
         ui,
         ROW_HEIGHT,
         rows.len() + record_rows.len(),

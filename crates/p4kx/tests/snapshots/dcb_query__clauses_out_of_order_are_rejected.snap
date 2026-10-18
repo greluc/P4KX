@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"select mass from Item\")?"
+---
+error: `from` has to come before `select`
+  select mass from Item
+              ^^^^

@@ -8,6 +8,7 @@ mod cryxml;
 mod dataforges;
 mod dcb;
 mod dcb_export;
+mod dcb_query;
 mod diff;
 mod exit;
 mod extract;

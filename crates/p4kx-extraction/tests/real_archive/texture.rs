@@ -206,10 +206,6 @@ fn merge_texture(archive: &Archive, path: &str) -> Result<String, String> {
             Ok(format)
         }
         Err(ConversionError::Texture {
-            source: TextureError::UnsupportedLayout { surfaces },
-            ..
-        }) => Ok(format!("skipped: split with {surfaces} images per mip")),
-        Err(ConversionError::Texture {
             source: TextureError::UnsupportedFormat(format),
             ..
         }) => Ok(format!("skipped: unsupported {format}")),

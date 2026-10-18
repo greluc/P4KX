@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"at \\\"records\\\\weapons\\\"\")?"
+---
+record path
+--------------------------------
+libs/foundry/records/weapons/gun
+1 Record

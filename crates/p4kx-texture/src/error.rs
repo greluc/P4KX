@@ -24,12 +24,6 @@ pub enum TextureError {
     /// The pixel format's size is unknown, so the mips cannot be told apart.
     #[error("the texture format {0} is not supported")]
     UnsupportedFormat(TextureFormat),
-    /// The texture has several images per mip and is split into parts.
-    #[error("merging a split texture with {surfaces} images per mip is not supported yet")]
-    UnsupportedLayout {
-        /// Cubemap faces times array elements.
-        surfaces: u32,
-    },
     /// The bytes after the header are not a run of the smallest mips.
     #[error("the {tail} bytes after the DDS header are not a whole number of mips")]
     TailMismatch {
@@ -101,6 +95,34 @@ pub enum TextureError {
         expected: u64,
         /// Bytes given.
         actual: u64,
+    },
+    /// The images given for a cubemap cross are not six faces of one size.
+    #[error("a cubemap cross needs six faces of one size, got {faces} images")]
+    NotACube {
+        /// The number of images given.
+        faces: usize,
+    },
+    /// The alpha tail has fewer mips than the texture and lacks the requested one.
+    #[error("the alpha tail has no mip {level}: it has {mip_count} mips, 0 being the largest")]
+    AlphaTailMips {
+        /// The requested level.
+        level: u32,
+        /// The number of mips of the alpha tail.
+        mip_count: u32,
+    },
+    /// The alpha tail's mip is not the size of the colour mip it belongs to.
+    #[error(
+        "the alpha tail is {width} x {height}, but the texture is {expected_width} x {expected_height}"
+    )]
+    AlphaTailSize {
+        /// Width of the alpha tail's mip.
+        width: u32,
+        /// Height of the alpha tail's mip.
+        height: u32,
+        /// Width of the colour mip.
+        expected_width: u32,
+        /// Height of the colour mip.
+        expected_height: u32,
     },
     /// The PNG encoder rejected the image.
     #[error("cannot encode the PNG: {0}")]

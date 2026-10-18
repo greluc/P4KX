@@ -8,6 +8,7 @@
 //!
 //! [`Record::tree`] builds the canonical [`RecordTree`] of one Record, the single model every
 //! output is made from, and [`RecordXml`] writes it as Record XML (`docs/record-xml.md`).
+//! [`query`] selects Records and values inside them with Queries (`docs/query.md`).
 
 mod build;
 mod dataforge;
@@ -15,6 +16,7 @@ mod error;
 mod guid;
 mod header;
 mod kinds;
+pub mod query;
 mod record;
 mod record_table;
 mod rows;
@@ -24,6 +26,7 @@ mod strings;
 mod table;
 mod tree;
 mod value;
+mod value_text;
 mod xml;
 mod xml_text;
 

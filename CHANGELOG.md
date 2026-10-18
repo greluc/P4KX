@@ -12,6 +12,10 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- `p4kx-mcp` tools `read_entry_text` and `read_entry_bytes`: read an Entry in ranges from a byte
+  offset, as text (CryXml converted to XML, UTF-16 by its byte order mark, otherwise UTF-8;
+  binary Entries are an error) or as base64. A range is at most 256 KiB of text or 192 KiB of
+  bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

@@ -8,6 +8,7 @@ mod convert;
 mod dataforge;
 mod dataforge_convert;
 mod dependent;
+mod entry_content;
 mod entry_path;
 mod extract;
 mod filter;
@@ -39,6 +40,10 @@ mod write;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
+pub use entry_content::{
+    EntryBytes, EntryReadError, EntryText, MAX_WHOLE_TEXT_LEN, MIN_TEXT_LEN, TextEncoding,
+    find_entry, read_bytes, read_text,
+};
 pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};

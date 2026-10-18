@@ -3345,6 +3345,7 @@ name = "p4kx-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "clap",
  "p4kx-channels",
  "p4kx-extraction",

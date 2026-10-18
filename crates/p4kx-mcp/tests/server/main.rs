@@ -3,6 +3,7 @@
 
 mod archives;
 mod entries;
+mod read;
 mod read_only;
 mod real_archive;
 mod reopen;

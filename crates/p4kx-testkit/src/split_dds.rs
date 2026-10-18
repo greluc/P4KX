@@ -11,6 +11,7 @@ const FLAGS: u32 = 0x0002_1007;
 const PF_FOURCC: u32 = 0x4;
 const PF_RGB: u32 = 0x40;
 const PF_ALPHA_PIXELS: u32 = 0x1;
+const PF_LUMINANCE: u32 = 0x2_0000;
 const CAPS_TEXTURE: u32 = 0x1000;
 const CAPS_COMPLEX_MIPMAP: u32 = 0x0040_0008;
 const CAPS2_CUBEMAP_ALL_FACES: u32 = 0xFE00;
@@ -28,6 +29,17 @@ pub enum TestTextureFormat {
     LegacyDxt5,
     /// 32-bit BGRA in a legacy header with RGB and alpha bit masks.
     LegacyBgra8,
+    /// 24-bit BGR in a legacy header with RGB bit masks.
+    LegacyBgr8,
+    /// 8-bit luminance and alpha in a legacy header with luminance and alpha bit masks.
+    LegacyL8A8,
+    /// A DX10 header with the given DXGI format code of an uncompressed format.
+    Dx10Pixel {
+        /// The DXGI format code.
+        dxgi_format: u32,
+        /// Bytes per pixel.
+        pixel_bytes: u32,
+    },
     /// A DX10 header with the given DXGI format code and bytes per 4×4 block.
     Dx10Block {
         /// The DXGI format code.
@@ -45,7 +57,7 @@ impl TestTextureFormat {
     };
 
     const fn is_dx10(self) -> bool {
-        matches!(self, Self::Dx10Block { .. })
+        matches!(self, Self::Dx10Block { .. } | Self::Dx10Pixel { .. })
     }
 
     fn mip_len(self, width: u32, height: u32) -> usize {
@@ -54,6 +66,11 @@ impl TestTextureFormat {
             Self::LegacyDxt1 => blocks(width) * blocks(height) * 8,
             Self::LegacyDxt5 => blocks(width) * blocks(height) * 16,
             Self::LegacyBgra8 => width as usize * height as usize * 4,
+            Self::LegacyBgr8 => width as usize * height as usize * 3,
+            Self::LegacyL8A8 => width as usize * height as usize * 2,
+            Self::Dx10Pixel { pixel_bytes, .. } => {
+                width as usize * height as usize * pixel_bytes as usize
+            }
             Self::Dx10Block { block_bytes, .. } => {
                 blocks(width) * blocks(height) * block_bytes as usize
             }
@@ -225,7 +242,9 @@ impl SplitDds {
         for value in [CAPS_TEXTURE | CAPS_COMPLEX_MIPMAP, caps2, 0, 0, 0] {
             put_u32(&mut out, value);
         }
-        if let TestTextureFormat::Dx10Block { dxgi_format, .. } = self.format {
+        if let TestTextureFormat::Dx10Block { dxgi_format, .. }
+        | TestTextureFormat::Dx10Pixel { dxgi_format, .. } = self.format
+        {
             let dimension = if self.depth > 1 {
                 DIMENSION_TEXTURE3D
             } else {
@@ -250,7 +269,21 @@ impl SplitDds {
                 32,
                 [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0xFF00_0000],
             ),
-            TestTextureFormat::Dx10Block { .. } => (PF_FOURCC, *b"DX10", 0, [0; 4]),
+            TestTextureFormat::LegacyBgr8 => (
+                PF_RGB,
+                [0; 4],
+                24,
+                [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0],
+            ),
+            TestTextureFormat::LegacyL8A8 => (
+                PF_LUMINANCE | PF_ALPHA_PIXELS,
+                [0; 4],
+                16,
+                [0x0000_00FF, 0, 0, 0x0000_FF00],
+            ),
+            TestTextureFormat::Dx10Block { .. } | TestTextureFormat::Dx10Pixel { .. } => {
+                (PF_FOURCC, *b"DX10", 0, [0; 4])
+            }
         };
         put_u32(out, flags);
         out.extend_from_slice(&four_cc);

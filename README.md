@@ -70,6 +70,11 @@ Early development (milestone M1). Available today:
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
   truncated or oversized part is named in the error and nothing is written. Split cubemaps and
   texture arrays are not merged yet.
+- `p4kx texture png <archive> <entry> --out <file>` decodes the largest mip of a texture and
+  writes it as an 8-bit RGBA PNG; `--mip <level>` picks a smaller one, 0 being the largest. It
+  takes a header file on disk like `info` and `merge`. BC1, BC2, BC3 and the uncompressed
+  formats in use decode with pure-Rust decoders; any other format fails with a message naming it
+  and exit code 1. Cubemaps, texture arrays and volumes are not decoded yet.
 - `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
   Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
   (ignoring case and separator kind) and lists Entries as added, removed, or changed when their

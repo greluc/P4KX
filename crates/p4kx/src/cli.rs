@@ -43,7 +43,7 @@ pub(crate) enum Command {
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
     #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
     CryXml(CryXmlArgs),
-    /// Shows or merges a DDS texture split into a header and mip parts.
+    /// Shows, merges or exports as PNG a DDS texture split into a header and mip parts.
     #[command(after_help = EXIT_CODES_HELP)]
     Texture(TextureArgs),
 }
@@ -104,6 +104,19 @@ pub(crate) enum TextureAction {
         /// The DDS file to write; an existing file is replaced.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
+    },
+    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Png {
+        /// The texture.
+        #[command(flatten)]
+        source: TextureSource,
+        /// The PNG file to write; an existing file is replaced.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+        /// The mip level to export, 0 being the largest.
+        #[arg(long, value_name = "LEVEL", default_value_t = 0)]
+        mip: u32,
     },
 }
 

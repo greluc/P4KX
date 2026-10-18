@@ -39,8 +39,8 @@ fn an_arrow_continues_the_path_in_the_referenced_record_and_chains() -> TestResu
         "from Ship select maker->name, maker->home->name, maker->home->mass, mass",
         &[
             "alpha: Aegis | Terra | 5.5 | 100 (0 unresolved)",
-            "beta: null | null | null | 50 (3 unresolved)",
-            "gamma: null | null | null | 0 (3 unresolved)",
+            "beta: null | null | null | 50 (1 unresolved)",
+            "gamma: null | null | null | 0 (1 unresolved)",
         ],
     )
 }
@@ -54,7 +54,7 @@ fn an_arrow_follows_each_element_of_an_array_of_references() -> TestResult {
         &forge,
         "from Ship select escorts[*]->name, escorts[0]->mass, escorts[*]->escorts[*]->name",
         &[
-            "alpha: [Beta, null, null] | 50 | [Alpha, null, null] (4 unresolved)",
+            "alpha: [Beta, null, null] | 50 | [Alpha, null, null] (2 unresolved)",
             "beta: [Alpha] | 100 | [Beta, null, null] (2 unresolved)",
             "gamma: [] | null | [] (0 unresolved)",
         ],
@@ -101,6 +101,23 @@ fn an_arrow_follows_a_weak_pointer_to_its_instance() -> TestResult {
             "alpha: ace (0 unresolved)",
             "beta: null (1 unresolved)",
             "gamma: null (1 unresolved)",
+        ],
+    )
+}
+
+#[test]
+fn a_weak_pointer_to_another_struct_or_to_no_instance_reaches_an_error() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+
+    assert_rows(
+        &forge,
+        "from Dock select name, pilot->role",
+        &[
+            "lost: Lost | error: the pointer refers to instance 99 of struct 0, which does not exist \
+             (0 unresolved)",
+            "planet: Planet | error: the pointer refers to struct 0, which does not derive from \
+             struct 4, the type of the field (0 unresolved)",
         ],
     )
 }

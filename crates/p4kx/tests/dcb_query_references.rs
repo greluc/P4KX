@@ -222,16 +222,18 @@ fn the_documented_reference_examples_select_values_of_a_real_archive() -> TestRe
              select Components[SAttachableComponentParams].AttachDef.Manufacturer->Code, \
              Components[SAttachableComponentParams].AttachDef.Manufacturer->Localization.Name \
              where Components[SAttachableComponentParams].AttachDef.Manufacturer->Code = \"BEH\"",
-            "[@manufacturer_Name",
+            "libs/foundry/records/entities/scitem/ships/weapons/behr_ballisticcannon_s4",
+            "[@manufacturer_NameBEHR]",
         ),
         (
             "from EntityClassDefinition at \"libs/foundry/records/entities/spaceships/*\" \
              select Components[SItemPortContainerComponentParams].Ports[*].defaultItem\
              .entityClass->Components[SAttachableComponentParams].AttachDef.Type",
-            "unresolved References",
+            "libs/foundry/records/entities/spaceships/aegs_hammerhead",
+            "UNDEFINED]",
         ),
     ];
-    for (text, value) in examples {
+    for (text, record, value) in examples {
         let output = Command::cargo_bin("p4kx")?
             .args(["dcb", "query"])
             .arg(&archive)
@@ -239,12 +241,16 @@ fn the_documented_reference_examples_select_values_of_a_real_archive() -> TestRe
             .output()?;
         assert_eq!(output.status.code(), Some(0), "{text}: {output:?}");
         let stdout = String::from_utf8(output.stdout)?;
-        let rows: Vec<&str> = stdout.lines().skip(2).collect();
+        let lines: Vec<&str> = stdout.lines().collect();
+        let rows = lines
+            .get(2..lines.len().saturating_sub(1))
+            .ok_or("a heading, a rule and a count line")?;
         assert!(rows.len() > 1, "{text} selects Records: {stdout}");
-        assert!(
-            rows.iter().any(|row| row.contains(value)),
-            "{text} reads values: {stdout}"
-        );
+        let row = rows
+            .iter()
+            .find(|row| row.split_whitespace().next() == Some(record))
+            .ok_or_else(|| format!("{text} selects {record}: {stdout}"))?;
+        assert!(row.contains(value), "{record} reads {value}: {row}");
         assert!(
             !stdout.contains("error: "),
             "{text} reads every value: {stdout}"

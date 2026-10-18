@@ -267,9 +267,9 @@ each element and gives one value per element. It works alike in `select` and in 
   struct that neither is nor derives from the declared one reaches an error value, as behind a
   strong pointer.
 - A null Reference, a Reference to a GUID no Record has (a dangling one) and a null weak pointer
-  reach `null`, and so does the rest of the path behind them. Each one the `select` paths of a
-  row meet counts as an unresolved Reference, and [the result](#output-formats) reports their
-  number; in `where`, the comparison is unknown, as for any `null`. A weak pointer to an
+  reach `null`, and so does the rest of the path behind them. Each such link the `select` paths
+  of a row meet counts as one unresolved Reference, however many paths and elements reach it, and
+  [the result](#output-formats) reports their number; in `where`, the comparison is unknown, as for any `null`. A weak pointer to an
   instance that does not exist reaches an error value, as a strong pointer does.
 - A path follows each Reference it names once and names at most 16 (`MAX_PATH_REFERENCES`), so
   References that link in a cycle cannot make it follow more. `->` counts no array element

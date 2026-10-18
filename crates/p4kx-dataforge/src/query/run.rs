@@ -160,8 +160,9 @@ impl<'f> Row<'f> {
         self.cells.as_deref()
     }
 
-    /// Returns how many References the columns met that link to no Record, null or dangling,
-    /// and null weak pointers, each of which reached null when `->` followed it.
+    /// Returns how many distinct links the columns followed with `->` to no Record or instance:
+    /// null or dangling References and null weak pointers, each counted once however many
+    /// columns reach it.
     #[must_use]
     pub const fn unresolved_references(&self) -> usize {
         self.unresolved

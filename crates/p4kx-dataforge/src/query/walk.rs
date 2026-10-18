@@ -63,7 +63,7 @@ impl<'f> Place<'f> {
 #[derive(Debug)]
 pub(crate) struct WalkState {
     budget: usize,
-    unresolved: usize,
+    unresolved: Vec<usize>,
 }
 
 impl WalkState {
@@ -71,18 +71,22 @@ impl WalkState {
     pub(crate) const fn new() -> Self {
         Self {
             budget: MAX_PATH_VALUES,
-            unresolved: 0,
+            unresolved: Vec::new(),
         }
     }
 
-    /// Returns how many null or dangling References and null weak pointers `->` met.
+    /// Returns how many distinct null or dangling links `->` met.
     pub(crate) const fn unresolved(&self) -> usize {
-        self.unresolved
+        self.unresolved.len()
     }
 
-    /// Counts a link `->` cannot follow and returns the null it reaches.
-    const fn unresolved_link<'f>(&mut self) -> Reached<'f> {
-        self.unresolved = self.unresolved.saturating_add(1);
+    /// Counts the link stored in `bytes`, which `->` cannot follow, once however many paths
+    /// meet it, and returns the null it reaches.
+    fn unresolved_link<'f>(&mut self, bytes: &[u8]) -> Reached<'f> {
+        let at = bytes.as_ptr().addr();
+        if !self.unresolved.contains(&at) {
+            self.unresolved.push(at);
+        }
         Reached::Value(Value::Null)
     }
 
@@ -223,7 +227,7 @@ fn follow<'f>(
 ) -> Reached<'f> {
     if link == Link::Weak {
         return pointer(bytes).map_or_else(
-            || state.unresolved_link(),
+            || state.unresolved_link(bytes),
             |(struct_index, instance_index)| {
                 instance(forge, struct_index, instance_index, declared, |declared| {
                     ValueError::UnexpectedPointerType {
@@ -235,7 +239,7 @@ fn follow<'f>(
         );
     }
     let Some(record) = reference_guid(bytes).and_then(|guid| forge.record_by_guid(guid)) else {
-        return state.unresolved_link();
+        return state.unresolved_link(bytes);
     };
     let struct_index = record.def.struct_index;
     instance(

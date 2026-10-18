@@ -91,8 +91,8 @@ instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
 **Unresolved Reference**:
-A Reference that links to no Record, null or dangling, or a null weak pointer, met where a Query
-path follows it with `->`; it reaches null and is counted in the Query result.
+A null or dangling link that a Query path follows with `->`; it reaches null and is counted
+ once per row in the Query result, however many paths of the row meet it.
 _Avoid_: broken link, missing Reference
 
 **Query**:

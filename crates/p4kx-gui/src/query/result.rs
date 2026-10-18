@@ -195,7 +195,7 @@ impl QueryResult {
         self.failed
     }
 
-    /// Returns the null or dangling References and null weak pointers `->` met in the rows.
+    /// Returns the null or dangling links `->` met in the rows, each counted once per row.
     #[must_use]
     pub const fn unresolved_references(&self) -> u64 {
         self.unresolved

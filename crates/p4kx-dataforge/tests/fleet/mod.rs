@@ -37,6 +37,11 @@ fn schema() -> DataForgeBuilder {
         )
         .structure(TestStruct::new("Crew").field("role", TestType::String))
         .structure(
+            TestStruct::new("Dock")
+                .field("name", TestType::String)
+                .field("pilot", TestType::WeakPointer("Crew".to_owned())),
+        )
+        .structure(
             TestStruct::new("Ship")
                 .field("name", TestType::String)
                 .field("maker", reference_to("Manufacturer"))
@@ -109,7 +114,25 @@ pub(crate) fn database() -> Vec<u8> {
                 .value("maker", TestValue::Reference(MISSING))
                 .value("shield", TestValue::Reference(AEGIS)),
         )
+        .record(dock(40, "Planet", TestValue::pointer("Planet.Terra")))
+        .record(dock(
+            41,
+            "Lost",
+            TestValue::Raw(vec![0, 0, 0, 0, 99, 0, 0, 0]),
+        ))
         .build()
+}
+
+/// A Dock whose weak pointer `pilot` names an instance of another struct or none at all.
+fn dock(guid: u128, name: &str, pilot: TestValue) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "Dock",
+        format!("Dock.{name}"),
+        format!("libs/docks/{}.xml", name.to_ascii_lowercase()),
+    )
+    .value("name", TestValue::text(name))
+    .value("pilot", pilot)
 }
 
 /// Returns per row the record name, the cells as text, `-` for an empty cell, and the number of

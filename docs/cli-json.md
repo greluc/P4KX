@@ -187,8 +187,8 @@ gets the summary:
 
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
-`unresolved_references` counts the null or dangling References and null weak pointers that `->`
-met in the `select` paths of the rows written ([query.md](query.md#following-references)); they
+`unresolved_references` counts the null or dangling links that `->` met in the `select` paths
+ of the rows written, each link once per row ([query.md](query.md#following-references)); they
 reach `null` and change no exit code.
 
 ## `p4kx catalog <archive> --out <file> --json`

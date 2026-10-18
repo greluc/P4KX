@@ -40,12 +40,13 @@ impl std::fmt::Debug for QueryExportOptions<'_> {
 
 /// What [`export_query`] wrote.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct QueryExport {
     /// The rows written, one per Record.
     pub records: u64,
     /// The Records whose layout or instance cannot be read; they have no row.
     pub failed: u64,
-    /// The null or dangling References and null weak pointers `->` met in the rows written.
+    /// The null or dangling links `->` met in the rows written, each counted once per row.
     pub unresolved_references: u64,
 }
 

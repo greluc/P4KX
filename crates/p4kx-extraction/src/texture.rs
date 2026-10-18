@@ -42,7 +42,7 @@ impl<'a> Texture<'a> {
         Self::from_parts(found.colour, found.alpha)
     }
 
-    /// Opens the texture of parts with the alpha tail of lpha, parsing its header.
+    /// Opens the texture of `parts` with the alpha tail of `alpha`, parsing its header.
     pub(crate) fn from_parts(
         parts: Parts<'a>,
         alpha: Option<Parts<'a>>,

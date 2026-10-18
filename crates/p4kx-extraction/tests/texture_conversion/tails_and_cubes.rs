@@ -153,3 +153,69 @@ fn a_cubemap_is_merged_and_exported_as_six_faces() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn merging_alone_writes_the_alpha_tail_as_its_own_merged_dds() -> TestResult {
+    let dds = tailed();
+    let fixture = Fixture::new(dds.entries(HEADER))?;
+    let tail = dds.alpha_tail().ok_or("a tail")?;
+    let textures = TextureConversion {
+        merge: true,
+        png: None,
+        keep_raw: false,
+    };
+
+    let report = run_with(&fixture, ConflictPolicy::Skip, textures);
+
+    assert!(report.is_complete(), "{report:?}");
+    assert_eq!(report.converted(), Some(6), "every Entry of the texture");
+    assert_eq!(
+        files(&fixture.target)?,
+        [
+            "Data/Textures/rock_diff.dds",
+            "Data/Textures/rock_diff.dds.a"
+        ],
+        "the colour and the tail, each merged"
+    );
+    assert_eq!(
+        fixture.read("Data/Textures/rock_diff.dds")?,
+        dds.merged_bytes()
+    );
+    assert_eq!(
+        fixture.read("Data/Textures/rock_diff.dds.a")?,
+        tail.merged_bytes(),
+        "the tail merged like any split texture"
+    );
+    Ok(())
+}
+
+#[test]
+fn merging_alone_with_raw_parts_keeps_the_merged_tail_under_the_tail_header_path() -> TestResult {
+    let dds = tailed();
+    let fixture = Fixture::new(dds.entries(HEADER))?;
+    let tail = dds.alpha_tail().ok_or("a tail")?;
+    let textures = TextureConversion {
+        merge: true,
+        png: None,
+        keep_raw: true,
+    };
+
+    let report = run_with(&fixture, ConflictPolicy::Skip, textures);
+
+    assert!(report.is_complete(), "{report:?}");
+    assert_eq!(
+        files(&fixture.target)?.len(),
+        6,
+        "two merged files and four raw parts"
+    );
+    assert_eq!(
+        fixture.read("Data/Textures/rock_diff.dds.a")?,
+        tail.merged_bytes(),
+        "the merged tail is not overwritten by its raw header"
+    );
+    assert_eq!(
+        fixture.read("Data/Textures/rock_diff.dds.1a")?,
+        tail.part(1)
+    );
+    Ok(())
+}

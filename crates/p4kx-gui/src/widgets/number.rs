@@ -7,9 +7,10 @@ use crate::theme::tokens::{FS_BODY, GLOW_PRIMARY, SPACE_3, TOUCH_TARGET, Weight,
 
 const FIELD_WIDTH: f32 = 2.0 * TOUCH_TARGET;
 
-/// Shows a whole-number field in the look of the design system's input field: `control-bg`
-/// fill, a `control-border` border that turns `color-primary` on hover and focus, and the
-/// `glow-primary` bloom while focused. Dragging or typing changes `value` within `range`.
+/// Shows a whole-number field drawn to the design system's input contract, which also covers
+/// `input[type=number]`: `control-bg` fill, a `control-border` border that turns
+/// `color-primary` on hover and focus, and the `glow-primary` bloom while focused. Dragging
+/// or typing changes `value` within `range`.
 pub(crate) fn number_field(
     ui: &mut Ui,
     value: &mut u32,

@@ -16,12 +16,13 @@ const WRITE_BUFFER_LEN: usize = 256 * 1024;
 
 impl EntryWriter<'_> {
     /// Writes the merged DDS of `source` to `destination` under the Conflict policy; while the
-    /// parts stream through, keeps the data of part `capture` in `buffers.data`.
+    /// parts stream through, keeps the data of part `capture` in `buffers.data` and reports the
+    /// bytes written as progress within `counted`.
     pub(crate) fn write_merged(
         &self,
-        source: &Source<'_>,
-        destination: &Destination,
+        (source, destination): (&Source<'_>, &Destination),
         capture: Option<u32>,
+        counted: &mut Counted,
         buffers: &mut Buffers,
     ) -> Result<Step, ExtractionError> {
         if destination.existing.is_some() && self.policy == ConflictPolicy::Skip {
@@ -29,7 +30,7 @@ impl EntryWriter<'_> {
         }
         let (temporary, file) = create_temporary(&destination.folder)?;
         let decided = self
-            .merge_to(file, source, capture, buffers)
+            .merge_to(file, source, (capture, counted), buffers)
             .map_err(|error| write_error_at(error, destination))
             .and_then(|expected| self.decide(destination, || expected, &mut buffers.chunk));
         let step = match decided {
@@ -60,12 +61,13 @@ impl EntryWriter<'_> {
         &self,
         file: File,
         source: &Source<'_>,
-        capture: Option<u32>,
+        (capture, counted): (Option<u32>, &mut Counted),
         buffers: &mut Buffers,
     ) -> Result<(u64, u32), MergeError> {
         let mut sink = MergeSink {
             writer: BufWriter::with_capacity(WRITE_BUFFER_LEN, file),
             tracker: self.tracker,
+            counted,
             len: 0,
             crc: 0,
         };
@@ -118,15 +120,24 @@ pub(crate) const fn step_of(outcome: &Outcome) -> Step {
     }
 }
 
-/// The merged file being written: counts its length and CRC-32C and stops once the run stops.
-struct MergeSink<'t> {
+/// The progress a texture's merges reported, at most the size of the texture's Entries.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct Counted {
+    pub(crate) reported: u64,
+    pub(crate) budget: u64,
+}
+
+/// The merged file being written: counts its length and CRC-32C, reports progress and stops once
+/// the run stops.
+struct MergeSink<'t, 'c> {
     writer: BufWriter<File>,
     tracker: &'t Tracker<'t>,
+    counted: &'c mut Counted,
     len: u64,
     crc: u32,
 }
 
-impl Write for MergeSink<'_> {
+impl Write for MergeSink<'_, '_> {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if self.tracker.should_stop() {
             return Err(io::Error::other("the Extraction stopped"));
@@ -135,6 +146,12 @@ impl Write for MergeSink<'_> {
         let written = data.get(..count).unwrap_or_default();
         self.crc = crc32c::crc32c_append(self.crc, written);
         self.len = self.len.saturating_add(count as u64);
+        let free = self.counted.budget.saturating_sub(self.counted.reported);
+        let progress = free.min(count as u64);
+        if progress > 0 {
+            self.counted.reported += progress;
+            self.tracker.wrote(progress);
+        }
         Ok(count)
     }
 

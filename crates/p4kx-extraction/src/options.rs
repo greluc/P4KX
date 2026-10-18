@@ -89,7 +89,9 @@ impl fmt::Debug for ExtractOptions<'_> {
 /// `<name>.dds.1` … `<name>.dds.N`.
 ///
 /// The outputs combine. The merged DDS takes the header's path, the PNG is `<name>.png` next to
-/// it. With neither the merge nor the PNG chosen, the texture's Entries are written unchanged.
+/// it, with an alpha tail `<name>.dds.a` in its alpha channel; without a PNG, the merge writes
+/// the alpha tail merged under its own path. With neither the merge nor the PNG chosen, the
+/// texture's Entries are written unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureConversion {
     /// Writes the header and its parts merged into one standard DDS file.

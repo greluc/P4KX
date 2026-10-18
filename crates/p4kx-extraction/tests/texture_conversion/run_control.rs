@@ -3,7 +3,9 @@ use std::sync::Mutex;
 
 use p4kx_extraction::{CancelToken, ConflictPolicy, ExtractOptions, Progress, extract};
 
-use crate::fixture::{Fixture, files, merged_layout, rock, run, texture_entries};
+use p4kx_testkit::{SplitDds, TestTextureFormat};
+
+use crate::fixture::{Fixture, HEADER, files, merged_layout, rock, run, texture_entries};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -131,5 +133,45 @@ fn a_cancelled_texture_conversion_writes_nothing() -> TestResult {
     assert_eq!(report.cancelled(), ENTRIES, "every Entry is cancelled");
     assert!(report.unconverted().is_empty(), "no texture failed");
     assert!(files(&fixture.target)?.is_empty(), "nothing written");
+    Ok(())
+}
+
+#[test]
+fn a_cancel_in_the_middle_of_a_merge_leaves_no_file_and_counts_progress_once() -> TestResult {
+    let big = SplitDds::new(TestTextureFormat::LegacyBgra8, 512, 512).split(2);
+    let fixture = Fixture::new(big.entries(HEADER))?;
+    let cancel = CancelToken::new();
+    let last = Mutex::new(Progress::default());
+    let on_progress = |now: Progress| {
+        if now.entries_done == 0 && now.bytes_done > 0 {
+            cancel.cancel();
+        }
+        if let Ok(mut last) = last.lock() {
+            *last = now;
+        }
+    };
+    let entries: Vec<_> = fixture.archive.entries().iter().collect();
+    let options = ExtractOptions {
+        convert: true,
+        cancel: Some(&cancel),
+        progress: Some(&on_progress),
+        ..ExtractOptions::default()
+    };
+
+    let report = extract(&fixture.archive, &entries, &fixture.target, &options);
+
+    assert!(cancel.is_cancelled(), "progress arrived while merging");
+    assert_eq!(
+        report.cancelled(),
+        &ENTRIES[..3],
+        "every Entry is cancelled"
+    );
+    assert!(
+        files(&fixture.target)?.is_empty(),
+        "no partial or temporary file"
+    );
+    let last = *last.lock().map_err(|_| "poisoned")?;
+    assert_eq!(last.entries_done, 3, "every Entry ended");
+    assert_eq!(last.bytes_done, last.bytes_total, "every byte counted once");
     Ok(())
 }

@@ -95,7 +95,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         print_report(&report, &target, args.conflict).and_then(|()| {
             report.records().map_or(Ok(()), |records| {
                 let folder = records_folder(&archive, &target);
-                dcb_export::print_report(records, &folder, args.conflict)
+                dcb_export::print_report(&records.into(), &folder, args.conflict)
             })
         })
     };

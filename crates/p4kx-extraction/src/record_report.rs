@@ -42,6 +42,16 @@ pub struct RecordFailure {
 }
 
 impl RecordFailure {
+    /// Creates the failure of the Record with `guid` at `record_path`.
+    #[must_use]
+    pub const fn new(guid: Guid, record_path: String, error: RecordExportError) -> Self {
+        Self {
+            guid,
+            record_path,
+            error,
+        }
+    }
+
     /// Returns the GUID of the Record.
     #[must_use]
     pub const fn guid(&self) -> Guid {
@@ -107,6 +117,12 @@ impl RecordExportReport {
     #[must_use]
     pub const fn records_with_errors(&self) -> usize {
         self.records_with_errors
+    }
+
+    /// Returns the Records that failed, consuming the report.
+    #[must_use]
+    pub fn into_failures(self) -> Vec<RecordFailure> {
+        self.failures
     }
 
     /// Returns whether no Record failed and the run was not cancelled.

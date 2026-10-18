@@ -70,7 +70,8 @@ pub(crate) enum AudioAction {
     /// Prints the codec, channels, sample rate and duration of a WEM.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(AudioSource),
-    /// Writes a PCM WEM as a 16-bit WAV file; other codecs fail with an error naming them.
+    /// Writes a PCM, IMA ADPCM or PTADPCM WEM as a 16-bit WAV file; other codecs fail with an
+    /// error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Wav {
         /// The sound.

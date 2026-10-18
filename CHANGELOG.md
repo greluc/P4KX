@@ -19,6 +19,8 @@ fails while its section is missing.
 - `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
   unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
+- `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
+  and write PCM WEMs as WAV files; every Wwise codec is detected.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

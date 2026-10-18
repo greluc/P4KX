@@ -1,4 +1,4 @@
-//! Extraction, `CryXml` and texture Conversion on a real Archive; runs with `--ignored` when
+//! Extraction, `CryXml`, texture and sound Conversion on a real Archive; runs with `--ignored` when
 //! `P4KX_DATA_P4K` names one.
 
 use std::collections::{HashMap, HashSet};
@@ -12,6 +12,7 @@ use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
 mod records;
+mod sound;
 mod texture;
 
 type TestResult = Result<(), Box<dyn Error>>;

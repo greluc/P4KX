@@ -8,6 +8,7 @@ use p4kx_settings::ManualChannels;
 pub struct ChannelList {
     base: SearchPaths,
     manual: ManualChannels,
+    added: ManualChannels,
     detected: Vec<Channel>,
 }
 
@@ -23,6 +24,7 @@ impl ChannelList {
                 ..base
             },
             manual,
+            added: ManualChannels::default(),
             detected: Vec::new(),
         };
         list.detect();
@@ -41,13 +43,21 @@ impl ChannelList {
         &self.manual
     }
 
-    /// Adds `path` as a manual Archive when it is a file, otherwise as a manual folder, and
+    /// Returns the manual entries added through [`Self::add`].
+    #[must_use]
+    pub const fn added(&self) -> &ManualChannels {
+        &self.added
+    }
+
+    /// Adds `path` as a manual entry, an Archive when it is a file and a folder otherwise, and
     /// detects again; returns whether it was not listed yet.
     pub fn add(&mut self, path: PathBuf) -> bool {
         let path = std::path::absolute(&path).unwrap_or(path);
         let added = if path.is_file() {
+            self.added.add_archive(path.clone());
             self.manual.add_archive(path)
         } else {
+            self.added.add_folder(path.clone());
             self.manual.add_folder(path)
         };
         if added {

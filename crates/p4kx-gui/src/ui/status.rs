@@ -1,6 +1,8 @@
 use egui::Ui;
 use fluent_bundle::FluentValue;
 
+use p4kx_extraction::Build;
+
 use crate::{Browser, Model, Text, Texts, format};
 
 pub(super) fn show(ui: &mut Ui, model: &Model) {
@@ -38,15 +40,7 @@ fn browser_parts(texts: &Texts, browser: &Browser) -> [String; 5] {
     let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
     let number =
         |value: usize| -> FluentValue<'static> { format::number(count(value), language).into() };
-    let build = archive.build().map_or_else(
-        || texts.get(Text::StatusBuildUnknown),
-        |build| {
-            texts.format(
-                Text::StatusBuild,
-                &[("build", build.version().to_owned().into())],
-            )
-        },
-    );
+    let build = build_label(texts, archive.build());
     [
         archive.path().display().to_string(),
         build,
@@ -66,4 +60,17 @@ fn browser_parts(texts: &Texts, browser: &Browser) -> [String; 5] {
             &[("number", number(browser.checked_count()))],
         ),
     ]
+}
+
+/// Returns `build` as "Build <version>", or that the Build is unknown.
+pub(super) fn build_label(texts: &Texts, build: Option<&Build>) -> String {
+    build.map_or_else(
+        || texts.get(Text::StatusBuildUnknown),
+        |build| {
+            texts.format(
+                Text::StatusBuild,
+                &[("build", build.version().to_owned().into())],
+            )
+        },
+    )
 }

@@ -130,8 +130,8 @@ impl eframe::App for App {
     }
 }
 
-/// Stores the window geometry, the recent Archives, the manual entries next to those already in
-/// `settings`, and the language, which stays unset to follow the system until the user chooses
+/// Stores the window geometry, the recent Archives, the manual entries added in the window next
+/// to those already in `settings`, and the language, which stays unset to follow the system until the user chooses
 /// one.
 fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option<WindowGeometry>) {
     if chosen || settings.language.is_some() {
@@ -139,23 +139,18 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     }
     settings.window = window;
     settings.recent = model.recent().clone();
-    let manual = model.channels().manual();
-    for folder in &manual.folders {
-        settings.channels.add_folder(folder.clone());
-    }
-    for archive in &manual.archives {
-        settings.channels.add_archive(archive.clone());
-    }
+    settings.channels.merge(model.channels().added());
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use p4kx_settings::Settings;
+    use p4kx_channels::SearchPaths;
+    use p4kx_settings::{ManualChannels, RecentArchives, Settings};
 
     use super::remember;
-    use crate::{Language, Model};
+    use crate::{ChannelList, Language, Model};
 
     #[test]
     fn the_language_stays_unset_until_the_user_chooses_one() {
@@ -190,5 +185,22 @@ mod tests {
             "both folders are kept"
         );
         Ok(())
+    }
+
+    #[test]
+    fn an_entry_removed_elsewhere_is_not_written_back() {
+        let mut model = Model::new(Language::German);
+        let mut loaded = ManualChannels::default();
+        loaded.add_folder(PathBuf::from(r"D:\Removed"));
+        model.set_channels(ChannelList::new(SearchPaths::default(), loaded));
+        let mut recent = RecentArchives::default();
+        recent.push(PathBuf::from(r"C:\SC\LIVE\Data.p4k"));
+        model.set_recent(recent.clone());
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert!(settings.channels.folders.is_empty(), "stays removed");
+        assert_eq!(settings.recent, recent, "the recent Archives are stored");
     }
 }

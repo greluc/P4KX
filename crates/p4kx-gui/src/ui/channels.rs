@@ -15,7 +15,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         ui.weak(texts.get(Text::ChannelsNone));
     }
     for channel in channels {
-        if show_row(ui, texts, channel, current) {
+        if show_row(ui, texts, channel, current) && current != Some(channel.archive()) {
             picked = Some(channel.archive().to_path_buf());
         }
     }
@@ -25,15 +25,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
 }
 
 fn show_row(ui: &mut Ui, texts: &Texts, channel: &Channel, current: Option<&Path>) -> bool {
-    let build = channel.build().map_or_else(
-        || texts.get(Text::StatusBuildUnknown),
-        |build| {
-            texts.format(
-                Text::StatusBuild,
-                &[("build", build.version().to_owned().into())],
-            )
-        },
-    );
+    let build = super::status::build_label(texts, channel.build());
     ui.horizontal(|ui| {
         let selected = current == Some(channel.archive());
         let clicked = ui

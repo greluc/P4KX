@@ -128,6 +128,16 @@ impl ManualChannels {
         add(&mut self.archives, archive)
     }
 
+    /// Adds every folder and Archive of `other` that is not listed yet.
+    pub fn merge(&mut self, other: &Self) {
+        for folder in &other.folders {
+            self.add_folder(folder.clone());
+        }
+        for archive in &other.archives {
+            self.add_archive(archive.clone());
+        }
+    }
+
     /// Removes `path` from the folders and the Archives, matching equal or equivalent paths;
     /// returns whether it was listed.
     pub fn remove(&mut self, path: &Path) -> bool {

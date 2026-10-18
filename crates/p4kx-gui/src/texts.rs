@@ -12,9 +12,9 @@ pub enum Text {
     MenuArchive,
     /// The action that opens an Archive through a file dialog.
     ActionOpen,
-    /// The action that adds a manual folder through a folder dialog.
+    /// The action that adds a folder as a manual entry through a folder dialog.
     ActionAddFolder,
-    /// The action that adds a manual Archive through a file dialog.
+    /// The action that adds an Archive as a manual entry through a file dialog.
     ActionAddArchive,
     /// The submenu of recently opened Archives.
     MenuRecent,

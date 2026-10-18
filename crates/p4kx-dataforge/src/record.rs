@@ -1,17 +1,20 @@
+use std::sync::Arc;
+
 use rayon::slice::ParallelSliceMut;
 
-use crate::build::{RecordText, record_tree};
 use crate::dataforge::out_of_range;
 use crate::rows::RecordDef;
 use crate::strings::{compare_paths, strip_xml};
-use crate::{DataForge, DataForgeError, Guid, RecordTree, Struct};
+use crate::{
+    DataForge, DataForgeError, Guid, RecordTree, Reference, Struct, TreeBuilder, ValueError,
+};
 
 /// One Record of a DataForge: its GUID, name, type and record path.
 #[derive(Debug, Clone, Copy)]
 pub struct Record<'f> {
-    forge: &'f DataForge<'f>,
-    index: u32,
-    def: RecordDef,
+    pub(crate) forge: &'f DataForge<'f>,
+    pub(crate) index: u32,
+    pub(crate) def: RecordDef,
 }
 
 impl<'f> Record<'f> {
@@ -84,21 +87,44 @@ impl<'f> Record<'f> {
     /// Builds the canonical Record tree: type, GUID, record path, name and every field in
     /// declaration order, the inherited ones first.
     ///
-    /// A value that cannot be read becomes a [`Value::Error`](crate::Value::Error) at its field.
+    /// Inline classes and the targets of strong pointers are nested structs, arrays hold their
+    /// elements in order, Reference fields and weak pointers are [`Reference`] links and null
+    /// pointers are [`Value::Null`](crate::Value::Null). A value that cannot be read, such as a
+    /// dangling Reference or an index out of range, becomes a
+    /// [`Value::Error`](crate::Value::Error) at its place. Use a [`TreeBuilder`] to build many
+    /// Records.
     ///
     /// # Errors
     ///
-    /// Returns a [`DataForgeError`] when the Record's instance, its struct layout or a name cannot
-    /// be read: a cycle or more than [`MAX_INHERITANCE_DEPTH`](crate::MAX_INHERITANCE_DEPTH)
-    /// structs in the parent chain, fields that do not fill the declared size, an unknown data
-    /// type or an inline struct that does not exist.
+    /// Returns a [`DataForgeError`] when the Record's instance, the layout of a struct in it or a
+    /// name cannot be read: a cycle or more than
+    /// [`MAX_INHERITANCE_DEPTH`](crate::MAX_INHERITANCE_DEPTH) structs in a parent chain, fields
+    /// that do not fill the declared size, an unknown data type or an inline struct that does not
+    /// exist; and when the tree would hold more than
+    /// [`MAX_RECORD_VALUES`](crate::MAX_RECORD_VALUES) values.
     pub fn tree(&self) -> Result<RecordTree<'f>, DataForgeError> {
-        let text = RecordText {
-            type_name: self.type_name()?,
-            record_path: self.record_path()?,
-            name: self.name()?,
-        };
-        record_tree(self.forge, self.index, self.def, text)
+        TreeBuilder::new().build(self)
+    }
+
+    /// Returns whether the Record belongs to `forge`.
+    #[must_use]
+    pub fn is_from(&self, forge: &DataForge<'_>) -> bool {
+        std::ptr::addr_eq(self.forge, forge)
+    }
+
+    /// Returns a link to this Record, or to the instance at `location` inside it.
+    pub(crate) fn link(&self, location: Option<Arc<str>>) -> Result<Reference<'f>, ValueError> {
+        let forge = self.forge;
+        let type_name = forge
+            .structs
+            .get(self.def.struct_index as usize)
+            .map_or(Ok(""), |def| forge.blob.value(def.name))?;
+        Ok(Reference {
+            guid: self.guid(),
+            record_path: forge.text.value(self.def.file_name).map(strip_xml)?,
+            type_name,
+            location,
+        })
     }
 }
 
@@ -139,7 +165,7 @@ impl<'a> DataForge<'a> {
             .filter_map(|record| self.record(*record))
     }
 
-    fn record(&self, index: u32) -> Option<Record<'_>> {
+    pub(crate) fn record(&self, index: u32) -> Option<Record<'_>> {
         let def = self.record_def(index)?;
         Some(Record {
             forge: self,

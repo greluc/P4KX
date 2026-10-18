@@ -109,4 +109,11 @@ pub enum DataForgeError {
         /// The raw code.
         code: u16,
     },
+    /// A Record tree would hold more than [`MAX_RECORD_VALUES`](crate::MAX_RECORD_VALUES)
+    /// values.
+    #[error("the Record holds more than {limit} values")]
+    RecordTooLarge {
+        /// The most values one Record tree may hold.
+        limit: usize,
+    },
 }

@@ -28,6 +28,9 @@ pub enum RecordExportError {
     /// The file or a folder for it cannot be written, or its record path would leave the target.
     #[error(transparent)]
     Write(#[from] ExtractionError),
+    /// The Record belongs to another DataForge than the one exported from.
+    #[error("the Record belongs to another DataForge")]
+    OtherDataForge,
 }
 
 /// One Record that a Record export did not write.

@@ -75,7 +75,8 @@ Records have none.
 _Avoid_: category, kind
 
 **Reference**:
-A link from one Record to another by GUID; it is never expanded into the referring Record.
+A link from one Record to another by GUID; it is never expanded into the referring Record. A weak
+pointer is a Reference into its own Record, with the location of the instance it points to.
 _Avoid_: weak pointer, pointer (alone)
 
 **Query**:

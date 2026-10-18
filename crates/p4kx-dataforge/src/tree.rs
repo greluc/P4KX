@@ -43,11 +43,34 @@ impl<'f> RecordTree<'f> {
         &self.fields
     }
 
-    /// Returns the error values with the name of their field, in field order.
+    /// Returns every error value in the tree, nested ones included, with the name of the field
+    /// that holds it, in the order the tree lists them.
     pub fn errors(&self) -> impl Iterator<Item = (&'f str, &ValueError)> {
-        self.fields.iter().filter_map(|field| match &field.value {
-            Value::Error(error) => Some((field.name, error)),
-            _ => None,
-        })
+        let mut errors = Vec::new();
+        collect_errors(&self.fields, &mut errors);
+        errors.into_iter()
+    }
+}
+
+fn collect_errors<'t, 'f>(fields: &'t [Field<'f>], errors: &mut Vec<(&'f str, &'t ValueError)>) {
+    for field in fields {
+        collect_value_errors(field.name, &field.value, errors);
+    }
+}
+
+fn collect_value_errors<'t, 'f>(
+    name: &'f str,
+    value: &'t Value<'f>,
+    errors: &mut Vec<(&'f str, &'t ValueError)>,
+) {
+    match value {
+        Value::Error(error) => errors.push((name, error)),
+        Value::Struct(structure) => collect_errors(&structure.fields, errors),
+        Value::Array(items) => {
+            for item in items {
+                collect_value_errors(name, item, errors);
+            }
+        }
+        _ => {}
     }
 }

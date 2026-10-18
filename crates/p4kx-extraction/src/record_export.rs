@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-use p4kx_dataforge::{DataForge, Record, RecordXml};
+use p4kx_dataforge::{DataForge, Record, RecordXml, TreeBuilder};
 use rayon::prelude::*;
 
 use crate::dependent::split_dependent;
@@ -26,12 +26,12 @@ const READ_BUFFER_LEN: usize = 64 << 10;
 /// [`ConflictPolicy::IfChanged`] compares size and CRC-32C with the new XML. Records are built
 /// and written in parallel with the same files and report as a sequential run in the order of
 /// `records`. Record paths that could leave `target` are rejected and existing links below
-/// `target` are never followed; a failed or cancelled Record leaves no partial file. The
-/// `records` must come from `forge`.
+/// `target` are never followed; a failed or cancelled Record leaves no partial file. A Record of
+/// another DataForge than `forge` fails with [`RecordExportError::OtherDataForge`].
 #[must_use]
-pub fn export_records(
+pub fn export_records<'f>(
     forge: &DataForge<'_>,
-    records: &[Record<'_>],
+    records: &[Record<'f>],
     target: &Path,
     options: &RecordExportOptions<'_>,
 ) -> RecordExportReport {
@@ -46,8 +46,11 @@ pub fn export_records(
         policy: options.policy,
         cancel: options.cancel,
     };
-    let run = |scratch: &mut Scratch, index: usize| {
+    let run = |scratch: &mut Scratch<'f>, index: usize| {
         let outcome = match (records.get(index), files.get(index)) {
+            (Some(record), _) if !record.is_from(forge) => {
+                RecordOutcome::Failed(RecordExportError::OtherDataForge)
+            }
             (Some(record), Some(Selected::File(file))) => writer.write(record, file, scratch),
             (_, Some(Selected::Taken(file))) => {
                 RecordOutcome::Failed(RecordExportError::FileTaken {
@@ -133,7 +136,8 @@ enum RecordOutcome {
 }
 
 #[derive(Default)]
-struct Scratch {
+struct Scratch<'f> {
+    trees: TreeBuilder<'f>,
     xml: RecordXml,
     bytes: Vec<u8>,
     read: Vec<u8>,
@@ -146,7 +150,12 @@ struct Writer<'a> {
 }
 
 impl Writer<'_> {
-    fn write(&self, record: &Record<'_>, file: &str, scratch: &mut Scratch) -> RecordOutcome {
+    fn write<'f>(
+        &self,
+        record: &Record<'f>,
+        file: &str,
+        scratch: &mut Scratch<'f>,
+    ) -> RecordOutcome {
         if self.cancel.is_some_and(crate::CancelToken::is_cancelled) {
             return RecordOutcome::Cancelled;
         }
@@ -156,15 +165,15 @@ impl Writer<'_> {
         }
     }
 
-    fn try_write(
+    fn try_write<'f>(
         &self,
-        record: &Record<'_>,
+        record: &Record<'f>,
         file: &str,
-        scratch: &mut Scratch,
+        scratch: &mut Scratch<'f>,
     ) -> Result<RecordOutcome, RecordExportError> {
         let relative = relative_path(file).ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
-        let tree = record.tree()?;
+        let tree = scratch.trees.build(record)?;
         let errors = tree.errors().count();
         let folder = create_folders(self.target, relative.parent())?;
         let destination = folder.join(name);
@@ -195,7 +204,7 @@ impl Writer<'_> {
         Ok(RecordOutcome::Written { errors })
     }
 
-    fn keep(&self, destination: &Path, scratch: &mut Scratch) -> Result<bool, ExtractionError> {
+    fn keep(&self, destination: &Path, scratch: &mut Scratch<'_>) -> Result<bool, ExtractionError> {
         let metadata = match fs::symlink_metadata(destination) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),

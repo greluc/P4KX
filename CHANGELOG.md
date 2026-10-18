@@ -25,6 +25,10 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+- `p4kx dcb export`: write Records as Record XML, one file per Record under its record path, with
+  owned structs nested, arrays in stored order, References and weak pointers as links (GUID,
+  record path, type and, inside the Record, the location) and explicit nulls. Unreadable values
+  such as dangling References are reported per value while the rest of the Record is written.
 
 ### Changed
 

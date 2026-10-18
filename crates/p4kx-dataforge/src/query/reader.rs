@@ -56,6 +56,21 @@ pub(crate) enum Step {
         elements: Elements,
         select: Select,
     },
+    /// A link `->` follows to the instance of `declared` or of a struct deriving from it.
+    Follow {
+        at: u64,
+        link: Link,
+        declared: Box<[usize]>,
+    },
+}
+
+/// What `->` follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Link {
+    /// A Reference, to the instance of the Record with its GUID.
+    Reference,
+    /// A weak pointer, to the instance it names.
+    Weak,
 }
 
 /// What the elements of an array are.
@@ -90,7 +105,9 @@ impl Reader {
             Self::Walk(walk) => {
                 let mut steps = walk.steps.clone();
                 match steps.first_mut() {
-                    Some(Step::Pointer { at, .. } | Step::Array { at, .. }) => {
+                    Some(
+                        Step::Pointer { at, .. } | Step::Array { at, .. } | Step::Follow { at, .. },
+                    ) => {
                         *at = at.saturating_add(base);
                     }
                     None => {}

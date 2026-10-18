@@ -246,6 +246,7 @@ fn json_with_out_prints_a_json_summary() -> TestResult {
             "output": file_text,
             "records": 3,
             "failed": 0,
+            "unresolved_references": 0,
         }),
         "summary"
     );

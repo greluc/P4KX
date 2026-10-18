@@ -1,0 +1,11 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"from Item select mass, size\")?"
+---
+record path                         mass     size
+----------------------------------  -------  ----------------------------------------------------------------
+libs/foundry/records/items/boxes    2.5      error: offset 4294967295 in the text table is not a valid string
+libs/foundry/records/items/boxes    1        Small
+libs/foundry/records/ships/avenger  25000.5  Large
+libs/foundry/records/weapons/gun    12       Small
+4 Records

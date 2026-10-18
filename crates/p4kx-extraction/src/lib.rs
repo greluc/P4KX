@@ -30,6 +30,7 @@ pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use p4kx_cryxml as cryxml;
+pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, Property,
     RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Struct, Value, ValueError, ValueKind,

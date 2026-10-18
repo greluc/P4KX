@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "output": "[DIR]/hull_ddna.dds",
+  "parts": 4,
+  "size": 2916,
+  "texture": "Data\\Textures\\hull_ddna.dds"
+}

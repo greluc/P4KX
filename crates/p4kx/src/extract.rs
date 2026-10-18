@@ -9,20 +9,49 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, Build, ExtractionReport, create_default_target, extract, select_entries,
+    Archive, Build, Entry, EntryFailure, ExtractionReport, Filter, create_default_target, extract,
+    select_entries,
 };
+use serde::Serialize;
+use thiserror::Error;
 
 use crate::cli::ExtractArgs;
 use crate::exit;
+use crate::json;
 
-/// Extracts the requested Entries and prints the skipped Entries and a summary to stdout and the
-/// failed Entries to stderr.
-pub(crate) fn run(args: &ExtractArgs) -> Result<ExitCode> {
+/// A Filter that matches no Entry of the Archive.
+#[derive(Debug, Error)]
+#[error("no Entry matches {0}")]
+pub(crate) struct NoMatch(String);
+
+#[derive(Serialize)]
+struct ReportJson<'a> {
+    target: String,
+    extracted: usize,
+    skipped: &'a [String],
+    failed: Vec<FailureJson<'a>>,
+    cancelled: usize,
+}
+
+#[derive(Serialize)]
+struct FailureJson<'a> {
+    path: &'a str,
+    error: String,
+}
+
+/// Extracts the requested Entries and prints the report: as JSON, or the skipped Entries and a
+/// summary to stdout and the failed Entries to stderr.
+pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
-    let entries = select_entries(&archive, &args.entries)?;
+    let entries = requested_entries(args, &archive)?;
     let target = prepare_target(args, &archive)?;
     let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
-    if let Err(error) = print_report(&report, &target)
+    let printed = if as_json {
+        json::print(&report_json(&report, &target))
+    } else {
+        print_report(&report, &target)
+    };
+    if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
     {
         return Err(error.into());
@@ -32,6 +61,17 @@ pub(crate) fn run(args: &ExtractArgs) -> Result<ExitCode> {
     } else {
         exit::PARTIAL_FAILURE
     }))
+}
+
+fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec<&'a Entry>> {
+    let Some(text) = &args.filter else {
+        return Ok(select_entries(archive, &args.entries)?);
+    };
+    let entries = Filter::new(text).select(archive);
+    if entries.is_empty() {
+        return Err(NoMatch(text.clone()).into());
+    }
+    Ok(entries)
 }
 
 fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
@@ -47,16 +87,38 @@ fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 
+fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a> {
+    ReportJson {
+        target: json::path(target),
+        extracted: report.extracted(),
+        skipped: report.skipped(),
+        failed: report
+            .failures()
+            .iter()
+            .map(|failure| FailureJson {
+                path: failure.path(),
+                error: reason(failure),
+            })
+            .collect(),
+        cancelled: report.cancelled(),
+    }
+}
+
+fn reason(failure: &EntryFailure) -> String {
+    let mut reason = failure.error().to_string();
+    let mut source = failure.error().source();
+    while let Some(cause) = source {
+        reason.push_str(": ");
+        reason.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    reason
+}
+
 fn print_report(report: &ExtractionReport, target: &Path) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
-        write!(err, "failed {}: {}", failure.path(), failure.error())?;
-        let mut source = failure.error().source();
-        while let Some(cause) = source {
-            write!(err, ": {cause}")?;
-            source = cause.source();
-        }
-        writeln!(err)?;
+        writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
     let mut out = io::stdout().lock();
     for path in report.skipped() {

@@ -1,0 +1,13 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "archive": "[DIR]/library/LIVE/Data.p4k",
+  "build": null,
+  "channel": "LIVE",
+  "compressed_size": 35,
+  "encrypted_count": 1,
+  "entry_count": 4,
+  "size": 118
+}

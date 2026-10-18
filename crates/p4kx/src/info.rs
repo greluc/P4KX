@@ -3,20 +3,57 @@ use std::io::{self, Write};
 use anyhow::Result;
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, Build, Entry};
+use serde::Serialize;
 
 use crate::cli::InfoArgs;
+use crate::json::{self, BuildJson};
 
 const UNKNOWN: &str = "unknown";
 
+#[derive(Serialize)]
+struct Summary<'a> {
+    archive: String,
+    channel: Option<String>,
+    build: Option<BuildJson<'a>>,
+    entry_count: usize,
+    encrypted_count: usize,
+    compressed_size: u64,
+    size: u64,
+}
+
 /// Prints the Channel, the Build and a summary of the Archive, one `Label: value` line each.
-pub(crate) fn run(args: &InfoArgs) -> Result<()> {
+pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
     let archive = Archive::open(&args.archive)?;
-    let channel = channel_name(archive.path());
+    if archive.build().is_none() {
+        warn_about_manifest(&archive)?;
+    }
+    let entries = archive.entries();
+    let info = Summary {
+        archive: json::path(archive.path()),
+        channel: channel_name(archive.path()),
+        build: archive.build().map(BuildJson::from),
+        entry_count: entries.len(),
+        encrypted_count: entries.iter().filter(|entry| entry.is_encrypted()).count(),
+        compressed_size: entries.iter().map(Entry::compressed_size).sum(),
+        size: entries.iter().map(Entry::uncompressed_size).sum(),
+    };
+    if as_json {
+        json::print(&info)?;
+    } else {
+        print_lines(&info, archive.build())?;
+    }
+    Ok(())
+}
+
+fn print_lines(info: &Summary<'_>, build: Option<&Build>) -> io::Result<()> {
     let mut lines: Vec<(&str, String)> = vec![
-        ("Archive", archive.path().display().to_string()),
-        ("Channel", channel.unwrap_or_else(|| UNKNOWN.to_owned())),
+        ("Archive", info.archive.clone()),
+        (
+            "Channel",
+            info.channel.clone().unwrap_or_else(|| UNKNOWN.to_owned()),
+        ),
     ];
-    if let Some(build) = archive.build() {
+    if let Some(build) = build {
         lines.extend([
             ("Branch", build.branch().to_owned()),
             ("Version", build.version().to_owned()),
@@ -24,18 +61,13 @@ pub(crate) fn run(args: &InfoArgs) -> Result<()> {
             ("BuildId", build.build_id().to_owned()),
         ]);
     } else {
-        warn_about_manifest(&archive)?;
         lines.push(("Build", UNKNOWN.to_owned()));
     }
-    let entries = archive.entries();
-    let encrypted = entries.iter().filter(|entry| entry.is_encrypted()).count();
-    let compressed: u64 = entries.iter().map(Entry::compressed_size).sum();
-    let size: u64 = entries.iter().map(Entry::uncompressed_size).sum();
     lines.extend([
-        ("Entries", entries.len().to_string()),
-        ("Encrypted", encrypted.to_string()),
-        ("Compressed size", compressed.to_string()),
-        ("Size", size.to_string()),
+        ("Entries", info.entry_count.to_string()),
+        ("Encrypted", info.encrypted_count.to_string()),
+        ("Compressed size", info.compressed_size.to_string()),
+        ("Size", info.size.to_string()),
     ]);
     let mut out = io::stdout().lock();
     for (label, value) in lines {

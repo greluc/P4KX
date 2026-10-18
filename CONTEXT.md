@@ -30,6 +30,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Filter**:
+Text that selects Entries by path: a glob over the full path when it holds `*` or `?`, otherwise
+a substring anywhere in the path; case and separator kind do not matter.
+_Avoid_: query (a Query selects Records), search pattern
+
 **Layout**:
 The on-disk structure of an Archive's directory: v1 (ZIP64 central directory with local headers)
 or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`).
@@ -51,7 +56,7 @@ _Avoid_: weak pointer, pointer (alone)
 
 **Query**:
 A path expression that selects Records or values inside Records.
-_Avoid_: search (searching is over Entry paths), filter
+_Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
 
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.

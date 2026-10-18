@@ -17,11 +17,14 @@ p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
 anyhow.workspace = true
 clap = { workspace = true, features = ["env"] }
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
 assert_cmd.workspace = true
+insta.workspace = true
 predicates.workspace = true
 tempfile.workspace = true
 toml.workspace = true

@@ -8,6 +8,9 @@ use crate::exit::EXIT_CODES_HELP;
 #[derive(Debug, Parser)]
 #[command(name = "p4kx", version, after_help = EXIT_CODES_HELP)]
 pub(crate) struct Cli {
+    /// Prints the result as one line of JSON instead of text.
+    #[arg(long, global = true)]
+    pub(crate) json: bool,
     /// What to do.
     #[command(subcommand)]
     pub(crate) command: Command,
@@ -19,6 +22,9 @@ pub(crate) enum Command {
     /// Lists every Entry of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     List(ListArgs),
+    /// Lists the Entries of an Archive whose path matches a Filter.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Search(SearchArgs),
     /// Extracts the given Entries of an Archive into a new target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(ExtractArgs),
@@ -37,6 +43,16 @@ pub(crate) struct ListArgs {
     pub(crate) archive: PathBuf,
 }
 
+/// Arguments of `p4kx search`.
+#[derive(Debug, Args)]
+pub(crate) struct SearchArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The Filter: with `*` (any run of characters) or `?` (one character) a glob over the full
+    /// path, otherwise text anywhere in the path; ignores case, `\` and `/` match alike.
+    pub(crate) filter: String,
+}
+
 /// Arguments of `p4kx info`.
 #[derive(Debug, Args)]
 pub(crate) struct InfoArgs {
@@ -50,8 +66,11 @@ pub(crate) struct ExtractArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
     /// Paths of the Entries to extract, with `\` or `/` as separator, ignoring case.
-    #[arg(required = true)]
+    #[arg(required_unless_present = "filter", conflicts_with = "filter")]
     pub(crate) entries: Vec<String>,
+    /// Extracts every Entry the Filter matches instead of the given paths.
+    #[arg(long, value_name = "FILTER")]
+    pub(crate) filter: Option<String>,
     /// Target folder; created if missing, existing files in it are kept. Defaults to a new folder
     /// SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]

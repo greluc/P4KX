@@ -1,0 +1,23 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: "steps.join(\"\\n\")"
+---
+{
+  "action": "added",
+  "kind": "folder",
+  "path": "[DIR]/Games/StarCitizen"
+}
+{
+  "action": "already_added",
+  "kind": "folder",
+  "path": "[DIR]/Games/StarCitizen"
+}
+{
+  "action": "added",
+  "kind": "archive",
+  "path": "[DIR]/library/EPTU/Data.p4k"
+}
+{
+  "action": "removed",
+  "path": "[DIR]/Games/StarCitizen"
+}

@@ -16,6 +16,7 @@ use crate::{DataForgeError, ValueKind};
 #[derive(Debug)]
 pub struct DataForge<'a> {
     pub(crate) version: u32,
+    pub(crate) byte_len: usize,
     pub(crate) structs: Table<'a, StructDef>,
     pub(crate) properties: Table<'a, PropertyDef>,
     pub(crate) enums: Table<'a, EnumDef>,
@@ -70,6 +71,7 @@ impl<'a> DataForge<'a> {
         let Blocks { counts, starts } = instance_blocks(structs, mappings, instances.len())?;
         let forge = Self {
             version: header.version,
+            byte_len: bytes.len(),
             structs,
             properties,
             enums,
@@ -94,6 +96,12 @@ impl<'a> DataForge<'a> {
     #[must_use]
     pub const fn version(&self) -> u32 {
         self.version
+    }
+
+    /// Returns the number of bytes the DataForge was opened over.
+    #[must_use]
+    pub const fn byte_len(&self) -> usize {
+        self.byte_len
     }
 
     /// Returns the number of Records.

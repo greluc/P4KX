@@ -41,7 +41,8 @@ pub fn write_record_export(
 /// one file per Record only the first time `plans` is used for it.
 ///
 /// `plans` must only ever be used with `forge` or with the same DataForge opened again; a plan
-/// for a DataForge with another number of Records is not used, and the files are planned again.
+/// for a DataForge with another number of Records or another size is not used, and the files are
+/// planned again.
 #[must_use]
 pub fn write_planned_record_export(
     forge: &DataForge<'_>,

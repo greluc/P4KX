@@ -13,6 +13,15 @@ pub(crate) struct RecordExportState {
     cache: ForgeCache,
 }
 
+impl RecordExportState {
+    /// Closes the setup and forgets the DataForge read, because the Archive changed on disk; a
+    /// running export goes on with what it read.
+    pub(super) fn archive_changed(&mut self) {
+        self.setup = None;
+        self.cache.forget();
+    }
+}
+
 impl Model {
     /// Returns whether a Record export can be set up: the open Archive has a DataForge that did
     /// not fail to load, and no Record export runs.

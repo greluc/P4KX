@@ -1,21 +1,21 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::sync::{Arc, OnceLock};
 use std::thread;
 use std::time::SystemTime;
 
 use p4kx_export::{
     CancelToken, ConflictPolicy, RecordExportOptions, RecordForm, write_planned_record_export,
 };
-use p4kx_extraction::{DataForgeEntry, Filter, Record, create_default_target};
+use p4kx_extraction::{Filter, Record, create_default_target};
 use rayon::prelude::*;
 
 use super::RecordExportSummary;
 use super::progress::{RecordExportProgress, RecordExportStage, Shared};
-use super::source::ForgeSource;
+use super::source::{ForgeSlot, ForgeSource};
 use crate::extraction::target_naming;
 use crate::model::describe;
 use crate::{EntryIndex, TargetKind};
@@ -135,12 +135,7 @@ impl RecordExport {
         if !matches!(self.state, State::Running(_)) || !self.shared.give_up() {
             return false;
         }
-        self.state = State::Finished(RecordExportSummary::nothing_written(
-            self.form,
-            self.folder.clone(),
-            0,
-            true,
-        ));
+        self.state = State::Finished(RecordExportSummary::nothing_written(self.form, 0, true));
         true
     }
 }
@@ -158,7 +153,7 @@ fn ended(outcome: Option<RunResult>) -> State {
 /// once the export ended.
 pub(crate) fn start(
     index: &Arc<EntryIndex>,
-    source: Arc<OnceLock<ForgeSource>>,
+    source: Arc<ForgeSlot>,
     request: Request,
     wake: impl Fn() + Send + 'static,
 ) -> RecordExport {
@@ -204,7 +199,7 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
-    fn run(&self, slot: &OnceLock<ForgeSource>) -> RunResult {
+    fn run(&self, slot: &ForgeSlot) -> RunResult {
         let source = self.source(slot)?;
         if !self.shared.leave_reading() {
             return Err(String::new());
@@ -216,7 +211,6 @@ impl Job<'_> {
         if records.is_empty() || self.cancel.is_cancelled() {
             return Ok(RecordExportSummary::nothing_written(
                 self.request.form,
-                self.request.folder.clone(),
                 records.len(),
                 self.cancel.is_cancelled(),
             ));
@@ -244,23 +238,12 @@ impl Job<'_> {
     }
 
     /// Returns DataForge from `slot`, reading it from the Archive first when the slot is empty.
-    fn source<'s>(&self, slot: &'s OnceLock<ForgeSource>) -> Result<&'s ForgeSource, String> {
+    fn source(&self, slot: &ForgeSlot) -> Result<Arc<ForgeSource>, String> {
         self.index
             .watch()
             .check()
             .map_err(|error| describe(&error))?;
-        if let Some(source) = slot.get() {
-            return Ok(source);
-        }
-        let entry = DataForgeEntry::read(self.index.archive()).map_err(|error| describe(&error))?;
-        self.index
-            .watch()
-            .check()
-            .map_err(|error| describe(&error))?;
-        Ok(slot.get_or_init(|| ForgeSource {
-            entry,
-            plans: p4kx_export::RecordFilePlans::default(),
-        }))
+        slot.read(self.index)
     }
 }
 

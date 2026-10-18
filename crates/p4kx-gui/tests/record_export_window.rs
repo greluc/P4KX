@@ -185,3 +185,47 @@ fn the_dialog_speaks_german() -> TestResult {
     harness.get_by_label("Export starten");
     Ok(())
 }
+
+#[test]
+fn an_export_cancelled_while_writing_reports_what_it_wrote() -> TestResult {
+    let (_dir, out, mut harness) = window(opened(&many(20000))?);
+    open_dialog(&mut harness, "Export", "Record export…");
+    let filter = (Role::TextInput, "Record path filter");
+    harness.get_by_role_and_label(filter.0, filter.1).click();
+    harness.run();
+    harness
+        .get_by_role_and_label(filter.0, filter.1)
+        .type_text("items");
+    harness.run();
+    harness.get_by_label("Existing folder").click();
+    harness.run();
+    harness.get_by_label("Start export").click();
+    harness.step();
+    wait_until(harness.state_mut(), |model| {
+        model.record_export().is_some_and(|run| {
+            !matches!(
+                run.status(),
+                RecordExportStatus::Running(progress) if progress.done == 0
+            )
+        })
+    })?;
+    harness.step();
+    harness
+        .get_by_role_and_label(Role::Button, "Cancel")
+        .click();
+    harness.step();
+    let RecordExportStatus::Finished(summary) = ended(harness.state_mut())? else {
+        return Err("no summary".into());
+    };
+    let (written, cancelled) = (summary.written(), summary.cancelled());
+    let was_cancelled = summary.was_cancelled();
+    harness.run();
+
+    assert!(was_cancelled, "cancelled");
+    assert!(written > 0, "some Records were written first");
+    assert_eq!(written + cancelled, 20000, "every Record is accounted for");
+    assert_eq!(files_below(&out)?.len(), written, "the files written");
+    harness.get_by_label("Record export cancelled");
+    harness.get_by_label(&format!("Target: {}", out.display()));
+    Ok(())
+}

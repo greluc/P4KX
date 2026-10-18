@@ -19,7 +19,7 @@ pub struct FailedRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordExportSummary {
     form: RecordForm,
-    target: PathBuf,
+    target: Option<PathBuf>,
     selected: usize,
     written: usize,
     skipped: Vec<String>,
@@ -39,7 +39,7 @@ impl RecordExportSummary {
     ) -> Self {
         Self {
             form: summary.form(),
-            target,
+            target: Some(target),
             selected,
             written: summary.written(),
             skipped: summary.skipped().to_vec(),
@@ -60,17 +60,17 @@ impl RecordExportSummary {
         }
     }
 
-    /// Returns the summary of an export that wrote nothing: none of the `selected` Records,
-    /// because none matched or, when `interrupted`, because it was cancelled first.
+    /// Returns the summary of an export that created no target and wrote nothing: none of the
+    /// `selected` Records, because none matched or, when `interrupted`, because it was cancelled
+    /// first.
     pub(crate) const fn nothing_written(
         form: RecordForm,
-        target: PathBuf,
         selected: usize,
         interrupted: bool,
     ) -> Self {
         Self {
             form,
-            target,
+            target: None,
             selected,
             written: 0,
             skipped: Vec::new(),
@@ -89,16 +89,19 @@ impl RecordExportSummary {
         self.form
     }
 
-    /// Returns the folder the Records were written into.
+    /// Returns the folder the Records were written into, or `None` when the export ended before
+    /// it prepared one.
     #[must_use]
-    pub fn target(&self) -> &Path {
-        &self.target
+    pub fn target(&self) -> Option<&Path> {
+        self.target.as_deref()
     }
 
-    /// Returns the file of an NDJSON export, or `None` for one file per Record.
+    /// Returns the file of an NDJSON export, or `None` for one file per Record or without a
+    /// target.
     #[must_use]
     pub fn file(&self) -> Option<PathBuf> {
-        (self.form == RecordForm::Ndjson).then(|| self.target.join(NDJSON_FILE))
+        let target = self.target.as_deref()?;
+        (self.form == RecordForm::Ndjson).then(|| target.join(NDJSON_FILE))
     }
 
     /// Returns the number of Records the export was asked to write.

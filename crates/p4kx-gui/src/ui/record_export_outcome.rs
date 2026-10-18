@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -256,11 +257,13 @@ fn notes(texts: &Texts, summary: &RecordExportSummary) -> Vec<(String, egui::Col
         ("errors", number(texts, summary.error_values())),
     ];
     notes.push((texts.format(T::SummaryErrors, &errors), palette::GRAY_1));
-    let target = summary
+    let Some(target) = summary
         .file()
-        .unwrap_or_else(|| summary.target().to_path_buf())
-        .display()
-        .to_string();
+        .or_else(|| summary.target().map(Path::to_path_buf))
+        .map(|target| target.display().to_string())
+    else {
+        return notes;
+    };
     if let Some(reason) = summary.error() {
         let args = [
             ("path", target.clone().into()),

@@ -142,3 +142,50 @@ fn every_form_reports_each_record_once_as_it_ends() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn plans_of_a_dataforge_with_as_many_records_elsewhere_are_planned_again() -> TestResult {
+    let at = |path: &str| {
+        p4kx_testkit::DataForgeBuilder::new()
+            .structure(p4kx_testkit::TestStruct::new("Wheel"))
+            .record(TestRecord::new(0x42, "Wheel", "Wheel.One", path))
+            .build()
+    };
+    let (first, second) = (at("libs/a/one.xml"), at("libs/second/folder/one.xml"));
+    let (first, second) = (DataForge::open(&first)?, DataForge::open(&second)?);
+    let plans = RecordFilePlans::default();
+    let options = RecordExportOptions::default();
+    let warm = tempfile::tempdir()?;
+    let first_records: Vec<_> = first.records().collect();
+    let _warmed = write_planned_record_export(
+        &first,
+        &plans,
+        &first_records,
+        RecordForm::Json,
+        warm.path(),
+        &options,
+    );
+    let records: Vec<_> = second.records().collect();
+    let planned = tempfile::tempdir()?;
+
+    let summary = write_planned_record_export(
+        &second,
+        &plans,
+        &records,
+        RecordForm::Json,
+        planned.path(),
+        &options,
+    );
+
+    assert_eq!(summary.written(), 1, "the Record");
+    let files: Vec<String> = listing(planned.path())?
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(
+        files,
+        ["libs/second/folder/one.json"],
+        "its own record path"
+    );
+    Ok(())
+}

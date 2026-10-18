@@ -11,6 +11,7 @@ use crate::record_files::RecordFiles;
 pub struct RecordFilePlan<F> {
     files: RecordFiles,
     records: usize,
+    bytes: usize,
     format: PhantomData<fn() -> F>,
 }
 
@@ -22,13 +23,15 @@ impl<F: RecordFileFormat> RecordFilePlan<F> {
         Self {
             files: RecordFiles::plan(forge, F::EXTENSION),
             records: forge.record_count(),
+            bytes: forge.byte_len(),
             format: PhantomData,
         }
     }
 
-    /// Returns whether the plan can belong to `forge`: both have the same number of Records.
+    /// Returns whether the plan can belong to `forge`: both have the same number of Records and
+    /// the same size in bytes.
     pub(crate) const fn fits(&self, forge: &DataForge<'_>) -> bool {
-        self.records == forge.record_count()
+        self.records == forge.record_count() && self.bytes == forge.byte_len()
     }
 
     pub(crate) const fn files(&self) -> &RecordFiles {
@@ -40,6 +43,7 @@ impl<F> fmt::Debug for RecordFilePlan<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RecordFilePlan")
             .field("records", &self.records)
+            .field("bytes", &self.bytes)
             .finish_non_exhaustive()
     }
 }

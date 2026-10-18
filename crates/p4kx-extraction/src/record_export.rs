@@ -56,7 +56,7 @@ pub fn export_record_files<F: RecordFileFormat>(
 /// Writes `records` of `forge` like [`export_record_files`], with the files of `plan`.
 ///
 /// `plan` must have been made from `forge`; a plan for a DataForge with another number of
-/// Records is not used, and the files are planned again.
+/// Records or another size is not used, and the files are planned again.
 #[must_use]
 pub fn export_planned_record_files<F: RecordFileFormat>(
     forge: &DataForge<'_>,

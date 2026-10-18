@@ -78,11 +78,11 @@ fn a_smaller_mip_of_a_file_is_exported_from_the_header_tail() -> TestResult {
 #[test]
 fn an_unsupported_format_fails_before_writing_anything() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let bc6h = TestTextureFormat::Dx10Block {
-        dxgi_format: 95,
-        block_bytes: 16,
+    let shared_exponent = TestTextureFormat::Dx10Pixel {
+        dxgi_format: 67,
+        pixel_bytes: 4,
     };
-    let dds = SplitDds::new(bc6h, 16, 16).split(1);
+    let dds = SplitDds::new(shared_exponent, 16, 16).split(1);
     let header = dds.write_files(dir.path(), "hull.dds")?;
     let texture = Texture::from_file(&header)?;
     let out = dir.path().join("hull.png");
@@ -94,9 +94,13 @@ fn an_unsupported_format_fails_before_writing_anything() -> TestResult {
         ..
     }) = result
     else {
-        panic!("BC6H has no decoder yet: {result:?}");
+        panic!("R9G9B9E5 has no decoder: {result:?}");
     };
-    assert_eq!(format.to_string(), "BC6H_UF16", "the format is named");
+    assert_eq!(
+        format.to_string(),
+        "R9G9B9E5_SHAREDEXP",
+        "the format is named"
+    );
     assert!(matches!(format, TextureFormat::Dxgi(_)), "a DXGI format");
     assert!(!out.exists(), "nothing is written");
     Ok(())

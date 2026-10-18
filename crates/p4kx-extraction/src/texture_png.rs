@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use p4kx_texture::{RgbaImage, cube_cross, write_png};
+use p4kx_texture::{DdsHeader, RgbaImage, cube_cross, write_png};
 use rayon::prelude::*;
 
 use crate::output_file::write_replacing;
@@ -70,9 +70,8 @@ impl Texture<'_> {
         level: u32,
         layout: CubemapLayout,
     ) -> Result<PngReport, ConversionError> {
-        let header = self.header();
-        let is_cube = header.faces() == CUBE_FACES && header.array_size() == 1;
-        let files: Vec<PathBuf> = if is_cube && layout == CubemapLayout::Faces {
+        let cube = is_cube(self.header());
+        let files: Vec<PathBuf> = if cube && layout == CubemapLayout::Faces {
             CUBE_FACE_NAMES
                 .iter()
                 .map(|face| face_path(out, face))
@@ -83,7 +82,7 @@ impl Texture<'_> {
         for file in &files {
             self.refuse_input(file)?;
         }
-        let images = match (is_cube, layout) {
+        let images = match (cube, layout) {
             (false, _) => vec![self.decode_mip(level)?],
             (true, CubemapLayout::Faces) => self.decode_surfaces(level)?,
             (true, CubemapLayout::Cross) => vec![
@@ -115,8 +114,13 @@ impl Texture<'_> {
     }
 }
 
+/// Returns whether header describes one cubemap, not an array of them.
+pub(crate) const fn is_cube(header: &DdsHeader) -> bool {
+    header.faces() == CUBE_FACES && header.array_size() == 1
+}
+
 /// Returns `out` with `_<face>` appended to its file stem.
-fn face_path(out: &Path, face: &str) -> PathBuf {
+pub(crate) fn face_path(out: &Path, face: &str) -> PathBuf {
     let mut name = OsString::from(out.file_stem().unwrap_or_default());
     name.push("_");
     name.push(face);

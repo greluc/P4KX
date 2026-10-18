@@ -20,6 +20,10 @@ fails while its section is missing.
   face, `p4kx texture png` writes a cubemap as six face files or with `--cross` as one cross, an
   alpha or smoothness tail `.dds.a` is merged into the alpha channel of the PNG, and
   `p4kx texture info` reports it.
+- High-range BC6H textures, signed and unsigned: `p4kx texture png` decodes them with a pure-Rust
+  decoder to floating-point RGB and writes OpenEXR (`.exr`, 32-bit float RGB) instead of a PNG, so
+  their range is not clipped, cubemaps as six faces or a cross; `--tone-map` writes a Reinhard
+  tone-mapped 8-bit PNG instead.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
@@ -48,6 +52,10 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+- `p4kx dcb export`: write Records as Record XML, one file per Record under its record path, with
+  owned structs nested, arrays in stored order, References and weak pointers as links (GUID,
+  record path, type and, inside the Record, the location) and explicit nulls. Unreadable values
+  such as dangling References are reported per value while the rest of the Record is written.
 - DataForge in the window: a DataForge node below the folders of the path tree shows the Records
   as folders by record path, with record folders where several Records share one. It loads in the
   background the first time it is opened, with a loading indicator, and is kept until the Archive

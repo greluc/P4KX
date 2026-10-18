@@ -20,6 +20,7 @@ mod selection;
 mod sound;
 mod target;
 mod texture;
+mod texture_exr;
 mod texture_parts;
 mod texture_png;
 mod tracker;
@@ -41,11 +42,13 @@ pub use p4kx_audio::{AudioError, ByteOrder, Codec, WavReport, Wem};
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, Property,
-    RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Struct, Value, ValueError, ValueKind,
+    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, MAX_NESTING_DEPTH,
+    MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Reference,
+    Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
 };
 pub use p4kx_texture::{
-    BlockLayout, DdsHeader, DxgiFormat, MergeReport, Mip, RgbaImage, TextureError, TextureFormat,
+    BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
+    TextureFormat,
 };
 pub use record_export::export_records;
 pub use record_report::{
@@ -56,5 +59,6 @@ pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name};
 pub use texture::Texture;
+pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

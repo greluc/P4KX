@@ -14,6 +14,31 @@ pub struct HdrImage {
 }
 
 impl HdrImage {
+    /// Creates an image of `width` × `height` pixels from three values R, G, B per pixel, row by
+    /// row from the top.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TextureError::MipLength`] when `pixels` does not hold exactly that many pixels,
+    /// and [`TextureError::InvalidHeader`] when the size overflows.
+    pub fn new(width: u32, height: u32, pixels: Vec<f32>) -> Result<Self, TextureError> {
+        let expected = u64::from(width)
+            .checked_mul(u64::from(height))
+            .and_then(|count| count.checked_mul(RGB as u64))
+            .ok_or(TextureError::InvalidHeader("the texture size overflows"))?;
+        if pixels.len() as u64 != expected {
+            return Err(TextureError::MipLength {
+                expected,
+                actual: pixels.len() as u64,
+            });
+        }
+        Ok(Self {
+            width,
+            height,
+            pixels,
+        })
+    }
+
     /// Returns the width in pixels.
     #[must_use]
     pub const fn width(&self) -> u32 {

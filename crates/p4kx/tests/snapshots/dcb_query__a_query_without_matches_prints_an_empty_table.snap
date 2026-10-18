@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"from Weapon at \\\"*/ships/*\\\" select damage\")?"
+---
+record path  damage
+-----------  ------
+0 Records

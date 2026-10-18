@@ -4,8 +4,12 @@ use std::error::Error;
 use std::path::Path;
 
 use exr::prelude::{ReadChannels, ReadLayers, Vec2};
-use p4kx_extraction::{ConversionError, ExrReport, Texture, TextureError};
+use p4kx_extraction::{
+    CUBE_FACE_NAMES, ConversionError, CubemapLayout, DxgiFormat, ExrReport, Texture, TextureError,
+    TextureFormat,
+};
 use p4kx_testkit::{SplitDds, TestTextureFormat};
+use p4kx_texture::decode_hdr;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -54,7 +58,8 @@ fn a_bc6h_mip_is_exported_as_exr_with_its_decoded_values() -> TestResult {
             ExrReport {
                 level: 1,
                 width: 16,
-                height: 8
+                height: 8,
+                files: vec![out.clone()],
             },
             "the report of DXGI format {format}"
         );
@@ -132,5 +137,60 @@ fn an_exr_onto_an_input_or_of_a_missing_mip_is_refused() -> TestResult {
         ),
         "{beyond:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn a_bc6h_cubemap_is_exported_as_six_exr_faces_in_dds_order() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = SplitDds::new(bc6h(96), 8, 8).cubemap().split(2);
+    let header = dds.write_files(dir.path(), "sky_cube.dds")?;
+    let texture = Texture::from_file(&header)?;
+
+    let report = texture.exr_to_file(&dir.path().join("sky.exr"), 0)?;
+
+    assert_eq!(report.files.len(), 6, "six faces");
+    for ((face, file), name) in (0..).zip(&report.files).zip(CUBE_FACE_NAMES) {
+        assert_eq!(
+            file,
+            &dir.path().join(format!("sky_{name}.exr")),
+            "face {face} is named {name}"
+        );
+        let expected = decode_hdr(
+            TextureFormat::Dxgi(DxgiFormat(96)),
+            8,
+            8,
+            &dds.surface_mip(face, 0),
+        )?;
+        let (size, pixels) = read_exr(file)?;
+        assert_eq!((size.width(), size.height()), (8, 8), "face {face} size");
+        assert_eq!(pixels, expected.pixels(), "face {face} holds its own data");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_bc6h_cubemap_is_exported_as_one_exr_cross() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = SplitDds::new(bc6h(95), 4, 4).cubemap().split(1);
+    let header = dds.write_files(dir.path(), "sky_cube.dds")?;
+    let texture = Texture::from_file(&header)?;
+    let out = dir.path().join("sky.exr");
+
+    let report = texture.exr_to_file_as(&out, 0, CubemapLayout::Cross)?;
+
+    assert_eq!(report.files, vec![out.clone()], "one file");
+    let (size, pixels) = read_exr(&out)?;
+    assert_eq!(
+        (size.width(), size.height()),
+        (16, 12),
+        "a cross of 4 × 3 faces"
+    );
+    let faces = texture.decode_surfaces_hdr(0)?;
+    let positive_z = faces.get(4).map(|face| face.pixels().to_vec());
+    let centre: Vec<f32> = (4..8)
+        .flat_map(|row| pixels[(row * 16 + 4) * 3..(row * 16 + 8) * 3].to_vec())
+        .collect();
+    assert_eq!(Some(centre), positive_z, "+Z sits in the centre");
     Ok(())
 }

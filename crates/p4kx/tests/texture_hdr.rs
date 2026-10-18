@@ -170,13 +170,13 @@ fn json_names_the_written_format() -> TestResult {
     let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["format"], "exr", "{json}");
     assert!(
-        json["requested"]
+        json["output"]
             .as_str()
             .is_some_and(|path| path.ends_with("sky.png")),
         "{json}"
     );
     assert!(
-        json["output"]
+        json["files"][0]
             .as_str()
             .is_some_and(|path| path.ends_with("sky.exr")),
         "{json}"
@@ -205,5 +205,42 @@ fn tone_map_on_a_texture_without_high_range_notes_that_it_has_no_effect() -> Tes
         .stdout(predicate::str::contains("panel.png"));
 
     assert!(out.exists(), "the PNG is written as usual");
+    Ok(())
+}
+
+#[test]
+fn a_bc6h_cubemap_is_written_as_an_exr_cross_on_request() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let format = TestTextureFormat::Dx10Block {
+        dxgi_format: 95,
+        block_bytes: 16,
+    };
+    let header = SplitDds::new(format, 8, 8)
+        .cubemap()
+        .split(2)
+        .write_files(dir.path(), "sky_cube.dds")?;
+
+    p4kx()?
+        .args(["texture", "png", "--cross"])
+        .arg(&header)
+        .arg("--out")
+        .arg(dir.path().join("sky.png"))
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("sky.exr instead of"));
+
+    let (size, pixels) = read_exr(&dir.path().join("sky.exr"))?;
+    assert_eq!(
+        (size.width(), size.height()),
+        (32, 24),
+        "a cross of 4 × 3 faces"
+    );
+    assert!(
+        pixels
+            .iter()
+            .flatten()
+            .all(|value| value.is_finite() && *value >= 0.0),
+        "unsigned values"
+    );
     Ok(())
 }

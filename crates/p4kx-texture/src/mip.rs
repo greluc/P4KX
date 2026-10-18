@@ -1,12 +1,12 @@
 use std::io::{self, Read};
 
+use rayon::prelude::*;
+
 use crate::header::MAX_HEADER_LEN;
-use crate::merge::{checked_part_len, read_prefix};
+use crate::merge::{checked_part_len, read_prefix, read_up_to};
 use crate::{DdsHeader, HdrImage, RgbaImage, SiblingReader, TextureError, decode, decode_hdr};
 
-const INITIAL_CAPACITY: u64 = 16 * 1024 * 1024;
-
-/// The data of one mip of a texture with a single image per mip.
+/// The data of one mip of a texture: one image, or one per cubemap face or array element.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mip {
     header: DdsHeader,
@@ -39,18 +39,42 @@ impl Mip {
         side(self.header.height(), self.level)
     }
 
-    /// Returns the mip's data in the texture's format.
+    /// Returns the number of images: 6 for a cubemap, more for an array, otherwise 1.
+    #[must_use]
+    pub const fn surfaces(&self) -> u32 {
+        self.header.surfaces()
+    }
+
+    /// Returns the mip's data in the texture's format, image after image.
     #[must_use]
     pub fn data(&self) -> &[u8] {
         &self.data
+    }
+
+    /// Returns the data of image `index`, in DDS order +X, −X, +Y, −Y, +Z, −Z for a cubemap, or
+    /// `None` when there is no such image.
+    #[must_use]
+    pub fn surface(&self, index: u32) -> Option<&[u8]> {
+        if index >= self.surfaces() {
+            return None;
+        }
+        let len = self.data.len() / usize::try_from(self.surfaces()).ok()?;
+        let start = len.checked_mul(usize::try_from(index).ok()?)?;
+        self.data.get(start..start.checked_add(len)?)
     }
 
     /// Decodes the mip to 8-bit RGBA.
     ///
     /// # Errors
     ///
-    /// Returns the errors of [`decode`].
+    /// Returns [`TextureError::UnsupportedImage`] when the mip holds several images, and the
+    /// errors of [`decode`].
     pub fn decode(&self) -> Result<RgbaImage, TextureError> {
+        if self.surfaces() > 1 {
+            return Err(TextureError::UnsupportedImage {
+                images: self.surfaces(),
+            });
+        }
         decode(
             self.header.format(),
             self.width(),
@@ -58,18 +82,64 @@ impl Mip {
             &self.data,
         )
     }
+
     /// Decodes the mip of a high-range texture to floating-point RGB without clipping.
     ///
     /// # Errors
     ///
-    /// Returns the errors of [`decode_hdr`].
+    /// Returns [`TextureError::UnsupportedImage`] when the mip holds several images, and the
+    /// errors of [`decode_hdr`].
     pub fn decode_hdr(&self) -> Result<HdrImage, TextureError> {
+        if self.surfaces() > 1 {
+            return Err(TextureError::UnsupportedImage {
+                images: self.surfaces(),
+            });
+        }
         decode_hdr(
             self.header.format(),
             self.width(),
             self.height(),
             &self.data,
         )
+    }
+
+    /// Decodes every image of the mip of a high-range texture to floating-point RGB, in
+    /// parallel.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`decode_hdr`].
+    pub fn decode_surfaces_hdr(&self) -> Result<Vec<HdrImage>, TextureError> {
+        (0..self.surfaces())
+            .into_par_iter()
+            .map(|index| {
+                decode_hdr(
+                    self.header.format(),
+                    self.width(),
+                    self.height(),
+                    self.surface(index).unwrap_or_default(),
+                )
+            })
+            .collect()
+    }
+
+    /// Decodes every image of the mip to 8-bit RGBA, in parallel.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`decode`].
+    pub fn decode_surfaces(&self) -> Result<Vec<RgbaImage>, TextureError> {
+        (0..self.surfaces())
+            .into_par_iter()
+            .map(|index| {
+                decode(
+                    self.header.format(),
+                    self.width(),
+                    self.height(),
+                    self.surface(index).unwrap_or_default(),
+                )
+            })
+            .collect()
     }
 }
 
@@ -80,15 +150,17 @@ const fn side(full: u32, level: u32) -> u32 {
     }
 }
 
-/// Reads mip `level`, 0 being the largest, of the header Entry `header` of `header_size` bytes:
-/// from its sibling part when the mip is split off, otherwise from the header's tail.
+/// Reads mip `level`, 0 being the largest, of the header Entry `header` of `header_size` bytes.
+///
+/// The mip comes from its sibling part when it is split off, otherwise from the header's tail,
+/// with every cubemap face or array element.
 ///
 /// # Errors
 ///
 /// Returns [`TextureError::NoSuchMip`] when the level does not exist,
-/// [`TextureError::UnsupportedImage`] when the texture has several images per mip or several
-/// slices, the errors of [`DdsHeader::part_count`], and a part or header error when the mip's
-/// data is missing, truncated, oversized or unreadable.
+/// [`TextureError::UnsupportedImage`] when the texture is a volume, the errors of
+/// [`DdsHeader::part_count`], and a part or header error when the mip's data is missing,
+/// truncated, oversized or unreadable.
 pub fn read_mip<R, S>(
     mut header: R,
     header_size: u64,
@@ -111,19 +183,20 @@ where
             mip_count: dds.mip_count(),
         });
     }
-    let images = dds.surfaces().saturating_mul(dds.depth());
-    if images > 1 {
-        return Err(TextureError::UnsupportedImage { images });
+    if dds.depth() > 1 {
+        return Err(TextureError::UnsupportedImage {
+            images: dds.surfaces().saturating_mul(dds.depth()),
+        });
     }
     let parts = dds.part_count(header_size)?;
-    let size = dds
-        .mip_size(level)
-        .ok_or_else(|| TextureError::UnsupportedFormat(dds.format()))?;
     let data = if level < parts {
+        let size = dds
+            .mip_size(level)
+            .ok_or_else(|| TextureError::UnsupportedFormat(dds.format()))?;
         read_from_part(&dds, parts, level, size, siblings)?
     } else {
         let tail = start.get(dds.header_len()..).unwrap_or_default();
-        read_from_tail(&dds, parts, level, size, tail.chain(header), header_size)?
+        read_from_tail(&dds, parts, level, tail.chain(header), header_size)?
     };
     Ok(Mip {
         header: dds,
@@ -159,32 +232,42 @@ where
     Ok(data)
 }
 
+/// Reads mip `level` of every image from the header's tail, where each image keeps its mips
+/// `parts..` together.
 fn read_from_tail(
     dds: &DdsHeader,
     parts: u32,
     level: u32,
-    size: u64,
     mut tail: impl Read,
     header_size: u64,
 ) -> Result<Vec<u8>, TextureError> {
-    let skip: u64 = (parts..level)
-        .filter_map(|smaller| dds.mip_size(smaller))
-        .sum();
-    let skipped = io::copy(&mut tail.by_ref().take(skip), &mut io::sink())
-        .map_err(TextureError::ReadHeader)?;
-    let data = read_up_to(tail, size).map_err(TextureError::ReadHeader)?;
-    if skipped < skip || (data.len() as u64) < size {
-        return Err(TextureError::TruncatedHeader {
-            len: dds.header_len() as u64 + skipped + data.len() as u64,
-            needed: header_size,
-        });
+    let unsupported = || TextureError::UnsupportedFormat(dds.format());
+    let size = dds.surface_size(level).ok_or_else(unsupported)?;
+    let before = dds
+        .surface_chain_size(parts..level)
+        .ok_or_else(unsupported)?;
+    let after = dds
+        .surface_chain_size(level + 1..dds.mip_count())
+        .ok_or_else(unsupported)?;
+    let between = after.checked_add(before).ok_or_else(unsupported)?;
+    let mut data = Vec::new();
+    let mut position = dds.header_len() as u64;
+    for surface in 0..dds.surfaces() {
+        let skip = if surface == 0 { before } else { between };
+        let skipped = io::copy(&mut tail.by_ref().take(skip), &mut io::sink())
+            .map_err(TextureError::ReadHeader)?;
+        let read = tail
+            .by_ref()
+            .take(size)
+            .read_to_end(&mut data)
+            .map_err(TextureError::ReadHeader)? as u64;
+        position = position.saturating_add(skipped).saturating_add(read);
+        if skipped < skip || read < size {
+            return Err(TextureError::TruncatedHeader {
+                len: position,
+                needed: header_size,
+            });
+        }
     }
-    Ok(data)
-}
-
-fn read_up_to(reader: impl Read, size: u64) -> io::Result<Vec<u8>> {
-    let capacity = usize::try_from(size.min(INITIAL_CAPACITY)).unwrap_or_default();
-    let mut data = Vec::with_capacity(capacity);
-    reader.take(size).read_to_end(&mut data)?;
     Ok(data)
 }

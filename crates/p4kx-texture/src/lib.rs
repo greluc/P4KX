@@ -1,15 +1,20 @@
 //! Reads the DDS textures of Star Citizen Archives, which store a texture as a header Entry
 //! holding the DDS header and the smallest mips plus one sibling Entry `.dds.N` per larger mip,
-//! `.dds.1` holding the smallest of them. Parses legacy and DX10 headers, merges the parts
-//! into one standard DDS file through a [`SiblingReader`] the caller supplies, reads and decodes
-//! single mips to RGBA, BC5 normal maps with their Z reconstructed, and writes them as PNG;
-//! decodes BC6H to floating-point RGB as well and writes that as OpenEXR.
+//! `.dds.1` holding the smallest of them; a cubemap's part holds that mip of all six faces. An
+//! alpha or smoothness tail is a second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na`.
+//! Parses legacy and DX10 headers, merges the parts into one standard DDS file through a
+//! [`SiblingReader`] the caller supplies, reads and decodes mips to RGBA, BC5 normal maps with
+//! their Z reconstructed, merges an alpha tail into the alpha channel, lays cubemap faces out as
+//! a cross and writes images as PNG; decodes BC6H to floating-point RGB as well and writes that
+//! as OpenEXR.
 
+mod alpha;
 mod bc;
 mod bc6h;
 mod bc6h_modes;
 mod bc7;
 mod bc7_tables;
+mod cube;
 mod dxgi;
 mod error;
 mod exr_export;
@@ -24,6 +29,8 @@ mod png_export;
 mod rgtc;
 mod tone_map;
 
+pub use alpha::merge_alpha;
+pub use cube::{cube_cross, cube_cross_hdr};
 pub use dxgi::DxgiFormat;
 pub use error::TextureError;
 pub use exr_export::write_exr;

@@ -74,6 +74,29 @@ fn falls_back_to_game_dcb() -> TestResult {
 }
 
 #[test]
+fn locating_finds_the_entry_read_without_reading_it() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let both = archive(
+        dir.path(),
+        vec![
+            TestEntry::stored("Data\\Game.dcb", database(1)),
+            TestEntry::stored("Data\\Game2.dcb", vec![0xFF; 4]),
+        ],
+    )?;
+    let other = tempfile::tempdir()?;
+    let none = archive(
+        other.path(),
+        vec![TestEntry::stored("Data\\Game3.dcb", database(1))],
+    )?;
+
+    let found = DataForgeEntry::locate(&both).map(p4kx_extraction::Entry::path);
+
+    assert_eq!(found, Some("Data\\Game2.dcb"), "Game2.dcb, unread");
+    assert!(DataForgeEntry::locate(&none).is_none(), "no DataForge");
+    Ok(())
+}
+
+#[test]
 fn an_archive_without_dataforge_is_an_error() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(

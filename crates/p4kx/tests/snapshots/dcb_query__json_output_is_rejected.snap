@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "String::from_utf8(output.stderr)?"
+---
+error: p4kx dcb query prints a table; --json is not supported

@@ -2899,6 +2899,7 @@ dependencies = [
  "p4kx-audio",
  "p4kx-cryxml",
  "p4kx-dataforge",
+ "p4kx-foundation",
  "p4kx-testkit",
  "p4kx-texture",
  "png",

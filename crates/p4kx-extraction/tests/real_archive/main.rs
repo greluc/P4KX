@@ -11,10 +11,12 @@ use p4kx_extraction::{Archive, ConflictPolicy, Entry, ExtractOptions, extract};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
+mod cubemap_alpha;
 mod records;
 mod sound;
 mod texture;
 mod texture_hdr;
+mod texture_hdr_cube;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;

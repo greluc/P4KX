@@ -4,58 +4,73 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_texture::{
-    DdsHeader, MAX_HEADER_LEN, MergeReport, Mip, RgbaImage, TextureError, merge, read_mip,
-    write_png,
+    DdsHeader, MAX_HEADER_LEN, MergeReport, Mip, RgbaImage, TextureError, merge, merge_alpha,
+    read_mip,
 };
 
 use crate::output_file::{read_error, write_replacing};
-use crate::texture_parts::{PartReader, Parts, is_same_file};
+use crate::texture_parts::{Found, PartReader, Parts, is_same_file};
 use crate::{ConversionError, UnknownEntries};
 
-/// What a PNG export wrote.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PngReport {
-    /// The exported mip level, 0 being the largest.
-    pub level: u32,
-    /// Width of the PNG in pixels.
-    pub width: u32,
-    /// Height of the PNG in pixels.
-    pub height: u32,
-}
-
 /// A DDS texture whose header is an Entry of an Archive or a file on disk, with its sibling parts
-/// `.1` … `.N` next to it.
+/// `.1` … `.N` and any alpha tail `.a` with its parts `.1a` … `.Na` next to it.
 #[derive(Debug)]
 pub struct Texture<'a> {
     name: String,
     header_size: u64,
     header: DdsHeader,
     parts: Parts<'a>,
+    alpha: Option<Parts<'a>>,
 }
 
 impl<'a> Texture<'a> {
     /// Opens the texture whose header is the Entry at `path`, matched with either separator and
-    /// ignoring ASCII case.
+    /// ignoring ASCII case, with its alpha tail when the Archive has one; a path ending in `.a`
+    /// opens an alpha tail on its own. The alpha tail is only read where it is used.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::UnknownEntry`] when no Entry has that path, and another
     /// [`ConversionError`] when the Entry cannot be read or holds no DDS header.
     pub fn from_archive(archive: &'a Archive, path: &str) -> Result<Self, ConversionError> {
-        let parts = Parts::in_archive(archive, path)
+        let found = Parts::in_archive(archive, path)
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
-        let Parts::Archive { header, .. } = &parts else {
-            return Err(UnknownEntries(vec![path.to_owned()]).into());
+        Self::from_found(found)
+    }
+
+    fn from_found(found: Found<'a>) -> Result<Self, ConversionError> {
+        Self::from_parts(found.colour, found.alpha)
+    }
+
+    fn from_parts(parts: Parts<'a>, alpha: Option<Parts<'a>>) -> Result<Self, ConversionError> {
+        let (name, header_size, header) = match &parts {
+            Parts::Archive {
+                archive, header, ..
+            } => {
+                let name = header.path().to_owned();
+                let size = header.uncompressed_size();
+                (
+                    name.clone(),
+                    size,
+                    parse_start(archive.open_entry(header)?, &name)?,
+                )
+            }
+            Parts::Files { header: path, .. } => {
+                let name = path.display().to_string();
+                let file = File::open(path).map_err(|source| read_error(path, source))?;
+                let size = file
+                    .metadata()
+                    .map_err(|source| read_error(path, source))?
+                    .len();
+                (name.clone(), size, parse_start(file, &name)?)
+            }
         };
-        let name = header.path().to_owned();
-        let header_size = header.uncompressed_size();
-        let reader = archive.open_entry(header)?;
-        let header = parse_start(reader, &name)?;
         Ok(Self {
             name,
             header_size,
             header,
             parts,
+            alpha,
         })
     }
 
@@ -71,6 +86,26 @@ impl<'a> Texture<'a> {
         &self.header
     }
 
+    /// Returns whether the texture has an alpha or smoothness tail, without reading it.
+    #[must_use]
+    pub const fn has_alpha_tail(&self) -> bool {
+        self.alpha.is_some()
+    }
+
+    /// Opens the alpha or smoothness tail as a texture of its own, or returns `None` when there
+    /// is none.
+    ///
+    /// # Errors
+    ///
+    /// The inner result is a [`ConversionError`] naming the tail when it cannot be read or holds
+    /// no DDS header; the texture itself stays usable.
+    #[must_use]
+    pub fn alpha_tail(&self) -> Option<Result<Self, ConversionError>> {
+        self.alpha
+            .clone()
+            .map(|parts| Self::from_parts(parts, None))
+    }
+
     /// Returns the number of sibling parts the header needs.
     ///
     /// # Errors
@@ -81,7 +116,7 @@ impl<'a> Texture<'a> {
         self.header.part_count(self.header_size)
     }
 
-    /// Writes the merged texture as one standard DDS file to `out`.
+    /// Writes the merged texture, without its alpha tail, as one standard DDS file to `out`.
     ///
     /// # Errors
     ///
@@ -111,53 +146,99 @@ impl<'a> Texture<'a> {
     /// # Errors
     ///
     /// Returns a [`ConversionError`] naming the part when the mip's part is missing, truncated,
-    /// oversized or unreadable, and another one when the level does not exist or the texture has
-    /// several images per mip.
+    /// oversized or unreadable, and another one when the level does not exist or the texture is
+    /// a volume.
     pub fn read_mip(&self, level: u32) -> Result<Mip, ConversionError> {
         let header = self.open_header()?;
         read_mip(header, self.header_size, &self.parts, level)
             .map_err(|error| ConversionError::of_texture(&self.name, error))
     }
 
-    /// Reads and decodes mip `level`, 0 being the largest, to 8-bit RGBA.
+    /// Reads and decodes mip `level`, 0 being the largest, to 8-bit RGBA with the alpha tail
+    /// merged into the alpha channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConversionError`] wrapping [`TextureError::UnsupportedImage`] when the mip
+    /// holds several images, and the errors of [`Texture::decode_surfaces`].
+    pub fn decode_mip(&self, level: u32) -> Result<RgbaImage, ConversionError> {
+        let several = || {
+            ConversionError::of_texture(
+                &self.name,
+                TextureError::UnsupportedImage {
+                    images: self.header.surfaces(),
+                },
+            )
+        };
+        if self.header.surfaces() > 1 {
+            return Err(several());
+        }
+        let mut images = self.decode_surfaces(level)?;
+        match (images.pop(), images.is_empty()) {
+            (Some(image), true) => Ok(image),
+            _ => Err(several()),
+        }
+    }
+
+    /// Reads and decodes every image of mip `level`, a cubemap's six faces in DDS order, to
+    /// 8-bit RGBA with the alpha tail merged into the alpha channel.
     ///
     /// # Errors
     ///
     /// Returns a [`ConversionError`] wrapping [`TextureError::UnsupportedDecode`] before reading
-    /// anything when the format has no decoder, and the errors of [`Texture::read_mip`].
-    pub fn decode_mip(&self, level: u32) -> Result<RgbaImage, ConversionError> {
-        let format = self.header.format();
-        if !format.is_decodable() {
+    /// any mip when the format of the texture or its alpha tail has no decoder, the error of
+    /// opening the alpha tail when it is broken, [`TextureError::AlphaTailMips`] when the tail
+    /// lacks the level, [`TextureError::AlphaTailSize`] when the tail does not fit the texture,
+    /// and the errors of [`Texture::read_mip`]. A tail that cannot be used is an error, never
+    /// silently dropped.
+    pub fn decode_surfaces(&self, level: u32) -> Result<Vec<RgbaImage>, ConversionError> {
+        self.check_decodable()?;
+        let alpha = self.alpha_tail().transpose()?;
+        if let Some(alpha) = &alpha {
+            alpha.check_decodable()?;
+            if level >= alpha.header.mip_count() && level < self.header.mip_count() {
+                return Err(ConversionError::of_texture(
+                    &alpha.name,
+                    TextureError::AlphaTailMips {
+                        level,
+                        mip_count: alpha.header.mip_count(),
+                    },
+                ));
+            }
+        }
+        let mut images = self
+            .read_mip(level)?
+            .decode_surfaces()
+            .map_err(|error| ConversionError::of_texture(&self.name, error))?;
+        let Some(alpha) = alpha else {
+            return Ok(images);
+        };
+        let tails = alpha.decode_surfaces(level)?;
+        if tails.len() != images.len() {
             return Err(ConversionError::of_texture(
-                &self.name,
-                TextureError::UnsupportedDecode(format),
+                &alpha.name,
+                TextureError::UnsupportedImage {
+                    images: alpha.header.surfaces(),
+                },
             ));
         }
-        self.read_mip(level)?
-            .decode()
-            .map_err(|error| ConversionError::of_texture(&self.name, error))
+        for (image, tail) in images.iter_mut().zip(&tails) {
+            merge_alpha(image, tail, alpha.header.format())
+                .map_err(|error| ConversionError::of_texture(&alpha.name, error))?;
+        }
+        Ok(images)
     }
 
-    /// Decodes mip `level`, 0 being the largest, and writes it to the file `out` as an 8-bit RGBA
-    /// PNG, a high-range texture tone-mapped, replacing it; a failed export leaves nothing behind.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ConversionError::OutputIsInput`] when `out` is the header or one of its parts,
-    /// [`ConversionError::Write`] when the file cannot be written, and the errors of
-    /// [`Texture::decode_mip`].
-    pub fn png_to_file(&self, out: &Path, level: u32) -> Result<PngReport, ConversionError> {
-        self.refuse_input(out)?;
-        let image = self.decode_mip(level)?;
-        write_replacing(out, |writer| {
-            write_png(&image, writer)
-                .map_err(|error| ConversionError::of_texture(&self.name, error))
-        })?;
-        Ok(PngReport {
-            level,
-            width: image.width(),
-            height: image.height(),
-        })
+    fn check_decodable(&self) -> Result<(), ConversionError> {
+        let format = self.header.format();
+        if format.is_decodable() {
+            Ok(())
+        } else {
+            Err(ConversionError::of_texture(
+                &self.name,
+                TextureError::UnsupportedDecode(format),
+            ))
+        }
     }
 
     pub(crate) fn refuse_input(&self, out: &Path) -> Result<(), ConversionError> {
@@ -174,57 +255,50 @@ impl<'a> Texture<'a> {
             Parts::Archive {
                 archive, header, ..
             } => Ok(PartReader::Entry(archive.open_entry(header)?)),
-            Parts::Files { header } => File::open(header)
+            Parts::Files { header, .. } => File::open(header)
                 .map(PartReader::File)
                 .map_err(|source| read_error(header, source)),
         }
     }
 
     fn input_files(&self) -> Vec<PathBuf> {
-        match &self.parts {
+        let own = match &self.parts {
             Parts::Archive { .. } => Vec::new(),
-            Parts::Files { header } => {
+            Parts::Files { header, .. } => {
                 let count = self.part_count().unwrap_or(0);
                 std::iter::once(header.clone())
                     .chain((1..=count).filter_map(|index| self.parts.file_of(index)))
                     .collect()
             }
-        }
+        };
+        let alpha = match (self.alpha_tail(), &self.alpha) {
+            (Some(Ok(tail)), _) => tail.input_files(),
+            (Some(Err(_)), Some(Parts::Files { header, .. })) => vec![header.clone()],
+            _ => Vec::new(),
+        };
+        own.into_iter().chain(alpha).collect()
     }
 }
 
 impl Texture<'static> {
-    /// Opens the texture whose header is the file at `path`, with its parts `<path>.1` … next to
-    /// it.
+    /// Opens the texture whose header is the file at `path`, with its parts `<path>.1` … and any
+    /// alpha tail `<path>.a` next to it; a path ending in `.a` opens an alpha tail on its own.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::NoSuchFile`] when the file does not exist, and another
     /// [`ConversionError`] when it cannot be read or holds no DDS header.
     pub fn from_file(path: &Path) -> Result<Self, ConversionError> {
-        let file = File::open(path).map_err(|source| {
-            if source.kind() == io::ErrorKind::NotFound {
+        if let Err(source) = std::fs::metadata(path) {
+            return Err(if source.kind() == io::ErrorKind::NotFound {
                 ConversionError::NoSuchFile {
                     path: path.to_path_buf(),
                 }
             } else {
                 read_error(path, source)
-            }
-        })?;
-        let header_size = file
-            .metadata()
-            .map_err(|source| read_error(path, source))?
-            .len();
-        let name = path.display().to_string();
-        let header = parse_start(file, &name)?;
-        Ok(Self {
-            name,
-            header_size,
-            header,
-            parts: Parts::Files {
-                header: path.to_path_buf(),
-            },
-        })
+            });
+        }
+        Self::from_found(Parts::on_disk(path))
     }
 }
 

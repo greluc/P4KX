@@ -54,6 +54,12 @@ Early development (milestone M1). Available today:
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes.
+- `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
+  Records and prints a table: the record path first, then one column per path of `select`, one
+  row per Record in record-path order, e.g.
+  `p4kx dcb query Data.p4k 'from EntityClassDefinition at "*/spaceships/*"'`. `from <type>`
+  selects a type and every type deriving from it, `at "<glob>"` selects by record path with the
+  rules of `search`. An invalid Query exits with code 2 and marks its position.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -75,17 +81,21 @@ Early development (milestone M1). Available today:
   --out <file>` merges the header Entry and its mip parts `<entry>.1` … `<entry>.N` into one
   standard DDS file that common tools open. Both also take a header file on disk instead of an
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
-  truncated or oversized part is named in the error and nothing is written. Split cubemaps and
-  texture arrays are not merged yet.
+  truncated or oversized part is named in the error and nothing is written. A split cubemap or
+  texture array, whose parts hold one mip of every face, merges face by face into a valid
+  cubemap or array. `info` also names the alpha or smoothness tail `<entry>.a` with its parts
+  `<entry>.1a` … `<entry>.Na`; `merge <archive> <entry>.a` merges the tail on its own.
 - `p4kx texture png <archive> <entry> --out <file>` decodes the largest mip of a texture and
   writes it as an 8-bit RGBA PNG; `--mip <level>` picks a smaller one, 0 being the largest. It
   takes a header file on disk like `info` and `merge`. BC1 to BC7 and the uncompressed formats in
   use decode with pure-Rust decoders; any other format fails with a message naming it and exit
-  code 1. A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead, to
-  `<file>` with the extension `.exr`, so its range is not clipped; `--tone-map` writes an 8-bit PNG
-  instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010); the message names both the requested
-  and the written file, and `--tone-map` on any other texture only prints a note. Cubemaps,
-  texture arrays and volumes are not decoded yet.
+  code 1. An alpha or smoothness tail is decoded and merged into the alpha channel. A cubemap is
+  written as six face files `<stem>_posx.png` … `<stem>_negz.png` next to `<file>`, or with
+  `--cross` as one horizontal cross in `<file>`. A high-range BC6H texture is written as OpenEXR
+  with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
+  `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
+  message names both the requested and the written files, and `--tone-map` on any other texture
+  only prints a note. Texture arrays and volumes are not decoded yet.
 - `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
   Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
   (ignoring case and separator kind) and lists Entries as added, removed, or changed when their

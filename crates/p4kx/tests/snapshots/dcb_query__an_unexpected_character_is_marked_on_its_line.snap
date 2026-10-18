@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from Item\\nselect mass;\")?"
+---
+error: unexpected character `;`
+  select mass;
+             ^

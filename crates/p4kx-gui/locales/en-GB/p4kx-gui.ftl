@@ -27,6 +27,8 @@ encrypted-yes = Yes
 encrypted-no = No
 expand-folder = Expand { $name }
 collapse-folder = Collapse { $name }
+search-label = Search
+search-hint = Filter by path: a glob with * or ?, otherwise any part of the path
 drop-hint = Drop a Data.p4k here to open it
 status-empty = Open an Archive or drop a Data.p4k onto the window.
 status-opening = Opening { $path }…
@@ -39,5 +41,7 @@ status-entries =
     }
 status-shown = { $number } shown
 status-selected = { $number } selected
+status-selected-hidden = { $number } selected, { $hidden } not shown
+status-searching = Searching…
 status-build = Build { $build }
 status-build-unknown = Build unknown

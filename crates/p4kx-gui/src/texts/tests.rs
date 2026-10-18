@@ -28,6 +28,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("reason", "no Archive".into()),
         ("count", 3.into()),
         ("number", "3".into()),
+        ("hidden", "1".into()),
         ("build", "4.3.1".into()),
     ]
 }

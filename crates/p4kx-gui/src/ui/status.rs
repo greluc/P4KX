@@ -30,6 +30,11 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                 ui.separator();
                 ui.label(part);
             }
+            if browser.is_searching() {
+                ui.separator();
+                ui.spinner();
+                ui.label(texts.get(Text::StatusSearching));
+            }
         }
     });
 }
@@ -55,11 +60,23 @@ fn browser_parts(texts: &Texts, browser: &Browser) -> [String; 5] {
             Text::StatusShown,
             &[("number", number(browser.shown().len()))],
         ),
-        texts.format(
-            Text::StatusSelected,
-            &[("number", number(browser.checked_count()))],
-        ),
+        selected_label(texts, browser, number),
     ]
+}
+
+fn selected_label(
+    texts: &Texts,
+    browser: &Browser,
+    number: impl Fn(usize) -> FluentValue<'static>,
+) -> String {
+    let selected = ("number", number(browser.checked_count()));
+    match browser.hidden_checked_count() {
+        0 => texts.format(Text::StatusSelected, &[selected]),
+        hidden => texts.format(
+            Text::StatusSelectedHidden,
+            &[selected, ("hidden", number(hidden))],
+        ),
+    }
 }
 
 /// Returns `build` as "Build <version>", or that the Build is unknown.

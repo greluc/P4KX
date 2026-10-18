@@ -1,4 +1,6 @@
-use p4kx_extraction::{Archive, Entry};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use p4kx_extraction::{Archive, Entry, Filter};
 use rayon::prelude::*;
 
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
@@ -107,11 +109,42 @@ impl EntryIndex {
     #[must_use]
     pub fn entries_in(&self, folder: FolderId, sort: Sort) -> Vec<u32> {
         let range = self.folder(folder).entries();
+        self.sorted_where(sort, |id| range.contains(&id))
+    }
+
+    /// Returns the ids of the Entries marked in `matches`, which is indexed by id, sorted by
+    /// `sort`.
+    #[must_use]
+    pub fn entries_matching(&self, matches: &[bool], sort: Sort) -> Vec<u32> {
+        self.sorted_where(sort, |id| {
+            matches.get(id as usize).copied().unwrap_or(false)
+        })
+    }
+
+    /// Returns, indexed by id, whether the path of each Entry matches `filter`, or `None` once
+    /// `cancelled` is set.
+    #[must_use]
+    pub fn matching(&self, filter: &Filter, cancelled: &AtomicBool) -> Option<Vec<bool>> {
+        let entries = self.archive.entries();
+        let matches = self
+            .by_path
+            .par_iter()
+            .map(|&position| {
+                !cancelled.load(Ordering::Relaxed)
+                    && entries
+                        .get(position as usize)
+                        .is_some_and(|entry| filter.matches(entry.path()))
+            })
+            .collect();
+        (!cancelled.load(Ordering::Relaxed)).then_some(matches)
+    }
+
+    fn sorted_where(&self, sort: Sort, keep: impl Fn(u32) -> bool) -> Vec<u32> {
         let ascending = self.orders.ascending(sort.column).iter();
-        let inside = |id: &&u32| range.contains(*id);
+        let keep = |id: &&u32| keep(**id);
         match sort.direction {
-            SortDirection::Ascending => ascending.filter(inside).copied().collect(),
-            SortDirection::Descending => ascending.rev().filter(inside).copied().collect(),
+            SortDirection::Ascending => ascending.filter(keep).copied().collect(),
+            SortDirection::Descending => ascending.rev().filter(keep).copied().collect(),
         }
     }
 }

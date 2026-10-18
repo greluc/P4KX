@@ -59,7 +59,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
         } else if toggle(ui, texts, browser.is_expanded(row.folder), &name) {
             action = Some(Action::Toggle(row.folder));
         }
-        let selected = browser.selected_folder() == row.folder;
+        let selected = !browser.shows_search() && browser.selected_folder() == row.folder;
         if ui.selectable_label(selected, &name).clicked() {
             action = Some(Action::Select(row.folder));
         }

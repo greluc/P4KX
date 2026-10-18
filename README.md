@@ -93,8 +93,9 @@ Early development (milestone M1). Available today:
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
-  with test, template and dummy Records left out and counted as skipped. `--filter` marks the
-  catalog partial. It prints the counts per kind and warns when the catalog nears or exceeds the
+  with test, template and dummy Records left out and counted as skipped, and names and
+  descriptions resolved in English and German. `--filter` marks the catalog partial. It prints
+  the counts per kind and the unresolved texts per language and warns when the catalog nears or exceeds the
   64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
@@ -199,7 +200,7 @@ Early development (milestone M1). Available today:
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml or CHF, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml or CHF, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |

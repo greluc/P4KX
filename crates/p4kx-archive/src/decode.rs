@@ -3,6 +3,7 @@ use std::mem;
 
 use ruzstd::decoding::{FrameDecoder, StreamingDecoder};
 
+use crate::decrypt::AES_BLOCK_LEN;
 use crate::{Compression, DataError};
 
 const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
@@ -104,11 +105,26 @@ impl<R: Read> Read for CorruptAs<R> {
     }
 }
 
-/// Yields exactly the uncompressed size: longer data is cut, shorter data is an error.
+/// What [`ExactSize`] does with data beyond the uncompressed size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Overlong {
+    /// Cut it.
+    Cut,
+    /// Report it as [`DataError::TooLong`]; with `padding`, fewer than one AES block of zero bytes
+    /// is the padding of an encrypted Entry and allowed.
+    Reject {
+        /// Whether zero padding below one AES block is allowed.
+        padding: bool,
+    },
+}
+
+/// Yields exactly the uncompressed size: shorter data is an error, longer data is cut or an
+/// error by its [`Overlong`] mode.
 pub(crate) struct ExactSize<R> {
     inner: R,
     produced: u64,
     expected: u64,
+    overlong: Overlong,
 }
 
 impl<R> ExactSize<R> {
@@ -117,6 +133,40 @@ impl<R> ExactSize<R> {
             inner,
             produced: 0,
             expected,
+            overlong: Overlong::Cut,
+        }
+    }
+
+    pub(crate) const fn set_overlong(&mut self, overlong: Overlong) {
+        self.overlong = overlong;
+    }
+}
+
+impl<R: Read> ExactSize<R> {
+    /// Fails when the data goes on after the expected size, once.
+    fn check_end(&mut self) -> io::Result<()> {
+        let Overlong::Reject { padding } = self.overlong else {
+            return Ok(());
+        };
+        self.overlong = Overlong::Cut;
+        let mut probe = [0_u8; AES_BLOCK_LEN];
+        let mut extra = 0;
+        while let Some(rest) = probe.get_mut(extra..).filter(|rest| !rest.is_empty()) {
+            let read = self.inner.read(rest)?;
+            if read == 0 {
+                break;
+            }
+            extra += read;
+        }
+        let tail = probe.get(..extra).unwrap_or_default();
+        let padded = padding && extra < AES_BLOCK_LEN && tail.iter().all(|&byte| byte == 0);
+        if extra == 0 || padded {
+            Ok(())
+        } else {
+            Err(DataError::TooLong {
+                expected: self.expected,
+            }
+            .into())
         }
     }
 }
@@ -128,6 +178,9 @@ impl<R: Read> Read for ExactSize<R> {
             .unwrap_or(usize::MAX)
             .min(buffer.len());
         let Some(window) = buffer.get_mut(..count).filter(|window| !window.is_empty()) else {
+            if remaining == 0 && !buffer.is_empty() {
+                self.check_end()?;
+            }
             return Ok(0);
         };
         let read = self.inner.read(window)?;

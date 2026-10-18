@@ -12,6 +12,7 @@ mod extract;
 mod filter;
 mod options;
 mod output_file;
+mod query_export;
 mod record_export;
 mod record_files;
 mod record_report;
@@ -54,6 +55,9 @@ pub use p4kx_dataforge::{
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
+};
+pub use query_export::{
+    QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query,
 };
 pub use record_export::export_records;
 pub use record_report::{

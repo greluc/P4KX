@@ -8,6 +8,10 @@ fails while its section is missing.
 
 ### Added
 
+- The Query tab of the window: run Queries over the DataForge of the open Archive in the
+  background with progress and cancel, see an invalid Query explained with its line and column
+  and underlined in the editor, sort the result table by any column, page through large results,
+  and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
 - `p4kx dcb query <archive> "<query>"`: Queries over the Records of the DataForge, defined in
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem

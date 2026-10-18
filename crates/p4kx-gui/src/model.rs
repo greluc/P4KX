@@ -16,7 +16,7 @@ pub use work_tab::WorkTab;
 
 use crate::{
     Browser, ChannelList, ComparisonTab, EntryIndex, Extraction, ExtractionSetup, Language,
-    PreviewTab, Texts,
+    PreviewTab, QueryTab, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -52,6 +52,7 @@ pub struct Model {
     update: UpdateState,
     work_tab: WorkTab,
     comparison: ComparisonTab,
+    query: QueryTab,
 }
 
 impl std::fmt::Debug for Model {
@@ -73,6 +74,7 @@ impl std::fmt::Debug for Model {
             .field("update", &self.update)
             .field("work_tab", &self.work_tab)
             .field("comparison", &self.comparison)
+            .field("query", &self.query)
             .finish()
     }
 }
@@ -98,6 +100,7 @@ impl Model {
             update: UpdateState::default(),
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
+            query: QueryTab::default(),
         }
     }
 

@@ -162,6 +162,50 @@ comparison-no-matches = No change matches the filter.
 comparison-shown = { $number } shown
 comparison-row = { $change }: { $path }
 
+query-tab = Query
+query-label = Query
+query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
+query-run = Run Query
+query-cancel = Cancel
+query-loading = Reading DataForge…
+query-selecting = Selecting Records…
+query-progress = { $done } of { $total } Records, { $percent } %
+query-cancelled = The Query was cancelled.
+query-failed = The Query failed: { $reason }
+query-stopped = The Query stopped without a result.
+query-archive-changed = The Archive changed on disk. Reload it to run Queries.
+query-invalid = Line { $line }, column { $column }: { $reason }
+query-empty-title = No Archive open
+query-empty-hint = Open an Archive to run Queries over its DataForge.
+query-prompt = Write a Query and run it with Ctrl+Enter, e.g. from AmmoParams select speed where speed >= 1500
+query-no-rows = No Record matches the Query.
+query-rows =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+query-rows-failed =
+    { $count ->
+        [one] { $number } Record, { $failed } failed
+       *[other] { $number } Records, { $failed } failed
+    }
+query-export-csv = Export CSV…
+query-export-json = Export JSON…
+query-filter-csv = CSV file
+query-filter-json = JSON file
+query-exporting = Exporting the result to { $path }…
+query-exported =
+    { $count ->
+        [one] { $number } Record exported to { $path }
+       *[other] { $number } Records exported to { $path }
+    }
+query-export-failed = Cannot export the result to { $path }: { $reason }
+query-page = Page { $page } of { $pages }
+query-page-first = First page
+query-page-previous = Previous page
+query-page-next = Next page
+query-page-last = Last page
+
 dataforge-node = DataForge
 dataforge-node-loading = Loading…
 preview-tab-dataforge = DataForge

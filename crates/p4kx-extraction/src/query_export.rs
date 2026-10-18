@@ -1,0 +1,166 @@
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, BufWriter};
+use std::num::NonZeroUsize;
+use std::path::{Path, PathBuf};
+use std::process;
+
+use p4kx_dataforge::query::{CompiledQuery, QueryRun, ResultFormat, ResultWriter};
+use thiserror::Error;
+
+use crate::CancelToken;
+
+/// The number of rows built and written at a time.
+pub const QUERY_PAGE_SIZE: NonZeroUsize = match NonZeroUsize::new(1024) {
+    Some(size) => size,
+    None => NonZeroUsize::MIN,
+};
+
+const WRITE_BUFFER_LEN: usize = 256 * 1024;
+
+/// How [`export_query`] is controlled while it runs.
+#[derive(Clone, Copy, Default)]
+pub struct QueryExportOptions<'a> {
+    /// Checked before every page; once cancelled, the export stops and writes nothing.
+    pub cancel: Option<&'a CancelToken>,
+    /// Called after every page with the number of rows written so far.
+    pub progress: Option<&'a (dyn Fn(u64) + Sync)>,
+}
+
+impl std::fmt::Debug for QueryExportOptions<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueryExportOptions")
+            .field("cancel", &self.cancel)
+            .field("progress", &self.progress.is_some())
+            .finish()
+    }
+}
+
+/// What [`export_query`] wrote.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct QueryExport {
+    /// The rows written, one per Record.
+    pub records: u64,
+    /// The Records whose layout or instance cannot be read; they have no row.
+    pub failed: u64,
+}
+
+/// A Query result cannot be exported.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum QueryExportError {
+    /// The export was cancelled; the target is unchanged.
+    #[error("the export was cancelled")]
+    Cancelled,
+    /// The file cannot be written; the target is unchanged.
+    #[error("cannot write {}", path.display())]
+    Write {
+        /// The target file.
+        path: PathBuf,
+        /// The failed write.
+        #[source]
+        source: io::Error,
+    },
+}
+
+/// Writes the result of `run`, selected by `query`, to the file `out` in `format`, page by page
+/// as `p4kx dcb query --out` does (`docs/query.md`).
+///
+/// The rows go to `<file>.p4kx-<process id>.part` next to `out`, which replaces `out` once
+/// complete, so `out` is never half written. A Record whose values cannot be read gives no row
+/// and is counted as failed.
+///
+/// # Errors
+///
+/// Returns [`QueryExportError::Cancelled`] once `options.cancel` is set and
+/// [`QueryExportError::Write`] when the file cannot be written; either way the temporary file is
+/// removed.
+pub fn export_query(
+    query: &CompiledQuery<'_>,
+    run: &QueryRun<'_, '_>,
+    out: &Path,
+    format: ResultFormat,
+    options: &QueryExportOptions<'_>,
+) -> Result<QueryExport, QueryExportError> {
+    let write_error = |source| QueryExportError::Write {
+        path: out.to_path_buf(),
+        source,
+    };
+    let temporary = temporary_path(out).map_err(write_error)?;
+    let file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(write_error)?;
+    let result = write_rows(query, run, file, format, options).and_then(|(file, export)| {
+        file.sync_all()?;
+        fs::rename(&temporary, out)?;
+        Ok(export)
+    });
+    if result.is_err() {
+        let _ignored = fs::remove_file(&temporary);
+    }
+    result.map_err(|stop| match stop {
+        Stop::Cancelled => QueryExportError::Cancelled,
+        Stop::Io(source) => write_error(source),
+    })
+}
+
+/// Why writing the rows stopped early.
+enum Stop {
+    Cancelled,
+    Io(io::Error),
+}
+
+impl From<io::Error> for Stop {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+fn write_rows(
+    query: &CompiledQuery<'_>,
+    run: &QueryRun<'_, '_>,
+    file: File,
+    format: ResultFormat,
+    options: &QueryExportOptions<'_>,
+) -> Result<(File, QueryExport), Stop> {
+    let cancelled = || options.cancel.is_some_and(CancelToken::is_cancelled);
+    let buffered = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
+    let mut writer = ResultWriter::new(buffered, format, query.columns())?;
+    let mut export = QueryExport::default();
+    for page in run.pages(QUERY_PAGE_SIZE) {
+        if cancelled() {
+            return Err(Stop::Cancelled);
+        }
+        for row in &page {
+            match row.cells() {
+                Ok(cells) => {
+                    writer.write_row(row.record_path(), cells)?;
+                    export.records = export.records.saturating_add(1);
+                }
+                Err(_) => export.failed = export.failed.saturating_add(1),
+            }
+        }
+        if let Some(progress) = options.progress {
+            progress(export.records);
+        }
+    }
+    if cancelled() {
+        return Err(Stop::Cancelled);
+    }
+    let file = writer
+        .finish()?
+        .into_inner()
+        .map_err(io::IntoInnerError::into_error)?;
+    Ok((file, export))
+}
+
+/// Returns `<name>.p4kx-<process id>.part` next to `out`.
+fn temporary_path(out: &Path) -> io::Result<PathBuf> {
+    let name = out
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "the output names no file"))?;
+    let mut name = name.to_os_string();
+    name.push(format!(".p4kx-{}.part", process::id()));
+    Ok(out.with_file_name(name))
+}

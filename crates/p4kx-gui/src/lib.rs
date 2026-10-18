@@ -16,6 +16,7 @@ mod format;
 mod language;
 mod model;
 mod preview;
+mod query;
 mod record_index;
 mod record_search;
 mod record_tree;
@@ -46,9 +47,15 @@ pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
 };
+pub use query::{
+    QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult, QueryStage,
+    QueryStatus, QueryTab,
+};
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
 };
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
-pub use texts::{ComparisonText, DataForgeText, ExtractionText, RecordSearchText, Text, Texts};
+pub use texts::{
+    ComparisonText, DataForgeText, ExtractionText, QueryText, RecordSearchText, Text, Texts,
+};

@@ -15,6 +15,9 @@ mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
+mod query;
+mod query_editor;
+mod query_table;
 mod record_results;
 mod record_search;
 mod record_tree;
@@ -35,7 +38,7 @@ use crate::theme::desktop::{
 use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
-use crate::{ComparisonSide, ComparisonText, Model, WorkTab};
+use crate::{ComparisonSide, ComparisonText, Model, QueryExportFormat, QueryText, Text, WorkTab};
 
 /// A dialog the host shows for the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +55,8 @@ pub enum Dialog {
     ComparisonArchive(ComparisonSide),
     /// Picks the file the Comparison report is saved to.
     ComparisonReport,
+    /// Picks the file the Query result is exported to.
+    QueryExport(QueryExportFormat),
 }
 
 /// What the window asks of its host after a frame.
@@ -77,6 +82,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model.poll_extraction();
     model.poll_update();
     model.comparison_mut().poll();
+    model.query_mut().poll();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -116,9 +122,10 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     work_tabs(ui, model);
-    if model.work_tab() == WorkTab::Comparison {
-        comparison::show(ui, model, requests);
-        return;
+    match model.work_tab() {
+        WorkTab::Comparison => return comparison::show(ui, model, requests),
+        WorkTab::Query => return query::show(ui, model, requests),
+        WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
     if dragging || model.browser().is_none() {
@@ -144,9 +151,16 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, ComparisonText); 2] = [
-    (WorkTab::Archive, ComparisonText::TabArchive),
-    (WorkTab::Comparison, ComparisonText::TabComparison),
+const WORK_TABS: [(WorkTab, Text); 3] = [
+    (
+        WorkTab::Archive,
+        Text::Comparison(ComparisonText::TabArchive),
+    ),
+    (
+        WorkTab::Comparison,
+        Text::Comparison(ComparisonText::TabComparison),
+    ),
+    (WorkTab::Query, Text::Query(QueryText::Tab)),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

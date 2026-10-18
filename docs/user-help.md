@@ -75,6 +75,23 @@ matches list name, type and record path, sorted by record path, and their number
 field. Clicking a match, or pressing Enter on it, selects the Record in the tree, opens the folders
 above it and shows the **DataForge** tab. Selecting a folder of the Archive returns to the Entries.
 
+## Running Queries
+
+The **Query** tab runs Queries ([query.md](query.md)) over the DataForge of the open Archive, for
+example `from AmmoParams select speed, lifetime where speed >= 1500`. Write the Query into the
+editor and press **Run Query** or Ctrl+Enter. DataForge is read in the background the first time
+and kept for the next Query of the same Archive; a spinner and then a progress bar show how far
+the Query has come, and **Cancel** stops it at once.
+
+A Query that cannot run is explained below the editor with its line and column, and the part of
+the Query it concerns is underlined in red, e.g. a mistyped field with the name it probably meant.
+
+The result is a table with the record path first and one column per path of `select`, in record
+path order. Click a column head to sort by it, numbers by value and text ignoring case; click
+again to reverse. Large results are shown 500 rows per page with the page buttons above the table.
+**Export CSV…** and **Export JSON…** write the whole result in the order of `docs/query.md`,
+exactly as `p4kx dcb query --format csv|json --out <file>` writes it, whatever the table is sorted
+by. The file is written in the background and only replaces an existing file once complete.
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

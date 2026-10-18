@@ -3,15 +3,25 @@ use std::path::Path;
 
 use p4kx_foundation::ParseError;
 
-use crate::ArchiveError;
+use crate::{ArchiveError, Compression};
 
 /// A failure while reading Archive structures, before the Archive path is attached.
 #[derive(Debug)]
 pub(crate) enum FormatError {
     Io(io::Error),
     NotAnArchive,
-    Corrupt { offset: u64, reason: String },
+    Corrupt {
+        offset: u64,
+        reason: String,
+    },
     Truncated(ParseError),
+    Encrypted {
+        entry: String,
+    },
+    UnsupportedCompression {
+        entry: String,
+        compression: Compression,
+    },
 }
 
 impl FormatError {
@@ -35,6 +45,14 @@ impl FormatError {
                 reason,
             },
             Self::Truncated(source) => ArchiveError::Truncated { path, source },
+            Self::Encrypted { entry } => ArchiveError::Encrypted { path, entry },
+            Self::UnsupportedCompression { entry, compression } => {
+                ArchiveError::UnsupportedCompression {
+                    path,
+                    entry,
+                    compression,
+                }
+            }
         }
     }
 }

@@ -2,6 +2,8 @@ use std::io;
 use std::path::PathBuf;
 
 use p4kx_foundation::ParseError;
+
+use crate::Compression;
 use thiserror::Error;
 
 /// A failure to open or read an Archive.
@@ -40,5 +42,23 @@ pub enum ArchiveError {
         /// Where the data ran out.
         #[source]
         source: ParseError,
+    },
+    /// The Entry is encrypted, which this version cannot read yet.
+    #[error("{path}: Entry {entry} is encrypted, which is not supported yet")]
+    Encrypted {
+        /// Path of the Archive.
+        path: PathBuf,
+        /// Path of the Entry inside the Archive.
+        entry: String,
+    },
+    /// The Entry uses a compression method this version cannot read yet.
+    #[error("{path}: Entry {entry} uses {compression} compression, which is not supported yet")]
+    UnsupportedCompression {
+        /// Path of the Archive.
+        path: PathBuf,
+        /// Path of the Entry inside the Archive.
+        entry: String,
+        /// The compression method of the Entry.
+        compression: Compression,
     },
 }

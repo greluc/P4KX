@@ -11,6 +11,22 @@ Early development (milestone M1). Available today:
 
 - `p4kx list <archive>` lists every Entry of an Archive in the v1 layout: compression method,
   encryption flag, compressed size, size and path.
+- `p4kx extract <archive> <entry paths…> [--out <folder>]` writes the given stored Entries into a
+  new folder `SC-EXPORT-<Channel>-<Build>-<timestamp>` in the current directory (Channel and Build
+  are `UnknownChannel` and `UnknownBuild` for now, the timestamp is UTC), or into `--out`. Entry
+  paths match with `\` or `/` and ignore case. Existing files are kept and reported as skipped;
+  Entry paths that are absolute, carry a drive prefix, contain `..` or name a Windows device are rejected, and nothing is
+  written outside the target. The run ends with a summary of extracted, skipped, failed and
+  cancelled Entries.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success: every requested Entry was extracted or already existed |
+| 1 | Partial failure: some Entries failed or were cancelled, or the target cannot be written |
+| 2 | Invalid input: bad arguments or an Entry path the Archive does not contain |
+| 3 | The Archive cannot be read: missing, not an Archive or corrupt |
 
 ## Build
 

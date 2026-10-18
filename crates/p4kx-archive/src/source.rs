@@ -29,13 +29,19 @@ impl Source {
     /// Reads `count` bytes starting at `offset`.
     pub(crate) fn read_at(&self, offset: u64, count: usize) -> io::Result<Vec<u8>> {
         let mut buffer = vec![0; count];
+        self.read_into(offset, &mut buffer)?;
+        Ok(buffer)
+    }
+
+    /// Fills `buffer` with the bytes starting at `offset`.
+    pub(crate) fn read_into(&self, offset: u64, buffer: &mut [u8]) -> io::Result<()> {
         let mut file = self
             .file
             .lock()
             .map_err(|_| io::Error::other("archive file lock poisoned"))?;
         file.seek(SeekFrom::Start(offset))?;
-        file.read_exact(&mut buffer)?;
+        file.read_exact(buffer)?;
         drop(file);
-        Ok(buffer)
+        Ok(())
     }
 }

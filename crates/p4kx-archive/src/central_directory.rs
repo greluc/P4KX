@@ -7,7 +7,7 @@ const CENTRAL_HEADER_SIGNATURE: u32 = 0x0201_4B50;
 const CENTRAL_HEADER_LEN: usize = 46;
 const VERSIONS_AND_FLAGS_LEN: usize = 6;
 const TIME_DATE_AND_CRC_LEN: usize = 8;
-const DISK_ATTRIBUTES_AND_OFFSET_LEN: usize = 12;
+const DISK_AND_ATTRIBUTES_LEN: usize = 8;
 const ZIP64_MARKER_32: u32 = 0xFFFF_FFFF;
 const BLOCK_ZIP64: u16 = 0x0001;
 const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
@@ -17,6 +17,7 @@ struct FixedFields {
     method: u16,
     compressed_size: u32,
     uncompressed_size: u32,
+    local_header_offset: u32,
     name_len: usize,
     extra_len: usize,
     comment_len: usize,
@@ -25,6 +26,7 @@ struct FixedFields {
 struct ExtraFields {
     compressed_size: u64,
     uncompressed_size: u64,
+    local_header_offset: u64,
     encrypted: bool,
 }
 
@@ -59,6 +61,7 @@ fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, FormatError> {
         path,
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
+        local_header_offset: extra.local_header_offset,
         compression: Compression::from_method(fixed.method),
         encrypted: extra.encrypted,
     })
@@ -79,11 +82,13 @@ fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFi
     let name_len = usize::from(reader.read_u16()?);
     let extra_len = usize::from(reader.read_u16()?);
     let comment_len = usize::from(reader.read_u16()?);
-    reader.skip(DISK_ATTRIBUTES_AND_OFFSET_LEN)?;
+    reader.skip(DISK_AND_ATTRIBUTES_LEN)?;
+    let local_header_offset = reader.read_u32()?;
     Ok(FixedFields {
         method,
         compressed_size,
         uncompressed_size,
+        local_header_offset,
         name_len,
         extra_len,
         comment_len,
@@ -94,6 +99,7 @@ fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFiel
     let mut fields = ExtraFields {
         compressed_size: u64::from(fixed.compressed_size),
         uncompressed_size: u64::from(fixed.uncompressed_size),
+        local_header_offset: u64::from(fixed.local_header_offset),
         encrypted: false,
     };
     let mut reader = ByteReader::with_base(extra, base);
@@ -134,6 +140,9 @@ fn read_zip64(
     }
     if fixed.compressed_size == ZIP64_MARKER_32 {
         fields.compressed_size = block.read_u64()?;
+    }
+    if fixed.local_header_offset == ZIP64_MARKER_32 {
+        fields.local_header_offset = block.read_u64()?;
     }
     Ok(())
 }

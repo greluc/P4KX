@@ -6,6 +6,7 @@ pub struct Entry {
     pub(crate) path: String,
     pub(crate) compressed_size: u64,
     pub(crate) uncompressed_size: u64,
+    pub(crate) local_header_offset: u64,
     pub(crate) compression: Compression,
     pub(crate) encrypted: bool,
 }

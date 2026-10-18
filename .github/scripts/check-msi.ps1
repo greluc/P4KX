@@ -54,7 +54,7 @@ function Get-Installed {
 }
 
 Invoke-Msiexec @('/i', $Msi) 'install.log'
-foreach ($path in @((Join-Path $folder 'p4kx-gui.exe'), (Join-Path $folder 'p4kx.exe'), $shortcut)) {
+foreach ($path in @((Join-Path $folder 'p4kx-gui.exe'), (Join-Path $folder 'p4kx.exe'), (Join-Path $folder 'p4kx-mcp.exe'), $shortcut)) {
     if (-not (Test-Path $path)) { throw "missing after install: $path" }
 }
 if ((Get-Installed).Count -ne 1) { throw 'the install is not registered once' }

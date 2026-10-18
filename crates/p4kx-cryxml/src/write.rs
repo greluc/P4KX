@@ -1,0 +1,87 @@
+use std::io::{self, Write};
+
+use crate::document::Document;
+use crate::element::{Children, Element};
+use crate::escape::{Context, write_escaped};
+use crate::names::{AttributeNames, sanitized};
+
+const DECLARATION: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+const MAX_INDENT_LEVELS: usize = 64;
+const INDENT: [u8; 2 * MAX_INDENT_LEVELS] = [b' '; 2 * MAX_INDENT_LEVELS];
+
+/// Writes `document` as indented XML without recursion; indentation stops growing at 64 levels
+/// so that deep input cannot blow up the output quadratically.
+pub(crate) fn write<W: Write>(document: &Document<'_>, out: W) -> io::Result<()> {
+    let mut writer = Writer {
+        out,
+        names: AttributeNames::default(),
+    };
+    writer.out.write_all(DECLARATION)?;
+    let mut open: Vec<(Element<'_>, Children<'_>)> = Vec::new();
+    let root = document.root();
+    if writer.start(root, 0)? {
+        open.push((root, root.children()));
+    }
+    while let Some((element, children)) = open.last_mut() {
+        if let Some(child) = children.next() {
+            if writer.start(child, open.len())? {
+                open.push((child, child.children()));
+            }
+        } else {
+            let element = *element;
+            open.pop();
+            writer.indent(open.len())?;
+            writer.end_tag(element)?;
+        }
+    }
+    writer.out.flush()
+}
+
+struct Writer<'d, W> {
+    out: W,
+    names: AttributeNames<'d>,
+}
+
+impl<'d, W: Write> Writer<'d, W> {
+    /// Writes the start of `element`, or all of it when it has no children; returns whether its
+    /// children and end tag remain to be written.
+    fn start(&mut self, element: Element<'d>, depth: usize) -> io::Result<bool> {
+        self.indent(depth)?;
+        self.out.write_all(b"<")?;
+        self.out.write_all(sanitized(element.name()).as_bytes())?;
+        let names = self.names.resolve(element.attributes());
+        for (name, attribute) in names.iter().zip(element.attributes()) {
+            self.out.write_all(b" ")?;
+            self.out.write_all(name.as_bytes())?;
+            self.out.write_all(b"=\"")?;
+            write_escaped(&mut self.out, attribute.value(), Context::Attribute)?;
+            self.out.write_all(b"\"")?;
+        }
+        let has_children = element.has_children();
+        match element.content() {
+            None if !has_children => self.out.write_all(b"/>\n")?,
+            None => self.out.write_all(b">\n")?,
+            Some(content) => {
+                self.out.write_all(b">")?;
+                write_escaped(&mut self.out, content, Context::Text)?;
+                if has_children {
+                    self.out.write_all(b"\n")?;
+                } else {
+                    self.end_tag(element)?;
+                }
+            }
+        }
+        Ok(has_children)
+    }
+
+    fn end_tag(&mut self, element: Element<'_>) -> io::Result<()> {
+        self.out.write_all(b"</")?;
+        self.out.write_all(sanitized(element.name()).as_bytes())?;
+        self.out.write_all(b">\n")
+    }
+
+    fn indent(&mut self, depth: usize) -> io::Result<()> {
+        let width = 2 * depth.min(MAX_INDENT_LEVELS);
+        self.out.write_all(INDENT.get(..width).unwrap_or_default())
+    }
+}

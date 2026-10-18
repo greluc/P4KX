@@ -598,6 +598,7 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "cbc",
+ "crc32c",
  "flate2",
  "p4kx-foundation",
  "p4kx-testkit",

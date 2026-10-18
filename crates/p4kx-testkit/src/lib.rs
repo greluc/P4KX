@@ -1,15 +1,18 @@
 //! Writers for synthetic test data in the formats P4K-Extractor reads.
 //!
 //! The writers reproduce the byte layout of real Star Citizen files so that every reader can be
-//! tested without game files. This crate is a development dependency only.
+//! tested without game files; [`real_archive_path`] locates a real Archive for the opt-in suite.
+//! This crate is a development dependency only.
 
 mod archive_builder;
 mod build_manifest;
 mod bytes;
 mod layout_v1;
 mod layout_v2;
+mod real_archive;
 mod test_entry;
 
 pub use archive_builder::ArchiveBuilder;
 pub use build_manifest::write_build_manifest;
+pub use real_archive::{MissingRealArchive, REAL_ARCHIVE_VAR, real_archive_path};
 pub use test_entry::TestEntry;

@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"Data\\\\Libs\\\\text.xml\", true, 1)?"
+---
+{"path":"Data\\Libs\\text.xml","change":"changed","differs":true,"content":"text","old":{"size":64,"crc32c":3653534010,"encoding":"text"},"new":{"size":83,"crc32c":1515590036,"encoding":"text"},"hunks":[{"old_start":1,"old_lines":4,"new_start":1,"new_lines":5,"lines":[{"kind":"context","text":"<Items>\n"},{"kind":"removed","text":"  <Item name=\"a\" mass=\"1\"/>\n"},{"kind":"added","text":"  <Item name=\"a\" mass=\"2\"/>\n"},{"kind":"context","text":"  <Item name=\"b\"/>\n"},{"kind":"added","text":"  <Item name=\"c\"/>\n"},{"kind":"context","text":"</Items>\n"}]}]}

@@ -37,7 +37,8 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
-    /// Compares the Entries of an old and a new Archive; exits with 1 when they differ.
+    /// Compares the Entries of an old and a new Archive, or prints the line diff of one Entry;
+    /// exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
@@ -237,6 +238,12 @@ pub(crate) struct CompareArgs {
     /// Writes the Comparison as a JSON report to FILE; an existing file is replaced.
     #[arg(long, value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
+    /// Prints the line diff of the Entry at this path, with `\` or `/` as separator, ignoring
+    /// case, instead of comparing every Entry. CryXml is converted to XML first; an Entry on one
+    /// side only is diffed against an empty side, and a binary Entry is only reported as changed
+    /// or not. With --json, the hunks are printed as JSON.
+    #[arg(long, value_name = "ENTRY", conflicts_with_all = ["entries", "filter", "report"])]
+    pub(crate) diff: Option<String>,
 }
 
 /// Arguments of `p4kx info`.

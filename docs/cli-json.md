@@ -206,6 +206,39 @@ separator kind. The exit code is 0 without and 1 with differences.
 
 `entries` is absent when the Entry level was not compared.
 
+## `p4kx compare <old> <new> --diff <entry> --json`
+
+The line diff of one Entry, with three unchanged lines of context around each change:
+
+```json
+{"path": "Data\\Libs\\text.xml", "change": "changed", "differs": true, "content": "text",
+ "old": {"size": 64, "crc32c": 3653534010, "encoding": "text"},
+ "new": {"size": 83, "crc32c": 1515590036, "encoding": "text"},
+ "hunks": [{"old_start": 1, "old_lines": 4, "new_start": 1, "new_lines": 5, "lines": [
+   {"kind": "context", "text": "<Items>\n"},
+   {"kind": "removed", "text": "  <Item name=\"a\" mass=\"1\"/>\n"},
+   {"kind": "added", "text": "  <Item name=\"a\" mass=\"2\"/>\n"}]}]}
+```
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | The Entry path as the new side stores it, the old side for a removed Entry |
+| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and CRC-32C from the central directories |
+| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or CRC-32C, or with differing lines; it decides the exit code |
+| `content` | string | `text`; `binary` when a side holds a NUL byte, or starts with a UTF-16 byte order mark but does not decode as UTF-16 without NUL characters; `too_large` when a side, or the XML converted from it, is larger than 128 MiB or has more than 4 194 304 lines |
+| `old`, `new` | object or `null` | `size`, `crc32c` and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
+| `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator, for display with invalid UTF-8 replaced by U+FFFD; the last line of a side may have none) |
+
+A missing side is diffed as empty text. Lines are compared by their bytes, so a change in bytes
+that are not valid UTF-8 still shows as a hunk even where both `text` values look the same. The diff is a patience diff with a Myers fallback
+where no line is unique; so that pathological pairs stay fast, a region that needs more than 1024
+edits there, or every region once a fixed work budget is spent, is shown as removed and added as a
+whole. An Entry whose bytes changed but whose lines (for CryXml: the converted XML) did not has
+`change` `changed`, `differs` true and no hunks; without `--json` a note says so. The exit code
+is 0 when `differs` is false, 1 when it is true, 2 when neither Archive has the Entry and 3 when an Entry cannot be read, does not
+hold the size its central directory states, or holds corrupt CryXml. Memory stays bounded: each
+side holds at most 128 MiB of text and about 9 bytes of bookkeeping per line.
+
 ## `p4kx cryxml <file> --out <file> --json`
 
 ```json

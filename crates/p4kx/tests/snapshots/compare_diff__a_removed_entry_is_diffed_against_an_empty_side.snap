@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"Data\\\\removed.txt\", false, 1)?"
+---
+--- Data\removed.txt	LIVE/Data.p4k
++++ /dev/null	PTU/Data.p4k
+@@ -1,2 +0,0 @@
+-first
+-last
+\ No newline at end of file

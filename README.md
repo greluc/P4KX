@@ -84,6 +84,22 @@ Every crate declares its layer in `[package.metadata.p4kx]`.
 
 Tests use synthetic Archives from `p4kx-testkit`; no game files are needed or committed.
 
+### Real-Archive suite
+
+A second suite checks a real `Data.p4k`: opening and listing it within 10 seconds, its Build,
+reading Entries of every compression method and encryption state present (size and CRC-32C), and
+extracting a small subset. Its tests are ignored by default, so `cargo test` and CI report them as
+`ignored`. Point `P4KX_DATA_P4K` to an Archive and pass `--ignored`; without the variable the
+suite fails and says so.
+
+```powershell
+$env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
+cargo test --release -p p4kx-archive -p p4kx-extraction --test real_archive -- --ignored
+```
+
+The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is
+removed afterwards.
+
 ## Licence
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or

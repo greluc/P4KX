@@ -24,7 +24,18 @@ never write into the game folders. Extraction output during development goes und
 `D:\Coding\claude-worktrees\p4k-extractor\`.
 
 Never read `loginData.json` or other launcher credential files in the game folders. Tests against a
-real Archive run only when `P4KX_DATA_P4K` points to one; CI uses synthetic fixtures.
+real Archive are `#[ignore]`d and need `P4KX_DATA_P4K`; CI uses synthetic fixtures. Run them with
+`TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the extracted subset lands
+there:
+
+```powershell
+$env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
+$env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
+cargo test --release -p p4kx-archive -p p4kx-extraction --test real_archive -- --ignored
+```
+
+A new real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
+and takes the path from `p4kx_testkit::real_archive_path`.
 
 ## Plan and decisions
 

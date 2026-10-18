@@ -1,8 +1,10 @@
 //! `p4kx`, the command-line interface of P4K-Extractor.
 
 mod audio;
+mod bnk;
 mod channels;
 mod cli;
+mod cli_bnk;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -47,6 +49,7 @@ fn main() -> ExitCode {
         Command::CryXml(args) => cryxml::run(&args, json).map(success),
         Command::Texture(args) => texture::run(&args, json).map(success),
         Command::Audio(args) => audio::run(&args, json).map(success),
+        Command::Bnk(args) => bnk::run(&args, json),
     };
     match result {
         Ok(code) => code,

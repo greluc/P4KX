@@ -162,6 +162,25 @@ comparison-no-matches = No change matches the filter.
 comparison-shown = { $number } shown
 comparison-row = { $change }: { $path }
 
+diff-previous = Previous difference
+diff-next = Next difference
+diff-position = Difference { $current } of { $total }
+diff-head-old = Old
+diff-head-new = New
+diff-hunk = Lines { $first }–{ $last }
+diff-hunk-empty = No lines
+diff-loading = Reading the line diff of { $path }…
+diff-binary = { $path } is binary, so there is no line diff.
+diff-too-large = { $path } is too large for a line diff: a side holds more than { $size } or { $lines } lines.
+diff-failed = Cannot diff { $path }: { $reason }
+diff-stopped = The line diff of { $path } stopped without a result.
+diff-equal = The lines of both sides are equal; only the stored bytes differ.
+diff-line-context = Line { $line }: { $text }
+diff-line-removed = Removed line { $line }: { $text }
+diff-line-added = Added line { $line }: { $text }
+diff-marker-removed = −
+diff-marker-added = +
+
 dataforge-node = DataForge
 dataforge-node-loading = Loading…
 preview-tab-dataforge = DataForge

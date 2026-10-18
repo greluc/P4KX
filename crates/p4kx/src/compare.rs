@@ -26,7 +26,7 @@ pub(crate) struct ReportNotWritten {
 }
 
 /// Compares both Archives, writes the report when asked, prints the summary or the report as
-/// JSON, and returns 0 without differences and 1 with differences.
+/// JSON, and returns 0 without differences and 1 with differences, also when stdout was closed.
 pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
     let (old, new) = open_both(&args.old, &args.new)?;
     let filter = args.filter.as_deref().map(Filter::new);
@@ -42,10 +42,15 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
             source,
         })?;
     }
-    if as_json {
-        json::print(&comparison)?;
+    let printed = if as_json {
+        json::print(&comparison)
     } else {
-        print_summary(&comparison)?;
+        print_summary(&comparison)
+    };
+    if let Err(error) = printed
+        && error.kind() != io::ErrorKind::BrokenPipe
+    {
+        return Err(error.into());
     }
     Ok(ExitCode::from(if comparison.has_differences() {
         exit::DIFFERENCES

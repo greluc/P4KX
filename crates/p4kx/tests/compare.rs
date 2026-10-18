@@ -149,6 +149,36 @@ fn json_prints_the_report_as_one_line() -> TestResult {
 }
 
 #[test]
+fn a_closed_stdout_keeps_the_exit_code_of_the_result() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    write(dir.path(), OLD, &old_archive())?;
+    let new = (0..5000).fold(old_archive(), |builder, index| {
+        builder.entry(TestEntry::stored(
+            format!("Data\\Added\\entry-{index:05}.xml"),
+            b"<a/>".to_vec(),
+        ))
+    });
+    write(dir.path(), NEW, &new)?;
+
+    let mut child = std::process::Command::new(assert_cmd::cargo::cargo_bin("p4kx"))
+        .current_dir(dir.path())
+        .args(["--json", "compare", OLD, NEW])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    drop(child.stdout.take());
+    let output = child.wait_with_output()?;
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "differences, not an error: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
+#[test]
 fn a_file_that_is_not_an_archive_exits_with_code_3() -> TestResult {
     let dir = pair()?;
     std::fs::write(dir.path().join("notes.txt"), "plain text")?;

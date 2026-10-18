@@ -12,7 +12,7 @@ use p4kx_extraction::{Entry, Texture};
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
-pub use texture_info::TextureInfo;
+pub use texture_info::{MAX_PREVIEW_PIXELS, TextureInfo};
 
 use crate::EntryIndex;
 use crate::model::describe;

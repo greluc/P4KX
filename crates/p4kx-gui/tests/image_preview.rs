@@ -1,112 +1,18 @@
 //! The Image tab of the preview over a synthetic Archive with split textures, driven headless.
 
-use std::error::Error;
-use std::path::PathBuf;
+mod imaging;
+
 use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
-use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{
-    Browser, ImagePreview, ImageStatus, Language, MipStatus, Model, Preview, PreviewTab, ui,
+use imaging::{
+    TestResult, archive, image, opened, select, settled, shown_level, textures, wait_until,
 };
-use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat};
-use tempfile::TempDir;
-
-type TestResult = Result<(), Box<dyn Error>>;
-
-const PANEL: &str = "Data\\Textures\\panel_diff.dds";
-const PROBE: &str = "Data\\Textures\\probe_cm.dds";
-const ODD: &str = "Data\\Textures\\odd_spec.dds";
-const LOST: &str = "Data\\Textures\\lost_ddna.dds";
-const R11G11B10_FLOAT: TestTextureFormat = TestTextureFormat::Dx10Pixel {
-    dxgi_format: 26,
-    pixel_bytes: 4,
-};
-
-fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
-    let folder = tempfile::tempdir()?;
-    let path = folder.path().join("Data.p4k");
-    let mut entries = SplitDds::new(TestTextureFormat::LegacyBgra8, 1024, 1024)
-        .split(4)
-        .entries(PANEL);
-    entries.extend(
-        SplitDds::new(TestTextureFormat::LegacyBgra8, 16, 16)
-            .cubemap()
-            .split(1)
-            .entries(PROBE),
-    );
-    entries.extend(SplitDds::new(R11G11B10_FLOAT, 8, 8).entries(ODD));
-    let mut lost = SplitDds::new(TestTextureFormat::LegacyBgra8, 64, 64)
-        .split(7)
-        .entries(LOST);
-    lost.truncate(1);
-    entries.extend(lost);
-    entries.push(TestEntry::stored("Data\\readme.txt", "plain text"));
-    entries
-        .into_iter()
-        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
-        .write_to(&path)?;
-    Ok((folder, path))
-}
-
-fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
-    let (folder, path) = archive()?;
-    let mut harness = Harness::builder()
-        .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1600.0, 900.0])
-        .build_ui_state(
-            |ui, model: &mut Model| {
-                ui::show(ui, model);
-            },
-            Model::new(language),
-        );
-    harness.state_mut().open(path, || {});
-    wait_until(&mut harness, |model| model.browser().is_some())?;
-    Ok((folder, harness))
-}
-
-fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
-    harness.run();
-    Ok(())
-}
-
-fn image(model: &Model) -> Option<&ImagePreview> {
-    model
-        .browser()
-        .and_then(Browser::preview)
-        .and_then(Preview::image)
-}
-
-fn settled(model: &Model) -> bool {
-    image(model).is_some_and(|image| match image.status() {
-        ImageStatus::Opened(info, MipStatus::Unchosen) => !info.is_decodable(),
-        ImageStatus::Opening
-        | ImageStatus::Opened(_, MipStatus::Decoding(_) | MipStatus::Decoded(_, None)) => false,
-        _ => true,
-    })
-}
-
-fn select(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {
-    harness.get_by_label(name).click();
-    wait_until(harness, settled)
-}
-
-fn shown_level(harness: &Harness<'_, Model>) -> Option<u32> {
-    match image(harness.state())?.status() {
-        ImageStatus::Opened(_, MipStatus::Decoded(level, Some(_))) => Some(level),
-        _ => None,
-    }
-}
+use p4kx_gui::{Browser, ImagePreview, ImageStatus, Language, MipStatus, Model, PreviewTab};
+const PREVIEW_PADDING: f32 = 16.0;
+const PREVIEW_PADDING_Y: f32 = 8.0;
+const SELECTOR_GAP: f32 = 8.0;
 
 #[test]
 fn selecting_a_texture_shows_the_largest_mip_that_fits_the_view() -> TestResult {
@@ -121,23 +27,26 @@ fn selecting_a_texture_shows_the_largest_mip_that_fits_the_view() -> TestResult 
     );
     let level = shown_level(&harness).ok_or("no mip shown")?;
     let side = 1024_f32 / 2_f32.powi(i32::try_from(level)?);
-    let view = harness
-        .get_by_label(&format!("Mip {level}: {side} × {side} pixels"))
+    let facts = harness
+        .get_by_label_contains("Format B8G8R8A8_UNORM")
         .rect();
-    assert_eq!(
+    let selector = harness.get_by_label("1024").rect();
+    let status = harness.get_by_label("10 Entries").rect();
+    let width = 2.0f32.mul_add(-PREVIEW_PADDING, facts.width());
+    let height = status.top() - selector.bottom() - SELECTOR_GAP - PREVIEW_PADDING_Y;
+    assert!(
         harness
-            .get_by_role_and_label(Role::Image, &format!("Mip {level}: {side} × {side} pixels"))
-            .rect(),
-        view,
-        "the mip is shown as an image"
+            .query_by_role_and_label(Role::Image, &format!("Mip {level}: {side} × {side} pixels"))
+            .is_some(),
+        "mip {level} is shown"
     );
     assert!(
-        side <= view.width() && side <= view.height(),
-        "{side} fits into {view:?}"
+        side <= width && side <= height,
+        "{side} fits into {width} × {height}"
     );
     assert!(
-        level == 0 || side * 2.0 > view.width().min(view.height()),
-        "the next larger mip would not fit into {view:?}"
+        2.0 * side > width.min(height),
+        "the next larger mip would not fit into {width} × {height}"
     );
     Ok(())
 }
@@ -263,7 +172,7 @@ fn selecting_another_entry_leaves_the_image_tab() -> TestResult {
 
 #[test]
 fn decoding_runs_off_the_window_thread() -> TestResult {
-    let (folder, path) = archive()?;
+    let (folder, path) = archive(textures())?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
     let deadline = Instant::now() + Duration::from_secs(10);

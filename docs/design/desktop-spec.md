@@ -163,8 +163,9 @@ Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des 
 Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
 „1024" …): jede Stufe ist eindeutig, einen Klick entfernt und per Tastatur erreichbar. Gezeigt
 wird anfangs das größte Mip, das in die Vorschau passt, ein Texel je Gerätepixel ohne Skalierung;
-größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann, werden nicht
-angeboten. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
+größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (mehr als
+8192 × 8192 Pixel oder über der größten Texturgröße des Renderers), werden nicht angeboten;
+hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
 Farben hat; Alpha wird auf `surface-panel` gemischt.
 
 ## Bewusste Abweichungen von den Web-Specimens

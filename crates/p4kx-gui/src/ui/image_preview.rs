@@ -6,9 +6,8 @@ use egui::{
 use fluent_bundle::FluentValue;
 
 use super::search::eyebrow;
-use crate::theme::desktop::SPINNER_INLINE;
+use crate::theme::desktop::{IMAGE_LABEL_GAP, IMAGE_SELECTOR_GAP, SPINNER_INLINE};
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_2, SPACE_3};
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::summary::{Fact, FactsStrip};
@@ -25,11 +24,11 @@ fn mip_selector(ui: &mut Ui, texts: &Texts, info: &TextureInfo, level: Option<u3
         .map(|offset| offset as usize);
     let mut clicked = None;
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = SPACE_3;
+        ui.spacing_mut().item_spacing.x = IMAGE_LABEL_GAP;
         ui.label(eyebrow(&texts.get(ImageText::Mip)));
         clicked = tab::segments(ui, labels, active);
     });
-    ui.add_space(SPACE_2);
+    ui.add_space(IMAGE_SELECTOR_GAP);
     clicked
         .and_then(|index| u32::try_from(index).ok())
         .map(|offset| first + offset)

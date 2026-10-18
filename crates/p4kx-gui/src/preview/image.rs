@@ -1,6 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
@@ -92,6 +92,7 @@ enum State {
 #[derive(Debug)]
 pub struct ImagePreview {
     serial: u64,
+    dropped: Arc<AtomicBool>,
     requests: Sender<u32>,
     events: Receiver<Event>,
     state: State,
@@ -107,16 +108,27 @@ impl ImagePreview {
     ) -> Self {
         let (requests, requested) = mpsc::channel();
         let (sender, events) = mpsc::channel();
+        let dropped = Arc::new(AtomicBool::new(false));
         let thread_index = Arc::clone(index);
+        let thread_dropped = Arc::clone(&dropped);
         let spawned = thread::Builder::new()
             .name("image-preview".to_owned())
-            .spawn(move || work(&thread_index, id, &requested, &sender, &wake));
+            .spawn(move || {
+                let worker = Worker {
+                    index: &thread_index,
+                    requests: &requested,
+                    events: &sender,
+                    dropped: &thread_dropped,
+                };
+                worker.run(id, &wake);
+            });
         let state = match spawned {
             Ok(_handle) => State::Opening,
             Err(_ignored) => State::Failed(None),
         };
         Self {
             serial: SERIAL.fetch_add(1, Ordering::Relaxed),
+            dropped,
             requests,
             events,
             state,
@@ -163,8 +175,7 @@ impl ImagePreview {
 
     /// Decodes mip `level` on the background thread unless it is shown or being decoded
     /// already; does nothing before the header was read, for a format the preview cannot
-    /// decode, and for a level the texture does not have or whose image has a side longer than
-    /// `max_side` pixels.
+    /// decode, and for a level that is not showable within `max_side` pixels a side.
     pub fn request(&mut self, level: u32, max_side: u32) {
         let State::Opened(info, mip) = &mut self.state else {
             return;
@@ -173,10 +184,7 @@ impl ImagePreview {
             mip,
             Mip::Decoding(shown) | Mip::Decoded { level: shown, .. } if *shown == level
         );
-        let showable = info
-            .image_size(level)
-            .is_some_and(|size| size.iter().all(|&side| side <= max_side));
-        if current || !showable || !info.is_decodable() {
+        if current || !info.is_showable(level, max_side) || !info.is_decodable() {
             return;
         }
         *mip = match self.requests.send(level) {
@@ -253,6 +261,12 @@ impl ImagePreview {
     }
 }
 
+impl Drop for ImagePreview {
+    fn drop(&mut self) {
+        self.dropped.store(true, Ordering::Release);
+    }
+}
+
 fn mip_status(mip: &Mip) -> MipStatus<'_> {
     match mip {
         Mip::Unchosen => MipStatus::Unchosen,
@@ -264,58 +278,80 @@ fn mip_status(mip: &Mip) -> MipStatus<'_> {
     }
 }
 
-fn work(
-    index: &EntryIndex,
-    id: u32,
-    requests: &Receiver<u32>,
-    events: &Sender<Event>,
-    wake: &impl Fn(),
-) {
-    let send = |event| {
-        let sent = events.send(event).is_ok();
+/// What the background thread of one image preview works with.
+struct Worker<'a> {
+    index: &'a EntryIndex,
+    requests: &'a Receiver<u32>,
+    events: &'a Sender<Event>,
+    dropped: &'a AtomicBool,
+}
+
+impl Worker<'_> {
+    fn send(&self, event: Event, wake: &impl Fn()) -> bool {
+        let sent = !self.dropped.load(Ordering::Acquire) && self.events.send(event).is_ok();
         if sent {
             wake();
         }
         sent
-    };
-    let Some(entry) = index.entry(id) else {
-        send(Event::Failed(None));
-        return;
-    };
-    if index.watch().check().is_err() {
-        send(Event::ArchiveChanged);
-        return;
     }
-    let texture = match Texture::from_archive(index.archive(), entry.path()) {
-        Ok(texture) => texture,
-        Err(error) => {
-            send(Event::Failed(Some(describe(&error))));
-            return;
-        }
-    };
-    let info = TextureInfo::of(texture.header());
-    let decodable = info.is_decodable();
-    if !send(Event::Opened(info)) || !decodable {
-        return;
+
+    fn is_dropped(&self) -> bool {
+        self.dropped.load(Ordering::Acquire)
     }
-    while let Ok(mut level) = requests.recv() {
-        while let Ok(newer) = requests.try_recv() {
-            level = newer;
-        }
-        let decoded = texture
-            .decode_preview(level)
-            .map(|image| colour_image(&image))
-            .map_err(|error| describe(&error));
-        if index.watch().check().is_err() {
-            send(Event::ArchiveChanged);
+
+    fn latest(&self, level: u32) -> u32 {
+        self.requests.try_iter().last().unwrap_or(level)
+    }
+
+    fn run(&self, id: u32, wake: &impl Fn()) {
+        let Some(entry) = self.index.entry(id) else {
+            self.send(Event::Failed(None), wake);
+            return;
+        };
+        if self.index.watch().check().is_err() {
+            self.send(Event::ArchiveChanged, wake);
             return;
         }
-        if !send(Event::Decoded(level, decoded)) {
+        let texture = match Texture::from_archive(self.index.archive(), entry.path()) {
+            Ok(texture) => texture,
+            Err(error) => {
+                self.send(Event::Failed(Some(describe(&error))), wake);
+                return;
+            }
+        };
+        let info = TextureInfo::of(texture.header());
+        let decodable = info.is_decodable();
+        if !self.send(Event::Opened(info), wake) || !decodable {
             return;
+        }
+        let mut next = self.requests.recv().ok();
+        while let Some(requested) = next {
+            let level = self.latest(requested);
+            if self.is_dropped() {
+                return;
+            }
+            let decoded = texture.decode_preview(level);
+            if self.is_dropped() {
+                return;
+            }
+            if let Some(newer) = self.requests.try_iter().last() {
+                next = Some(newer);
+                continue;
+            }
+            let decoded = decoded
+                .map(|image| colour_image(&image))
+                .map_err(|error| describe(&error));
+            if self.index.watch().check().is_err() {
+                self.send(Event::ArchiveChanged, wake);
+                return;
+            }
+            if !self.send(Event::Decoded(level, decoded), wake) {
+                return;
+            }
+            next = self.requests.recv().ok();
         }
     }
 }
-
 fn colour_image(image: &RgbaImage) -> ColorImage {
     let pixels = image
         .pixels()

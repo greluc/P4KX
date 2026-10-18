@@ -4,6 +4,9 @@ const CUBE_FACES: u32 = 6;
 const CROSS_COLUMNS: u32 = 4;
 const CROSS_ROWS: u32 = 3;
 
+/// The most pixels the image of one mip may have to be shown, 8192 × 8192.
+pub const MAX_PREVIEW_PIXELS: u64 = 8192 * 8192;
+
 /// What the header of a texture says, as the image preview shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextureInfo {
@@ -110,11 +113,20 @@ impl TextureInfo {
         })
     }
 
-    /// Returns the first level whose image has no side longer than `max_side` pixels, the
-    /// largest mip a window can show, or `None` when no level is small enough.
+    /// Returns the first level that is showable within `max_side` pixels a side, the largest mip
+    /// the preview can show, or `None` when no level is small enough.
     #[must_use]
     pub fn first_showable_level(&self, max_side: u32) -> Option<u32> {
-        (0..self.mip_count).find(|&level| fits(self.image_size(level), [max_side, max_side]))
+        (0..self.mip_count).find(|&level| self.is_showable(level, max_side))
+    }
+
+    /// Returns whether the image of `level` exists, has no side longer than `max_side` pixels
+    /// and holds at most [`MAX_PREVIEW_PIXELS`].
+    #[must_use]
+    pub fn is_showable(&self, level: u32, max_side: u32) -> bool {
+        let size = self.image_size(level);
+        fits(size, [max_side, max_side])
+            && size.is_some_and(|[w, h]| u64::from(w) * u64::from(h) <= MAX_PREVIEW_PIXELS)
     }
 
     /// Returns the largest showable mip that fits into `view` pixels, or the smallest mip when
@@ -191,6 +203,14 @@ mod tests {
         assert_eq!(info.mip_labels(), ["8", "4", "2", "1"], "labels");
         assert_eq!(info.image_size(3), Some([1, 1]), "never below one pixel");
         assert_eq!(info.image_size(4), None, "no such level");
+    }
+
+    #[test]
+    fn images_above_the_pixel_cap_are_not_shown_whatever_the_renderer() {
+        let info = texture([16_384, 16_384], 15, None);
+
+        assert!(!info.is_showable(0, u32::MAX), "16384 × 16384");
+        assert_eq!(info.first_showable_level(u32::MAX), Some(1), "8192 × 8192");
     }
 
     #[test]

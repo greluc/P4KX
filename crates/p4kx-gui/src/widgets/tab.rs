@@ -6,8 +6,8 @@ use egui::{
 use super::button::focus_ring;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
-    ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_HEIGHT, SEGMENT_PADDING_X, TAB_BAR_PADDING_LEFT,
-    TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
+    ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_FOCUS_OFFSET, SEGMENT_HEIGHT, SEGMENT_PADDING_X,
+    TAB_BAR_PADDING_LEFT, TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, TOUCH_TARGET, Weight};
@@ -145,7 +145,7 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, divided: bool) -> Response {
     }
     paint_left(ui, rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0)), galley, text);
     if response.has_focus() {
-        focus_ring(ui, rect, palette::PRIMARY, -3.0);
+        focus_ring(ui, rect, palette::PRIMARY, SEGMENT_FOCUS_OFFSET);
     }
     response
 }

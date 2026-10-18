@@ -45,8 +45,8 @@ pub use language::Language;
 pub use model::{Failure, Model, WorkTab};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    ImagePreview, ImageStatus, MipStatus, PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview,
-    PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
+    ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
+    PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
 };
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,

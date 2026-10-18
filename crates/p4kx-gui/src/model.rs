@@ -42,6 +42,7 @@ pub struct Model {
     licence_shown: bool,
     preview_tab: PreviewTab,
     extraction_folder: Option<PathBuf>,
+    extraction_conversion: bool,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
     update: UpdateState,
@@ -59,6 +60,7 @@ impl std::fmt::Debug for Model {
             .field("licence_shown", &self.licence_shown)
             .field("preview_tab", &self.preview_tab)
             .field("extraction_folder", &self.extraction_folder)
+            .field("extraction_conversion", &self.extraction_conversion)
             .field("extraction_setup", &self.extraction_setup)
             .field("extraction", &self.extraction)
             .field("update", &self.update)
@@ -80,6 +82,7 @@ impl Model {
             licence_shown: false,
             preview_tab: PreviewTab::Text,
             extraction_folder: None,
+            extraction_conversion: false,
             extraction_setup: None,
             extraction: None,
             update: UpdateState::default(),

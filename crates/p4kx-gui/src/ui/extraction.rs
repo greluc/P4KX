@@ -123,6 +123,27 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
             action = Some(Action::ChooseFolder);
         }
     });
+    writing(ui, model, setup);
+    ui.separator();
+    ui.horizontal(|ui| {
+        let ready = setup.folder().is_some() && model.scope_len(setup.scope()) > 0;
+        if ui
+            .add_enabled(ready, Button::new(texts.get(T::Start)))
+            .clicked()
+        {
+            action = Some(Action::Submit);
+        }
+        if ui.button(texts.get(T::Close)).clicked() {
+            action = Some(Action::Close);
+        }
+    });
+    action
+}
+
+/// Shows the name of a new folder or the Conflict policy for an existing one, then the
+/// Conversion switch.
+fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
+    let texts = model.texts();
     if setup.kind() == TargetKind::NewFolder {
         let name = new_folder_name(model);
         ui.weak(texts.format(T::TargetNewName, &[("name", name.into())]));
@@ -139,19 +160,13 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
         }
     }
     ui.separator();
-    ui.horizontal(|ui| {
-        let ready = setup.folder().is_some() && model.scope_len(setup.scope()) > 0;
-        if ui
-            .add_enabled(ready, Button::new(texts.get(T::Start)))
-            .clicked()
-        {
-            action = Some(Action::Submit);
-        }
-        if ui.button(texts.get(T::Close)).clicked() {
-            action = Some(Action::Close);
-        }
-    });
-    action
+    let mut convert = setup.convert();
+    if ui
+        .checkbox(&mut convert, texts.get(T::Conversion))
+        .changed()
+    {
+        setup.set_convert(convert);
+    }
 }
 
 fn confirm(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {

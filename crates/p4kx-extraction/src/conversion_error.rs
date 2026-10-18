@@ -103,7 +103,7 @@ pub enum ConversionError {
         source: AudioError,
     },
     /// The output file is the header or one of its parts, or the sound file.
-    #[error("{} is an input of the merge", path.display())]
+    #[error("{} is one of the inputs", path.display())]
     OutputIsInput {
         /// The output file.
         path: PathBuf,

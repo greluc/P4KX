@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, Texture};
+use p4kx_extraction::{Archive, ConversionError, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
@@ -116,8 +116,8 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-/// Returns whether `error` is a texture failure caused by the command line: an Entry or file that
-/// does not exist, or an output that is one of the inputs.
+/// Returns whether `error` is a texture or sound failure caused by the command line: an Entry or
+/// file that does not exist, or an output that is one of the inputs.
 pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
@@ -129,10 +129,20 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
     )
 }
 
-/// Returns whether `error` is a texture failure caused by an unreadable Archive.
+/// Returns whether `error` is a texture or sound failure caused by an unreadable Archive, Entry or
+/// input file.
 pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
-        Some(ConversionError::Archive(_))
+        Some(
+            ConversionError::Archive(_)
+                | ConversionError::ReadEntry { .. }
+                | ConversionError::Read { .. }
+                | ConversionError::ReadPart { .. }
+                | ConversionError::Texture {
+                    source: TextureError::ReadHeader(_),
+                    ..
+                }
+        )
     )
 }

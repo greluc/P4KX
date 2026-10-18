@@ -103,6 +103,36 @@ fn wwise_vorbis_takes_its_sample_count_from_the_fmt_chunk() -> TestResult {
 }
 
 #[test]
+fn older_wwise_vorbis_takes_its_sample_count_from_the_vorb_chunk() -> TestResult {
+    let mut vorb = 72_000u32.to_le_bytes().to_vec();
+    vorb.resize(0x2A, 0);
+    let bytes = TestWem::encoded(TestCodec::Tag(0xFFFF), 2, 48_000, 960)
+        .chunk(*b"vorb", vorb)
+        .bytes();
+
+    let wem = Wem::parse(bytes)?;
+
+    assert_eq!(wem.codec(), Codec::Vorbis, "tag 0xFFFF");
+    assert_eq!(wem.sample_count(), Some(72_000), "the vorb chunk's count");
+    Ok(())
+}
+
+#[test]
+fn wwise_vorbis_with_another_fmt_size_and_no_vorb_chunk_has_no_sample_count() -> TestResult {
+    let bytes = TestWem::encoded(TestCodec::Tag(0xFFFF), 2, 48_000, 960).bytes();
+
+    let wem = Wem::parse(bytes)?;
+
+    assert_eq!(wem.codec(), Codec::Vorbis, "tag 0xFFFF");
+    assert_eq!(
+        wem.sample_count(),
+        None,
+        "offset 0x18 of a 28-byte fmt chunk is not a sample count"
+    );
+    assert_eq!(wem.duration(), None, "no duration");
+    Ok(())
+}
+#[test]
 fn opus_takes_its_sample_count_from_the_fmt_chunk() -> TestResult {
     let bytes = TestWem::encoded(TestCodec::Tag(0x3041), 1, 48_000, 24_000).bytes();
 

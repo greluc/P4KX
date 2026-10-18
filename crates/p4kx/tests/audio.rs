@@ -233,3 +233,28 @@ fn an_unreadable_archive_is_an_archive_error() -> TestResult {
         .code(3);
     Ok(())
 }
+
+#[test]
+fn unreadable_entry_data_or_an_unreadable_file_is_a_read_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::deflated(PCM_ENTRY, pcm_wem().bytes()).with_payload(vec![0xFF; 64]))
+        .write_to(&archive)?;
+    let folder = dir.path().join("folder.wem");
+    fs::create_dir(&folder)?;
+
+    p4kx()?
+        .args(["audio", "info"])
+        .arg(&archive)
+        .arg(PCM_ENTRY)
+        .assert()
+        .code(3);
+    p4kx()?
+        .args(["audio", "info"])
+        .arg(&folder)
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains("cannot read"));
+    Ok(())
+}

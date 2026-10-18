@@ -6,6 +6,7 @@ use p4kx_archive::Archive;
 use p4kx_audio::{AudioError, WavReport, Wem};
 use rayon::prelude::*;
 
+use crate::entry_path::same_entry_path;
 use crate::texture::{create_temporary, read_error, write_error};
 use crate::texture_parts::is_same_file;
 use crate::{ConversionError, UnknownEntries};
@@ -35,7 +36,7 @@ impl Sound {
         let entry = archive
             .entries()
             .par_iter()
-            .find_first(|entry| is_same_entry_path(entry.path(), path))
+            .find_first(|entry| same_entry_path(entry.path(), path))
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         let name = entry.path().to_owned();
         let reader = archive.open_entry(entry)?;
@@ -159,16 +160,4 @@ fn read_capped(reader: impl Read, declared_len: u64) -> io::Result<Option<Vec<u8
     let mut bytes = Vec::with_capacity(capacity);
     reader.take(MAX_SOUND_LEN + 1).read_to_end(&mut bytes)?;
     Ok((bytes.len() as u64 <= MAX_SOUND_LEN).then_some(bytes))
-}
-
-fn is_same_entry_path(entry: &str, requested: &str) -> bool {
-    let normalise = |byte: u8| match byte {
-        b'/' => b'\\',
-        other => other.to_ascii_lowercase(),
-    };
-    entry.len() == requested.len()
-        && entry
-            .bytes()
-            .zip(requested.bytes())
-            .all(|(left, right)| normalise(left) == normalise(right))
 }

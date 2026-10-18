@@ -31,7 +31,7 @@ there:
 ```powershell
 $env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
-cargo test --release -p p4kx-archive -p p4kx-extraction --test real_archive -- --ignored
+cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-gui --test real_archive -- --ignored
 ```
 
 A new real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`

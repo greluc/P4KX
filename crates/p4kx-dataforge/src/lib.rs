@@ -5,7 +5,11 @@
 //! once and then read as typed views with explicit little-endian decoding. The versions differ
 //! only in the Record table, whose version 8 rows carry a tag. Any other version is an error,
 //! never a best-effort parse.
+//!
+//! [`Record::tree`] builds the canonical [`RecordTree`] of one Record, the single model every
+//! output is made from, and [`RecordXml`] writes it as Record XML (`docs/record-xml.md`).
 
+mod build;
 mod dataforge;
 mod error;
 mod guid;
@@ -15,9 +19,15 @@ mod record;
 mod record_table;
 mod rows;
 mod schema;
+mod slot;
 mod strings;
 mod table;
+mod tree;
+mod value;
+mod xml;
+mod xml_text;
 
+pub use build::{MAX_INHERITANCE_DEPTH, MAX_RECORD_FIELDS};
 pub use dataforge::DataForge;
 pub use error::DataForgeError;
 pub use guid::{Guid, InvalidGuid};
@@ -25,3 +35,6 @@ pub use header::SUPPORTED_VERSIONS;
 pub use kinds::{DataType, ValueKind};
 pub use record::Record;
 pub use schema::{Enum, Property, Struct};
+pub use tree::RecordTree;
+pub use value::{Field, Value, ValueError};
+pub use xml::{RECORD_XML_NAMESPACE, RecordXml};

@@ -120,7 +120,7 @@ _Avoid_: unpack, export (an Export is something else)
 
 **Conflict policy**:
 What an Extraction does with a file already in the target folder: skip it, overwrite it, or
-overwrite it only if changed (size or CRC-32C differs from the Entry).
+overwrite it only if changed (size or CRC-32C differs from the Entry or the converted Record).
 _Avoid_: collision mode, overwrite mode
 
 **Conversion**:
@@ -152,5 +152,6 @@ A structured file derived from DataForge for another tool, as opposed to an Extr
 _Avoid_: dump
 
 **Record export**:
-The generic Export of selected Records as JSON, one file per Record or one NDJSON file.
+The generic Export of selected Records as Record XML or JSON, one file per Record or one combined
+file.
 _Avoid_: JSON dump, DataForge dump

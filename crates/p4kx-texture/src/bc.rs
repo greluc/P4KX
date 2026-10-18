@@ -93,7 +93,7 @@ fn mix(first: [u8; 4], second: [u8; 4], blend: impl Fn(u16, u16) -> u16) -> [u8;
     ]
 }
 
-fn alpha_palette(a0: u8, a1: u8) -> [u8; 8] {
+pub(crate) fn alpha_palette(a0: u8, a1: u8) -> [u8; 8] {
     let (a0, a1) = (u16::from(a0), u16::from(a1));
     let blend = |weight0: u16, weight1: u16, steps: u16| {
         u8::try_from((weight0 * a0 + weight1 * a1 + steps / 2) / steps).unwrap_or(u8::MAX)

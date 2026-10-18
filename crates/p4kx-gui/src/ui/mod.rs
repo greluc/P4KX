@@ -11,6 +11,7 @@ mod menu;
 mod preview;
 mod record_tree;
 mod search;
+mod shortcuts;
 mod status;
 mod table;
 mod tree;
@@ -70,6 +71,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             open(ui, model, path);
         }
     }
+    shortcuts::handle(ui, model);
     let header = Panel::top("menu")
         .frame(frames::header())
         .show_separator_line(false)

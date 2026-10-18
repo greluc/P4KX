@@ -16,6 +16,9 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
+  unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
+  removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the
@@ -31,6 +34,9 @@ fails while its section is missing.
   is reloaded or changes on disk; an unsupported version or a load error is named on the node. The
   new DataForge tab of the preview shows the version, the numbers of Records, structs and enums and
   the first Records.
+
+- Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
+  shortcuts working anywhere in the window.
 
 ### Changed
 

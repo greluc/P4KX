@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"Data\\\\removed.txt\", true, 1)?"
+---
+{"path":"Data\\removed.txt","change":"removed","differs":true,"content":"text","old":{"size":10,"crc32c":1714017960,"encoding":"text"},"new":null,"hunks":[{"old_start":1,"old_lines":2,"new_start":0,"new_lines":0,"lines":[{"kind":"removed","text":"first\n"},{"kind":"removed","text":"last"}]}]}

@@ -37,7 +37,8 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
-    /// Compares the Entries of an old and a new Archive; exits with 1 when they differ.
+    /// Compares the Entries of an old and a new Archive, or prints the line diff of one Entry;
+    /// exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
@@ -62,6 +63,38 @@ pub(crate) enum DcbCommand {
     /// Prints the version of the DataForge and its number of Records, structs and enums.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(DcbInfoArgs),
+    /// Writes Records as Record XML, one file per Record under its record path, into a target
+    /// folder.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Export(DcbExportArgs),
+}
+
+/// Arguments of `p4kx dcb export`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbExportArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The format of the Record files.
+    #[arg(long, value_enum, default_value_t = RecordFormat::Xml)]
+    pub(crate) format: RecordFormat,
+    /// Exports only the Records whose record path matches, with the rules of `p4kx search`: a
+    /// glob with `*` or `?`, otherwise text anywhere in the path; ignores case, `\` and `/` alike.
+    #[arg(long, value_name = "FILTER")]
+    pub(crate) filter: Option<String>,
+    /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
+    /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
+    #[arg(long, value_name = "FOLDER")]
+    pub(crate) out: Option<PathBuf>,
+    /// What to do with a file that already exists in the target.
+    #[arg(long, value_enum, default_value_t = Conflict::Skip)]
+    pub(crate) conflict: Conflict,
+}
+
+/// The values of `p4kx dcb export --format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum RecordFormat {
+    /// Record XML, defined in docs/record-xml.md.
+    Xml,
 }
 
 /// Arguments of `p4kx dcb info`.
@@ -166,6 +199,12 @@ pub(crate) struct CompareArgs {
     /// Writes the Comparison as a JSON report to FILE; an existing file is replaced.
     #[arg(long, value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
+    /// Prints the line diff of the Entry at this path, with `\` or `/` as separator, ignoring
+    /// case, instead of comparing every Entry. CryXml is converted to XML first; an Entry on one
+    /// side only is diffed against an empty side, and a binary Entry is only reported as changed
+    /// or not. With --json, the hunks are printed as JSON.
+    #[arg(long, value_name = "ENTRY", conflicts_with_all = ["entries", "filter", "report"])]
+    pub(crate) diff: Option<String>,
 }
 
 /// Arguments of `p4kx info`.
@@ -208,7 +247,7 @@ pub(crate) enum Conflict {
     Skip,
     /// Replace the existing file.
     Overwrite,
-    /// Replace the existing file only when its size or CRC-32C differs from the Entry.
+    /// Replace the existing file only when its size or CRC-32C differs from the new content.
     IfChanged,
 }
 

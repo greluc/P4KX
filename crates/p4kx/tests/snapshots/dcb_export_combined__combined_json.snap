@@ -6,6 +6,7 @@ expression: "serde_json::to_string_pretty(&value)?"
   "archive": "[DIR]/Data.p4k",
   "cancelled": 0,
   "entry": "Data/Game2.dcb",
+  "error": null,
   "error_values": 1,
   "exported": 4,
   "failed": [],

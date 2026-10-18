@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-assembly"
-description = "Assembly service of P4K-Extractor: the Loadout tree of an Entity."
+description = "Assembly service of P4K-Extractor: the Loadout tree of an Entity and the CHF files of Characters."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,6 +13,7 @@ layer = "service"
 
 [dependencies]
 p4kx-archive.workspace = true
+p4kx-character.workspace = true
 p4kx-cryxml.workspace = true
 p4kx-dataforge.workspace = true
 rayon.workspace = true

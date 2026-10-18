@@ -329,3 +329,39 @@ pub const XML_ROW_HEIGHT: f32 = HEX_ROW_HEIGHT;
 pub const XML_FONT: f32 = FS_XS;
 /// The horizontal padding around the line numbers of the XML view.
 pub const XML_GUTTER_PADDING_X: f32 = CELL_PADDING_X;
+
+/// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
+pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
+/// The underline of the marked error in the Query editor.
+pub const ERROR_UNDERLINE: f32 = 2.0;
+/// The rows of text the Query editor shows.
+pub const QUERY_EDITOR_ROWS: usize = 4;
+/// The horizontal padding of a textarea.
+pub const TEXTAREA_PADDING_X: f32 = 0.75 * REM;
+/// The vertical padding of a textarea.
+pub const TEXTAREA_PADDING_Y: f32 = SPACE_2;
+/// The line height of a textarea, as a factor of its font size.
+pub const TEXTAREA_LINE_HEIGHT: f32 = 1.5;
+
+/// The gap between the parts of the pagination.
+pub const PAGE_GAP: f32 = 0.4 * REM;
+/// The horizontal padding of a page button.
+pub const PAGE_BUTTON_PADDING_X: f32 = SPACE_2;
+/// The horizontal padding of the page status.
+pub const PAGE_STATUS_PADDING_X: f32 = 0.75 * REM;
+/// The opacity of a disabled page button.
+pub const PAGE_DISABLED_OPACITY: f32 = 0.4;
+
+/// The initial width of a column of the Query result.
+pub const QUERY_COLUMN_WIDTH: f32 = 200.0;
+/// The narrowest a column of the Query result gets.
+pub const QUERY_COLUMN_MIN_WIDTH: f32 = 80.0;
+
+/// The horizontal padding of a `.list-panel__footer`.
+pub const LIST_FOOTER_PADDING_X: f32 = SPACE_4;
+/// The vertical padding of a `.list-panel__footer`.
+pub const LIST_FOOTER_PADDING_Y: f32 = SPACE_3;
+/// The size of a chevron icon in a page button, `1.1em` of the control font.
+pub const PAGE_CHEVRON: f32 = 1.1 * REM;
+/// The rows of text the Query editor grows to before it scrolls.
+pub const QUERY_EDITOR_MAX_ROWS: usize = 12;

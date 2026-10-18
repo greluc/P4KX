@@ -7,6 +7,7 @@ mod dataforge_text;
 mod diff_text;
 mod extraction_text;
 mod image_text;
+mod query_text;
 mod text_ids;
 mod xml_text;
 
@@ -16,6 +17,7 @@ pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 pub use image_text::ImageText;
+pub use query_text::QueryText;
 pub use xml_text::XmlText;
 
 use crate::Language;
@@ -162,6 +164,8 @@ pub enum Text {
     Image(ImageText),
     /// A text of the XML preview.
     Xml(XmlText),
+    /// A text of the Query tab.
+    Query(QueryText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

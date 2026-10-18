@@ -1,6 +1,6 @@
 use super::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText, Text,
-    XmlText,
+    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
+    QueryText, Text, XmlText,
 };
 use crate::Language;
 
@@ -83,6 +83,7 @@ impl Text {
             .chain(DiffText::ALL.map(Self::Diff))
             .chain(ImageText::ALL.map(Self::Image))
             .chain(XmlText::ALL.map(Self::Xml))
+            .chain(QueryText::ALL.map(Self::Query))
     }
 
     /// Returns the Fluent message id.
@@ -160,6 +161,7 @@ impl Text {
             Self::Diff(text) => text.id(),
             Self::Image(text) => text.id(),
             Self::Xml(text) => text.id(),
+            Self::Query(text) => text.id(),
         }
     }
 }

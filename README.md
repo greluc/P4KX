@@ -155,17 +155,31 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
-  PTADPCM WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
-  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
-  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
-  the console codecs are detected; a conversion the codec does not support yet fails with an
-  error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
+  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
+  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
+  character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
+  are read), body type, face DNA with every face part named, item ports and material choices.
+  `p4kx chf from-json <file> --out <file>` writes the JSON back as a CHF file: unchanged, it
+  gives the original file byte for byte; edited, a new file with a correct CRC-32C. A file with
+  a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
+  (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
+  [docs/cli-json.md](docs/cli-json.md#the-chf-json).
+- `p4kx chunks list <archive> <entry>` prints the chunk table of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`
+  container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
+  types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
+  chunk's bytes unchanged. Both also take a chunk file on disk.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -175,12 +189,59 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
-| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
+| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or CHF, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
+
+## MCP server
+
+`p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
+stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
+(`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
+write a file:
+
+| Tool | Result |
+|------|--------|
+| `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
+| `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
+
+Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
+or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+`:` after the drive (an alternate data stream) and a path that resolves to a network drive or
+device are refused. Without it the tools use the Archive given with `--archive` when the server
+was started. Opened Archives stay open between calls and are opened again when their file
+changes. Listings page: `limit` sets the page size (100 by default, at most 1000), and a result
+with `next_cursor` has a next page that `cursor` asks for; a cursor only continues the listing
+that returned it, on the same version of the Archive. `--config-dir`, `--launcher-dir` and
+`--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
+for `p4kx channels`.
+
+The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
+`%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
+client with its full path. Claude Code:
+
+```powershell
+claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4K-Extractor\p4kx-mcp.exe" --archive LIVE
+```
+
+Claude Desktop and other clients that read an `mcpServers` file, with `<user>` your Windows user
+name:
+
+```json
+{
+  "mcpServers": {
+    "p4kx": {
+      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4K-Extractor\\p4kx-mcp.exe",
+      "args": ["--archive", "LIVE"]
+    }
+  }
+}
+```
 
 ## Build
 

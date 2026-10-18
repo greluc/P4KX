@@ -149,11 +149,12 @@ fn bc3_with_a0_not_above_a1_has_six_alphas_and_zero_and_full() -> Result<(), Tex
 
 #[test]
 fn uncompressed_formats_in_use_decode_to_rgba() -> Result<(), TextureError> {
-    let cases: [(TextureFormat, &[u8], [u8; 4]); 16] = [
+    let cases: [(TextureFormat, &[u8], [u8; 4]); 17] = [
         (dxgi(87), &[1, 2, 3, 4], [3, 2, 1, 4]),
         (dxgi(91), &[1, 2, 3, 4], [3, 2, 1, 4]),
         (dxgi(88), &[1, 2, 3, 4], [3, 2, 1, 255]),
         (TextureFormat::Bgr8, &[1, 2, 3], [3, 2, 1, 255]),
+        (TextureFormat::L8A8, &[200, 100], [200, 200, 200, 100]),
         (dxgi(28), &[1, 2, 3, 4], [1, 2, 3, 4]),
         (dxgi(29), &[1, 2, 3, 4], [1, 2, 3, 4]),
         (dxgi(61), &[200], [200, 200, 200, 255]),

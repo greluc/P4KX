@@ -11,6 +11,7 @@ const FLAGS: u32 = 0x0002_1007;
 const PF_FOURCC: u32 = 0x4;
 const PF_RGB: u32 = 0x40;
 const PF_ALPHA_PIXELS: u32 = 0x1;
+const PF_LUMINANCE: u32 = 0x2_0000;
 const CAPS_TEXTURE: u32 = 0x1000;
 const CAPS_COMPLEX_MIPMAP: u32 = 0x0040_0008;
 const CAPS2_CUBEMAP_ALL_FACES: u32 = 0xFE00;
@@ -30,6 +31,8 @@ pub enum TestTextureFormat {
     LegacyBgra8,
     /// 24-bit BGR in a legacy header with RGB bit masks.
     LegacyBgr8,
+    /// 8-bit luminance and alpha in a legacy header with luminance and alpha bit masks.
+    LegacyL8A8,
     /// A DX10 header with the given DXGI format code of an uncompressed format.
     Dx10Pixel {
         /// The DXGI format code.
@@ -64,6 +67,7 @@ impl TestTextureFormat {
             Self::LegacyDxt5 => blocks(width) * blocks(height) * 16,
             Self::LegacyBgra8 => width as usize * height as usize * 4,
             Self::LegacyBgr8 => width as usize * height as usize * 3,
+            Self::LegacyL8A8 => width as usize * height as usize * 2,
             Self::Dx10Pixel { pixel_bytes, .. } => {
                 width as usize * height as usize * pixel_bytes as usize
             }
@@ -270,6 +274,12 @@ impl SplitDds {
                 [0; 4],
                 24,
                 [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0],
+            ),
+            TestTextureFormat::LegacyL8A8 => (
+                PF_LUMINANCE | PF_ALPHA_PIXELS,
+                [0; 4],
+                16,
+                [0x0000_00FF, 0, 0, 0x0000_FF00],
             ),
             TestTextureFormat::Dx10Block { .. } | TestTextureFormat::Dx10Pixel { .. } => {
                 (PF_FOURCC, *b"DX10", 0, [0; 4])

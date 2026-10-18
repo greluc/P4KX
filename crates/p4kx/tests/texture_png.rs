@@ -83,6 +83,7 @@ fn every_supported_format_exports_its_largest_mip() -> TestResult {
         ("bc3", TestTextureFormat::LegacyDxt5),
         ("b8g8r8a8", TestTextureFormat::LegacyBgra8),
         ("b8g8r8", TestTextureFormat::LegacyBgr8),
+        ("l8a8", TestTextureFormat::LegacyL8A8),
         (
             "b8g8r8x8",
             TestTextureFormat::Dx10Pixel {

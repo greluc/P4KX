@@ -7,6 +7,7 @@ pub(crate) enum PixelFormat {
     Bgra8,
     Bgrx8,
     Bgr8,
+    L8A8,
     R8,
     A8,
     Rg8,
@@ -29,6 +30,7 @@ impl PixelFormat {
     pub(crate) const fn of(format: TextureFormat) -> Option<Self> {
         let code = match format {
             TextureFormat::Bgr8 => return Some(Self::Bgr8),
+            TextureFormat::L8A8 => return Some(Self::L8A8),
             TextureFormat::Dxgi(dxgi) => dxgi.0,
             TextureFormat::UnknownFourCc(_) | TextureFormat::UnknownMasks { .. } => return None,
         };
@@ -57,10 +59,11 @@ impl PixelFormat {
     /// Converts one row of pixels `src` into the RGBA row `dst`.
     pub(crate) fn convert_row(self, src: &[u8], dst: &mut [u8]) {
         match self {
-            Self::Rgba8 => dst.copy_from_slice(src.get(..dst.len()).unwrap_or_default()),
+            Self::Rgba8 => convert(src, dst, |rgba: [u8; 4]| rgba),
             Self::Bgra8 => convert(src, dst, |[b, g, r, a]| [r, g, b, a]),
             Self::Bgrx8 => convert(src, dst, |[b, g, r, _]| [r, g, b, 255]),
             Self::Bgr8 => convert(src, dst, |[b, g, r]| [r, g, b, 255]),
+            Self::L8A8 => convert(src, dst, |[l, a]| [l, l, l, a]),
             Self::R8 => convert(src, dst, |[r]| [r, r, r, 255]),
             Self::A8 => convert(src, dst, |[a]| [0, 0, 0, a]),
             Self::Rg8 => convert(src, dst, |[r, g]| [r, g, 0, 255]),

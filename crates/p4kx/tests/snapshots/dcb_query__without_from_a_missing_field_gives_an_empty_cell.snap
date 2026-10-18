@@ -1,0 +1,12 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"at \\\"*\\\" select crew, damage\")?"
+---
+record path                         crew  damage
+----------------------------------  ----  -------
+libs/foundry/records/items/boxes
+libs/foundry/records/items/boxes
+libs/foundry/records/ships/avenger  2
+libs/foundry/records/tags/hidden
+libs/foundry/records/weapons/gun          1250.75
+5 Records

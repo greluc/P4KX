@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from ship select crew\")?"
+---
+error: unknown type `ship`; did you mean `Ship`?
+  from ship select crew
+       ^^^^

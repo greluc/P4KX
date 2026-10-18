@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from Item select mass.value\")?"
+---
+error: field `mass` of `Item` holds a Single value and has no field `value`
+  from Item select mass.value
+                        ^^^^^

@@ -125,7 +125,7 @@ _Avoid_: loadout item, fitting
 
 **Override**:
 The Loadout a Loadout entry gives the Entity it attaches, which replaces the Entity's own entries
-port by port (ADR-0011).
+port by port (ADR-0012).
 _Avoid_: patch, customisation
 
 **XML Loadout**:
@@ -145,6 +145,11 @@ _Avoid_: room, level
 A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
+
+**Codebook library**:
+The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
+(libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.
+_Avoid_: codebook file, packed codebooks
 
 **Soundbank**:
 A Wwise BNK file holding sections such as `BKHD`, `HIRC` (sounds, events and actions) and `DIDX`

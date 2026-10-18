@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
@@ -61,43 +62,6 @@ pub(crate) enum Command {
     /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     Bnk(BnkArgs),
-}
-
-/// Arguments of `p4kx audio`.
-#[derive(Debug, Args)]
-pub(crate) struct AudioArgs {
-    /// What to do with the sound.
-    #[command(subcommand)]
-    pub(crate) action: AudioAction,
-}
-
-/// The actions of `p4kx audio`.
-#[derive(Debug, Subcommand)]
-pub(crate) enum AudioAction {
-    /// Prints the codec, channels, sample rate and duration of a WEM.
-    #[command(after_help = EXIT_CODES_HELP)]
-    Info(AudioSource),
-    /// Writes a PCM, IMA ADPCM or PTADPCM WEM as a 16-bit WAV file; other codecs fail with an
-    /// error naming them.
-    #[command(after_help = EXIT_CODES_HELP)]
-    Wav {
-        /// The sound.
-        #[command(flatten)]
-        source: AudioSource,
-        /// The WAV file to write; an existing file is replaced.
-        #[arg(long, value_name = "FILE")]
-        out: PathBuf,
-    },
-}
-
-/// Where a WEM sound is.
-#[derive(Debug, Args)]
-pub(crate) struct AudioSource {
-    /// A Data.p4k Archive when ENTRY is given; otherwise the WEM file.
-    #[arg(value_name = "ARCHIVE_OR_FILE")]
-    pub(crate) path: PathBuf,
-    /// Path of the WEM Entry in the Archive, with `\` or `/` as separator, ignoring case.
-    pub(crate) entry: Option<String>,
 }
 
 /// Arguments of `p4kx cryxml`.

@@ -58,7 +58,7 @@ jobs:
           $name = "P4K-Extractor-$env:VERSION-x86_64"
           $folder = "target\package\$name"
           New-Item -ItemType Directory -Force $folder | Out-Null
-          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, LICENSE-MIT, LICENSE-APACHE, CHANGELOG.md $folder
+          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
       - name: Install WiX Toolset
         run: dotnet tool install wix --version 7.0.0 --tool-path target\wix-tool

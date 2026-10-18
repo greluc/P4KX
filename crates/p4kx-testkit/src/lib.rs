@@ -4,6 +4,7 @@
 //! tested without game files; [`real_archive_path`] locates a real Archive for the opt-in suite.
 //! This crate is a development dependency only.
 
+mod adpcm;
 mod archive_builder;
 mod bnk;
 mod build_manifest;

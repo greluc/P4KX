@@ -116,10 +116,11 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file.
-  Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
-  Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
-  with an error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
+  PTADPCM WEM as a 16-bit WAV file. Both also take a WEM file on disk instead of an Archive and an
+  Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are detected;
+  converting any other codec fails with an error naming it, and a corrupt or truncated WEM fails
+  with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, or with `--format wav` converted to WAV. Both also take a soundbank file on disk. A

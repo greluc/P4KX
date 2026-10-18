@@ -117,12 +117,13 @@ impl<'f> Record<'f> {
 
     fn reference(&self) -> Result<Reference<'f>, ValueError> {
         let forge = self.forge;
+        let guid = self.guid();
         let def = forge
             .structs
             .get(self.def.struct_index as usize)
-            .ok_or(ValueError::DanglingReference { guid: self.guid() })?;
+            .ok_or(ValueError::DanglingReference { guid })?;
         Ok(Reference {
-            guid: self.guid(),
+            guid,
             record_path: forge.text.value(self.def.file_name).map(strip_xml)?,
             type_name: forge.blob.value(def.name)?,
             location: None,

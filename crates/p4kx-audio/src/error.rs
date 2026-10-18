@@ -35,7 +35,7 @@ pub enum AudioError {
     UnsupportedOggCodec(Codec),
     /// The Wwise Vorbis header or packet layout is malformed.
     #[error("the Wwise Vorbis data is invalid: {0}")]
-    InvalidVorbis(#[source] VorbisError),
+    InvalidVorbis(VorbisError),
     /// No codebooks give a Vorbis stream a decoder accepts.
     #[error(
         "the Wwise Vorbis setup fits no codebooks: default: {default}; aoTuV: {aotuv}; inline: {inline}"

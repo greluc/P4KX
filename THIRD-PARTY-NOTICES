@@ -14,9 +14,16 @@ encoder libvorbis by the Xiph.org Foundation and of the aoTuV Beta 6.03 encoder 
 is based on libvorbis and released under the same licence, in the packed form Wwise refers to.
 P4K-Extractor uses them to rebuild the Vorbis headers of Wwise sounds.
 
+ww2ogg, as stated in its COPYING file (https://github.com/hcs64/ww2ogg):
+
 Copyright (c) 2002, Xiph.org Foundation
 Copyright (c) 2009-2016, Adam Gashlin
-aoTuV codebooks: Copyright (c) Aoyumi
+
+aoTuV, as stated in its COPYING file (https://github.com/AO-Yumi/vorbis_aotuv), under the same
+licence text:
+
+Copyright (c) 2003-2021 Aoyumi
+Copyright (c) 2002-2020 Xiph.org Foundation
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions

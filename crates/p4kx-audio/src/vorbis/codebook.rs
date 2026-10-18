@@ -5,7 +5,8 @@ static DEFAULT_LIBRARY: &[u8] = include_bytes!("../../codebooks/packed_codebooks
 static AOTUV_LIBRARY: &[u8] = include_bytes!("../../codebooks/packed_codebooks_aoTuV_603.bin");
 
 const SYNC: u32 = 0x56_4342;
-const MAX_LENGTH_BITS: u32 = 5;
+const LENGTH_FIELD_BITS: u32 = 5;
+const MAX_LENGTH_SIZE_BITS: u32 = 5;
 
 /// The codebooks a rebuilt setup header takes, in the order they are tried.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -38,7 +39,7 @@ pub(crate) struct Shape {
     pub(crate) has_lookup: bool,
 }
 
-/// A packed codebook library: the codebooks back to back, then a table of their offsets.
+/// A codebook library: the codebooks back to back, then a table of their offsets.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Library {
     books: &'static [u8],
@@ -102,7 +103,7 @@ pub(crate) fn rebuild(
     out.write(entries, 24);
     let ordered = copy(input, out, 1).ok_or_else(ended)?;
     if ordered == 1 {
-        copy(input, out, MAX_LENGTH_BITS).ok_or_else(ended)?;
+        copy(input, out, LENGTH_FIELD_BITS).ok_or_else(ended)?;
         let mut entry = 0_u32;
         while entry < entries {
             let count = copy(input, out, ilog(entries - entry)).ok_or_else(ended)?;
@@ -113,7 +114,7 @@ pub(crate) fn rebuild(
         }
     } else {
         let length_bits = input.read(3).ok_or_else(ended)?;
-        if length_bits == 0 || length_bits > MAX_LENGTH_BITS {
+        if length_bits == 0 || length_bits > MAX_LENGTH_SIZE_BITS {
             return Err(VorbisError::InvalidCodebook("invalid codeword length size"));
         }
         let sparse = copy(input, out, 1).ok_or_else(ended)?;
@@ -125,7 +126,7 @@ pub(crate) fn rebuild(
             };
             if present == 1 {
                 let length = input.read(length_bits).ok_or_else(ended)?;
-                out.write(length, MAX_LENGTH_BITS);
+                out.write(length, LENGTH_FIELD_BITS);
             }
         }
     }

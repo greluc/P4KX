@@ -125,11 +125,7 @@ fn wav(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
 
 fn ogg(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
     let report = sound.write_ogg_to_file(out)?;
-    let duration = Duration::from_secs(report.sample_count / u64::from(report.sample_rate))
-        + Duration::from_nanos(
-            report.sample_count % u64::from(report.sample_rate) * 1_000_000_000
-                / u64::from(report.sample_rate),
-        );
+    let duration = report.duration();
     if as_json {
         json::print(&OggJson {
             sound: sound.name(),

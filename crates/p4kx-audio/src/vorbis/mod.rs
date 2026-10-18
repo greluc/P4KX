@@ -7,6 +7,7 @@ mod setup;
 mod validate;
 
 use std::io::Write;
+use std::time::Duration;
 
 pub use codebook::Codebooks;
 pub use error::VorbisError;
@@ -16,6 +17,7 @@ use self::packets::{AudioPackets, Packets};
 use self::setup::Setup;
 use self::validate::Fit;
 use crate::riff::{Chunk, Chunks};
+use crate::wem::playing_time;
 use crate::{AudioError, ByteOrder, Codec, OggWriter, Wem};
 
 pub(crate) const HEADER_IDENT: u8 = 1;
@@ -37,6 +39,14 @@ pub struct OggReport {
     pub size: u64,
     /// The codebooks the setup header was rebuilt with.
     pub codebooks: Codebooks,
+}
+
+impl OggReport {
+    /// Returns the playing time of the stream.
+    #[must_use]
+    pub fn duration(&self) -> Duration {
+        playing_time(self.sample_count, self.sample_rate).unwrap_or_default()
+    }
 }
 
 /// The parts of a Wwise Vorbis WEM that rebuilding reads.
@@ -138,34 +148,40 @@ impl Stream<'_> {
         setup: &mut Vec<u8>,
     ) -> Result<(Codebooks, Setup), AudioError> {
         let mut clipped = None;
-        let mut reasons = Vec::with_capacity(ATTEMPTS.len());
+        let (mut default, mut aotuv, mut inline) = (None, None, None);
         for codebooks in ATTEMPTS {
+            let reason = match codebooks {
+                Codebooks::Default => &mut default,
+                Codebooks::AoTuV => &mut aotuv,
+                Codebooks::Inline => &mut inline,
+            };
             match self.rebuild_setup(codebooks, ident, comment, setup) {
                 Ok((rebuilt, Fit::Clean)) => return Ok((codebooks, rebuilt)),
                 Ok((_, Fit::Clipped)) => {
                     clipped.get_or_insert(codebooks);
-                    reasons.push(VorbisError::Rejected(
-                        "most decoded samples are clipped".to_owned(),
-                    ));
                 }
-                Err(reason) => reasons.push(reason),
+                Err(error) => *reason = Some(error),
             }
         }
-        if let Some(codebooks) = clipped {
-            let (rebuilt, _) = self
-                .rebuild_setup(codebooks, ident, comment, setup)
-                .map_err(AudioError::InvalidVorbis)?;
-            return Ok((codebooks, rebuilt));
+        match (clipped, default, aotuv, inline) {
+            (Some(codebooks), ..) => {
+                let (rebuilt, _) = self
+                    .rebuild_setup(codebooks, ident, comment, setup)
+                    .map_err(AudioError::InvalidVorbis)?;
+                Ok((codebooks, rebuilt))
+            }
+            (None, Some(default), Some(aotuv), Some(inline)) => {
+                Err(AudioError::CodebooksRejected {
+                    default,
+                    aotuv,
+                    inline,
+                })
+            }
+            _ => Err(AudioError::InvalidVorbis(VorbisError::InvalidSetup(
+                "no codebooks were tried",
+            ))),
         }
-        let mut reasons = reasons.into_iter();
-        let mut next = || reasons.next().unwrap_or(VorbisError::SetupTruncated);
-        Err(AudioError::CodebooksRejected {
-            default: next(),
-            aotuv: next(),
-            inline: next(),
-        })
     }
-
     fn rebuild_setup(
         &self,
         codebooks: Codebooks,

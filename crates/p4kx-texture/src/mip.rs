@@ -4,7 +4,7 @@ use rayon::prelude::*;
 
 use crate::header::MAX_HEADER_LEN;
 use crate::merge::{checked_part_len, read_prefix, read_up_to};
-use crate::{DdsHeader, RgbaImage, SiblingReader, TextureError, decode};
+use crate::{DdsHeader, HdrImage, RgbaImage, SiblingReader, TextureError, decode, decode_hdr};
 
 /// The data of one mip of a texture: one image, or one per cubemap face or array element.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +81,46 @@ impl Mip {
             self.height(),
             &self.data,
         )
+    }
+
+    /// Decodes the mip of a high-range texture to floating-point RGB without clipping.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TextureError::UnsupportedImage`] when the mip holds several images, and the
+    /// errors of [`decode_hdr`].
+    pub fn decode_hdr(&self) -> Result<HdrImage, TextureError> {
+        if self.surfaces() > 1 {
+            return Err(TextureError::UnsupportedImage {
+                images: self.surfaces(),
+            });
+        }
+        decode_hdr(
+            self.header.format(),
+            self.width(),
+            self.height(),
+            &self.data,
+        )
+    }
+
+    /// Decodes every image of the mip of a high-range texture to floating-point RGB, in
+    /// parallel.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`decode_hdr`].
+    pub fn decode_surfaces_hdr(&self) -> Result<Vec<HdrImage>, TextureError> {
+        (0..self.surfaces())
+            .into_par_iter()
+            .map(|index| {
+                decode_hdr(
+                    self.header.format(),
+                    self.width(),
+                    self.height(),
+                    self.surface(index).unwrap_or_default(),
+                )
+            })
+            .collect()
     }
 
     /// Decodes every image of the mip to 8-bit RGBA, in parallel.

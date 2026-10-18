@@ -5,7 +5,7 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
-use crate::{Model, Text, ui, window};
+use crate::{ComparisonText, Model, Text, ui, window};
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
 /// settings file around it.
@@ -48,6 +48,7 @@ impl App {
         }
         let (sender, receiver) = mpsc::channel();
         let filter = self.model.texts().get(Text::DialogArchiveFilter);
+        let report_filter = self.model.texts().get(ComparisonText::ReportFilter);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -55,9 +56,13 @@ impl App {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
                     Dialog::AddFolder | Dialog::ExtractionFolder => picker.pick_folder(),
-                    Dialog::OpenArchive | Dialog::AddArchive => {
+                    Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
+                    Dialog::ComparisonReport => picker
+                        .add_filter(report_filter, &["json"])
+                        .set_file_name("comparison.json")
+                        .save_file(),
                 };
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
@@ -115,6 +120,15 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::ComparisonArchive(side), path)) => {
+                self.model.comparison_mut().set_archive(side, path);
+            }
+            Some((Dialog::ComparisonReport, path)) => {
+                let ctx = ui.ctx().clone();
+                if let Some(view) = self.model.comparison_mut().view_mut() {
+                    view.save_report(path, move || ctx.request_repaint());
+                }
+            }
             None => {}
         }
         let requests = ui::show(ui, &mut self.model);
@@ -132,6 +146,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self) {
         self.model.stop_extraction();
+        self.model.comparison_mut().cancel();
         self.save_settings();
     }
 }
@@ -147,6 +162,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.recent = model.recent().clone();
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
     settings.extraction_conversion = model.extraction_conversion();
+    settings.extraction_textures = model.extraction_textures();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }
@@ -156,7 +172,7 @@ mod tests {
     use std::path::PathBuf;
 
     use p4kx_channels::SearchPaths;
-    use p4kx_settings::{ManualChannels, RecentArchives, Settings};
+    use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
 
     use super::remember;
     use crate::{ChannelList, Language, Model};
@@ -231,6 +247,23 @@ mod tests {
         remember(&mut settings, &model, false, None);
 
         assert!(settings.extraction_conversion, "switched on");
+    }
+
+    #[test]
+    fn the_texture_outputs_are_stored() {
+        let mut model = Model::new(Language::German);
+        let textures = ExtractionTextures {
+            merge: false,
+            png: true,
+            mip: 3,
+            keep_raw: true,
+        };
+        model.set_extraction_textures(textures);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(settings.extraction_textures, textures, "stored");
     }
 
     #[test]

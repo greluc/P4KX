@@ -13,7 +13,7 @@ use tempfile::TempDir;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const SWITCH: &str = "Convert CryXml Entries to XML";
+const SWITCH: &str = "Convert CryXml to XML and textures";
 
 fn vehicle() -> Vec<u8> {
     TestElement::new("Vehicle")

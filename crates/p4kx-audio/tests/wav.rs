@@ -1,4 +1,4 @@
-//! Writing PCM WEMs as WAV, and the typed error for every other codec.
+//! Writing PCM WEMs as WAV, and the typed error for codecs without a decoder.
 
 use p4kx_audio::{AudioError, Codec, Wem};
 use p4kx_testkit::{TestCodec, TestWem, test_signal};
@@ -136,16 +136,8 @@ fn any_other_codec_is_a_typed_error_naming_it() -> TestResult {
             "Wwise Vorbis",
         ),
         (
-            TestWem::encoded(TestCodec::Tag(0x0002), 1, 48_000, 0).block_align(0x24),
-            "IMA ADPCM",
-        ),
-        (
             TestWem::encoded(TestCodec::Tag(0x3041), 1, 48_000, 0),
             "Opus",
-        ),
-        (
-            TestWem::encoded(TestCodec::Tag(0x8311), 1, 48_000, 0).block_align(0x24),
-            "PTADPCM",
         ),
     ];
     for (wem, name) in cases {

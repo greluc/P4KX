@@ -67,6 +67,12 @@ sind keine neuen Farben.
 | Tooltip | `.scu-hint__bubble` | – | x 9,6, y 8; max. 272 breit | 500 ms Verzögerung | 12,48 / 400, Zeilenhöhe 1,4 | nein | bg `rgba(0,0,0,0.95)`, `color-gray-1` | 1 `color-primary` | 0 0 10 0 `rgba(231,126,35,0.3)` | – |
 | Scrollbar | `::-webkit-scrollbar` | 12 (Seitenleiste 8) | Griff ohne Einzug | Griff min. 32 | – | – | Spur `color-gray-4`; Griff `color-gray-2`, Hover `color-accent-light`, Ziehen `color-primary` | keine Haarlinie | – | – |
 | Größenänderungs-Griff | – | 6 | Griff 2 × 24 mittig | – | – | – | Feld `surface-canvas`; Griff `color-gray-2`; Hover volle Länge `color-accent-light`; Ziehen `color-primary` | – | – | 2 / +2, Pfeiltasten |
+| Arbeitsbereich-Tabs | `.tab-nav` / `.tab` | 44 | wie Tab-Leiste | – | wie Tab-Leiste | ja | wie Tab-Leiste | wie Tab-Leiste | – | innen −2 |
+| Archiv-Auswahl | `select` + `.krt-combobox__listbox` | 44 | links 12, rechts 32; min. 260 breit | Beschriftung darüber (Eyebrow); Chevron 10,4 vom rechten Rand | 16 / 400; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Chevron `color-primary` 12; leere Liste `.krt-combobox__notice` kursiv | 1 `control-border`; Fokus und offen `color-primary` | Fokus und offen `glow-primary` | Rahmen + Glow |
+| Faktenleiste | `.facts-bar` | ~32 | x 16, y 8 | 16; Schlüssel→Wert 5 | Schlüssel 9,92 / 700 / 0,08 em; Wert 12,48 / 700 | Schlüssel ja | bg `color-surface-input`, Schlüssel `color-gray-2-text`, Wert `color-white`; Richtungs-Chevron `color-primary` | unten 1 `color-gray-3` | – | – |
+| Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
+| Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
+| Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
 
 ## Entscheidungen
 
@@ -120,6 +126,22 @@ Launcher-Update). Danger bleibt für echte Fehler („Extraktion fehlgeschlagen"
 Tastatur noch per Screenreader erreichbar, deshalb braucht es eine Schaltfläche. Outline statt
 CTA, weil der übliche Weg die erkannten Channels links sind.
 
+**D.10 Vergleich als Tab im Arbeitsbereich.** Über der Listenfläche wählt eine `.tab-nav`
+zwischen „Durchsuchen" und „Vergleich". Der Vergleich braucht kein geöffnetes Archiv,
+deshalb liegt er nicht im Archiv-Menü. Oben stehen die beiden Archiv-Auswahlen (Channels mit
+Build, zuletzt geöffnete Archive, „Datei wählen …"), die Ebenen und „Vergleichen" als die eine
+CTA des Tabs; „Abbrechen" ist Ghost. Das Ergebnis beginnt mit der Faktenleiste (Alt → Neu, je
+Channel und Build), dann drei `.kpi-total`-Kacheln und „Nach Verzeichnis" als eingeklappter
+`.panel-header`, darunter die Listenfläche mit Suchfeld, „Bericht speichern …" (Ghost) und der
+virtuellen Änderungsliste. Die Verzeichnistabelle startet eingeklappt, damit die Liste bei
+800 px Fensterhöhe mehr als ein paar Zeilen zeigt. Der Fortschrittsbalken ist höchstens 320 px breit.
+
+**D.11 Änderungsarten in den semantischen Farben.** Hinzugefügt ist `success`, Entfernt `danger`,
+Geändert `warning`, immer als `.chip` mit Text im Text-Tint (Warning ist selbst als Text auf
+Schwarz zugelassen). In den Zähler-Kacheln steht der Chip an der Stelle des `.kpi-label`, wie der
+Chip in `.kpi-card`; der Akzentbalken bleibt Orange. Die Farbe ist nie der einzige Hinweis, der
+Chip trägt immer das Wort.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -135,8 +157,9 @@ CTA, weil der übliche Weg die erkannten Channels links sind.
 | Modal ohne Slide, nur 200 ms Deckkraft | nur Farb- und Deckkraft-Übergänge |
 | Chevron als gezeichneter Pfad statt `▶` | Lato hat kein `▶`; egui bräuchte eine Fallback-Schrift |
 | Hex in festen Zellen statt Monospace | einzige Schrift Lato; die Zellen halten die Spalten, auch für A–F |
+| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
-| DataForge-Übersicht: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
+| DataForge-Übersicht und Record-Suche: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

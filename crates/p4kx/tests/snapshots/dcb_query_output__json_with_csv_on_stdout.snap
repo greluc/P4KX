@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_query_output.rs
+expression: "String::from_utf8(output.stderr)?"
+---
+error: --json writes JSON to stdout: use --format json, or --out for the csv result

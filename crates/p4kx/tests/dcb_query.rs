@@ -241,21 +241,6 @@ fn a_missing_path_is_marked_at_the_end() -> TestResult {
 }
 
 #[test]
-fn json_output_is_rejected() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path())?;
-    let output = Command::cargo_bin("p4kx")?
-        .args(["--json", "dcb", "query"])
-        .arg(&archive)
-        .arg("from Item")
-        .output()?;
-
-    assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
-    insta::assert_snapshot!(String::from_utf8(output.stderr)?);
-    Ok(())
-}
-
-#[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_documented_examples_select_records_of_a_real_archive() -> TestResult {
     let archive = real_archive_path()?;
@@ -267,6 +252,21 @@ fn the_documented_examples_select_records_of_a_real_archive() -> TestResult {
             Some("false"),
         ),
         ("at \"*/spaceships/*\" select Icon", Some(".")),
+        (
+            "from AmmoParams at \"*/vehicle/*\" select speed, lifetime \
+             where speed >= 1500 and lifetime <= 3",
+            Some("1500"),
+        ),
+        (
+            "from EntityClassDefinition at \"*/spaceships/*\" select Category, Invisible \
+             where Category = \"Default\" and not Invisible = true",
+            Some("Default"),
+        ),
+        (
+            "at \"*/spaceships/*\" select Icon, Category \
+             where Icon like \"default.*\" and (Category contains \"def\" or Invisible = true)",
+            Some("Default.bmp"),
+        ),
     ];
     for (text, value) in examples {
         let output = Command::cargo_bin("p4kx")?

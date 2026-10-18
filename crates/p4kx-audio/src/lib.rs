@@ -3,12 +3,15 @@
 //! writer the caller supplies; parses BNK soundbanks with their sections, their `HIRC` objects
 //! and the WEMs they embed.
 
+mod adpcm;
 mod bank_error;
 mod bank_parse;
 mod bank_reader;
 mod codec;
 mod error;
 mod hirc;
+mod ima;
+mod ptadpcm;
 mod riff;
 mod soundbank;
 mod wav;

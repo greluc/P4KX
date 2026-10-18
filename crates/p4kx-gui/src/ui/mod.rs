@@ -1,7 +1,13 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
 mod archive_change;
+mod archive_picker;
 mod channels;
+mod comparison;
+mod comparison_list;
+mod comparison_rows;
+mod comparison_summary;
+mod comparison_table;
 mod dataforge_summary;
 mod empty;
 mod extraction;
@@ -9,6 +15,8 @@ mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
+mod record_results;
+mod record_search;
 mod record_tree;
 mod search;
 mod shortcuts;
@@ -24,10 +32,10 @@ use crate::theme::desktop::{
     HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
     SIDEBAR_WIDTH, STATUS_HEIGHT,
 };
-use crate::widgets::frames;
+use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
-use crate::Model;
+use crate::{ComparisonSide, ComparisonText, Model, WorkTab};
 
 /// A dialog the host shows for the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +48,10 @@ pub enum Dialog {
     AddArchive,
     /// Picks the folder of an Extraction.
     ExtractionFolder,
+    /// Picks the Archive of one side of the Comparison.
+    ComparisonArchive(ComparisonSide),
+    /// Picks the file the Comparison report is saved to.
+    ComparisonReport,
 }
 
 /// What the window asks of its host after a frame.
@@ -64,6 +76,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     }
     model.poll_extraction();
     model.poll_update();
+    model.comparison_mut().poll();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -102,6 +115,11 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
+    work_tabs(ui, model);
+    if model.work_tab() == WorkTab::Comparison {
+        comparison::show(ui, model, requests);
+        return;
+    }
     let dragging = is_dragging_file(ui);
     if dragging || model.browser().is_none() {
         empty::show(ui, model, dragging, requests);
@@ -117,9 +135,31 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .min_size(PREVIEW_MIN_HEIGHT)
         .show(ui, |ui| preview::show(ui, model));
     frames::panel().show(ui, |ui| {
-        search::show(ui, model);
-        table::show(ui, model);
+        if model.browser().is_some_and(crate::Browser::shows_records) {
+            record_search::show(ui, model);
+        } else {
+            search::show(ui, model);
+            table::show(ui, model);
+        }
     });
+}
+
+const WORK_TABS: [(WorkTab, ComparisonText); 2] = [
+    (WorkTab::Archive, ComparisonText::TabArchive),
+    (WorkTab::Comparison, ComparisonText::TabComparison),
+];
+
+fn work_tabs(ui: &mut Ui, model: &mut Model) {
+    let labels = WORK_TABS.map(|(_, text)| model.texts().get(text));
+    let current = WORK_TABS
+        .iter()
+        .position(|(tab, _)| *tab == model.work_tab())
+        .unwrap_or(0);
+    if let Some((tab, _)) =
+        tab::tab_bar(ui, &labels, current).and_then(|index| WORK_TABS.get(index))
+    {
+        model.set_work_tab(*tab);
+    }
 }
 
 /// Starts opening the Archive at `path`, repainting the window once it is open.

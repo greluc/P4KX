@@ -2,8 +2,8 @@ use crate::{RgbaImage, TextureError};
 
 const FACES: usize = 6;
 const RGBA: usize = 4;
-const CROSS_COLUMNS: usize = 4;
-const CROSS_ROWS: usize = 3;
+const CROSS_COLUMNS: u32 = 4;
+const CROSS_ROWS: u32 = 3;
 const CELLS: [(usize, usize); FACES] = [(2, 1), (0, 1), (1, 0), (1, 2), (1, 1), (3, 1)];
 
 /// Lays the six faces of a cubemap out as a horizontal cross four faces wide and three high.
@@ -14,7 +14,7 @@ const CELLS: [(usize, usize); FACES] = [(2, 1), (0, 1), (1, 0), (1, 2), (1, 1), 
 /// # Errors
 ///
 /// Returns [`TextureError::NotACube`] when `faces` are not six images of one size, and
-/// [`TextureError::InvalidHeader`] when the cross's size overflows.
+/// [`TextureError::InvalidHeader`] when the faces are empty or the cross's size overflows.
 pub fn cube_cross(faces: &[RgbaImage]) -> Result<RgbaImage, TextureError> {
     let not_a_cube = || TextureError::NotACube { faces: faces.len() };
     let [first, ..] = faces else {
@@ -28,27 +28,32 @@ pub fn cube_cross(faces: &[RgbaImage]) -> Result<RgbaImage, TextureError> {
     {
         return Err(not_a_cube());
     }
+    if width == 0 || height == 0 {
+        return Err(TextureError::InvalidHeader("width or height is zero"));
+    }
     let overflow = || TextureError::InvalidHeader("the texture size overflows");
-    let face_row = usize::try_from(width)
-        .ok()
-        .and_then(|width| width.checked_mul(RGBA))
+    let cross_width = width.checked_mul(CROSS_COLUMNS).ok_or_else(overflow)?;
+    let cross_height = height.checked_mul(CROSS_ROWS).ok_or_else(overflow)?;
+    let to_usize = |value: u32| usize::try_from(value).map_err(|_| overflow());
+    let face_row = to_usize(width)?.checked_mul(RGBA).ok_or_else(overflow)?;
+    let cross_row = to_usize(cross_width)?
+        .checked_mul(RGBA)
         .ok_or_else(overflow)?;
-    let rows = usize::try_from(height).map_err(|_| overflow())?;
-    let cross_row = face_row.checked_mul(CROSS_COLUMNS).ok_or_else(overflow)?;
+    let rows = to_usize(height)?;
     let len = cross_row
-        .checked_mul(rows)
-        .and_then(|len| len.checked_mul(CROSS_ROWS))
+        .checked_mul(to_usize(cross_height)?)
         .ok_or_else(overflow)?;
     let mut pixels = vec![0; len];
     for (face, (column, row)) in faces.iter().zip(CELLS) {
-        for (y, source) in face.pixels().chunks_exact(face_row).enumerate() {
-            let start = (row * rows + y) * cross_row + column * face_row;
-            if let Some(target) = pixels.get_mut(start..start + face_row) {
-                target.copy_from_slice(source);
-            }
+        let first_row = row.checked_mul(rows).ok_or_else(overflow)?;
+        let target_rows = pixels.chunks_exact_mut(cross_row).skip(first_row);
+        for (target, source) in target_rows.zip(face.pixels().chunks_exact(face_row)) {
+            let cell = column
+                .checked_mul(face_row)
+                .and_then(|start| target.get_mut(start..start.checked_add(face_row)?))
+                .ok_or_else(overflow)?;
+            cell.copy_from_slice(source);
         }
     }
-    let cross_width = width.checked_mul(4).ok_or_else(overflow)?;
-    let cross_height = height.checked_mul(3).ok_or_else(overflow)?;
     RgbaImage::new(cross_width, cross_height, pixels)
 }

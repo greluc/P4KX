@@ -44,9 +44,9 @@ pub struct MergeReport {
 /// DDS file to `out`.
 ///
 /// The header comes first, then every mip from the largest to the smallest, image by image for a
-/// cubemap or texture array. Every part's length is checked before anything is written. The parts are streamed; a texture
-/// with several images per mip holds the small mips of the header Entry in memory and opens each
-/// part once per image.
+/// cubemap or texture array. Every part's length is checked before anything is written. The
+/// parts are streamed; a texture with several images per mip holds the small mips of the header
+/// Entry in memory and opens each part once per image.
 ///
 /// # Errors
 ///

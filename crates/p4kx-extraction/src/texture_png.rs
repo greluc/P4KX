@@ -41,8 +41,11 @@ pub struct PngReport {
 
 impl Texture<'_> {
     /// Decodes mip `level`, 0 being the largest, and writes it to the file `out` as an 8-bit RGBA
-    /// PNG, replacing it; a cubemap is written as six face files. A failed export leaves nothing
-    /// behind.
+    /// PNG, replacing it; a cubemap is written as six face files.
+    ///
+    /// Everything is decoded before anything is written, and each file is written under a
+    /// temporary name first, so a failed file leaves no partial file behind; when writing one face
+    /// fails, faces already written stay.
     ///
     /// # Errors
     ///

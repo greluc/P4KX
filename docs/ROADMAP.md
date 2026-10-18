@@ -115,7 +115,7 @@ GitHub Actions from a `v*` tag as a portable `p4kx-gui.exe` and a per-user MSI.
 
 - Workspace of `p4kx-*` crates in three layers with enforced direction (ADR-0003):
   - formats: `foundation`, `archive`, `cryxml`, `dataforge`, `localization`, `texture`, `audio`,
-    `chunks`, `model`, `gfx`
+    `chunks`, `model`, `character`, `gfx`
   - services: `assembly`, `gltf`, `blender`, `comparison`, `export`, `extraction`
   - front-ends: `p4kx`, `p4kx-gui`, `p4kx-mcp`
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.

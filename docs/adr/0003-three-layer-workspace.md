@@ -3,7 +3,7 @@
 The tool covers many game formats and three front-ends (CLI, GUI, MCP server), and the closest prior
 art grew single files past 300 KB. The workspace is split into `p4kx-*` crates in three layers:
 format crates (foundation, archive, cryxml, dataforge, localization, texture, audio, chunks, model,
-gfx) depend only on `p4kx-foundation`; service crates (assembly, gltf, blender, comparison, export,
+character, gfx) depend only on `p4kx-foundation`; service crates (assembly, gltf, blender, comparison, export,
 extraction) depend on format crates; front-ends (`p4kx`, `p4kx-gui`, `p4kx-mcp`) depend only on
 services. CI rejects a dependency against the direction and source files above about 400 lines.
 Libraries are synchronous and parallelise with rayon; tokio appears only in the MCP front-end.

@@ -7,7 +7,7 @@ use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use diffing::{Pair, TestResult, pair};
+use diffing::{ADDED, BROKEN, EQUAL, Pair, TOO_LARGE, TestResult, pair};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_channels::SearchPaths;
@@ -83,6 +83,24 @@ fn diff_loaded(model: &Model) -> bool {
         .view()
         .and_then(ComparisonView::diff)
         .is_some_and(|diff| !matches!(diff.status(), DiffStatus::Loading))
+}
+
+/// Selects the change at `path` the way a click on its row does and waits for its line diff.
+fn select(harness: &mut Harness<'_, State>, path: &str) -> TestResult {
+    let view = harness
+        .state_mut()
+        .0
+        .comparison_mut()
+        .view_mut()
+        .ok_or("no result")?;
+    let id = view
+        .shown()
+        .iter()
+        .copied()
+        .find(|&id| view.change(id).is_some_and(|change| change.path() == path))
+        .ok_or("no such change")?;
+    view.select(id);
+    settle(harness, diff_loaded)
 }
 
 /// Clicks the change row named `row` and waits for its line diff.
@@ -204,5 +222,57 @@ fn the_german_diff_speaks_german() -> TestResult {
     ] {
         assert!(harness.query_by_label(label).is_some(), "{label}");
     }
+    Ok(())
+}
+
+#[test]
+fn messages_replace_the_diff_where_there_is_none() -> TestResult {
+    let (dir, pair) = pair()?;
+    let mut harness = compared((dir.path(), &pair), Language::BritishEnglish)?;
+
+    select(&mut harness, TOO_LARGE)?;
+    let too_large = harness
+        .query_by_label_contains("is too large for a line diff")
+        .is_some();
+    select(&mut harness, BROKEN)?;
+    let failed = harness
+        .query_by_label_contains(&format!("Cannot diff {BROKEN}: "))
+        .is_some();
+    select(&mut harness, EQUAL)?;
+    let equal = harness
+        .query_by_label("The lines of both sides are equal; only the stored bytes differ.")
+        .is_some();
+    select(&mut harness, ADDED)?;
+    let added = harness.query_by_label("Added line 1: x").is_some();
+
+    assert!(too_large, "too large");
+    assert!(failed, "failed with the reason");
+    assert!(equal, "equal lines");
+    assert!(added, "an added Entry beside an empty old side");
+    Ok(())
+}
+
+#[test]
+fn next_onto_the_last_hunk_hands_the_focus_to_previous() -> TestResult {
+    let (dir, pair) = pair()?;
+    let mut harness = compared((dir.path(), &pair), Language::BritishEnglish)?;
+    open(&mut harness, "Changed: Data\\far.txt")?;
+
+    harness.get_by_label("Next difference").focus();
+    harness.run();
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Difference 2 of 2").is_some(),
+        "at the last hunk"
+    );
+    assert!(
+        harness
+            .get_by_label("Previous difference")
+            .accesskit_node()
+            .is_focused(),
+        "the focus moved to Previous"
+    );
     Ok(())
 }

@@ -181,14 +181,22 @@ impl DiffJob {
         thread::Builder::new()
             .name("comparison-diff".to_owned())
             .spawn(move || {
-                if let Some(made) = make(&thread_comparison, &thread_path, &thread_cancel)
-                    && sender.send(made).is_ok()
-                {
-                    wake();
+                let _wake = WakeOnExit(wake);
+                if let Some(made) = make(&thread_comparison, &thread_path, &thread_cancel) {
+                    let _gone = sender.send(made);
                 }
             })
             .map_err(|error| describe(&error))?;
         Ok(Self { cancel, result })
+    }
+}
+
+/// Calls its function when the thread ends, with a result, without one or by a panic.
+struct WakeOnExit<F: Fn()>(F);
+
+impl<F: Fn()> Drop for WakeOnExit<F> {
+    fn drop(&mut self) {
+        (self.0)();
     }
 }
 

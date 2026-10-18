@@ -81,6 +81,17 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
+/// Returns the width of the position note and both navigation buttons with their gaps.
+fn navigation_width(ui: &Ui, cache: &PaneTexts) -> f32 {
+    let position = cache
+        .position
+        .as_ref()
+        .map_or(0.0, |position| position.size().x + SPACE_2);
+    let buttons = button::width(ui, Size::Compact, &cache.previous)
+        + button::width(ui, Size::Compact, &cache.next);
+    position + SPACE_2 + buttons
+}
+
 fn hunk_count(diff: &EntryDiff) -> usize {
     match diff.status() {
         DiffStatus::Ready(document) => document.hunks().len(),
@@ -95,30 +106,41 @@ fn path_line(ui: &mut Ui, cache: &PaneTexts, diff: &EntryDiff) -> Option<Navigat
     );
     hairline_below(ui, rect);
     let inner = rect.shrink2(vec2(PREVIEW_PADDING_X, 0.0));
-    let mut navigation = None;
     let current = diff.current_hunk();
     let total = hunk_count(diff);
-    let used = ui
-        .scope_builder(UiBuilder::new().max_rect(inner), |ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = SPACE_2;
-                let last = current.is_some_and(|hunk| hunk.saturating_add(1) < total);
-                if button::button(ui, Kind::Ghost, Size::Compact, &cache.next, last).clicked() {
-                    navigation = Some(Navigation::Next);
+    let has_previous = current.is_some_and(|hunk| hunk > 0);
+    let has_next = current.is_some_and(|hunk| hunk.saturating_add(1) < total);
+    let group = navigation_width(ui, cache);
+    let used = inner.with_min_x((inner.right() - group).max(inner.left()));
+    let mut navigation = None;
+    ui.scope_builder(UiBuilder::new().max_rect(used), |ui| {
+        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+            ui.spacing_mut().item_spacing.x = SPACE_2;
+            if let Some(position) = cache.position.clone() {
+                ui.label(position);
+            }
+            let previous = button::button(
+                ui,
+                Kind::Ghost,
+                Size::Compact,
+                &cache.previous,
+                has_previous,
+            );
+            let next = button::button(ui, Kind::Ghost, Size::Compact, &cache.next, has_next);
+            if previous.clicked() {
+                navigation = Some(Navigation::Previous);
+                if previous.has_focus() && current == Some(1) {
+                    next.request_focus();
                 }
-                let first = current.is_some_and(|hunk| hunk > 0);
-                if button::button(ui, Kind::Ghost, Size::Compact, &cache.previous, first).clicked()
-                {
-                    navigation = Some(Navigation::Previous);
+            }
+            if next.clicked() {
+                navigation = Some(Navigation::Next);
+                if next.has_focus() && current.map(|hunk| hunk.saturating_add(2)) == Some(total) {
+                    previous.request_focus();
                 }
-                if let Some(position) = cache.position.clone() {
-                    ui.label(position);
-                }
-            })
-            .response
-            .rect
-        })
-        .inner;
+            }
+        });
+    });
     let left = inner.with_max_x((used.left() - SPACE_2).max(inner.left()));
     if let Some(path) = cache.path.clone() {
         response.widget_info(|| WidgetInfo::labeled(Role::Label, true, path.text()));

@@ -26,8 +26,11 @@ const HUNK_PART: usize = 2;
 /// The laid-out texts of one row.
 #[derive(Clone)]
 enum RowGalleys {
-    /// The lines a hunk covers, per side.
-    Hunk([Arc<Galley>; 2]),
+    /// The lines a hunk covers, per side, in regular and in bold for the current hunk.
+    Hunk {
+        regular: [Arc<Galley>; 2],
+        bold: [Arc<Galley>; 2],
+    },
     /// The line number and the line, per side that has one.
     Lines([Option<(Arc<Galley>, Arc<Galley>)>; 2]),
 }
@@ -147,7 +150,7 @@ fn paint_row(
     let galleys = cache.row(ui, rows, id, row);
     let painter = ui.painter();
     match (row, galleys) {
-        (DiffRow::Hunk(hunk), RowGalleys::Hunk(ranges)) => {
+        (DiffRow::Hunk(hunk), RowGalleys::Hunk { regular, bold }) => {
             let rect = frame.column(0, top).union(frame.column(1, top));
             painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
             let current = rows.current == Some(hunk as usize);
@@ -155,10 +158,10 @@ fn paint_row(
                 let bar = rect.with_max_x(rect.left() + ACTIVE_BAR);
                 painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
             }
-            let colour = if current {
-                palette::WHITE
+            let (ranges, colour) = if current {
+                (bold, palette::WHITE)
             } else {
-                palette::GRAY_2_TEXT
+                (regular, palette::GRAY_2_TEXT)
             };
             for (side, range) in ranges.iter().enumerate() {
                 let cell = frame.column(side, top);
@@ -256,7 +259,10 @@ fn line_name(rows: &Rows<'_>, side: ComparisonSide, cell: DiffCell) -> String {
                 "line",
                 FluentValue::from(cell.line.saturating_add(1).to_string()),
             ),
-            ("text", display(rows.document.line(side, cell.line)).into()),
+            (
+                "text",
+                display(rows.document.line(side, cell.line)).text.into(),
+            ),
         ],
     )
 }
@@ -283,9 +289,16 @@ fn hunk_text(rows: &Rows<'_>, hunk: u32, side: ComparisonSide) -> String {
 }
 
 fn layout(ui: &Ui, text: String) -> Arc<Galley> {
-    ui.fonts_mut(|fonts| {
-        fonts.layout_no_wrap(text, font(DIFF_FONT, Weight::Regular), Color32::PLACEHOLDER)
-    })
+    layout_in(ui, text, Weight::Regular)
+}
+
+fn layout_in(ui: &Ui, text: String, weight: Weight) -> Arc<Galley> {
+    ui.fonts_mut(|fonts| fonts.layout_no_wrap(text, font(DIFF_FONT, weight), Color32::PLACEHOLDER))
+}
+
+fn layout_line(ui: &Ui, bytes: &[u8]) -> Arc<Galley> {
+    let job = display(bytes).job(&font(DIFF_FONT, Weight::Regular));
+    ui.fonts_mut(|fonts| fonts.layout_job(job))
 }
 
 impl RowCache {
@@ -312,7 +325,7 @@ impl RowCache {
                 key: Some(key),
                 gutter: DIFF_GUTTER_PADDING_X.mul_add(2.0, numbers),
                 marker: markers.iter().map(|m| m.size().x).fold(0.0, f32::max),
-                widest: layout(ui, display(rows.document.line(side, line))).size().x,
+                widest: layout_line(ui, rows.document.line(side, line)).size().x,
                 markers: Some(markers),
                 rows: HashMap::new(),
             };
@@ -332,14 +345,15 @@ impl RowCache {
             self.rows.clear();
         }
         let galleys = match row {
-            DiffRow::Hunk(hunk) => {
-                RowGalleys::Hunk(SIDES.map(|side| layout(ui, hunk_text(rows, hunk, side))))
-            }
+            DiffRow::Hunk(hunk) => RowGalleys::Hunk {
+                regular: SIDES.map(|side| layout(ui, hunk_text(rows, hunk, side))),
+                bold: SIDES.map(|side| layout_in(ui, hunk_text(rows, hunk, side), Weight::Bold)),
+            },
             DiffRow::Lines { old, new } => {
                 let side = |side: ComparisonSide, cell: Option<DiffCell>| {
                     cell.map(|cell| {
                         let number = layout(ui, cell.line.saturating_add(1).to_string());
-                        let text = layout(ui, display(rows.document.line(side, cell.line)));
+                        let text = layout_line(ui, rows.document.line(side, cell.line));
                         (number, text)
                     })
                 };

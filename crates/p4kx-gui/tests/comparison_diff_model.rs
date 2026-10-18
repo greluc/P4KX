@@ -5,7 +5,7 @@ mod diffing;
 use std::error::Error;
 use std::time::{Duration, Instant};
 
-use diffing::{BINARY, CRYXML, FAR, Pair, TEXT, TestResult, pair};
+use diffing::{ADDED, BINARY, BROKEN, CRYXML, EQUAL, FAR, Pair, TEXT, TOO_LARGE, TestResult, pair};
 use p4kx_comparison::LineKind;
 use p4kx_gui::{
     ComparisonSide, ComparisonStatus, ComparisonTab, ComparisonView, DiffCell, DiffDocument,
@@ -284,5 +284,55 @@ fn a_new_selection_asks_the_list_once_to_reveal_its_row() -> TestResult {
 
     assert_eq!(first, position, "the row of the selection");
     assert_eq!((second, same), (None, None), "once per new selection");
+    Ok(())
+}
+
+fn status_of(path: &str) -> Result<String, Box<dyn Error>> {
+    let (_dir, pair) = pair()?;
+    let mut model = compared(&pair)?;
+    let tab = diff_of(&mut model, path)?;
+    let diff = tab.view().and_then(ComparisonView::diff).ok_or("no diff")?;
+    Ok(match diff.status() {
+        DiffStatus::Ready(document) => format!("ready, differs {}", document.has_differences()),
+        DiffStatus::Failed(reason) => format!("failed {}", reason.is_some()),
+        other => format!("{other:?}"),
+    })
+}
+
+#[test]
+fn an_entry_with_too_many_lines_is_too_large() -> TestResult {
+    assert_eq!(status_of(TOO_LARGE)?, "TooLarge", "too large");
+    Ok(())
+}
+
+#[test]
+fn a_corrupt_cryxml_side_fails_with_a_reason() -> TestResult {
+    assert_eq!(status_of(BROKEN)?, "failed true", "failed with a reason");
+    Ok(())
+}
+
+#[test]
+fn equal_lines_of_changed_bytes_give_a_diff_without_differences() -> TestResult {
+    assert_eq!(status_of(EQUAL)?, "ready, differs false", "no line differs");
+    Ok(())
+}
+
+#[test]
+fn an_added_entry_shows_every_line_added_beside_an_empty_old_side() -> TestResult {
+    let (_dir, pair) = pair()?;
+    let mut model = compared(&pair)?;
+
+    let tab = diff_of(&mut model, ADDED)?;
+
+    let added = Some(LineKind::Added);
+    assert_eq!(
+        rendered(document(tab)?),
+        [
+            "hunk 0".to_owned(),
+            format!("None \"\" | {added:?} \"x\""),
+            format!("None \"\" | {added:?} \"y\""),
+        ],
+        "only the new side"
+    );
     Ok(())
 }

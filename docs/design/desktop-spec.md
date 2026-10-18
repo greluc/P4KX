@@ -184,6 +184,7 @@ größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (
 8192 × 8192 Pixel oder über der größten Texturgröße des Renderers), werden nicht angeboten;
 hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
 Farben hat; Alpha wird auf `surface-panel` gemischt.
+
 **D.15 Abfrage als dritter Tab im Arbeitsbereich.** „Abfrage" folgt auf „Durchsuchen" und
 „Vergleich". Oben steht der Editor als `textarea` mit „Abfrage ausführen" als der einen CTA des
 Tabs; „Abbrechen" ist Ghost, Fortschritt wie beim Vergleich (Spinner, dann Balken bis 320 px). Eine

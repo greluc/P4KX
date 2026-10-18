@@ -3170,6 +3170,7 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-foundation",
+ "p4kx-localization",
  "p4kx-testkit",
  "p4kx-texture",
  "png",
@@ -3211,6 +3212,14 @@ dependencies = [
  "tempfile",
  "unic-langid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "p4kx-localization"
+version = "0.1.0"
+dependencies = [
+ "p4kx-testkit",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

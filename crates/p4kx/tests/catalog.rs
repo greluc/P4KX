@@ -1,4 +1,5 @@
-//! `p4kx catalog` end to end, over a synthetic DataForge.
+//! `p4kx catalog` end to end, over a synthetic DataForge and English and German `global.ini`
+//! files.
 
 use std::error::Error;
 use std::fs::{self, File};
@@ -7,8 +8,8 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
-    TestValue, write_build_manifest,
+    ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
+    TestStruct, TestType, TestValue, write_build_manifest,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -32,7 +33,10 @@ fn manufacturer(guid: u128, class: &str, path: &str, code: &str) -> TestRecord {
                     "Name",
                     TestValue::text(format!("@manufacturer_Name{class}")),
                 )
-                .value("Description", TestValue::text("")),
+                .value(
+                    "Description",
+                    TestValue::text(format!("@manufacturer_Desc{class}")),
+                ),
         ),
     )
 }
@@ -73,7 +77,32 @@ fn database() -> DataForgeBuilder {
         ))
 }
 
+fn english() -> TestEntry {
+    TestEntry::zstd(
+        "Data\\Localization\\english\\global.ini",
+        GlobalIniBuilder::new()
+            .text("manufacturer_NameACAS", "Ace Astrogation")
+            .text("manufacturer_DescACAS", "Power plants.")
+            .text("manufacturer_NameAEGS,P", "Aegis Dynamics")
+            .build(),
+    )
+}
+
+fn german() -> TestEntry {
+    TestEntry::zstd(
+        "Data\\Localization\\german_(germany)\\global.ini",
+        GlobalIniBuilder::new()
+            .text("manufacturer_NameACAS", "Ace Astrogation")
+            .text("manufacturer_DescACAS", "Kraftwerke.")
+            .build(),
+    )
+}
+
 fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    write_archive_with(dir, &[english(), german()])
+}
+
+fn write_archive_with(dir: &Path, texts: &[TestEntry]) -> Result<PathBuf, Box<dyn Error>> {
     let channel = dir.join("LIVE");
     fs::create_dir(&channel)?;
     write_build_manifest(
@@ -84,8 +113,14 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         "0123456789abcdef",
     )?;
     let path = channel.join("Data.p4k");
-    ArchiveBuilder::new()
-        .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted())
+    texts
+        .iter()
+        .cloned()
+        .fold(
+            ArchiveBuilder::new()
+                .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted()),
+            ArchiveBuilder::entry,
+        )
         .write_to(&path)?;
     File::options()
         .write(true)
@@ -205,5 +240,23 @@ fn catalog_without_an_output_file_is_invalid_input() -> TestResult {
     let archive = write_archive(dir.path())?;
     let output = p4kx(&["catalog"])?.arg(&archive).output()?;
     assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
+    Ok(())
+}
+
+#[test]
+fn catalog_without_a_german_global_ini_leaves_german_null_and_counts_it() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive_with(dir.path(), &[english()])?;
+    let out = dir.path().join("english-only.json");
+
+    let summary = catalog(&archive, &out, &[])?;
+
+    let catalog: serde_json::Value = serde_json::from_str(&fs::read_to_string(&out)?)?;
+    assert_eq!(
+        catalog["manufacturers"][1]["name"],
+        serde_json::json!({"key": "@manufacturer_NameACAS", "en": "Ace Astrogation", "de": null}),
+        "English only"
+    );
+    insta::assert_snapshot!("catalog_summary_without_german", summary);
     Ok(())
 }

@@ -181,14 +181,19 @@ them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
 ```json
 {"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}], "skipped": 2}
+ "complete": true}], "skipped": 2, "texts": [{"language": "en", "available": true,
+ "resolved": 2394, "unresolved": 8}, {"language": "de", "available": true, "resolved": 2132,
+ "unresolved": 270}], "unresolved": 278}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them.
+them. `texts` lists per language whether the Archive holds its `global.ini` (`available`) and how
+many names and descriptions with a key it `resolved`; an `unresolved` text is `null` in the
+catalog, and every text with a key is unresolved in a language that is not available.
+`unresolved` sums them.
 
 ## `p4kx channels --json`
 

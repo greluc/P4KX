@@ -1,5 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture and audio APIs
-//! front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation, texture
+//! and audio APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -10,6 +10,7 @@ mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
+mod localization;
 mod options;
 mod output_file;
 mod record_export;
@@ -37,6 +38,7 @@ pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
+pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use p4kx_audio::{
@@ -52,6 +54,9 @@ pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, MAX_NESTING_DEPTH,
     MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Reference,
     Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
+};
+pub use p4kx_localization::{
+    GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
 };
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,

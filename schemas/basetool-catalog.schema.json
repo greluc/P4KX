@@ -89,17 +89,17 @@
     },
     "LocalisedText": {
       "additionalProperties": false,
-      "description": "A text the game localises: its localisation key and the resolved English and German texts.",
+      "description": "A text the game localises: its localisation key and the resolved English and German texts,\nas the language's `global.ini` stores them.",
       "properties": {
         "de": {
-          "description": "The German text, `null` when the key is not resolved.",
+          "description": "The German text, `null` when there is no key or the German `global.ini` lacks it.",
           "type": [
             "string",
             "null"
           ]
         },
         "en": {
-          "description": "The English text, `null` when the key is not resolved.",
+          "description": "The English text, `null` when there is no key or the English `global.ini` lacks it.",
           "type": [
             "string",
             "null"

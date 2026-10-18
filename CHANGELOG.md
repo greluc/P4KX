@@ -30,6 +30,9 @@ fails while its section is missing.
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
   the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
+- English and German names and descriptions in the Basetool catalog, resolved from the Archive's
+  `global.ini` files next to their localisation keys; a key or language the Archive lacks leaves
+  that text `null`, and `p4kx catalog` counts the unresolved texts per language.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust

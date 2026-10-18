@@ -37,6 +37,16 @@ struct SummaryJson {
     size_warning: Option<&'static str>,
     kinds: Vec<KindJson>,
     skipped: usize,
+    texts: Vec<TextJson>,
+    unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct TextJson {
+    language: &'static str,
+    available: bool,
+    resolved: usize,
+    unresolved: usize,
 }
 
 #[derive(Serialize)]
@@ -100,6 +110,7 @@ fn print_schema() -> Result<()> {
 fn into_anyhow(error: CatalogError) -> anyhow::Error {
     match error {
         CatalogError::Load(error) => error.into(),
+        CatalogError::LoadTexts(error) => error.into(),
         CatalogError::DataForge(error) => error.into(),
         CatalogError::Record { guid, source } => {
             anyhow::Error::from(source).context(format!("cannot read the Record {guid}"))
@@ -149,6 +160,17 @@ fn summary_json(archive: &Archive, out: &Path, summary: &CatalogSummary) -> Summ
             })
             .collect(),
         skipped: summary.skipped(),
+        texts: summary
+            .texts()
+            .iter()
+            .map(|text| TextJson {
+                language: text.language.code(),
+                available: text.available,
+                resolved: text.resolved,
+                unresolved: text.unresolved,
+            })
+            .collect(),
+        unresolved: summary.unresolved(),
     }
 }
 
@@ -162,6 +184,20 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
             kind.count,
             kind.skipped,
             if kind.complete { "complete" } else { "partial" }
+        )?;
+    }
+    for text in summary.texts() {
+        writeln!(
+            stdout,
+            "{}: {} texts resolved, {} unresolved{}",
+            text.language,
+            text.resolved,
+            text.unresolved,
+            if text.available {
+                ""
+            } else {
+                ", the Archive holds no global.ini"
+            }
         )?;
     }
     writeln!(

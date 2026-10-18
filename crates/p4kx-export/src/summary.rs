@@ -1,3 +1,5 @@
+use p4kx_extraction::Language;
+
 use crate::Kind;
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
@@ -43,14 +45,50 @@ pub struct KindSummary {
     pub complete: bool,
 }
 
-/// What a catalog holds: the counts per kind and its size.
+/// How the localisation keys of a catalog resolved in one language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TextSummary {
+    /// The language.
+    pub language: Language,
+    /// Whether the Archive holds the language's `global.ini`.
+    pub available: bool,
+    /// The texts whose key the language resolved.
+    pub resolved: usize,
+    /// The texts whose key the language lacks, or every text with a key when it is not available;
+    /// their text in this language is `null`.
+    pub unresolved: usize,
+}
+
+/// What a catalog holds: the counts per kind, how its texts resolved and its size.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogSummary {
     pub(crate) kinds: Vec<KindSummary>,
+    pub(crate) texts: Vec<TextSummary>,
     pub(crate) size: u64,
 }
 
 impl CatalogSummary {
+    /// Returns how the texts resolved per language, English first.
+    #[must_use]
+    pub fn texts(&self) -> &[TextSummary] {
+        &self.texts
+    }
+
+    /// Returns how the texts resolved in `language`.
+    #[must_use]
+    pub fn text(&self, language: Language) -> Option<TextSummary> {
+        self.texts
+            .iter()
+            .copied()
+            .find(|summary| summary.language == language)
+    }
+
+    /// Returns the unresolved texts over every language.
+    #[must_use]
+    pub fn unresolved(&self) -> usize {
+        self.texts.iter().map(|summary| summary.unresolved).sum()
+    }
+
     /// Returns the counts of every kind, in the order of the catalog.
     #[must_use]
     pub fn kinds(&self) -> &[KindSummary] {

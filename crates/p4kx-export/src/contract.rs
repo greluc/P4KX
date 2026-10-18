@@ -98,16 +98,17 @@ pub(crate) struct Manufacturer<'a> {
     pub(crate) description: LocalisedText<'a>,
 }
 
-/// A text the game localises: its localisation key and the resolved English and German texts.
+/// A text the game localises: its localisation key and the resolved English and German texts,
+/// as the language's `global.ini` stores them.
 #[derive(Debug, Clone, Copy, Default, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LocalisedText<'a> {
     /// The localisation key, e.g. `@manufacturer_NameACAS`, `null` when it is unknown.
     pub(crate) key: Option<&'a str>,
-    /// The English text, `null` when the key is not resolved.
+    /// The English text, `null` when there is no key or the English `global.ini` lacks it.
     pub(crate) en: Option<&'a str>,
-    /// The German text, `null` when the key is not resolved.
+    /// The German text, `null` when there is no key or the German `global.ini` lacks it.
     pub(crate) de: Option<&'a str>,
 }
 

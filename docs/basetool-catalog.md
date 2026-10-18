@@ -45,6 +45,24 @@ Every entity carries:
 
 A manufacturer adds `code`, e.g. `ACAS`.
 
+### Texts
+
+`key` is the localisation key as the Record holds it, e.g. `@manufacturer_NameACAS`; an empty key
+is `null`. `en` and `de` are its texts from the Archive's `global.ini` of that language:
+
+| Language | Entry |
+|----------|-------|
+| `en` | `Data\Localization\english\global.ini` |
+| `de` | `Data\Localization\german_(germany)\global.ini` |
+
+Each line `key=value` of a `global.ini` holds one text. Keys match without the leading `@` and
+ignoring case; a suffix after a comma (`ASD_01,P`) is not part of the key. The text is the rest of
+the line as the game stores it, so markup and the escape `\n` for a line break stay as they are.
+
+A key the language's `global.ini` lacks, or a language the Archive holds no `global.ini` for,
+leaves that text `null` and keeps the key, so the basetool can resolve it later. `p4kx catalog`
+counts the resolved and unresolved texts per language in its summary.
+
 ## Selection
 
 | Kind | Record-path prefix | Type |

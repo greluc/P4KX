@@ -65,5 +65,13 @@ Equal Archives and an equal export time give byte-identical catalogs. The export
 current time unless `--exported-at` or the `SOURCE_DATE_EPOCH` environment variable gives it in
 seconds since 1970-01-01 UTC.
 
-The basetool accepts uploads up to 64 MB. `p4kx catalog` warns on stderr when a catalog reaches
-90 % of that limit and when it exceeds it; the file is written either way.
+### Upload limit
+
+`UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
+now 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the
+other changes with it. The limit is sized to what a full catalog of every kind needs, with enough
+buffer to upload it whole; the real-Archive test prints the size of the current catalog
+(`catalog size: … bytes`) as the measurement to size it from.
+
+`p4kx catalog` warns on stderr when a catalog reaches 90 % of the limit and when it exceeds it;
+the file is written either way.

@@ -35,6 +35,7 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
         "plausible manufacturer count: {manufacturers:?}"
     );
     assert!(manufacturers.complete, "complete without a Filter");
+    report_size(summary.size());
     assert!(summary.size() < UPLOAD_LIMIT, "under the upload limit");
 
     let list = catalog["manufacturers"]
@@ -59,4 +60,12 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
         "class names without the type"
     );
     Ok(())
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the size is the measurement the upload limit is sized from"
+)]
+fn report_size(size: u64) {
+    println!("catalog size: {size} bytes, upload limit {UPLOAD_LIMIT} bytes");
 }

@@ -1,6 +1,7 @@
 use crate::Kind;
 
-/// The upload limit of the basetool, 64 MB.
+/// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
+/// upload limit (`docs/basetool-catalog.md`).
 pub const UPLOAD_LIMIT: u64 = 64_000_000;
 
 /// The size from which a catalog is close to [`UPLOAD_LIMIT`], 90 % of it.

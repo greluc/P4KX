@@ -217,11 +217,17 @@
             "change_number",
             "build_id"
           ],
-          "type": "object"
+          "type": [
+            "object",
+            "null"
+          ]
         },
         "channel": {
           "description": "The Channel: the name of the folder holding the Archive, `null` when there is none.",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -266,7 +272,10 @@
     },
     "filter": {
       "description": "The Filter that selected the Entries on both sides, `null` when every Entry was compared.",
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "format_version": {
       "description": "The version of the report shape.",

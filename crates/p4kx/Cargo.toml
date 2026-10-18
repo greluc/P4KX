@@ -12,15 +12,19 @@ publish.workspace = true
 layer = "frontend"
 
 [dependencies]
+p4kx-channels.workspace = true
 p4kx-extraction.workspace = true
+p4kx-settings.workspace = true
 anyhow.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["env"] }
+thiserror.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
 tempfile.workspace = true
+toml.workspace = true
 
 [lints]
 workspace = true

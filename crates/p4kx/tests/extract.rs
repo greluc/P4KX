@@ -4,7 +4,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 use predicates::prelude::predicate;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -86,9 +86,44 @@ fn extract_writes_the_requested_entries_into_out() -> TestResult {
 }
 
 #[test]
+fn the_default_target_is_named_after_the_channel_and_the_build_version() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let channel = dir.path().join("PTU");
+    std::fs::create_dir(&channel)?;
+    let archive = write_archive(&channel)?;
+    write_build_manifest(
+        &channel,
+        "sc-alpha-4.11.0",
+        "4.11.42.1234",
+        "12999999",
+        "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+    )?;
+
+    Command::cargo_bin("p4kx")?
+        .current_dir(dir.path())
+        .arg("extract")
+        .arg(&archive)
+        .arg("Data\\readme.txt")
+        .assert()
+        .code(0);
+
+    let folders = export_folders(dir.path())?;
+    assert_eq!(folders.len(), 1, "one folder: {folders:?}");
+    assert!(
+        folders
+            .iter()
+            .all(|folder| folder.starts_with("SC-EXPORT-PTU-4.11.42.1234-")),
+        "Channel and Build version in the name: {folders:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn extract_without_out_creates_a_new_default_target_for_every_run() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path())?;
+    let channel = dir.path().join("LIVE");
+    std::fs::create_dir(&channel)?;
+    let archive = write_archive(&channel)?;
 
     for _ in 0..2 {
         Command::cargo_bin("p4kx")?
@@ -104,7 +139,7 @@ fn extract_without_out_creates_a_new_default_target_for_every_run() -> TestResul
     assert_eq!(folders.len(), 2, "two runs, two folders: {folders:?}");
     for folder in &folders {
         assert!(
-            folder.starts_with("SC-EXPORT-UnknownChannel-UnknownBuild-"),
+            folder.starts_with("SC-EXPORT-LIVE-UnknownBuild-"),
             "default name pattern: {folder}"
         );
         assert_eq!(

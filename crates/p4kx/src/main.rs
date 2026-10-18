@@ -1,8 +1,10 @@
 //! `p4kx`, the command-line interface of P4K-Extractor.
 
+mod channels;
 mod cli;
 mod exit;
 mod extract;
+mod info;
 mod list;
 
 use std::io::{self, Write};
@@ -17,6 +19,8 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::List(args) => list::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
         Command::Extract(args) => extract::run(&args),
+        Command::Channels(args) => channels::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
+        Command::Info(args) => info::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
     };
     match result {
         Ok(code) => code,

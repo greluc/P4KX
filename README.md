@@ -13,21 +13,34 @@ Early development (milestone M1). Available today:
   compressed size, size and path. Archives in the v1 (ZIP64) and the v2 (`Jiji` trailer) layout
   are recognised automatically; any other layout version is rejected with its number.
 - `p4kx extract <archive> <entry paths…> [--out <folder>]` writes the given Entries (stored,
-  deflate or zstd, encrypted or not) into a new folder `SC-EXPORT-<Channel>-<Build>-<timestamp>`
-  in the current directory (Channel and Build are `UnknownChannel` and `UnknownBuild` for now,
-  the timestamp is UTC), or into `--out`. Entry paths match with `\` or `/` and ignore case.
+  deflate or zstd, encrypted or not) into a new folder
+  `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
+  name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
+  UTC), or into `--out`. Entry paths match with `\` or `/` and ignore case.
   Existing files are kept and reported as skipped; Entry paths that are absolute, carry a drive
   prefix, contain `..` or name a Windows device are rejected, and nothing is written outside the
   target. A corrupt Entry fails alone and is named with the reason. The run ends with a summary
   of extracted, skipped, failed and cancelled Entries.
+- `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
+  from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
+  Entries. An Archive without a readable manifest has an unknown Build and still opens.
+- `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
+  looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
+  named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
+  [ADR-0005](docs/adr/0005-library-folders-from-the-launcher-log.md)) and in manually added
+  folders and Archives. `p4kx channels add <path>` and `p4kx channels remove <path>` manage the
+  manual entries in `settings.toml` in `%APPDATA%\P4K-Extractor` (the platform config directory
+  elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
+  `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
+  files and the launcher's settings store are never opened.
 
 ### Exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed |
-| 1 | Partial failure: some Entries failed or were cancelled, or the target cannot be written |
-| 2 | Invalid input: bad arguments or an Entry path the Archive does not contain |
+| 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, or a Channel path that does not exist or was never added |
 | 3 | The Archive cannot be read: missing, not an Archive or corrupt |
 
 ## Build

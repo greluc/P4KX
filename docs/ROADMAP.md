@@ -19,7 +19,7 @@ GitHub Actions from a `v*` tag as a portable `p4kx-gui.exe` and a per-user MSI.
 | UI languages | German (`de-DE`) and British English (`en-GB`) via Fluent, chosen from the system locale, switchable |
 | Look | KRT design system (colours, Audiowide/Lato) in egui, light and dark; native window frame tinted via DWM |
 | State | `%APPDATA%\P4K-Extractor\` (TOML): detected Channels, recent Archives, target folder, language, window |
-| Channel detection | Library folder from the RSI Launcher settings, the default install path, and manually added folders; `loginData.json` is never read |
+| Channel detection | Library folders named in the RSI Launcher log (ADR-0005), the default install path, and manually added folders and Archives; `loginData.json` and the launcher's settings store are never read |
 | Network | Only an optional, switchable check for new GitHub releases; no telemetry, no crash reports |
 | Live changes | Archives are opened read-only with shared access; a changed size, timestamp or Build cancels running jobs and offers a reload |
 

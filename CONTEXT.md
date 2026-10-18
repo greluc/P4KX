@@ -12,6 +12,11 @@ One installed release line of Star Citizen (LIVE, PTU, EPTU, HOTFIX, TECH-PREVIE
 own Archive.
 _Avoid_: branch, environment, build
 
+**Library folder**:
+A folder holding Channel folders, e.g. `C:\Program Files\Roberts Space Industries\StarCitizen`; the
+RSI Launcher installs every Channel into one.
+_Avoid_: install folder, game folder
+
 **Build**:
 The game version an Archive belongs to, as stated in the Channel's build manifest (branch, version,
 change number).

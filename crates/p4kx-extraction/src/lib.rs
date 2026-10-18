@@ -7,7 +7,7 @@ mod selection;
 mod target;
 
 pub use extract::extract;
-pub use p4kx_archive::{Archive, ArchiveError, Compression, Entry, EntryReader};
+pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use target::{create_default_target, default_target_name};

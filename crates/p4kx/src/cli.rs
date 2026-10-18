@@ -106,8 +106,7 @@ pub(crate) enum DcbCommand {
     /// Prints the version of the DataForge and its number of Records, structs and enums.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(DcbInfoArgs),
-    /// Writes Records as Record XML or JSON, one file per Record under its record path, or as one
-    /// NDJSON file, into a target folder.
+    /// Writes Records as Record XML or JSON files under their record paths, or as one NDJSON file.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
     /// Runs a Query over the Records and prints the result as a table, the record path first.

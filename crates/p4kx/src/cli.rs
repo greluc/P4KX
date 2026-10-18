@@ -34,6 +34,19 @@ pub(crate) enum Command {
     /// Lists the installed Channels, or adds or removes a manually added folder or Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Channels(ChannelsArgs),
+    /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
+    #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
+    CryXml(CryXmlArgs),
+}
+
+/// Arguments of `p4kx cryxml`.
+#[derive(Debug, Args)]
+pub(crate) struct CryXmlArgs {
+    /// Path of the CryXml or text XML file.
+    pub(crate) file: PathBuf,
+    /// Writes the XML to this file instead of stdout; needed with --json.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) out: Option<PathBuf>,
 }
 
 /// Arguments of `p4kx list`.

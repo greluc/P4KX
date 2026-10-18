@@ -2790,11 +2790,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "p4kx-cryxml"
+version = "0.1.0"
+dependencies = [
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "crc32c",
  "p4kx-archive",
+ "p4kx-cryxml",
  "p4kx-testkit",
  "rayon",
  "tempfile",

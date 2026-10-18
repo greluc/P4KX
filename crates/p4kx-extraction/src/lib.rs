@@ -1,4 +1,4 @@
-//! Extraction service of P4K-Extractor and the Archive API front-ends use.
+//! Extraction service of P4K-Extractor and the Archive and `CryXml` APIs front-ends use.
 
 mod entry_path;
 mod extract;
@@ -15,6 +15,7 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_cryxml as cryxml;
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use target::{create_default_target, default_target_name};

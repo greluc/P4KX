@@ -48,6 +48,11 @@ Early development (milestone M1). Available today:
   elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
   `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
   files and the launcher's settings store are never opened.
+- `p4kx cryxml <file> [--out <file>]` converts a CryXml file on disk, e.g. an Entry extracted
+  earlier, to UTF-8 XML on stdout or in `--out`. All three signatures (`CryXmlB`, `CryXml`,
+  `CRY3SDK`) and both byte orders are read; the XML is indented by two spaces with LF line
+  endings, and the same input always gives the same bytes. A file that already is text XML is
+  written unchanged. A truncated or corrupt file is an error and writes nothing.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -57,8 +62,8 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed |
 | 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, or a Channel path that does not exist or was never added |
-| 3 | The Archive cannot be read: missing, not an Archive or corrupt |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, or `--json` without `--out` for `cryxml` |
+| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 

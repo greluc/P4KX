@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use p4kx_extraction::ArchiveWatch;
 
 use super::Model;
@@ -10,6 +12,12 @@ impl Model {
         self.browser
             .as_ref()
             .is_some_and(|browser| browser.index().watch().is_changed())
+    }
+
+    /// Returns whether a change of the open Archive on disk stopped a running Extraction of it.
+    #[must_use]
+    pub const fn change_stopped_extraction(&self) -> bool {
+        self.stopped_by_change
     }
 
     /// Compares the open Archive with the disk now; returns whether it changed.
@@ -54,10 +62,24 @@ impl Model {
             self.extraction_setup = None;
         }
         if let Some(extraction) = &self.extraction
-            && extraction.archive() == path
+            && extraction.is_running()
+            && !extraction.is_cancelled()
+            && same_file(extraction.archive(), &path)
         {
             extraction.cancel();
+            self.stopped_by_change = true;
         }
         true
     }
+}
+
+/// Returns whether `a` and `b` name the same file, compared as canonical paths, or as absolute
+/// paths when a file cannot be resolved.
+fn same_file(a: &Path, b: &Path) -> bool {
+    let normal = |path: &Path| {
+        path.canonicalize()
+            .or_else(|_| std::path::absolute(path))
+            .unwrap_or_else(|_| path.to_path_buf())
+    };
+    a == b || normal(a) == normal(b)
 }

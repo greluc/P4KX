@@ -1,19 +1,20 @@
 use std::sync::Arc;
 
-use egui::{Align, Frame, Galley, Id, Layout, Margin, Ui, vec2};
+use egui::{Frame, Galley, Id, Margin, Ui, vec2};
 
 use super::comparison_extraction;
 use super::comparison_list::{self, ListAction};
 use super::search::{eyebrow, field};
 use super::{Dialog, Requests};
-use crate::theme::desktop::TOOLBAR_PADDING;
+use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, Weight};
+use crate::theme::tokens::{FS_XS, TOUCH_TARGET, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::px;
 use crate::widgets::text::{hairline_below, line, plain};
 use crate::{
-    ComparisonText, ComparisonView, ExtractionScope, Model, ReportStatus, Text, Texts, format,
+    ComparisonSide, ComparisonText, ComparisonView, ExtractionScope, Model, ReportStatus, Text,
+    Texts, format,
 };
 
 /// Shows the list panel of the changes: the Filter, the report and the sortable list.
@@ -44,6 +45,7 @@ struct ToolbarCache {
     save: String,
     shown: Option<Arc<Galley>>,
     note: Option<Arc<Galley>>,
+    extract: [String; 2],
     filter: String,
 }
 
@@ -57,6 +59,8 @@ impl ToolbarCache {
             view.generation(),
             view.shown().len(),
             view.report_status(),
+            view.revision(),
+            view.is_filtering(),
         ));
         if cache.key != Some(key) {
             cache.key = Some(key);
@@ -67,6 +71,7 @@ impl ToolbarCache {
             ));
             cache.hint = texts.get(Text::SearchHint);
             cache.save = texts.get(ComparisonText::SaveReport);
+            cache.extract = comparison_extraction::labels(texts, view);
             let shown = plain(shown_note(texts, view), FS_XS, Weight::Regular);
             cache.shown = Some(line(ui, shown.color(palette::GRAY_2_TEXT), f32::INFINITY));
             cache.note = report_note(texts, view).map(|(note, colour)| {
@@ -87,6 +92,14 @@ impl ToolbarCache {
     }
 }
 
+/// What the user did in the toolbar this frame.
+#[derive(Default)]
+struct Pressed {
+    filter_changed: bool,
+    extract: Option<ComparisonSide>,
+    save: bool,
+}
+
 fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let texts = model.texts();
     let Some(view) = model.comparison().view() else {
@@ -94,55 +107,69 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     };
     let mut cache = ToolbarCache::load(ui, texts, view);
     let saving = view.is_saving();
-    let mut changed = false;
-    let mut extract = None;
-    let mut inline = true;
     let frame = Frame::NONE
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
-            ui.horizontal(|ui| {
-                let label = cache.label.clone().map(|label| ui.label(label));
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if button::button(ui, Kind::Ghost, Size::Normal, &cache.save, !saving).clicked()
-                    {
-                        requests.dialog = Some(Dialog::ComparisonReport);
-                    }
-                    if let Some(shown) = cache.shown.clone() {
-                        ui.label(shown);
-                    }
-                    inline = comparison_extraction::fit_beside_search(ui);
-                    if inline {
-                        extract = comparison_extraction::actions(ui, model);
-                    }
-                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        let label = label.map_or_else(|| ui.next_auto_id(), |label| label.id);
-                        changed |= field(ui, &mut cache.filter, &cache.hint, label);
-                    });
-                });
-            });
-            if !inline {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        extract = comparison_extraction::actions(ui, model);
-                    });
-                });
-            }
-            if let Some(note) = cache.note.clone() {
-                ui.label(note);
-            }
-        });
+        .show(ui, |ui| rows(ui, model, &mut cache, saving));
     hairline_below(ui, frame.response.rect);
-    if let Some(side) = extract {
+    let pressed = frame.inner;
+    if pressed.save {
+        requests.dialog = Some(Dialog::ComparisonReport);
+    }
+    if let Some(side) = pressed.extract {
         model.begin_extraction(ExtractionScope::Changes(side));
     }
-    if changed {
+    if pressed.filter_changed {
         let ctx = ui.ctx().clone();
         if let Some(view) = model.comparison_mut().view_mut() {
             view.set_filter(&cache.filter, move || ctx.request_repaint());
         }
     }
     cache.store(ui);
+}
+
+/// Lays the toolbar out left to right in reading and tab order: the label, the search field,
+/// the extraction actions, the count and Save report; the actions move onto a right-aligned row
+/// of their own when the field would get less than its base width beside them.
+fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> Pressed {
+    ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
+    let gap = TOOLBAR_PADDING;
+    let actions = comparison_extraction::width(ui, &cache.extract);
+    let shown = cache
+        .shown
+        .as_ref()
+        .map_or(0.0, |shown| shown.size().x + gap);
+    let rest = shown + button::width(ui, Size::Normal, &cache.save);
+    let mut pressed = Pressed::default();
+    let mut inline = true;
+    ui.horizontal(|ui| {
+        let label = cache.label.clone().map(|label| ui.label(label));
+        let label = label.map_or_else(|| ui.next_auto_id(), |label| label.id);
+        let beside = actions + gap + rest;
+        inline = ui.available_width() - gap - beside >= SEARCH_WIDTH;
+        let trail = if inline { beside } else { rest };
+        let width = (ui.available_width() - gap - trail).max(SEARCH_WIDTH);
+        ui.allocate_ui(vec2(width, TOUCH_TARGET), |ui| {
+            pressed.filter_changed = field(ui, &mut cache.filter, &cache.hint, label);
+        });
+        if inline {
+            pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);
+        }
+        if let Some(shown) = cache.shown.clone() {
+            ui.label(shown);
+        }
+        pressed.save =
+            button::button(ui, Kind::Ghost, Size::Normal, &cache.save, !saving).clicked();
+    });
+    if !inline {
+        ui.horizontal(|ui| {
+            ui.add_space((ui.available_width() - actions - gap).max(0.0));
+            pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);
+        });
+    }
+    if let Some(note) = cache.note.clone() {
+        ui.label(note);
+    }
+    pressed
 }
 
 fn shown_note(texts: &Texts, view: &ComparisonView) -> String {

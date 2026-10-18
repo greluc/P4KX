@@ -137,7 +137,8 @@ pub enum Text {
     PreviewStopped,
     /// Shown instead of the preview once the Archive changed on disk.
     PreviewArchiveChanged,
-    /// The notice that the open Archive changed on disk; takes `path`.
+    /// The notice that the open Archive changed on disk; takes `path` and `stopped`, `yes` when
+    /// the change stopped a running Extraction.
     ArchiveChanged,
     /// The action that opens the changed Archive again.
     ActionReload,

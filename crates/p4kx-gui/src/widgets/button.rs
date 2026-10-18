@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use egui::epaint::Shadow;
 use egui::{
-    Align2, Color32, CornerRadius, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle,
-    TextWrapMode, Ui, WidgetInfo, WidgetText, vec2,
+    Align2, Color32, CornerRadius, Galley, Rect, Response, Role, Sense, Stroke, StrokeKind,
+    TextStyle, TextWrapMode, Ui, WidgetInfo, WidgetText, vec2,
 };
 
 use super::text::caps;
@@ -140,7 +142,13 @@ impl Look {
 
 /// Shows a button of `kind` and `size` with `label` set in upper case; its accessible name stays
 /// `label`. A disabled button senses no click.
-pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: bool) -> Response {
+/// Returns the width a button of `size` with `label` takes.
+pub(crate) fn width(ui: &Ui, size: Size, label: &str) -> f32 {
+    let (galley, padding, _) = layout(ui, size, label);
+    padding.mul_add(2.0, galley.size().x)
+}
+
+fn layout(ui: &Ui, size: Size, label: &str) -> (Arc<Galley>, f32, f32) {
     let (height, padding, font_size) = match size {
         Size::Normal => (BUTTON_HEIGHT, BUTTON_PADDING_X, FS_XS),
         Size::Compact => (BUTTON_XS_HEIGHT, BUTTON_XS_PADDING_X, BUTTON_XS_SIZE),
@@ -152,6 +160,11 @@ pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: 
             f32::INFINITY,
             TextStyle::Button,
         );
+    (galley, padding, height)
+}
+
+pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: bool) -> Response {
+    let (galley, padding, height) = layout(ui, size, label);
     let desired = vec2(padding.mul_add(2.0, galley.size().x), height);
     let sense = if enabled {
         Sense::click()

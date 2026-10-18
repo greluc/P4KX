@@ -12,16 +12,19 @@ pub enum ChangeExtractionText {
     ScopeNew,
     /// The note that the Filter narrows the scope; takes `filter`.
     ScopeFiltered,
+    /// The note that a side changed on disk during the Extraction of its changes.
+    SummaryChanged,
 }
 
 impl ChangeExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::ActionOld,
         Self::ActionNew,
         Self::ScopeOld,
         Self::ScopeNew,
         Self::ScopeFiltered,
+        Self::SummaryChanged,
     ];
 
     /// Returns the Fluent message id.
@@ -33,6 +36,7 @@ impl ChangeExtractionText {
             Self::ScopeOld => "change-extraction-scope-old",
             Self::ScopeNew => "change-extraction-scope-new",
             Self::ScopeFiltered => "change-extraction-scope-filtered",
+            Self::SummaryChanged => "change-extraction-summary-changed",
         }
     }
 }

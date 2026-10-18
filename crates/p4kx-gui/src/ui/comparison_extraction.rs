@@ -1,52 +1,57 @@
-use egui::{Id, Rect, Ui};
+use egui::{Id, Ui, UiBuilder};
 use p4kx_extraction::Archive;
 
 use super::extraction::number;
 use crate::comparison::side_archive;
-use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::text::plain;
-use crate::{ChangeExtractionText as T, ComparisonSide, Extraction, ExtractionScope, Model};
+use crate::{
+    ChangeExtractionText as T, ComparisonSide, ComparisonView, Extraction, ExtractionScope, Model,
+    Texts,
+};
 
 const ACTIONS: [(ComparisonSide, T); 2] = [
     (ComparisonSide::Old, T::ActionOld),
     (ComparisonSide::New, T::ActionNew),
 ];
 
-/// Returns whether the actions, as wide as last drawn, still leave the search field its base
-/// width in the rest of the row; otherwise the toolbar wraps them onto a row of their own.
-pub(super) fn fit_beside_search(ui: &Ui) -> bool {
-    let width = ui
-        .data(|data| data.get_temp::<f32>(width_id()))
-        .unwrap_or(0.0);
-    ui.available_width() - width - TOOLBAR_PADDING >= SEARCH_WIDTH
+/// Returns the labels of the actions, old side first, with the number of Entries each extracts.
+pub(super) fn labels(texts: &Texts, view: &ComparisonView) -> [String; 2] {
+    ACTIONS.map(|(side, text)| {
+        let len = view.change_count(side);
+        texts.format(text, &[("number", number(texts, len))])
+    })
 }
 
-/// Shows the actions that extract the changes of one side as ghosts in a right-to-left layout,
-/// old left of new; returns the side whose action was clicked.
-pub(super) fn actions(ui: &mut Ui, model: &Model) -> Option<ComparisonSide> {
-    let texts = model.texts();
+/// Shows the actions that extract the changes of one side as ghosts, old then new, each in a
+/// scope of its own so that it keeps its id and focus wherever the toolbar places it; returns
+/// the side whose action was clicked.
+pub(super) fn actions(ui: &mut Ui, model: &Model, labels: &[String; 2]) -> Option<ComparisonSide> {
     let running = model.extraction().is_some_and(Extraction::is_running);
     let mut clicked = None;
-    let mut drawn = Rect::NOTHING;
-    for (side, text) in ACTIONS.into_iter().rev() {
-        let len = model.scope_len(ExtractionScope::Changes(side));
-        let label = texts.format(text, &[("number", number(texts, len))]);
-        let response = button::button(ui, Kind::Ghost, Size::Normal, &label, !running && len > 0);
-        drawn = drawn.union(response.rect);
+    for ((side, _), label) in ACTIONS.into_iter().zip(labels) {
+        let enabled = !running && model.scope_len(ExtractionScope::Changes(side)) > 0;
+        let scope = UiBuilder::new().scope_id(Id::unique(("comparison-extraction", side)));
+        let response = ui
+            .scope_builder(scope, |ui| {
+                button::button(ui, Kind::Ghost, Size::Normal, label, enabled)
+            })
+            .inner;
         if response.clicked() {
             clicked = Some(side);
         }
     }
-    let width = drawn.width() + ui.spacing().item_spacing.x;
-    ui.data_mut(|data| data.insert_temp(width_id(), width));
     clicked
 }
 
-fn width_id() -> Id {
-    Id::unique("comparison-extraction-actions")
+/// Returns the width both actions take with the gap between them.
+pub(super) fn width(ui: &Ui, labels: &[String; 2]) -> f32 {
+    let [old, new] = labels;
+    button::width(ui, Size::Normal, old)
+        + ui.spacing().item_spacing.x
+        + button::width(ui, Size::Normal, new)
 }
 
 /// Shows the scope of the setup for the changes of `side` and the Filter that narrows it.

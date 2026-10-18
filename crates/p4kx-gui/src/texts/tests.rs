@@ -45,6 +45,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("channel", "LIVE".into()),
         ("change", "Added".into()),
         ("filter", "*.xml".into()),
+        ("stopped", "yes".into()),
     ]
 }
 

@@ -243,6 +243,10 @@ impl ComparisonView {
             }
             Polled::Lost => {
                 self.pending = None;
+                self.filter_text.clear();
+                self.matched = None;
+                self.revision = self.revision.wrapping_add(1);
+                self.refresh_shown();
                 true
             }
         }

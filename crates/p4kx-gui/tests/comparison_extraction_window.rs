@@ -199,6 +199,68 @@ fn the_filter_narrows_the_actions_and_the_setup_names_it() -> TestResult {
     Ok(())
 }
 
+fn top_and_bottom(harness: &Harness<'_, Model>, label: &str) -> Result<(f64, f64), Box<dyn Error>> {
+    let node = harness.get_by_label(label);
+    let rect = node.accesskit_node().bounding_box().ok_or("no bounds")?;
+    Ok((rect.y0, rect.y1))
+}
+
+fn is_focused(harness: &Harness<'_, Model>, label: &str) -> bool {
+    harness.get_by_label(label).accesskit_node().is_focused()
+}
+
+#[test]
+fn at_900_px_the_actions_wrap_below_the_search_and_keep_their_focus() -> TestResult {
+    let pair = pair()?;
+    let out = pair.dir.path().join("out");
+    let mut harness = compared(&pair, Language::BritishEnglish, &out)?;
+    harness.get_by_label("Extract new (3)…").focus();
+    harness.step();
+    let (wide_top, _) = top_and_bottom(&harness, "Extract new (3)…")?;
+    let (_, wide_save_bottom) = top_and_bottom(&harness, "Save report…")?;
+
+    harness.set_size(egui::vec2(900.0, 900.0));
+    for _ in 0..4 {
+        harness.step();
+    }
+
+    assert!(
+        wide_top < wide_save_bottom,
+        "beside the search field at 1400 px"
+    );
+    let (narrow_top, _) = top_and_bottom(&harness, "Extract new (3)…")?;
+    let (_, save_bottom) = top_and_bottom(&harness, "Save report…")?;
+    assert!(narrow_top >= save_bottom, "on a row of its own at 900 px");
+    assert!(
+        is_focused(&harness, "Extract new (3)…"),
+        "the focus survives the wrap"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_toolbar_tabs_in_reading_order() -> TestResult {
+    let pair = pair()?;
+    let out = pair.dir.path().join("out");
+    let mut harness = compared(&pair, Language::BritishEnglish, &out)?;
+    harness.get_by_role(Role::TextInput).focus();
+    harness.step();
+
+    let mut order = Vec::new();
+    for label in ["Extract old (2)…", "Extract new (3)…", "Save report…"] {
+        harness.key_press(egui::Key::Tab);
+        harness.step();
+        order.push(is_focused(&harness, label));
+    }
+
+    assert_eq!(
+        order,
+        [true, true, true],
+        "left to right after the search field"
+    );
+    Ok(())
+}
+
 #[test]
 fn the_german_window_speaks_german() -> TestResult {
     let pair = pair()?;

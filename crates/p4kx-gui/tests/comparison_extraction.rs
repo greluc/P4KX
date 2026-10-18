@@ -304,6 +304,12 @@ fn a_side_that_changed_on_disk_stops_the_extraction() -> TestResult {
     )?;
 
     assert!(summary.archive_changed(), "the summary says why");
+    assert!(
+        model
+            .extraction()
+            .is_some_and(Extraction::is_comparison_side),
+        "the summary advises comparing again"
+    );
     assert_eq!(summary.extracted(), 0, "nothing stale written");
     Ok(())
 }

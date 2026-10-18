@@ -87,6 +87,7 @@ pub enum ExtractionStatus<'a> {
 #[derive(Debug)]
 pub struct Extraction {
     archive: PathBuf,
+    comparison_side: bool,
     folder: PathBuf,
     cancel: CancelToken,
     progress: Arc<Mutex<Progress>>,
@@ -98,6 +99,12 @@ impl Extraction {
     #[must_use]
     pub fn archive(&self) -> &Path {
         &self.archive
+    }
+
+    /// Returns whether the Entries are the changes of one side of a Comparison.
+    #[must_use]
+    pub const fn is_comparison_side(&self) -> bool {
+        self.comparison_side
     }
 
     /// Returns the chosen folder: the parent of a new folder, or the existing folder.
@@ -184,6 +191,7 @@ pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extra
     }));
     let folder = request.folder.clone();
     let archive = request.source.archive().path().to_path_buf();
+    let comparison_side = matches!(request.source, Source::Changes(_));
     let (sender, result) = mpsc::channel();
     let thread_cancel = cancel.clone();
     let thread_progress = Arc::clone(&progress);
@@ -201,6 +209,7 @@ pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extra
     };
     Extraction {
         archive,
+        comparison_side,
         folder,
         cancel,
         progress,

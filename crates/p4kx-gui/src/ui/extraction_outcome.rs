@@ -18,7 +18,8 @@ use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
 use crate::widgets::text::paint_left;
 use crate::{
-    ExtractionStatus, ExtractionSummary, ExtractionText as T, FailedEntry, Language, Model, Texts,
+    ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, FailedEntry,
+    Language, Model, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -56,8 +57,9 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             } else {
                 T::SummaryCancelledTitle
             };
+            let side = extraction.is_comparison_side();
             outcome_window(ui, texts, (title, Tone::Normal), &mut open, |ui| {
-                finished(ui, texts, summary);
+                finished(ui, texts, summary, side);
             });
         }
         ExtractionStatus::Failed(reason) => {
@@ -161,9 +163,14 @@ fn ratio(done: u64, total: u64) -> f32 {
     (done as f32 / total as f32).clamp(0.0, 1.0)
 }
 
-fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
+fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary, comparison_side: bool) {
     if summary.archive_changed() {
-        ui.colored_label(palette::WARNING, texts.get(T::SummaryChanged));
+        let note = if comparison_side {
+            texts.get(ChangeExtractionText::SummaryChanged)
+        } else {
+            texts.get(T::SummaryChanged)
+        };
+        ui.colored_label(palette::WARNING, note);
     }
     let mut counts = vec![
         ("extracted", number(texts, summary.extracted())),

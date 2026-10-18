@@ -63,7 +63,11 @@ preview-truncated = Truncated: showing the first { $shown } of { $total } bytes.
 preview-failed = Cannot read { $path }: { $reason }
 preview-stopped = Reading { $path } stopped without a result.
 preview-archive-changed = The Archive changed on disk. Reload it to preview Entries.
-archive-changed = { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
+archive-changed =
+    { $stopped ->
+        [yes] { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
+       *[no] { $path } changed on disk, probably updated by the RSI Launcher. Reload the Archive to extract or preview Entries again.
+    }
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…
@@ -191,3 +195,4 @@ change-extraction-action-new = Extract new ({ $number })…
 change-extraction-scope-old = Changed Entries of the old Archive, in their old version ({ $number })
 change-extraction-scope-new = Added and changed Entries of the new Archive ({ $number })
 change-extraction-scope-filtered = Only the changes matching the Filter { $filter }
+change-extraction-summary-changed = The Archive changed on disk during the Extraction. Files written before may be stale; compare the Archives again and extract the changes again.

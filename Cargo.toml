@@ -13,6 +13,7 @@ publish = false
 [workspace.dependencies]
 p4kx-foundation = { path = "crates/p4kx-foundation" }
 p4kx-archive = { path = "crates/p4kx-archive" }
+p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
 p4kx-channels = { path = "crates/p4kx-channels" }
 p4kx-chunks = { path = "crates/p4kx-chunks" }

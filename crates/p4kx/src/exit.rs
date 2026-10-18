@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use p4kx_assembly::{EntityLookupError, LoadoutError};
 use p4kx_comparison::LineDiffError;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
@@ -48,16 +49,16 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank or chunk file that does
      not exist, a mip level the texture or a chunk the chunk file does not have, an output
-     that is one of its inputs,
-     --json without --out for cryxml, an invalid Query, or --json with another --format and
-     without --out for dcb query
+     that is one of its inputs, --json without --out for cryxml, an invalid Query, --json with
+     another --format and without --out for dcb query, or an Entity that no Record or several
+     Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk file, corrupt or with unreadable Entry data, also a --diff Entry that cannot be read
      or holds corrupt CryXml; a missing texture, sound, soundbank or chunk file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
-     is corrupt
+     is corrupt, or the Record of the Entity whose Loadout is shown cannot be read
   6  compare: the report or the output cannot be written
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 
@@ -95,6 +96,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else if dataforge.is_some()
         || error.downcast_ref::<DataForgeError>().is_some()
         || error.downcast_ref::<UnreadableSchema>().is_some()
+        || error.downcast_ref::<LoadoutError>().is_some()
     {
         DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
@@ -106,6 +108,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
+        || error.downcast_ref::<EntityLookupError>().is_some()
     {
         INVALID_INPUT
     } else {

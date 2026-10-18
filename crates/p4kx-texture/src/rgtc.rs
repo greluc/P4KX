@@ -77,7 +77,7 @@ fn snorm_palette(e0: i8, e1: i8) -> [u8; 8] {
         *value = snorm_to_unorm(match code {
             0 => a,
             1 => b,
-            _ if a > b => blend(8 - code, code - 1, 7),
+            _ if e0 > e1 => blend(8 - code, code - 1, 7),
             2..=5 => blend(6 - code, code - 1, 5),
             6 => -127,
             _ => 127,

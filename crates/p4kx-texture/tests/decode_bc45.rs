@@ -80,6 +80,20 @@ fn bc4_snorm_maps_minus_one_to_black_and_one_to_white() -> Result<(), TextureErr
 }
 
 #[test]
+fn bc4_snorm_picks_the_palette_by_the_stored_endpoints() -> Result<(), TextureError> {
+    let block = channel_block(0x81, 0x80, [7; 16]);
+
+    let image = decode(TextureFormat::Dxgi(DxgiFormat::BC4_SNORM), 4, 4, &block)?;
+
+    assert_eq!(
+        reds(&image),
+        [0; 16],
+        "-127 above -128 interpolates eight values, all -1, not the six-value palette's 1"
+    );
+    Ok(())
+}
+
+#[test]
 fn bc5_unorm_is_a_normal_map_with_z_reconstructed() -> Result<(), TextureError> {
     let mut block = Vec::new();
     block.extend(channel_block(

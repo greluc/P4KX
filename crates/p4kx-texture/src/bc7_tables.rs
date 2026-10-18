@@ -1,9 +1,11 @@
-/// The interpolation weights out of 64 for 2-, 3- and 4-bit indices.
-pub(crate) const WEIGHTS: [&[u8]; 3] = [
-    &[0, 21, 43, 64],
-    &[0, 9, 18, 27, 37, 46, 55, 64],
-    &[0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64],
-];
+/// The interpolation weights out of 64 for 2-bit indices.
+pub(crate) const WEIGHTS2: [u8; 4] = [0, 21, 43, 64];
+
+/// The interpolation weights out of 64 for 3-bit indices.
+pub(crate) const WEIGHTS3: [u8; 8] = [0, 9, 18, 27, 37, 46, 55, 64];
+
+/// The interpolation weights out of 64 for 4-bit indices.
+pub(crate) const WEIGHTS4: [u8; 16] = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
 
 /// The subset of every texel, two bits per texel, per subset count less one and partition.
 pub(crate) static SUBSETS: [[u32; 64]; 3] = [[0; 64], spread(&PARTITIONS2), pack(&PARTITIONS3)];

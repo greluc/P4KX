@@ -1,5 +1,5 @@
 use crate::bc::Texels;
-use crate::bc7_tables::{ANCHORS, SUBSETS, WEIGHTS};
+use crate::bc7_tables::{ANCHORS, SUBSETS, WEIGHTS2, WEIGHTS3, WEIGHTS4};
 
 /// The field widths of one BC7 mode.
 #[derive(Debug, Clone, Copy)]
@@ -15,42 +15,79 @@ struct Mode {
     index2_bits: u32,
 }
 
-const fn mode(fields: [u32; 9]) -> Mode {
-    let [
-        subsets,
-        partition,
-        rotation,
-        selector,
-        colour,
-        alpha,
-        p_bits,
-        index,
-        index2,
-    ] = fields;
-    Mode {
-        subsets: subsets as usize,
-        partition_bits: partition,
-        rotation_bits: rotation,
-        selector_bits: selector,
-        colour_bits: colour,
-        alpha_bits: alpha,
-        p_bits_per_subset: p_bits as usize,
-        index_bits: index,
-        index2_bits: index2,
-    }
-}
+const ONE_SUBSET: Mode = Mode {
+    subsets: 1,
+    partition_bits: 0,
+    rotation_bits: 0,
+    selector_bits: 0,
+    colour_bits: 0,
+    alpha_bits: 0,
+    p_bits_per_subset: 0,
+    index_bits: 2,
+    index2_bits: 0,
+};
 
-/// Subsets, partition, rotation, index selector, colour, alpha and p-bits per subset, index
-/// and secondary index bits of modes 0 to 7.
+/// The field widths of modes 0 to 7.
 const MODES: [Mode; 8] = [
-    mode([3, 4, 0, 0, 4, 0, 2, 3, 0]),
-    mode([2, 6, 0, 0, 6, 0, 1, 3, 0]),
-    mode([3, 6, 0, 0, 5, 0, 0, 2, 0]),
-    mode([2, 6, 0, 0, 7, 0, 2, 2, 0]),
-    mode([1, 0, 2, 1, 5, 6, 0, 2, 3]),
-    mode([1, 0, 2, 0, 7, 8, 0, 2, 2]),
-    mode([1, 0, 0, 0, 7, 7, 2, 4, 0]),
-    mode([2, 6, 0, 0, 5, 5, 2, 2, 0]),
+    Mode {
+        subsets: 3,
+        partition_bits: 4,
+        colour_bits: 4,
+        p_bits_per_subset: 2,
+        index_bits: 3,
+        ..ONE_SUBSET
+    },
+    Mode {
+        subsets: 2,
+        partition_bits: 6,
+        colour_bits: 6,
+        p_bits_per_subset: 1,
+        index_bits: 3,
+        ..ONE_SUBSET
+    },
+    Mode {
+        subsets: 3,
+        partition_bits: 6,
+        colour_bits: 5,
+        ..ONE_SUBSET
+    },
+    Mode {
+        subsets: 2,
+        partition_bits: 6,
+        colour_bits: 7,
+        p_bits_per_subset: 2,
+        ..ONE_SUBSET
+    },
+    Mode {
+        rotation_bits: 2,
+        selector_bits: 1,
+        colour_bits: 5,
+        alpha_bits: 6,
+        index2_bits: 3,
+        ..ONE_SUBSET
+    },
+    Mode {
+        rotation_bits: 2,
+        colour_bits: 7,
+        alpha_bits: 8,
+        index2_bits: 2,
+        ..ONE_SUBSET
+    },
+    Mode {
+        colour_bits: 7,
+        alpha_bits: 7,
+        p_bits_per_subset: 2,
+        index_bits: 4,
+        ..ONE_SUBSET
+    },
+    Mode {
+        subsets: 2,
+        partition_bits: 6,
+        colour_bits: 5,
+        alpha_bits: 5,
+        p_bits_per_subset: 2,
+        ..ONE_SUBSET
+    },
 ];
 
 const MAX_ENDPOINTS: usize = 6;
@@ -81,17 +118,8 @@ pub(crate) fn bc7(block: [u8; 16]) -> Texels {
     let rotation = bits.take(mode.rotation_bits);
     let selector = bits.take(mode.selector_bits);
     let endpoints = endpoints(&mut bits, mode);
-    let table = mode.subsets.saturating_sub(1);
-    let subsets = SUBSETS
-        .get(table)
-        .and_then(|row| row.get(partition))
-        .copied()
-        .unwrap_or_default();
-    let anchors = ANCHORS
-        .get(table)
-        .and_then(|row| row.get(partition))
-        .copied()
-        .unwrap_or(1);
+    let subsets = lookup(&SUBSETS, mode, partition).unwrap_or_default();
+    let anchors = lookup(&ANCHORS, mode, partition).unwrap_or(1);
     let primary = indices(&mut bits, mode.index_bits, anchors);
     let secondary = indices(&mut bits, mode.index2_bits, 1);
     let ((colour, colour_bits), (alpha, alpha_bits)) = match (mode.index2_bits, selector) {
@@ -167,6 +195,13 @@ fn endpoints(bits: &mut Bits, mode: &Mode) -> [[u8; 4]; MAX_ENDPOINTS] {
     endpoints
 }
 
+fn lookup<T: Copy>(table: &[[T; 64]; 3], mode: &Mode, partition: usize) -> Option<T> {
+    table
+        .get(mode.subsets.checked_sub(1)?)?
+        .get(partition)
+        .copied()
+}
+
 fn set(endpoint: &mut [u8; 4], channel: usize, value: u8) {
     if let Some(slot) = endpoint.get_mut(channel) {
         *slot = value;
@@ -174,8 +209,17 @@ fn set(endpoint: &mut [u8; 4], channel: usize, value: u8) {
 }
 
 fn expand(value: u8, precision: u32) -> u8 {
+    let (Some(up), Some(down)) = (
+        8_u32.checked_sub(precision),
+        precision
+            .checked_mul(2)
+            .and_then(|bits| bits.checked_sub(8)),
+    ) else {
+        return value;
+    };
     let wide = u16::from(value);
-    let full = (wide << (8 - precision)) | (wide >> (2 * precision - 8));
+    let full =
+        wide.checked_shl(up).unwrap_or_default() | wide.checked_shr(down).unwrap_or_default();
     u8::try_from(full & 0xFF).unwrap_or_default()
 }
 
@@ -191,16 +235,21 @@ fn indices(bits: &mut Bits, count: u32, anchors: u16) -> [u8; 16] {
     indices
 }
 
-fn weights(bits: u32) -> &'static [u8] {
-    usize::try_from(bits)
-        .ok()
-        .and_then(|bits| WEIGHTS.get(bits.wrapping_sub(2)))
-        .copied()
-        .unwrap_or(&[0])
+const fn weights(bits: u32) -> &'static [u8] {
+    match bits {
+        2 => &WEIGHTS2,
+        3 => &WEIGHTS3,
+        4 => &WEIGHTS4,
+        _ => &[0],
+    }
 }
 
 fn interpolate(first: u8, second: u8, weight: u8) -> u8 {
-    let (a, b, w) = (u16::from(first), u16::from(second), u16::from(weight));
+    let (a, b, w) = (
+        u16::from(first),
+        u16::from(second),
+        u16::from(weight.min(64)),
+    );
     u8::try_from(((64 - w) * a + w * b + 32) >> 6).unwrap_or(u8::MAX)
 }
 

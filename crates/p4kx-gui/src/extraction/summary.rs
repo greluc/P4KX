@@ -21,6 +21,7 @@ pub struct ExtractionSummary {
     skipped: Vec<String>,
     failures: Vec<FailedEntry>,
     cancelled: Vec<String>,
+    archive_changed: bool,
 }
 
 impl ExtractionSummary {
@@ -38,6 +39,7 @@ impl ExtractionSummary {
                 })
                 .collect(),
             cancelled: report.cancelled().to_vec(),
+            archive_changed: report.archive_changed(),
         }
     }
 
@@ -69,5 +71,11 @@ impl ExtractionSummary {
     #[must_use]
     pub fn cancelled(&self) -> &[String] {
         &self.cancelled
+    }
+
+    /// Returns whether the Archive changed on disk, which stopped the Extraction.
+    #[must_use]
+    pub const fn archive_changed(&self) -> bool {
+        self.archive_changed
     }
 }

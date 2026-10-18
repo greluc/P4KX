@@ -33,7 +33,9 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             ui.ctx().request_repaint_after(REFRESH);
         }
         ExtractionStatus::Finished(summary) => {
-            let title = if summary.cancelled().is_empty() {
+            let title = if summary.archive_changed() {
+                T::SummaryChangedTitle
+            } else if summary.cancelled().is_empty() {
                 T::SummaryTitle
             } else {
                 T::SummaryCancelledTitle
@@ -116,6 +118,9 @@ fn ratio(done: u64, total: u64) -> f32 {
 }
 
 fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
+    if summary.archive_changed() {
+        ui.colored_label(ui.visuals().error_fg_color, texts.get(T::SummaryChanged));
+    }
     ui.label(texts.format(
         T::SummaryCounts,
         &[

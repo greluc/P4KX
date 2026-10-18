@@ -2,11 +2,12 @@ use std::sync::Mutex;
 
 use p4kx_archive::Entry;
 
-use crate::{CancelToken, Progress};
+use crate::{ArchiveWatch, CancelToken, Progress};
 
 /// Counts the progress of one Extraction across worker threads and reports it in order.
 pub(crate) struct Tracker<'a> {
     cancel: Option<&'a CancelToken>,
+    watch: Option<&'a ArchiveWatch>,
     on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
     progress: Mutex<Progress>,
 }
@@ -15,10 +16,12 @@ impl<'a> Tracker<'a> {
     pub(crate) fn new(
         entries: &[&Entry],
         cancel: Option<&'a CancelToken>,
+        watch: Option<&'a ArchiveWatch>,
         on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
     ) -> Self {
         Self {
             cancel,
+            watch,
             on_progress,
             progress: Mutex::new(Progress {
                 entries_total: entries.len(),
@@ -28,8 +31,17 @@ impl<'a> Tracker<'a> {
         }
     }
 
-    pub(crate) fn is_cancelled(&self) -> bool {
+    /// Returns whether the run is to stop: it was cancelled, or the periodic check of the watched
+    /// Archive saw a change.
+    pub(crate) fn should_stop(&self) -> bool {
         self.cancel.is_some_and(CancelToken::is_cancelled)
+            || self.watch.is_some_and(|watch| watch.poll().is_err())
+    }
+
+    /// Returns whether the file of the watched Archive differs from when it was opened now or
+    /// did at an earlier check.
+    pub(crate) fn archive_file_changed(&self) -> bool {
+        self.watch.is_some_and(ArchiveWatch::file_changed)
     }
 
     /// Records `count` bytes written for an Entry that has not ended yet.

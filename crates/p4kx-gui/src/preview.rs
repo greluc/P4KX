@@ -38,17 +38,26 @@ pub enum PreviewStatus<'a> {
     TooLarge,
     /// The Entry could not be read, for the reason given, or reading stopped without a result.
     Failed(Option<&'a str>),
+    /// The Archive changed on disk, so the Entry was not read or its data was dropped.
+    ArchiveChanged,
     /// The Entry was read.
     Ready(&'a PreviewContents),
 }
 
-type ReadResult = Result<PreviewContents, Option<String>>;
+#[derive(Debug)]
+enum Unread {
+    Failed(Option<String>),
+    ArchiveChanged,
+}
+
+type ReadResult = Result<PreviewContents, Unread>;
 
 #[derive(Debug)]
 enum State {
     Loading(Receiver<ReadResult>),
     TooLarge,
     Failed(Option<String>),
+    ArchiveChanged,
     Ready(PreviewContents),
 }
 
@@ -62,11 +71,20 @@ pub struct Preview {
 impl Preview {
     /// Starts reading the Entry `id` of `index` on a background thread, calling `wake` from it
     /// once the data is ready; reads on the calling thread when no thread can be started.
+    ///
+    /// Nothing is read from an Archive that changed on disk, and data read while it changed is
+    /// dropped.
     pub(crate) fn start(
         index: &Arc<EntryIndex>,
         id: u32,
         wake: impl Fn() + Send + 'static,
     ) -> Self {
+        if index.watch().check().is_err() {
+            return Self {
+                entry: id,
+                state: State::ArchiveChanged,
+            };
+        }
         let state = match index.entry(id) {
             None => State::Failed(None),
             Some(entry) if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT => State::TooLarge,
@@ -88,6 +106,7 @@ impl Preview {
             State::Loading(_) => PreviewStatus::Loading,
             State::TooLarge => PreviewStatus::TooLarge,
             State::Failed(reason) => PreviewStatus::Failed(reason.as_deref()),
+            State::ArchiveChanged => PreviewStatus::ArchiveChanged,
             State::Ready(contents) => PreviewStatus::Ready(contents),
         }
     }
@@ -113,12 +132,19 @@ impl Preview {
             return false;
         };
         self.state = match result.try_recv() {
-            Ok(Ok(contents)) => State::Ready(contents),
-            Ok(Err(reason)) => State::Failed(reason),
+            Ok(read) => settled(read),
             Err(TryRecvError::Empty) => return false,
             Err(TryRecvError::Disconnected) => State::Failed(None),
         };
         true
+    }
+}
+
+fn settled(read: ReadResult) -> State {
+    match read {
+        Ok(contents) => State::Ready(contents),
+        Err(Unread::Failed(reason)) => State::Failed(reason),
+        Err(Unread::ArchiveChanged) => State::ArchiveChanged,
     }
 }
 
@@ -134,16 +160,17 @@ fn spawn(index: &Arc<EntryIndex>, id: u32, wake: impl Fn() + Send + 'static) -> 
         });
     match spawned {
         Ok(_handle) => State::Loading(result),
-        Err(_ignored) => match read(index, id) {
-            Ok(contents) => State::Ready(contents),
-            Err(reason) => State::Failed(reason),
-        },
+        Err(_ignored) => settled(read(index, id)),
     }
 }
 
 fn read(index: &EntryIndex, id: u32) -> ReadResult {
-    let entry = index.entry(id).ok_or(None)?;
-    let bytes = read_start(index, entry).map_err(Some)?;
+    let entry = index.entry(id).ok_or(Unread::Failed(None))?;
+    let bytes = read_start(index, entry);
+    if index.watch().check().is_err() {
+        return Err(Unread::ArchiveChanged);
+    }
+    let bytes = bytes.map_err(|reason| Unread::Failed(Some(reason)))?;
     Ok(PreviewContents::new(bytes, entry.uncompressed_size()))
 }
 

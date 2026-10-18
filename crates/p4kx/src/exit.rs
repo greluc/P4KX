@@ -14,6 +14,8 @@ pub(crate) const PARTIAL_FAILURE: u8 = 1;
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
+/// The Archive changed on disk after it was opened, so the Extraction stopped.
+pub(crate) const ARCHIVE_CHANGED: u8 = 4;
 /// A second Ctrl+C ended an Extraction without waiting for it to stop.
 pub(crate) const INTERRUPTED: u8 = 130;
 
@@ -25,6 +27,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   2  invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that
      matches no Entry, or a Channel path that does not exist or was never added
   3  the Archive cannot be read: missing, not an Archive or corrupt
+  4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
+     Extraction stopped, and Entries written before may be stale
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 
 /// Returns the exit code for an error that ended a command.

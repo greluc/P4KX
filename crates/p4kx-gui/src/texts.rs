@@ -112,13 +112,19 @@ pub enum Text {
     PreviewFailed,
     /// Shown when reading stopped without a result; takes `path`.
     PreviewStopped,
+    /// Shown instead of the preview once the Archive changed on disk.
+    PreviewArchiveChanged,
+    /// The notice that the open Archive changed on disk; takes `path`.
+    ArchiveChanged,
+    /// The action that opens the changed Archive again.
+    ActionReload,
     /// A text of the Extraction windows.
     Extraction(ExtractionText),
 }
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 52] = [
+    const BASE: [Self; 55] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -171,6 +177,9 @@ impl Text {
         Self::PreviewTruncated,
         Self::PreviewFailed,
         Self::PreviewStopped,
+        Self::PreviewArchiveChanged,
+        Self::ArchiveChanged,
+        Self::ActionReload,
     ];
 
     /// Returns every text, for checks of the Fluent files.
@@ -236,6 +245,9 @@ impl Text {
             Self::PreviewTruncated => "preview-truncated",
             Self::PreviewFailed => "preview-failed",
             Self::PreviewStopped => "preview-stopped",
+            Self::PreviewArchiveChanged => "preview-archive-changed",
+            Self::ArchiveChanged => "archive-changed",
+            Self::ActionReload => "action-reload",
             Self::Extraction(text) => text.id(),
         }
     }

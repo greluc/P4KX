@@ -87,6 +87,12 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
             );
             ui.colored_label(ui.visuals().error_fg_color, text);
         }
+        PreviewStatus::ArchiveChanged => {
+            ui.colored_label(
+                ui.visuals().error_fg_color,
+                texts.get(Text::PreviewArchiveChanged),
+            );
+        }
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     }
 }
@@ -157,7 +163,7 @@ impl HexLayout {
         let character = widest("MW@");
         let gap = ui.spacing().item_spacing.x * 2.0;
         Self {
-            offset: digit * 8.0 + gap,
+            offset: digit.mul_add(8.0, gap),
             byte: digit.mul_add(2.0, gap / 2.0),
             character,
             gap,

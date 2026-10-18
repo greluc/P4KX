@@ -59,6 +59,10 @@ pub enum ExtractionText {
     SummaryTitle,
     /// The title of the summary of a cancelled Extraction.
     SummaryCancelledTitle,
+    /// The title of the summary of an Extraction stopped by a change of the Archive.
+    SummaryChangedTitle,
+    /// The note that the Archive changed on disk and written files may be stale.
+    SummaryChanged,
     /// The counts of the summary; takes `extracted`, `skipped`, `failed` and `cancelled`.
     SummaryCounts,
     /// The target folder; takes `path`.
@@ -81,7 +85,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 40] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -111,6 +115,8 @@ impl ExtractionText {
         Self::Cancel,
         Self::SummaryTitle,
         Self::SummaryCancelledTitle,
+        Self::SummaryChangedTitle,
+        Self::SummaryChanged,
         Self::SummaryCounts,
         Self::SummaryTarget,
         Self::SummaryFailed,
@@ -155,6 +161,8 @@ impl ExtractionText {
             Self::Cancel => "extraction-cancel",
             Self::SummaryTitle => "extraction-summary-title",
             Self::SummaryCancelledTitle => "extraction-summary-cancelled-title",
+            Self::SummaryChangedTitle => "extraction-summary-changed-title",
+            Self::SummaryChanged => "extraction-summary-changed",
             Self::SummaryCounts => "extraction-summary-counts",
             Self::SummaryTarget => "extraction-summary-target",
             Self::SummaryFailed => "extraction-summary-failed",

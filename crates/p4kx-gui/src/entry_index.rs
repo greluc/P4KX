@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use p4kx_extraction::{Archive, Entry, Filter};
+use p4kx_extraction::{Archive, ArchiveWatch, Entry, Filter};
 use rayon::prelude::*;
 
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
@@ -13,6 +13,7 @@ use crate::sort::{Sort, SortDirection, SortOrders, file_name};
 #[derive(Debug)]
 pub struct EntryIndex {
     archive: Archive,
+    watch: ArchiveWatch,
     by_path: Vec<u32>,
     folders: Vec<Folder>,
     orders: SortOrders,
@@ -38,6 +39,7 @@ impl EntryIndex {
             || SortOrders::build(&sorted),
         );
         Self {
+            watch: ArchiveWatch::new(&archive),
             archive,
             by_path,
             folders,
@@ -49,6 +51,12 @@ impl EntryIndex {
     #[must_use]
     pub const fn archive(&self) -> &Archive {
         &self.archive
+    }
+
+    /// Returns the watch that notices when the Archive changes on disk.
+    #[must_use]
+    pub const fn watch(&self) -> &ArchiveWatch {
+        &self.watch
     }
 
     /// Returns the number of Entries.

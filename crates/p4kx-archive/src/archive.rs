@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use crate::format_error::FormatError;
 use crate::source::Source;
@@ -42,6 +43,19 @@ impl Archive {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Returns the size of the file in bytes when it was opened.
+    #[must_use]
+    pub const fn file_len(&self) -> u64 {
+        self.source.len()
+    }
+
+    /// Returns the modification time of the file when it was opened, or `None` when the platform
+    /// records none.
+    #[must_use]
+    pub const fn file_modified(&self) -> Option<SystemTime> {
+        self.source.modified()
     }
 
     /// Returns the Entries in central-directory order.

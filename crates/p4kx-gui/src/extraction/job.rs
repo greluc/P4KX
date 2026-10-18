@@ -185,6 +185,7 @@ fn run(
         policy: request.policy,
         cancel: Some(cancel),
         progress: Some(&on_progress),
+        watch: Some(index.watch()),
     };
     let report = extract(archive, &entries, &target, &options);
     Ok(ExtractionSummary::new(target, &report))

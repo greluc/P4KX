@@ -6,6 +6,7 @@ use std::thread;
 use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::RecentArchives;
 
+mod archive_change;
 mod extraction_control;
 
 use crate::{

@@ -2,6 +2,7 @@ use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::SystemTime;
 
 #[cfg(windows)]
 const FILE_SHARE_READ: u32 = 0x0000_0001;
@@ -17,6 +18,7 @@ const FILE_SHARE_WRITE: u32 = 0x0000_0002;
 pub(crate) struct Source {
     path: PathBuf,
     len: u64,
+    modified: Option<SystemTime>,
     handles: Mutex<Vec<File>>,
 }
 
@@ -24,10 +26,11 @@ impl Source {
     /// Opens the file read-only; other processes may keep reading and writing it.
     pub(crate) fn open(path: &Path) -> io::Result<Self> {
         let file = open_shared(path)?;
-        let len = file.metadata()?.len();
+        let metadata = file.metadata()?;
         Ok(Self {
             path: path.to_path_buf(),
-            len,
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
             handles: Mutex::new(vec![file]),
         })
     }
@@ -35,6 +38,11 @@ impl Source {
     /// Returns the file length.
     pub(crate) const fn len(&self) -> u64 {
         self.len
+    }
+
+    /// Returns the modification time when the file was opened, or `None` when the platform has none.
+    pub(crate) const fn modified(&self) -> Option<SystemTime> {
+        self.modified
     }
 
     /// Reads `count` bytes starting at `offset`.

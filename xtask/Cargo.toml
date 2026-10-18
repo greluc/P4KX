@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Repository checks for P4K-Extractor: layer direction and source-file size."
+description = "Repository checks for P4K-Extractor: layer direction, lints and source-file size."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,7 @@ layer = "tooling"
 [dependencies]
 anyhow.workspace = true
 serde_json.workspace = true
+toml.workspace = true
 
 [lints]
 workspace = true

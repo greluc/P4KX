@@ -28,6 +28,7 @@ pub struct Model {
     browser: Option<Browser>,
     opening: Option<Opening>,
     failure: Option<Failure>,
+    licence_shown: bool,
 }
 
 impl std::fmt::Debug for Model {
@@ -37,6 +38,7 @@ impl std::fmt::Debug for Model {
             .field("browser", &self.browser)
             .field("opening", &self.opening_path())
             .field("failure", &self.failure)
+            .field("licence_shown", &self.licence_shown)
             .finish()
     }
 }
@@ -50,6 +52,7 @@ impl Model {
             browser: None,
             opening: None,
             failure: None,
+            licence_shown: false,
         }
     }
 
@@ -133,6 +136,17 @@ impl Model {
     /// Returns the browsing state of the open Archive for changes.
     pub const fn browser_mut(&mut self) -> Option<&mut Browser> {
         self.browser.as_mut()
+    }
+
+    /// Returns whether the font licence is shown.
+    #[must_use]
+    pub const fn licence_shown(&self) -> bool {
+        self.licence_shown
+    }
+
+    /// Shows or hides the font licence.
+    pub const fn set_licence_shown(&mut self, shown: bool) {
+        self.licence_shown = shown;
     }
 
     fn fail(&mut self, path: PathBuf, error: &dyn Error) {

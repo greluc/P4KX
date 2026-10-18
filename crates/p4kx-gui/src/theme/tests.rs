@@ -1,0 +1,115 @@
+use egui::{Context, CornerRadius, FontFamily, TextStyle, Theme};
+
+use super::{BOLD_FAMILY, LATO_BOLD, LATO_REGULAR, apply, fonts, palette, style};
+
+#[test]
+fn the_style_is_dark_with_the_krt_surfaces() {
+    let visuals = style().visuals;
+
+    assert!(visuals.dark_mode, "dark mode");
+    assert_eq!(visuals.panel_fill, palette::GRAY_4, "Grau 4 surface");
+    assert_eq!(visuals.extreme_bg_color, palette::BLACK, "black canvas");
+    assert_eq!(visuals.text_color(), palette::GRAY_1, "Grau 1 body text");
+    assert_eq!(
+        visuals.weak_text_color(),
+        palette::GRAY_2_TEXT,
+        "muted text"
+    );
+}
+
+#[test]
+fn orange_marks_selection_links_and_focus() {
+    let visuals = style().visuals;
+
+    assert_eq!(
+        visuals.selection.bg_fill,
+        palette::PRIMARY,
+        "selection fill"
+    );
+    assert_eq!(
+        visuals.selection.stroke.color,
+        palette::BLACK,
+        "selected text"
+    );
+    assert_eq!(visuals.hyperlink_color, palette::PRIMARY, "links");
+    assert_eq!(visuals.text_cursor.stroke.color, palette::PRIMARY, "cursor");
+    assert_eq!(
+        visuals.widgets.hovered.bg_stroke.color,
+        palette::PRIMARY,
+        "hover outline"
+    );
+}
+
+#[test]
+fn errors_and_warnings_use_the_accessible_text_tints() {
+    let visuals = style().visuals;
+
+    assert_eq!(visuals.error_fg_color, palette::DANGER_TEXT, "error");
+    assert_eq!(visuals.warn_fg_color, palette::WARNING, "warning");
+}
+
+#[test]
+fn every_corner_is_square() {
+    let visuals = style().visuals;
+    let widgets = &visuals.widgets;
+
+    for (name, corner) in [
+        ("window", visuals.window_corner_radius),
+        ("menu", visuals.menu_corner_radius),
+        ("noninteractive", widgets.noninteractive.corner_radius),
+        ("inactive", widgets.inactive.corner_radius),
+        ("hovered", widgets.hovered.corner_radius),
+        ("active", widgets.active.corner_radius),
+        ("open", widgets.open.corner_radius),
+    ] {
+        assert_eq!(corner, CornerRadius::ZERO, "{name} corners");
+    }
+}
+
+#[test]
+fn lato_comes_first_in_every_family() {
+    let fonts = fonts();
+
+    for family in [FontFamily::Proportional, FontFamily::Monospace] {
+        let names = fonts.families.get(&family).cloned().unwrap_or_default();
+        assert_eq!(
+            names.first().map(String::as_str),
+            Some(LATO_REGULAR),
+            "{family:?}"
+        );
+    }
+    let bold = fonts.families.get(&FontFamily::Name(BOLD_FAMILY.into()));
+    assert_eq!(
+        bold.and_then(|names| names.first()).map(String::as_str),
+        Some(LATO_BOLD),
+        "bold family"
+    );
+}
+
+#[test]
+fn headings_are_set_in_lato_bold() {
+    let style = style();
+
+    let heading = style.text_styles.get(&TextStyle::Heading);
+
+    assert_eq!(
+        heading.map(|font| font.family.clone()),
+        Some(FontFamily::Name(BOLD_FAMILY.into())),
+        "heading family"
+    );
+}
+
+#[test]
+fn applying_the_theme_keeps_the_window_dark_on_a_light_system() {
+    let ctx = Context::default();
+    ctx.options_mut(|options| options.fallback_theme = Theme::Light);
+
+    apply(&ctx);
+
+    assert_eq!(ctx.theme(), Theme::Dark, "dark");
+    assert_eq!(
+        ctx.style_of(ctx.theme()).visuals.panel_fill,
+        palette::GRAY_4,
+        "KRT style"
+    );
+}

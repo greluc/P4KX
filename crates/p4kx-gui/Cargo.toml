@@ -28,11 +28,39 @@ rfd.workspace = true
 sys-locale.workspace = true
 unic-langid.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+raw-window-handle.workspace = true
+windows-sys.workspace = true
+
 [dev-dependencies]
 p4kx-testkit.workspace = true
 egui_kittest.workspace = true
 fluent-syntax.workspace = true
 tempfile.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "deny"
+unused_qualifications = "deny"
+unreachable_pub = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+dbg_macro = "deny"
+expect_used = "deny"
+get_unwrap = "deny"
+indexing_slicing = "deny"
+missing_assert_message = "deny"
+panic = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+redundant_pub_crate = "allow"
+todo = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unwrap_in_result = "deny"
+unwrap_used = "deny"

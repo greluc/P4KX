@@ -34,6 +34,7 @@ fluent-bundle = "0.16.0"
 fluent-syntax = "0.12.0"
 insta = "1.49.0"
 predicates = "3.1.4"
+raw-window-handle = "0.6.2"
 rayon = "1.12.0"
 rfd = "0.17.2"
 ruzstd = "0.9.1"
@@ -44,6 +45,7 @@ tempfile = "3.27.0"
 thiserror = "2.0.21"
 toml = "1.1.8"
 unic-langid = "0.9.6"
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 
 [workspace.lints.rust]
 missing_docs = "deny"

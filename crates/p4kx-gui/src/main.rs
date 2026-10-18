@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
-use p4kx_gui::{App, Language, Model, Text, window};
+use p4kx_gui::{App, Language, Model, Text, theme, window};
 use p4kx_settings::{Settings, default_settings_file};
 
 fn main() -> Result<()> {
@@ -25,6 +25,9 @@ fn main() -> Result<()> {
         &title,
         options,
         Box::new(move |creation| {
+            theme::apply(&creation.egui_ctx);
+            #[cfg(windows)]
+            p4kx_gui::dwm::tint(creation);
             let mut model = model;
             if let Some(path) = archive {
                 let ctx = creation.egui_ctx.clone();

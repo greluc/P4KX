@@ -219,6 +219,32 @@ fn the_dataforge_tab_shows_version_counts_and_first_records() -> TestResult {
 }
 
 #[test]
+fn selecting_an_entry_returns_from_the_dataforge_tab_to_its_preview() -> TestResult {
+    let (_dir, _, mut harness) =
+        window(&archive_with(database().build()), Language::BritishEnglish)?;
+    harness
+        .get_by_role_and_label(Role::Button, "DataForge")
+        .click();
+    wait_until(&mut harness, settled)?;
+
+    harness.get_by_label("readme.txt").click();
+    wait_until(&mut harness, |model| {
+        model
+            .browser()
+            .and_then(Browser::preview)
+            .is_some_and(|preview| !preview.is_loading())
+    })?;
+
+    assert_eq!(
+        harness.state().preview_tab(),
+        PreviewTab::Text,
+        "the Text tab"
+    );
+    assert!(harness.query_by_label("readme").is_some(), "the Entry");
+    Ok(())
+}
+
+#[test]
 fn the_german_tab_names_the_first_records() -> TestResult {
     let (_dir, _, mut harness) = window(&archive_with(database().build()), Language::German)?;
 
@@ -266,6 +292,39 @@ fn the_user_help_states_how_many_records_the_tab_lists() -> TestResult {
     assert!(
         help.contains(&format!("the first {SUMMARY_RECORDS} Records")),
         "the number of Records listed"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_hundred_and_twenty_thousand_records_stay_virtual() -> TestResult {
+    let (_dir, _, mut harness) = window(&archive_with(large().build()), Language::BritishEnglish)?;
+
+    for path in ["", "libs", "libs/items", "libs/items/group599"] {
+        let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
+        let node = browser
+            .records()
+            .and_then(|tree| tree.find(path))
+            .ok_or_else(|| format!("no node {path}"))?;
+        browser.toggle_record_node(node, || {});
+        wait_until(&mut harness, settled)?;
+    }
+
+    let tree = harness
+        .state()
+        .browser()
+        .and_then(Browser::records)
+        .ok_or("no node")?;
+    assert_eq!(
+        tree.rows().len(),
+        3 + 600 + 200,
+        "only open folders are rows"
+    );
+    let last = tree.rows().last().map(|row| tree.node(row.node).name());
+    assert_eq!(last, Some("item119999"), "sorted by name");
+    assert!(
+        harness.query_by_label("item119999").is_none(),
+        "rows outside the view are not drawn"
     );
     Ok(())
 }

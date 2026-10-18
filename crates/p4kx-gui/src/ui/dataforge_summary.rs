@@ -202,11 +202,26 @@ impl Laid {
             let (rect, _) =
                 ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
             let content = rect.with_max_y(rect.bottom() - DETAIL_ROW_GAP);
-            let key_rect = content.with_max_x(content.left() + key_width);
-            let value_rect = content.with_min_x(key_rect.right() + DETAIL_COLUMN_GAP);
-            labelled(ui, (0, index, 0), key, (key_rect, palette::GRAY_2_TEXT));
-            labelled(ui, (0, index, 1), value, (value_rect, palette::DATA_FG));
-            hairline_below(ui, rect);
+            let key_rect = rect.with_max_x(rect.left() + key_width);
+            let value_rect = rect.with_min_x(key_rect.right() + DETAIL_COLUMN_GAP);
+            let on_baseline = |cell: Rect, galley: &Galley| {
+                cell.with_min_y(content.bottom() - galley.size().y)
+                    .with_max_y(content.bottom())
+            };
+            labelled(
+                ui,
+                (0, index, 0),
+                key,
+                (on_baseline(key_rect, &key.1), palette::GRAY_2_TEXT),
+            );
+            labelled(
+                ui,
+                (0, index, 1),
+                value,
+                (on_baseline(value_rect, &value.1), palette::DATA_FG),
+            );
+            hairline_below(ui, key_rect);
+            hairline_below(ui, value_rect);
         }
         ui.add_space(SECTION_TITLE_PADDING_TOP);
         let size = vec2(ui.available_width(), self.heading.1.size().y);

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
@@ -34,7 +34,7 @@ pub struct RecordNode<'a> {
 }
 
 impl<'a> RecordNode<'a> {
-    /// Returns the name: a folder or file name of the record path, or the Record name inside a
+    /// Returns the name: one part of the record path, or the Record name inside a
     /// record folder; empty for the DataForge node.
     #[must_use]
     pub const fn name(&self) -> &'a str {
@@ -106,6 +106,7 @@ pub struct RecordTree {
     selected: Option<RecordNodeId>,
     rows: Vec<RecordRow>,
     generation: u64,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for RecordTree {
@@ -116,6 +117,12 @@ impl std::fmt::Debug for RecordTree {
             .field("selected", &self.selected)
             .field("rows", &self.rows.len())
             .finish_non_exhaustive()
+    }
+}
+
+impl Drop for RecordTree {
+    fn drop(&mut self) {
+        self.cancelled.store(true, Ordering::Relaxed);
     }
 }
 
@@ -132,6 +139,7 @@ impl RecordTree {
                 depth: 0,
             }],
             generation: 0,
+            cancelled: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -268,6 +276,7 @@ impl RecordTree {
 
     /// Drops loaded or loading DataForge because the Archive changed on disk.
     pub(crate) fn archive_changed(&mut self) {
+        self.cancelled.store(true, Ordering::Relaxed);
         self.state = State::ArchiveChanged;
         self.selected = self.selected.filter(|&id| id == ROOT);
         self.expanded.clear();
@@ -310,10 +319,11 @@ impl RecordTree {
         }
         let (sender, result) = mpsc::channel();
         let thread_index = Arc::clone(index);
+        let cancelled = Arc::clone(&self.cancelled);
         let spawned = thread::Builder::new()
             .name("dataforge".to_owned())
             .spawn(move || {
-                if sender.send(load(&thread_index)).is_ok() {
+                if sender.send(load(&thread_index, &cancelled)).is_ok() {
                     wake();
                 }
             });
@@ -343,7 +353,7 @@ impl RecordTree {
     }
 }
 
-fn load(index: &EntryIndex) -> Outcome {
+fn load(index: &EntryIndex, cancelled: &AtomicBool) -> Outcome {
     if index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
@@ -351,6 +361,9 @@ fn load(index: &EntryIndex) -> Outcome {
         Ok(entry) => entry,
         Err(error) => return Outcome::Failed(DataForgeFailure::Unreadable(describe(&error))),
     };
+    if cancelled.load(Ordering::Relaxed) {
+        return Outcome::Failed(DataForgeFailure::Stopped);
+    }
     let built = entry.open().map(|forge| RecordIndex::build(&forge));
     if index.watch().check().is_err() {
         return Outcome::ArchiveChanged;

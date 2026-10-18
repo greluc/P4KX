@@ -249,6 +249,9 @@ impl Browser {
     pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
         text.clone_into(&mut self.search_text);
         self.pending = None;
+        if let Some(records) = self.records.as_mut().filter(|_| !text.is_empty()) {
+            records.clear_selection();
+        }
         if text.is_empty() {
             self.matches = None;
             self.refresh_shown();

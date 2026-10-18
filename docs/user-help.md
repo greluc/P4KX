@@ -30,7 +30,8 @@ When the Archive holds DataForge (`Data\Game2.dcb`, or `Data\Game.dcb` in older 
 **DataForge** node follows the folders of the path tree. Expanding or selecting it loads DataForge
 in the background; a spinner and *Loading…* show on the node meanwhile, and the window stays usable.
 The Records then appear as folders by record path: a Record alone at its record path is named after
-the file, several Records sharing one record path sit in a record folder named after the file.
+the last part of its record path; several Records sharing one record path sit in a record folder
+named after that part.
 Hovering a Record shows its name, type and GUID.
 
 DataForge is loaded once per open Archive and kept until you reload the Archive or it changes on

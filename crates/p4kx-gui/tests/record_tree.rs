@@ -368,32 +368,18 @@ fn selecting_a_folder_ends_the_record_selection() -> TestResult {
 }
 
 #[test]
-fn a_hundred_and_twenty_thousand_records_form_the_tree() -> TestResult {
-    let builder = (0..120_000_u128).fold(
-        DataForgeBuilder::new().structure(TestStruct::new("Item")),
-        |builder, n| {
-            builder.record(TestRecord::new(
-                n + 1,
-                "Item",
-                format!("Item.N{n}"),
-                format!("libs/items/group{:03}/item{n:06}.xml", n % 600),
-            ))
-        },
-    );
-    let (_dir, _, mut model) = opened(&with_dataforge("Data\\Game2.dcb", builder.build()))?;
+fn searching_ends_the_record_selection() -> TestResult {
+    let (_dir, _, mut model) = opened(&with_dataforge("Data\\Game2.dcb", database().build()))?;
+    let browser = model.browser_mut().ok_or("no Archive")?;
+    let root = browser.records().ok_or("no node")?.root();
 
-    expand(&mut model, "")?;
-    expand(&mut model, "libs")?;
-    expand(&mut model, "libs/items")?;
-    expand(&mut model, "libs/items/group599")?;
+    browser.select_record_node(root, || {});
+    browser.search("config", || {});
 
-    let tree = records(&model)?;
     assert_eq!(
-        tree.rows().len(),
-        3 + 600 + 200,
-        "only open folders are rows"
+        browser.records().and_then(RecordTree::selected),
+        None,
+        "the search results are shown instead"
     );
-    let last = tree.rows().last().map(|row| tree.node(row.node).name());
-    assert_eq!(last, Some("item119999"), "sorted by name");
-    Ok(())
+    wait_until(&mut model, settled)
 }

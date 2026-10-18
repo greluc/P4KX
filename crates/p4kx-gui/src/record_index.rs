@@ -242,19 +242,21 @@ impl Builder {
         self.open.truncate(kept + 1);
         for dir in dirs.iter().skip(kept) {
             let parent = self.open.last().copied().unwrap_or_default();
-            let id = self.push(parent, folder(dir));
+            let Some(id) = self.push(parent, folder(dir)) else {
+                break;
+            };
             self.open.push(id);
         }
         self.open.last().copied().unwrap_or_default()
     }
 
-    fn push(&mut self, parent: u32, node: Node) -> u32 {
-        let id = u32::try_from(self.nodes.len()).unwrap_or(u32::MAX);
+    fn push(&mut self, parent: u32, node: Node) -> Option<u32> {
+        let id = u32::try_from(self.nodes.len()).ok()?;
         if let Some(parent) = self.nodes.get_mut(parent as usize) {
             parent.children.push(RecordNodeId(id));
         }
         self.nodes.push(node);
-        id
+        Some(id)
     }
 
     fn add_group(
@@ -275,13 +277,15 @@ impl Builder {
                 self.push(parent, record(only, file));
             }
             (Some(file), _) => {
-                let shared = self.push(
+                let Some(shared) = self.push(
                     parent,
                     Node {
                         kind: RecordNodeKind::RecordFolder,
                         ..folder(file)
                     },
-                );
+                ) else {
+                    return;
+                };
                 for &index in group {
                     self.push(shared, record(index, name_of(index)));
                 }

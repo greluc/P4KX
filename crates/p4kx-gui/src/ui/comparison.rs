@@ -1,10 +1,12 @@
-use egui::{Align, Layout, Margin, Ui, vec2};
+use egui::{Align, Layout, Margin, Panel, Ui, UiBuilder, vec2};
 use fluent_bundle::FluentValue;
 
 use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
-use super::{Dialog, Requests, comparison_summary, comparison_table};
-use crate::theme::desktop::{COMPARISON_PROGRESS_WIDTH, SPINNER, TOOLBAR_PADDING};
+use super::{Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_summary, comparison_table};
+use crate::theme::desktop::{
+    COMPARISON_PROGRESS_WIDTH, PREVIEW_MIN_HEIGHT, SPINNER, TOOLBAR_PADDING,
+};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
 use crate::widgets::button::{self, Kind, Size};
@@ -27,9 +29,24 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| setup(ui, model, requests));
     hairline_below(ui, toolbar.response.rect);
-    if model.comparison().view().is_some() {
+    if let Some(view) = model.comparison().view() {
         comparison_summary::show(ui, model);
-        frames::panel().show(ui, |ui| comparison_table::show(ui, model, requests));
+        let mut list = ui.available_rect_before_wrap();
+        if view.selected().is_some() {
+            let diff = Panel::bottom("comparison-diff")
+                .frame(frames::panel().outer_margin(Margin {
+                    top: RESIZE_GAP,
+                    ..Margin::ZERO
+                }))
+                .resizable(true)
+                .default_size((list.height() / 2.0).floor().max(PREVIEW_MIN_HEIGHT))
+                .min_size(PREVIEW_MIN_HEIGHT)
+                .show(ui, |ui| comparison_diff::show(ui, model));
+            list.max.y = list.max.y.min(diff.response.rect.top());
+        }
+        ui.scope_builder(UiBuilder::new().max_rect(list), |ui| {
+            frames::panel().show(ui, |ui| comparison_table::show(ui, model, requests));
+        });
     } else {
         empty(ui, model.texts());
     }

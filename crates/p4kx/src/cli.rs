@@ -4,6 +4,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
@@ -43,6 +44,13 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
+    /// Writes the Basetool catalog of an Archive as JSON, or prints its JSON Schema.
+    #[command(
+        after_help = EXIT_CODES_HELP,
+        args_conflicts_with_subcommands = true,
+        subcommand_negates_reqs = true
+    )]
+    Catalog(CatalogArgs),
     /// Shows the Loadout tree of an Entity: a ship, vehicle, weapon or item.
     #[command(after_help = EXIT_CODES_HELP)]
     Entity(EntityArgs),

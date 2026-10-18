@@ -3,12 +3,16 @@ use std::sync::Weak;
 
 use p4kx_comparison::Levels;
 
+mod diff;
+mod diff_document;
 mod filter_job;
 mod orders;
 mod report;
 mod run;
 mod view;
 
+pub use diff::{DiffStatus, EntryDiff};
+pub use diff_document::{DiffCell, DiffDocument, DiffHunk, DiffRow};
 pub(crate) use orders::rank;
 pub use orders::{ChangeColumn, ChangeSort};
 pub use report::ReportStatus;

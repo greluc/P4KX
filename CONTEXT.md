@@ -206,6 +206,11 @@ The JSON Export of manufacturers, items, ships, commodities and blueprints that 
 import consumes.
 _Avoid_: p4k-catalog, basetool export
 
+**Kind**:
+One group of entities in the Basetool catalog, e.g. manufacturers or items, selected by record-path
+prefix and type and complete or partial on its own.
+_Avoid_: category, entity type
+
 **Export**:
 A structured file derived from DataForge for another tool, as opposed to an Extraction of Entries.
 _Avoid_: dump

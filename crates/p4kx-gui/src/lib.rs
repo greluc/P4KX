@@ -33,7 +33,8 @@ pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonSide, ComparisonStage, ComparisonStatus,
-    ComparisonTab, ComparisonView, DirectorySummary, ReportStatus, Summary,
+    ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffStatus,
+    DirectorySummary, EntryDiff, ReportStatus, Summary,
 };
 pub use entry_index::EntryIndex;
 pub use extraction::{
@@ -57,5 +58,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ComparisonText, DataForgeText, ExtractionText, QueryText, RecordSearchText, Text, Texts,
+    ComparisonText, DataForgeText, DiffText, ExtractionText, QueryText, RecordSearchText, Text,
+    Texts,
 };

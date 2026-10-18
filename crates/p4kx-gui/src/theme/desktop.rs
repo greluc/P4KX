@@ -300,6 +300,19 @@ pub const CHANGE_SIZE_COLUMN: f32 = 150.0;
 /// The width of a count column of the directory table.
 pub const COUNT_COLUMN: f32 = 110.0;
 
+/// The height of a line and a hunk head of the line diff, the hex row height.
+pub const DIFF_ROW_HEIGHT: f32 = HEX_ROW_HEIGHT;
+/// The font size of the line diff.
+pub const DIFF_FONT: f32 = FS_XS;
+/// The horizontal padding around the line numbers of the line diff, the cell padding.
+pub const DIFF_GUTTER_PADDING_X: f32 = CELL_PADDING_X;
+/// The gap between the marker and the text of a line of the line diff.
+pub const DIFF_MARKER_GAP: f32 = SPACE_2;
+/// The fill of an added line, the success chip fill.
+pub const DIFF_ADDED_FILL: Color32 = CHIP_SUCCESS_FILL;
+/// The fill of a removed line, the danger chip fill.
+pub const DIFF_REMOVED_FILL: Color32 = CHIP_DANGER_FILL;
+
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The underline of the marked error in the Query editor.

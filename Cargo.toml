@@ -39,6 +39,7 @@ predicates = "3.1.4"
 raw-window-handle = "0.6.2"
 rayon = "1.12.0"
 rfd = "0.17.2"
+roxmltree = "0.21.1"
 ruzstd = "0.9.1"
 semver = "1.0.28"
 serde = { version = "1.0.229", features = ["derive"] }

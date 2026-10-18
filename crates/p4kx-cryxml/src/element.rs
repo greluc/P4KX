@@ -1,98 +1,96 @@
-use std::borrow::Cow;
 use std::iter::FusedIterator;
 use std::slice;
 
-use crate::document::Document;
+use crate::document::{Document, Node};
+use crate::strings::Span;
 
 /// One attribute of an element.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Attribute<'a> {
-    name: Cow<'a, str>,
-    value: Cow<'a, str>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Attribute<'d> {
+    name: &'d str,
+    value: &'d str,
 }
 
-impl<'a> Attribute<'a> {
-    pub(crate) const fn new(name: Cow<'a, str>, value: Cow<'a, str>) -> Self {
-        Self { name, value }
-    }
-
-    /// Returns the attribute's name.
+impl<'d> Attribute<'d> {
+    /// Returns the attribute's name as stored in the file.
     #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
+    pub const fn name(self) -> &'d str {
+        self.name
     }
 
     /// Returns the attribute's value.
     #[must_use]
-    pub fn value(&self) -> &str {
-        &self.value
+    pub const fn value(self) -> &'d str {
+        self.value
     }
 }
 
 /// One element of a [`Document`].
 #[derive(Debug, Clone, Copy)]
-pub struct Element<'d, 'a> {
-    document: &'d Document<'a>,
+pub struct Element<'d> {
+    document: &'d Document<'d>,
     index: u32,
 }
 
-impl<'d, 'a> Element<'d, 'a> {
-    pub(crate) const fn new(document: &'d Document<'a>, index: u32) -> Self {
+impl<'d> Element<'d> {
+    pub(crate) const fn new(document: &'d Document<'d>, index: u32) -> Self {
         Self { document, index }
     }
 
-    /// Returns the element's name.
+    fn node(self) -> Option<&'d Node> {
+        self.document.nodes.get(self.index as usize)
+    }
+
+    /// Returns the element's name as stored in the file.
     #[must_use]
     pub fn name(self) -> &'d str {
-        self.document
-            .nodes
-            .get(self.index as usize)
-            .map_or("", |node| &node.name)
+        self.node()
+            .map_or("", |node| node.name.get(&self.document.text))
     }
 
     /// Returns the element's text content, or `None` when it has none.
     #[must_use]
     pub fn content(self) -> Option<&'d str> {
-        self.document
-            .nodes
-            .get(self.index as usize)
-            .map(|node| &*node.content)
-            .filter(|content| !content.is_empty())
+        self.node()
+            .filter(|node| !node.content.is_empty())
+            .map(|node| node.content.get(&self.document.text))
     }
 
     /// Returns the element's attributes in file order.
     #[must_use]
-    pub fn attributes(self) -> &'d [Attribute<'a>] {
-        self.document
-            .nodes
-            .get(self.index as usize)
+    pub fn attributes(self) -> Attributes<'d> {
+        let spans = self
+            .node()
             .and_then(|node| {
                 let first = node.first_attribute as usize;
                 self.document
                     .attributes
                     .get(first..first + usize::from(node.attribute_count))
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+        Attributes {
+            text: &self.document.text,
+            spans: spans.iter(),
+        }
     }
 
     /// Returns the value of the first attribute named `name`.
     #[must_use]
     pub fn attribute(self, name: &str) -> Option<&'d str> {
         self.attributes()
-            .iter()
             .find(|attribute| attribute.name() == name)
-            .map(|attribute| &*attribute.value)
+            .map(Attribute::value)
     }
 
     /// Returns the element's children in file order.
     #[must_use]
-    pub fn children(self) -> Children<'d, 'a> {
+    pub fn children(self) -> Children<'d> {
         let index = self.index as usize;
-        let start = self.document.child_starts.get(index).copied();
-        let end = self.document.child_starts.get(index + 1).copied();
-        let ids = start
-            .zip(end)
-            .and_then(|(start, end)| self.document.children.get(start as usize..end as usize))
+        let starts = &self.document.child_starts;
+        let ids = starts
+            .get(index)
+            .zip(starts.get(index + 1))
+            .and_then(|(&start, &end)| self.document.children.get(start as usize..end as usize))
             .unwrap_or_default();
         Children {
             document: self.document,
@@ -107,15 +105,41 @@ impl<'d, 'a> Element<'d, 'a> {
     }
 }
 
+/// The attributes of an [`Element`].
+#[derive(Debug, Clone)]
+pub struct Attributes<'d> {
+    text: &'d str,
+    spans: slice::Iter<'d, (Span, Span)>,
+}
+
+impl<'d> Iterator for Attributes<'d> {
+    type Item = Attribute<'d>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.spans.next().map(|&(name, value)| Attribute {
+            name: name.get(self.text),
+            value: value.get(self.text),
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.spans.size_hint()
+    }
+}
+
+impl ExactSizeIterator for Attributes<'_> {}
+
+impl FusedIterator for Attributes<'_> {}
+
 /// The children of an [`Element`].
 #[derive(Debug, Clone)]
-pub struct Children<'d, 'a> {
-    document: &'d Document<'a>,
+pub struct Children<'d> {
+    document: &'d Document<'d>,
     ids: slice::Iter<'d, u32>,
 }
 
-impl<'d, 'a> Iterator for Children<'d, 'a> {
-    type Item = Element<'d, 'a>;
+impl<'d> Iterator for Children<'d> {
+    type Item = Element<'d>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.ids
@@ -128,7 +152,7 @@ impl<'d, 'a> Iterator for Children<'d, 'a> {
     }
 }
 
-impl DoubleEndedIterator for Children<'_, '_> {
+impl DoubleEndedIterator for Children<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.ids
             .next_back()
@@ -136,6 +160,6 @@ impl DoubleEndedIterator for Children<'_, '_> {
     }
 }
 
-impl ExactSizeIterator for Children<'_, '_> {}
+impl ExactSizeIterator for Children<'_> {}
 
-impl FusedIterator for Children<'_, '_> {}
+impl FusedIterator for Children<'_> {}

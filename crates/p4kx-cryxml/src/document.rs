@@ -1,32 +1,35 @@
 use std::borrow::Cow;
 use std::io::{self, Write};
 
-use crate::element::{Attribute, Element};
+use crate::element::Element;
 use crate::error::CryXmlError;
 use crate::format::{ByteOrder, Signature};
 use crate::header::{Header, NODE_LEN, Reader};
-use crate::strings::Strings;
+use crate::strings::{Span, Strings};
 
 const NO_PARENT: u32 = u32::MAX;
+const ATTRIBUTE_LEN: usize = 8;
 
 /// A parsed `CryXml` file: a tree of elements whose strings borrow from the input.
 ///
 /// The tree is built from each node's parent index, which must precede the node, so it is
-/// finite and every element appears once.
+/// finite and every element appears once. Bytes of the string data that are not valid UTF-8
+/// read as `?`.
 #[derive(Debug, Clone)]
 pub struct Document<'a> {
     signature: Signature,
     byte_order: ByteOrder,
-    pub(crate) nodes: Vec<Node<'a>>,
-    pub(crate) attributes: Vec<Attribute<'a>>,
+    pub(crate) text: Cow<'a, str>,
+    pub(crate) nodes: Vec<Node>,
+    pub(crate) attributes: Vec<(Span, Span)>,
     pub(crate) child_starts: Vec<u32>,
     pub(crate) children: Vec<u32>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Node<'a> {
-    pub(crate) name: Cow<'a, str>,
-    pub(crate) content: Cow<'a, str>,
+pub(crate) struct Node {
+    pub(crate) name: Span,
+    pub(crate) content: Span,
     pub(crate) first_attribute: u32,
     pub(crate) attribute_count: u16,
     parent: u32,
@@ -42,12 +45,13 @@ pub fn parse(bytes: &[u8]) -> Result<Document<'_>, CryXmlError> {
     let signature = Signature::of(bytes).ok_or(CryXmlError::NotCryXml)?;
     let header = Header::read(bytes, signature)?;
     let strings = Strings::new(header.strings);
-    let attributes = read_attributes(header.attributes, header.byte_order, strings)?;
-    let nodes = read_nodes(header.nodes, header.byte_order, strings, attributes.len())?;
+    let attributes = read_attributes(header.attributes, header.byte_order, &strings)?;
+    let nodes = read_nodes(header.nodes, header.byte_order, &strings, attributes.len())?;
     let (child_starts, children) = link(&nodes);
     Ok(Document {
         signature,
         byte_order: header.byte_order,
+        text: strings.into_text(),
         nodes,
         attributes,
         child_starts,
@@ -55,7 +59,7 @@ pub fn parse(bytes: &[u8]) -> Result<Document<'_>, CryXmlError> {
     })
 }
 
-impl<'a> Document<'a> {
+impl Document<'_> {
     /// Returns the signature the file starts with.
     #[must_use]
     pub const fn signature(&self) -> Signature {
@@ -76,11 +80,11 @@ impl<'a> Document<'a> {
 
     /// Returns the root element.
     #[must_use]
-    pub const fn root(&self) -> Element<'_, 'a> {
+    pub const fn root(&self) -> Element<'_> {
         Element::new(self, 0)
     }
 
-    /// Writes the document as indented UTF-8 XML with LF line endings.
+    /// Writes the document as indented, well-formed UTF-8 XML with LF line endings.
     ///
     /// # Errors
     ///
@@ -90,27 +94,28 @@ impl<'a> Document<'a> {
     }
 }
 
-fn read_attributes<'a>(
-    table: &'a [u8],
+fn read_attributes(
+    table: &[u8],
     byte_order: ByteOrder,
-    strings: Strings<'a>,
-) -> Result<Vec<Attribute<'a>>, CryXmlError> {
+    strings: &Strings<'_>,
+) -> Result<Vec<(Span, Span)>, CryXmlError> {
+    let count = table.len() / ATTRIBUTE_LEN;
     let mut reader = Reader::new(table, byte_order);
-    let mut attributes = Vec::with_capacity(table.len() / 8);
-    for _ in 0..table.len() / 8 {
-        let name = strings.get(reader.u32()?)?;
-        let value = strings.get(reader.u32()?)?;
-        attributes.push(Attribute::new(name, value));
+    let mut attributes = Vec::with_capacity(count);
+    for _ in 0..count {
+        let name = strings.span(reader.u32()?)?;
+        let value = strings.span(reader.u32()?)?;
+        attributes.push((name, value));
     }
     Ok(attributes)
 }
 
-fn read_nodes<'a>(
-    table: &'a [u8],
+fn read_nodes(
+    table: &[u8],
     byte_order: ByteOrder,
-    strings: Strings<'a>,
+    strings: &Strings<'_>,
     attribute_total: usize,
-) -> Result<Vec<Node<'a>>, CryXmlError> {
+) -> Result<Vec<Node>, CryXmlError> {
     let count = table.len() / NODE_LEN;
     if count == 0 {
         return Err(CryXmlError::NoRoot);
@@ -149,8 +154,8 @@ fn read_nodes<'a>(
             });
         }
         nodes.push(Node {
-            name: strings.get(name)?,
-            content: strings.get(content)?,
+            name: strings.span(name)?,
+            content: strings.span(content)?,
             first_attribute,
             attribute_count,
             parent,
@@ -161,7 +166,7 @@ fn read_nodes<'a>(
 
 /// Groups the node indices by parent: the children of node `i` are
 /// `children[child_starts[i]..child_starts[i + 1]]`, in node order.
-fn link(nodes: &[Node<'_>]) -> (Vec<u32>, Vec<u32>) {
+fn link(nodes: &[Node]) -> (Vec<u32>, Vec<u32>) {
     let mut child_starts = vec![0_u32; nodes.len() + 1];
     for node in nodes.iter().skip(1) {
         if let Some(count) = child_starts.get_mut(node.parent as usize + 1) {

@@ -8,6 +8,12 @@ use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn to_xml(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
+    let xml = unchecked_xml(bytes)?;
+    roxmltree::Document::parse(&xml)?;
+    Ok(xml)
+}
+
+fn unchecked_xml(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
     let mut out = Vec::new();
     read(bytes)?.write_to(&mut out)?;
     Ok(String::from_utf8(out)?)
@@ -76,13 +82,14 @@ fn replaces_characters_that_cannot_appear_in_names() -> TestResult {
         &TestElement::new("1bad name")
             .attribute("ok-name.x", "1")
             .attribute("", "2")
-            .attribute("a<b", "3"),
+            .attribute("a<b", "3")
+            .attribute("ns:attr", "4"),
     );
 
     let xml = to_xml(&bytes)?;
 
     assert!(
-        xml.contains("<_bad_name ok-name.x=\"1\" _=\"2\" a_b=\"3\"/>"),
+        xml.contains("<_bad_name ok-name.x=\"1\" _=\"2\" a_b=\"3\" ns_attr=\"4\"/>"),
         "sanitised: {xml}"
     );
     Ok(())
@@ -141,10 +148,47 @@ fn a_deep_tree_is_written_without_recursion_and_with_bounded_indentation() -> Te
         .join()
         .map_err(|_| "building the deep tree panicked")?;
 
-    let xml = to_xml(&bytes)?;
+    let xml = unchecked_xml(&bytes)?;
 
     assert_eq!(xml.matches("</n>").count(), depth, "every level closed");
     let widest = xml.lines().map(|line| line.len() - line.trim_start().len());
     assert_eq!(widest.max(), Some(128), "indentation stops at 64 levels");
+    Ok(())
+}
+
+#[test]
+fn repeated_attribute_names_get_a_numbered_suffix() -> TestResult {
+    let bytes = little(
+        &TestElement::new("a")
+            .attribute("x", "1")
+            .attribute("x", "2")
+            .attribute("a<b", "3")
+            .attribute("a_b", "4")
+            .attribute("x_2", "5"),
+    );
+
+    let xml = to_xml(&bytes)?;
+
+    assert!(
+        xml.contains("<a x=\"1\" x_2=\"2\" a_b=\"3\" a_b_2=\"4\" x_2_2=\"5\"/>"),
+        "unique names: {xml}"
+    );
+    Ok(())
+}
+
+#[test]
+fn many_repeated_attribute_names_stay_unique() -> TestResult {
+    let element = (0..40).fold(TestElement::new("a"), |element, index| {
+        element.attribute("k", index.to_string())
+    });
+    let bytes = little(&element);
+
+    let xml = to_xml(&bytes)?;
+
+    assert!(
+        xml.contains(" k=\"0\" k_2=\"1\" k_3=\"2\""),
+        "first names: {xml}"
+    );
+    assert!(xml.contains(" k_40=\"39\"/>"), "last name: {xml}");
     Ok(())
 }

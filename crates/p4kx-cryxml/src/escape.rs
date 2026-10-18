@@ -45,23 +45,3 @@ pub(crate) fn write_escaped(out: &mut impl Write, text: &str, context: Context) 
 const fn is_noncharacter(continuation: Option<&[u8]>) -> bool {
     matches!(continuation, Some([0xBF, 0xBE | 0xBF]))
 }
-
-/// Writes `name` with every character an XML name cannot hold replaced by `_`.
-pub(crate) fn write_name(out: &mut impl Write, name: &str) -> io::Result<()> {
-    if name.is_empty() {
-        return out.write_all(b"_");
-    }
-    let mut start = 0;
-    for (index, character) in name.char_indices() {
-        let valid = character.is_alphabetic()
-            || character == '_'
-            || character == ':'
-            || (index > 0 && (character.is_alphanumeric() || matches!(character, '-' | '.')));
-        if !valid {
-            out.write_all(name.get(start..index).unwrap_or_default().as_bytes())?;
-            out.write_all(b"_")?;
-            start = index + character.len_utf8();
-        }
-    }
-    out.write_all(name.get(start..).unwrap_or_default().as_bytes())
-}

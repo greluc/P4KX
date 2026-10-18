@@ -51,8 +51,10 @@ Early development (milestone M1). Available today:
 - `p4kx cryxml <file> [--out <file>]` converts a CryXml file on disk, e.g. an Entry extracted
   earlier, to UTF-8 XML on stdout or in `--out`. All three signatures (`CryXmlB`, `CryXml`,
   `CRY3SDK`) and both byte orders are read; the XML is indented by two spaces with LF line
-  endings, and the same input always gives the same bytes. A file that already is text XML is
-  written unchanged. A truncated or corrupt file is an error and writes nothing.
+  endings, and the same input always gives the same bytes. The output is always well-formed:
+  characters a name cannot hold, `:` included, become `_`, a repeated attribute name gets the
+  first free suffix `_2`, `_3`, …, and bytes that are not UTF-8 read as `?`. A file that already
+  is text XML is written unchanged. A truncated or corrupt file is an error and writes nothing.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

@@ -30,7 +30,7 @@ fn sample() -> TestElement {
         .child(TestElement::new("Description").content("Light fighter"))
 }
 
-fn names<'e>(children: impl Iterator<Item = Element<'e, 'e>>) -> Vec<&'e str> {
+fn names<'e>(children: impl Iterator<Item = Element<'e>>) -> Vec<&'e str> {
     children.map(Element::name).collect()
 }
 
@@ -76,7 +76,6 @@ fn attributes_keep_their_order() -> TestResult {
     let attributes: Vec<_> = document
         .root()
         .attributes()
-        .iter()
         .map(|attribute| (attribute.name(), attribute.value()))
         .collect();
     assert_eq!(attributes, [("z", "1"), ("b", "2"), ("m", "3")], "order");
@@ -126,6 +125,86 @@ fn a_wide_tree_parses() -> TestResult {
             .and_then(|item| item.attribute("index")),
         Some("1999"),
         "last child"
+    );
+    Ok(())
+}
+
+fn find(bytes: &[u8], needle: &[u8]) -> Result<usize, Box<dyn Error>> {
+    bytes
+        .windows(needle.len())
+        .position(|window| window == needle)
+        .ok_or_else(|| "pattern not in the sample".into())
+}
+
+#[test]
+fn invalid_utf8_reads_as_question_marks() -> TestResult {
+    let mut bytes = TestElement::new("a")
+        .attribute("v", "xyz")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let at = find(&bytes, b"xyz")? + 1;
+    if let Some(byte) = bytes.get_mut(at) {
+        *byte = 0xFF;
+    }
+
+    let document = parse(&bytes)?;
+
+    assert_eq!(document.root().attribute("v"), Some("x?z"), "repaired");
+    Ok(())
+}
+
+#[test]
+fn a_string_starting_inside_a_character_begins_at_the_next_one() -> TestResult {
+    let mut bytes = TestElement::new("a")
+        .attribute("v", "Äb")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let value_offset = 44 + 28 + 4;
+    let field = bytes
+        .get_mut(value_offset..value_offset + 4)
+        .ok_or("no attribute table")?;
+    let offset = u32::from_le_bytes(field.try_into()?) + 1;
+    field.copy_from_slice(&offset.to_le_bytes());
+
+    let document = parse(&bytes)?;
+
+    assert_eq!(
+        document.root().attribute("v"),
+        Some("b"),
+        "skips the partial character"
+    );
+    Ok(())
+}
+
+#[test]
+fn many_lookups_into_one_long_string_stay_fast() -> TestResult {
+    let count = 60_000;
+    let element = (0..count).fold(
+        TestElement::new("a").content("v".repeat(100_000)),
+        |element, _| element.attribute("k", "short"),
+    );
+    let mut bytes = element.to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let content_offset = bytes.get(48..52).ok_or("no node table")?.to_vec();
+    for index in 0..count {
+        let value = 72 + 8 * index + 4;
+        bytes
+            .get_mut(value..value + 4)
+            .ok_or("no attribute table")?
+            .copy_from_slice(&content_offset);
+    }
+
+    let started = std::time::Instant::now();
+    let document = parse(&bytes)?;
+
+    let root = document.root();
+    assert_eq!(root.attributes().len(), count, "every attribute");
+    assert_eq!(
+        root.attribute("k"),
+        root.content(),
+        "values share the content"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "parsing took {:?}",
+        started.elapsed()
     );
     Ok(())
 }

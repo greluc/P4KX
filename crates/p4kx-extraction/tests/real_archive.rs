@@ -81,10 +81,11 @@ fn convert(archive: &Archive, entry: &Entry) -> Result<Option<Format>, SendError
             return Err("text XML changed".into());
         }
     } else {
-        std::str::from_utf8(&out)?;
-        if out.contains(&b'\r') {
+        let xml = std::str::from_utf8(&out)?;
+        if xml.contains('\r') {
             return Err("XML has a CR".into());
         }
+        roxmltree::Document::parse(xml)?;
     }
     Ok(Some(format))
 }

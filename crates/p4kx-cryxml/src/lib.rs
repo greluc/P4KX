@@ -11,12 +11,13 @@ mod error;
 mod escape;
 mod format;
 mod header;
+mod names;
 mod read;
 mod strings;
 mod write;
 
 pub use document::{Document, parse};
-pub use element::{Attribute, Children, Element};
+pub use element::{Attribute, Attributes, Children, Element};
 pub use error::{CryXmlError, Table};
 pub use format::{ByteOrder, Format, Signature, detect};
 pub use read::{Xml, read};

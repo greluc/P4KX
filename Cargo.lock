@@ -2795,6 +2795,7 @@ version = "0.1.0"
 dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
+ "roxmltree",
  "thiserror 2.0.21",
 ]
 
@@ -2807,6 +2808,7 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-testkit",
  "rayon",
+ "roxmltree",
  "tempfile",
  "thiserror 2.0.21",
 ]
@@ -3427,6 +3429,15 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "roxmltree"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

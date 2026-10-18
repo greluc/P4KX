@@ -4,7 +4,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, SplitDds, TestTextureFormat};
+use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat};
 use predicates::prelude::predicate;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -270,5 +270,30 @@ fn a_file_that_is_no_texture_fails() -> TestResult {
         .assert()
         .code(1)
         .stderr(predicate::str::contains("not a DDS texture"));
+    Ok(())
+}
+
+#[test]
+fn unreadable_entry_data_or_an_unreadable_file_is_a_read_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    let header = texture().header_bytes();
+    ArchiveBuilder::new()
+        .entry(TestEntry::deflated(HEADER, header).with_payload(vec![0xFF; 64]))
+        .write_to(&archive)?;
+    let folder = dir.path().join("folder.dds");
+    std::fs::create_dir(&folder)?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&archive)
+        .arg(HEADER)
+        .assert()
+        .code(3);
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&folder)
+        .assert()
+        .code(3);
     Ok(())
 }

@@ -1,0 +1,13 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"Data\\\\Libs\\\\text.xml\", false, 1)?"
+---
+--- Data\Libs\text.xml	LIVE/Data.p4k
++++ Data\Libs\text.xml	PTU/Data.p4k
+@@ -1,4 +1,5 @@
+ <Items>
+-  <Item name="a" mass="1"/>
++  <Item name="a" mass="2"/>
+   <Item name="b"/>
++  <Item name="c"/>
+ </Items>

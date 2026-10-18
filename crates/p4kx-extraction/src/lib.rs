@@ -16,6 +16,7 @@ mod record_files;
 mod record_report;
 mod report;
 mod selection;
+mod sound;
 mod target;
 mod texture;
 mod texture_parts;
@@ -30,6 +31,7 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_audio::{AudioError, ByteOrder, Codec, WavReport, Wem};
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, Property,
@@ -44,6 +46,7 @@ pub use record_report::{
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
+pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name};
 pub use texture::Texture;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};

@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use p4kx_comparison::LineDiffError;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
 
@@ -11,16 +12,17 @@ use crate::texture;
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
-/// Some Entries or Records failed or were cancelled, the target folder could not be created, or a
-/// texture cannot be read, merged, decoded or written.
+/// Some Entries or Records failed or were cancelled, the target folder could not be created, a
+/// texture is invalid or cannot be merged, decoded or written, or a sound is invalid or cannot be
+/// converted or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
-/// The command line is invalid, names an Entry the Archive does not contain, a file that does
-/// not exist or a mip level the texture does not have, or has a Filter that matches no Entry or
-/// Record.
+/// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
+/// neither Archive contains), a file that does not exist or a mip level the texture does not have,
+/// has a Filter that matches no Entry or Record, or names an output that is one of its inputs.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive or the input file cannot be opened or read.
+/// The Archive, an Entry's data or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -33,16 +35,21 @@ pub(crate) const INTERRUPTED: u8 = 130;
 
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
-  0  success: every requested Entry was extracted or already existed; compare: no differences
+  0  success: every requested Entry was extracted or already existed; compare: no differences,
+     also for the --diff Entry
   1  partial failure: some Entries or Records failed or were cancelled, the target or the
-     settings cannot be written, or a texture cannot be read, merged, decoded or written, e.g.
-     because its format is not supported; compare: the Archives differ
-  2  invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that
-     matches no Entry or Record, a Channel path that does not exist or was never added, a
-     texture file that does not exist, a mip level the texture does not have, a merge or PNG
-     output that is one of its inputs, or --json without --out for cryxml
-  3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml or
-     corrupt; a missing texture file is 2
+     settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
+     e.g. because its format is not supported, or a sound is invalid or cannot be converted or
+     written, e.g. a corrupt WEM or a codec without a decoder; compare: the Archives or the
+     --diff Entry differ
+  2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
+     neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
+     does not exist or was never added, a texture or sound file that does not exist, a mip
+     level the texture does not have, an output that is one of its inputs, or --json without
+     --out for cryxml
+  3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
+     corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
+     corrupt CryXml; a missing texture or sound file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
@@ -64,6 +71,12 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
+    if let Some(error) = error.downcast_ref::<LineDiffError>() {
+        return match error {
+            LineDiffError::UnknownEntry { .. } => INVALID_INPUT,
+            _ => ARCHIVE_ERROR,
+        };
+    }
     let dataforge = error.downcast_ref::<DataForgeLoadError>();
     if error.downcast_ref::<ArchiveError>().is_some()
         || texture::is_archive_error(error)

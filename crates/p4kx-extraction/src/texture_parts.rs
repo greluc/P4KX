@@ -8,6 +8,8 @@ use p4kx_archive::{Archive, Entry, EntryReader};
 use p4kx_texture::SiblingReader;
 use rayon::prelude::*;
 
+use crate::entry_path::same_entry_path;
+
 const ALPHA_SUFFIX: &str = "a";
 
 /// Where the header and the parts of one split texture are stored.
@@ -217,7 +219,7 @@ fn split_alpha(path: &str) -> (&str, bool) {
 /// not matter.
 fn classify(candidate: &str, base: &str) -> Option<Role> {
     let (start, rest) = candidate.split_at_checked(base.len())?;
-    if !same_path(start, base) {
+    if !same_entry_path(start, base) {
         return None;
     }
     let Some(suffix) = rest.strip_prefix('.') else {
@@ -233,15 +235,6 @@ fn classify(candidate: &str, base: &str) -> Option<Role> {
         return None;
     }
     digits.parse().ok().map(|index| Role::Part { index, alpha })
-}
-
-fn same_path(left: &str, right: &str) -> bool {
-    let separator = |byte: u8| byte == b'\\' || byte == b'/';
-    left.len() == right.len()
-        && left
-            .bytes()
-            .zip(right.bytes())
-            .all(|(a, b)| a.eq_ignore_ascii_case(&b) || (separator(a) && separator(b)))
 }
 
 /// Returns whether `path` names an existing file that is one of `inputs`.

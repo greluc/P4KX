@@ -37,7 +37,8 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
-    /// Compares the Entries of an old and a new Archive; exits with 1 when they differ.
+    /// Compares the Entries of an old and a new Archive, or prints the line diff of one Entry;
+    /// exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
@@ -46,6 +47,45 @@ pub(crate) enum Command {
     /// Shows, merges or exports as PNG a DDS texture split into a header and mip parts.
     #[command(after_help = EXIT_CODES_HELP)]
     Texture(TextureArgs),
+    /// Shows a Wwise WEM sound or converts it to WAV.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Audio(AudioArgs),
+}
+
+/// Arguments of `p4kx audio`.
+#[derive(Debug, Args)]
+pub(crate) struct AudioArgs {
+    /// What to do with the sound.
+    #[command(subcommand)]
+    pub(crate) action: AudioAction,
+}
+
+/// The actions of `p4kx audio`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum AudioAction {
+    /// Prints the codec, channels, sample rate and duration of a WEM.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Info(AudioSource),
+    /// Writes a PCM WEM as a 16-bit WAV file; other codecs fail with an error naming them.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Wav {
+        /// The sound.
+        #[command(flatten)]
+        source: AudioSource,
+        /// The WAV file to write; an existing file is replaced.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
+}
+
+/// Where a WEM sound is.
+#[derive(Debug, Args)]
+pub(crate) struct AudioSource {
+    /// A Data.p4k Archive when ENTRY is given; otherwise the WEM file.
+    #[arg(value_name = "ARCHIVE_OR_FILE")]
+    pub(crate) path: PathBuf,
+    /// Path of the WEM Entry in the Archive, with `\` or `/` as separator, ignoring case.
+    pub(crate) entry: Option<String>,
 }
 
 /// Arguments of `p4kx dcb`.
@@ -205,6 +245,12 @@ pub(crate) struct CompareArgs {
     /// Writes the Comparison as a JSON report to FILE; an existing file is replaced.
     #[arg(long, value_name = "FILE")]
     pub(crate) report: Option<PathBuf>,
+    /// Prints the line diff of the Entry at this path, with `\` or `/` as separator, ignoring
+    /// case, instead of comparing every Entry. CryXml is converted to XML first; an Entry on one
+    /// side only is diffed against an empty side, and a binary Entry is only reported as changed
+    /// or not. With --json, the hunks are printed as JSON.
+    #[arg(long, value_name = "ENTRY", conflicts_with_all = ["entries", "filter", "report"])]
+    pub(crate) diff: Option<String>,
 }
 
 /// Arguments of `p4kx info`.

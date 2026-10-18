@@ -146,6 +146,34 @@ with `--cross` `output` holding one horizontal cross. `mip` is the exported leve
 largest and the default; `width` and `height` are the size of each written 8-bit RGBA PNG.
 `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha channel. A format without a decoder fails with exit code 1 and a
 message naming the format; a level the texture does not have fails with exit code 2.
+## `p4kx audio info <archive> <entry> --json`
+
+Also `p4kx audio info <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\100.wem", "codec": "pcm", "codec_name": "PCM",
+ "format_tag": 65534, "channels": 2, "sample_rate": 48000, "sample_count": 1200,
+ "duration_seconds": 0.025}
+```
+
+`sound` is the Entry path, or the path of the file on disk. `codec` is one of `pcm`,
+`ima_adpcm`, `vorbis`, `opus`, `ptadpcm`, `xwma`, `xma2`, `aac`, `dsp`, `hevag`, `atrac9` or
+`unknown`; `codec_name` is its readable name and `format_tag` the raw tag of the `fmt` chunk.
+`sample_count` is the number of frames (samples per channel) and `duration_seconds` the playing
+time; both are `null` when the header does not state them and the codec does not allow computing
+them.
+
+## `p4kx audio wav <archive> <entry> --out <file> --json`
+
+Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\100.wem", "output": "…\\100.wav", "channels": 2,
+ "sample_rate": 48000, "sample_count": 1200, "size": 4844}
+```
+
+`sample_count` is the number of frames written and `size` the size of the written WAV file. A
+codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
 ## `p4kx extract … --json`
 
@@ -185,6 +213,39 @@ separator kind. The exit code is 0 without and 1 with differences.
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
 
 `entries` is absent when the Entry level was not compared.
+
+## `p4kx compare <old> <new> --diff <entry> --json`
+
+The line diff of one Entry, with three unchanged lines of context around each change:
+
+```json
+{"path": "Data\\Libs\\text.xml", "change": "changed", "differs": true, "content": "text",
+ "old": {"size": 64, "crc32c": 3653534010, "encoding": "text"},
+ "new": {"size": 83, "crc32c": 1515590036, "encoding": "text"},
+ "hunks": [{"old_start": 1, "old_lines": 4, "new_start": 1, "new_lines": 5, "lines": [
+   {"kind": "context", "text": "<Items>\n"},
+   {"kind": "removed", "text": "  <Item name=\"a\" mass=\"1\"/>\n"},
+   {"kind": "added", "text": "  <Item name=\"a\" mass=\"2\"/>\n"}]}]}
+```
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | The Entry path as the new side stores it, the old side for a removed Entry |
+| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and CRC-32C from the central directories |
+| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or CRC-32C, or with differing lines; it decides the exit code |
+| `content` | string | `text`; `binary` when a side holds a NUL byte, or starts with a UTF-16 byte order mark but does not decode as UTF-16 without NUL characters; `too_large` when a side, or the XML converted from it, is larger than 128 MiB or has more than 4 194 304 lines |
+| `old`, `new` | object or `null` | `size`, `crc32c` and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
+| `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator, for display with invalid UTF-8 replaced by U+FFFD; the last line of a side may have none) |
+
+A missing side is diffed as empty text. Lines are compared by their bytes, so a change in bytes
+that are not valid UTF-8 still shows as a hunk even where both `text` values look the same. The diff is a patience diff with a Myers fallback
+where no line is unique; so that pathological pairs stay fast, a region that needs more than 1024
+edits there, or every region once a fixed work budget is spent, is shown as removed and added as a
+whole. An Entry whose bytes changed but whose lines (for CryXml: the converted XML) did not has
+`change` `changed`, `differs` true and no hunks; without `--json` a note says so. The exit code
+is 0 when `differs` is false, 1 when it is true, 2 when neither Archive has the Entry and 3 when an Entry cannot be read, does not
+hold the size its central directory states, or holds corrupt CryXml. Memory stays bounded: each
+side holds at most 128 MiB of text and about 9 bytes of bookkeeping per line.
 
 ## `p4kx cryxml <file> --out <file> --json`
 

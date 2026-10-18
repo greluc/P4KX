@@ -13,6 +13,7 @@ mod folder_tree;
 mod format;
 mod language;
 mod model;
+mod preview;
 mod search;
 mod sort;
 mod texts;
@@ -27,5 +28,8 @@ pub use entry_index::EntryIndex;
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
 pub use model::{Failure, Model};
+pub use preview::{
+    PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
+};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{Text, Texts};

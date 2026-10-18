@@ -1,7 +1,8 @@
 # P4K-Extractor
 
 Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. See
-[docs/ROADMAP.md](docs/ROADMAP.md) for the plan and [CONTEXT.md](CONTEXT.md) for the terms.
+[docs/ROADMAP.md](docs/ROADMAP.md) for the plan, [CONTEXT.md](CONTEXT.md) for the terms and
+[docs/user-help.md](docs/user-help.md) for using the window.
 
 This is an unofficial fan tool, not affiliated with Cloud Imperium Games.
 

@@ -6,7 +6,7 @@ use std::thread;
 use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::RecentArchives;
 
-use crate::{Browser, ChannelList, EntryIndex, Language, Texts};
+use crate::{Browser, ChannelList, EntryIndex, Language, PreviewTab, Texts};
 
 /// Why an Archive could not be opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +32,7 @@ pub struct Model {
     opening: Option<Opening>,
     failure: Option<Failure>,
     licence_shown: bool,
+    preview_tab: PreviewTab,
 }
 
 impl std::fmt::Debug for Model {
@@ -44,6 +45,7 @@ impl std::fmt::Debug for Model {
             .field("opening", &self.opening_path())
             .field("failure", &self.failure)
             .field("licence_shown", &self.licence_shown)
+            .field("preview_tab", &self.preview_tab)
             .finish()
     }
 }
@@ -60,6 +62,7 @@ impl Model {
             opening: None,
             failure: None,
             licence_shown: false,
+            preview_tab: PreviewTab::Text,
         }
     }
 
@@ -187,17 +190,33 @@ impl Model {
         self.licence_shown = shown;
     }
 
+    /// Returns the tab the preview is shown in.
+    #[must_use]
+    pub const fn preview_tab(&self) -> PreviewTab {
+        self.preview_tab
+    }
+
+    /// Shows the preview in `tab`.
+    pub const fn set_preview_tab(&mut self, tab: PreviewTab) {
+        self.preview_tab = tab;
+    }
+
     fn fail(&mut self, path: PathBuf, error: &dyn Error) {
-        let mut reason = error.to_string();
-        let mut source = error.source();
-        while let Some(cause) = source {
-            reason.push_str(": ");
-            reason.push_str(&cause.to_string());
-            source = cause.source();
-        }
         self.failure = Some(Failure {
             path,
-            reason: Some(reason),
+            reason: Some(describe(error)),
         });
     }
+}
+
+/// Returns `error` and its causes, joined by colons.
+pub(crate) fn describe(error: &dyn Error) -> String {
+    let mut reason = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        reason.push_str(": ");
+        reason.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    reason
 }

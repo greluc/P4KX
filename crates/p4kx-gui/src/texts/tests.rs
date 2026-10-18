@@ -30,6 +30,10 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("number", "3".into()),
         ("hidden", "1".into()),
         ("build", "4.3.1".into()),
+        ("size", "300.0 MiB".into()),
+        ("limit", "256.0 MiB".into()),
+        ("shown", "1,048,576".into()),
+        ("total", "2,000,000".into()),
     ]
 }
 

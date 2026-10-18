@@ -49,6 +49,11 @@ The on-disk structure of an Archive's directory: v1 (ZIP64 central directory wit
 or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`).
 _Avoid_: format version, Archive version
 
+**Preview**:
+The start of one Entry shown in the window as text or as hexadecimal bytes, read without an
+Extraction.
+_Avoid_: viewer, inspector
+
 ### Game data
 
 **DataForge**:

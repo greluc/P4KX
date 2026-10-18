@@ -123,7 +123,7 @@ fn selecting_a_channel_opens_its_archive_and_remembers_it() -> TestResult {
     harness.run();
 
     harness.get_by_label("LIVE").click();
-    harness.run();
+    harness.step();
     wait_until_open(&mut harness)?;
 
     let (model, requests) = harness.state();
@@ -218,7 +218,7 @@ fn a_recent_archive_opens_from_the_archive_menu() -> TestResult {
     harness.get_by_label("Recent Archives").click();
     harness.run();
     harness.get_by_label(&ptu.display().to_string()).click();
-    harness.run();
+    harness.step();
     wait_until_open(&mut harness)?;
 
     assert_eq!(open_archive(&harness), Some(ptu), "PTU is open");

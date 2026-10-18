@@ -1,15 +1,27 @@
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufWriter, Read, Write};
+use std::fs::File;
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process;
 
 use p4kx_archive::Archive;
-use p4kx_texture::{DdsHeader, MAX_HEADER_LEN, MergeReport, TextureError, merge};
+use p4kx_texture::{
+    DdsHeader, MAX_HEADER_LEN, MergeReport, Mip, RgbaImage, TextureError, merge, read_mip,
+    write_png,
+};
 
+use crate::output_file::{read_error, write_replacing};
 use crate::texture_parts::{PartReader, Parts, is_same_file};
 use crate::{ConversionError, UnknownEntries};
 
-const WRITE_BUFFER_LEN: usize = 256 * 1024;
+/// What a PNG export wrote.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PngReport {
+    /// The exported mip level, 0 being the largest.
+    pub level: u32,
+    /// Width of the PNG in pixels.
+    pub width: u32,
+    /// Height of the PNG in pixels.
+    pub height: u32,
+}
 
 /// A DDS texture whose header is an Entry of an Archive or a file on disk, with its sibling parts
 /// `.1` … `.N` next to it.
@@ -90,32 +102,71 @@ impl<'a> Texture<'a> {
     /// [`ConversionError::Write`] when the file cannot be written, and the errors of
     /// [`Texture::merge_into`].
     pub fn merge_to_file(&self, out: &Path) -> Result<MergeReport, ConversionError> {
+        self.refuse_input(out)?;
+        write_replacing(out, |writer| self.merge_into(writer))
+    }
+
+    /// Reads mip `level`, 0 being the largest, from its part or from the header.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConversionError`] naming the part when the mip's part is missing, truncated,
+    /// oversized or unreadable, and another one when the level does not exist or the texture has
+    /// several images per mip.
+    pub fn read_mip(&self, level: u32) -> Result<Mip, ConversionError> {
+        let header = self.open_header()?;
+        read_mip(header, self.header_size, &self.parts, level)
+            .map_err(|error| ConversionError::of_texture(&self.name, error))
+    }
+
+    /// Reads and decodes mip `level`, 0 being the largest, to 8-bit RGBA.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConversionError`] wrapping [`TextureError::UnsupportedDecode`] before reading
+    /// anything when the format has no decoder, and the errors of [`Texture::read_mip`].
+    pub fn decode_mip(&self, level: u32) -> Result<RgbaImage, ConversionError> {
+        let format = self.header.format();
+        if !format.is_decodable() {
+            return Err(ConversionError::of_texture(
+                &self.name,
+                TextureError::UnsupportedDecode(format),
+            ));
+        }
+        self.read_mip(level)?
+            .decode()
+            .map_err(|error| ConversionError::of_texture(&self.name, error))
+    }
+
+    /// Decodes mip `level`, 0 being the largest, and writes it to the file `out` as an 8-bit RGBA
+    /// PNG, replacing it; a failed export leaves nothing behind.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::OutputIsInput`] when `out` is the header or one of its parts,
+    /// [`ConversionError::Write`] when the file cannot be written, and the errors of
+    /// [`Texture::decode_mip`].
+    pub fn png_to_file(&self, out: &Path, level: u32) -> Result<PngReport, ConversionError> {
+        self.refuse_input(out)?;
+        let image = self.decode_mip(level)?;
+        write_replacing(out, |writer| {
+            write_png(&image, writer)
+                .map_err(|error| ConversionError::of_texture(&self.name, error))
+        })?;
+        Ok(PngReport {
+            level,
+            width: image.width(),
+            height: image.height(),
+        })
+    }
+
+    fn refuse_input(&self, out: &Path) -> Result<(), ConversionError> {
         if is_same_file(out, self.input_files()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
-        let (temporary, file) = create_temporary(out)?;
-        let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
-        let result = self.merge_into(&mut writer).and_then(|report| {
-            writer
-                .into_inner()
-                .map_err(io::IntoInnerError::into_error)
-                .and_then(|file| file.sync_all())
-                .map_err(|source| write_error(out, source))?;
-            fs::rename(&temporary, out).map_err(|source| write_error(out, source))?;
-            Ok(report)
-        });
-        if result.is_err() {
-            let _ignored = fs::remove_file(&temporary);
-        }
-        result.map_err(|error| match error {
-            ConversionError::Texture {
-                source: TextureError::Write(source),
-                ..
-            } => write_error(out, source),
-            other => other,
-        })
+        Ok(())
     }
 
     fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
@@ -184,33 +235,4 @@ fn parse_start(reader: impl Read, name: &str) -> Result<DdsHeader, ConversionErr
         .read_to_end(&mut start)
         .map_err(|source| ConversionError::of_texture(name, TextureError::ReadHeader(source)))?;
     DdsHeader::parse(&start).map_err(|error| ConversionError::of_texture(name, error))
-}
-
-fn create_temporary(out: &Path) -> Result<(PathBuf, File), ConversionError> {
-    let file_name = out
-        .file_name()
-        .ok_or_else(|| write_error(out, io::Error::from(io::ErrorKind::InvalidInput)))?;
-    let mut name = file_name.to_os_string();
-    name.push(format!(".p4kx-{}.part", process::id()));
-    let temporary = out.with_file_name(name);
-    let file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)
-        .map_err(|source| write_error(out, source))?;
-    Ok((temporary, file))
-}
-
-fn read_error(path: &Path, source: io::Error) -> ConversionError {
-    ConversionError::Read {
-        path: path.to_path_buf(),
-        source,
-    }
-}
-
-fn write_error(path: &Path, source: io::Error) -> ConversionError {
-    ConversionError::Write {
-        path: path.to_path_buf(),
-        source,
-    }
 }

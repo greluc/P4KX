@@ -28,6 +28,15 @@ pub enum TestTextureFormat {
     LegacyDxt5,
     /// 32-bit BGRA in a legacy header with RGB and alpha bit masks.
     LegacyBgra8,
+    /// 24-bit BGR in a legacy header with RGB bit masks.
+    LegacyBgr8,
+    /// A DX10 header with the given DXGI format code of an uncompressed format.
+    Dx10Pixel {
+        /// The DXGI format code.
+        dxgi_format: u32,
+        /// Bytes per pixel.
+        pixel_bytes: u32,
+    },
     /// A DX10 header with the given DXGI format code and bytes per 4×4 block.
     Dx10Block {
         /// The DXGI format code.
@@ -45,7 +54,7 @@ impl TestTextureFormat {
     };
 
     const fn is_dx10(self) -> bool {
-        matches!(self, Self::Dx10Block { .. })
+        matches!(self, Self::Dx10Block { .. } | Self::Dx10Pixel { .. })
     }
 
     fn mip_len(self, width: u32, height: u32) -> usize {
@@ -54,6 +63,10 @@ impl TestTextureFormat {
             Self::LegacyDxt1 => blocks(width) * blocks(height) * 8,
             Self::LegacyDxt5 => blocks(width) * blocks(height) * 16,
             Self::LegacyBgra8 => width as usize * height as usize * 4,
+            Self::LegacyBgr8 => width as usize * height as usize * 3,
+            Self::Dx10Pixel { pixel_bytes, .. } => {
+                width as usize * height as usize * pixel_bytes as usize
+            }
             Self::Dx10Block { block_bytes, .. } => {
                 blocks(width) * blocks(height) * block_bytes as usize
             }
@@ -225,7 +238,9 @@ impl SplitDds {
         for value in [CAPS_TEXTURE | CAPS_COMPLEX_MIPMAP, caps2, 0, 0, 0] {
             put_u32(&mut out, value);
         }
-        if let TestTextureFormat::Dx10Block { dxgi_format, .. } = self.format {
+        if let TestTextureFormat::Dx10Block { dxgi_format, .. }
+        | TestTextureFormat::Dx10Pixel { dxgi_format, .. } = self.format
+        {
             let dimension = if self.depth > 1 {
                 DIMENSION_TEXTURE3D
             } else {
@@ -250,7 +265,15 @@ impl SplitDds {
                 32,
                 [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0xFF00_0000],
             ),
-            TestTextureFormat::Dx10Block { .. } => (PF_FOURCC, *b"DX10", 0, [0; 4]),
+            TestTextureFormat::LegacyBgr8 => (
+                PF_RGB,
+                [0; 4],
+                24,
+                [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0],
+            ),
+            TestTextureFormat::Dx10Block { .. } | TestTextureFormat::Dx10Pixel { .. } => {
+                (PF_FOURCC, *b"DX10", 0, [0; 4])
+            }
         };
         put_u32(out, flags);
         out.extend_from_slice(&four_cc);

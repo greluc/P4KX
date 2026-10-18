@@ -289,3 +289,25 @@ fn texture_merge() -> TestResult {
     insta::assert_snapshot!(json);
     Ok(())
 }
+
+#[test]
+fn texture_png() -> TestResult {
+    let fixture = Fixture::new()?;
+    let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 64, 32)
+        .split(4)
+        .write_files(fixture.dir(), "hull_diff.dds")?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["texture", "png"])
+            .arg(&header)
+            .arg("--out")
+            .arg(fixture.dir().join("hull_diff.png"))
+            .args(["--mip", "1"]),
+        0,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}

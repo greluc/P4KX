@@ -1,5 +1,5 @@
-use std::fs::{self, File};
-use std::io::{self, BufWriter, Read};
+use std::fs::File;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
@@ -7,13 +7,12 @@ use p4kx_audio::{AudioError, WavReport, Wem};
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
-use crate::texture::{create_temporary, read_error, write_error};
+use crate::output_file::{read_error, write_error, write_replacing};
 use crate::texture_parts::is_same_file;
 use crate::{ConversionError, UnknownEntries};
 
 /// The largest WEM read into memory, far above the largest sound of a real Archive.
 pub const MAX_SOUND_LEN: u64 = 512 << 20;
-const WRITE_BUFFER_LEN: usize = 256 * 1024;
 
 /// A Wwise WEM sound read from an Entry of an Archive or from a file on disk.
 #[derive(Debug)]
@@ -123,25 +122,11 @@ impl Sound {
                 path: out.to_path_buf(),
             });
         }
-        let (temporary, file) = create_temporary(out)?;
-        let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
-        let result = self
-            .wem
-            .write_wav(&mut writer)
-            .map_err(|source| self.audio_error(out, source))
-            .and_then(|report| {
-                writer
-                    .into_inner()
-                    .map_err(io::IntoInnerError::into_error)
-                    .and_then(|file| file.sync_all())
-                    .map_err(|source| write_error(out, source))?;
-                fs::rename(&temporary, out).map_err(|source| write_error(out, source))?;
-                Ok(report)
-            });
-        if result.is_err() {
-            let _ignored = fs::remove_file(&temporary);
-        }
-        result
+        write_replacing(out, |writer| {
+            self.wem
+                .write_wav(writer)
+                .map_err(|source| self.audio_error(out, source))
+        })
     }
 
     fn audio_error(&self, out: &Path, source: AudioError) -> ConversionError {

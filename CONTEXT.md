@@ -64,6 +64,11 @@ _Avoid_: DataCore, dcb, Game database
 One typed object in DataForge, identified by its GUID and addressed by its record path.
 _Avoid_: dcb entry, item (an item is one kind of Record)
 
+**Record path**:
+The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/entities/spaceships/aegs_avenger`;
+several Records may share one, so only the GUID is unique.
+_Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
+
 **Reference**:
 A link from one Record to another by GUID; it is never expanded into the referring Record.
 _Avoid_: weak pointer, pointer (alone)

@@ -27,6 +27,8 @@ pub enum TextureFormat {
     Dxgi(DxgiFormat),
     /// 24-bit BGR from a legacy header, which has no DXGI equivalent.
     Bgr8,
+    /// 8-bit luminance and 8-bit alpha from a legacy header, which has no DXGI equivalent.
+    L8A8,
     /// A legacy `FourCC` this version does not know.
     UnknownFourCc([u8; 4]),
     /// Legacy bit masks this version does not know.
@@ -48,6 +50,11 @@ impl TextureFormat {
                 block_width: 1,
                 block_height: 1,
                 bytes_per_block: 3,
+            }),
+            Self::L8A8 => Some(BlockLayout {
+                block_width: 1,
+                block_height: 1,
+                bytes_per_block: 2,
             }),
             Self::UnknownFourCc(_) | Self::UnknownMasks { .. } => None,
         }
@@ -79,7 +86,7 @@ impl TextureFormat {
             (16, [0xF800, 0x7E0, 0x1F, 0]) => 85,
             (16, [0x7C00, 0x3E0, 0x1F, 0x8000]) => 86,
             (16, [0xF00, 0xF0, 0xF, 0xF000]) => 115,
-            (16, [0xFF, 0, 0, 0xFF00]) if flags & PF_LUMINANCE != 0 => 49,
+            (16, [0xFF, 0, 0, 0xFF00]) if flags & PF_LUMINANCE != 0 => return Self::L8A8,
             (16, [0xFFFF, 0, 0, 0]) => 56,
             (8, [0xFF, 0, 0, 0]) => 61,
             (8, [0, 0, 0, 0xFF]) if flags & PF_RGB == 0 => 65,
@@ -121,6 +128,7 @@ impl fmt::Display for TextureFormat {
                 None => write!(f, "DXGI format {}", format.0),
             },
             Self::Bgr8 => f.write_str("B8G8R8_UNORM"),
+            Self::L8A8 => f.write_str("L8A8_UNORM"),
             Self::UnknownFourCc(four_cc) => {
                 write!(f, "FourCC {}", four_cc.escape_ascii())
             }

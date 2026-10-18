@@ -186,3 +186,13 @@ fn a_size_that_overflows_is_invalid() {
         "{result:?}"
     );
 }
+
+#[test]
+fn a_legacy_luminance_alpha_header_is_l8a8() -> Result<(), TextureError> {
+    let header = parse(&SplitDds::new(TestTextureFormat::LegacyL8A8, 8, 8))?;
+
+    assert_eq!(header.format(), TextureFormat::L8A8, "luminance and alpha");
+    assert_eq!(header.format().to_string(), "L8A8_UNORM", "its name");
+    assert_eq!(header.mip_size(0), Some(128), "two bytes per pixel");
+    Ok(())
+}

@@ -1,0 +1,196 @@
+//! Extraction, `CryXml`, texture and sound Conversion on a real Archive; runs with `--ignored` when
+//! `P4KX_DATA_P4K` names one.
+
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::io::Read;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use p4kx_extraction::cryxml::{self, Format};
+use p4kx_extraction::{
+    Archive, ConflictPolicy, DataForgeEntry, DataForgeError, Entry, ExtractOptions, extract,
+};
+use p4kx_testkit::real_archive_path;
+use rayon::prelude::*;
+
+mod sound;
+mod texture;
+
+type TestResult = Result<(), Box<dyn Error>>;
+type SendError = Box<dyn Error + Send + Sync>;
+
+const PER_KIND: usize = 10;
+const MAX_SIZE: u64 = 4 << 20;
+const CRYXML_EXTENSIONS: [&str; 2] = [".xml", ".mtl"];
+const MAX_CRYXML_SIZE: u64 = 64 << 20;
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn converts_every_cryxml_entry_of_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let candidates: Vec<&Entry> = archive
+        .entries()
+        .iter()
+        .filter(|entry| entry.uncompressed_size() <= MAX_CRYXML_SIZE)
+        .filter(|entry| {
+            let path = entry.path().to_ascii_lowercase();
+            CRYXML_EXTENSIONS
+                .iter()
+                .any(|extension| path.ends_with(extension))
+        })
+        .collect();
+    let binary = AtomicUsize::new(0);
+    let text = AtomicUsize::new(0);
+
+    let failures: Vec<String> = candidates
+        .par_iter()
+        .filter_map(|entry| match convert(&archive, entry) {
+            Ok(Some(Format::CryXml(_))) => {
+                binary.fetch_add(1, Ordering::Relaxed);
+                None
+            }
+            Ok(Some(Format::Text)) => {
+                text.fetch_add(1, Ordering::Relaxed);
+                None
+            }
+            Ok(None) => None,
+            Err(error) => Some(format!("{}: {error}", entry.path())),
+        })
+        .collect();
+
+    assert!(
+        failures.is_empty(),
+        "{} of {} Entries fail, e.g. {:?}",
+        failures.len(),
+        candidates.len(),
+        failures.iter().take(10).collect::<Vec<_>>()
+    );
+    let (binary, text) = (binary.into_inner(), text.into_inner());
+    assert!(
+        binary > 1000,
+        "converted {binary} CryXml and passed {text} text Entries through"
+    );
+    Ok(())
+}
+
+fn convert(archive: &Archive, entry: &Entry) -> Result<Option<Format>, SendError> {
+    let mut bytes = Vec::with_capacity(usize::try_from(entry.uncompressed_size())?);
+    archive.open_entry(entry)?.read_to_end(&mut bytes)?;
+    let Some(format) = cryxml::detect(&bytes) else {
+        return Ok(None);
+    };
+    let mut out = Vec::with_capacity(bytes.len() * 2);
+    cryxml::read(&bytes)?.write_to(&mut out)?;
+    if format == Format::Text {
+        if out != bytes {
+            return Err("text XML changed".into());
+        }
+    } else {
+        let xml = std::str::from_utf8(&out)?;
+        if xml.contains('\r') {
+            return Err("XML has a CR".into());
+        }
+        roxmltree::Document::parse(xml)?;
+    }
+    Ok(Some(format))
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn extracts_a_small_subset_of_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let subset = small_subset(archive.entries());
+    let target = tempfile::tempdir()?;
+
+    let report = extract(&archive, &subset, target.path(), &ExtractOptions::default());
+
+    assert!(
+        report.is_complete(),
+        "every Entry is written: {:?}",
+        report.failures()
+    );
+    assert_eq!(
+        report.extracted(),
+        subset.len(),
+        "the whole subset is written"
+    );
+    for entry in &subset {
+        let file = target.path().join(entry.path().replace('\\', "/"));
+        assert_eq!(
+            std::fs::metadata(&file)?.len(),
+            entry.uncompressed_size(),
+            "{} has its uncompressed size on disk",
+            entry.path()
+        );
+    }
+
+    let options = ExtractOptions {
+        policy: ConflictPolicy::IfChanged,
+        ..ExtractOptions::default()
+    };
+    let again = extract(&archive, &subset, target.path(), &options);
+
+    assert_eq!(
+        again.skipped().len(),
+        subset.len(),
+        "unchanged files are kept"
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn reads_the_dataforge_of_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let entry = DataForgeEntry::read(&archive)?;
+
+    assert!(
+        entry.path().eq_ignore_ascii_case("Data\\Game2.dcb"),
+        "Game2.dcb is preferred: {}",
+        entry.path()
+    );
+    match entry.open() {
+        Ok(forge) => {
+            assert!(forge.record_count() > 0, "the DataForge has Records");
+            for record in forge.records() {
+                record.name()?;
+                record.type_name()?;
+                let path = record.record_path()?;
+                assert!(
+                    forge
+                        .records_at_path(path)
+                        .any(|found| found.guid() == record.guid()),
+                    "{path} finds its Record"
+                );
+                assert!(
+                    forge.record_by_guid(record.guid()).is_some(),
+                    "{} finds its Record",
+                    record.guid()
+                );
+            }
+        }
+        Err(DataForgeError::UnsupportedVersion { version }) => {
+            assert!(version > 6, "only a newer version is rejected: {version}");
+        }
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
+}
+
+fn small_subset(entries: &[Entry]) -> Vec<&Entry> {
+    let mut per_kind = HashMap::new();
+    let mut seen = HashSet::new();
+    entries
+        .iter()
+        .filter(|entry| entry.uncompressed_size() <= MAX_SIZE)
+        .filter(|entry| seen.insert(entry.path().replace('/', "\\").to_lowercase()))
+        .filter(|entry| {
+            let count = per_kind
+                .entry((entry.compression(), entry.is_encrypted()))
+                .or_insert(0);
+            *count += 1;
+            *count <= PER_KIND
+        })
+        .collect()
+}

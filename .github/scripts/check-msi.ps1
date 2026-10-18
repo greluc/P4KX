@@ -6,7 +6,7 @@ Installs an MSI per user, upgrades it with a newer one and uninstalls it, failin
 The MSI of the Release.
 
 .PARAMETER NextMsi
-The same installer built with a higher version.
+The same installer built with a higher version; the msiexec logs are written next to it.
 
 .PARAMETER NextVersion
 The version of NextMsi.
@@ -22,14 +22,23 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+trap {
+    $_.ScriptStackTrace | Out-Host
+    break
+}
 $folder = Join-Path $env:LOCALAPPDATA 'Programs\P4K-Extractor'
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\P4K-Extractor.lnk'
+$logs = Split-Path -Parent (Resolve-Path $NextMsi)
 $installer = New-Object -ComObject WindowsInstaller.Installer
 
-function Invoke-Msiexec([string[]] $Arguments, [string] $Log) {
-    $process = Start-Process msiexec.exe -ArgumentList ($Arguments + @('/qn', '/l*v', $Log)) -Wait -PassThru
+function Invoke-Msiexec([string[]] $Arguments, [string] $Name) {
+    $log = Join-Path $logs $Name
+    $start = [System.Diagnostics.ProcessStartInfo]::new('msiexec.exe')
+    foreach ($argument in $Arguments + @('/qn', '/l*v', $log)) { $start.ArgumentList.Add($argument) }
+    $process = [System.Diagnostics.Process]::Start($start)
+    $process.WaitForExit()
     if ($process.ExitCode -ne 0) {
-        Get-Content $Log -Tail 60
+        if (Test-Path $log) { Get-Content $log -Tail 60 }
         throw "msiexec $($Arguments -join ' ') failed with exit code $($process.ExitCode)"
     }
 }

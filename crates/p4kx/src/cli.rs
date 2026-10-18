@@ -223,7 +223,8 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
-    /// Converts CryXml Entries to UTF-8 XML and DDS textures as --textures says; text XML and
+    /// Converts CryXml Entries to UTF-8 XML, DDS textures as --textures says and the DataForge
+    /// Entry to one Record XML file per Record below its folder instead of the .dcb; text XML and
     /// every other Entry are written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,

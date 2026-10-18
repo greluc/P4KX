@@ -7,12 +7,14 @@ mod chunk_source;
 mod conversion_error;
 mod convert;
 mod dataforge;
+mod dataforge_convert;
 mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
 mod options;
 mod output_file;
+mod record_combined;
 mod record_export;
 mod record_files;
 mod record_report;
@@ -60,6 +62,7 @@ pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use record_combined::export_combined;
 pub use record_export::export_records;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,

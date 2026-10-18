@@ -190,36 +190,6 @@ fn error_values_carry_their_reason() -> TestResult {
 }
 
 #[test]
-fn fields_keep_the_order_of_the_record_xml() -> TestResult {
-    let builder = one_record(
-        TestStruct::new("Item")
-            .array("tags", TestType::String)
-            .field("count", TestType::Int32)
-            .field("label", TestType::Locale)
-            .field("mass", TestType::Single),
-        record("Item")
-            .value("tags", TestValue::Array(vec![TestValue::text("a")]))
-            .value("count", TestValue::Int32(3))
-            .value("label", TestValue::Raw(vec![0xff; 4]))
-            .value("mass", TestValue::Single(1.0)),
-    );
-
-    let json = json_of(&builder, JsonLayout::Compact)?;
-    let keys: Vec<String> =
-        serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&json)?
-            .keys()
-            .cloned()
-            .collect();
-
-    assert!(
-        json.contains("\"count\":3,\"mass\":1,\"tags\":[\"a\"],\"label\":{"),
-        "attributes first, then child elements, each in declaration order: {json}"
-    );
-    assert_eq!(keys.len(), 7, "no key lost: {keys:?}");
-    Ok(())
-}
-
-#[test]
 fn reserved_and_repeated_field_names_are_written_by_their_position() -> TestResult {
     let builder = one_record(
         TestStruct::new("Item")

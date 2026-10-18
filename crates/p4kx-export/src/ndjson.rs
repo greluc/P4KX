@@ -12,6 +12,7 @@ use tempfile::NamedTempFile;
 use crate::{NDJSON_FILE, RecordExportSummary, RecordForm};
 
 const BATCH_LEN: usize = 4096;
+const BATCH_BYTES: usize = 64 << 20;
 const PART_LEN: usize = 64;
 const READ_BUFFER_LEN: usize = 64 << 10;
 
@@ -103,7 +104,8 @@ fn fold(path: &str) -> impl Iterator<Item = u8> + '_ {
     })
 }
 
-/// Builds and writes `lines` in batches; returns `false` when the run was cancelled.
+/// Builds and writes `lines` in batches of at most [`BATCH_LEN`] Records, sized from the previous
+/// batch to hold about [`BATCH_BYTES`]; returns `false` when the run was cancelled.
 fn stream(
     lines: &[Line<'_, '_>],
     output: &mut Output,
@@ -112,7 +114,12 @@ fn stream(
     summary: &mut RecordExportSummary,
 ) -> Result<bool, ExtractionError> {
     let mut failed_lines = 0_usize;
-    for batch in lines.chunks(BATCH_LEN) {
+    let mut start = 0;
+    let mut batch_len = BATCH_LEN;
+    while start < lines.len() {
+        let end = start.saturating_add(batch_len).min(lines.len());
+        let batch = lines.get(start..end).unwrap_or_default();
+        start = end;
         if options.cancel.is_some_and(CancelToken::is_cancelled) {
             discard(summary);
             summary.cancelled = lines.len().saturating_sub(failed_lines);
@@ -128,6 +135,7 @@ fn stream(
                 write_part,
             )
             .collect();
+        batch_len = next_batch_len(batch.len(), parts.iter().map(|part| part.bytes.len()).sum());
         for part in parts {
             output
                 .append(&part.bytes)
@@ -148,6 +156,14 @@ fn stream(
         }
     }
     Ok(true)
+}
+
+/// Returns how many Records the next batch takes after `len` Records gave `bytes`.
+fn next_batch_len(len: usize, bytes: usize) -> usize {
+    len.saturating_mul(BATCH_BYTES)
+        .checked_div(bytes)
+        .unwrap_or(BATCH_LEN)
+        .clamp(PART_LEN, BATCH_LEN)
 }
 
 /// Forgets the Records counted as written, since the file is not put in place.

@@ -7,7 +7,7 @@ const BOX: u128 = 0x50e8_a9f6_f956_4000_8ace_7c0c_a9a9_1f5d;
 const CRATE: u128 = 0x0000_0001_0002_0003_0004_0000_0000_0005;
 const BROKEN: u128 = 0x0000_0009_0002_0003_0004_0000_0000_0005;
 
-/// A ship with nested values and References, two items sharing a record path, and a Record
+/// A ship with nested values, References, a null pointer and an error inside an array, two items sharing a record path, and a Record
 /// whose struct layout cannot be read, defined out of record-path order.
 #[must_use]
 pub(crate) fn database() -> DataForgeBuilder {
@@ -27,6 +27,8 @@ pub(crate) fn database() -> DataForgeBuilder {
                 .array("wheels", TestType::Class("Wheel".to_owned()))
                 .field("spare", TestType::StrongPointer("Wheel".to_owned()))
                 .field("front", TestType::WeakPointer("Wheel".to_owned()))
+                .field("trailer", TestType::StrongPointer("Wheel".to_owned()))
+                .array("parts", TestType::Reference)
                 .field("name", TestType::String),
         )
         .structure(
@@ -66,6 +68,14 @@ fn ship() -> TestRecord {
     .value("wheels", TestValue::Array(vec![wheel(16), wheel(17)]))
     .value("spare", TestValue::pointer("spare"))
     .value("front", TestValue::pointer("spare"))
+    .value(
+        "parts",
+        TestValue::Array(vec![
+            TestValue::Reference(BOX),
+            TestValue::Null,
+            TestValue::Reference(0x77),
+        ]),
+    )
     .value("name", TestValue::text("Avenger \"Titan\"\n"))
 }
 

@@ -81,8 +81,10 @@ when nothing matches.
 `ndjson` the lines of `records.ndjson`. `skipped` lists the files, relative to `target` with `/`
 as separator, whose existing file was kept under `--conflict`; for `ndjson` it can only list
 `records.ndjson`. `failed` lists the Records not written with GUID, record path and the reason
-and its causes joined by `: `. Both are in Record order. `error` is the reason and causes why
-`records.ndjson` could not be written, otherwise `null`. `error_values` counts the values written as errors (see
+and its causes joined by `: `. Both are in definition order for `xml` and `json`; for `ndjson`,
+`failed` lists the Records of another DataForge first, then the others in record-path order.
+`error` is the reason and causes why `records.ndjson` could not be written, otherwise `null`.
+`error_values` counts the values written as errors (see
 [record-xml.md](record-xml.md#child-elements)) in the Records written or kept, and
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.

@@ -49,8 +49,12 @@ fn json_writes_one_file_per_record_under_its_record_path() -> TestResult {
     assert_eq!(summary.form(), RecordForm::Json, "the form");
     assert_eq!(summary.written(), 3, "every readable Record");
     assert_eq!(failed_guids(&summary), [BROKEN_TEXT], "the unreadable one");
-    assert_eq!(summary.error_values(), 2, "the two bad enums");
-    assert_eq!(summary.records_with_errors(), 2, "both items");
+    assert_eq!(
+        summary.error_values(),
+        3,
+        "two bad enums, one dangling Reference"
+    );
+    assert_eq!(summary.records_with_errors(), 3, "both items and the ship");
     let listing = tree(dir.path())?;
     let files: Vec<&str> = listing
         .lines()
@@ -71,6 +75,11 @@ fn json_writes_one_file_per_record_under_its_record_path() -> TestResult {
     assert_eq!(avenger["$guid"], AVENGER_TEXT, "the GUID");
     assert_eq!(avenger["maker"]["type"], "Item", "a Reference");
     assert_eq!(avenger["wheels"][1]["size"], 17, "an owned child");
+    assert!(avenger["trailer"].is_null(), "a null pointer");
+    assert!(
+        avenger["parts"][2]["error"].is_string(),
+        "an error in an array"
+    );
     Ok(())
 }
 

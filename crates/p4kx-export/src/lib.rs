@@ -8,7 +8,7 @@
 mod form;
 mod ndjson;
 mod record_export;
-mod summary;
+mod record_summary;
 
 pub use form::{NDJSON_FILE, RecordForm};
 pub use p4kx_extraction::{
@@ -16,4 +16,4 @@ pub use p4kx_extraction::{
     RecordFailure,
 };
 pub use record_export::write_record_export;
-pub use summary::RecordExportSummary;
+pub use record_summary::RecordExportSummary;

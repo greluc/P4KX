@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-export"
-description = "Export service of P4K-Extractor: the Record export."
+description = "Record export and Basetool catalog"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

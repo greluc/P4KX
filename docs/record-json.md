@@ -83,12 +83,15 @@ A Record object holds, in this order:
    attribute name there ([Names](record-xml.md#names)).
 
 A nested struct (an inline class or the struct a strong pointer owns) is an object with `$type`,
-its actual type, followed by its fields under the same rules. Only these keys start with `$`.
+its actual type, followed by its fields under the same rules. `$guid` and `$path` appear only on
+the Record object.
 
 A field is written under its name unless the name starts with `$` or an earlier field of the
 same struct, in declaration order, has the same name. Such a field is written as
 `"$<n>": {"name": "…", "value": …}`, with `n` its position among the struct's fields in
-declaration order, counting from 0, so no value is lost or mistaken for another.
+declaration order, counting from 0, so no value is lost or mistaken for another. No field is ever
+written under its own name when that starts with `$`: `$type`, `$guid`, `$path` and `$<n>` are the only
+keys that do.
 
 ## Values
 

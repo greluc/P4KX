@@ -127,6 +127,9 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
     half_reference["maker"] = json!({"guid": "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d"});
     let mut unknown_key = valid.clone();
     unknown_key["$extra"] = json!(1);
+    let mut nested_guid = valid.clone();
+    nested_guid["spare"] =
+        json!({"$type": "Wheel", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f"});
     let mut bad_error = valid;
     bad_error["maker"] = json!({"error": "x", "more": 1});
 
@@ -136,6 +139,7 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
         ("Reference without path and type", half_reference),
         ("unknown $ key", unknown_key),
         ("error with more keys", bad_error),
+        ("$guid in a nested struct", nested_guid),
     ] {
         assert!(!validator.is_valid(&document), "{name} is rejected");
     }

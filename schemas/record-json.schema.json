@@ -3,32 +3,62 @@
   "$id": "https://github.com/krt-profit/p4k-extractor/schemas/record-json.schema.json",
   "title": "Record JSON",
   "description": "One Record of DataForge as written by p4kx dcb export --format json|ndjson; see docs/record-json.md.",
-  "allOf": [
-    {
-      "$ref": "#/$defs/struct"
-    }
-  ],
-  "required": [
-    "$type",
-    "$guid",
-    "$path"
-  ],
-  "properties": {
-    "$guid": {
-      "$ref": "#/$defs/guid"
-    },
-    "$path": {
-      "type": "string"
-    }
-  },
+  "$ref": "#/$defs/record",
   "$defs": {
     "guid": {
       "description": "A GUID in lower case.",
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     },
+    "record": {
+      "description": "A Record: its type, GUID and record path, then its fields in the order of the Record XML.",
+      "type": "object",
+      "required": [
+        "$type",
+        "$guid",
+        "$path"
+      ],
+      "properties": {
+        "$type": {
+          "type": "string"
+        },
+        "$guid": {
+          "$ref": "#/$defs/guid"
+        },
+        "$path": {
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "enum": [
+              "$type",
+              "$guid",
+              "$path"
+            ]
+          },
+          {
+            "pattern": "^\\$[0-9]+$"
+          },
+          {
+            "not": {
+              "pattern": "^\\$"
+            }
+          }
+        ]
+      },
+      "patternProperties": {
+        "^\\$[0-9]+$": {
+          "$ref": "#/$defs/positionalField"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
     "struct": {
-      "description": "A struct: its type, then its fields in the order of the Record XML.",
+      "description": "An owned struct: its type, then its fields in the order of the Record XML.",
       "type": "object",
       "required": [
         "$type"
@@ -41,11 +71,7 @@
       "propertyNames": {
         "anyOf": [
           {
-            "enum": [
-              "$type",
-              "$guid",
-              "$path"
-            ]
+            "const": "$type"
           },
           {
             "pattern": "^\\$[0-9]+$"

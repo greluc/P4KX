@@ -4,6 +4,7 @@ mod audio;
 mod bnk;
 mod channels;
 mod cli;
+mod cli_audio;
 mod cli_bnk;
 mod compare;
 mod cryxml;

@@ -4,6 +4,13 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+## [Unreleased]
+
+### Added
+
+- `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
+  parts, from an Archive or from files on disk, and merge it into one standard DDS file.
+
 ## [0.1.0]
 
 The first Release: open, browse and extract Star Citizen Archives.

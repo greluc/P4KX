@@ -17,6 +17,7 @@ p4kx-channels = { path = "crates/p4kx-channels" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
+p4kx-texture = { path = "crates/p4kx-texture" }
 p4kx-update = { path = "crates/p4kx-update" }
 aes = "0.9.3"
 anyhow = "1.0.104"

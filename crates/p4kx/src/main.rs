@@ -8,6 +8,7 @@ mod info;
 mod json;
 mod list;
 mod progress;
+mod texture;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
@@ -26,6 +27,7 @@ fn main() -> ExitCode {
         Command::Extract(args) => extract::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
+        Command::Texture(args) => texture::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

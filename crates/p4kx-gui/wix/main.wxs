@@ -21,6 +21,7 @@
           <Component Id="Application" Guid="9C73F6D4-7407-4BDB-A3F1-105F2206BAE2">
             <File Id="GuiExe" Name="p4kx-gui.exe" Source="$(var.BinaryFolder)\p4kx-gui.exe" />
             <File Id="CliExe" Name="p4kx.exe" Source="$(var.BinaryFolder)\p4kx.exe" />
+            <File Id="McpExe" Name="p4kx-mcp.exe" Source="$(var.BinaryFolder)\p4kx-mcp.exe" />
             <File Id="LicenceMit" Name="LICENSE-MIT" Source="$(var.RepositoryFolder)\LICENSE-MIT" />
             <File Id="LicenceApache" Name="LICENSE-APACHE" Source="$(var.RepositoryFolder)\LICENSE-APACHE" />
             <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES" />

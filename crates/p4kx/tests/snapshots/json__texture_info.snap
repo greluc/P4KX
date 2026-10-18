@@ -3,6 +3,7 @@ source: crates/p4kx/tests/json.rs
 expression: json
 ---
 {
+  "alpha_tail": null,
   "array_size": 1,
   "cubemap": false,
   "depth": 1,

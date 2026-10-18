@@ -7,6 +7,7 @@ use egui::{
 use fluent_bundle::FluentValue;
 use p4kx_extraction::Entry;
 
+use super::dataforge_summary;
 use crate::preview::{HEX_ROW_LEN, printable};
 use crate::theme::desktop::{
     HEX_ASCII_GAP, HEX_ASCII_WIDTH, HEX_BYTE_GAP, HEX_BYTE_WIDTH, HEX_GROUP_GAP, HEX_OFFSET_WIDTH,
@@ -19,13 +20,14 @@ use crate::widgets::frames;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    Browser, Model, PREVIEW_SIZE_LIMIT, PreviewContents, PreviewStatus, PreviewTab, Text, Texts,
-    format,
+    Browser, DataForgeText, Model, PREVIEW_SIZE_LIMIT, PreviewContents, PreviewStatus, PreviewTab,
+    Text, Texts, format,
 };
 
-const TABS: [(PreviewTab, Text); 2] = [
+const TABS: [(PreviewTab, Text); 3] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
+    (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
 ];
 const GROUP: u8 = 8;
 
@@ -34,17 +36,27 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         return;
     };
     let texts = model.texts();
+    let records = browser.records();
+    let tabs = TABS
+        .get(..if records.is_some() { 3 } else { 2 })
+        .unwrap_or_default();
     let mut tab = model.preview_tab();
-    let contents = browser.preview().and_then(|preview| preview.contents());
+    if records.is_none() && tab == PreviewTab::DataForge {
+        tab = PreviewTab::Text;
+    }
+    let contents = browser
+        .preview()
+        .and_then(|preview| preview.contents())
+        .filter(|_| tab != PreviewTab::DataForge);
     let mut copy = None;
-    let labels = TABS.map(|(_, text)| texts.get(text));
-    let current = TABS
+    let labels: Vec<String> = tabs.iter().map(|&(_, text)| texts.get(text)).collect();
+    let current = tabs
         .iter()
         .position(|(candidate, _)| *candidate == tab)
         .unwrap_or(0);
     let bar = ui.max_rect().with_max_y(ui.max_rect().top() + TOUCH_TARGET);
     if let Some(index) = tab::tab_bar(ui, &labels, current)
-        && let Some((candidate, _)) = TABS.get(index)
+        && let Some((candidate, _)) = tabs.get(index)
     {
         tab = *candidate;
     }
@@ -60,11 +72,31 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             });
         },
     );
-    body(ui, texts, browser, tab);
+    tab_body(ui, texts, browser, tab);
     if let Some(text) = copy {
         ui.ctx().copy_text(text);
     }
     model.set_preview_tab(tab);
+    if tab == PreviewTab::DataForge
+        && let Some(browser) = model.browser_mut()
+    {
+        let ctx = ui.ctx().clone();
+        browser.load_records(move || ctx.request_repaint());
+    }
+}
+
+fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
+    match browser.records().filter(|_| tab == PreviewTab::DataForge) {
+        Some(tree) => {
+            let size = browser
+                .index()
+                .dataforge_entry()
+                .map_or(0, Entry::uncompressed_size);
+            path_line(ui, tree.entry_path(), &format::size(size, texts.language()));
+            dataforge_summary::show(ui, texts, tree);
+        }
+        None => body(ui, texts, browser, tab),
+    }
 }
 
 fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
@@ -153,7 +185,7 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text => text_rows(ui, contents),
+        PreviewTab::Text | PreviewTab::DataForge => text_rows(ui, contents),
         PreviewTab::Hex => hex_rows(ui, contents),
     }
 }

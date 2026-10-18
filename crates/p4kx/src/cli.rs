@@ -177,10 +177,12 @@ pub(crate) struct TextureArgs {
 /// The actions of `p4kx texture`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum TextureAction {
-    /// Prints the format, size, depth, mip count, array size, cubemap faces and parts of a texture.
+    /// Prints the format, size, depth, mip count, array size, cubemap faces, parts and alpha tail
+    /// of a texture.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(TextureSource),
-    /// Merges the header and the mip parts of a texture into one standard DDS file.
+    /// Merges the header and the mip parts of a texture into one standard DDS file; a cubemap
+    /// stays a cubemap. The alpha tail is not included; name <ENTRY>.a to merge it on its own.
     #[command(after_help = EXIT_CODES_HELP)]
     Merge {
         /// The texture.
@@ -190,7 +192,8 @@ pub(crate) enum TextureAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG.
+    /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
+    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
@@ -202,6 +205,9 @@ pub(crate) enum TextureAction {
         /// The mip level to export, 0 being the largest.
         #[arg(long, value_name = "LEVEL", default_value_t = 0)]
         mip: u32,
+        /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
+        #[arg(long)]
+        cross: bool,
     },
 }
 
@@ -209,11 +215,12 @@ pub(crate) enum TextureAction {
 #[derive(Debug, Args)]
 pub(crate) struct TextureSource {
     /// A Data.p4k Archive when ENTRY is given; otherwise the texture's header file, with its parts
-    /// <FILE>.1 … <FILE>.N next to it.
+    /// <FILE>.1 … <FILE>.N and any alpha tail <FILE>.a, <FILE>.1a … next to it.
     #[arg(value_name = "ARCHIVE_OR_FILE")]
     pub(crate) path: PathBuf,
     /// Path of the texture's header Entry in the Archive, with `\` or `/` as separator, ignoring
-    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N.
+    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N and its alpha tail <ENTRY>.a with
+    /// <ENTRY>.1a … <ENTRY>.Na.
     pub(crate) entry: Option<String>,
 }
 

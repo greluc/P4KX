@@ -69,6 +69,10 @@ The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/enti
 several Records may share one, so only the GUID is unique.
 _Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
 
+**Record folder**:
+A record path that several Records share, shown in the Record tree as a folder holding those Records.
+_Avoid_: record group, file node
+
 **Record tag**:
 A label DataForge version 8 stores with every Record, e.g. `SystemsDesign` or `Unknown`; version 6
 Records have none.
@@ -114,6 +118,16 @@ _Avoid_: audio file, sound file
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
+
+**Cubemap face**:
+One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as
+`posx` … `negz`.
+_Avoid_: side, surface
+
+**Alpha tail**:
+A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a texture's alpha or
+smoothness channel, merged into the alpha channel on export.
+_Avoid_: attached alpha, gloss map, smoothness map
 
 ### Operations
 

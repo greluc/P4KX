@@ -273,7 +273,7 @@ fn glows_and_shadows_match_the_design_system() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 47] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 57] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
     ("header", "brandMarkSize", desktop::BRAND_MARK),
@@ -322,6 +322,28 @@ const DESKTOP_METRICS: [(&str, &str, f32); 47] = [
     ("progressBar", "height", desktop::PROGRESS_HEIGHT),
     ("spinner", "size", desktop::SPINNER),
     ("spinner", "sizeInline", desktop::SPINNER_INLINE),
+    ("detailList", "keyColumnMin", desktop::DETAIL_KEY_MIN_WIDTH),
+    ("detailList", "rowGap", desktop::DETAIL_ROW_GAP),
+    ("detailList", "columnGap", desktop::DETAIL_COLUMN_GAP),
+    (
+        "detailList",
+        "keyLetterSpacingEm",
+        desktop::DETAIL_KEY_TRACKING,
+    ),
+    ("detailList", "valueFontSize", desktop::DETAIL_VALUE_SIZE),
+    ("sectionTitle", "fontSize", desktop::PANEL_TITLE_SIZE),
+    ("sectionTitle", "letterSpacingEm", t::TRACKING_DISPLAY),
+    ("sectionTitle", "marginTop", desktop::PANEL_TITLE_MARGIN_TOP),
+    (
+        "sectionTitle",
+        "marginBottom",
+        desktop::PANEL_TITLE_MARGIN_BOTTOM,
+    ),
+    (
+        "sectionTitle",
+        "paddingBottom",
+        desktop::PANEL_TITLE_PADDING_BOTTOM,
+    ),
     ("tooltip", "maxWidth", desktop::TOOLTIP_MAX_WIDTH),
     ("scrollbar", "width", desktop::SCROLLBAR),
     ("scrollbar", "thumbMinLength", desktop::SCROLL_THUMB_MIN),

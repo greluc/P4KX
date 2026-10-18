@@ -103,12 +103,14 @@ impl PreviewContents {
         format!("{offset:08X}  {hex:<width$}  {ascii}")
     }
 
-    /// Returns what copying `tab` puts on the clipboard: the text, or every hex row.
+    /// Returns what copying `tab` puts on the clipboard: the text, every hex row, or nothing for
+    /// the DataForge tab, which shows no Entry.
     #[must_use]
     pub fn copied(&self, tab: PreviewTab) -> String {
         match tab {
             PreviewTab::Text => self.text.clone(),
             PreviewTab::Hex => self.hex_dump(),
+            PreviewTab::DataForge => String::new(),
         }
     }
 

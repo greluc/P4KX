@@ -186,6 +186,42 @@ fn extract_writes_compressed_and_encrypted_entries_with_their_original_bytes() -
 }
 
 #[test]
+fn extract_writes_the_entries_of_a_v2_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    let out = dir.path().join("out");
+    ArchiveBuilder::v2()
+        .entry(TestEntry::stored("Data\\readme.txt", b"hello".to_vec()))
+        .entry(TestEntry::zstd("Data\\secret.xml", b"<secret/>".to_vec()).encrypted())
+        .write_to(&archive)?;
+
+    Command::cargo_bin("p4kx")?
+        .arg("extract")
+        .arg(&archive)
+        .arg("Data\\readme.txt")
+        .arg("Data\\secret.xml")
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(
+            "extracted 2, skipped 0, failed 0, cancelled 0",
+        ));
+
+    assert_eq!(
+        std::fs::read(out.join("Data/readme.txt"))?,
+        b"hello",
+        "stored Entry"
+    );
+    assert_eq!(
+        std::fs::read(out.join("Data/secret.xml"))?,
+        b"<secret/>",
+        "encrypted zstd Entry"
+    );
+    Ok(())
+}
+
+#[test]
 fn extract_of_corrupt_entries_fails_only_those_entries_with_exit_code_1() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;

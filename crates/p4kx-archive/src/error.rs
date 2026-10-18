@@ -24,6 +24,14 @@ pub enum ArchiveError {
         /// Path of the file.
         path: PathBuf,
     },
+    /// The Archive is written in a layout this version cannot read.
+    #[error("{path} uses Archive layout v{version}, which is not supported")]
+    UnsupportedLayout {
+        /// Path of the Archive.
+        path: PathBuf,
+        /// The layout version from the Archive's trailer.
+        version: u16,
+    },
     /// A structure of the Archive is malformed.
     #[error("{path} is corrupt at offset {offset}: {reason}")]
     Corrupt {

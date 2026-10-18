@@ -10,6 +10,9 @@ use crate::{ArchiveError, Compression};
 pub(crate) enum FormatError {
     Io(io::Error),
     NotAnArchive,
+    UnsupportedLayout {
+        version: u16,
+    },
     Corrupt {
         offset: u64,
         reason: String,
@@ -36,6 +39,9 @@ impl FormatError {
         match self {
             Self::Io(source) => ArchiveError::Io { path, source },
             Self::NotAnArchive => ArchiveError::NotAnArchive { path },
+            Self::UnsupportedLayout { version } => {
+                ArchiveError::UnsupportedLayout { path, version }
+            }
             Self::Corrupt { offset, reason } => ArchiveError::Corrupt {
                 path,
                 offset,

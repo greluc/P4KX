@@ -9,8 +9,9 @@ This is an unofficial fan tool, not affiliated with Cloud Imperium Games.
 
 Early development (milestone M1). Available today:
 
-- `p4kx list <archive>` lists every Entry of an Archive in the v1 layout: compression method,
-  encryption flag, compressed size, size and path.
+- `p4kx list <archive>` lists every Entry of an Archive: compression method, encryption flag,
+  compressed size, size and path. Archives in the v1 (ZIP64) and the v2 (`Jiji` trailer) layout
+  are recognised automatically; any other layout version is rejected with its number.
 - `p4kx extract <archive> <entry paths…> [--out <folder>]` writes the given Entries (stored,
   deflate or zstd, encrypted or not) into a new folder `SC-EXPORT-<Channel>-<Build>-<timestamp>`
   in the current directory (Channel and Build are `UnknownChannel` and `UnknownBuild` for now,

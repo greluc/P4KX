@@ -19,6 +19,7 @@ mod json;
 mod list;
 mod progress;
 mod query_file;
+mod query_rows;
 mod query_table;
 mod texture;
 

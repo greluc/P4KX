@@ -50,7 +50,9 @@ and replaces an existing file; stdout then gets one summary line such as
 `3 Records written to result.csv`, or a JSON summary with `--json` (see
 [cli-json.md](cli-json.md)). A Record whose layout cannot be read gives no row in any format;
 it is reported on stderr and the exit code is 1. An `--out` that is the Archive itself is
-rejected with exit code 2, and so is `--json` with another format and without `--out`.
+rejected with exit code 2, and so is `--json` with another format and without `--out`. A run
+that is killed, e.g. by Ctrl+C, can leave the temporary file `<file>.p4kx-<process id>.part`
+behind; the target itself is never half written.
 
 ### Table
 
@@ -91,7 +93,7 @@ path selected twice appears once, as its values are the same. The values are typ
 | Field type | JSON |
 |------------|------|
 | bool | `true` or `false` |
-| int8 … int64, uint8 … uint64 | A number, exact for every 64-bit value |
+| int8 … int64, uint8 … uint64 | A number with every digit; a parser that reads numbers as doubles, such as JavaScript, rounds beyond 2^53 |
 | float, double | A number in its Record XML text (`25000.5`, `1e21`, `-0`); `NaN`, `INF` and `-INF` as strings |
 | string, localisation key, enum | A string: the text, the key as stored, the option name |
 | GUID | A string, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |

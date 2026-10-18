@@ -91,7 +91,7 @@ Without `--out`, the line is the Query result itself in its JSON format, as `--f
 writes it ([query.md](query.md#json)):
 
 ```json
-[{"record path": "libs/foundry/records/ships/avenger", "mass": 25000.5, "size": "Large"}, …]
+[{"record path":"libs/foundry/records/ships/avenger","mass":25000.5,"size":"Large"},…]
 ```
 
 One object per row in record-path order, keyed by `record path` and then by each `select` path

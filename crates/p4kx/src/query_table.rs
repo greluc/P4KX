@@ -2,9 +2,9 @@ use std::fmt::Write as _;
 use std::io::{self, Write};
 
 use p4kx_extraction::Value;
-use p4kx_extraction::query::{QueryRun, RECORD_PATH_COLUMN, Row};
+use p4kx_extraction::query::{QueryRun, RECORD_PATH_COLUMN};
 
-use crate::dcb_query::{Counts, PAGE_SIZE, report_failure};
+use crate::query_rows::{Counts, PAGE_SIZE, for_each_row};
 
 /// The gap between two columns of the table.
 const GAP: &str = "  ";
@@ -17,9 +17,32 @@ pub(crate) fn write(
     run: &QueryRun<'_, '_>,
     mut out: impl Write,
     count_line: bool,
-) -> io::Result<Counts> {
+    counts: &mut Counts,
+) -> io::Result<()> {
     let mut header = vec![one_line(RECORD_PATH_COLUMN)];
     header.extend(columns.iter().map(|column| one_line(column)));
+    let widths = measure(run, &header);
+    line(&mut out, &widths, &header)?;
+    let rule: Vec<String> = widths.iter().map(|width| "-".repeat(*width)).collect();
+    line(&mut out, &widths, &rule)?;
+    for_each_row(run, counts, |row, cells| {
+        let mut texts = Vec::with_capacity(cells.len().saturating_add(1));
+        texts.push(one_line(row.record_path()));
+        texts.extend(
+            cells
+                .iter()
+                .map(|cell| cell.as_ref().map_or_else(String::new, cell_text)),
+        );
+        line(&mut out, &widths, &texts)
+    })?;
+    if count_line {
+        writeln!(out, "{}", counts.line(""))?;
+    }
+    out.flush()
+}
+
+/// Returns the width of each column: the widest of its heading and its texts in every row.
+fn measure(run: &QueryRun<'_, '_>, header: &[String]) -> Vec<usize> {
     let mut widths: Vec<usize> = header.iter().map(|text| text.chars().count()).collect();
     let mut text = String::new();
     for page in run.pages(PAGE_SIZE) {
@@ -37,57 +60,13 @@ pub(crate) fn write(
             }
         }
     }
-    line(&mut out, &widths, &header)?;
-    let rule: Vec<String> = widths.iter().map(|width| "-".repeat(*width)).collect();
-    line(&mut out, &widths, &rule)?;
-    let mut counts = Counts::default();
-    for page in run.pages(PAGE_SIZE) {
-        for row in &page {
-            match row_texts(row) {
-                Ok(cells) => {
-                    counts.records = counts.records.saturating_add(1);
-                    line(&mut out, &widths, &cells)?;
-                }
-                Err(error) => {
-                    counts.failed = counts.failed.saturating_add(1);
-                    report_failure(row, error)?;
-                }
-            }
-        }
-    }
-    if count_line {
-        let noun = if counts.records == 1 {
-            "Record"
-        } else {
-            "Records"
-        };
-        if counts.failed == 0 {
-            writeln!(out, "{} {noun}", counts.records)?;
-        } else {
-            writeln!(out, "{} {noun}, {} failed", counts.records, counts.failed)?;
-        }
-    }
-    out.flush()?;
-    Ok(counts)
+    widths
 }
 
 fn widen(widths: &mut [usize], index: usize, width: usize) {
     if let Some(current) = widths.get_mut(index) {
         *current = (*current).max(width);
     }
-}
-
-/// Returns the texts of a row's columns, the record path first, or why its Record cannot be read.
-fn row_texts<'r>(row: &'r Row<'_>) -> Result<Vec<String>, &'r p4kx_extraction::DataForgeError> {
-    let cells = row.cells()?;
-    let mut texts = Vec::with_capacity(cells.len().saturating_add(1));
-    texts.push(one_line(row.record_path()));
-    texts.extend(
-        cells
-            .iter()
-            .map(|cell| cell.as_ref().map_or_else(String::new, cell_text)),
-    );
-    Ok(texts)
 }
 
 fn cell_text(value: &Value<'_>) -> String {
@@ -111,9 +90,13 @@ fn one_line(text: &str) -> String {
 
 /// Returns the number of characters [`one_line`] makes of `text`.
 fn line_width(text: &str) -> usize {
-    text.chars()
-        .map(|c| usize::from(matches!(c, '\n' | '\r' | '\t')) + 1)
-        .sum()
+    text.chars().fold(0, |width: usize, c| {
+        width.saturating_add(if matches!(c, '\n' | '\r' | '\t') {
+            2
+        } else {
+            1
+        })
+    })
 }
 
 fn line(out: &mut impl Write, widths: &[usize], cells: &[String]) -> io::Result<()> {

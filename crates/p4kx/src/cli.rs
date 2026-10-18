@@ -145,6 +145,17 @@ pub(crate) enum QueryFormat {
     Json,
 }
 
+impl QueryFormat {
+    /// Returns the name --format takes.
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::Table => "table",
+            Self::Csv => "csv",
+            Self::Json => "json",
+        }
+    }
+}
+
 /// Arguments of `p4kx dcb export`.
 #[derive(Debug, Args)]
 pub(crate) struct DcbExportArgs {

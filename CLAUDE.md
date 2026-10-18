@@ -32,10 +32,11 @@ there:
 $env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
-cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-comparison -p p4kx-gui --test 'real_archive*' -- --ignored
+cargo test --release --workspace --locked -- --ignored
 ```
 
-A new real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
+That runs every real-Archive test in the workspace, whatever test file it lives in. A new
+real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
 and takes the path from `p4kx_testkit::real_archive_path` (and `real_archive_b_path` for a second
 Archive, from `P4KX_DATA_P4K_B`).
 

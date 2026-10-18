@@ -1,0 +1,14 @@
+---
+source: crates/p4kx/tests/json_audio.rs
+expression: json
+---
+{
+  "channels": 2,
+  "codec": "pcm",
+  "codec_name": "PCM",
+  "duration_seconds": 0.025,
+  "format_tag": 65534,
+  "sample_count": 1200,
+  "sample_rate": 48000,
+  "sound": "Data\\Sounds\\wwise\\Media\\100.wem"
+}

@@ -2,9 +2,12 @@ use std::io::{self, Read};
 
 use p4kx_archive::{Archive, ArchiveError, Entry};
 use p4kx_localization::{GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_SIZE};
+use rayon::prelude::*;
 use thiserror::Error;
 
 use crate::entry_path::same_entry_path;
+
+const INITIAL_RESERVE: u64 = 16 << 20;
 
 /// The bytes of a language's `global.ini` Entry, read into memory.
 #[derive(Debug)]
@@ -37,24 +40,27 @@ impl LocalizationEntry {
             return Err(too_large(path));
         }
         let mut bytes = Vec::new();
-        let Ok(reserve) = usize::try_from(size) else {
-            return Err(too_large(path));
-        };
+        let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
         if bytes.try_reserve_exact(reserve).is_err() {
             return Err(too_large(path));
         }
+        let failed = |source| LocalizationLoadError::Read {
+            path: path.clone(),
+            source,
+        };
         let read = archive
             .open_entry(entry)
-            .map_err(LocalizationLoadError::Archive)
-            .and_then(|reader| {
-                reader.take(size).read_to_end(&mut bytes).map_err(|source| {
-                    LocalizationLoadError::Read {
-                        path: path.clone(),
-                        source,
-                    }
-                })
-            });
-        read.map(|_| Self {
+            .map_err(LocalizationLoadError::Archive)?
+            .take(size)
+            .read_to_end(&mut bytes)
+            .map_err(failed)?;
+        if u64::try_from(read).ok() != Some(size) {
+            return Err(failed(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("the Entry ended after {read} of {size} bytes"),
+            )));
+        }
+        Ok(Self {
             language,
             path,
             bytes,
@@ -67,8 +73,8 @@ impl LocalizationEntry {
         let wanted = language.global_ini_path();
         archive
             .entries()
-            .iter()
-            .find(|entry| same_entry_path(entry.path(), wanted))
+            .par_iter()
+            .find_first(|entry| same_entry_path(entry.path(), wanted))
     }
 
     /// Returns the language.

@@ -41,10 +41,7 @@ fn field<'t, 'f>(tree: &'t RecordTree<'f>, name: &str) -> Option<&'t Value<'f>> 
 }
 
 /// Returns the localisation key the field `name` of `localization` holds; an empty key is none.
-pub(crate) fn locale_key<'f>(
-    localization: Option<&StructValue<'f>>,
-    name: &str,
-) -> Option<&'f str> {
+fn locale_key<'f>(localization: Option<&StructValue<'f>>, name: &str) -> Option<&'f str> {
     localization
         .and_then(|localization| localization.field(name))
         .and_then(|value| match value {

@@ -1,27 +1,32 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::{Archive, GlobalIni, Language, LocalizationEntry, LocalizationLoadError};
+use rayon::prelude::*;
 
 use crate::contract::LocalisedText;
 use crate::{CatalogError, TextSummary};
 
-/// The `global.ini` Entries of English and German, `None` for a language the Archive lacks.
+/// The `global.ini` Entry of every language in [`Language::ALL`], `None` for a language the
+/// Archive lacks.
 pub(crate) struct TextSources {
-    english: Option<LocalizationEntry>,
-    german: Option<LocalizationEntry>,
+    entries: Vec<(Language, Option<LocalizationEntry>)>,
 }
 
 impl TextSources {
-    /// Reads the `global.ini` of English and German from `archive`.
+    /// Reads the `global.ini` of every language from `archive`.
     pub(crate) fn read(archive: &Archive) -> Result<Self, CatalogError> {
-        Ok(Self {
-            english: read(archive, Language::English)?,
-            german: read(archive, Language::German)?,
-        })
+        let entries = Language::ALL
+            .into_iter()
+            .map(|language| Ok((language, read_if_present(archive, language)?)))
+            .collect::<Result<_, CatalogError>>()?;
+        Ok(Self { entries })
     }
 }
 
-fn read(archive: &Archive, language: Language) -> Result<Option<LocalizationEntry>, CatalogError> {
+fn read_if_present(
+    archive: &Archive,
+    language: Language,
+) -> Result<Option<LocalizationEntry>, CatalogError> {
     match LocalizationEntry::read(archive, language) {
         Ok(entry) => Ok(Some(entry)),
         Err(LocalizationLoadError::Missing { .. }) => Ok(None),
@@ -29,26 +34,23 @@ fn read(archive: &Archive, language: Language) -> Result<Option<LocalizationEntr
     }
 }
 
-/// Resolves localisation keys to English and German texts and counts what resolves.
+/// Resolves localisation keys in every language and counts what resolves.
 ///
 /// Every kind turns its keys into [`LocalisedText`]s through [`Texts::localised`]; it may be
 /// called from any worker thread.
 pub(crate) struct Texts<'e> {
-    english: LanguageTexts<'e>,
-    german: LanguageTexts<'e>,
+    languages: Vec<LanguageTexts<'e>>,
 }
 
 impl<'e> Texts<'e> {
-    /// Indexes both languages of `sources` in parallel.
+    /// Indexes every language of `sources` in parallel.
     pub(crate) fn parse(sources: &'e TextSources) -> Result<Self, CatalogError> {
-        let (english, german) = rayon::join(
-            || LanguageTexts::parse(Language::English, sources.english.as_ref()),
-            || LanguageTexts::parse(Language::German, sources.german.as_ref()),
-        );
-        Ok(Self {
-            english: english?,
-            german: german?,
-        })
+        let languages = sources
+            .entries
+            .par_iter()
+            .map(|(language, entry)| LanguageTexts::parse(*language, entry.as_ref()))
+            .collect::<Result<_, _>>()?;
+        Ok(Self { languages })
     }
 
     /// Returns the text with localisation `key` and its English and German texts; without a key
@@ -62,14 +64,21 @@ impl<'e> Texts<'e> {
         };
         LocalisedText {
             key: Some(key),
-            en: self.english.resolve(key),
-            de: self.german.resolve(key),
+            en: self.resolve(Language::English, key),
+            de: self.resolve(Language::German, key),
         }
     }
 
-    /// Returns what resolved per language, English first.
+    /// Returns what resolved per language, in the order of [`Language::ALL`].
     pub(crate) fn summary(&self) -> Vec<TextSummary> {
-        vec![self.english.summary(), self.german.summary()]
+        self.languages.iter().map(LanguageTexts::summary).collect()
+    }
+
+    fn resolve(&self, language: Language, key: &str) -> Option<&'e str> {
+        self.languages
+            .iter()
+            .find(|texts| texts.language == language)
+            .and_then(|texts| texts.resolve(key))
     }
 }
 

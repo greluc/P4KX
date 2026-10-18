@@ -250,7 +250,7 @@ code is 0 without and 1 with differences on any compared level.
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
 | `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
-| `records.changes[].fields` | array | One object per changed field: `path` (the field name), and `old` and `new` values for the sides that have the field; empty for an added, removed or unreadable Record |
+| `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
 | `records.changes[].errors` | array | One object per side whose Record cannot be read: `side` (`old` or `new`) and `reason`; absent for every other Record |
 
 `entries` is absent when the Entry level was not compared, `records` when the Record level was
@@ -259,13 +259,38 @@ not compared.
 Records are joined by GUID. A Record is `moved` when its record path differs, ignoring case and
 separator kind; its changed fields are listed as well. It is `changed` when its name, its type
 or a field differs. It is `unreadable` when its record path, name, type or fields cannot be read
-on a side; it is then not compared, and the Comparison goes on with the other Records. Fields are joined by name, so a field only one side has is listed with only
-`old` or only `new`. Each value is an object with `type` (`bool`, `int8` … `int64`, `uint8` …
-`uint64`, `single`, `double`, `string`, `locale`, `guid`, `enum` or `error`) and `value`: a
-number for integers and floats, `NaN`, `INF` or `-INF` as a string for a float that is not
-finite, the option name for an enum, and the reason for an `error`, a value that cannot be read.
+on a side; it is then not compared, and the Comparison goes on with the other Records.
+
+The fields are compared down the whole Record tree. `path` is the location of the value in the
+same notation as `at` in [Record XML](record-xml.md#child-elements): the field names from the
+Record down separated by `.`, with `[index]` after an array field. The changes are listed depth
+first: within one struct in field order of the new side and then the fields only the old side
+has, each followed by the changes inside it. Fields are joined by name, so a field only one side
+has is listed with only `old` or only `new`. Array elements are joined by index, so elements
+added or removed at the end are listed with only `new` or only `old`; arrays are not matched by
+key. A struct of another type, or a value of another kind (e.g. a scalar against a struct, or
+null against a struct), is a change of its own, and the fields and elements of a struct or array
+that only one side has follow it, each with only `old` or only `new`.
+
+Each value is an object with `type` and `value`:
+
+| `type` | `value` |
+|--------|---------|
+| `bool`, `int8` … `int64`, `uint8` … `uint64` | The number or boolean |
+| `single`, `double` | The number; `NaN`, `INF` or `-INF` as a string for a float that is not finite |
+| `string`, `locale` | The text; a localisation key as the key, e.g. `@item_Name` |
+| `guid` | The GUID |
+| `enum` | The option name |
+| `reference` | The target: `guid`, `record_path` and `type`, and for a weak pointer `at`, its location inside the Record |
+| `struct` | The name of its type; its fields follow as changes of their own |
+| `array` | The number of elements; its elements follow as changes of their own |
+| `null` | None: a null pointer or a null Reference has no `value` |
+| `error` | The reason the value cannot be read; the rest of the Record is still compared |
+
 Floats compare by their bits, every `NaN` equal to every other, so `-0.0` differs from `0.0`.
-Arrays, inline structs, pointers and References are not compared yet.
+References compare by target GUID, so a target that moved is no change, and weak pointers, which
+all share the GUID of their own Record, by their `at` as well. Values that cannot be read compare
+by their reason.
 
 ## `p4kx compare <old> <new> --diff <entry> --json`
 

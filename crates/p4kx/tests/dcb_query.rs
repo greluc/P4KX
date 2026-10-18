@@ -257,13 +257,18 @@ fn json_output_is_rejected() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn documented_queries_select_records_of_a_real_archive() -> TestResult {
+fn the_documented_examples_select_records_of_a_real_archive() -> TestResult {
     let archive = real_archive_path()?;
-    for text in [
-        "from EntityClassDefinition at \"*/spaceships/*\"",
-        "at \"libs/foundry/records/entities/scitem/ships/*\"",
-        "from EntityClassDefinition",
-    ] {
+    let examples = [
+        ("from EntityClassDefinition", None),
+        ("at \"libs/foundry/records/entities/spaceships/*\"", None),
+        (
+            "from EntityClassDefinition at \"*/spaceships/*\" select Category, Invisible",
+            Some("false"),
+        ),
+        ("at \"*/spaceships/*\" select Icon", Some(".")),
+    ];
+    for (text, value) in examples {
         let output = Command::cargo_bin("p4kx")?
             .args(["dcb", "query"])
             .arg(&archive)
@@ -271,8 +276,15 @@ fn documented_queries_select_records_of_a_real_archive() -> TestResult {
             .output()?;
         assert_eq!(output.status.code(), Some(0), "{text}: {output:?}");
         let stdout = String::from_utf8(output.stdout)?;
-        let rows = stdout.lines().count().saturating_sub(3);
-        assert!(rows > 0, "{text} selects Records: {stdout}");
+        let rows: Vec<&str> = stdout.lines().skip(2).collect();
+        assert!(rows.len() > 1, "{text} selects Records: {stdout}");
+        if let Some(value) = value {
+            assert!(
+                rows.iter()
+                    .any(|row| row.split("  ").skip(1).any(|cell| cell.contains(value))),
+                "{text} reads values: {stdout}"
+            );
+        }
     }
     Ok(())
 }

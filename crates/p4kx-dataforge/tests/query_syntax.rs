@@ -3,7 +3,7 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::query::{MAX_QUERY_LEN, Name, Query, QueryError, QueryErrorKind, Text};
+use p4kx_dataforge::query::{Glob, MAX_QUERY_LEN, Name, Query, QueryError, QueryErrorKind};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -134,8 +134,8 @@ fn printing_and_reparsing_a_parsed_query_is_stable() -> TestResult {
             "{text:?}"
         );
         assert_eq!(
-            reparsed.at().map(Text::as_str),
-            parsed.at().map(Text::as_str),
+            reparsed.at().map(Glob::as_str),
+            parsed.at().map(Glob::as_str),
             "{text:?}"
         );
     }
@@ -196,6 +196,34 @@ fn random_text_never_panics_and_errors_stay_inside_the_query() {
             assert!(text.is_char_boundary(span.end()), "{text:?}: {span:?}");
             let marked = error.marked(&text).to_string();
             assert!(marked.contains('^'), "{text:?}: {marked}");
+        }
+    }
+}
+
+#[test]
+fn arbitrary_characters_never_panic() {
+    let mut random = Random(0xdead_beef_cafe_f00d);
+    for _ in 0..20_000 {
+        let text: String = (0..random.below(24))
+            .filter_map(|_| {
+                let range = match random.below(4) {
+                    0 => 0_usize..0x80,
+                    1 => 0x80..0x800,
+                    2 => 0x800..0x1_0000,
+                    _ => 0x1_0000..0x11_0000,
+                };
+                let span = range.end - range.start;
+                let code = u32::try_from(range.start + random.below(span)).ok()?;
+                char::from_u32(code)
+            })
+            .collect();
+        if let Err(error) = Query::parse(&text) {
+            assert!(error.span().end() <= text.len(), "{text:?}: {error:?}");
+            assert!(
+                text.is_char_boundary(error.span().start()),
+                "{text:?}: {error:?}"
+            );
+            assert!(!error.marked(&text).to_string().is_empty(), "{text:?}");
         }
     }
 }

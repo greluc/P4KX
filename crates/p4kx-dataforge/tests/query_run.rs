@@ -147,6 +147,36 @@ fn rows_of(forge: &DataForge<'_>, text: &str) -> Result<Vec<String>, Box<dyn Err
 }
 
 #[test]
+fn cells_hold_the_values_of_the_record_tree() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let compiled = Query::parse("at \"*\" select weight, id")?.compile(&forge)?;
+    let run = compiled.run();
+
+    for page in run.pages(page_size(50)) {
+        for row in page {
+            let tree = row.record().tree()?;
+            let expected: Vec<Option<Value<'_>>> = ["weight", "id"]
+                .iter()
+                .map(|name| {
+                    tree.fields()
+                        .iter()
+                        .find(|field| field.name() == *name)
+                        .map(|field| field.value().clone())
+                })
+                .collect();
+            assert_eq!(
+                row.cells().map_err(ToString::to_string)?,
+                expected.as_slice(),
+                "{}",
+                row.record_path()
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn a_field_of_a_subtype_is_unknown_to_its_parent() -> TestResult {
     let bytes = database();
     let forge = DataForge::open(&bytes)?;

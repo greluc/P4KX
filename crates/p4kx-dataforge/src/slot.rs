@@ -8,7 +8,7 @@ const TEXT: &str = "text";
 
 /// One property of a struct as it is laid out in an instance: its type and whether it is an
 /// array.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Slot {
     property: usize,
     def: PropertyDef,
@@ -36,6 +36,16 @@ impl Slot {
             data_type,
             array: def.conversion != CONVERSION_ATTRIBUTE,
         })
+    }
+
+    /// Returns the type of the field's values.
+    pub(crate) const fn data_type(&self) -> DataType {
+        self.data_type
+    }
+
+    /// Returns whether the field holds an array.
+    pub(crate) const fn is_array(&self) -> bool {
+        self.array
     }
 
     /// Returns the field name.

@@ -9,16 +9,16 @@ SQL-like ([ADR-0009](adr/0009-sql-like-query-syntax.md)).
 ```text
 from EntityClassDefinition
 at "libs/foundry/records/entities/spaceships/*"
-from Ship at "*/ships/*" select crew, mass
-from Item select mass, size
-at "*/weapons/*" select size
-from `select` select `from`
+from EntityClassDefinition at "*/spaceships/*" select Category, Invisible
+at "*/spaceships/*" select Icon
 ```
 
 - `from EntityClassDefinition` lists every Record of type `EntityClassDefinition` or of a struct
   deriving from it.
 - `at "…"` lists the Records whose record path matches.
-- `select crew, mass` adds one column per dot path behind the record path.
+- `select Category, Invisible` adds one column per dot path behind the record path.
+
+The opt-in tests against a real Archive run these examples.
 
 ## Result
 
@@ -29,9 +29,10 @@ There is one row per selected Record, ordered by record path (ignoring ASCII cas
 alike) and then by the Record's position in the DataForge. Records share record paths, so a
 record path can appear in several rows.
 
-A path that names a field the Record's type does not declare gives an empty cell; this happens
-only without `from`, since every type `from` selects declares the fields of the named type. A
-value that cannot be read shows its reason as `error: …`.
+Without `from`, a Record whose type has no scalar field of a selected name gives an empty cell;
+with `from`, every selected type declares the fields of the named type. A value that cannot be
+read shows its reason as `error: …`. A Record whose layout cannot be read gives no row and is
+reported as failed.
 
 ## Grammar
 
@@ -57,7 +58,8 @@ string     = '"' { char-but-quote } '"' ;
 `from`, `at`, `select`, `where`, `and`, `or` and `not` are keywords; they ignore case, so
 `FROM` and `From` are `from`. `where`, `and`, `or` and `not` are reserved for filters. A type or
 field whose name is a keyword, or is no bare name, is written in backticks: `` `select` ``,
-`` `Size-X` ``. A quoted name holds any characters but a backtick and is never empty.
+`` `Size-X` ``, e.g. ``from Tag select `select` ``. A quoted name holds any characters but a
+backtick and is never empty.
 
 ### Names
 
@@ -71,8 +73,10 @@ unknown name is an error that names the closest known one, if any, e.g.
   fields are those of the named struct. Without `from`, each Record's own type is used, and a name
   that no struct declares is an error.
 - Only fields that hold one scalar value can be selected: booleans, integers, floats, strings,
-  localisation keys, GUIDs and enum values. A field that holds an array, a struct, a pointer or a
-  Reference is an error, and so is a path that continues behind a scalar field.
+  localisation keys, GUIDs and enum values. With `from`, a field that holds an array, a struct, a
+  pointer or a Reference is an error. Without `from`, it is an error only when no struct declares
+  the name as a scalar field; a type that declares it otherwise gives an empty cell. A path that
+  continues behind a scalar field is an error.
 
 ### Record-path glob
 

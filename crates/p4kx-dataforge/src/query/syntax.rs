@@ -9,7 +9,7 @@ use crate::query::lexer::{Keyword, is_bare_name};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
     pub(crate) from: Option<Name>,
-    pub(crate) at: Option<Text>,
+    pub(crate) at: Option<Glob>,
     pub(crate) select: Vec<Path>,
 }
 
@@ -22,7 +22,7 @@ impl Query {
 
     /// Returns the record-path glob of `at`.
     #[must_use]
-    pub const fn at(&self) -> Option<&Text> {
+    pub const fn at(&self) -> Option<&Glob> {
         self.at.as_ref()
     }
 
@@ -54,21 +54,21 @@ impl Name {
     }
 }
 
-/// A string with its span, e.g. the glob of `at`.
+/// The record-path glob of `at` with its span.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Text {
+pub struct Glob {
     pub(crate) text: String,
     pub(crate) span: Span,
 }
 
-impl Text {
-    /// Returns the string without quotes.
+impl Glob {
+    /// Returns the glob without quotes.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.text
     }
 
-    /// Returns where the string stands in the Query, quotes included.
+    /// Returns where the glob stands in the Query, quotes included.
     #[must_use]
     pub const fn span(&self) -> Span {
         self.span
@@ -155,7 +155,7 @@ impl fmt::Display for Name {
     }
 }
 
-impl fmt::Display for Text {
+impl fmt::Display for Glob {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "\"{}\"", self.text)
     }

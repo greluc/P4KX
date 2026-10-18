@@ -1,25 +1,33 @@
 use rayon::prelude::*;
 
-use crate::query::compile::is_scalar;
+use crate::dataforge::out_of_range;
 use crate::rows::{NO_PARENT, StructDef};
-use crate::schema::CONVERSION_ATTRIBUTE;
-use crate::{DataForge, DataForgeError, DataType, MAX_INHERITANCE_DEPTH};
+use crate::slot::Slot;
+use crate::{DataForge, DataForgeError, DataType, MAX_INHERITANCE_DEPTH, MAX_RECORD_FIELDS};
 
-/// One field of a struct as a Record tree lists it.
-#[derive(Debug, Clone, Copy)]
+/// One field of a struct as a Record tree lists it, with its bytes in an instance.
+#[derive(Clone, Copy)]
 pub(crate) struct FieldDef<'f> {
     pub(crate) name: &'f str,
     pub(crate) position: u32,
-    pub(crate) data_type: Option<DataType>,
-    pub(crate) code: u16,
-    pub(crate) array: bool,
+    pub(crate) slot: Slot,
+    pub(crate) start: u64,
+    pub(crate) end: u64,
 }
 
 impl FieldDef<'_> {
     /// Returns whether the field holds one scalar value.
-    pub(crate) fn is_scalar(&self) -> bool {
-        !self.array && self.data_type.is_some_and(is_scalar)
+    pub(crate) const fn is_scalar(&self) -> bool {
+        !self.slot.is_array() && is_scalar(self.slot.data_type())
     }
+}
+
+/// Returns whether values of `data_type` are scalars a column can hold.
+pub(crate) const fn is_scalar(data_type: DataType) -> bool {
+    !matches!(
+        data_type,
+        DataType::Class | DataType::StrongPointer | DataType::WeakPointer | DataType::Reference
+    )
 }
 
 /// The names and fields of every struct, inherited fields first, read once for compiling.
@@ -130,64 +138,78 @@ pub(crate) fn ancestors_include(forge: &DataForge<'_>, index: usize, targets: &[
     false
 }
 
-/// Returns the fields of the struct at `index` in Record tree order, the root ancestor's first.
+/// Returns the fields of the struct at `index` in Record tree order, the root ancestor's first,
+/// with the layout checks the Record tree makes.
 fn fields_of<'f>(
     forge: &'f DataForge<'f>,
     index: usize,
 ) -> Result<Vec<FieldDef<'f>>, DataForgeError> {
     let struct_index = u32::try_from(index).unwrap_or(u32::MAX);
-    let mut chain: Vec<StructDef> = Vec::new();
-    let mut current = index;
+    let chain = chain_of(forge, index, struct_index)?;
+    let count: usize = chain
+        .iter()
+        .map(|(_, row)| usize::from(row.property_count))
+        .sum();
+    if count > MAX_RECORD_FIELDS {
+        return Err(DataForgeError::TooManyFields {
+            struct_index,
+            count,
+            limit: MAX_RECORD_FIELDS,
+        });
+    }
+    let mut fields = Vec::with_capacity(count);
+    let mut offset = 0_u64;
+    for &(owner, row) in chain.iter().rev() {
+        let first = usize::from(row.first_property);
+        for property in first..first.saturating_add(usize::from(row.property_count)) {
+            let slot = Slot::of(forge, owner, property)?;
+            let end = offset.saturating_add(slot.size(forge)?);
+            fields.push(FieldDef {
+                name: slot.name(forge)?,
+                position: u32::try_from(fields.len()).unwrap_or(u32::MAX),
+                slot,
+                start: offset,
+                end,
+            });
+            offset = end;
+        }
+        if offset != u64::from(row.size) {
+            return Err(DataForgeError::StructLayout {
+                struct_index: owner,
+                declared: row.size,
+                fields: offset,
+            });
+        }
+    }
+    Ok(fields)
+}
+
+/// Returns the struct at `index` and its ancestors with their indices, the struct first.
+fn chain_of(
+    forge: &DataForge<'_>,
+    index: usize,
+    struct_index: u32,
+) -> Result<Vec<(u32, StructDef)>, DataForgeError> {
+    let mut chain = Vec::new();
+    let mut current = struct_index;
     loop {
-        let row = forge
-            .structs
-            .get(current)
-            .ok_or(DataForgeError::IndexOutOfRange {
-                part: "struct",
-                index,
-                target: "struct",
-                target_index: current as u64,
-            })?;
+        let row = usize::try_from(current)
+            .ok()
+            .and_then(|current| forge.structs.get(current))
+            .ok_or_else(|| out_of_range("struct", index, "struct", current.into()))?;
+        if chain.iter().any(|(seen, _)| *seen == current) {
+            return Err(DataForgeError::StructCycle { struct_index });
+        }
         if chain.len() == MAX_INHERITANCE_DEPTH {
             return Err(DataForgeError::InheritanceTooDeep {
                 struct_index,
                 limit: MAX_INHERITANCE_DEPTH,
             });
         }
-        chain.push(row);
+        chain.push((current, row));
         if row.parent == NO_PARENT {
-            break;
+            return Ok(chain);
         }
-        current = usize::try_from(row.parent).unwrap_or(usize::MAX);
-        if current == index {
-            return Err(DataForgeError::StructCycle { struct_index });
-        }
+        current = row.parent;
     }
-    let mut fields = Vec::new();
-    let mut position = 0_u32;
-    for row in chain.iter().rev() {
-        let first = usize::from(row.first_property);
-        for property in first..first + usize::from(row.property_count) {
-            let def = forge
-                .properties
-                .get(property)
-                .ok_or(DataForgeError::IndexOutOfRange {
-                    part: "struct",
-                    index,
-                    target: "property",
-                    target_index: property as u64,
-                })?;
-            fields.push(FieldDef {
-                name: forge.blob.get(def.name)?,
-                position,
-                data_type: DataType::from_code(def.data_type),
-                code: def.data_type,
-                array: def.conversion != CONVERSION_ATTRIBUTE,
-            });
-            position = position.checked_add(1).ok_or(DataForgeError::TooLarge {
-                part: "struct table",
-            })?;
-        }
-    }
-    Ok(fields)
 }

@@ -44,7 +44,8 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
         .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
     let run = compiled.run();
     let mut table = Table::new(compiled.columns());
-    let mut failed = 0_usize;
+    table.widen_first(run.record_paths().map(line_width));
+    let (mut rows, mut failed) = (0_usize, 0_usize);
     let printed = (|| -> io::Result<()> {
         let mut out = io::stdout().lock();
         let mut err = io::stderr().lock();
@@ -52,9 +53,12 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
             let mut lines = Vec::with_capacity(page.len());
             for row in &page {
                 match row_texts(row) {
-                    Ok(cells) => lines.push(cells),
+                    Ok(cells) => {
+                        rows = rows.saturating_add(1);
+                        lines.push(cells);
+                    }
                     Err(reason) => {
-                        failed += 1;
+                        failed = failed.saturating_add(1);
                         writeln!(
                             err,
                             "failed {} ({}): {reason}",
@@ -67,7 +71,6 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
             table.print(&mut out, &lines)?;
         }
         table.print(&mut out, &[])?;
-        let rows = run.len().saturating_sub(failed);
         let noun = if rows == 1 { "Record" } else { "Records" };
         if failed == 0 {
             writeln!(out, "{rows} {noun}")
@@ -119,7 +122,15 @@ fn one_line(text: &str) -> String {
     line
 }
 
-/// A table printed page by page; a column widens when a later page needs more room.
+/// Returns the number of characters [`one_line`] makes of `text`.
+fn line_width(text: &str) -> usize {
+    text.chars()
+        .map(|c| usize::from(matches!(c, '\n' | '\r' | '\t')) + 1)
+        .sum()
+}
+
+/// A table printed page by page: the record-path column fits every row, and a value column widens
+/// when a later page needs more room.
 struct Table {
     header: Option<Vec<String>>,
     widths: Vec<usize>,
@@ -132,6 +143,13 @@ impl Table {
         Self {
             widths: header.iter().map(|text| text.chars().count()).collect(),
             header: Some(header),
+        }
+    }
+
+    /// Widens the first column to the largest of `widths`.
+    fn widen_first(&mut self, widths: impl Iterator<Item = usize>) {
+        if let Some(width) = self.widths.first_mut() {
+            *width = widths.fold(*width, usize::max);
         }
     }
 

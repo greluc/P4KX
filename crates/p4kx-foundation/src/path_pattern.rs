@@ -1,4 +1,4 @@
-/// The matching rule of a Filter over paths in an Archive or DataForge.
+/// Matches Entry paths or record paths with the rules of a Filter.
 ///
 /// Text with a `*` or `?` is a glob over the full path: `*` matches any run of characters,
 /// separators included, and `?` exactly one character. Any other text matches when it occurs
@@ -71,7 +71,7 @@ fn glob_matches(pattern: &str, path: &str) -> bool {
         match wanted {
             Some('*') => {
                 resume = Some((token, position));
-                token += 1;
+                token = token.saturating_add(1);
             }
             Some('?') => {
                 token += 1;

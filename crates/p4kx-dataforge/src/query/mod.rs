@@ -19,7 +19,7 @@ pub use error::{Expected, Found, Marked, QueryError, QueryErrorKind};
 pub use lexer::Keyword;
 pub use run::{Pages, QueryRun, Row};
 pub use span::Span;
-pub use syntax::{Name, Path, Query, Segment, Text};
+pub use syntax::{Glob, Name, Path, Query, Segment};
 
 /// The longest Query text in bytes.
 pub const MAX_QUERY_LEN: usize = 65_536;

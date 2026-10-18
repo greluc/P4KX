@@ -1,5 +1,5 @@
 use crate::query::lexer::{Keyword, Lexer, Token};
-use crate::query::syntax::{Name, Path, Query, Segment, Text};
+use crate::query::syntax::{Glob, Name, Path, Query, Segment};
 use crate::query::{Expected, Found, MAX_QUERY_LEN, QueryError, QueryErrorKind, Span};
 
 impl Query {
@@ -15,7 +15,7 @@ impl Query {
         if text.len() > MAX_QUERY_LEN {
             return Err(QueryError::new(
                 QueryErrorKind::TooLong { len: text.len() },
-                Span::new(MAX_QUERY_LEN, text.len()),
+                Span::new(floor_char_boundary(text, MAX_QUERY_LEN), text.len()),
             ));
         }
         Parser::new(text)?.query()
@@ -124,16 +124,16 @@ impl<'q> Parser<'q> {
 
     fn type_name(&mut self) -> Result<Name, QueryError> {
         match self.token {
-            Token::Name(_) => self.name(),
+            Token::Name(_) => self.name(Expected::TypeName),
             _ => Err(self.expected(Expected::TypeName)),
         }
     }
 
-    fn glob(&mut self) -> Result<Text, QueryError> {
+    fn glob(&mut self) -> Result<Glob, QueryError> {
         match self.token {
             Token::Text(text) => {
                 let (_, span) = self.advance()?;
-                Ok(Text {
+                Ok(Glob {
                     text: text.to_owned(),
                     span,
                 })
@@ -160,12 +160,12 @@ impl<'q> Parser<'q> {
 
     fn field(&mut self) -> Result<Name, QueryError> {
         match self.token {
-            Token::Name(_) => self.name(),
+            Token::Name(_) => self.name(Expected::FieldName),
             _ => Err(self.expected(Expected::FieldName)),
         }
     }
 
-    fn name(&mut self) -> Result<Name, QueryError> {
+    fn name(&mut self, expected: Expected) -> Result<Name, QueryError> {
         let (token, span) = self.advance()?;
         match token {
             Token::Name(text) => Ok(Name {
@@ -174,7 +174,7 @@ impl<'q> Parser<'q> {
             }),
             _ => Err(QueryError::new(
                 QueryErrorKind::Expected {
-                    expected: Expected::FieldName,
+                    expected,
                     found: found(&token),
                 },
                 span,
@@ -202,4 +202,12 @@ fn found(token: &Token<'_>) -> Found {
         Token::Dot => Found::Dot,
         Token::End => Found::End,
     }
+}
+
+/// Returns the largest char boundary of `text` at or before `offset`.
+pub(crate) fn floor_char_boundary(text: &str, offset: usize) -> usize {
+    (0..=offset.min(text.len()))
+        .rev()
+        .find(|offset| text.is_char_boundary(*offset))
+        .unwrap_or(0)
 }

@@ -1,5 +1,6 @@
 //! Shared building blocks of the P4K-Extractor format crates: a bounds-checked little-endian
-//! reader over byte slices, the parse error it reports, the matching rule of a Filter, and the public `CryEngine` Archive key and IV.
+//! reader over byte slices, the parse error it reports, path matching with the rules of a Filter,
+//! and the public `CryEngine` Archive key and IV.
 
 mod archive_key;
 mod byte_reader;

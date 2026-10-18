@@ -3,6 +3,7 @@ use std::fmt;
 use thiserror::Error;
 
 use crate::query::lexer::Keyword;
+use crate::query::parser::floor_char_boundary;
 use crate::query::{MAX_QUERY_LEN, Span};
 use crate::{DataForgeError, DataType};
 
@@ -247,20 +248,20 @@ pub struct Marked<'e> {
 impl fmt::Display for Marked<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let span = self.error.span;
-        let start = floor_boundary(self.query, span.start());
+        let start = floor_char_boundary(self.query, span.start());
         let line_start = self
             .query
             .get(..start)
             .and_then(|head| head.rfind('\n'))
-            .map_or(0, |newline| newline + 1);
+            .map_or(0, |newline| newline.saturating_add(1));
         let line_end = self
             .query
             .get(start..)
             .and_then(|tail| tail.find('\n'))
-            .map_or(self.query.len(), |newline| start + newline);
+            .map_or(self.query.len(), |newline| start.saturating_add(newline));
         let line = self.query.get(line_start..line_end).unwrap_or_default();
         let before = self.query.get(line_start..start).unwrap_or_default();
-        let end = floor_boundary(self.query, span.end().clamp(start, line_end));
+        let end = floor_char_boundary(self.query, span.end().clamp(start, line_end));
         let width = self
             .query
             .get(start..end)
@@ -287,12 +288,4 @@ impl fmt::Display for Marked<'_> {
         }
         Ok(())
     }
-}
-
-fn floor_boundary(text: &str, offset: usize) -> usize {
-    let mut offset = offset.min(text.len());
-    while !text.is_char_boundary(offset) {
-        offset -= 1;
-    }
-    offset
 }

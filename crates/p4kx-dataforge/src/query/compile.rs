@@ -4,24 +4,34 @@ use crate::query::schema::{FieldDef, StructFields, ancestors_include};
 use crate::query::suggest::closest;
 use crate::query::syntax::{Name, Path, Query, Segment};
 use crate::query::{QueryError, QueryErrorKind};
-use crate::{DataForge, DataType};
+use crate::slot::Slot;
+use crate::{DataForge, DataForgeError};
 
 /// A Query checked against one DataForge and ready to run.
 #[derive(Debug)]
 pub struct CompiledQuery<'f> {
     pub(crate) forge: &'f DataForge<'f>,
     pub(crate) columns: Vec<String>,
-    pub(crate) heads: Box<[String]>,
     pub(crate) pattern: Option<PathPattern>,
     pub(crate) plans: Box<[Option<Plan>]>,
 }
 
 /// How the columns are read from the Records of one selected struct.
 #[derive(Debug, Clone)]
-pub(crate) struct Plan {
-    /// Per column, the position of the field in the Record tree, or `None` when the struct has
-    /// no such scalar field.
-    pub(crate) fields: Box<[Option<u32>]>,
+pub(crate) enum Plan {
+    /// Per column, the field's slot and bytes in an instance, or `None` when the struct has no
+    /// such scalar field.
+    Read(Box<[Option<Column>]>),
+    /// The struct's layout cannot be read, so neither can its Records' values.
+    Broken(DataForgeError),
+}
+
+/// Where one column's value lies in an instance of a struct.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Column {
+    pub(crate) slot: Slot,
+    pub(crate) start: u64,
+    pub(crate) end: u64,
 }
 
 impl<'f> CompiledQuery<'f> {
@@ -45,59 +55,69 @@ impl Query {
     /// # Errors
     ///
     /// Returns a [`QueryError`] with the span of an unknown type or field name, of a field that
-    /// holds no single scalar value, or of a path that continues behind a scalar field.
+    /// holds no single scalar value, of a path that continues behind a scalar field, or of a
+    /// `from` type whose layout cannot be read.
     pub fn compile<'f>(&self, forge: &'f DataForge<'f>) -> Result<CompiledQuery<'f>, QueryError> {
         let structs = StructFields::read_all(forge);
         let selected = match &self.from {
             Some(name) => select_type(&structs, name)?,
             None => vec![true; structs.len()],
         };
-        let nominal = self.from.as_ref().and_then(|name| {
-            let index = structs.position_of(name.as_str())?;
-            Some(structs.fields(index).map(|_| index).map_err(|error| {
-                QueryError::new(QueryErrorKind::DataForge(error.clone()), name.span())
-            }))
-        });
-        let nominal = nominal.transpose()?;
-        let mut plans: Vec<Option<Vec<Option<u32>>>> = selected
+        let nominal = self
+            .from
+            .as_ref()
+            .and_then(|name| {
+                let index = structs.position_of(name.as_str())?;
+                Some(structs.fields(index).map(|_| index).map_err(|error| {
+                    QueryError::new(QueryErrorKind::DataForge(error.clone()), name.span())
+                }))
+            })
+            .transpose()?;
+        let resolved = self
+            .select
             .iter()
-            .map(|selected| selected.then(Vec::new))
+            .map(|path| resolve(&structs, nominal, path, self.from.as_ref()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let plans = selected
+            .iter()
+            .enumerate()
+            .map(|(index, selected)| {
+                selected.then(|| plan(&structs, index, nominal.is_some(), &resolved))
+            })
             .collect();
-        for path in &self.select {
-            let representative = resolve(&structs, nominal, path, self.from.as_ref())?;
-            let head = path.head.as_str();
-            for (index, plan) in plans.iter_mut().enumerate() {
-                if let Some(plan) = plan {
-                    let found = structs
-                        .field(index, head)
-                        .filter(FieldDef::is_scalar)
-                        .filter(|found| {
-                            nominal.is_none() || found.position == representative.position
-                        })
-                        .map(|found| found.position);
-                    plan.push(found);
-                }
-            }
-        }
         Ok(CompiledQuery {
             forge,
             columns: self.select.iter().map(ToString::to_string).collect(),
-            heads: self
-                .select
-                .iter()
-                .map(|path| path.head.text.clone())
-                .collect(),
             pattern: self.at.as_ref().map(|at| PathPattern::new(at.as_str())),
-            plans: plans
-                .into_iter()
-                .map(|plan| {
-                    plan.map(|fields| Plan {
-                        fields: fields.into(),
-                    })
-                })
-                .collect(),
+            plans,
         })
     }
+}
+
+/// Returns how the Records of the struct at `index` give the columns of the `resolved` fields;
+/// with `from`, a field has to stand where it stands in the `from` type.
+fn plan(structs: &StructFields<'_>, index: usize, from: bool, resolved: &[FieldDef<'_>]) -> Plan {
+    let fields = match structs.fields(index) {
+        Ok(fields) => fields,
+        Err(error) => return Plan::Broken(error.clone()),
+    };
+    Plan::Read(
+        resolved
+            .iter()
+            .map(|wanted| {
+                fields
+                    .iter()
+                    .find(|field| field.name == wanted.name)
+                    .filter(|field| field.is_scalar())
+                    .filter(|field| !from || field.position == wanted.position)
+                    .map(|field| Column {
+                        slot: field.slot,
+                        start: field.start,
+                        end: field.end,
+                    })
+            })
+            .collect(),
+    )
 }
 
 /// Returns the field the path starts with, from the `from` struct at `nominal` or, without
@@ -128,9 +148,10 @@ fn resolve<'f>(
             head.span(),
         ));
     };
-    check_kind(path, &found, owner.as_deref())?;
+    check_kind(path, &found, owner)?;
     Ok(found)
 }
+
 /// Returns, per struct, whether it is the named struct or derives from it.
 fn select_type(structs: &StructFields<'_>, name: &Name) -> Result<Vec<bool>, QueryError> {
     let targets: Vec<usize> = structs.positions_of(name.as_str()).collect();
@@ -149,44 +170,30 @@ fn select_type(structs: &StructFields<'_>, name: &Name) -> Result<Vec<bool>, Que
 }
 
 /// Checks that the path ends at its first field and that the field holds one scalar value.
-fn check_kind(path: &Path, field: &FieldDef<'_>, owner: Option<&str>) -> Result<(), QueryError> {
+fn check_kind(path: &Path, field: &FieldDef<'_>, owner: Option<String>) -> Result<(), QueryError> {
     let name = &path.head;
-    let next = path.tail.first();
-    let Some(data_type) = field.data_type else {
-        return Err(QueryError::new(
-            QueryErrorKind::DataForge(crate::DataForgeError::UnknownDataType { code: field.code }),
-            name.span(),
-        ));
-    };
-    if field.array || !is_scalar(data_type) {
+    let data_type = field.slot.data_type();
+    if !field.is_scalar() {
         return Err(QueryError::new(
             QueryErrorKind::UnsupportedField {
                 name: name.as_str().to_owned(),
-                owner: owner.map(str::to_owned),
+                owner,
                 data_type,
-                array: field.array,
+                array: field.slot.is_array(),
             },
             name.span(),
         ));
     }
-    if let Some(Segment::Field(next)) = next {
-        return Err(QueryError::new(
+    match path.tail.first() {
+        Some(Segment::Field(next)) => Err(QueryError::new(
             QueryErrorKind::ScalarHasNoFields {
                 name: name.as_str().to_owned(),
-                owner: owner.map(str::to_owned),
+                owner,
                 data_type,
                 next: next.as_str().to_owned(),
             },
             next.span(),
-        ));
+        )),
+        None => Ok(()),
     }
-    Ok(())
-}
-
-/// Returns whether values of `data_type` are scalars a column can hold.
-pub(crate) const fn is_scalar(data_type: DataType) -> bool {
-    !matches!(
-        data_type,
-        DataType::Class | DataType::StrongPointer | DataType::WeakPointer | DataType::Reference
-    )
 }

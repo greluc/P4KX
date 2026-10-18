@@ -40,13 +40,17 @@ fn distance(left: &[char], right: &str, bound: usize, row: &mut Vec<usize>) -> O
         *first = previous;
         let mut smallest = previous;
         for (i, &left_char) in left.iter().enumerate() {
-            let above = *row.get(i + 1)?;
+            let cell = i.checked_add(1)?;
+            let above = *row.get(cell)?;
             let cost = usize::from(left_char != right_char);
-            let current = (diagonal + cost).min(above + 1).min(previous + 1);
+            let current = diagonal
+                .saturating_add(cost)
+                .min(above.saturating_add(1))
+                .min(previous.saturating_add(1));
             diagonal = above;
             previous = current;
             smallest = smallest.min(current);
-            *row.get_mut(i + 1)? = current;
+            *row.get_mut(cell)? = current;
         }
         if smallest > bound {
             return None;

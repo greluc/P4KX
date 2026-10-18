@@ -3,8 +3,10 @@ use std::slice::Chunks;
 
 use rayon::prelude::*;
 
+use crate::build::instance;
+use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
-use crate::query::compile::Plan;
+use crate::query::compile::{Column, Plan};
 use crate::{DataForgeError, Record, Value};
 
 /// The Records a compiled Query selects, ordered by record path and then by definition order;
@@ -62,6 +64,14 @@ impl<'f> QueryRun<'_, 'f> {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.records.is_empty()
+    }
+
+    /// Returns the record paths of the selected Records in row order.
+    pub fn record_paths(&self) -> impl Iterator<Item = &'f str> + '_ {
+        let forge = self.query.forge;
+        self.records
+            .iter()
+            .filter_map(move |&record| forge.path_of(record))
     }
 
     /// Returns the rows in pages of at most `page_size`; each page is built in parallel when it
@@ -126,7 +136,8 @@ impl<'f> Row<'f> {
     ///
     /// # Errors
     ///
-    /// Returns the [`DataForgeError`] of [`Record::tree`] when the Record cannot be read.
+    /// Returns the [`DataForgeError`] [`Record::tree`] would return when the Record's layout or
+    /// instance cannot be read.
     pub fn cells(&self) -> Result<&[Option<Value<'f>>], &DataForgeError> {
         self.cells.as_deref()
     }
@@ -136,27 +147,43 @@ impl<'f> CompiledQuery<'f> {
     fn row(&self, index: u32) -> Option<Row<'f>> {
         let record = self.forge.record(index)?;
         let record_path = self.forge.path_of(index)?;
-        let plan = self.plan_of(index)?;
-        let cells = if plan.fields.is_empty() {
-            Ok(Vec::new())
-        } else {
-            record.tree().map(|tree| {
-                plan.fields
-                    .iter()
-                    .zip(&self.heads)
-                    .map(|(position, head)| {
-                        tree.fields()
-                            .get(usize::try_from((*position)?).ok()?)
-                            .filter(|found| found.name() == head)
-                            .map(|found| found.value().clone())
-                    })
-                    .collect()
-            })
+        let cells = match self.plan_of(index)? {
+            _ if self.columns.is_empty() => Ok(Vec::new()),
+            Plan::Broken(error) => Err(error.clone()),
+            Plan::Read(columns) => self.read(index, columns),
         };
         Some(Row {
             record,
             record_path,
             cells,
         })
+    }
+
+    /// Reads the column values straight from the Record's instance, as the Record tree would.
+    fn read(
+        &self,
+        index: u32,
+        columns: &[Option<Column>],
+    ) -> Result<Vec<Option<Value<'f>>>, DataForgeError> {
+        let forge = self.forge;
+        let def = forge
+            .record_def(index)
+            .ok_or_else(|| out_of_range("Record", index as usize, "Record", index.into()))?;
+        let structure = usize::try_from(def.struct_index)
+            .ok()
+            .and_then(|struct_index| forge.structs.get(struct_index))
+            .ok_or_else(|| {
+                out_of_range("Record", index as usize, "struct", def.struct_index.into())
+            })?;
+        let bytes = instance(forge, index, def, structure)?;
+        Ok(columns
+            .iter()
+            .map(|column| {
+                let column = column.as_ref()?;
+                let start = usize::try_from(column.start).ok()?;
+                let end = usize::try_from(column.end).ok()?;
+                Some(column.slot.read(forge, bytes.get(start..end)?))
+            })
+            .collect())
     }
 }

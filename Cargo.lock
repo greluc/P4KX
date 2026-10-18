@@ -3248,6 +3248,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "p4kx-foundation",
  "p4kx-testkit",
@@ -3263,6 +3264,7 @@ name = "p4kx-assembly"
 version = "0.1.0"
 dependencies = [
  "p4kx-archive",
+ "p4kx-character",
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",
@@ -3292,6 +3294,20 @@ dependencies = [
  "p4kx-testkit",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "p4kx-character"
+version = "0.1.0"
+dependencies = [
+ "crc32c",
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "proptest",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3367,6 +3383,7 @@ name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "crc32c",
+ "crc32fast",
  "exr",
  "lewton",
  "p4kx-archive",
@@ -3456,6 +3473,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "p4kx-foundation",
  "ruzstd",

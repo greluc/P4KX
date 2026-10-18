@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Write};
 
+use p4kx_archive::Checksum;
 use p4kx_texture::merge;
 
 use crate::ConflictPolicy;
@@ -32,7 +33,13 @@ impl EntryWriter<'_> {
         let decided = self
             .merge_to(file, source, (capture, counted), buffers)
             .map_err(|error| write_error_at(error, destination))
-            .and_then(|expected| self.decide(destination, || expected, &mut buffers.chunk));
+            .and_then(|(len, crc)| {
+                self.decide(
+                    destination,
+                    || (len, Checksum::Crc32c(crc)),
+                    &mut buffers.chunk,
+                )
+            });
         let step = match decided {
             Ok(None) => step_of(&self.put_in_place(
                 &temporary,

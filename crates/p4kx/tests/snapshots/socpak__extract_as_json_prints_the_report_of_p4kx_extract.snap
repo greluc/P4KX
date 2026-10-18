@@ -1,0 +1,17 @@
+---
+source: crates/p4kx/tests/socpak.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive_changed": false,
+  "cancelled": [],
+  "extracted": 3,
+  "failed": [
+    {
+      "error": "the path would leave the target folder",
+      "path": "..\\escaped.txt"
+    }
+  ],
+  "skipped": [],
+  "target": "[DIR]/out"
+}

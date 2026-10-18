@@ -72,7 +72,12 @@ fn reads_entries_of_every_compression_and_encryption_state() -> TestResult {
                 "{} yields its uncompressed size",
                 entry.path()
             );
-            assert_eq!(crc, entry.crc32c(), "{} matches its CRC-32C", entry.path());
+            assert_eq!(
+                Some(crc),
+                entry.crc32c(),
+                "{} matches its CRC-32C",
+                entry.path()
+            );
         }
     }
 

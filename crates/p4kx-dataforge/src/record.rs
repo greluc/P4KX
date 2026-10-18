@@ -171,7 +171,10 @@ impl<'a> DataForge<'a> {
         found.into_iter().filter_map(|record| self.record(record))
     }
 
-    pub(crate) fn record(&self, index: u32) -> Option<Record<'_>> {
+    /// Returns the Record at `index` in definition order, the one [`Record::index`] gives, or
+    /// `None` past the last Record.
+    #[must_use]
+    pub fn record(&self, index: u32) -> Option<Record<'_>> {
         let def = self.record_def(index)?;
         Some(Record {
             forge: self,

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::{Archive, Entry};
+use p4kx_archive::{Archive, Checksum, Entry};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
@@ -123,7 +123,7 @@ impl EntryWriter<'_> {
         } else {
             None
         };
-        let expected = || (entry.uncompressed_size(), entry.crc32c());
+        let expected = || (entry.uncompressed_size(), entry.checksum());
         if let Some(outcome) = self.decide(&destination, expected, &mut buffers.chunk)? {
             return Ok(outcome);
         }
@@ -177,12 +177,12 @@ impl EntryWriter<'_> {
     }
 
     /// Decides whether the file of `destination` is written, comparing an existing file under
-    /// [`ConflictPolicy::IfChanged`] with the size and CRC-32C `expected` returns; returns the
+    /// [`ConflictPolicy::IfChanged`] with the size and checksum `expected` returns; returns the
     /// outcome of an Entry that is not written, or `None` to write it.
     pub(crate) fn decide(
         &self,
         destination: &Destination,
-        expected: impl FnOnce() -> (u64, u32),
+        expected: impl FnOnce() -> (u64, Checksum),
         buffer: &mut [u8],
     ) -> Result<Option<Outcome>, ExtractionError> {
         let Some(metadata) = &destination.existing else {
@@ -191,36 +191,39 @@ impl EntryWriter<'_> {
         match self.policy {
             ConflictPolicy::Skip => Ok(Some(Outcome::Kept)),
             ConflictPolicy::IfChanged if metadata.is_file() => {
-                let (len, crc) = expected();
+                let (len, checksum) = expected();
                 if metadata.len() != len {
                     return Ok(None);
                 }
-                Ok(match self.file_crc(&destination.file, buffer)? {
-                    Some(existing) if existing == crc => Some(Outcome::Kept),
-                    Some(_) => None,
-                    None => Some(Outcome::Cancelled),
-                })
+                let Some(hasher) = ChecksumHasher::of_kind(checksum) else {
+                    return Ok(None);
+                };
+                Ok(
+                    match self.file_checksum(&destination.file, hasher, buffer)? {
+                        Some(existing) if existing == checksum => Some(Outcome::Kept),
+                        Some(_) => None,
+                        None => Some(Outcome::Cancelled),
+                    },
+                )
             }
             ConflictPolicy::Overwrite | ConflictPolicy::IfChanged => Ok(None),
         }
     }
 
-    pub(crate) fn file_crc(
+    fn file_checksum(
         &self,
         path: &Path,
+        mut hasher: ChecksumHasher,
         buffer: &mut [u8],
-    ) -> Result<Option<u32>, ExtractionError> {
+    ) -> Result<Option<Checksum>, ExtractionError> {
         let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
-        let mut crc = 0;
         loop {
             match self
                 .read_chunk(&mut file, buffer)
                 .map_err(|source| read_existing_error(path, source))?
             {
-                Chunk::Data(count) => {
-                    crc = crc32c::crc32c_append(crc, buffer.get(..count).unwrap_or_default());
-                }
-                Chunk::End => return Ok(Some(crc)),
+                Chunk::Data(count) => hasher.update(buffer.get(..count).unwrap_or_default()),
+                Chunk::End => return Ok(Some(hasher.finish())),
                 Chunk::Cancelled => return Ok(None),
             }
         }
@@ -318,5 +321,36 @@ pub(crate) fn read_existing_error(path: &Path, source: io::Error) -> ExtractionE
     ExtractionError::ReadExisting {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+/// Computes the checksum of a file in the kind an Entry states.
+enum ChecksumHasher {
+    Crc32c(u32),
+    Crc32(crc32fast::Hasher),
+}
+
+impl ChecksumHasher {
+    /// Returns a hasher for the kind of `checksum`, or `None` for a kind it cannot compute.
+    fn of_kind(checksum: Checksum) -> Option<Self> {
+        match checksum {
+            Checksum::Crc32c(_) => Some(Self::Crc32c(0)),
+            Checksum::Crc32(_) => Some(Self::Crc32(crc32fast::Hasher::new())),
+            _ => None,
+        }
+    }
+
+    fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Crc32c(crc) => *crc = crc32c::crc32c_append(*crc, data),
+            Self::Crc32(hasher) => hasher.update(data),
+        }
+    }
+
+    fn finish(self) -> Checksum {
+        match self {
+            Self::Crc32c(crc) => Checksum::Crc32c(crc),
+            Self::Crc32(hasher) => Checksum::Crc32(hasher.finalize()),
+        }
     }
 }

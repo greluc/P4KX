@@ -7,7 +7,7 @@ files we checked has non-zero bytes behind the zstd frame (left-over buffer cont
 the pure-Rust `ruzstd` encoder we use. The JSON therefore carries, besides the Character, the
 header flags, the original frame as hex and the bytes behind it without trailing zeros. On
 writing, the frame is reused when it still decompresses to the body written from the JSON;
-otherwise the body is compressed anew and the frame is ignored. An unchanged JSON gives the
+otherwise the body is compressed anew, and frame and padding are dropped for zeros. An unchanged JSON gives the
 original file, an edited one a valid new file, and a JSON without `container` writes a fresh one.
 
 ## Considered Options

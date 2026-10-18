@@ -59,14 +59,8 @@ pub(crate) struct InvalidChfJson {
 struct Summary {
     input: String,
     output: String,
-    versions: VersionsJson,
+    versions: Versions,
     size: u64,
-}
-
-#[derive(Serialize)]
-struct VersionsJson {
-    female: u32,
-    male: u32,
 }
 
 /// Runs `p4kx chf to-json` or `p4kx chf from-json`.
@@ -128,10 +122,7 @@ fn report(input: &Path, output: &Path, versions: Versions, size: u64, as_json: b
     let summary = Summary {
         input: json::path(input),
         output: json::path(output),
-        versions: VersionsJson {
-            female: versions.female,
-            male: versions.male,
-        },
+        versions,
         size,
     };
     if as_json {

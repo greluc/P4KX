@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::body_reader::BodyReader;
 use crate::body_writer::Put;
 use crate::material::GROUP_MARKER;
-use crate::{ChfError, Dna, Guid, ItemPort, Material};
+use crate::{CHF_SIZE, ChfError, Dna, Guid, ItemPort, Material};
 
 /// The female versions this crate reads and writes.
 pub const FEMALE_VERSIONS: &[u32] = &[2];
@@ -108,7 +108,7 @@ impl Character {
     /// for values the layout cannot store.
     pub fn write(&self) -> Result<Vec<u8>, ChfError> {
         let versions = self.versions.check()?;
-        let mut out = Vec::with_capacity(4096);
+        let mut out = Vec::with_capacity(CHF_SIZE);
         out.put_u32(versions.female);
         out.put_u32(versions.male);
         out.put_guid(self.body_type);

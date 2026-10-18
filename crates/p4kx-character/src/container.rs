@@ -70,7 +70,8 @@ impl Container {
     }
 }
 
-/// Writes a CHF file, reusing `frame` when it still decompresses to `body`.
+/// Writes a CHF file, reusing `frame` and `padding` when the frame still decompresses to `body`;
+/// a body compressed anew is followed by zeros.
 pub(crate) fn write(
     flags: u16,
     frame: &[u8],
@@ -85,12 +86,12 @@ pub(crate) fn write(
             max: MAX_BODY_LEN,
         })?;
     let fresh;
-    let frame =
+    let (frame, padding) =
         if !frame.is_empty() && decompress(frame, body_len).is_ok_and(|decoded| decoded == body) {
-            frame
+            (frame, padding)
         } else {
             fresh = compress_to_vec(body, CompressionLevel::Fastest);
-            fresh.as_slice()
+            (fresh.as_slice(), &[][..])
         };
     let frame_len = u32::try_from(frame.len())
         .ok()
@@ -106,8 +107,16 @@ pub(crate) fn write(
     out.extend_from_slice(&frame_len.to_le_bytes());
     out.extend_from_slice(&body_len.to_le_bytes());
     out.extend_from_slice(frame);
-    let room = CHF_SIZE - out.len();
-    out.extend_from_slice(padding.get(..room).unwrap_or(padding));
+    if out.len() + padding.len() > CHF_SIZE {
+        return Err(ChfError::Unwritable {
+            reason: format!(
+                "{} padding bytes do not fit behind a {}-byte frame",
+                padding.len(),
+                frame.len()
+            ),
+        });
+    }
+    out.extend_from_slice(padding);
     out.resize(CHF_SIZE, 0);
     let crc = crc32c::crc32c(out.get(HEADER_LEN..).unwrap_or_default());
     if let Some(slot) = out.get_mut(4..8) {

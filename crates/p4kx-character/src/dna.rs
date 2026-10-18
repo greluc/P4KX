@@ -55,6 +55,10 @@ const PART_NAMES: [&str; 13] = [
     "neck",
 ];
 
+fn block_size(part_count: u64, blends_per_part: u16) -> u64 {
+    DNA_HEADER_LEN as u64 + part_count * u64::from(blends_per_part) * BLEND_LEN as u64
+}
+
 /// The name of the face part at `index` in stored order.
 #[must_use]
 pub fn face_part_name(index: usize) -> std::borrow::Cow<'static, str> {
@@ -82,13 +86,12 @@ impl Dna {
         let blends_per_part = dna.u16()?;
         let header_unknown = dna.u16()?;
         let max_head_id = dna.u16()?;
-        let blend_count = part_count * usize::from(blends_per_part);
-        let expected = DNA_HEADER_LEN + blend_count * BLEND_LEN;
-        if len != expected {
+        let expected = block_size(part_count as u64, blends_per_part);
+        if size != expected {
             return Err(unexpected(
                 size_offset,
                 "DNA size",
-                expected as u128,
+                expected.into(),
                 size.into(),
             ));
         }
@@ -138,8 +141,7 @@ impl Dna {
                 ),
             });
         }
-        let size = DNA_HEADER_LEN + usize::from(part_count) * per_part * BLEND_LEN;
-        out.put_u64(size as u64);
+        out.put_u64(block_size(part_count.into(), self.blends_per_part));
         out.put_u32(DNA_MAGIC);
         out.put_u32(self.gender_hash);
         out.put_u32(self.variant_hash);

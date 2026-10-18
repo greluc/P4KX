@@ -77,6 +77,11 @@ impl<'a> BodyReader<'a> {
         }
     }
 
+    /// Checks that at least `len` bytes are left.
+    pub(crate) fn ensure_remaining(&self, len: usize) -> Result<(), ChfError> {
+        self.count(1, len).map(|_| ())
+    }
+
     /// Checks that `count` items of at least `item_len` bytes each can still follow, so a count
     /// from the body never sizes an allocation larger than the body itself.
     pub(crate) fn count(&self, count: u64, item_len: usize) -> Result<usize, ChfError> {

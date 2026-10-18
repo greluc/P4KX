@@ -161,6 +161,15 @@ _Avoid_: sound package, audio archive
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
 
+**CHF**:
+A 4096-byte character file holding a Character's body type, face DNA, worn item ports and
+material choices, saved by the character customiser or shipped in the Archive.
+_Avoid_: character preset, head file
+
+**DNA**:
+The face of a Character in a CHF: for every face part, weighted blends of stock heads.
+_Avoid_: face data, morph values
+
 **Cubemap face**:
 One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as
 `posx` … `negz`.

@@ -10,6 +10,7 @@ pub(crate) const GROUP_MARKER: u32 = 5;
 const MATERIAL_LEN: usize = 48;
 const TEXTURE_LEN: usize = 21;
 const PARAM_LEN: usize = 12;
+const SUB_MATERIAL_LEN: usize = 24;
 
 /// The material choices a Character makes for one attachment.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,14 +87,14 @@ impl Material {
     ) -> Result<Vec<Self>, ChfError> {
         let mut materials = Vec::new();
         while reader.remaining() > trailer_len {
-            reader.count(1, MATERIAL_LEN + trailer_len)?;
+            reader.ensure_remaining(MATERIAL_LEN + trailer_len)?;
             let attachment = reader.u32()?;
             let base_material = reader.guid()?;
             let flags = reader.u32()?;
             reader.expect_empty_guid("material reserved GUID")?;
             let sub_count = reader.u32()?;
             reader.expect_u32("sub-material group marker", GROUP_MARKER)?;
-            let sub_count = reader.count(sub_count.into(), 4 + 4 + 8 + 8)?;
+            let sub_count = reader.count(sub_count.into(), SUB_MATERIAL_LEN)?;
             let mut sub_materials = Vec::with_capacity(sub_count);
             for index in 0..sub_count {
                 sub_materials.push(SubMaterial::read(reader)?);
@@ -102,7 +103,7 @@ impl Material {
                     reader.expect_u32("sub-material group marker", GROUP_MARKER)?;
                 } else if reader.remaining() > trailer_len {
                     reader.expect_u32("sub-material group marker", GROUP_MARKER)?;
-                    reader.count(1, MATERIAL_LEN + trailer_len)?;
+                    reader.ensure_remaining(MATERIAL_LEN + trailer_len)?;
                 }
             }
             materials.push(Self {

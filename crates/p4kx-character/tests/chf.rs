@@ -114,6 +114,10 @@ fn a_changed_character_is_compressed_anew_with_a_correct_crc() -> TestResult {
     );
     let reread = Chf::read(&written)?;
     assert_eq!(reread.character, chf.character, "the change is read back");
+    assert!(
+        reread.container.padding.is_empty(),
+        "the old padding is dropped"
+    );
     Ok(())
 }
 
@@ -252,6 +256,17 @@ fn a_body_with_bytes_behind_the_trailer_is_rejected() {
         matches!(error, Err(ChfError::UnexpectedValue { found: 0, offset, .. }) if offset == trailer as u64),
         "{error:?}"
     );
+}
+
+#[test]
+fn a_group_marker_behind_the_last_material_is_rejected() {
+    let test = TestChf::v7();
+    let mut body = test.body();
+    body.extend_from_slice(&5_u32.to_le_bytes());
+
+    let error = Chf::read(&test.with_body(&body));
+
+    assert!(matches!(error, Err(ChfError::Truncated(_))), "{error:?}");
 }
 
 #[test]

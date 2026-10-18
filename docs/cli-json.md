@@ -464,7 +464,7 @@ the converted JSON would otherwise share stdout with the summary; without it the
 ### The CHF JSON
 
 `to-json` writes, and `from-json` reads, one indented object. `from-json` of an unchanged
-`to-json` output gives back the original file byte for byte (ADR-0013); any other value gives a
+`to-json` output gives back the original file byte for byte (ADR-0014); any other value gives a
 new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
 code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 
@@ -478,7 +478,7 @@ code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 | `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
 | `container.flags` | number | The two header bytes behind the magic |
 | `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
-| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; cut where the file ends |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
 
 Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is

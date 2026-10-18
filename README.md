@@ -54,6 +54,12 @@ Early development (milestone M1). Available today:
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes.
+- `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
+  Records and prints a table: the record path first, then one column per path of `select`, one
+  row per Record in record-path order, e.g.
+  `p4kx dcb query Data.p4k 'from EntityClassDefinition at "*/spaceships/*"'`. `from <type>`
+  selects a type and every type deriving from it, `at "<glob>"` selects by record path with the
+  rules of `search`. An invalid Query exits with code 2 and marks its position.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

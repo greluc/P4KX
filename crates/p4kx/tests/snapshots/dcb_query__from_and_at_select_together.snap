@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"from Item at \\\"*/ships/*\\\" select mass, size\")?"
+---
+record path                         mass     size
+----------------------------------  -------  -----
+libs/foundry/records/ships/avenger  25000.5  Large
+1 Record

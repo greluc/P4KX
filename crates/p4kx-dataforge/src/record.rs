@@ -177,13 +177,19 @@ impl<'a> DataForge<'a> {
         })
     }
 
-    fn record_def(&self, index: u32) -> Option<RecordDef> {
+    pub(crate) fn record_def(&self, index: u32) -> Option<RecordDef> {
         self.records.get(usize::try_from(index).ok()?)
     }
 
-    fn path_of(&self, index: u32) -> Option<&'a str> {
+    pub(crate) fn path_of(&self, index: u32) -> Option<&'a str> {
         let def = self.record_def(index)?;
         self.text.get(def.file_name).ok().map(strip_xml)
+    }
+
+    /// Returns the indices of the Records with a readable record path, ordered by record path
+    /// and then by definition order.
+    pub(crate) fn path_order(&self) -> &[u32] {
+        self.path_index.get_or_init(|| self.build_path_index())
     }
 
     fn build_guid_index(&self) -> Box<[u32]> {

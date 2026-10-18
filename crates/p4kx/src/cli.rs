@@ -22,11 +22,24 @@ pub(crate) enum Command {
     /// Extracts the given Entries of an Archive into a new target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(ExtractArgs),
+    /// Prints the Channel and Build of an Archive and a summary of its Entries.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Info(InfoArgs),
+    /// Lists the installed Channels, or adds or removes a manually added folder or Archive.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Channels(ChannelsArgs),
 }
 
 /// Arguments of `p4kx list`.
 #[derive(Debug, Args)]
 pub(crate) struct ListArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+}
+
+/// Arguments of `p4kx info`.
+#[derive(Debug, Args)]
+pub(crate) struct InfoArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
 }
@@ -40,7 +53,45 @@ pub(crate) struct ExtractArgs {
     #[arg(required = true)]
     pub(crate) entries: Vec<String>,
     /// Target folder; created if missing, existing files in it are kept. Defaults to a new folder
-    /// SC-EXPORT-<Channel>-<Build>-<timestamp> in the current directory.
+    /// SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]
     pub(crate) out: Option<PathBuf>,
+}
+
+/// Arguments of `p4kx channels`.
+#[derive(Debug, Args)]
+pub(crate) struct ChannelsArgs {
+    /// Adds or removes a manual entry; without one, the Channels are listed.
+    #[command(subcommand)]
+    pub(crate) action: Option<ChannelsAction>,
+    /// Folder of settings.toml; defaults to the platform config directory, %APPDATA%\P4K-Extractor
+    /// on Windows.
+    #[arg(long, global = true, env = "P4KX_CONFIG_DIR", value_name = "FOLDER")]
+    pub(crate) config_dir: Option<PathBuf>,
+    /// The RSI Launcher's application-data folder; defaults to %APPDATA%\rsilauncher.
+    #[arg(long, global = true, env = "P4KX_LAUNCHER_DIR", value_name = "FOLDER")]
+    pub(crate) launcher_dir: Option<PathBuf>,
+    /// The default library folder; defaults to C:\Program Files\Roberts Space Industries\StarCitizen.
+    #[arg(
+        long,
+        global = true,
+        env = "P4KX_DEFAULT_LIBRARY",
+        value_name = "FOLDER"
+    )]
+    pub(crate) default_library: Option<PathBuf>,
+}
+
+/// The actions of `p4kx channels`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum ChannelsAction {
+    /// Adds a Channel folder, a library folder or an Archive to the settings.
+    Add {
+        /// Path of the folder or Archive.
+        path: PathBuf,
+    },
+    /// Removes a manually added folder or Archive from the settings.
+    Remove {
+        /// Path of the folder or Archive.
+        path: PathBuf,
+    },
 }

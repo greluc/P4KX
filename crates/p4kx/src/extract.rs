@@ -7,7 +7,10 @@ use std::sync::atomic::AtomicBool;
 use std::time::SystemTime;
 
 use anyhow::{Context, Result};
-use p4kx_extraction::{Archive, ExtractionReport, create_default_target, extract, select_entries};
+use p4kx_channels::channel_name;
+use p4kx_extraction::{
+    Archive, Build, ExtractionReport, create_default_target, extract, select_entries,
+};
 
 use crate::cli::ExtractArgs;
 use crate::exit;
@@ -17,7 +20,7 @@ use crate::exit;
 pub(crate) fn run(args: &ExtractArgs) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
     let entries = select_entries(&archive, &args.entries)?;
-    let target = prepare_target(args)?;
+    let target = prepare_target(args, &archive)?;
     let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
     if let Err(error) = print_report(&report, &target)
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -31,14 +34,16 @@ pub(crate) fn run(args: &ExtractArgs) -> Result<ExitCode> {
     }))
 }
 
-fn prepare_target(args: &ExtractArgs) -> Result<PathBuf> {
+fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
     if let Some(out) = &args.out {
         fs::create_dir_all(out)
             .with_context(|| format!("cannot create the target folder {}", out.display()))?;
         return Ok(out.clone());
     }
     let parent = std::env::current_dir().context("cannot read the current directory")?;
-    create_default_target(&parent, None, None, SystemTime::now())
+    let channel = channel_name(archive.path());
+    let version = archive.build().map(Build::version);
+    create_default_target(&parent, channel.as_deref(), version, SystemTime::now())
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 

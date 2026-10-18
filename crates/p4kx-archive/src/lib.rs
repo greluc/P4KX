@@ -4,6 +4,7 @@
 //! and AES-128-CBC encrypted; their data is streamed through decryption and decompression.
 
 mod archive;
+mod build;
 mod central_directory;
 mod compression;
 mod data_error;
@@ -19,6 +20,7 @@ mod layout;
 mod source;
 
 pub use archive::Archive;
+pub use build::{Build, BuildError};
 pub use compression::Compression;
 pub use data_error::DataError;
 pub use entry::Entry;

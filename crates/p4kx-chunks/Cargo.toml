@@ -17,6 +17,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true

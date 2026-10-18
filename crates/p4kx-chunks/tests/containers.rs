@@ -1,6 +1,8 @@
 //! Opening `#ivo` and `CrCh` chunk files and reading their chunk tables and data.
 
-use p4kx_chunks::{ByteOrder, Chunk, ChunkError, ChunkFile, ChunkType, Container, KnownChunkType};
+use p4kx_chunks::{
+    ByteOrder, Chunk, ChunkError, ChunkFile, ChunkType, Container, KnownChunkType, crch, ivo,
+};
 use p4kx_testkit::TestChunkFile;
 
 const IVO_MESH: u32 = 0x9293_B9D8;
@@ -217,4 +219,96 @@ fn an_ivo_chunk_before_a_trailing_chunk_table_ends_at_the_table() -> Result<(), 
         "data without the table"
     );
     Ok(())
+}
+
+fn swap_ivo_entries(bytes: &mut [u8], first: usize, second: usize) {
+    let entry = |index: usize| 16 + index * 16;
+    let (low, high) = (entry(first.min(second)), entry(first.max(second)));
+    if let Some((head, tail)) = bytes.split_at_mut_checked(high)
+        && let (Some(a), Some(b)) = (head.get_mut(low..low + 16), tail.get_mut(..16))
+    {
+        a.swap_with_slice(b);
+    }
+}
+
+fn set_ivo_offset(bytes: &mut [u8], index: usize, offset: u64) {
+    let at = 16 + index * 16 + 8;
+    if let Some(slot) = bytes.get_mut(at..at + 8) {
+        slot.copy_from_slice(&offset.to_le_bytes());
+    }
+}
+
+#[test]
+fn an_unsorted_ivo_table_keeps_file_order_and_sizes_by_offset() -> Result<(), ChunkError> {
+    let mut bytes = TestChunkFile::ivo()
+        .chunk(IVO_MTL_NAME, 0x900, *b"material")
+        .chunk(IVO_MESH, 0x900, [4; 24])
+        .bytes();
+    swap_ivo_entries(&mut bytes, 0, 1);
+
+    let file = ChunkFile::parse(bytes.as_slice())?;
+
+    let summary: Vec<_> = file
+        .chunks()
+        .iter()
+        .map(|chunk| (chunk.chunk_type(), chunk.size()))
+        .collect();
+    assert_eq!(
+        summary,
+        [(ivo::MESH, 24), (ivo::MTL_NAME, 8)],
+        "table order kept, sizes from the offsets"
+    );
+    assert_eq!(file.chunk_data(0), Some([4; 24].as_slice()), "mesh data");
+    Ok(())
+}
+
+#[test]
+fn ivo_chunks_that_share_an_offset_share_their_span() -> Result<(), ChunkError> {
+    let fixture = TestChunkFile::ivo()
+        .chunk(IVO_MTL_NAME, 0x900, *b"material")
+        .chunk(IVO_MESH, 0x900, [5; 16])
+        .chunk(0xE018_1074, 0x900, [6; 8]);
+    let mut bytes = fixture.bytes();
+    let first = fixture.offsets().first().copied().unwrap_or_default();
+    set_ivo_offset(&mut bytes, 1, first);
+
+    let file = ChunkFile::parse(bytes.as_slice())?;
+
+    let sizes: Vec<u64> = file.chunks().iter().map(Chunk::size).collect();
+    assert_eq!(sizes, [24, 24, 8], "both reach the next distinct offset");
+    assert_eq!(file.chunk_data(0), file.chunk_data(1), "same bytes");
+    Ok(())
+}
+
+#[test]
+fn chunks_are_found_by_type_and_crch_chunks_by_id() -> Result<(), ChunkError> {
+    let bytes = TestChunkFile::crch()
+        .chunk(CRCH_NODE, 0x824, *b"root")
+        .chunk(CRCH_DATA_STREAM, 0x800, *b"positions")
+        .chunk(CRCH_NODE, 0x824, *b"child")
+        .bytes();
+
+    let file = ChunkFile::parse(bytes)?;
+
+    let nodes: Vec<usize> = file.chunks_of(crch::NODE).map(|(index, _)| index).collect();
+    assert_eq!(nodes, [0, 2], "both nodes in file order");
+    assert_eq!(file.chunks_of(crch::MESH).count(), 0, "no mesh");
+    let found = file
+        .chunk_by_id(2)
+        .map(|(index, chunk)| (index, chunk.chunk_type()));
+    assert_eq!(found, Some((1, crch::DATA_STREAM)), "chunk ID 2");
+    assert_eq!(file.chunk_by_id(9), None, "no chunk ID 9");
+    Ok(())
+}
+
+#[test]
+fn the_named_constants_match_the_table() {
+    assert_eq!(ivo::MESH.name(), Some("Mesh"), "#ivo mesh");
+    assert_eq!(ivo::MESH.id(), IVO_MESH, "#ivo mesh ID");
+    assert_eq!(
+        crch::NODE,
+        ChunkType::new(Container::CrCh, CRCH_NODE),
+        "CrCh node"
+    );
+    assert_eq!(crch::NODE.name(), Some("Node"), "CrCh node name");
 }

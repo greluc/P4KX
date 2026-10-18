@@ -26,7 +26,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// chunk file does not have, has a Filter that matches no Entry or Record, names an output that is
 /// one of its inputs, or has an invalid Query or a Query output that does not fit --json.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive, an Entry's data or the input file cannot be opened or read, or is no valid chunk file.
+/// The Archive, an Entry's data or the input file cannot be opened or read, is no valid chunk file,
+/// or is too large to read into memory.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -54,8 +55,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      another --format and without --out for dcb query, or an Entity that no Record or several
      Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
-     chunk file, corrupt or with unreadable Entry data, also a --diff Entry that cannot be read
-     or holds corrupt CryXml; a missing texture, sound, soundbank or chunk file is 2
+     chunk file, corrupt, a sound, soundbank or chunk file too large to read into memory, or
+     with unreadable Entry data, also a --diff Entry that cannot be read or holds corrupt
+     CryXml; a missing texture, sound, soundbank or chunk file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

@@ -24,7 +24,7 @@ impl<B: AsRef<[u8]>> ChunkFile<B> {
     /// Returns [`ChunkError::UnknownSignature`] or [`ChunkError::UnsupportedVersion`] when the
     /// file is no chunk file this crate reads, and [`ChunkError::Truncated`],
     /// [`ChunkError::TableOutOfBounds`], [`ChunkError::ChunkOutOfBounds`] or
-    /// [`ChunkError::ChunkInHeader`] when it is truncated or corrupt.
+    /// [`ChunkError::ChunkInHeaderOrTable`] when it is truncated or corrupt.
     pub fn parse(bytes: B) -> Result<Self, ChunkError> {
         let data = bytes.as_ref();
         let mut reader = ByteReader::new(data);
@@ -75,6 +75,24 @@ impl<B: AsRef<[u8]>> ChunkFile<B> {
         let end = start.checked_add(usize::try_from(chunk.size).ok()?)?;
         self.bytes.as_ref().get(start..end)
     }
+
+    /// Returns the chunks of `chunk_type` with their index in the table, in file order.
+    pub fn chunks_of(&self, chunk_type: ChunkType) -> impl Iterator<Item = (usize, &Chunk)> {
+        self.chunks
+            .iter()
+            .enumerate()
+            .filter(move |(_, chunk)| chunk.kind == chunk_type)
+    }
+
+    /// Returns the first chunk with the `CrCh` chunk ID `id` and its index in the table; `#ivo`
+    /// chunks have no ID and are never found.
+    #[must_use]
+    pub fn chunk_by_id(&self, id: u32) -> Option<(usize, &Chunk)> {
+        self.chunks
+            .iter()
+            .enumerate()
+            .find(|(_, chunk)| chunk.id == Some(id))
+    }
 }
 
 fn table(data: &[u8], offset: u32, count: u32) -> Result<ByteReader<'_>, ChunkError> {
@@ -107,7 +125,7 @@ fn read_crch(layout: &Layout, mut table: ByteReader<'_>) -> Result<Vec<Chunk>, C
         let id = table.read_u32()?;
         let size = u64::from(table.read_u32()?);
         let offset = u64::from(table.read_u32()?);
-        layout.check(index, offset, size)?;
+        layout.check(index, offset, size, Span::Exact)?;
 
         let byte_order = if raw_version & CRCH_BIG_ENDIAN_FLAG == 0 {
             ByteOrder::Little
@@ -134,7 +152,7 @@ fn read_ivo(layout: &Layout, mut table: ByteReader<'_>) -> Result<Vec<Chunk>, Ch
         let type_id = table.read_u32()?;
         let version = table.read_u32()?;
         let offset = table.read_u64()?;
-        layout.check(index, offset, 0)?;
+        layout.check(index, offset, 0, Span::Start)?;
 
         chunks.push(Chunk {
             kind: ChunkType::new(Container::Ivo, type_id),
@@ -152,9 +170,14 @@ fn read_ivo(layout: &Layout, mut table: ByteReader<'_>) -> Result<Vec<Chunk>, Ch
         .collect();
     order.sort_unstable();
     let table_start = layout.table.start;
-    for (position, &(offset, index)) in order.iter().enumerate() {
-        let next = order.get(position + 1).map_or(len, |&(next, _)| next);
-        let end = if table_start > offset && table_start < next {
+    let mut next = len;
+    let mut group = len;
+    for &(offset, index) in order.iter().rev() {
+        if offset != group {
+            next = group;
+            group = offset;
+        }
+        let end = if table_start >= offset && table_start < next {
             table_start
         } else {
             next
@@ -166,13 +189,19 @@ fn read_ivo(layout: &Layout, mut table: ByteReader<'_>) -> Result<Vec<Chunk>, Ch
     Ok(chunks)
 }
 
+#[derive(Clone, Copy)]
+enum Span {
+    Start,
+    Exact,
+}
+
 struct Layout {
     len: u64,
     table: Range<u64>,
 }
 
 impl Layout {
-    fn check(&self, index: usize, offset: u64, size: u64) -> Result<(), ChunkError> {
+    fn check(&self, index: usize, offset: u64, size: u64, span: Span) -> Result<(), ChunkError> {
         let len = self.len;
         let end = offset.checked_add(size).filter(|&end| end <= len).ok_or(
             ChunkError::ChunkOutOfBounds {
@@ -182,14 +211,18 @@ impl Layout {
                 len,
             },
         )?;
-        let in_header = offset < HEADER_LEN as u64;
-        let in_table = if size == 0 {
-            self.table.contains(&offset)
-        } else {
-            offset < self.table.end && self.table.start < end
+        let overlaps = match span {
+            Span::Start => {
+                offset < HEADER_LEN as u64 || (self.table.start < offset && offset < self.table.end)
+            }
+            Span::Exact => {
+                size > 0
+                    && (offset < HEADER_LEN as u64
+                        || (offset < self.table.end && self.table.start < end))
+            }
         };
-        if in_header || in_table {
-            return Err(ChunkError::ChunkInHeader { index, offset });
+        if overlaps {
+            return Err(ChunkError::ChunkInHeaderOrTable { index, offset });
         }
         Ok(())
     }

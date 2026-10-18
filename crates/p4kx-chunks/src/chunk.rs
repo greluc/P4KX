@@ -95,8 +95,9 @@ impl Chunk {
         self.offset
     }
 
-    /// Returns the size of the chunk's data; for `#ivo`, which stores no size, the distance to the
-    /// next chunk, the chunk table or the end of the file, alignment padding included.
+    /// Returns the size of the chunk's data. `#ivo` stores no size: there it is the distance to the
+    /// next greater offset of any chunk, the chunk table or the end of the file, alignment padding
+    /// included, so chunks that share an offset share their span.
     #[must_use]
     pub const fn size(&self) -> u64 {
         self.size

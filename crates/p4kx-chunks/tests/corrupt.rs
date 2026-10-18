@@ -195,7 +195,7 @@ fn a_chunk_in_the_header_or_the_table_is_rejected() {
         let result = parse(&bytes);
 
         assert!(
-            matches!(result, Err(ChunkError::ChunkInHeader { index: 0, offset: found }) if found == offset),
+            matches!(result, Err(ChunkError::ChunkInHeaderOrTable { index: 0, offset: found }) if found == offset),
             "{name}: {result:?}"
         );
     }

@@ -349,19 +349,22 @@ Also `p4kx chunks list <file> --json` for a chunk file on disk.
 
 ```json
 {"file": "Data\\Objects\\Test\\cube.cgf", "container": "#ivo", "version": 2304,
- "chunks": [{"index": 2, "type": "Mesh", "type_id": 2459154904, "known": true, "version": 2305,
+ "chunks": […,
+            {"index": 2, "type": "Mesh", "type_id": 2459154904, "known": true, "version": 2305,
              "id": null, "byte_order": "little", "offset": 112, "size": 40},
             {"index": 3, "type": null, "type_id": 170165686, "known": false, "version": 2304,
              "id": null, "byte_order": "little", "offset": 152, "size": 8}]}
 ```
 
+The example leaves out chunks 0 and 1 (`…`).
 `container` is `#ivo` (version `0x900`) or `CrCh` (version `0x746`). `chunks` lists the chunk
 table in file order; `index` is the position `p4kx chunks dump --chunk` takes. `type` is the name
 of a known type and `null` for an unknown one, which `known` marks as well; `type_id` is the
 32-bit hash of `#ivo` or the 16-bit ID of `CrCh`. `version` is the chunk's layout version, `id`
 the chunk ID of `CrCh` and `null` in `#ivo`, and `byte_order` `little` or `big`, which only `CrCh`
-chunks can be. `#ivo` stores no sizes: `size` is then the distance to the next chunk, the chunk
-table or the end of the file, alignment padding included. A file that is no chunk file, has
+chunks can be. `#ivo` stores no sizes: `size` is then the distance to the next greater offset of
+any chunk, the chunk table or the end of the file, alignment padding included, so chunks that
+share an offset share their span; the table may list chunks in any order. A file that is no chunk file, has
 another container version or is truncated prints no JSON; it fails with exit code 3.
 
 ## `p4kx chunks dump <archive> <entry> --chunk <index> --out <file> --json`

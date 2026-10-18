@@ -10,9 +10,11 @@ mod container;
 mod error;
 mod file;
 mod known;
+mod types;
 
 pub use chunk::{Chunk, ChunkType};
 pub use container::{ByteOrder, Container};
 pub use error::ChunkError;
 pub use file::ChunkFile;
 pub use known::KnownChunkType;
+pub use types::{crch, ivo};

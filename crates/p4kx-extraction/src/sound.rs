@@ -14,6 +14,8 @@ use crate::{ConversionError, UnknownEntries};
 /// The largest WEM read into memory, far above the largest sound of a real Archive.
 pub const MAX_SOUND_LEN: u64 = 512 << 20;
 
+const MAX_UP_FRONT_RESERVATION: u64 = 64 << 20;
+
 /// A Wwise WEM sound read from an Entry of an Archive or from a file on disk.
 #[derive(Debug)]
 pub struct Sound {
@@ -164,13 +166,15 @@ impl Sound {
     }
 }
 
-/// Reads all of `reader`, or `None` when it holds more than `limit` bytes.
+/// Reads all of `reader`, or `None` when it holds more than `limit` bytes; at most
+/// [`MAX_UP_FRONT_RESERVATION`] bytes are reserved before the data arrives.
 pub(crate) fn read_capped(
     reader: impl Read,
     declared_len: u64,
     limit: u64,
 ) -> io::Result<Option<Vec<u8>>> {
-    let capacity = usize::try_from(declared_len.min(limit)).unwrap_or(0);
+    let capacity =
+        usize::try_from(declared_len.min(limit).min(MAX_UP_FRONT_RESERVATION)).unwrap_or(0);
     let mut bytes = Vec::with_capacity(capacity);
     reader.take(limit + 1).read_to_end(&mut bytes)?;
     Ok((bytes.len() as u64 <= limit).then_some(bytes))

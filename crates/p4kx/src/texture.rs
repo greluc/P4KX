@@ -208,8 +208,8 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
     )
 }
 
-/// Returns whether `error` is a texture, sound or chunk file failure caused by an unreadable or
-/// corrupt Archive, Entry or input file.
+/// Returns whether `error` is a texture, sound or chunk file failure caused by an unreadable,
+/// corrupt or too large Archive, Entry or input file.
 pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
@@ -219,6 +219,8 @@ pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
                 | ConversionError::Read { .. }
                 | ConversionError::ReadPart { .. }
                 | ConversionError::ChunkFile { .. }
+                | ConversionError::ChunkFileTooLarge { .. }
+                | ConversionError::SoundTooLarge { .. }
                 | ConversionError::Texture {
                     source: TextureError::ReadHeader(_),
                     ..

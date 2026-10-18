@@ -1,0 +1,114 @@
+use p4kx_dataforge::{DataForgeError, Guid};
+use thiserror::Error;
+
+use crate::{CancelToken, ConflictPolicy, ExtractionError};
+
+/// The settings of one Record export.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RecordExportOptions<'a> {
+    /// What to do with files that already exist.
+    pub policy: ConflictPolicy,
+    /// Stops the run once cancelled.
+    pub cancel: Option<&'a CancelToken>,
+}
+
+/// Why one Record of a Record export was not written.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum RecordExportError {
+    /// The Record tree cannot be built.
+    #[error(transparent)]
+    Tree(#[from] DataForgeError),
+    /// An earlier Record of the run is written to the same file.
+    #[error("an earlier Record of this export is written to {path}")]
+    FileTaken {
+        /// The file, relative to the target.
+        path: String,
+    },
+    /// The file or a folder for it cannot be written, or its record path would leave the target.
+    #[error(transparent)]
+    Write(#[from] ExtractionError),
+}
+
+/// One Record that a Record export did not write.
+#[derive(Debug)]
+pub struct RecordFailure {
+    pub(crate) guid: Guid,
+    pub(crate) record_path: String,
+    pub(crate) error: RecordExportError,
+}
+
+impl RecordFailure {
+    /// Returns the GUID of the Record.
+    #[must_use]
+    pub const fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    /// Returns the record path, or an empty text when it cannot be read.
+    #[must_use]
+    pub fn record_path(&self) -> &str {
+        &self.record_path
+    }
+
+    /// Returns why the Record was not written.
+    #[must_use]
+    pub const fn error(&self) -> &RecordExportError {
+        &self.error
+    }
+}
+
+/// The outcome of a Record export.
+#[derive(Debug, Default)]
+pub struct RecordExportReport {
+    pub(crate) written: usize,
+    pub(crate) skipped: Vec<String>,
+    pub(crate) failures: Vec<RecordFailure>,
+    pub(crate) cancelled: usize,
+    pub(crate) error_values: usize,
+    pub(crate) records_with_errors: usize,
+}
+
+impl RecordExportReport {
+    /// Returns the number of Records written.
+    #[must_use]
+    pub const fn written(&self) -> usize {
+        self.written
+    }
+
+    /// Returns the files, relative to the target, whose existing file was kept.
+    #[must_use]
+    pub fn skipped(&self) -> &[String] {
+        &self.skipped
+    }
+
+    /// Returns the Records that failed, with the reason.
+    #[must_use]
+    pub fn failures(&self) -> &[RecordFailure] {
+        &self.failures
+    }
+
+    /// Returns the number of Records not written because the run was cancelled.
+    #[must_use]
+    pub const fn cancelled(&self) -> usize {
+        self.cancelled
+    }
+
+    /// Returns the number of error values in the Records written or kept.
+    #[must_use]
+    pub const fn error_values(&self) -> usize {
+        self.error_values
+    }
+
+    /// Returns the number of Records written or kept that hold at least one error value.
+    #[must_use]
+    pub const fn records_with_errors(&self) -> usize {
+        self.records_with_errors
+    }
+
+    /// Returns whether no Record failed and the run was not cancelled.
+    #[must_use]
+    pub const fn is_complete(&self) -> bool {
+        self.failures.is_empty() && self.cancelled == 0
+    }
+}

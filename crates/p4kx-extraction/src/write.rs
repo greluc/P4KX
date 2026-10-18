@@ -170,7 +170,10 @@ impl EntryWriter<'_> {
     }
 }
 
-fn create_folders(target: &Path, relative: Option<&Path>) -> Result<PathBuf, ExtractionError> {
+pub(crate) fn create_folders(
+    target: &Path,
+    relative: Option<&Path>,
+) -> Result<PathBuf, ExtractionError> {
     let mut folder = target.to_path_buf();
     for component in relative.into_iter().flat_map(Path::components) {
         folder.push(component);
@@ -192,7 +195,7 @@ fn create_folders(target: &Path, relative: Option<&Path>) -> Result<PathBuf, Ext
     Ok(folder)
 }
 
-fn create_temporary(folder: &Path) -> Result<(PathBuf, File), ExtractionError> {
+pub(crate) fn create_temporary(folder: &Path) -> Result<(PathBuf, File), ExtractionError> {
     let mut last_error = None;
     for _ in 0..MAX_TEMPORARY_ATTEMPTS {
         let number = TEMPORARY_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -209,11 +212,11 @@ fn create_temporary(folder: &Path) -> Result<(PathBuf, File), ExtractionError> {
     ))
 }
 
-const fn write_error(path: PathBuf, source: io::Error) -> ExtractionError {
+pub(crate) const fn write_error(path: PathBuf, source: io::Error) -> ExtractionError {
     ExtractionError::Write { path, source }
 }
 
-fn read_existing_error(path: &Path, source: io::Error) -> ExtractionError {
+pub(crate) fn read_existing_error(path: &Path, source: io::Error) -> ExtractionError {
     ExtractionError::ReadExisting {
         path: path.to_path_buf(),
         source,

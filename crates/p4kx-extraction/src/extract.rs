@@ -1,9 +1,9 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
+use crate::dependent::split_dependent;
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{EntryFailure, ExtractOptions, ExtractionReport};
@@ -46,7 +46,14 @@ pub fn extract(
         policy: options.policy,
         tracker: &tracker,
     };
-    let (independent, dependent) = split_dependent(entries);
+    let (independent, dependent) = split_dependent(entries.iter().map(|entry| entry.path()));
+    let indexed = |indices: Vec<usize>| -> Vec<(usize, &Entry)> {
+        indices
+            .into_iter()
+            .filter_map(|index| entries.get(index).map(|entry| (index, *entry)))
+            .collect()
+    };
+    let (independent, dependent) = (indexed(independent), indexed(dependent));
     let run = |buffer: &mut Vec<u8>, (index, entry): (usize, &Entry)| {
         (index, entry.path().to_owned(), writer.write(entry, buffer))
     };
@@ -68,26 +75,4 @@ pub fn extract(
     }
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
-}
-
-type Indexed<'a> = Vec<(usize, &'a Entry)>;
-
-/// Splits `entries` into those that may run in parallel and, in order, those whose path collides
-/// with an earlier one by name or as a file where a folder is needed.
-fn split_dependent<'a>(entries: &[&'a Entry]) -> (Indexed<'a>, Indexed<'a>) {
-    let mut files = HashSet::new();
-    let mut folders = HashSet::new();
-    entries.iter().copied().enumerate().partition(|(_, entry)| {
-        let key = entry.path().replace('/', "\\").to_lowercase();
-        let parents: Vec<&str> = key
-            .match_indices('\\')
-            .filter_map(|(at, _)| key.get(..at))
-            .collect();
-        let independent = !files.contains(key.as_str())
-            && !folders.contains(key.as_str())
-            && parents.iter().all(|parent| !files.contains(*parent));
-        folders.extend(parents.iter().map(|parent| (*parent).to_owned()));
-        files.insert(key);
-        independent
-    })
 }

@@ -31,6 +31,7 @@ impl Row for StructDef {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PropertyDef {
     pub(crate) name: u32,
+    pub(crate) target: u16,
     pub(crate) data_type: u16,
     pub(crate) conversion: u16,
 }
@@ -39,10 +40,9 @@ impl Row for PropertyDef {
     const SIZE: usize = 12;
 
     fn decode(fields: &mut Fields<'_>) -> Self {
-        let name = fields.u32();
-        let _target = fields.u16();
         Self {
-            name,
+            name: fields.u32(),
+            target: fields.u16(),
             data_type: fields.u16(),
             conversion: fields.u16(),
         }
@@ -94,6 +94,7 @@ pub(crate) struct RecordDef {
     pub(crate) file_name: u32,
     pub(crate) struct_index: u32,
     pub(crate) guid: [u8; 16],
+    pub(crate) instance_index: u16,
 }
 
 impl Row for RecordDef {
@@ -105,6 +106,7 @@ impl Row for RecordDef {
             file_name: fields.u32(),
             struct_index: fields.u32(),
             guid: fields.bytes16(),
+            instance_index: fields.u16(),
         }
     }
 }

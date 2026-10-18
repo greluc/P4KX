@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_export.rs
+expression: run.stdout
+---
+exported 3 Records, skipped 0, failed 0, cancelled 0 into [DIR]/out; 1 error values in 1 Records

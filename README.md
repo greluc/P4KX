@@ -43,6 +43,13 @@ Early development (milestone M1). Available today:
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge version 6 is read; any other version is reported as not supported,
   and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+- `p4kx dcb export <archive> [--format xml] [--filter <filter>] [--out <folder>] [--conflict …]`
+  writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
+  `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
+  `--filter` selects Records by record path with the rules of `search`; `--out` and `--conflict`
+  work as for `extract`. A value that cannot be read is written as an error at its field and the
+  Record is still written; the summary counts these error values. The same Record always gives
+  the same bytes.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -82,8 +89,8 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives differ |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
 | 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |

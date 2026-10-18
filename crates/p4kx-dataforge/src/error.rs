@@ -66,6 +66,43 @@ pub enum DataForgeError {
         /// The offset into the table.
         offset: u32,
     },
+    /// A struct inherits from itself through its chain of parents.
+    #[error("struct {struct_index} of the DataForge inherits from itself")]
+    StructCycle {
+        /// The struct whose parents were followed.
+        struct_index: u32,
+    },
+    /// A struct has more ancestors than [`MAX_INHERITANCE_DEPTH`](crate::MAX_INHERITANCE_DEPTH).
+    #[error("struct {struct_index} of the DataForge has more than {limit} ancestors")]
+    InheritanceTooDeep {
+        /// The struct whose parents were followed.
+        struct_index: u32,
+        /// The largest number of structs in one chain.
+        limit: usize,
+    },
+    /// A struct and its ancestors declare more fields than
+    /// [`MAX_RECORD_FIELDS`](crate::MAX_RECORD_FIELDS).
+    #[error("struct {struct_index} of the DataForge has {count} fields, more than {limit}")]
+    TooManyFields {
+        /// The struct whose fields were counted.
+        struct_index: u32,
+        /// The number of fields, inherited ones included.
+        count: usize,
+        /// The largest number of fields that is read.
+        limit: usize,
+    },
+    /// The fields of a struct do not fill its declared instance size.
+    #[error(
+        "struct {struct_index} of the DataForge declares {declared} bytes per instance, but its fields take {fields}"
+    )]
+    StructLayout {
+        /// The struct whose fields were laid out.
+        struct_index: u32,
+        /// The instance size the struct table gives.
+        declared: u32,
+        /// The size of the fields up to and including this struct.
+        fields: u64,
+    },
     /// A property has a data type code this reader does not know.
     #[error("the DataForge uses the unknown data type {code:#06x}")]
     UnknownDataType {

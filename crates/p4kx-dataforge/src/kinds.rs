@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// A value pool of DataForge; the variants are in the order the pools are stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ValueKind {
@@ -209,5 +211,11 @@ impl DataType {
             0x0310 => Self::Reference,
             _ => return None,
         })
+    }
+}
+
+impl fmt::Display for DataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }

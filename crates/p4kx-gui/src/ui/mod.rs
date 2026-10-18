@@ -2,6 +2,7 @@
 
 mod archive_change;
 mod channels;
+mod empty;
 mod extraction;
 mod extraction_outcome;
 mod licence;
@@ -14,9 +15,16 @@ mod tree;
 
 use std::path::PathBuf;
 
-use egui::{CentralPanel, Panel, Ui};
+use egui::{CentralPanel, Margin, Panel, Ui};
 
-use crate::{Model, Text};
+use crate::theme::desktop::{
+    HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
+    SIDEBAR_WIDTH, STATUS_HEIGHT,
+};
+use crate::widgets::frames;
+
+const RESIZE_GAP: i8 = 6;
+use crate::Model;
 
 /// A dialog the host shows for the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,34 +68,54 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             open(ui, model, path);
         }
     }
-    Panel::top("menu").show(ui, |ui| menu::show(ui, model, &mut requests));
+    let header = Panel::top("menu")
+        .frame(frames::header())
+        .show_separator_line(false)
+        .exact_size(HEADER_HEIGHT)
+        .show(ui, |ui| menu::show(ui, model, &mut requests));
+    frames::header_rule(ui, header.response.rect);
     archive_change::show(ui, model);
-    Panel::bottom("status").show(ui, |ui| status::show(ui, model));
+    Panel::bottom("status")
+        .frame(frames::footer())
+        .exact_size(STATUS_HEIGHT)
+        .show(ui, |ui| status::show(ui, model));
     Panel::left("side")
+        .frame(frames::sidebar())
         .resizable(true)
-        .default_size(280.0)
+        .default_size(SIDEBAR_WIDTH)
+        .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
         .show(ui, |ui| {
             channels::show(ui, model);
-            ui.separator();
             tree::show(ui, model);
         });
-    CentralPanel::default().show(ui, |ui| {
-        if is_dragging_file(ui) || model.browser().is_none() {
-            ui.centered_and_justified(|ui| ui.label(model.texts().get(Text::DropHint)));
-        } else {
-            search::show(ui, model);
-            extraction::actions(ui, model);
-            Panel::bottom("preview")
-                .resizable(true)
-                .default_size(300.0)
-                .show(ui, |ui| preview::show(ui, model));
-            table::show(ui, model);
-        }
-    });
+    CentralPanel::default()
+        .frame(frames::canvas())
+        .show(ui, |ui| work_surface(ui, model, &mut requests));
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
     licence::show(ui, model);
     requests
+}
+
+fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
+    let dragging = is_dragging_file(ui);
+    if dragging || model.browser().is_none() {
+        empty::show(ui, model, dragging, requests);
+        return;
+    }
+    Panel::bottom("preview")
+        .frame(frames::panel().outer_margin(Margin {
+            top: RESIZE_GAP,
+            ..Margin::ZERO
+        }))
+        .resizable(true)
+        .default_size(PREVIEW_HEIGHT)
+        .min_size(PREVIEW_MIN_HEIGHT)
+        .show(ui, |ui| preview::show(ui, model));
+    frames::panel().show(ui, |ui| {
+        search::show(ui, model);
+        table::show(ui, model);
+    });
 }
 
 /// Starts opening the Archive at `path`, repainting the window once it is open.
@@ -108,8 +136,4 @@ fn dropped_file(ui: &Ui) -> Option<PathBuf> {
 
 fn is_dragging_file(ui: &Ui) -> bool {
     ui.input(|input| !input.raw.hovered_files.is_empty())
-}
-
-fn row_height(ui: &Ui) -> f32 {
-    ui.spacing().interact_size.y
 }

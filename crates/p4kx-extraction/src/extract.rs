@@ -1,10 +1,10 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::buffers::Buffers;
+use crate::dependent::Collisions;
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
@@ -139,21 +139,10 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
 /// Splits `items` into those that may run in parallel and, in order, those that write a path
 /// colliding with an earlier one by name or as a file where a folder is needed.
 fn split_dependent(items: Vec<Item<'_>>) -> (Vec<Item<'_>>, Vec<Item<'_>>) {
-    let mut files = HashSet::new();
-    let mut folders = HashSet::new();
+    let mut collisions = Collisions::default();
     items.into_iter().partition(|item| {
-        let mut independent = true;
-        item.output_keys(|key| {
-            let parents: Vec<&str> = key
-                .match_indices('\\')
-                .filter_map(|(at, _)| key.get(..at))
-                .collect();
-            independent &= !files.contains(key.as_str())
-                && !folders.contains(key.as_str())
-                && parents.iter().all(|parent| !files.contains(*parent));
-            folders.extend(parents.iter().map(|parent| (*parent).to_owned()));
-            files.insert(key);
-        });
-        independent
+        let mut free = true;
+        item.output_paths(|path| free &= collisions.claim(path));
+        free
     })
 }

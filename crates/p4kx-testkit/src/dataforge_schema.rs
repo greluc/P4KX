@@ -1,3 +1,5 @@
+use crate::TestValue;
+
 /// The type of a field in a synthetic DataForge struct.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TestType {
@@ -81,6 +83,7 @@ pub struct TestStruct {
     pub(crate) name: String,
     pub(crate) parent: Option<String>,
     pub(crate) properties: Vec<TestProperty>,
+    pub(crate) declared_size: Option<u32>,
 }
 
 impl TestStruct {
@@ -91,7 +94,15 @@ impl TestStruct {
             name: name.into(),
             parent: None,
             properties: Vec::new(),
+            declared_size: None,
         }
+    }
+
+    /// Writes `size` as the instance size instead of the size of the fields.
+    #[must_use]
+    pub const fn declared_size(mut self, size: u32) -> Self {
+        self.declared_size = Some(size);
+        self
     }
 
     /// Makes the struct inherit the fields of the named struct.
@@ -125,13 +136,14 @@ impl TestStruct {
 }
 
 /// A Record of a synthetic DataForge.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TestRecord {
     pub(crate) guid: u128,
     pub(crate) type_name: String,
     pub(crate) name: String,
     pub(crate) file_name: String,
     pub(crate) tag: String,
+    pub(crate) values: Vec<(String, TestValue)>,
 }
 
 impl TestRecord {
@@ -153,6 +165,7 @@ impl TestRecord {
             name: name.into(),
             file_name: file_name.into(),
             tag: String::new(),
+            values: Vec::new(),
         }
     }
 
@@ -161,6 +174,13 @@ impl TestRecord {
     #[must_use]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.tag = tag.into();
+        self
+    }
+
+    /// Sets the field `name` of the Record's instance to `value`; fields not set stay zero.
+    #[must_use]
+    pub fn value(mut self, name: impl Into<String>, value: TestValue) -> Self {
+        self.values.push((name.into(), value));
         self
     }
 }

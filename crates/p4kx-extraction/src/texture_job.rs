@@ -38,20 +38,19 @@ impl Item<'_> {
         }
     }
 
-    /// Calls `visit` with each path below the target the item may write to, in lower case with
-    /// `\` separators.
-    pub(crate) fn output_keys(&self, mut visit: impl FnMut(String)) {
+    /// Calls `visit` with the Entry path of each file the item may write below the target.
+    pub(crate) fn output_paths(&self, mut visit: impl FnMut(&str)) {
         match self {
-            Self::Entry((_, entry)) => visit(key(entry.path())),
+            Self::Entry((_, entry)) => visit(entry.path()),
             Self::Texture(job) => {
-                let header = key(job.header.1.path());
+                let header = job.header.1.path();
                 let stem = header
                     .get(..header.len().saturating_sub(4))
                     .unwrap_or_default();
-                visit(format!("{stem}.png"));
+                visit(&format!("{stem}.png"));
                 visit(header);
                 for (_, part) in &job.requested_parts {
-                    visit(key(part.path()));
+                    visit(part.path());
                 }
             }
         }

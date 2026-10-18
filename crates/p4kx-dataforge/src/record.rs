@@ -1,9 +1,10 @@
 use rayon::slice::ParallelSliceMut;
 
+use crate::build::{RecordText, record_tree};
 use crate::dataforge::out_of_range;
 use crate::rows::RecordDef;
 use crate::strings::{compare_paths, strip_xml};
-use crate::{DataForge, DataForgeError, Guid, Struct};
+use crate::{DataForge, DataForgeError, Guid, RecordTree, Struct};
 
 /// One Record of a DataForge: its GUID, name, type and record path.
 #[derive(Debug, Clone, Copy)]
@@ -14,6 +15,12 @@ pub struct Record<'f> {
 }
 
 impl<'f> Record<'f> {
+    /// Returns the position of the Record in definition order, as [`DataForge::records`] lists it.
+    #[must_use]
+    pub const fn index(&self) -> u32 {
+        self.index
+    }
+
     /// Returns the GUID that identifies the Record.
     #[must_use]
     pub const fn guid(&self) -> Guid {
@@ -72,6 +79,26 @@ impl<'f> Record<'f> {
     /// Returns a [`DataForgeError`] when the struct or its name cannot be read.
     pub fn type_name(&self) -> Result<&'f str, DataForgeError> {
         self.struct_type()?.name()
+    }
+
+    /// Builds the canonical Record tree: type, GUID, record path, name and every field in
+    /// declaration order, the inherited ones first.
+    ///
+    /// A value that cannot be read becomes a [`Value::Error`](crate::Value::Error) at its field.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`DataForgeError`] when the Record's instance, its struct layout or a name cannot
+    /// be read: a cycle or more than [`MAX_INHERITANCE_DEPTH`](crate::MAX_INHERITANCE_DEPTH)
+    /// structs in the parent chain, fields that do not fill the declared size, an unknown data
+    /// type or an inline struct that does not exist.
+    pub fn tree(&self) -> Result<RecordTree<'f>, DataForgeError> {
+        let text = RecordText {
+            type_name: self.type_name()?,
+            record_path: self.record_path()?,
+            name: self.name()?,
+        };
+        record_tree(self.forge, self.index, self.def, text)
     }
 }
 

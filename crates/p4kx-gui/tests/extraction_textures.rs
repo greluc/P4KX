@@ -49,6 +49,7 @@ fn opened(
     model.set_extraction_conversion(true);
     model.set_extraction_textures(textures);
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1400.0, 1000.0])
         .build_ui_state(
             |ui, model: &mut Model| {

@@ -5,11 +5,15 @@ mod buffers;
 mod conversion_error;
 mod convert;
 mod dataforge;
+mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
 mod options;
 mod output_file;
+mod record_export;
+mod record_files;
+mod record_report;
 mod report;
 mod selection;
 mod target;
@@ -30,11 +34,15 @@ pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, Texture
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataType, Enum, Guid, InvalidGuid, Property, Record, Struct,
-    ValueKind,
+    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, Property,
+    RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Struct, Value, ValueError, ValueKind,
 };
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, MergeReport, Mip, RgbaImage, TextureError, TextureFormat,
+};
+pub use record_export::export_records;
+pub use record_report::{
+    RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};

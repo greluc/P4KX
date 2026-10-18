@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/release.yml"
+      - ".github/scripts/build-msi.ps1"
       - ".github/scripts/check-msi.ps1"
       - "crates/p4kx-gui/wix/**"
   workflow_dispatch:
@@ -19,7 +20,7 @@ env:
 jobs:
   package:
     name: Package
-    runs-on: windows-2022
+    runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     defaults:
@@ -37,7 +38,10 @@ jobs:
           $metadata = cargo metadata --no-deps --format-version 1 --locked | ConvertFrom-Json
           $version = ($metadata.packages | Where-Object name -eq 'p4kx-gui').version
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version" }
+          $core = [version]($version -replace '-.*$', '')
           "version=$version" >> $env:GITHUB_OUTPUT
+          "msi_version=$core" >> $env:GITHUB_OUTPUT
+          "next_msi_version=$($core.Major).$($core.Minor).$($core.Build + 1)" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
       - name: Release notes
         env:
@@ -56,25 +60,23 @@ jobs:
           New-Item -ItemType Directory -Force $folder | Out-Null
           Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, LICENSE-MIT, LICENSE-APACHE, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
-      - name: Install cargo-wix
-        run: |
-          if (-not $env:WIX) { throw 'WiX Toolset v3 is not installed on this runner' }
-          cargo install cargo-wix --version 0.3.9 --locked
+      - name: Install WiX Toolset
+        run: dotnet tool install wix --version 7.0.0 --tool-path target\wix-tool
       - name: MSI
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          MSI_VERSION: ${{ steps.version.outputs.msi_version }}
         run: |
-          cargo wix -p p4kx-gui --no-build --nocapture --output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
+          .github\scripts\build-msi.ps1 -Wix target\wix-tool\wix.exe -Version $env:MSI_VERSION -Output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
       - name: Install, upgrade and uninstall
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          NEXT_MSI_VERSION: ${{ steps.version.outputs.next_msi_version }}
         run: |
-          $core = ([version]($env:VERSION -replace '-.*$', ''))
-          $next = "$($core.Major).$($core.Minor).$($core.Build + 1)"
           New-Item -ItemType Directory -Force target\wix-check | Out-Null
-          cargo wix -p p4kx-gui --no-build --install-version $next --output target\wix-check\next.msi
-          $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Product.UpgradeCode
-          .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $next -UpgradeCode $upgradeCode
+          .github\scripts\build-msi.ps1 -Wix target\wix-tool\wix.exe -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
+          $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Package.UpgradeCode
+          .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

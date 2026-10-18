@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-extraction"
-description = "Extraction service of P4K-Extractor: opens Archives and writes their Entries to disk."
+description = "Extraction service of P4K-Extractor and the Archive API front-ends use."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

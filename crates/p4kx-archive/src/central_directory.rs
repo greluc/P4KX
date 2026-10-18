@@ -1,25 +1,17 @@
 use p4kx_foundation::{ByteReader, ParseError};
 
+use crate::format_error::FormatError;
 use crate::{Compression, Entry};
 
-const CENTRAL_HEADER: u32 = 0x0201_4B50;
-const MARKER_32: u32 = 0xFFFF_FFFF;
+const CENTRAL_HEADER_SIGNATURE: u32 = 0x0201_4B50;
+const CENTRAL_HEADER_LEN: usize = 46;
+const VERSIONS_AND_FLAGS_LEN: usize = 6;
+const TIME_DATE_AND_CRC_LEN: usize = 8;
+const DISK_ATTRIBUTES_AND_OFFSET_LEN: usize = 12;
+const ZIP64_MARKER_32: u32 = 0xFFFF_FFFF;
 const BLOCK_ZIP64: u16 = 0x0001;
 const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
 const BLOCK_HEADER_LEN: usize = 4;
-
-/// Why the central directory could not be parsed.
-#[derive(Debug)]
-pub(crate) enum DirectoryError {
-    Corrupt { offset: u64, reason: String },
-    Truncated(ParseError),
-}
-
-impl From<ParseError> for DirectoryError {
-    fn from(error: ParseError) -> Self {
-        Self::Truncated(error)
-    }
-}
 
 struct FixedFields {
     method: u16,
@@ -30,14 +22,22 @@ struct FixedFields {
     comment_len: usize,
 }
 
+struct ExtraFields {
+    compressed_size: u64,
+    uncompressed_size: u64,
+    encrypted: bool,
+}
+
 /// Parses `count` Entries from the central directory bytes, which start at file offset `base`.
 pub(crate) fn parse_entries(
     bytes: &[u8],
     base: u64,
     count: u64,
-) -> Result<Vec<Entry>, DirectoryError> {
+) -> Result<Vec<Entry>, FormatError> {
     let mut reader = ByteReader::with_base(bytes, base);
-    let capacity = usize::try_from(count).unwrap_or(0).min(bytes.len() / 46);
+    let capacity = usize::try_from(count)
+        .unwrap_or(0)
+        .min(bytes.len() / CENTRAL_HEADER_LEN);
     let mut entries = Vec::with_capacity(capacity);
     for _ in 0..count {
         entries.push(parse_entry(&mut reader)?);
@@ -45,14 +45,12 @@ pub(crate) fn parse_entries(
     Ok(entries)
 }
 
-fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, DirectoryError> {
+fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, FormatError> {
     let offset = reader.offset();
     let fixed = read_fixed_fields(reader, offset)?;
     let name = reader.read_bytes(fixed.name_len)?;
-    let path = String::from_utf8(name.to_vec()).map_err(|_| DirectoryError::Corrupt {
-        offset,
-        reason: "Entry path is not UTF-8".to_owned(),
-    })?;
+    let path = String::from_utf8(name.to_vec())
+        .map_err(|_| FormatError::corrupt(offset, "Entry path is not UTF-8"))?;
     let extra_offset = reader.offset();
     let extra = reader.read_bytes(fixed.extra_len)?;
     reader.skip(fixed.comment_len)?;
@@ -66,25 +64,22 @@ fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, DirectoryError> {
     })
 }
 
-fn read_fixed_fields(
-    reader: &mut ByteReader<'_>,
-    offset: u64,
-) -> Result<FixedFields, DirectoryError> {
-    if reader.read_u32()? != CENTRAL_HEADER {
-        return Err(DirectoryError::Corrupt {
+fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFields, FormatError> {
+    if reader.read_u32()? != CENTRAL_HEADER_SIGNATURE {
+        return Err(FormatError::corrupt(
             offset,
-            reason: "central directory header signature missing".to_owned(),
-        });
+            "central directory header signature missing",
+        ));
     }
-    reader.skip(6)?;
+    reader.skip(VERSIONS_AND_FLAGS_LEN)?;
     let method = reader.read_u16()?;
-    reader.skip(8)?;
+    reader.skip(TIME_DATE_AND_CRC_LEN)?;
     let compressed_size = reader.read_u32()?;
     let uncompressed_size = reader.read_u32()?;
     let name_len = usize::from(reader.read_u16()?);
     let extra_len = usize::from(reader.read_u16()?);
     let comment_len = usize::from(reader.read_u16()?);
-    reader.skip(12)?;
+    reader.skip(DISK_ATTRIBUTES_AND_OFFSET_LEN)?;
     Ok(FixedFields {
         method,
         compressed_size,
@@ -95,17 +90,7 @@ fn read_fixed_fields(
     })
 }
 
-struct ExtraFields {
-    compressed_size: u64,
-    uncompressed_size: u64,
-    encrypted: bool,
-}
-
-fn parse_extra(
-    extra: &[u8],
-    base: u64,
-    fixed: &FixedFields,
-) -> Result<ExtraFields, DirectoryError> {
+fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFields, FormatError> {
     let mut fields = ExtraFields {
         compressed_size: u64::from(fixed.compressed_size),
         uncompressed_size: u64::from(fixed.uncompressed_size),
@@ -116,12 +101,12 @@ fn parse_extra(
         let block_offset = reader.offset();
         let id = reader.read_u16()?;
         let len = usize::from(reader.read_u16()?);
-        let data_len =
-            len.checked_sub(BLOCK_HEADER_LEN)
-                .ok_or_else(|| DirectoryError::Corrupt {
-                    offset: block_offset,
-                    reason: format!("extra block 0x{id:04X} is shorter than its header"),
-                })?;
+        let data_len = len.checked_sub(BLOCK_HEADER_LEN).ok_or_else(|| {
+            FormatError::corrupt(
+                block_offset,
+                format!("extra block 0x{id:04X} is shorter than its header"),
+            )
+        })?;
         let data = reader.read_bytes(data_len)?;
         let mut block = ByteReader::with_base(data, block_offset + BLOCK_HEADER_LEN as u64);
         match id {
@@ -129,6 +114,12 @@ fn parse_extra(
             BLOCK_CIG_ENCRYPTION => fields.encrypted = block.read_u16()? != 0,
             _ => {}
         }
+    }
+    if reader.remaining() > 0 {
+        return Err(FormatError::corrupt(
+            reader.offset(),
+            "extra field ends inside a block header",
+        ));
     }
     Ok(fields)
 }
@@ -138,10 +129,10 @@ fn read_zip64(
     fixed: &FixedFields,
     fields: &mut ExtraFields,
 ) -> Result<(), ParseError> {
-    if fixed.uncompressed_size == MARKER_32 {
+    if fixed.uncompressed_size == ZIP64_MARKER_32 {
         fields.uncompressed_size = block.read_u64()?;
     }
-    if fixed.compressed_size == MARKER_32 {
+    if fixed.compressed_size == ZIP64_MARKER_32 {
         fields.compressed_size = block.read_u64()?;
     }
     Ok(())

@@ -67,6 +67,27 @@ fn a_damaged_central_directory_header_is_reported_with_its_offset() -> TestResul
 }
 
 #[test]
+fn a_central_directory_shorter_than_its_entries_is_reported_as_truncated() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut bytes = two_entry_archive();
+    let zip64_end = bytes
+        .windows(4)
+        .rposition(|window| window == [0x50, 0x4B, 0x06, 0x06])
+        .ok_or("no ZIP64 end record in the synthetic Archive")?;
+    let size_field = zip64_end + 40;
+    let size = u64::from_le_bytes(bytes[size_field..size_field + 8].try_into()?);
+    bytes[size_field..size_field + 8].copy_from_slice(&(size - 10).to_le_bytes());
+
+    let result = open_bytes(dir.path(), &bytes)?;
+
+    assert!(
+        matches!(result, Err(ArchiveError::Truncated { .. })),
+        "a central directory that ends inside its last Entry is truncated: {result:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_cut_off_archive_is_not_an_archive() -> TestResult {
     let dir = tempfile::tempdir()?;
     let bytes = two_entry_archive();

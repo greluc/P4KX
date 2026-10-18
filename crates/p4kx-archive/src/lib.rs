@@ -7,6 +7,7 @@ mod compression;
 mod end_records;
 mod entry;
 mod error;
+mod format_error;
 mod source;
 
 pub use archive::Archive;

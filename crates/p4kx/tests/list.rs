@@ -65,6 +65,31 @@ fn list_of_a_file_that_is_not_an_archive_fails_with_a_message() -> TestResult {
 }
 
 #[test]
+fn list_of_a_corrupt_archive_fails_with_the_offset() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    let mut bytes = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\a.xml", b"<a/>".to_vec()))
+        .build();
+    let header = bytes
+        .windows(4)
+        .position(|window| window == [0x50, 0x4B, 0x01, 0x02])
+        .ok_or("no central directory header in the synthetic Archive")?;
+    bytes[header + 2] = 0x09;
+    std::fs::write(&archive, bytes)?;
+
+    Command::cargo_bin("p4kx")?
+        .arg("list")
+        .arg(&archive)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(format!(
+            "is corrupt at offset {header}"
+        )));
+    Ok(())
+}
+
+#[test]
 fn list_of_a_missing_file_fails_with_a_message() -> TestResult {
     let dir = tempfile::tempdir()?;
 

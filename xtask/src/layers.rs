@@ -43,12 +43,25 @@ impl Layer {
     fn may_dev_depend_on(self, target: Self) -> bool {
         self.may_depend_on(target) || (target == Self::Testkit && self != Self::Testkit)
     }
+
+    fn allows(self, kind: DependencyKind, target: Self) -> bool {
+        match kind {
+            DependencyKind::Normal => self.may_depend_on(target),
+            DependencyKind::Dev => self.may_dev_depend_on(target),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DependencyKind {
+    Normal,
+    Dev,
 }
 
 struct Package {
     name: String,
     layer: Layer,
-    dependencies: Vec<(String, bool)>,
+    dependencies: Vec<(String, DependencyKind)>,
 }
 
 /// Returns one message per workspace dependency that points against the layer direction.
@@ -60,19 +73,13 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
         .collect();
     let mut violations = Vec::new();
     for package in &packages {
-        for (dependency, dev) in &package.dependencies {
+        for (dependency, kind) in &package.dependencies {
             let Some(&target) = layers.get(dependency.as_str()) else {
                 continue;
             };
-            let allowed = if *dev {
-                package.layer.may_dev_depend_on(target)
-            } else {
-                package.layer.may_depend_on(target)
-            };
-            if !allowed {
-                let kind = if *dev { "dev-dependency" } else { "dependency" };
+            if !package.layer.allows(*kind, target) {
                 violations.push(format!(
-                    "layer violation: {} ({:?}) has a {kind} on {dependency} ({target:?})",
+                    "layer violation: {} ({:?}) has a {kind:?} dependency on {dependency} ({target:?})",
                     package.name, package.layer
                 ));
             }
@@ -122,8 +129,12 @@ fn package(value: &Value) -> Result<Package> {
         .iter()
         .filter_map(|dependency| {
             let name = dependency.get("name").and_then(Value::as_str)?.to_owned();
-            let dev = dependency.get("kind").and_then(Value::as_str) == Some("dev");
-            Some((name, dev))
+            let kind = if dependency.get("kind").and_then(Value::as_str) == Some("dev") {
+                DependencyKind::Dev
+            } else {
+                DependencyKind::Normal
+            };
+            Some((name, kind))
         })
         .collect();
     Ok(Package {

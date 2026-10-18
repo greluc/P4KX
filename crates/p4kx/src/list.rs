@@ -1,7 +1,7 @@
 use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, Entry};
+use p4kx_extraction::Archive;
 
 use crate::cli::ListArgs;
 
@@ -9,27 +9,33 @@ use crate::cli::ListArgs;
 pub(crate) fn run(args: &ListArgs) -> Result<()> {
     let archive = Archive::open(&args.archive)?;
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(
-        out,
-        "{:<10} {:<9} {:>14} {:>14}  PATH",
-        "METHOD", "ENCRYPTED", "COMPRESSED", "SIZE"
+    write_row(
+        &mut out,
+        ["METHOD", "ENCRYPTED", "COMPRESSED", "SIZE", "PATH"],
     )?;
     for entry in archive.entries() {
-        write_row(&mut out, entry)?;
+        let encrypted = if entry.is_encrypted() { "yes" } else { "no" };
+        write_row(
+            &mut out,
+            [
+                &entry.compression().to_string(),
+                encrypted,
+                &entry.compressed_size().to_string(),
+                &entry.uncompressed_size().to_string(),
+                entry.path(),
+            ],
+        )?;
     }
     out.flush()?;
     Ok(())
 }
 
-fn write_row(out: &mut impl Write, entry: &Entry) -> io::Result<()> {
-    let encrypted = if entry.is_encrypted() { "yes" } else { "no" };
+fn write_row(
+    out: &mut impl Write,
+    [method, encrypted, compressed, size, path]: [&str; 5],
+) -> io::Result<()> {
     writeln!(
         out,
-        "{:<10} {:<9} {:>14} {:>14}  {}",
-        entry.compression().to_string(),
-        encrypted,
-        entry.compressed_size(),
-        entry.uncompressed_size(),
-        entry.path()
+        "{method:<10} {encrypted:<9} {compressed:>14} {size:>14}  {path}"
     )
 }

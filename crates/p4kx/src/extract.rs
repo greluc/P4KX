@@ -126,7 +126,7 @@ pub(crate) fn execute(
         print_report(&report, &target, settings.conflict).and_then(|()| {
             report.records().map_or(Ok(()), |records| {
                 let folder = records_folder(archive, &target);
-                dcb_export::print_report(records, &folder, settings.conflict)
+                dcb_export::print_report(&records.into(), &folder, settings.conflict)
             })
         })
     };

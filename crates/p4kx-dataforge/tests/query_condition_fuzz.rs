@@ -57,6 +57,14 @@ fn item(index: u8) -> TestRecord {
     .value("size", TestValue::text(size))
     .value("id", TestValue::Guid(u128::from(index) << 64))
     .value("active", TestValue::Bool(index.is_multiple_of(3)))
+    .value(
+        "tags",
+        TestValue::Array(
+            (0..index % 4)
+                .map(|tag| TestValue::text(format!("name {tag}")))
+                .collect(),
+        ),
+    )
 }
 
 fn gadget(index: u8) -> TestRecord {
@@ -91,10 +99,28 @@ impl Random {
     }
 }
 
+/// The paths conditions compare: fields of both types, unknown ones and paths into the array.
+const FIELDS: [&str; 17] = [
+    "mass",
+    "count",
+    "name",
+    "size",
+    "id",
+    "active",
+    "tags",
+    "raw",
+    "nope",
+    "Mass",
+    "tags[0]",
+    "tags[*]",
+    "tags[9]",
+    "tags[Item]",
+    "mass[0]",
+    "tags.x",
+    "name.x",
+];
+
 fn condition(random: &mut Random, depth: usize) -> String {
-    let fields = [
-        "mass", "count", "name", "size", "id", "active", "tags", "raw", "nope", "Mass",
-    ];
     let operators = [
         "=",
         "!=",
@@ -136,7 +162,7 @@ fn condition(random: &mut Random, depth: usize) -> String {
             text.push(')');
             continue;
         }
-        for (index, words) in [&fields[..], &operators, &literals].into_iter().enumerate() {
+        for (index, words) in [&FIELDS[..], &operators, &literals].into_iter().enumerate() {
             if index > 0 {
                 text.push(' ');
             }

@@ -22,11 +22,13 @@ struct TestChunk {
     data: Vec<u8>,
 }
 
-/// A synthetic `CryEngine` chunk file: header, chunk table, then the chunks' data in order.
+/// A synthetic `CryEngine` chunk file: header, chunk table, then the chunks' data in order, or the
+/// table after the data with [`Self::table_at_end`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestChunkFile {
     container: TestChunkContainer,
     chunks: Vec<TestChunk>,
+    table_at_end: bool,
 }
 
 impl TestChunkFile {
@@ -36,6 +38,7 @@ impl TestChunkFile {
         Self {
             container: TestChunkContainer::Ivo,
             chunks: Vec::new(),
+            table_at_end: false,
         }
     }
 
@@ -45,6 +48,7 @@ impl TestChunkFile {
         Self {
             container: TestChunkContainer::CrCh,
             chunks: Vec::new(),
+            table_at_end: false,
         }
     }
 
@@ -60,6 +64,13 @@ impl TestChunkFile {
         self.push(type_id, version, true, data.into())
     }
 
+    /// Writes the chunk table after the chunks' data instead of before it.
+    #[must_use]
+    pub const fn table_at_end(mut self) -> Self {
+        self.table_at_end = true;
+        self
+    }
+
     fn push(mut self, type_id: u32, version: u32, big_endian: bool, data: Vec<u8>) -> Self {
         self.chunks.push(TestChunk {
             type_id,
@@ -73,7 +84,12 @@ impl TestChunkFile {
     /// Returns the offset each chunk's data is written at, in order.
     #[must_use]
     pub fn offsets(&self) -> Vec<u64> {
-        let mut offset = HEADER_LEN + self.chunks.len() * TABLE_ENTRY_LEN;
+        let mut offset = HEADER_LEN
+            + if self.table_at_end {
+                0
+            } else {
+                self.table_len()
+            };
         self.chunks
             .iter()
             .map(|chunk| {
@@ -100,15 +116,39 @@ impl TestChunkFile {
             &mut out,
             u32::try_from(self.chunks.len()).unwrap_or(u32::MAX),
         );
-        put_u32(&mut out, u32::try_from(HEADER_LEN).unwrap_or(u32::MAX));
+        let data_end = self
+            .chunks
+            .last()
+            .zip(offsets.last())
+            .map_or(HEADER_LEN, |(chunk, &offset)| {
+                usize::try_from(offset).unwrap_or(usize::MAX) + chunk.data.len()
+            });
+        let table_offset = if self.table_at_end {
+            self.align(data_end)
+        } else {
+            HEADER_LEN
+        };
+        put_u32(&mut out, u32::try_from(table_offset).unwrap_or(u32::MAX));
+        let mut table = Vec::with_capacity(self.table_len());
         for ((index, chunk), &offset) in self.chunks.iter().enumerate().zip(&offsets) {
-            self.put_entry(&mut out, index, chunk, offset);
+            self.put_entry(&mut table, index, chunk, offset);
+        }
+        if !self.table_at_end {
+            out.extend_from_slice(&table);
         }
         for (chunk, &offset) in self.chunks.iter().zip(&offsets) {
             out.resize(usize::try_from(offset).unwrap_or(usize::MAX), 0);
             out.extend_from_slice(&chunk.data);
         }
+        if self.table_at_end {
+            out.resize(table_offset, 0);
+            out.extend_from_slice(&table);
+        }
         out
+    }
+
+    const fn table_len(&self) -> usize {
+        self.chunks.len() * TABLE_ENTRY_LEN
     }
 
     fn put_entry(&self, out: &mut Vec<u8>, index: usize, chunk: &TestChunk, offset: u64) {

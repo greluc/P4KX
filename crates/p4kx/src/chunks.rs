@@ -15,7 +15,7 @@ const NONE: &str = "-";
 #[derive(Serialize)]
 struct ListJson<'a> {
     file: &'a str,
-    container: String,
+    container: &'static str,
     version: u32,
     chunks: Vec<ChunkJson>,
 }
@@ -74,12 +74,12 @@ fn open(source: &ChunkFileSource) -> Result<ChunkSource> {
 }
 
 fn list(source: &ChunkSource, as_json: bool) -> Result<()> {
-    let file = source.chunks();
+    let file = source.file();
     let container = file.container();
     if as_json {
         json::print(&ListJson {
             file: source.name(),
-            container: container.to_string(),
+            container: container.name(),
             version: container.version(),
             chunks: file
                 .chunks()

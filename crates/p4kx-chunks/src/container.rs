@@ -28,6 +28,15 @@ impl Container {
         }
     }
 
+    /// Returns `#ivo` or `CrCh`.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Ivo => "#ivo",
+            Self::CrCh => "CrCh",
+        }
+    }
+
     pub(crate) fn from_signature(signature: &[u8]) -> Option<Self> {
         [Self::Ivo, Self::CrCh]
             .into_iter()
@@ -37,10 +46,7 @@ impl Container {
 
 impl fmt::Display for Container {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.pad(match self {
-            Self::Ivo => "#ivo",
-            Self::CrCh => "CrCh",
-        })
+        formatter.pad(self.name())
     }
 }
 

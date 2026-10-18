@@ -42,6 +42,14 @@ pub enum ChunkError {
         /// Length of the file.
         len: u64,
     },
+    /// A chunk's data starts in the file header or overlaps the chunk table.
+    #[error("chunk {index} at offset {offset} lies in the file header or the chunk table")]
+    ChunkInHeader {
+        /// Position of the chunk in the table.
+        index: usize,
+        /// Offset of its data.
+        offset: u64,
+    },
     /// The file ends inside its header.
     #[error("the chunk file header is truncated")]
     Truncated(#[from] ParseError),

@@ -19,8 +19,8 @@ pub const MAX_CHUNK_FILE_LEN: u64 = 1 << 30;
 #[derive(Debug)]
 pub struct ChunkSource {
     name: String,
-    file: Option<PathBuf>,
-    chunks: ChunkFile<Vec<u8>>,
+    path: Option<PathBuf>,
+    file: ChunkFile<Vec<u8>>,
 }
 
 impl ChunkSource {
@@ -78,7 +78,7 @@ impl ChunkSource {
 
     fn parse(
         name: String,
-        file: Option<PathBuf>,
+        path: Option<PathBuf>,
         bytes: Option<Vec<u8>>,
     ) -> Result<Self, ConversionError> {
         let Some(bytes) = bytes else {
@@ -88,7 +88,7 @@ impl ChunkSource {
             });
         };
         match ChunkFile::parse(bytes) {
-            Ok(chunks) => Ok(Self { name, file, chunks }),
+            Ok(file) => Ok(Self { name, path, file }),
             Err(source) => Err(ConversionError::ChunkFile { file: name, source }),
         }
     }
@@ -101,8 +101,8 @@ impl ChunkSource {
 
     /// Returns the parsed chunk file.
     #[must_use]
-    pub const fn chunks(&self) -> &ChunkFile<Vec<u8>> {
-        &self.chunks
+    pub const fn file(&self) -> &ChunkFile<Vec<u8>> {
+        &self.file
     }
 
     /// Writes the data of the chunk at `index` in the table unchanged to `out`, replacing it, and
@@ -115,17 +115,17 @@ impl ChunkSource {
     /// [`ConversionError::Write`] when the file cannot be written.
     pub fn write_chunk_to_file(&self, index: usize, out: &Path) -> Result<Chunk, ConversionError> {
         let chunk_and_data = self
-            .chunks
+            .file
             .chunks()
             .get(index)
-            .zip(self.chunks.chunk_data(index));
+            .zip(self.file.chunk_data(index));
         let (chunk, data) = chunk_and_data.ok_or_else(|| ConversionError::NoSuchChunk {
             file: self.name.clone(),
             index,
-            count: self.chunks.chunks().len(),
+            count: self.file.chunks().len(),
         })?;
-        if let Some(file) = &self.file
-            && is_same_file(out, [file.clone()])
+        if let Some(path) = &self.path
+            && is_same_file(out, [path.clone()])
         {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),

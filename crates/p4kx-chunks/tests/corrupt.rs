@@ -172,3 +172,31 @@ fn errors_name_what_is_wrong() {
         "message"
     );
 }
+
+#[test]
+fn a_chunk_in_the_header_or_the_table_is_rejected() {
+    let mut ivo = TestChunkFile::ivo()
+        .chunk(0x9293_B9D8, 0x900, [1; 8])
+        .bytes();
+    put_u64(&mut ivo, 24, 8);
+    let mut ivo_table = TestChunkFile::ivo()
+        .chunk(0x9293_B9D8, 0x900, [1; 8])
+        .chunk(0x8335_674E, 0x900, [2; 8])
+        .bytes();
+    put_u64(&mut ivo_table, 24, 32);
+    let mut crch = TestChunkFile::crch().chunk(0x100B, 0x824, [1; 8]).bytes();
+    put_u32(&mut crch, 28, 20);
+
+    for (name, bytes, offset) in [
+        ("#ivo header", ivo, 8),
+        ("#ivo table", ivo_table, 32),
+        ("CrCh table", crch, 20),
+    ] {
+        let result = parse(&bytes);
+
+        assert!(
+            matches!(result, Err(ChunkError::ChunkInHeader { index: 0, offset: found }) if found == offset),
+            "{name}: {result:?}"
+        );
+    }
+}

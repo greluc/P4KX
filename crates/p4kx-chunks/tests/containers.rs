@@ -198,3 +198,23 @@ fn the_same_id_is_named_per_container() {
         "32-bit ID"
     );
 }
+
+#[test]
+fn an_ivo_chunk_before_a_trailing_chunk_table_ends_at_the_table() -> Result<(), ChunkError> {
+    let bytes = TestChunkFile::ivo()
+        .chunk(IVO_MTL_NAME, 0x900, *b"material")
+        .chunk(IVO_MESH, 0x900, [3; 16])
+        .table_at_end()
+        .bytes();
+
+    let file = ChunkFile::parse(bytes.as_slice())?;
+
+    let sizes: Vec<u64> = file.chunks().iter().map(Chunk::size).collect();
+    assert_eq!(sizes, [8, 16], "the last chunk stops at the table");
+    assert_eq!(
+        file.chunk_data(1),
+        Some([3; 16].as_slice()),
+        "data without the table"
+    );
+    Ok(())
+}

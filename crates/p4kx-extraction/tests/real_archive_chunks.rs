@@ -33,7 +33,7 @@ fn a_sample_of_every_chunk_file_extension_opens_and_its_chunks_are_readable() ->
             match ChunkSource::from_archive(&archive, entry.path()) {
                 Ok(source) => {
                     opened += 1;
-                    let file = source.chunks();
+                    let file = source.file();
                     let readable =
                         (0..file.chunks().len()).all(|index| file.chunk_data(index).is_some());
                     if !readable || file.chunks().is_empty() {

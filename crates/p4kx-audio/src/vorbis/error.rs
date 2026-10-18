@@ -55,6 +55,22 @@ pub enum VorbisError {
         /// What is wrong.
         reason: &'static str,
     },
+    /// The Vorbis decoder fails on an audio packet while decoding the sound to PCM.
+    #[error("the Vorbis decoder fails on the audio packet at data offset {offset}: {reason}")]
+    Undecodable {
+        /// Offset of the packet header in the `data` chunk.
+        offset: u64,
+        /// What the decoder reports.
+        reason: String,
+    },
+    /// The decoder gives fewer frames than the granule positions of the stream count.
+    #[error("the Vorbis decoder gives {decoded} of the {expected} frames the stream counts")]
+    MissingSamples {
+        /// Frames the granule positions count.
+        expected: u64,
+        /// Frames the decoder gave.
+        decoded: u64,
+    },
     /// A Vorbis decoder rejects the rebuilt stream.
     #[error("a Vorbis decoder rejects the rebuilt stream: {0}")]
     Rejected(String),

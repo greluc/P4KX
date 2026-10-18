@@ -76,6 +76,12 @@ jobs:
           $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Product.UpgradeCode
           .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $next -UpgradeCode $upgradeCode
       - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: msiexec-logs
+          path: target/wix-check/*.log
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
         with:
           name: release
           path: |

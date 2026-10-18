@@ -120,6 +120,11 @@ A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one au
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
 
+**Codebook library**:
+The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
+(libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.
+_Avoid_: codebook file, packed codebooks
+
 **Soundbank**:
 A Wwise BNK file holding sections such as `BKHD`, `HIRC` (sounds, events and actions) and `DIDX`
 with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be embedded only as its

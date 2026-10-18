@@ -29,6 +29,7 @@ pub struct TestWem {
     block_align: u16,
     big_endian: bool,
     chunks: Vec<([u8; 4], Vec<u8>)>,
+    vorbis_fields: Vec<u8>,
     data: Vec<u8>,
 }
 
@@ -45,6 +46,7 @@ impl TestWem {
             block_align: channels.saturating_mul(2),
             big_endian: false,
             chunks: Vec::new(),
+            vorbis_fields: Vec::new(),
             data: samples
                 .iter()
                 .flat_map(|sample| sample.to_le_bytes())
@@ -63,6 +65,7 @@ impl TestWem {
             block_align: 0,
             big_endian: false,
             chunks: Vec::new(),
+            vorbis_fields: Vec::new(),
             data: (0..=255).collect(),
         }
     }
@@ -109,6 +112,7 @@ impl TestWem {
             block_align,
             big_endian: false,
             chunks: Vec::new(),
+            vorbis_fields: Vec::new(),
             data,
         }
     }
@@ -131,6 +135,14 @@ impl TestWem {
     #[must_use]
     pub fn chunk(mut self, id: [u8; 4], body: impl Into<Vec<u8>>) -> Self {
         self.chunks.push((id, body.into()));
+        self
+    }
+
+    /// Sets the bytes a Wwise Vorbis `fmt` chunk holds after the sample count, from offset `0x1C`;
+    /// they are written as given, so multi-byte fields must already be in the file's byte order.
+    #[must_use]
+    pub fn vorbis_fields(mut self, fields: impl Into<Vec<u8>>) -> Self {
+        self.vorbis_fields = fields.into();
         self
     }
 
@@ -205,6 +217,7 @@ impl TestWem {
                 self.put_u16(&mut fmt, 0);
                 self.put_u32(&mut fmt, channel_layout(self.channels));
                 self.put_u32(&mut fmt, self.sample_count);
+                fmt.extend_from_slice(&self.vorbis_fields);
                 fmt.resize(0x42, 0);
             }
         }

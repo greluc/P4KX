@@ -132,12 +132,12 @@ fn a_trailing_partial_frame_is_dropped() -> TestResult {
 fn any_other_codec_is_a_typed_error_naming_it() -> TestResult {
     let cases = [
         (
-            TestWem::encoded(TestCodec::Vorbis, 2, 48_000, 100),
-            "Wwise Vorbis",
-        ),
-        (
             TestWem::encoded(TestCodec::Tag(0x3041), 1, 48_000, 0),
             "Opus",
+        ),
+        (
+            TestWem::encoded(TestCodec::Tag(0x0166), 2, 48_000, 0),
+            "XMA2",
         ),
     ];
     for (wem, name) in cases {

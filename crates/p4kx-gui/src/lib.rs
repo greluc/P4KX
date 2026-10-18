@@ -46,7 +46,8 @@ pub use language::Language;
 pub use model::{Failure, Model, WorkTab};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
+    ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
+    PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
 };
 pub use query::{
     CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
@@ -58,6 +59,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, QueryText,
-    RecordSearchText, Text, Texts,
+    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
+    QueryText, RecordSearchText, Text, Texts,
 };

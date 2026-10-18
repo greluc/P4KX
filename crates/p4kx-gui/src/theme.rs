@@ -10,6 +10,8 @@ pub mod tokens;
 #[cfg(test)]
 mod comparison_tests;
 #[cfg(test)]
+mod image_tests;
+#[cfg(test)]
 mod query_tests;
 #[cfg(test)]
 mod tests;

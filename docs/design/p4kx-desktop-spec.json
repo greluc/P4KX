@@ -756,6 +756,24 @@
     "longLines": "clipped per side, one horizontal scroll for both sides",
     "messages": "previewPanel body: binary and too large color-gray-1, failure color-danger-text"
   },
+  "imagePreview": {
+    "dsClass": "previewPanel + facts-bar + krt-segmented krt-segmented--sm",
+    "paddingX": 16,
+    "paddingY": 8,
+    "labelGap": 12,
+    "selectorGap": 8,
+    "labelFontSize": 11.2,
+    "labelFontWeight": "fw-bold",
+    "labelLetterSpacingEm": 0.15,
+    "labelUppercase": true,
+    "labelColor": "color-gray-2-text",
+    "background": "surface-panel",
+    "image": "one texel per device pixel, centred, larger mips scroll",
+    "facts": "factsBar without direction: format, size, mips, cubemap faces",
+    "selector": "quickFilter, one item per mip labelled with its longer side",
+    "focusRingOffset": -3,
+    "messages": "unsupported format, unshowable and failure color-danger-text"
+  },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},
     "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},

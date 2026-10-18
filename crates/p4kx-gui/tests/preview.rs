@@ -38,7 +38,7 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
         .entry(TestEntry::stored("Data\\blob.bin", BLOB))
         .entry(TestEntry::stored("Data\\long.txt", long_text()))
         .entry(
-            TestEntry::stored("Data\\huge.dds", vec![0; 16])
+            TestEntry::stored("Data\\huge.bin", vec![0; 16])
                 .with_uncompressed_size(PREVIEW_SIZE_LIMIT * 2),
         )
         .entry(TestEntry::stored("Data\\cut.txt", vec![b'a'; 64]).with_payload(vec![b'a'; 8]))
@@ -197,12 +197,12 @@ fn the_hex_tab_shows_offsets_bytes_and_printable_characters() -> TestResult {
 fn an_entry_above_the_size_limit_is_not_read() -> TestResult {
     let (_folder, mut harness) = opened(Language::BritishEnglish)?;
 
-    preview(&mut harness, "huge.dds")?;
+    preview(&mut harness, "huge.bin")?;
 
     assert!(
         harness
             .query_by_label(
-                "Data\\huge.dds is 512.0 MiB. Entries larger than 256.0 MiB are not \
+                "Data\\huge.bin is 512.0 MiB. Entries larger than 256.0 MiB are not \
                  previewed; extract it to look inside."
             )
             .is_some(),

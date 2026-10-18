@@ -13,6 +13,14 @@ the window stays responsive while it loads.
   line breaks show as a middle dot `·`.
 - **Hex** shows 16 bytes per row: the offset, the bytes in hexadecimal and the printable ASCII
   characters, with a dot for every other byte.
+- **Image** appears for a texture's header `.dds` and an alpha tail `.dds.a`, and opens when you
+  select one. Above the image a facts bar gives the format, the size of the largest mip, the
+  number of mips and the cubemap faces. The texture's split parts are read and decoded in the
+  background; the first mip shown is the largest that fits the preview, at one texture pixel per
+  screen pixel. The **Mip** buttons, labelled with each mip's longer side, switch to another mip;
+  a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, an alpha tail
+  is merged into the alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
+  named; the Text and Hex tabs still show the Entry's data.
 - **Copy** puts the open tab on the clipboard: the text, or the hex rows as shown.
 
 ### Size limits

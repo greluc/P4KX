@@ -74,6 +74,7 @@ sind keine neuen Farben.
 | Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
+| Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
 | Abfrage-Editor | `textarea` | 4 Zeilen (112), wächst bis 12 Zeilen (304), dann Scrollleiste | x 12, y 8 | Label darüber (Eyebrow), Aktionen darunter 12 | 16 / 400, Zeilenhöhe 1,5; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Fehlerstelle bg `rgba(163,0,10,0.2)` | 1 `control-border`; Fokus `color-primary`; Fehlerstelle unterstrichen 2 `color-danger` | Fokus `glow-primary` | Rahmen + Glow; Strg+Enter führt aus |
 | Fehlerhinweis | `.alert.alert-danger` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(163,0,10,0.2)`, Text `color-gray-1` | 1 `color-danger`, links 4 | – | – |
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
@@ -173,6 +174,16 @@ dort der Bereich als Text, darunter in `color-gray-2-text` der Filter, der ihn e
 Ziel, Konfliktregel, Umwandlung, Fortschritt, Abbrechen und Zusammenfassung sind die der
 normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Seite.
 
+**D.14 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
+Vorschau den Tab „Bild"; andere Einträge kehren zu „Text" zurück. Format, Größe, Mip-Anzahl und
+Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des Vergleichs. Die
+Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
+„1024" …): jede Stufe ist eindeutig, einen Klick entfernt und per Tastatur erreichbar. Gezeigt
+wird anfangs das größte Mip, das in die Vorschau passt, ein Texel je Gerätepixel ohne Skalierung;
+größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (mehr als
+8192 × 8192 Pixel oder über der größten Texturgröße des Renderers), werden nicht angeboten;
+hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
+Farben hat; Alpha wird auf `surface-panel` gemischt.
 **D.15 Abfrage als dritter Tab im Arbeitsbereich.** „Abfrage" folgt auf „Durchsuchen" und
 „Vergleich". Oben steht der Editor als `textarea` mit „Abfrage ausführen" als der einen CTA des
 Tabs; „Abbrechen" ist Ghost, Fortschritt wie beim Vergleich (Spinner, dann Balken bis 320 px). Eine

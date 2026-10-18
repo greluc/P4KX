@@ -313,6 +313,17 @@ pub const DIFF_ADDED_FILL: Color32 = CHIP_SUCCESS_FILL;
 /// The fill of a removed line, the danger chip fill.
 pub const DIFF_REMOVED_FILL: Color32 = CHIP_DANGER_FILL;
 
+/// The horizontal padding of the image preview's body.
+pub const IMAGE_PADDING_X: f32 = PREVIEW_PADDING_X;
+/// The vertical padding of the image preview's body.
+pub const IMAGE_PADDING_Y: f32 = SPACE_2;
+/// The gap between the mip label and the mip selector.
+pub const IMAGE_LABEL_GAP: f32 = SPACE_3;
+/// The gap between the mip selector and the image.
+pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
+/// The offset of the focus ring of a segment, inside it.
+pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;
+
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The underline of the marked error in the Query editor.

@@ -128,3 +128,13 @@ Archive order. With `--json` failures are not repeated on stderr. `archive_chang
 when the Archive changed on disk after it was opened: the Extraction then stops, the Entries not
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
 `failed` or `cancelled` is not empty.
+
+## `p4kx cryxml <file> --out <file> --json`
+
+```json
+{"input": "…", "output": "…", "format": "CryXmlB", "byte_order": "little"}
+```
+
+`format` is the signature, `CryXmlB`, `CryXml` or `CRY3SDK`, or `text` for text XML written
+unchanged; `byte_order` is `little`, `big`, or `null` for text XML. `--json` needs `--out`,
+because the XML would otherwise share stdout with the JSON; without it the exit code is 2.

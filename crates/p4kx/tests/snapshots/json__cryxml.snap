@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "byte_order": "little",
+  "format": "CryXmlB",
+  "input": "[DIR]/vehicle.xml",
+  "output": "[DIR]/converted.xml"
+}

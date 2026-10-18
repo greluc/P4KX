@@ -2,6 +2,7 @@
 
 mod channels;
 mod cli;
+mod cryxml;
 mod exit;
 mod extract;
 mod info;
@@ -27,6 +28,7 @@ fn main() -> ExitCode {
         Command::Extract(args) => extract::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
+        Command::CryXml(args) => cryxml::run(&args, json).map(success),
         Command::Texture(args) => texture::run(&args, json).map(success),
     };
     match result {

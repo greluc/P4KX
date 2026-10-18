@@ -52,6 +52,7 @@ pub struct Model {
     update: UpdateState,
     work_tab: WorkTab,
     comparison: ComparisonTab,
+    stopped_by_change: bool,
 }
 
 impl std::fmt::Debug for Model {
@@ -73,6 +74,7 @@ impl std::fmt::Debug for Model {
             .field("update", &self.update)
             .field("work_tab", &self.work_tab)
             .field("comparison", &self.comparison)
+            .field("stopped_by_change", &self.stopped_by_change)
             .finish()
     }
 }
@@ -98,6 +100,7 @@ impl Model {
             update: UpdateState::default(),
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
+            stopped_by_change: false,
         }
     }
 
@@ -185,6 +188,7 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
+                self.stopped_by_change = false;
             }
             Err(error) => self.fail(opening.path, &error),
         }

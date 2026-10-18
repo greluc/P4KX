@@ -2807,6 +2807,7 @@ dependencies = [
  "p4kx-archive",
  "p4kx-cryxml",
  "p4kx-testkit",
+ "p4kx-texture",
  "rayon",
  "roxmltree",
  "tempfile",
@@ -2866,6 +2867,15 @@ dependencies = [
  "flate2",
  "p4kx-foundation",
  "ruzstd",
+]
+
+[[package]]
+name = "p4kx-texture"
+version = "0.1.0"
+dependencies = [
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

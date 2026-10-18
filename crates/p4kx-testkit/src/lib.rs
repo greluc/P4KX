@@ -11,10 +11,12 @@ mod cryxml;
 mod layout_v1;
 mod layout_v2;
 mod real_archive;
+mod split_dds;
 mod test_entry;
 
 pub use archive_builder::ArchiveBuilder;
 pub use build_manifest::write_build_manifest;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use real_archive::{MissingRealArchive, REAL_ARCHIVE_VAR, real_archive_path};
+pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;

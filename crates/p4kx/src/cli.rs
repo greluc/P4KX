@@ -37,6 +37,9 @@ pub(crate) enum Command {
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
     #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
     CryXml(CryXmlArgs),
+    /// Shows or merges a DDS texture split into a header and mip parts.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Texture(TextureArgs),
 }
 
 /// Arguments of `p4kx cryxml`.
@@ -47,6 +50,44 @@ pub(crate) struct CryXmlArgs {
     /// Writes the XML to this file instead of stdout; needed with --json.
     #[arg(long, value_name = "FILE")]
     pub(crate) out: Option<PathBuf>,
+}
+
+/// Arguments of `p4kx texture`.
+#[derive(Debug, Args)]
+pub(crate) struct TextureArgs {
+    /// What to do with the texture.
+    #[command(subcommand)]
+    pub(crate) action: TextureAction,
+}
+
+/// The actions of `p4kx texture`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum TextureAction {
+    /// Prints the format, size, depth, mip count, array size, cubemap faces and parts of a texture.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Info(TextureSource),
+    /// Merges the header and the mip parts of a texture into one standard DDS file.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Merge {
+        /// The texture.
+        #[command(flatten)]
+        source: TextureSource,
+        /// The DDS file to write; an existing file is replaced.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
+}
+
+/// Where a texture's header and parts are.
+#[derive(Debug, Args)]
+pub(crate) struct TextureSource {
+    /// A Data.p4k Archive when ENTRY is given; otherwise the texture's header file, with its parts
+    /// <FILE>.1 … <FILE>.N next to it.
+    #[arg(value_name = "ARCHIVE_OR_FILE")]
+    pub(crate) path: PathBuf,
+    /// Path of the texture's header Entry in the Archive, with `\` or `/` as separator, ignoring
+    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N.
+    pub(crate) entry: Option<String>,
 }
 
 /// Arguments of `p4kx list`.

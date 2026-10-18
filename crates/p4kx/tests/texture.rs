@@ -1,0 +1,211 @@
+//! `p4kx texture info|merge` end to end, for Entries of an Archive and for files on disk.
+
+use std::error::Error;
+use std::path::{Path, PathBuf};
+
+use assert_cmd::Command;
+use p4kx_testkit::{ArchiveBuilder, SplitDds, TestTextureFormat};
+use predicates::prelude::predicate;
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+const HEADER: &str = "Data\\Textures\\hull_ddna.dds";
+
+fn texture() -> SplitDds {
+    SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4)
+}
+
+fn write_archive(folder: &Path, dds: &SplitDds) -> Result<PathBuf, Box<dyn Error>> {
+    let path = folder.join("Data.p4k");
+    dds.entries(HEADER)
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)?;
+    Ok(path)
+}
+
+fn p4kx() -> Result<Command, Box<dyn Error>> {
+    Ok(Command::cargo_bin("p4kx")?)
+}
+
+/// Checks the merged file byte by byte: the 148-byte DX10 header of the header Entry, then the
+/// seven mips from 64×32 down to 1×1, each at its offset in the standard order.
+fn assert_standard_layout(merged: &[u8], dds: &SplitDds) {
+    let header = dds.header_bytes();
+    assert_eq!(
+        merged.get(..148),
+        header.get(..148),
+        "the DDS header comes first"
+    );
+    let mut offset = 148;
+    for (level, size) in [128, 32, 8, 2, 1, 1, 1].into_iter().enumerate() {
+        let len = size * 16;
+        let level = u32::try_from(level).unwrap_or_default();
+        assert_eq!(
+            merged.get(offset..offset + len),
+            Some(dds.mip(level).as_slice()),
+            "mip {level} at offset {offset}"
+        );
+        offset += len;
+    }
+    assert_eq!(merged.len(), offset, "nothing after the smallest mip");
+}
+
+#[test]
+fn info_of_an_entry_prints_format_size_mips_faces_and_parts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &texture())?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&archive)
+        .arg("data/textures/HULL_DDNA.dds")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(
+            r"(?m)^Texture: +Data\\Textures\\hull_ddna\.dds$",
+        )?)
+        .stdout(predicate::str::is_match(r"(?m)^Format: +BC7_UNORM_SRGB$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Size: +64 x 32$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Depth: +1$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Mips: +7$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Array size: +1$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Faces: +1$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Parts: +4$")?);
+    Ok(())
+}
+
+#[test]
+fn info_of_a_file_prints_json() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 32, 32)
+        .cubemap()
+        .write_files(dir.path(), "sky_cm.dds")?;
+
+    let output = p4kx()?
+        .args(["--json", "texture", "info"])
+        .arg(&header)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "texture": header.display().to_string(),
+            "format": "BC1_UNORM",
+            "width": 32,
+            "height": 32,
+            "depth": 1,
+            "mip_count": 6,
+            "array_size": 1,
+            "faces": 6,
+            "cubemap": true,
+            "parts": 0,
+        }),
+        "the JSON shape"
+    );
+    Ok(())
+}
+
+#[test]
+fn merge_of_an_entry_writes_the_standard_dds_layout() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = texture();
+    let archive = write_archive(dir.path(), &dds)?;
+    let out = dir.path().join("hull_ddna.dds");
+
+    p4kx()?
+        .args(["texture", "merge"])
+        .arg(&archive)
+        .arg(HEADER)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("4 parts"));
+
+    assert_standard_layout(&std::fs::read(&out)?, &dds);
+    Ok(())
+}
+
+#[test]
+fn merge_of_a_file_with_its_parts_next_to_it_writes_json() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = texture();
+    let header = dds.write_files(dir.path(), "hull_ddna.dds")?;
+    let out = dir.path().join("merged.dds");
+
+    let output = p4kx()?
+        .args(["texture", "merge", "--json"])
+        .arg(&header)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success");
+    let merged = std::fs::read(&out)?;
+    assert_standard_layout(&merged, &dds);
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "texture": header.display().to_string(),
+            "output": out.display().to_string(),
+            "parts": 4,
+            "size": merged.len(),
+        }),
+        "the JSON shape"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_missing_part_fails_naming_the_part() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = texture().write_files(dir.path(), "hull_ddna.dds")?;
+    std::fs::remove_file(dir.path().join("hull_ddna.dds.3"))?;
+    let out = dir.path().join("merged.dds");
+
+    p4kx()?
+        .args(["texture", "merge"])
+        .arg(&header)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("hull_ddna.dds.3 is missing"));
+
+    assert!(!out.exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
+fn an_unknown_entry_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &texture())?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&archive)
+        .arg("Data\\nothing.dds")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("no Entry named Data\\nothing.dds"));
+    Ok(())
+}
+
+#[test]
+fn a_file_that_is_no_texture_fails() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("notes.dds");
+    std::fs::write(&file, "plain text, not a texture")?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&file)
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("not a DDS texture"));
+    Ok(())
+}

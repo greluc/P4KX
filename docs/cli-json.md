@@ -73,6 +73,33 @@ the RSI Launcher log) or `manual`.
 absolute path stored in the settings. `p4kx channels remove <path> --json` prints
 `{"action": "removed", "path": "…"}`.
 
+## `p4kx texture info <archive> <entry> --json`
+
+Also `p4kx texture info <file> --json` for a header file on disk.
+
+```json
+{"texture": "Data\\Textures\\hull_ddna.dds", "format": "BC7_UNORM_SRGB", "width": 64,
+ "height": 32, "depth": 1, "mip_count": 7, "array_size": 1, "faces": 1, "cubemap": false,
+ "parts": 4}
+```
+
+`texture` is the Entry path, or the path of the file on disk. `format` is the DXGI name of the
+pixel format; legacy headers report their DXGI equivalent (`DXT1` is `BC1_UNORM`), and a format
+this version does not know is described by its DXGI code, `FourCC` or bit masks. `depth` is 1
+unless the texture is a volume, `faces` is 6 for a cubemap and 1 otherwise. `parts` is the number
+of mip parts `.1` … `.N` the header needs, or `null` when the format's size is unknown.
+
+## `p4kx texture merge <archive> <entry> --out <file> --json`
+
+Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
+
+```json
+{"texture": "Data\\Textures\\hull_ddna.dds", "output": "…\\hull_ddna.dds", "parts": 4,
+ "size": 2916}
+```
+
+`parts` is the number of mip parts merged and `size` the size of the written DDS file.
+
 ## `p4kx extract … --json`
 
 ```json

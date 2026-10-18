@@ -188,7 +188,9 @@ fn finish_row(
 }
 
 fn empty_note(ui: &Ui, texts: &Texts, view: &ComparisonView, top_left: egui::Pos2) {
-    let text = if view.filter_text().is_empty() {
+    let text = if !view.comparison().levels().entries {
+        ComparisonText::EntriesSkipped
+    } else if view.filter_text().is_empty() {
         ComparisonText::NoDifferences
     } else {
         ComparisonText::NoMatches

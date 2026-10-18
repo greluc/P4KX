@@ -4,10 +4,19 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use p4kx_comparison::{Archive, ChangeKind, CompareOptions, Filter, OwnedComparison, compare};
+use p4kx_comparison::{
+    Archive, ChangeKind, CompareOptions, Filter, Levels, OwnedComparison, compare,
+};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+fn entries() -> CompareOptions<'static> {
+    CompareOptions {
+        levels: Levels::ENTRIES,
+        ..CompareOptions::default()
+    }
+}
 
 fn write(dir: &Path, channel: &str, builder: &ArchiveBuilder) -> Result<PathBuf, Box<dyn Error>> {
     let folder = dir.join(channel);
@@ -37,14 +46,14 @@ fn pair() -> Result<(tempfile::TempDir, Archive, Archive), Box<dyn Error>> {
 #[test]
 fn an_owned_comparison_holds_the_same_changes_on_another_thread() -> TestResult {
     let (_dir, old, new) = pair()?;
-    let expected: Vec<(ChangeKind, String)> = compare(&old, &new, &CompareOptions::default())?
+    let expected: Vec<(ChangeKind, String)> = compare(&old, &new, None, &entries())?
         .entry_changes()
         .iter()
         .map(|change| (change.kind(), change.path().to_owned()))
         .collect();
 
     let owned = std::thread::spawn(move || {
-        OwnedComparison::compare(Arc::new(old), Arc::new(new), &CompareOptions::default())
+        OwnedComparison::compare(Arc::new(old), Arc::new(new), None, &entries())
     })
     .join()
     .map_err(|_| "the thread panicked")??;
@@ -65,36 +74,31 @@ fn an_owned_comparison_holds_the_same_changes_on_another_thread() -> TestResult 
 }
 
 #[test]
-fn a_filtered_comparison_reports_like_a_comparison_with_that_filter() -> TestResult {
+fn a_recomparison_with_a_filter_reports_like_comparing_with_it() -> TestResult {
     let (_dir, old, new) = pair()?;
     let filter = Filter::new("DATA/");
     let with_filter = CompareOptions {
         filter: Some(&filter),
-        ..CompareOptions::default()
+        ..entries()
     };
+    let expected = serde_json::to_value(compare(&old, &new, None, &with_filter)?)?;
+    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), None, &entries())?;
 
-    let filtered = compare(&old, &new, &CompareOptions::default())?
-        .filtered(&filter)
-        .ok_or("an unfiltered Comparison narrows")?;
-    let compared = compare(&old, &new, &with_filter)?;
+    let report = owned.recompare(Some(&filter), None, |comparison| {
+        (
+            serde_json::to_value(comparison),
+            comparison.entry_counts().total(),
+        )
+    })?;
 
-    assert_eq!(
-        serde_json::to_value(&filtered)?,
-        serde_json::to_value(&compared)?,
-        "the same report"
-    );
-    assert_eq!(filtered.entry_counts().total(), 3, "the three Data changes");
-    assert!(
-        compared.filtered(&Filter::new("libs")).is_none(),
-        "a filtered Comparison names its Filter already"
-    );
+    assert_eq!(report.0?, expected, "the same report");
+    assert_eq!(report.1, 3, "the three Data changes");
     Ok(())
 }
-
 #[test]
 fn the_saved_report_is_the_pretty_json_with_a_final_newline() -> TestResult {
     let (dir, old, new) = pair()?;
-    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), &CompareOptions::default())?;
+    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), None, &entries())?;
     let path = dir.path().join("report.json");
 
     owned.comparison().save_report(&path)?;
@@ -108,7 +112,7 @@ fn the_saved_report_is_the_pretty_json_with_a_final_newline() -> TestResult {
 #[test]
 fn a_selection_counts_only_the_selected_changes() -> TestResult {
     let (_dir, old, new) = pair()?;
-    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), &CompareOptions::default())?;
+    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), None, &entries())?;
 
     let selected = owned.comparison_of(&[true, false, true]);
 

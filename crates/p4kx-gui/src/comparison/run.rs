@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, PoisonError, Weak};
 use std::thread;
 
 use p4kx_comparison::{
-    Archive, CancelToken, CompareOptions, ComparisonError, ComparisonProgress, Levels,
-    OwnedComparison,
+    Archive, CancelToken, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry,
+    Levels, OwnedComparison, OwnedDataForges,
 };
 
 use super::{ComparisonStage, ComparisonView};
@@ -54,8 +54,8 @@ impl Run {
 /// Starts comparing the Archives at `old` and `new` on a background thread, calling `wake` from
 /// it as it advances and once it ended.
 pub(crate) fn start(
-    old: PathBuf,
-    new: PathBuf,
+    (old, new): (PathBuf, PathBuf),
+    levels: Levels,
     wake: impl Fn() + Send + Sync + 'static,
 ) -> Result<Run, String> {
     let cancel = CancelToken::new();
@@ -68,7 +68,7 @@ pub(crate) fn start(
     thread::Builder::new()
         .name("comparison".to_owned())
         .spawn(move || {
-            let outcome = run(&old, &new, &thread_cancel, &thread_stage, &wake);
+            let outcome = run((&old, &new), levels, &thread_cancel, &thread_stage, &wake);
             if sender.send(outcome).is_ok() {
                 wake();
             }
@@ -89,9 +89,30 @@ fn open(path: &Path) -> Result<Arc<Archive>, String> {
         .map_err(|error| format!("{}: {}", path.display(), describe(&error)))
 }
 
+fn open_both(old: &Path, new: &Path) -> Result<(Arc<Archive>, Arc<Archive>), String> {
+    let (old, new) = rayon::join(|| open(old), || open(new));
+    Ok((old?, new?))
+}
+
+/// Reads the DataForge Entry of `archive` and checks that it opens.
+fn read_forge(archive: &Archive) -> Result<Arc<DataForgeEntry>, String> {
+    let fail = |reason: String| format!("{}: {reason}", archive.path().display());
+    let entry = DataForgeEntry::read(archive).map_err(|error| fail(describe(&error)))?;
+    entry.open().map_err(|error| fail(describe(&error)))?;
+    Ok(Arc::new(entry))
+}
+
+fn read_forges(old: &Archive, new: &Archive) -> Result<OwnedDataForges, String> {
+    let (old, new) = rayon::join(|| read_forge(old), || read_forge(new));
+    Ok(OwnedDataForges {
+        old: old?,
+        new: new?,
+    })
+}
+
 fn run(
-    old: &Path,
-    new: &Path,
+    (old, new): (&Path, &Path),
+    levels: Levels,
     cancel: &CancelToken,
     stage: &Mutex<ComparisonStage>,
     wake: &(impl Fn() + Sync),
@@ -100,10 +121,13 @@ fn run(
         *stage.lock().unwrap_or_else(PoisonError::into_inner) = now;
         wake();
     };
-    let (old, new) = rayon::join(|| open(old), || open(new));
-    let (old, new) = match (old, new) {
-        (Ok(old), Ok(new)) => (old, new),
-        (Err(reason), _) | (_, Err(reason)) => return Outcome::Failed(Some(reason)),
+    let (old, new) = match open_both(old, new) {
+        Ok(both) => both,
+        Err(reason) => return Outcome::Failed(Some(reason)),
+    };
+    let forges = match levels.records.then(|| read_forges(&old, &new)).transpose() {
+        Ok(forges) => forges,
+        Err(reason) => return Outcome::Failed(Some(reason)),
     };
     if cancel.is_cancelled() {
         return Outcome::Cancelled;
@@ -115,12 +139,12 @@ fn run(
         });
     };
     let options = CompareOptions {
-        levels: Levels { entries: true },
+        levels,
         filter: None,
         cancel: Some(cancel),
         progress: Some(&on_progress),
     };
-    let comparison = match OwnedComparison::compare(old, new, &options) {
+    let comparison = match OwnedComparison::compare(old, new, forges, &options) {
         Ok(comparison) => comparison,
         Err(ComparisonError::Cancelled) => return Outcome::Cancelled,
         Err(error) => return Outcome::Failed(Some(describe(&error))),

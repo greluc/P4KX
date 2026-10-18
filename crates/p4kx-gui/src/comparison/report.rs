@@ -1,4 +1,3 @@
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -60,8 +59,8 @@ fn path_of(status: &ReportStatus) -> &Path {
     }
 }
 
-/// Writes the report of `comparison`, narrowed to `filter` when given, to `path` on a background
-/// thread, calling `wake` from it once it ended.
+/// Compares again and writes the report of `comparison`, narrowed to `filter` when given, to
+/// `path` on a background thread, calling `wake` from it once it ended.
 pub(crate) fn start(
     comparison: &Arc<OwnedComparison>,
     filter: Option<Filter>,
@@ -74,17 +73,13 @@ pub(crate) fn start(
     let spawned = thread::Builder::new()
         .name("comparison-report".to_owned())
         .spawn(move || {
-            let comparison = thread_comparison.comparison();
-            let saved = filter.as_ref().map_or_else(
-                || comparison.save_report(&thread_path),
-                |filter| {
-                    comparison.filtered(filter).map_or_else(
-                        || Err(io::Error::from(io::ErrorKind::InvalidInput)),
-                        |filtered| filtered.save_report(&thread_path),
-                    )
-                },
-            );
-            if sender.send(saved.map_err(|error| describe(&error))).is_ok() {
+            let saved = thread_comparison
+                .recompare(filter.as_ref(), None, |comparison| {
+                    comparison.save_report(&thread_path)
+                })
+                .map_err(|error| describe(&error))
+                .and_then(|written| written.map_err(|error| describe(&error)));
+            if sender.send(saved).is_ok() {
                 wake();
             }
         });

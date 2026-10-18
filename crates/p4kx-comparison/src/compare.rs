@@ -3,9 +3,10 @@ use std::cmp::Ordering;
 use rayon::prelude::*;
 
 use crate::path_key::cmp_normalised;
+use crate::record_compare::compare_records;
 use crate::{
-    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress, Entry,
-    EntryChange, Side,
+    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress,
+    DataForges, Entry, EntryChange, Side,
 };
 
 const PROGRESS_STEP: usize = 1 << 16;
@@ -43,16 +44,33 @@ impl Joined {
 /// Entries are joined by their path with ASCII case folded and `/` read as `\`; an Entry is
 /// changed when its uncompressed size or CRC-32C differs. Nothing is decompressed.
 ///
+/// Records of the `dataforges` are joined by GUID: a Record is moved when its record path
+/// differs, ignoring case and separator kind, and changed when its name, its type or the value
+/// of a field differs. Fields are joined by name and floats compared by their bits.
+///
 /// # Errors
 ///
-/// Returns [`ComparisonError::NoLevel`] when no level is selected and
-/// [`ComparisonError::Cancelled`] when the Comparison was cancelled.
+/// Returns [`ComparisonError::NoLevel`] when no level is selected,
+/// [`ComparisonError::NoDataForge`] when the Record level is selected without `dataforges`
+/// and [`ComparisonError::Cancelled`] when the Comparison was cancelled. A Record that cannot be
+/// read is reported as unreadable, not as an error.
 pub fn compare<'a>(
     old: &'a Archive,
     new: &'a Archive,
+    dataforges: Option<DataForges<'a>>,
     options: &CompareOptions<'_>,
 ) -> Result<Comparison<'a>, ComparisonError> {
-    let joined = join(old, new, options)?;
+    check_levels(options, dataforges.is_some())?;
+    let (joined, entries_total) = join(old, new, options)?;
+    let progress = ComparisonProgress {
+        entries_done: entries_total,
+        entries_total,
+        ..ComparisonProgress::default()
+    };
+    let records = match dataforges.filter(|_| options.levels.records) {
+        Some(forges) => compare_records(forges, options, progress)?,
+        None => Vec::new(),
+    };
     Ok(Comparison {
         old: Side::of(old),
         new: Side::of(new),
@@ -62,24 +80,37 @@ pub fn compare<'a>(
             .iter()
             .filter_map(|joined| joined.resolve(old, new))
             .collect(),
+        records,
     })
 }
 
-/// Joins the Entries of both Archives on the selected levels into the positions of the changed
-/// ones, ordered by normalised path.
+/// Checks that a level is selected, that the Record level has DataForges, and that the
+/// Comparison was not cancelled yet.
+pub(crate) fn check_levels(
+    options: &CompareOptions<'_>,
+    has_dataforges: bool,
+) -> Result<(), ComparisonError> {
+    if options.levels.is_empty() {
+        return Err(ComparisonError::NoLevel);
+    }
+    if options.levels.records && !has_dataforges {
+        return Err(ComparisonError::NoDataForge);
+    }
+    check_cancel(options)
+}
+
+/// Joins the Entries of both Archives into the positions of the changed ones, ordered by
+/// normalised path, when the Entry level is selected; returns them with the number of Entries
+/// joined.
 pub(crate) fn join(
     old: &Archive,
     new: &Archive,
     options: &CompareOptions<'_>,
-) -> Result<Vec<Joined>, ComparisonError> {
-    if options.levels.is_empty() {
-        return Err(ComparisonError::NoLevel);
-    }
-    check_cancel(options)?;
+) -> Result<(Vec<Joined>, usize), ComparisonError> {
     if options.levels.entries {
         join_entries(old, new, options)
     } else {
-        Ok(Vec::new())
+        Ok((Vec::new(), 0))
     }
 }
 
@@ -101,7 +132,7 @@ fn join_entries(
     old: &Archive,
     new: &Archive,
     options: &CompareOptions<'_>,
-) -> Result<Vec<Joined>, ComparisonError> {
+) -> Result<(Vec<Joined>, usize), ComparisonError> {
     let (old, new) = rayon::join(
         || sorted_selection(old, options),
         || sorted_selection(new, options),
@@ -113,6 +144,7 @@ fn join_entries(
             progress(ComparisonProgress {
                 entries_done: done,
                 entries_total: total,
+                ..ComparisonProgress::default()
             });
         }
     };
@@ -160,7 +192,7 @@ fn join_entries(
         }
     }
     report(total);
-    Ok(changes)
+    Ok((changes, total))
 }
 
 fn sorted_selection<'a>(
@@ -188,7 +220,7 @@ const fn differs(old: &Entry, new: &Entry) -> bool {
     old.uncompressed_size() != new.uncompressed_size() || old.crc32c() != new.crc32c()
 }
 
-fn check_cancel(options: &CompareOptions<'_>) -> Result<(), ComparisonError> {
+pub(crate) fn check_cancel(options: &CompareOptions<'_>) -> Result<(), ComparisonError> {
     if options.cancel.is_some_and(CancelToken::is_cancelled) {
         Err(ComparisonError::Cancelled)
     } else {

@@ -16,8 +16,7 @@ use crate::widgets::indicator;
 use crate::widgets::text::{caps, hairline_below, plain};
 use crate::widgets::toggle;
 use crate::{
-    ComparisonLevels, ComparisonSide, ComparisonStage, ComparisonStatus, ComparisonText, Model,
-    Texts, format,
+    ComparisonSide, ComparisonStage, ComparisonStatus, ComparisonText, Model, Texts, format,
 };
 
 const SIDES: [(ComparisonSide, ComparisonText); 2] = [
@@ -72,18 +71,13 @@ fn levels(ui: &mut Ui, model: &mut Model) {
     let label = texts.get(ComparisonText::Levels);
     let entries_text = texts.get(ComparisonText::LevelEntries);
     let records_text = texts.get(ComparisonText::LevelRecords);
-    let unavailable = texts.get(ComparisonText::RecordsUnavailable);
     let running = model.comparison().is_running();
     let mut levels = model.comparison().levels();
     ui.label(eyebrow(&label));
     toggle::checkbox_if(ui, &mut levels.entries, &entries_text, !running);
-    let mut records = false;
-    toggle::checkbox_if(ui, &mut records, &records_text, false).on_hover_text(unavailable);
+    toggle::checkbox_if(ui, &mut levels.records, &records_text, !running);
     if levels != model.comparison().levels() {
-        model.comparison_mut().set_levels(ComparisonLevels {
-            records: false,
-            ..levels
-        });
+        model.comparison_mut().set_levels(levels);
     }
 }
 

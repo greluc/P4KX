@@ -19,8 +19,8 @@ pub enum ComparisonText {
     LevelEntries,
     /// The Record level.
     LevelRecords,
-    /// Why the Record level cannot be switched on yet.
-    RecordsUnavailable,
+    /// Shown in the list when the Entry level was not compared.
+    EntriesSkipped,
     /// The action that starts the Comparison.
     Start,
     /// The action that stops the Comparison.
@@ -103,7 +103,7 @@ impl ComparisonText {
         Self::Levels,
         Self::LevelEntries,
         Self::LevelRecords,
-        Self::RecordsUnavailable,
+        Self::EntriesSkipped,
         Self::Start,
         Self::Cancel,
         Self::Opening,
@@ -153,7 +153,7 @@ impl ComparisonText {
             Self::Levels => "comparison-levels",
             Self::LevelEntries => "comparison-level-entries",
             Self::LevelRecords => "comparison-level-records",
-            Self::RecordsUnavailable => "comparison-records-unavailable",
+            Self::EntriesSkipped => "comparison-entries-skipped",
             Self::Start => "comparison-start",
             Self::Cancel => "comparison-cancel",
             Self::Opening => "comparison-opening",

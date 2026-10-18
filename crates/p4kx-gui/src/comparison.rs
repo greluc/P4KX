@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Weak;
 
+use p4kx_comparison::Levels;
+
 mod filter_job;
 mod orders;
 mod report;
@@ -28,7 +30,7 @@ pub enum ComparisonSide {
 pub struct ComparisonLevels {
     /// Compares the Entries.
     pub entries: bool,
-    /// Compares the Records, once the service offers that level.
+    /// Compares the Records of both DataForges.
     pub records: bool,
 }
 
@@ -38,6 +40,16 @@ impl Default for ComparisonLevels {
             entries: true,
             records: false,
         }
+    }
+}
+
+impl ComparisonLevels {
+    /// Returns the levels as the Comparison service takes them.
+    #[must_use]
+    pub const fn service(self) -> Levels {
+        Levels::NONE
+            .with_entries(self.entries)
+            .with_records(self.records)
     }
 }
 
@@ -128,11 +140,14 @@ impl ComparisonTab {
         matches!(self.state, State::Running(_))
     }
 
-    /// Returns whether [`Self::start`] would start: both Archives picked, the Entry level on and
-    /// no Comparison running.
+    /// Returns whether [`Self::start`] would start: both Archives picked, a level on and no
+    /// Comparison running.
     #[must_use]
     pub const fn can_start(&self) -> bool {
-        self.old.is_some() && self.new.is_some() && self.levels.entries && !self.is_running()
+        self.old.is_some()
+            && self.new.is_some()
+            && (self.levels.entries || self.levels.records)
+            && !self.is_running()
     }
 
     /// Starts comparing the picked Archives off the UI thread, calling `wake` from it as it
@@ -144,7 +159,7 @@ impl ComparisonTab {
         let (Some(old), Some(new)) = (&self.old, &self.new) else {
             return false;
         };
-        self.state = match run::start(old.clone(), new.clone(), wake) {
+        self.state = match run::start((old.clone(), new.clone()), self.levels.service(), wake) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };

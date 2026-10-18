@@ -6,7 +6,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
-use p4kx_comparison::{Archive, ChangeKind, CompareOptions, Filter, compare};
+use p4kx_comparison::{Archive, ChangeKind, CompareOptions, Filter, Levels, compare};
 use p4kx_gui::{
     ChangeColumn, ComparisonLevels, ComparisonSide, ComparisonStatus, ComparisonTab,
     ComparisonView, Language, Model, ReportStatus, SortDirection,
@@ -207,7 +207,7 @@ fn the_list_sorts_by_every_column_both_ways() -> TestResult {
 }
 
 #[test]
-fn nothing_starts_without_both_archives_or_without_the_entry_level() -> TestResult {
+fn nothing_starts_without_both_archives_or_without_a_level() -> TestResult {
     let pair = pair()?;
     let mut model = Model::new(Language::BritishEnglish);
     let tab = model.comparison_mut();
@@ -216,16 +216,37 @@ fn nothing_starts_without_both_archives_or_without_the_entry_level() -> TestResu
     tab.set_archive(ComparisonSide::New, pair.new);
     tab.set_levels(ComparisonLevels {
         entries: false,
-        records: true,
+        records: false,
     });
-    let records_only = tab.start(|| {});
+    let no_level = tab.start(|| {});
 
     assert!(!one_side, "needs both Archives");
-    assert!(!records_only, "the Record level is not available yet");
+    assert!(!no_level, "needs a level");
     assert!(matches!(tab.status(), ComparisonStatus::Idle), "still idle");
     Ok(())
 }
 
+#[test]
+fn the_record_level_fails_with_the_reason_when_an_archive_has_no_dataforge() -> TestResult {
+    let pair = pair()?;
+    let mut model = picked(&pair, Language::BritishEnglish);
+    let tab = model.comparison_mut();
+    tab.set_levels(ComparisonLevels {
+        entries: false,
+        records: true,
+    });
+
+    assert!(tab.start(|| {}), "the Record level alone starts");
+    wait(tab, |tab| !tab.is_running())?;
+
+    match tab.status() {
+        ComparisonStatus::Failed(Some(reason)) => {
+            assert!(reason.contains("Data.p4k"), "names the Archive: {reason}");
+        }
+        other => return Err(format!("not failed: {other:?}").into()),
+    }
+    Ok(())
+}
 #[test]
 fn cancelling_stops_the_comparison_at_once() -> TestResult {
     let pair = pair()?;
@@ -288,10 +309,11 @@ fn the_saved_report_is_the_report_of_the_cli() -> TestResult {
     let (old, new) = (Archive::open(&pair.old)?, Archive::open(&pair.new)?);
     let filter = Filter::new("Data");
     let options = CompareOptions {
+        levels: Levels::ENTRIES,
         filter: Some(&filter),
         ..CompareOptions::default()
     };
-    compare(&old, &new, &options)?.save_report(&expected)?;
+    compare(&old, &new, None, &options)?.save_report(&expected)?;
 
     let status = model
         .comparison()

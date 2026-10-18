@@ -79,7 +79,7 @@ fn compared(pair: &Pair, language: Language) -> Result<Harness<'static, State>, 
 }
 
 #[test]
-fn the_tab_starts_empty_with_both_pickers_and_a_disabled_compare() -> TestResult {
+fn the_tab_starts_empty_with_both_pickers_both_levels_and_a_disabled_compare() -> TestResult {
     let pair = pair()?;
     let mut harness = harness(&pair, Language::BritishEnglish);
     harness.run();
@@ -104,11 +104,11 @@ fn the_tab_starts_empty_with_both_pickers_and_a_disabled_compare() -> TestResult
         "nothing to compare yet"
     );
     assert!(
-        harness
+        !harness
             .get_by_label("Records")
             .accesskit_node()
             .is_disabled(),
-        "the Record level is not available yet"
+        "the Record level can be switched on"
     );
     Ok(())
 }

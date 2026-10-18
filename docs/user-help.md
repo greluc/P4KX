@@ -30,8 +30,9 @@ The **Comparison** tab next to **Browse** compares two Archives, for example LIV
 
 1. Pick the **Old Archive** and the **New Archive**. Each picker lists the detected Channels with
    their Build, the Recent Archives, and **Choose file…** for any other `Data.p4k`.
-2. Keep **Entries** switched on. The Record level follows in a later version and cannot be
-   switched on yet.
+2. Switch on **Entries**, **Records** or both. The Record level reads the DataForge of each
+   Archive and fails with the reason when one has none. The list shows the Entry changes; the
+   Record changes go into the saved report.
 3. Press **Compare**. Both Archives are opened and their central directories joined in the
    background, without decompressing anything; a progress bar shows the Entries joined, and
    **Cancel** stops at once.

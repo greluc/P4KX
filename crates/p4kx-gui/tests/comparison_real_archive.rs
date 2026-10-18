@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{
-    ChangeColumn, ComparisonSide, ComparisonStatus, ComparisonTab, Language, Model, WorkTab, ui,
+    ChangeColumn, ComparisonLevels, ComparisonSide, ComparisonStatus, ComparisonTab, Language,
+    Model, ReportStatus, WorkTab, ui,
 };
 use p4kx_testkit::{ArchiveBuilder, real_archive_b_path, real_archive_path};
 
@@ -168,5 +169,43 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
         "every Entry of a large Archive is removed"
     );
     assert_ne!(top_row(&harness), first_row, "the list scrolled");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn two_real_archives_compare_on_both_levels_and_save_the_report() -> TestResult {
+    let out = tempfile::tempdir()?;
+    let report = out.path().join("report.json");
+    let mut model = Model::new(Language::BritishEnglish);
+    let tab = model.comparison_mut();
+    tab.set_archive(ComparisonSide::Old, real_archive_path()?);
+    tab.set_archive(ComparisonSide::New, real_archive_b_path()?);
+    tab.set_levels(ComparisonLevels {
+        entries: true,
+        records: true,
+    });
+
+    assert!(tab.start(|| {}), "started");
+    wait(tab, |tab| !tab.is_running())?;
+    if tab.view().is_none() {
+        return Err(format!("no result: {:?}", tab.status()).into());
+    }
+    tab.view_mut()
+        .ok_or("no result")?
+        .save_report(report.clone(), || {});
+    wait(tab, |tab| tab.view().is_some_and(|view| !view.is_saving()))?;
+
+    let saved = tab.view().and_then(|view| view.report_status());
+    assert!(
+        matches!(saved, Some(ReportStatus::Saved(_))),
+        "saved: {saved:?}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&std::fs::read(&report)?)?;
+    assert_eq!(
+        json["levels"],
+        serde_json::json!(["entries", "records"]),
+        "both levels"
+    );
     Ok(())
 }

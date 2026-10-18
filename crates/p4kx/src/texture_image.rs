@@ -1,0 +1,138 @@
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+use p4kx_extraction::{CubemapLayout, Texture};
+use serde::Serialize;
+
+use crate::json;
+
+/// The file format `p4kx texture png` wrote.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ImageFormat {
+    Png,
+    Exr,
+}
+
+#[derive(Serialize)]
+struct ImageJson<'a> {
+    texture: &'a str,
+    output: String,
+    format: ImageFormat,
+    files: Vec<String>,
+    mip: u32,
+    width: u32,
+    height: u32,
+    alpha_tail: bool,
+}
+
+/// What `p4kx texture png` exports: the mip, the cubemap layout and whether a high-range
+/// texture is tone-mapped to an 8-bit PNG.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ImageOptions {
+    pub(crate) mip: u32,
+    pub(crate) layout: CubemapLayout,
+    pub(crate) tone_map: bool,
+}
+
+struct Written {
+    format: ImageFormat,
+    level: u32,
+    width: u32,
+    height: u32,
+    files: Vec<PathBuf>,
+    alpha_tail: bool,
+}
+
+/// Runs `p4kx texture png`: an 8-bit PNG, or OpenEXR for a high-range texture without
+/// `--tone-map`, next to `out` with the extension `.exr`.
+pub(crate) fn export_image(
+    texture: &Texture<'_>,
+    out: &Path,
+    options: ImageOptions,
+    as_json: bool,
+) -> Result<()> {
+    let format = texture.header().format();
+    let high_range = format.is_high_range();
+    if options.tone_map && !high_range {
+        writeln!(
+            io::stderr().lock(),
+            "note: --tone-map has no effect: {format} is not a high-range format"
+        )?;
+    }
+    let written = if high_range && !options.tone_map {
+        let exr = out.with_extension("exr");
+        let report = texture.exr_to_file_as(&exr, options.mip, options.layout)?;
+        Written {
+            format: ImageFormat::Exr,
+            level: report.level,
+            width: report.width,
+            height: report.height,
+            files: report.files,
+            alpha_tail: false,
+        }
+    } else {
+        let report = texture.png_to_file_as(out, options.mip, options.layout)?;
+        Written {
+            format: ImageFormat::Png,
+            level: report.level,
+            width: report.width,
+            height: report.height,
+            files: report.files,
+            alpha_tail: report.alpha_tail,
+        }
+    };
+    if as_json {
+        json::print(&ImageJson {
+            texture: texture.name(),
+            output: json::path(out),
+            format: written.format,
+            files: written.files.iter().map(|file| json::path(file)).collect(),
+            mip: written.level,
+            width: written.width,
+            height: written.height,
+            alpha_tail: written.alpha_tail,
+        })?;
+        return Ok(());
+    }
+    writeln!(io::stdout().lock(), "{}", describe(texture, out, &written))?;
+    Ok(())
+}
+
+fn describe(texture: &Texture<'_>, out: &Path, written: &Written) -> String {
+    let format = texture.header().format();
+    let files: Vec<String> = written
+        .files
+        .iter()
+        .map(|file| file.display().to_string())
+        .collect();
+    let tail = if written.alpha_tail {
+        " with its alpha tail"
+    } else {
+        ""
+    };
+    let start = format!(
+        "wrote mip {} of {}{tail}, {} x {}",
+        written.level,
+        texture.name(),
+        written.width,
+        written.height
+    );
+    let files = files.join(", ");
+    match written.format {
+        ImageFormat::Exr if written.files.iter().all(|file| file != out) => format!(
+            "{start}, as OpenEXR to {files} instead of {}: {format} is a high-range format; \
+             --tone-map writes an 8-bit PNG",
+            out.display()
+        ),
+        ImageFormat::Exr => format!(
+            "{start}, as OpenEXR to {files}: {format} is a high-range format; --tone-map writes \
+             an 8-bit PNG"
+        ),
+        ImageFormat::Png if format.is_high_range() => {
+            format!("{start}, tone-mapped to 8 bits, to {files}")
+        }
+        ImageFormat::Png => format!("{start}, to {files}"),
+    }
+}

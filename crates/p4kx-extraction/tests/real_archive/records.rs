@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use p4kx_extraction::{
     Archive, DataForge, DataForgeEntry, DataForgeError, Record, RecordExportOptions, RecordXml,
-    ValueError, export_records,
+    TreeBuilder, ValueError, export_records,
 };
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
@@ -15,6 +15,7 @@ use super::TestResult;
 const KNOWN_RECORD: &str = "libs/foundry/records/entities/spaceships/aegs_avenger_titan";
 const KNOWN_TYPE: &str = "EntityClassDefinition";
 const KNOWN_GUID: &str = "0079c5d5-1678-4f8c-85ba-18ca8f642af6";
+const DANGLING: &str = "dangling Reference";
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn reads_the_dataforge_of_a_real_archive() -> TestResult {
@@ -82,20 +83,23 @@ fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
         .records()
         .collect::<Vec<_>>()
         .par_iter()
-        .map_init(RecordXml::new, |xml, record| {
-            let tree = record.tree().map_err(|error| error.to_string())?;
-            let mut out = Vec::new();
-            xml.write(&tree, &mut out)
-                .map_err(|error| error.to_string())?;
-            let text = std::str::from_utf8(&out).map_err(|error| error.to_string())?;
-            roxmltree::Document::parse(text).map_err(|error| format!("{error}: {text}"))?;
-            if let Ok(mut errors) = errors.lock() {
-                for (_, error) in tree.errors() {
-                    *errors.entry(error_kind(error)).or_default() += 1;
+        .map_init(
+            || (TreeBuilder::new(), RecordXml::new()),
+            |(builder, xml), record| {
+                let tree = builder.build(record).map_err(|error| error.to_string())?;
+                let mut out = Vec::new();
+                xml.write(&tree, &mut out)
+                    .map_err(|error| error.to_string())?;
+                let text = std::str::from_utf8(&out).map_err(|error| error.to_string())?;
+                roxmltree::Document::parse(text).map_err(|error| format!("{error}: {text}"))?;
+                if let Ok(mut errors) = errors.lock() {
+                    for (_, error) in tree.errors() {
+                        *errors.entry(error_kind(error)).or_default() += 1;
+                    }
                 }
-            }
-            Ok::<_, String>(())
-        })
+                Ok::<_, String>(())
+            },
+        )
         .filter_map(Result::err)
         .collect();
 
@@ -109,7 +113,7 @@ fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
     let errors = errors.into_inner().unwrap_or_default();
     let broken: usize = errors
         .iter()
-        .filter(|(kind, _)| !kind.starts_with("not read"))
+        .filter(|(kind, _)| kind.as_str() != DANGLING)
         .map(|(_, count)| count)
         .sum();
     assert_eq!(broken, 0, "error values by kind: {errors:?}");
@@ -118,7 +122,7 @@ fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
 
 fn error_kind(error: &ValueError) -> String {
     match error {
-        ValueError::NotRead { data_type, array } => format!("not read {data_type} {array}"),
+        ValueError::DanglingReference { .. } => DANGLING.to_owned(),
         other => other.to_string(),
     }
 }

@@ -1,9 +1,9 @@
-//! Record layouts the Record tree rejects, and fields it does not read yet.
+//! Record layouts the Record tree rejects.
 
 use std::error::Error;
 
-use p4kx_dataforge::{DataForge, DataForgeError, DataType, Value, ValueError};
-use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
+use p4kx_dataforge::{DataForge, DataForgeError, ValueError};
+use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -28,24 +28,6 @@ fn error_values_carry_a_reason() {
         ValueError::InvalidBool { byte: 2 }.to_string(),
         "the bool byte 2 is neither 0 nor 1",
         "bool reason"
-    );
-    assert_eq!(
-        ValueError::NotRead {
-            data_type: DataType::Class,
-            array: false
-        }
-        .to_string(),
-        "Class values are not read yet",
-        "not read reason"
-    );
-    assert_eq!(
-        ValueError::NotRead {
-            data_type: DataType::Int32,
-            array: true
-        }
-        .to_string(),
-        "arrays of Int32 are not read yet",
-        "not read array reason"
     );
 }
 
@@ -123,65 +105,6 @@ fn an_inline_class_of_an_unknown_struct_is_an_error() -> TestResult {
             })
         ),
         "the target is range-checked: {result:?}"
-    );
-    Ok(())
-}
-
-#[test]
-fn fields_that_are_not_scalars_are_marked_as_not_read() -> TestResult {
-    let bytes = DataForgeBuilder::new()
-        .structure(TestStruct::new("Inner").field("x", TestType::Int8))
-        .structure(
-            TestStruct::new("Outer")
-                .field("before", TestType::Int8)
-                .field("inner", TestType::Class("Inner".to_owned()))
-                .array("list", TestType::Int32)
-                .field("link", TestType::Reference)
-                .field("after", TestType::Int8),
-        )
-        .record(
-            TestRecord::new(SAMPLE, "Outer", "Outer.One", "a.xml")
-                .value("before", TestValue::Int8(1))
-                .value("after", TestValue::Int8(2)),
-        )
-        .build();
-    let forge = DataForge::open(&bytes)?;
-
-    let tree = forge.records().next().ok_or("no Record")?.tree()?;
-    let fields: Vec<_> = tree
-        .fields()
-        .iter()
-        .map(|field| (field.name(), field.value().clone()))
-        .collect();
-
-    assert_eq!(
-        fields,
-        [
-            ("before", Value::Int8(1)),
-            (
-                "inner",
-                Value::Error(ValueError::NotRead {
-                    data_type: DataType::Class,
-                    array: false
-                })
-            ),
-            (
-                "list",
-                Value::Error(ValueError::NotRead {
-                    data_type: DataType::Int32,
-                    array: true
-                })
-            ),
-            (
-                "link",
-                Value::Error(ValueError::NotRead {
-                    data_type: DataType::Reference,
-                    array: false
-                })
-            ),
-            ("after", Value::Int8(2)),
-        ],
-        "offsets behind the skipped fields stay right"
     );
     Ok(())
 }

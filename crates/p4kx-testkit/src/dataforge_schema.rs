@@ -275,6 +275,35 @@ impl TestPool {
         Self::EnumOption,
     ];
 
+    /// Returns the pool that holds array values of `ty`, or `None` for class arrays.
+    pub(crate) const fn of(ty: &TestType) -> Option<Self> {
+        Some(match ty {
+            TestType::Bool => Self::Bool,
+            TestType::Int8 => Self::Int8,
+            TestType::Int16 => Self::Int16,
+            TestType::Int32 => Self::Int32,
+            TestType::Int64 => Self::Int64,
+            TestType::UInt8 => Self::UInt8,
+            TestType::UInt16 => Self::UInt16,
+            TestType::UInt32 => Self::UInt32,
+            TestType::UInt64 => Self::UInt64,
+            TestType::String => Self::String,
+            TestType::Single => Self::Single,
+            TestType::Double => Self::Double,
+            TestType::Locale => Self::Locale,
+            TestType::Guid => Self::Guid,
+            TestType::Enum(_) => Self::Enum,
+            TestType::StrongPointer(_) => Self::StrongPointer,
+            TestType::WeakPointer(_) => Self::WeakPointer,
+            TestType::Reference => Self::Reference,
+            TestType::Class(_) => return None,
+        })
+    }
+
+    pub(crate) const fn stored_index(self) -> usize {
+        self as usize
+    }
+
     pub(crate) const fn element_len(self) -> usize {
         match self {
             Self::Int8 | Self::UInt8 | Self::Bool => 1,

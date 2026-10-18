@@ -77,6 +77,7 @@ impl EntryWriter<'_> {
             Err(error) => Some(error),
         };
         let raw = self.textures.keep_raw || failure.is_some();
+        let failure = failure.filter(|error| !matches!(error, ExtractionError::UnsafePath));
         let mut entries = Vec::with_capacity(job.requested_parts.len() + 1);
         for (position, (index, entry)) in job.entries().enumerate() {
             let is_header = position == 0;
@@ -168,6 +169,7 @@ impl EntryWriter<'_> {
         })
     }
 }
+
 /// Returns the name of the PNG next to the header: its name with `.png` for `.dds`.
 fn png_name(destination: &Destination) -> OsString {
     let mut name = destination

@@ -45,8 +45,9 @@ Early development (milestone M1). Available today:
   fewer levels gives its smallest) as `<name>.png`, and `raw` the Entries unchanged as well, with
   `merge` only the parts. A selected header takes its parts from the Archive even when they are
   not selected. A texture that cannot be converted, e.g. a missing part or a format without a
-  decoder, is reported as not converted with the reason, its raw Entries are written, and the
-  Extraction continues with exit code 1.
+  decoder, is reported as not converted with the reason, its raw Entries are written (the parts
+  only when the merged DDS was written), and the Extraction continues with exit code 1. A part
+  selected without its header is written unchanged.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its

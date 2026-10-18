@@ -196,12 +196,7 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
     for texture in report.unconverted() {
-        writeln!(
-            err,
-            "not converted {}: {}; its raw Entries were written",
-            texture.path(),
-            reason(texture)
-        )?;
+        writeln!(err, "not converted {}: {}", texture.path(), reason(texture))?;
     }
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {

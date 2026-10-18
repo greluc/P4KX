@@ -134,7 +134,8 @@ With `--convert` the report also holds `"converted": 1`, the number of Entries w
 (CryXml Entries as XML and the Entries of converted textures); they count among `extracted`. It
 also holds `"unconverted": [{"path": "Data\\Textures\\hull_ddna.dds", "error": "cannot convert
 the texture: …"}]`, the textures by their header Entry that could not be converted, whose raw
-Entries were written instead; the exit code is then 1. Without `--convert` both fields are
+Entries were written instead (except a header whose path the merged DDS already took); the exit
+code is then 1. Without `--convert` both fields are
 absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;

@@ -114,7 +114,8 @@ impl ExtractionReport {
     }
 
     /// Returns the textures, by the path of their header Entry, that a Conversion could not
-    /// fully convert, with the reason; their raw Entries were written instead.
+    /// fully convert, with the reason; their raw Entries were written instead, except a header
+    /// whose path the merged DDS already took.
     #[must_use]
     pub fn unconverted(&self) -> &[EntryFailure] {
         &self.unconverted

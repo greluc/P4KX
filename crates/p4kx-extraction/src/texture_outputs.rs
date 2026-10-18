@@ -95,6 +95,7 @@ impl EntryWriter<'_> {
             .map_err(|error| MergeError::Close(error.into_error()))?;
         Ok((len, crc))
     }
+
     /// Decodes mip `level` of `source`, from `buffers.data` when the merge kept it there, and
     /// writes it as PNG to `destination` under the Conflict policy.
     pub(crate) fn write_png(
@@ -111,7 +112,7 @@ impl EntryWriter<'_> {
             return Ok(Step::Cancelled);
         }
         let image = self.decode_level(source, level, &buffers.data)?;
-        let png = &mut buffers.xml;
+        let png = &mut buffers.output;
         png.clear();
         write_png(&image, &mut *png).map_err(|error| source.texture_error(error))?;
         drop(image);
@@ -203,7 +204,7 @@ impl Write for MergeSink<'_> {
         let count = self.writer.write(data)?;
         let written = data.get(..count).unwrap_or_default();
         self.crc = crc32c::crc32c_append(self.crc, written);
-        self.len += count as u64;
+        self.len = self.len.saturating_add(count as u64);
         Ok(count)
     }
 

@@ -154,3 +154,23 @@ fn a_failed_png_keeps_an_existing_merged_dds_instead_of_the_raw_header() -> Test
     );
     Ok(())
 }
+
+#[test]
+fn a_texture_whose_path_would_leave_the_target_fails_once_and_writes_nothing() -> TestResult {
+    let dds = SplitDds::new(TestTextureFormat::LegacyBgra8, 8, 8).split(1);
+    let fixture = Fixture::new(dds.entries("..\\escape.dds"))?;
+
+    let report = run(&fixture, ConflictPolicy::Skip);
+
+    assert!(report.unconverted().is_empty(), "{report:?}");
+    assert_eq!(report.failures().len(), 2, "the header and its part");
+    assert!(
+        report
+            .failures()
+            .iter()
+            .all(|failure| matches!(failure.error(), ExtractionError::UnsafePath)),
+        "{report:?}"
+    );
+    assert!(files(&fixture.target)?.is_empty(), "nothing written");
+    Ok(())
+}

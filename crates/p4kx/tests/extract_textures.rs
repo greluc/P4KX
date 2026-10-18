@@ -107,8 +107,7 @@ fn convert_merges_textures_and_exports_png_once_per_texture() -> TestResult {
             "extracted 5 (3 converted, 1 not converted), skipped 0, failed 0, cancelled 0",
         ))
         .stderr(predicate::str::contains(format!(
-            "not converted {BROKEN}: cannot convert the texture: {BROKEN}.1 is missing; \
-             its raw Entries were written"
+            "not converted {BROKEN}: cannot convert the texture: {BROKEN}.1 is missing"
         )));
 
     assert_eq!(

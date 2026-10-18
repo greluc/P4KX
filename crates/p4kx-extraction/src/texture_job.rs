@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
@@ -61,13 +61,13 @@ impl Item<'_> {
 /// Splits `entries` into items: each requested `.dds` header with its requested parts and the
 /// Archive's parts becomes one texture, every other Entry stays on its own.
 pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) -> Vec<Item<'a>> {
-    let mut headers: HashMap<String, usize> = HashMap::new();
+    let mut headers = Headers::default();
     for (index, entry) in entries.iter().enumerate() {
         if role(entry.path()) == Some(Role::Header) {
-            headers.entry(key(entry.path())).or_insert(index);
+            headers.insert(entry.path(), index);
         }
     }
-    if headers.is_empty() {
+    if headers.by_key.is_empty() {
         return entries
             .iter()
             .copied()
@@ -76,6 +76,7 @@ pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) ->
             .collect();
     }
     let mut jobs: HashMap<usize, TextureJob<'a>> = headers
+        .by_key
         .values()
         .filter_map(|&index| {
             let header = *entries.get(index)?;
@@ -97,7 +98,7 @@ pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) ->
     let mut items = Vec::with_capacity(entries.len());
     for (index, entry) in entries.iter().copied().enumerate() {
         let owner = match role(entry.path()) {
-            Some(Role::Part(header_path, _)) => headers.get(&key(header_path)).copied(),
+            Some(Role::Part(header_path, _)) => headers.find(header_path),
             _ => None,
         };
         if jobs.contains_key(&index) {
@@ -115,11 +116,32 @@ pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) ->
     items
 }
 
+/// The requested headers by their key, with the lengths of their paths to skip most other paths
+/// without building a key.
+#[derive(Default)]
+struct Headers {
+    by_key: HashMap<String, usize>,
+    lengths: HashSet<usize>,
+}
+
+impl Headers {
+    fn insert(&mut self, path: &str, index: usize) {
+        self.lengths.insert(path.len());
+        self.by_key.entry(key(path)).or_insert(index);
+    }
+
+    /// Returns the position of the requested header at `path`, matched ignoring case and
+    /// separator kind.
+    fn find(&self, path: &str) -> Option<usize> {
+        if !self.lengths.contains(&path.len()) {
+            return None;
+        }
+        self.by_key.get(&key(path)).copied()
+    }
+}
+
 /// Finds the parts of the `headers` in one parallel pass over the Archive.
-fn archive_parts<'a>(
-    archive: &'a Archive,
-    headers: &HashMap<String, usize>,
-) -> Vec<(usize, u32, &'a Entry)> {
+fn archive_parts<'a>(archive: &'a Archive, headers: &Headers) -> Vec<(usize, u32, &'a Entry)> {
     archive
         .entries()
         .par_iter()
@@ -127,7 +149,7 @@ fn archive_parts<'a>(
             let Some(Role::Part(header_path, number)) = role(entry.path()) else {
                 return None;
             };
-            let header = *headers.get(&key(header_path))?;
+            let header = headers.find(header_path)?;
             Some((header, number, entry))
         })
         .collect()

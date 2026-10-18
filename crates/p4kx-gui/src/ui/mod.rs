@@ -52,6 +52,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         browser.poll();
     }
     model.poll_extraction();
+    model.poll_update();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);

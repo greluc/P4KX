@@ -33,6 +33,7 @@ pub use extraction::{
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
 pub use model::{Failure, Model};
+pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
 };

@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    name: Package
+    runs-on: windows-2022
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Version
+        id: version
+        run: |
+          $metadata = cargo metadata --no-deps --format-version 1 --locked | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object name -eq 'p4kx-gui').version
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+      - name: Release notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          New-Item -ItemType Directory -Force target\package | Out-Null
+          cargo xtask release-notes $env:TAG target\package\release-notes.md
+      - name: Build
+        run: cargo build --release --locked -p p4kx-gui -p p4kx
+      - name: Portable ZIP
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $name = "P4K-Extractor-$env:VERSION-x86_64"
+          $folder = "target\package\$name"
+          New-Item -ItemType Directory -Force $folder | Out-Null
+          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, LICENSE-MIT, LICENSE-APACHE, CHANGELOG.md $folder
+          Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
+      - name: Install cargo-wix
+        run: |
+          if (-not $env:WIX) { throw 'WiX Toolset v3 is not installed on this runner' }
+          cargo install cargo-wix --version 0.3.9 --locked
+      - name: MSI
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cargo wix -p p4kx-gui --no-build --nocapture --output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
+      - name: Install, upgrade and uninstall
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $core = ([version]($env:VERSION -replace '-.*$', ''))
+          $next = "$($core.Major).$($core.Minor).$($core.Build + 1)"
+          New-Item -ItemType Directory -Force target\wix-check | Out-Null
+          cargo wix -p p4kx-gui --no-build --install-version $next --output target\wix-check\next.msi
+          $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Product.UpgradeCode
+          .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $next -UpgradeCode $upgradeCode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            target/package/*.zip
+            target/package/*.msi
+            target/package/release-notes.md
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: package
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          prerelease=()
+          case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "P4K-Extractor $VERSION" --notes-file release/release-notes.md "${prerelease[@]}" \
+            release/*.zip release/*.msi

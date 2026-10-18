@@ -36,6 +36,10 @@ pub enum Text {
     MenuHelp,
     /// The action and window that show the font licence.
     FontLicence,
+    /// The switch of the check for a newer Release at start.
+    UpdateCheck,
+    /// The link to a newer Release; takes `version`.
+    UpdateAvailable,
     /// The file type filter of the open dialog.
     DialogArchiveFilter,
     /// The name column.
@@ -124,7 +128,7 @@ pub enum Text {
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 55] = [
+    const BASE: [Self; 57] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -139,6 +143,8 @@ impl Text {
         Self::LanguageName(Language::BritishEnglish),
         Self::MenuHelp,
         Self::FontLicence,
+        Self::UpdateCheck,
+        Self::UpdateAvailable,
         Self::DialogArchiveFilter,
         Self::ColumnName,
         Self::ColumnCompression,
@@ -207,6 +213,8 @@ impl Text {
             Self::LanguageName(Language::BritishEnglish) => "language-en-GB",
             Self::MenuHelp => "menu-help",
             Self::FontLicence => "font-licence",
+            Self::UpdateCheck => "update-check",
+            Self::UpdateAvailable => "update-available",
             Self::DialogArchiveFilter => "dialog-archive-filter",
             Self::ColumnName => "column-name",
             Self::ColumnCompression => "column-compression",

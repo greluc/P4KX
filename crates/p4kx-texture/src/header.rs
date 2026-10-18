@@ -205,6 +205,16 @@ impl DdsHeader {
     /// overflows.
     #[must_use]
     pub fn mip_size(&self, level: u32) -> Option<u64> {
+        self.surface_size(level)?
+            .checked_mul(u64::from(self.faces))?
+            .checked_mul(u64::from(self.array_size))
+    }
+
+    /// Returns the size in bytes of mip `level` of one image, a single face or array element
+    /// with every slice, or `None` when the format's layout is unknown, the level does not exist
+    /// or the size overflows.
+    #[must_use]
+    pub fn surface_size(&self, level: u32) -> Option<u64> {
         if level >= self.mip_count {
             return None;
         }
@@ -213,9 +223,15 @@ impl DdsHeader {
         side(self.width, layout.block_width)
             .checked_mul(side(self.height, layout.block_height))?
             .checked_mul(u64::from(layout.bytes_per_block))?
-            .checked_mul(u64::from((self.depth >> level).max(1)))?
-            .checked_mul(u64::from(self.faces))?
-            .checked_mul(u64::from(self.array_size))
+            .checked_mul(u64::from((self.depth >> level).max(1)))
+    }
+
+    /// Returns the size in bytes of mips `levels` of one image, or `None` when one of them has
+    /// no size.
+    pub(crate) fn surface_chain_size(&self, levels: std::ops::Range<u32>) -> Option<u64> {
+        levels
+            .map(|level| self.surface_size(level))
+            .try_fold(0_u64, |sum, size| sum.checked_add(size?))
     }
 
     /// Returns the number of sibling parts a header Entry of `header_size` bytes is split into:

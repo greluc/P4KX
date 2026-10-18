@@ -7,21 +7,24 @@ use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownE
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::NoRecordMatch;
+use crate::dcb_query::{InvalidQuery, QueryJson};
 use crate::extract::NoMatch;
 use crate::texture;
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
-/// Some Entries or Records failed or were cancelled, the target folder could not be created, or a
-/// texture cannot be read, merged, decoded or written.
+/// Some Entries or Records failed or were cancelled, the target folder could not be created, a
+/// texture is invalid or cannot be merged, decoded or written, or a sound is invalid or cannot be
+/// converted or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file that does not exist or a mip level the texture does not have,
-/// or has a Filter that matches no Entry or Record.
+/// has a Filter that matches no Entry or Record, names an output that is one of its inputs, or has
+/// an invalid Query.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive or the input file cannot be opened or read.
+/// The Archive, an Entry's data or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -37,16 +40,18 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   0  success: every requested Entry was extracted or already existed; compare: no differences,
      also for the --diff Entry
   1  partial failure: some Entries or Records failed or were cancelled, the target or the
-     settings cannot be written, or a texture cannot be read, merged, decoded or written, e.g.
-     because its format is not supported; compare: the Archives or the --diff Entry differ
+     settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
+     e.g. because its format is not supported, or a sound is invalid or cannot be converted or
+     written, e.g. a corrupt WEM or a codec without a decoder; compare: the Archives or the
+     --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
-     does not exist or was never added, a texture file that does not exist, a mip level the
-     texture does not have, a merge or PNG output that is one of its inputs, or --json without
-     --out for cryxml
-  3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml or
-     corrupt, also a --diff Entry that cannot be read or holds corrupt CryXml; a missing
-     texture file is 2
+     does not exist or was never added, a texture or sound file that does not exist, a mip
+     level the texture does not have, an output that is one of its inputs, --json without --out
+     for cryxml, an invalid Query, or --json for dcb query
+  3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
+     corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
+     corrupt CryXml; a missing texture or sound file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
@@ -93,6 +98,8 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<NoRecordMatch>().is_some()
         || texture::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
+        || error.downcast_ref::<InvalidQuery>().is_some()
+        || error.downcast_ref::<QueryJson>().is_some()
     {
         INVALID_INPUT
     } else {

@@ -47,6 +47,45 @@ pub(crate) enum Command {
     /// Shows, merges or exports as PNG a DDS texture split into a header and mip parts.
     #[command(after_help = EXIT_CODES_HELP)]
     Texture(TextureArgs),
+    /// Shows a Wwise WEM sound or converts it to WAV.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Audio(AudioArgs),
+}
+
+/// Arguments of `p4kx audio`.
+#[derive(Debug, Args)]
+pub(crate) struct AudioArgs {
+    /// What to do with the sound.
+    #[command(subcommand)]
+    pub(crate) action: AudioAction,
+}
+
+/// The actions of `p4kx audio`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum AudioAction {
+    /// Prints the codec, channels, sample rate and duration of a WEM.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Info(AudioSource),
+    /// Writes a PCM WEM as a 16-bit WAV file; other codecs fail with an error naming them.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Wav {
+        /// The sound.
+        #[command(flatten)]
+        source: AudioSource,
+        /// The WAV file to write; an existing file is replaced.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
+}
+
+/// Where a WEM sound is.
+#[derive(Debug, Args)]
+pub(crate) struct AudioSource {
+    /// A Data.p4k Archive when ENTRY is given; otherwise the WEM file.
+    #[arg(value_name = "ARCHIVE_OR_FILE")]
+    pub(crate) path: PathBuf,
+    /// Path of the WEM Entry in the Archive, with `\` or `/` as separator, ignoring case.
+    pub(crate) entry: Option<String>,
 }
 
 /// Arguments of `p4kx dcb`.
@@ -67,6 +106,19 @@ pub(crate) enum DcbCommand {
     /// folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
+    /// Runs a Query over the Records and prints the result as a table, the record path first.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Query(DcbQueryArgs),
+}
+
+/// Arguments of `p4kx dcb query`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbQueryArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The Query, defined in docs/query.md, e.g.
+    /// `from EntityClassDefinition at "*/spaceships/*" select Size`.
+    pub(crate) query: String,
 }
 
 /// Arguments of `p4kx dcb export`.
@@ -125,10 +177,12 @@ pub(crate) struct TextureArgs {
 /// The actions of `p4kx texture`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum TextureAction {
-    /// Prints the format, size, depth, mip count, array size, cubemap faces and parts of a texture.
+    /// Prints the format, size, depth, mip count, array size, cubemap faces, parts and alpha tail
+    /// of a texture.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(TextureSource),
-    /// Merges the header and the mip parts of a texture into one standard DDS file.
+    /// Merges the header and the mip parts of a texture into one standard DDS file; a cubemap
+    /// stays a cubemap. The alpha tail is not included; name <ENTRY>.a to merge it on its own.
     #[command(after_help = EXIT_CODES_HELP)]
     Merge {
         /// The texture.
@@ -138,7 +192,8 @@ pub(crate) enum TextureAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG.
+    /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
+    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
@@ -150,6 +205,9 @@ pub(crate) enum TextureAction {
         /// The mip level to export, 0 being the largest.
         #[arg(long, value_name = "LEVEL", default_value_t = 0)]
         mip: u32,
+        /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
+        #[arg(long)]
+        cross: bool,
     },
 }
 
@@ -157,11 +215,12 @@ pub(crate) enum TextureAction {
 #[derive(Debug, Args)]
 pub(crate) struct TextureSource {
     /// A Data.p4k Archive when ENTRY is given; otherwise the texture's header file, with its parts
-    /// <FILE>.1 … <FILE>.N next to it.
+    /// <FILE>.1 … <FILE>.N and any alpha tail <FILE>.a, <FILE>.1a … next to it.
     #[arg(value_name = "ARCHIVE_OR_FILE")]
     pub(crate) path: PathBuf,
     /// Path of the texture's header Entry in the Archive, with `\` or `/` as separator, ignoring
-    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N.
+    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N and its alpha tail <ENTRY>.a with
+    /// <ENTRY>.1a … <ENTRY>.Na.
     pub(crate) entry: Option<String>,
 }
 

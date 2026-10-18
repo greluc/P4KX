@@ -40,6 +40,9 @@ impl Model {
             .as_ref()
             .is_some_and(|browser| compare(browser.index().watch()).is_err());
         if changed {
+            if let Some(browser) = &mut self.browser {
+                browser.drop_records();
+            }
             self.extraction_setup = None;
             self.cancel_extraction();
         }

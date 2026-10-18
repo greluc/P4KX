@@ -89,21 +89,34 @@ pub(crate) fn write_display(out: &mut impl Write, value: impl fmt::Display) -> i
     })
 }
 
-/// Writes a float in its one text form: `NaN`, `INF`, `-INF`, otherwise the shortest text that
-/// reads back to the same value, with an exponent below 1e-6 and from 1e21 in magnitude.
+/// Writes a float in its one text form, see [`FloatText`].
 pub(crate) fn write_float<F>(out: &mut impl Write, value: F) -> io::Result<()>
 where
     F: Float + fmt::Display + fmt::LowerExp,
 {
-    let magnitude = value.magnitude();
-    if magnitude.is_nan() {
-        out.write_all(b"NaN")
-    } else if magnitude.is_infinite() {
-        out.write_all(if value.is_negative() { b"-INF" } else { b"INF" })
-    } else if magnitude != 0.0 && !(1e-6..1e21).contains(&magnitude) {
-        write!(out, "{value:e}")
-    } else {
-        write!(out, "{value}")
+    write!(out, "{}", FloatText(value))
+}
+
+/// A float in its one text form: `NaN`, `INF`, `-INF`, otherwise the shortest text that reads
+/// back to the same value, with an exponent below 1e-6 and from 1e21 in magnitude.
+pub(crate) struct FloatText<F>(pub(crate) F);
+
+impl<F> fmt::Display for FloatText<F>
+where
+    F: Float + fmt::Display + fmt::LowerExp,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = self.0;
+        let magnitude = value.magnitude();
+        if magnitude.is_nan() {
+            f.write_str("NaN")
+        } else if magnitude.is_infinite() {
+            f.write_str(if value.is_negative() { "-INF" } else { "INF" })
+        } else if magnitude != 0.0 && !(1e-6..1e21).contains(&magnitude) {
+            write!(f, "{value:e}")
+        } else {
+            write!(f, "{value}")
+        }
     }
 }
 

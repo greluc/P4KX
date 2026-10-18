@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"FROM Ship Select crew, name, mass\")?"
+---
+record path                         crew  name     mass
+----------------------------------  ----  -------  -------
+libs/foundry/records/ships/avenger  2     Avenger  25000.5
+1 Record

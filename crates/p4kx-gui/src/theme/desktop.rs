@@ -3,7 +3,7 @@
 
 use egui::Color32;
 
-use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, TOUCH_TARGET};
+use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET};
 
 /// The height of a data row in the table, the tree, the channel list and dropdowns.
 pub const ROW_HEIGHT: f32 = 36.0;
@@ -195,6 +195,24 @@ pub const SPINNER_INLINE: f32 = 14.0;
 pub const SPINNER_RING: f32 = 2.0;
 /// One turn of a spinner in seconds.
 pub const SPINNER_PERIOD: f64 = 0.9;
+/// The narrowest the key column of a detail list gets.
+pub const DETAIL_KEY_MIN_WIDTH: f32 = 140.0;
+/// The gap between the rows of a detail list.
+pub const DETAIL_ROW_GAP: f32 = 0.55 * REM;
+/// The gap between the key and the value column of a detail list.
+pub const DETAIL_COLUMN_GAP: f32 = 1.25 * REM;
+/// The tracking of a detail list key in em.
+pub const DETAIL_KEY_TRACKING: f32 = 0.04;
+/// The font size of a detail list value.
+pub const DETAIL_VALUE_SIZE: f32 = 1.05 * REM;
+/// The font size of a `.section-title` inside a panel.
+pub const PANEL_TITLE_SIZE: f32 = REM;
+/// The space above a `.section-title` that follows other content.
+pub const PANEL_TITLE_MARGIN_TOP: f32 = SPACE_8;
+/// The space below a `.section-title`.
+pub const PANEL_TITLE_MARGIN_BOTTOM: f32 = SPACE_4;
+/// The padding between a `.section-title` and its hairline.
+pub const PANEL_TITLE_PADDING_BOTTOM: f32 = SPACE_2;
 /// The widest a tooltip gets.
 pub const TOOLTIP_MAX_WIDTH: f32 = 272.0;
 /// The width of a scrollbar.

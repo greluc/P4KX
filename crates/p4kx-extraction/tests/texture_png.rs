@@ -45,7 +45,9 @@ fn the_largest_mip_of_an_entry_is_exported_as_png() -> TestResult {
         PngReport {
             level: 0,
             width: 32,
-            height: 16
+            height: 16,
+            files: vec![out.clone()],
+            alpha_tail: false,
         },
         "the report"
     );

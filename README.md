@@ -176,6 +176,11 @@ Early development (milestone M1). Available today:
   stored sizes disagree or which declares more than 2048 times its stored size for an Entry is
   refused, as are compressed containers that together decode to more than 512 MiB along one chain. A container that cannot be
   opened fails with exit code 3 and an error naming its Entry.
+- `p4kx chunks list <archive> <entry>` prints the chunk table of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`
+  container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
+  types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
+  chunk's bytes unchanged. Both also take a chunk file on disk.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

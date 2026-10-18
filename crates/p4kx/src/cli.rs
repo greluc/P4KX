@@ -5,6 +5,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
+use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
@@ -74,6 +75,9 @@ pub(crate) enum Command {
     /// Lists or extracts the Entries of a socpak container, also of one nested in another.
     #[command(after_help = EXIT_CODES_HELP)]
     Socpak(SocpakArgs),
+    /// Lists the chunks of a CryEngine chunk file, #ivo or CrCh, or writes the bytes of one.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Chunks(ChunksArgs),
 }
 
 /// Arguments of `p4kx cryxml`.

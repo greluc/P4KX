@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -7,12 +6,12 @@ use anyhow::{Context, Result};
 use p4kx_extraction::query::{
     CompiledQuery, Query, QueryError, QueryErrorKind, QueryRun, ResultFormat, ResultWriter,
 };
-use p4kx_extraction::{Archive, DataForgeEntry};
+use p4kx_extraction::{Archive, DataForgeEntry, QueryExportOptions, export_query, is_same_file};
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{DcbQueryArgs, QueryFormat};
-use crate::query_rows::{Counts, for_each_row};
+use crate::query_rows::{Counts, for_each_row, report_failed};
 use crate::{exit, json, query_file, query_table};
 
 /// A Query that cannot be parsed or compiled, with its marked position.
@@ -84,8 +83,7 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     match &args.out {
         None => output.to_stdout(&mut counts)?,
         Some(out) => {
-            query_file::write_replacing(out, |file| output.write(file, false, &mut counts))
-                .with_context(|| format!("cannot write {}", out.display()))?;
+            counts = output.to_file(out, &args.archive)?;
             print_summary(args, out, format, counts, as_json)?;
         }
     }
@@ -97,6 +95,30 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
 }
 
 impl Output<'_, '_, '_> {
+    /// Writes the result to the file `out`, replacing it once complete: CSV and JSON through
+    /// [`export_query`], the table through its own writer.
+    fn to_file(&self, out: &Path, archive: &Path) -> Result<Counts> {
+        let format = match self.format {
+            QueryFormat::Table => {
+                let mut counts = Counts::default();
+                query_file::write_replacing(out, |file| self.write(file, false, &mut counts))
+                    .with_context(|| format!("cannot write {}", out.display()))?;
+                return Ok(counts);
+            }
+            QueryFormat::Csv => ResultFormat::Csv,
+            QueryFormat::Json => ResultFormat::Json,
+        };
+        let options = QueryExportOptions {
+            failed: Some(&report_failed),
+            ..QueryExportOptions::default()
+        };
+        let export = export_query(self.compiled, self.run, (out, format), archive, &options)?;
+        Ok(Counts {
+            records: export.records,
+            failed: export.failed,
+        })
+    }
+
     /// Writes the result to stdout; a closed pipe ends the output early without an error.
     fn to_stdout(&self, counts: &mut Counts) -> io::Result<()> {
         let out = BufWriter::new(io::stdout().lock());
@@ -154,12 +176,4 @@ fn print_summary(
     }
     let written = format!(" written to {}", out.display());
     writeln!(io::stdout().lock(), "{}", counts.line(&written))
-}
-
-/// Returns whether `path` names an existing file that is `input`.
-fn is_same_file(path: &Path, input: &Path) -> bool {
-    match (fs::canonicalize(path), fs::canonicalize(input)) {
-        (Ok(path), Ok(input)) => path == input,
-        _ => false,
-    }
 }

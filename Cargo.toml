@@ -21,11 +21,14 @@ aes = "0.9.3"
 anyhow = "1.0.104"
 assert_cmd = "2.2.2"
 cbc = "0.2.1"
+crc32c = "0.6.8"
+ctrlc = "3.5.2"
 clap = { version = "4.6.7", features = ["derive"] }
 dirs = "7.0.0"
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 insta = "1.49.0"
 predicates = "3.1.4"
+rayon = "1.12.0"
 ruzstd = "0.9.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"

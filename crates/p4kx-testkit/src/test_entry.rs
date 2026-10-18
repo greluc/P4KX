@@ -20,6 +20,7 @@ pub struct TestEntry {
     pub(crate) method: u16,
     pub(crate) payload: Vec<u8>,
     pub(crate) uncompressed_size: u64,
+    pub(crate) crc32c: u32,
     pub(crate) encrypted: bool,
 }
 
@@ -75,7 +76,7 @@ impl TestEntry {
         self
     }
 
-    /// Replaces the bytes written into the Archive, keeping method, flags and uncompressed size.
+    /// Replaces the bytes written into the Archive, keeping method, flags, uncompressed size and CRC.
     #[must_use]
     pub fn with_payload(mut self, payload: impl Into<Vec<u8>>) -> Self {
         self.payload = payload.into();
@@ -94,6 +95,7 @@ impl TestEntry {
             method,
             payload,
             uncompressed_size: data.len() as u64,
+            crc32c: crc32c::crc32c(data),
             encrypted: false,
         }
     }

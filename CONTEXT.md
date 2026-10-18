@@ -90,6 +90,11 @@ _Avoid_: avatar, player model
 Writing selected Entries or Records from an Archive into a folder on disk.
 _Avoid_: unpack, export (an Export is something else)
 
+**Conflict policy**:
+What an Extraction does with a file already in the target folder: skip it, overwrite it, or
+overwrite it only if changed (size or CRC-32C differs from the Entry).
+_Avoid_: collision mode, overwrite mode
+
 **Conversion**:
 Turning an Entry or Record from its game-internal format into a readable one, e.g. CryXml or a
 Record into XML.

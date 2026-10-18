@@ -78,9 +78,11 @@ absolute path stored in the settings. `p4kx channels remove <path> --json` print
 ```json
 {"target": "…", "extracted": 1, "skipped": ["Data\\readme.txt"],
  "failed": [{"path": "Data\\broken.xml", "error": "cannot read the Entry data: …"}],
- "cancelled": 0}
+ "cancelled": ["Data\\large.bin"]}
 ```
 
-`skipped` lists the Entries whose file already existed in the target; `failed` lists the Entries
-that were not written, with the reason and its causes joined by `: `. With `--json` failures are
-not repeated on stderr. The exit code is 1 when `failed` is not empty or `cancelled` is not 0.
+`skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
+`failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
+`cancelled` lists the Entries not written because the run was cancelled. All three are in
+Archive order. With `--json` failures are not repeated on stderr. The exit code is 1 when
+`failed` or `cancelled` is not empty.

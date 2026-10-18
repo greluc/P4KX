@@ -19,16 +19,22 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>]` writes the given Entries (stored,
-  deflate or zstd, encrypted or not) into a new folder
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>]` writes the
+  given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
   UTC), or into `--out`. Entry paths match with `\` or `/` and ignore case.
-  Existing files are kept and reported as skipped; Entry paths that are absolute, carry a drive
-  prefix, contain `..` or name a Windows device are rejected, and nothing is written outside the
-  target. A corrupt Entry fails alone and is named with the reason. The run ends with a summary
-  of extracted, skipped, failed and cancelled Entries. `p4kx extract <archive> --filter <filter>`
-  extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
+  `--conflict` decides what happens to a file that already exists in the target: `skip` (the
+  default) keeps it, `overwrite` replaces it, and `if-changed` replaces it only when its size or
+  CRC-32C differs from the Entry; kept files are reported as skipped. Entries are written in
+  parallel, each to a temporary file that replaces the destination once complete. Entry paths
+  that are absolute, carry a drive prefix, contain `..` or name a Windows device are rejected,
+  and nothing is written outside the target. A corrupt Entry fails alone and is named with the
+  reason. While stderr is a terminal a progress line shows the Entries done; Ctrl+C cancels the
+  run promptly, leaves no partial file and reports the Entries not written as cancelled; a second
+  Ctrl+C quits at once. The
+  run ends with a summary of extracted, skipped, failed and cancelled Entries.
+  `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
@@ -52,6 +58,7 @@ Early development (milestone M1). Available today:
 | 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, or a Channel path that does not exist or was never added |
 | 3 | The Archive cannot be read: missing, not an Archive or corrupt |
+| 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 
 ## Build
 

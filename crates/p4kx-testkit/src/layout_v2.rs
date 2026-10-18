@@ -57,7 +57,7 @@ fn write_record(out: &mut Vec<u8>, entry: &TestEntry, data_offset: u64, name_off
     put_u16(out, entry.method);
     put_u16(out, 0);
     put_u16(out, 0);
-    put_u32(out, 0);
+    put_u32(out, entry.crc32c);
     put_u64(out, len_u64(&entry.payload));
     put_u64(out, entry.uncompressed_size);
     put_u64(out, data_offset);

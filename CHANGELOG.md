@@ -29,6 +29,12 @@ fails while its section is missing.
   strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
   `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of
   incompatible types is marked as an error, and a missing value never matches.
+- Paths into nested data in Queries: dot paths through inline structs and strong pointers, `[n]`
+  for one array element (null when out of range), `[*]` for every element and `[TypeName]` for
+  the elements of a polymorphic array of that type, e.g.
+  `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
+  list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
+  values holds.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
@@ -101,6 +107,11 @@ fails while its section is missing.
   owned structs nested, arrays in stored order, References and weak pointers as links (GUID,
   record path, type and, inside the Record, the location) and explicit nulls. Unreadable values
   such as dangling References are reported per value while the rest of the Record is written.
+- `p4kx dcb export --format json|ndjson`: write Records as Record JSON (`docs/record-json.md`,
+  with a checked-in JSON Schema), one file per Record under its record path or one
+  `records.ndjson` with one Record per line in record-path order, with the structure and field
+  order of the Record XML, References as objects with `guid`, `path` and `type`, and errors with
+  their reason. The new service crate `p4kx-export` writes the Record export in every form.
 - `p4kx dcb export --combined`: every selected Record in one Record XML file in record-path
   order, named after the DataForge Entry, built in parallel and streamed to disk, byte-identical
   across runs.

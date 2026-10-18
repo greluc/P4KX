@@ -97,4 +97,34 @@ pub enum ValueError {
         /// The instance index of the pointer.
         instance_index: u32,
     },
+    /// A strong pointer refers to an instance of a struct that neither is nor derives from the
+    /// struct the field declares.
+    #[error(
+        "the pointer refers to struct {struct_index}, which does not derive from struct {declared}, the type of the field"
+    )]
+    UnexpectedPointerType {
+        /// The struct index of the pointer.
+        struct_index: u32,
+        /// The struct the field declares.
+        declared: u32,
+    },
+    /// The paths of a Query reach more array elements in one Record than
+    /// [`MAX_PATH_VALUES`](crate::query::MAX_PATH_VALUES).
+    #[error("the paths of the Record reach more than {limit} array elements")]
+    PathTooWide {
+        /// The most elements the paths of one Record may reach.
+        limit: usize,
+    },
+    /// An instance is shorter than the layout a Query path reads it with.
+    #[error(
+        "the instance of struct {struct_index} has {size} bytes, but the path reads up to byte {needed}"
+    )]
+    InstanceTooShort {
+        /// The struct of the instance.
+        struct_index: u32,
+        /// The bytes the instance has.
+        size: u64,
+        /// The end of the bytes the path reads.
+        needed: u64,
+    },
 }

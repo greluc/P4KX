@@ -1,0 +1,229 @@
+//! `p4kx chunks list|dump` end to end, for chunk file Entries of an Archive and files on disk.
+
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use assert_cmd::Command;
+use p4kx_testkit::{ArchiveBuilder, TestChunkFile, TestEntry};
+use predicates::prelude::predicate;
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+const MODEL_ENTRY: &str = "Data\\Objects\\Test\\cube.cgf";
+
+fn ivo_model() -> Vec<u8> {
+    TestChunkFile::ivo()
+        .chunk(0xBE5E_493E, 0x900, [0; 16])
+        .chunk(0x8335_3333, 0x900, *b"cube_material\0\0\0")
+        .chunk(0x9293_B9D8, 0x901, [9; 40])
+        .chunk(0x0A24_85B6, 0x900, [1; 8])
+        .bytes()
+}
+
+fn crch_model() -> Vec<u8> {
+    TestChunkFile::crch()
+        .chunk(0x100B, 0x824, *b"node")
+        .big_endian_chunk(0x1016, 0x800, [0, 0, 0, 3, 1, 2, 3])
+        .chunk(0x4321, 0x001, [5; 3])
+        .bytes()
+}
+
+fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let path = folder.join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(MODEL_ENTRY, ivo_model()))
+        .write_to(&path)?;
+    Ok(path)
+}
+
+fn p4kx() -> Result<Command, Box<dyn Error>> {
+    Ok(Command::cargo_bin("p4kx")?)
+}
+
+#[test]
+fn list_of_an_ivo_entry_prints_the_chunk_table() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    let output = p4kx()?
+        .args(["chunks", "list"])
+        .arg(&archive)
+        .arg("data/objects/test/CUBE.cgf")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    insta::assert_snapshot!(String::from_utf8(output.stdout)?);
+    Ok(())
+}
+
+#[test]
+fn list_of_a_crch_file_shows_ids_and_byte_order_per_chunk() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("model.cgf");
+    fs::write(&file, crch_model())?;
+
+    let output = p4kx()?
+        .current_dir(dir.path())
+        .args(["chunks", "list", "model.cgf"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    insta::assert_snapshot!(String::from_utf8(output.stdout)?);
+    Ok(())
+}
+
+#[test]
+fn list_json_gives_every_chunk_as_an_object() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    let output = p4kx()?
+        .args(["--json", "chunks", "list"])
+        .arg(&archive)
+        .arg(MODEL_ENTRY)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    insta::assert_snapshot!(String::from_utf8(output.stdout)?);
+    Ok(())
+}
+
+#[test]
+fn dump_of_an_entry_writes_the_chunk_bytes() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("mesh.bin");
+
+    p4kx()?
+        .args(["chunks", "dump"])
+        .arg(&archive)
+        .arg(MODEL_ENTRY)
+        .args(["--chunk", "2", "--out"])
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("wrote chunk 2 (Mesh, 40 bytes)"));
+
+    assert_eq!(fs::read(&out)?, [9; 40], "the chunk's data");
+    Ok(())
+}
+
+#[test]
+fn dump_of_a_file_with_json_describes_the_chunk() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("model.cgf");
+    fs::write(&file, crch_model())?;
+    let out = dir.path().join("stream.bin");
+
+    let output = p4kx()?
+        .args(["--json", "chunks", "dump"])
+        .arg(&file)
+        .args(["--chunk", "1", "--out"])
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(json["chunk"]["type"], "DataStream", "type");
+    assert_eq!(json["chunk"]["byte_order"], "big", "byte order");
+    assert_eq!(json["chunk"]["id"], 2, "chunk ID");
+    assert_eq!(json["chunk"]["size"], 7, "size");
+    assert_eq!(json["out"], out.display().to_string(), "target");
+    assert_eq!(fs::read(&out)?, [0, 0, 0, 3, 1, 2, 3], "bytes unchanged");
+    Ok(())
+}
+
+#[test]
+fn dump_of_a_chunk_the_file_does_not_have_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("missing.bin");
+
+    p4kx()?
+        .args(["chunks", "dump"])
+        .arg(&archive)
+        .arg(MODEL_ENTRY)
+        .args(["--chunk", "4", "--out"])
+        .arg(&out)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "has no chunk 4; its 4 chunks are numbered from 0",
+        ));
+
+    assert!(!out.exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
+fn dump_onto_the_chunk_file_itself_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("model.cgf");
+    fs::write(&file, crch_model())?;
+
+    p4kx()?
+        .args(["chunks", "dump"])
+        .arg(&file)
+        .args(["--chunk", "0", "--out"])
+        .arg(&file)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("is one of the inputs"));
+
+    assert_eq!(fs::read(&file)?, crch_model(), "the input is unchanged");
+    Ok(())
+}
+
+#[test]
+fn a_file_that_is_no_chunk_file_exits_with_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("not_a_model.cgf");
+    fs::write(&file, b"<Material/>\n")?;
+
+    p4kx()?
+        .args(["chunks", "list"])
+        .arg(&file)
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains(
+            "not a chunk file: the signature is \"<Mat\"",
+        ));
+    Ok(())
+}
+
+#[test]
+fn a_truncated_chunk_file_exits_with_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("truncated.cgf");
+    let model = crch_model();
+    fs::write(&file, model.get(..model.len() - 2).unwrap_or_default())?;
+
+    p4kx()?
+        .args(["chunks", "list"])
+        .arg(&file)
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains("chunk 2 at offset"));
+    Ok(())
+}
+
+#[test]
+fn a_missing_file_or_entry_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    p4kx()?
+        .args(["chunks", "list"])
+        .arg(dir.path().join("missing.cgf"))
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("does not exist"));
+    p4kx()?
+        .args(["chunks", "list"])
+        .arg(&archive)
+        .arg("Data\\Objects\\Test\\sphere.cgf")
+        .assert()
+        .code(2);
+    Ok(())
+}

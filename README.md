@@ -156,17 +156,23 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
-  PTADPCM WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
-  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
-  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
-  the console codecs are detected; a conversion the codec does not support yet fails with an
-  error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
+  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
+  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx chunks list <archive> <entry>` prints the chunk table of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`
+  container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
+  types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
+  chunk's bytes unchanged. Both also take a chunk file on disk.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

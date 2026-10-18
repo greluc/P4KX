@@ -75,3 +75,25 @@ fn archive_icon(ui: &Ui, rect: Rect) {
     painter.line_segment([at(0.12, 0.86), at(0.88, 0.86)], stroke);
     painter.line_segment([at(0.88, 0.86), at(0.88, 0.62)], stroke);
 }
+
+/// Shows a dashed `.empty-state` that fills the rest of `ui` with `title` and `hint`.
+pub(super) fn notice(ui: &mut Ui, title: &str, hint: &str) {
+    let rect = ui.available_rect_before_wrap();
+    ui.painter()
+        .rect_filled(rect, CornerRadius::ZERO, palette::BG_DARK_GRAY);
+    frames::dashed(ui, rect.shrink(0.5), palette::GRAY_3);
+    egui::Frame::NONE
+        .inner_margin(egui::Margin::same(frames::px(EMPTY_PADDING)))
+        .show(ui, |ui| {
+            ui.set_min_size(rect.size() - vec2(2.0 * EMPTY_PADDING, 2.0 * EMPTY_PADDING));
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                ui.add_space((rect.height() / 2.0 - EMPTY_ICON).max(0.0));
+                ui.label(
+                    caps(title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(palette::GRAY_1),
+                )
+                .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, title));
+                ui.add_space(SPACE_3);
+                ui.label(plain(hint, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
+            });
+        });
+}

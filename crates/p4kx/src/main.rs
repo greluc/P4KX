@@ -4,6 +4,7 @@ mod channels;
 mod cli;
 mod compare;
 mod cryxml;
+mod diff;
 mod exit;
 mod extract;
 mod info;

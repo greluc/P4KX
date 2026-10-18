@@ -1,0 +1,15 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"Data\\\\Libs\\\\vehicle.xml\", false, 1)?"
+---
+--- Data\Libs\vehicle.xml	LIVE/Data.p4k (CryXmlB converted to XML)
++++ Data\Libs\vehicle.xml	PTU/Data.p4k (CryXmlB converted to XML)
+@@ -2,7 +2,7 @@
+ <Vehicle name="AEGS_Gladius">
+   <Parts>
+     <Part name="Hull"/>
+-    <Part damageMax="2500"/>
++    <Part damageMax="3000"/>
+   </Parts>
+   <Description>Light fighter</Description>
+ </Vehicle>

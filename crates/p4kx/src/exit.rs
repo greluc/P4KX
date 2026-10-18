@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use p4kx_comparison::LineDiffError;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{ArchiveError, UnknownEntries};
 
@@ -15,8 +16,8 @@ pub(crate) const SUCCESS: u8 = 0;
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
-/// The command line is invalid, names an Entry the Archive does not contain or a file that does
-/// not exist, or has a Filter that matches no Entry.
+/// The command line is invalid, names an Entry the Archive does not contain, or for a line diff
+/// neither Archive contains, or a file that does not exist, or has a Filter that matches no Entry.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
@@ -29,16 +30,19 @@ pub(crate) const INTERRUPTED: u8 = 130;
 
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
-  0  success: every requested Entry was extracted or already existed; compare: no differences
+  0  success: every requested Entry was extracted or already existed; compare: no differences,
+     also for the --diff Entry
   1  partial failure: some Entries failed or were cancelled, the target or the settings
      cannot be written, or a texture cannot be read, merged or written;
-     compare: the Archives differ
-  2  invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that
+     compare: the Archives or the --diff Entry differ
+  2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
+     neither Archive contains), a Filter that
      matches no Entry, a Channel path that does not exist or was never added, a texture file
      that does not exist, a merge output that is one of its inputs, or --json without --out
      for cryxml
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml or
-     corrupt; a missing texture file is 2
+     corrupt, also a --diff Entry that cannot be read or holds corrupt CryXml; a missing
+     texture file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   6  compare: the report or the output cannot be written
@@ -58,6 +62,12 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
+    if let Some(error) = error.downcast_ref::<LineDiffError>() {
+        return match error {
+            LineDiffError::UnknownEntry { .. } => INVALID_INPUT,
+            _ => ARCHIVE_ERROR,
+        };
+    }
     if error.downcast_ref::<ArchiveError>().is_some()
         || texture::is_archive_error(error)
         || error.downcast_ref::<CryXmlError>().is_some()

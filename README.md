@@ -70,6 +70,12 @@ Early development (milestone M1). Available today:
   `--filter` selects Entries with the rules of `search`; `--report` writes the full Comparison as
   JSON (see [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is
   compared when none is given. The exit code is 0 without and 1 with differences.
+- `p4kx compare <old> <new> --diff <entry>` prints the line diff of one Entry between both Archives
+  as a unified diff: CryXml is converted to XML first, text and text XML are diffed as they are, and
+  an Entry on one side only is diffed against an empty side. A binary Entry, or one larger than
+  128 MiB, gets a note saying whether it changed. `--json` prints the hunks as JSON (see
+  [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---diff-entry---json)). The exit code is
+  0 without and 1 with differences.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -79,8 +85,8 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
-| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt; a missing texture file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
+| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read or holds corrupt CryXml; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |

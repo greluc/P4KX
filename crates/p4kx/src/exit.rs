@@ -25,7 +25,7 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// has a Filter that matches no Entry or Record, names an output that is one of its inputs, or has
 /// an invalid Query or a Query output that does not fit --json.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive, an Entry's data or the input file cannot be opened or read.
+/// The Archive, a container in it, an Entry's data or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -52,8 +52,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      --json without --out for cryxml, an invalid Query, --json with another --format and
      without --out for dcb query, or an Entity that no Record or several Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
-     corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
-     corrupt CryXml; a missing texture, sound or soundbank file is 2
+     corrupt or with unreadable Entry data, also a socpak container that cannot be opened or a
+     --diff Entry that cannot be read or holds corrupt CryXml; a missing texture, sound or
+     soundbank file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

@@ -107,7 +107,7 @@ impl From<&Entry> for EntryState {
     fn from(entry: &Entry) -> Self {
         Self {
             size: entry.uncompressed_size(),
-            crc32c: entry.crc32c(),
+            crc32c: entry.checksum().value(),
         }
     }
 }

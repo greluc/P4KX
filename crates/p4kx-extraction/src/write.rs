@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::{Archive, Entry};
+use p4kx_archive::{Archive, Checksum, Entry};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
@@ -123,7 +123,7 @@ impl EntryWriter<'_> {
         } else {
             None
         };
-        let expected = || (entry.uncompressed_size(), entry.crc32c());
+        let expected = || (entry.uncompressed_size(), entry.checksum());
         if let Some(outcome) = self.decide(&destination, expected, &mut buffers.chunk)? {
             return Ok(outcome);
         }
@@ -177,12 +177,12 @@ impl EntryWriter<'_> {
     }
 
     /// Decides whether the file of `destination` is written, comparing an existing file under
-    /// [`ConflictPolicy::IfChanged`] with the size and CRC-32C `expected` returns; returns the
+    /// [`ConflictPolicy::IfChanged`] with the size and checksum `expected` returns; returns the
     /// outcome of an Entry that is not written, or `None` to write it.
     pub(crate) fn decide(
         &self,
         destination: &Destination,
-        expected: impl FnOnce() -> (u64, u32),
+        expected: impl FnOnce() -> (u64, Checksum),
         buffer: &mut [u8],
     ) -> Result<Option<Outcome>, ExtractionError> {
         let Some(metadata) = &destination.existing else {
@@ -191,36 +191,49 @@ impl EntryWriter<'_> {
         match self.policy {
             ConflictPolicy::Skip => Ok(Some(Outcome::Kept)),
             ConflictPolicy::IfChanged if metadata.is_file() => {
-                let (len, crc) = expected();
+                let (len, checksum) = expected();
                 if metadata.len() != len {
                     return Ok(None);
                 }
-                Ok(match self.file_crc(&destination.file, buffer)? {
-                    Some(existing) if existing == crc => Some(Outcome::Kept),
-                    Some(_) => None,
-                    None => Some(Outcome::Cancelled),
-                })
+                Ok(
+                    match self.file_checksum(&destination.file, checksum, buffer)? {
+                        Some(existing) if existing == checksum => Some(Outcome::Kept),
+                        Some(_) => None,
+                        None => Some(Outcome::Cancelled),
+                    },
+                )
             }
             ConflictPolicy::Overwrite | ConflictPolicy::IfChanged => Ok(None),
         }
     }
 
-    pub(crate) fn file_crc(
+    fn file_checksum(
         &self,
         path: &Path,
+        kind: Checksum,
         buffer: &mut [u8],
-    ) -> Result<Option<u32>, ExtractionError> {
+    ) -> Result<Option<Checksum>, ExtractionError> {
         let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
-        let mut crc = 0;
+        let mut crc32c = 0;
+        let mut crc32 = crc32fast::Hasher::new();
         loop {
             match self
                 .read_chunk(&mut file, buffer)
                 .map_err(|source| read_existing_error(path, source))?
             {
                 Chunk::Data(count) => {
-                    crc = crc32c::crc32c_append(crc, buffer.get(..count).unwrap_or_default());
+                    let data = buffer.get(..count).unwrap_or_default();
+                    match kind {
+                        Checksum::Crc32c(_) => crc32c = crc32c::crc32c_append(crc32c, data),
+                        Checksum::Crc32(_) => crc32.update(data),
+                    }
                 }
-                Chunk::End => return Ok(Some(crc)),
+                Chunk::End => {
+                    return Ok(Some(match kind {
+                        Checksum::Crc32c(_) => Checksum::Crc32c(crc32c),
+                        Checksum::Crc32(_) => Checksum::Crc32(crc32.finalize()),
+                    }));
+                }
                 Chunk::Cancelled => return Ok(None),
             }
         }

@@ -51,14 +51,45 @@ struct FailureJson<'a> {
 /// the Archive to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
-    let watch = ArchiveWatch::new(&archive);
     let entries = requested_entries(args, &archive)?;
-    let target = prepare_target(args.out.as_deref(), &archive)?;
+    let settings = Settings {
+        out: args.out.as_deref(),
+        conflict: args.conflict,
+        convert: args.convert,
+        textures: textures(args),
+        cancel_after: args.cancel_after,
+    };
+    execute(&archive, &entries, &settings, as_json)
+}
+
+/// How an Extraction writes its Entries.
+pub(crate) struct Settings<'a> {
+    /// The target folder, or `None` for a new default target folder.
+    pub(crate) out: Option<&'a Path>,
+    /// What to do with a file that already exists.
+    pub(crate) conflict: Conflict,
+    /// Whether CryXml and textures are converted.
+    pub(crate) convert: bool,
+    /// What a texture conversion writes.
+    pub(crate) textures: TextureConversion,
+    /// Cancels the run once this many Entries have ended.
+    pub(crate) cancel_after: Option<usize>,
+}
+
+/// Extracts `entries` of `archive`, which may be a container, as [`run`] does.
+pub(crate) fn execute(
+    archive: &Archive,
+    entries: &[&Entry],
+    settings: &Settings<'_>,
+    as_json: bool,
+) -> Result<ExitCode> {
+    let watch = ArchiveWatch::new(archive);
+    let target = prepare_target(settings.out, archive)?;
     let cancel = cancel_on_interrupt()?;
 
     let line = ProgressLine::new();
     let on_progress = |progress: Progress| {
-        if args
+        if settings
             .cancel_after
             .is_some_and(|count| progress.entries_done >= count)
         {
@@ -67,19 +98,19 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         line.show(progress);
     };
     let options = ExtractOptions {
-        policy: policy(args.conflict),
-        convert: args.convert,
-        textures: textures(args),
+        policy: policy(settings.conflict),
+        convert: settings.convert,
+        textures: settings.textures,
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),
     };
-    let report = extract(&archive, &entries, &target, &options);
+    let report = extract(archive, entries, &target, &options);
     line.finish();
     let printed = if as_json {
         json::print(&report_json(&report, &target))
     } else {
-        print_report(&report, &target, args.conflict)
+        print_report(&report, &target, settings.conflict)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -138,12 +169,21 @@ pub(crate) const fn policy(conflict: Conflict) -> ConflictPolicy {
 }
 
 fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec<&'a Entry>> {
-    let Some(text) = &args.filter else {
-        return Ok(select_entries(archive, &args.entries)?);
-    };
+    match &args.filter {
+        Some(text) => filtered_entries(archive, text),
+        None => Ok(select_entries(archive, &args.entries)?),
+    }
+}
+
+/// Returns the Entries of `archive` the Filter `text` matches.
+///
+/// # Errors
+///
+/// Returns [`NoMatch`] when it matches none.
+pub(crate) fn filtered_entries<'a>(archive: &'a Archive, text: &str) -> Result<Vec<&'a Entry>> {
     let entries = Filter::new(text).select(archive);
     if entries.is_empty() {
-        return Err(NoMatch(text.clone()).into());
+        return Err(NoMatch(text.to_owned()).into());
     }
     Ok(entries)
 }

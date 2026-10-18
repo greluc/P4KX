@@ -7,11 +7,15 @@ const END_SIGNATURE: u32 = 0x0605_4B50;
 const ZIP64_LOCATOR_SIGNATURE: u32 = 0x0706_4B50;
 const ZIP64_END_SIGNATURE: u32 = 0x0606_4B50;
 const END_LEN: usize = 22;
+const END_DISKS_LEN: usize = 4;
+const END_DISK_ENTRIES_LEN: usize = 2;
 const MAX_COMMENT_LEN: usize = u16::MAX as usize;
 const ZIP64_LOCATOR_LEN: usize = 20;
 const ZIP64_LOCATOR_DISK_LEN: usize = 4;
 const ZIP64_END_LEN: usize = 56;
 const ZIP64_END_SIZE_VERSIONS_DISKS_LEN: usize = 28;
+const MARKER_16: u16 = u16::MAX;
+const MARKER_32: u32 = u32::MAX;
 
 /// Where the central directory lies and how many Entries it holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,29 +25,54 @@ pub(crate) struct DirectoryLocation {
     pub(crate) size: u64,
 }
 
-/// Reads the end-of-central-directory record and the ZIP64 records it points to.
+/// Reads the end-of-central-directory record and the ZIP64 records it points to, if any.
+///
+/// Without a ZIP64 locator before it, the end record itself gives the directory, as in the plain
+/// ZIP archives of containers.
 pub(crate) fn locate_directory(source: &Source) -> Result<DirectoryLocation, FormatError> {
     let tail_len = source.len().min((END_LEN + MAX_COMMENT_LEN) as u64);
     let tail_start = source.len() - tail_len;
     let tail = source.read_at(tail_start, usize::try_from(tail_len).unwrap_or(usize::MAX))?;
     let end_index = find_end_record(&tail).ok_or(FormatError::NotAnArchive)?;
     let end_offset = tail_start + end_index as u64;
-    let locator_offset = end_offset
-        .checked_sub(ZIP64_LOCATOR_LEN as u64)
-        .ok_or_else(|| {
-            FormatError::corrupt(end_offset, "no ZIP64 locator before the end record")
-        })?;
+    if let Some(zip64_end_offset) = read_zip64_locator(source, end_offset)? {
+        return read_zip64_end(source, zip64_end_offset);
+    }
+    let end = tail.get(end_index..).unwrap_or_default();
+    read_plain_end(end, end_offset)
+}
+
+fn read_zip64_locator(source: &Source, end_offset: u64) -> Result<Option<u64>, FormatError> {
+    let Some(locator_offset) = end_offset.checked_sub(ZIP64_LOCATOR_LEN as u64) else {
+        return Ok(None);
+    };
     let locator = source.read_at(locator_offset, ZIP64_LOCATOR_LEN)?;
     let mut reader = ByteReader::with_base(&locator, locator_offset);
     if reader.read_u32()? != ZIP64_LOCATOR_SIGNATURE {
-        return Err(FormatError::corrupt(
-            locator_offset,
-            "ZIP64 locator signature missing",
-        ));
+        return Ok(None);
     }
     reader.skip(ZIP64_LOCATOR_DISK_LEN)?;
-    let zip64_end_offset = reader.read_u64()?;
-    read_zip64_end(source, zip64_end_offset)
+    Ok(Some(reader.read_u64()?))
+}
+
+fn read_plain_end(end: &[u8], offset: u64) -> Result<DirectoryLocation, FormatError> {
+    let mut reader = ByteReader::with_base(end, offset);
+    reader.skip(END_SIGNATURE.to_le_bytes().len() + END_DISKS_LEN + END_DISK_ENTRIES_LEN)?;
+    let entry_count = reader.read_u16()?;
+    let size = reader.read_u32()?;
+    let directory_offset = reader.read_u32()?;
+    if entry_count == MARKER_16 || size == MARKER_32 || directory_offset == MARKER_32 {
+        return Err(FormatError::corrupt(
+            offset,
+            "no ZIP64 locator before the end record",
+        ));
+    }
+    let location = DirectoryLocation {
+        entry_count: u64::from(entry_count),
+        offset: u64::from(directory_offset),
+        size: u64::from(size),
+    };
+    check_before(location, offset)
 }
 
 fn read_zip64_end(source: &Source, offset: u64) -> Result<DirectoryLocation, FormatError> {
@@ -65,23 +94,29 @@ fn read_zip64_end(source: &Source, offset: u64) -> Result<DirectoryLocation, For
         ));
     }
     reader.skip(ZIP64_END_SIZE_VERSIONS_DISKS_LEN)?;
-    let entry_count = reader.read_u64()?;
-    let size = reader.read_u64()?;
-    let directory_offset = reader.read_u64()?;
-    if directory_offset
-        .checked_add(size)
-        .is_none_or(|end| end > offset)
+    let location = DirectoryLocation {
+        entry_count: reader.read_u64()?,
+        size: reader.read_u64()?,
+        offset: reader.read_u64()?,
+    };
+    check_before(location, offset)
+}
+
+fn check_before(
+    location: DirectoryLocation,
+    record_offset: u64,
+) -> Result<DirectoryLocation, FormatError> {
+    if location
+        .offset
+        .checked_add(location.size)
+        .is_none_or(|end| end > record_offset)
     {
         return Err(FormatError::corrupt(
-            offset,
+            record_offset,
             "central directory lies outside the file",
         ));
     }
-    Ok(DirectoryLocation {
-        entry_count,
-        offset: directory_offset,
-        size,
-    })
+    Ok(location)
 }
 
 fn find_end_record(tail: &[u8]) -> Option<usize> {

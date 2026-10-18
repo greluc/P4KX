@@ -48,7 +48,7 @@ impl<'a> LineDiff<'a> {
     pub fn kind(&self) -> Option<ChangeKind> {
         match (self.old, self.new) {
             (Some(old), Some(new)) => (old.uncompressed_size() != new.uncompressed_size()
-                || old.crc32c() != new.crc32c())
+                || old.checksum() != new.checksum())
             .then_some(ChangeKind::Changed),
             (Some(_), None) => Some(ChangeKind::Removed),
             (None, _) => Some(ChangeKind::Added),

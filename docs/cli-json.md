@@ -322,6 +322,23 @@ fail; with `--format wem` a prefetched start is written as the bank holds it and
 `"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
+## `p4kx socpak list <archive> <container…> --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k",
+ "containers": ["Data\\ObjectContainers\\Ships\\AEGS\\ship_interior.socpak",
+                "ship_interior\\modules\\cockpit.socpak"],
+ "entries": [Entry, …]}
+```
+
+`containers` names the container Entry in the Archive, then each container inside the one before,
+with the paths as they are stored. `entries` holds the Entries of the last container in directory
+order; folder Entries are left out.
+
+## `p4kx socpak extract <archive> <container…> --json`
+
+The report of `p4kx extract … --json`, for the Entries of the last container.
+
 ## `p4kx extract … --json`
 
 ```json

@@ -8,6 +8,8 @@ use crate::texture_convert::{Source, Step};
 use crate::texture_outputs::step_of;
 use crate::texture_siblings::Replay;
 use crate::write::{Chunk, Destination, EntryWriter, Outcome, create_temporary, write_error};
+use p4kx_archive::Checksum;
+
 use crate::{CUBE_FACE_NAMES, ConflictPolicy, ExtractionError, Texture};
 
 const CUBE_FACES: u32 = 6;
@@ -110,7 +112,12 @@ impl EntryWriter<'_> {
         images
             .encode(index, encoded)
             .map_err(|error| source.texture_error(error))?;
-        let expected = || (encoded.len() as u64, crc32c::crc32c(encoded));
+        let expected = || {
+            (
+                encoded.len() as u64,
+                Checksum::Crc32c(crc32c::crc32c(encoded)),
+            )
+        };
         if let Some(outcome) = self.decide(destination, expected, &mut buffers.chunk)? {
             return Ok(step_of(&outcome));
         }

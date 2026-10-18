@@ -2850,6 +2850,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "p4kx-foundation",
  "p4kx-testkit",
@@ -2941,6 +2942,7 @@ name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "crc32c",
+ "crc32fast",
  "exr",
  "lewton",
  "p4kx-archive",
@@ -3009,6 +3011,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "p4kx-foundation",
  "ruzstd",

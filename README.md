@@ -152,6 +152,15 @@ Early development (milestone M1). Available today:
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx socpak list <archive> <container…>` lists the Entries of a socpak container in the
+  columns of `list`, read from the Archive without extracting the container first; each further
+  path names a container inside the one before. `p4kx socpak extract <archive> <container…>
+  [--filter <filter>] [--out <folder>] [--conflict <policy>] [--convert]` writes its Entries, or
+  those the Filter matches, with the rules of `extract`; `if-changed` compares with the CRC-32
+  containers store. Containers nest at most 8 deep; a container whose Entries overlap, whose
+  stored sizes disagree or which declares more than 2048 times its stored size for an Entry is
+  refused, as is a compressed container decoding to more than 512 MiB. A container that cannot be
+  opened fails with exit code 3 and an error naming its Entry.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -162,7 +171,7 @@ Early development (milestone M1). Available today:
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
-| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |

@@ -19,6 +19,7 @@ p4kx-dataforge.workspace = true
 p4kx-cryxml.workspace = true
 p4kx-texture.workspace = true
 crc32c.workspace = true
+crc32fast.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 

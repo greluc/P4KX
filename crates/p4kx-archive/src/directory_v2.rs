@@ -3,7 +3,7 @@ use p4kx_foundation::ByteReader;
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
 use crate::source::Source;
-use crate::{Compression, Entry};
+use crate::{Checksum, Compression, Entry};
 
 const TRAILER_LEN: usize = 175;
 const RECORD_LEN: usize = 204;
@@ -109,7 +109,7 @@ fn parse_record(record: &[u8], offset: u64, names: &[u8]) -> Result<Entry, Forma
         path: read_name(names, name_offset, offset)?,
         compressed_size,
         uncompressed_size,
-        crc32c,
+        checksum: Checksum::Crc32c(crc32c),
         data: DataStart::Direct(data_offset),
         compression: Compression::from_method(method),
         encrypted: encryption != 0,

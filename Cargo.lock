@@ -3032,6 +3032,7 @@ dependencies = [
  "exr",
  "insta",
  "lewton",
+ "p4kx-assembly",
  "p4kx-channels",
  "p4kx-comparison",
  "p4kx-export",
@@ -3061,6 +3062,20 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-assembly"
+version = "0.1.0"
+dependencies = [
+ "p4kx-archive",
+ "p4kx-cryxml",
+ "p4kx-dataforge",
+ "p4kx-extraction",
+ "p4kx-testkit",
+ "rayon",
+ "roxmltree",
  "thiserror 2.0.21",
 ]
 

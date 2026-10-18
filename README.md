@@ -79,6 +79,11 @@ Early development (milestone M1). Available today:
   writes RFC 4180 CSV with a header row and `--format json` (or `--json`) one line of JSON, an
   array of objects keyed by column with typed values; `--out <file>` writes the result to a file
   instead of stdout and prints a summary.
+- `p4kx entity loadout <archive> <entity>` prints the default Loadout tree of an Entity named by
+  class name (`AEGS_Avenger_Titan`), GUID or record path: every port with the Entity attached to
+  it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
+  resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
+  the shape described in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

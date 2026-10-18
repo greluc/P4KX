@@ -3,6 +3,7 @@ mod codebook;
 mod error;
 mod header;
 mod packets;
+mod pcm;
 mod setup;
 mod validate;
 
@@ -13,7 +14,7 @@ pub use codebook::Codebooks;
 pub use error::VorbisError;
 
 use self::header::Header;
-use self::packets::{AudioPackets, Packets};
+use self::packets::{AudioPackets, Packets, Rebuilt};
 use self::setup::Setup;
 use self::validate::Fit;
 use crate::riff::{Chunk, Chunks};
@@ -57,6 +58,17 @@ struct Stream<'a> {
     setup: &'a [u8],
 }
 
+/// A Wwise Vorbis WEM with its Vorbis headers rebuilt and every audio packet checked.
+pub(crate) struct Rebuild<'a> {
+    stream: Stream<'a>,
+    ident: [u8; 30],
+    comment: Vec<u8>,
+    setup_packet: Vec<u8>,
+    setup: Setup,
+    codebooks: Codebooks,
+    sample_count: u64,
+}
+
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Rebuilds a Wwise Vorbis sound as a standard Ogg Vorbis file and writes it to `out`.
     ///
@@ -73,28 +85,47 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// and [`AudioError::CodebooksRejected`] when no codebooks give a decodable stream;
     /// [`AudioError::Write`] when `out` fails.
     pub fn write_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
-        let stream = self.vorbis_stream()?;
-        let ident = stream.header.ident_packet();
-        let mut comment = Vec::new();
-        header::comment_packet(&mut comment);
-        let mut setup = Vec::new();
-        let (codebooks, rebuilt) = stream.choose_codebooks(&ident, &comment, &mut setup)?;
-        stream.check_audio(&rebuilt)?;
-        let headers = [ident.as_slice(), &comment, &setup];
-        let (sample_count, size) = stream.write(headers, &rebuilt, out)?;
+        if self.codec() != Codec::Vorbis {
+            return Err(AudioError::UnsupportedOggCodec(self.codec()));
+        }
+        let rebuild = self.rebuild_vorbis()?;
+        let stream = &rebuild.stream;
+        let headers = [
+            rebuild.ident.as_slice(),
+            &rebuild.comment,
+            &rebuild.setup_packet,
+        ];
+        let (sample_count, size) = stream.write(headers, &rebuild.setup, out)?;
         Ok(OggReport {
             channels: u16::from(stream.header.channels),
             sample_rate: stream.header.sample_rate,
             sample_count,
             size,
+            codebooks: rebuild.codebooks,
+        })
+    }
+
+    /// Rebuilds the Vorbis headers of a Wwise Vorbis WEM and checks every audio packet.
+    pub(crate) fn rebuild_vorbis(&self) -> Result<Rebuild<'_>, AudioError> {
+        let stream = self.vorbis_stream()?;
+        let ident = stream.header.ident_packet();
+        let mut comment = Vec::new();
+        header::comment_packet(&mut comment);
+        let mut setup_packet = Vec::new();
+        let (codebooks, setup) = stream.choose_codebooks(&ident, &comment, &mut setup_packet)?;
+        let sample_count = stream.sample_count(&setup)?;
+        Ok(Rebuild {
+            stream,
+            ident,
+            comment,
+            setup_packet,
+            setup,
             codebooks,
+            sample_count,
         })
     }
 
     fn vorbis_stream(&self) -> Result<Stream<'_>, AudioError> {
-        if self.codec() != Codec::Vorbis {
-            return Err(AudioError::UnsupportedOggCodec(self.codec()));
-        }
         let bytes = self.bytes();
         let (order, chunks) = Chunks::of(bytes)?;
         let mut fmt = None;
@@ -196,13 +227,25 @@ impl Stream<'_> {
         Ok((rebuilt, fit))
     }
 
-    fn check_audio(&self, setup: &Setup) -> Result<(), AudioError> {
+    fn sample_count(&self, setup: &Setup) -> Result<u64, AudioError> {
         let mut audio = self.audio(setup);
         let mut packet = Vec::new();
+        let (mut previous, mut granule) = (0, 0);
         while let Some(rebuilt) = audio.next_into(&mut packet) {
-            rebuilt.map_err(AudioError::InvalidVorbis)?;
+            let rebuilt = rebuilt.map_err(AudioError::InvalidVorbis)?;
+            granule = self.trimmed(previous, rebuilt);
+            previous = rebuilt.granule;
         }
-        Ok(())
+        Ok(granule)
+    }
+
+    fn trimmed(&self, previous: u64, rebuilt: Rebuilt) -> u64 {
+        let expected = u64::from(self.header.sample_count);
+        if rebuilt.last && (previous..rebuilt.granule).contains(&expected) {
+            expected
+        } else {
+            rebuilt.granule
+        }
     }
 
     fn write(
@@ -226,11 +269,7 @@ impl Stream<'_> {
         let mut first = true;
         while let Some(rebuilt) = audio.next_into(&mut packet) {
             let rebuilt = rebuilt.map_err(AudioError::InvalidVorbis)?;
-            granule = rebuilt.granule;
-            let expected = u64::from(self.header.sample_count);
-            if rebuilt.last && (previous..granule).contains(&expected) {
-                granule = expected;
-            }
+            granule = self.trimmed(previous, rebuilt);
             ogg.write_packet(&packet, granule)
                 .map_err(AudioError::Write)?;
             if first {

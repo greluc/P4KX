@@ -42,6 +42,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
         match self.codec() {
             Codec::Pcm => self.write_pcm_wav(out),
             Codec::ImaAdpcm | Codec::PtAdpcm => self.write_adpcm_wav(out),
+            Codec::Vorbis => self.write_vorbis_wav(out),
             codec => Err(AudioError::UnsupportedCodec(codec)),
         }
     }
@@ -90,7 +91,11 @@ impl<B: AsRef<[u8]>> Wem<B> {
         })
     }
 
-    fn wav_header(&self, block_align: u16, data_len: usize) -> Result<Vec<u8>, AudioError> {
+    pub(crate) fn wav_header(
+        &self,
+        block_align: u16,
+        data_len: usize,
+    ) -> Result<Vec<u8>, AudioError> {
         let channels = self.channels();
         let extensible = channels > 2;
         let fmt_len = if extensible {
@@ -155,7 +160,7 @@ fn write_swapped(data: &[u8], out: &mut impl Write) -> Result<(), AudioError> {
     Ok(())
 }
 
-fn wav_block_align(channels: u16) -> Result<u16, AudioError> {
+pub(crate) fn wav_block_align(channels: u16) -> Result<u16, AudioError> {
     channels
         .checked_mul(BITS_PER_SAMPLE / 8)
         .ok_or(AudioError::InvalidFormat("too many channels"))

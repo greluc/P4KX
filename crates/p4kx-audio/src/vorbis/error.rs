@@ -55,6 +55,14 @@ pub enum VorbisError {
         /// What is wrong.
         reason: &'static str,
     },
+    /// The Vorbis decoder fails on an audio packet while decoding the sound to PCM.
+    #[error("the Vorbis decoder fails on the audio packet at data offset {offset}: {reason}")]
+    Undecodable {
+        /// Offset of the packet header in the `data` chunk.
+        offset: u64,
+        /// What the decoder reports.
+        reason: String,
+    },
     /// A Vorbis decoder rejects the rebuilt stream.
     #[error("a Vorbis decoder rejects the rebuilt stream: {0}")]
     Rejected(String),

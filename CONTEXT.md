@@ -79,8 +79,10 @@ Records have none.
 _Avoid_: category, kind
 
 **Reference**:
-A link from one Record to another by GUID; it is never expanded into the referring Record.
-_Avoid_: weak pointer, pointer (alone)
+A link from one Record to another by GUID; it is never expanded into the referring Record. A weak
+pointer, the stored data type, becomes a Reference into its own Record, with the location of the
+instance it points to.
+_Avoid_: pointer (alone); weak pointer for the link itself
 
 **Query**:
 A path expression that selects Records or values inside Records.
@@ -117,6 +119,12 @@ _Avoid_: room, level
 A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
+
+**Soundbank**:
+A Wwise BNK file holding sections such as `BKHD`, `HIRC` (sounds, events and actions) and `DIDX`
+with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be embedded only as its
+prefetched start.
+_Avoid_: sound package, audio archive
 
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.

@@ -37,6 +37,10 @@ fails while its section is missing.
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
   and write PCM WEMs as WAV files; every Wwise codec is detected.
+- `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
+  from disk embeds, with ID, codec and duration, and write them as `<id>.wem` or converted to WAV;
+  the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a corrupt soundbank fails
+  with an error naming the section.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the
@@ -46,6 +50,10 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+- `p4kx dcb export`: write Records as Record XML, one file per Record under its record path, with
+  owned structs nested, arrays in stored order, References and weak pointers as links (GUID,
+  record path, type and, inside the Record, the location) and explicit nulls. Unreadable values
+  such as dangling References are reported per value while the rest of the Record is written.
 - DataForge in the window: a DataForge node below the folders of the path tree shows the Records
   as folders by record path, with record folders where several Records share one. It loads in the
   background the first time it is opened, with a loading indicator, and is kept until the Archive

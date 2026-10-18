@@ -2,7 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
-use p4kx_audio::AudioError;
+use p4kx_audio::{AudioError, BankError};
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
@@ -85,7 +85,7 @@ pub enum ConversionError {
         #[source]
         source: io::Error,
     },
-    /// The sound is larger than the limit for reading it into memory.
+    /// The sound or soundbank is larger than the limit for reading it into memory.
     #[error("{sound} is larger than {limit} bytes")]
     SoundTooLarge {
         /// The Entry path or file of the sound.
@@ -101,6 +101,25 @@ pub enum ConversionError {
         /// What is wrong.
         #[source]
         source: AudioError,
+    },
+    /// The soundbank is not valid.
+    #[error("{bank}")]
+    Soundbank {
+        /// The Entry path or file of the soundbank.
+        bank: String,
+        /// What is wrong, naming the section.
+        #[source]
+        source: BankError,
+    },
+    /// The soundbank holds only the prefetched start of a streamed WEM, which cannot be converted.
+    #[error(
+        "{bank} WEM {id} is only the prefetched start of a streamed WEM; convert the loose WEM {id}.wem"
+    )]
+    PrefetchedWem {
+        /// The Entry path or file of the soundbank.
+        bank: String,
+        /// The WEM ID.
+        id: u32,
     },
     /// The output file is the header or one of its parts, or the sound file.
     #[error("{} is one of the inputs", path.display())]

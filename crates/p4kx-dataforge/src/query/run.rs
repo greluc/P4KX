@@ -3,7 +3,6 @@ use std::slice::Chunks;
 
 use rayon::prelude::*;
 
-use crate::build::instance;
 use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
 use crate::query::compile::Plan;
@@ -187,12 +186,9 @@ impl<'f> CompiledQuery<'f> {
         let def = forge
             .record_def(index)
             .ok_or_else(|| out_of_range("Record", index as usize, "Record", index.into()))?;
-        let structure = usize::try_from(def.struct_index)
-            .ok()
-            .and_then(|struct_index| forge.structs.get(struct_index))
-            .ok_or_else(|| {
-                out_of_range("Record", index as usize, "struct", def.struct_index.into())
-            })?;
-        instance(forge, index, def, structure)
+        let instance = u32::from(def.instance_index);
+        forge
+            .instance(def.struct_index, instance)
+            .ok_or_else(|| out_of_range("Record", index as usize, "instance", instance.into()))
     }
 }

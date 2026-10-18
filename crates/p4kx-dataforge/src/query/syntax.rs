@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::query::Span;
-use crate::query::lexer::{Keyword, is_bare_name};
+use crate::query::lexer::{Keyword, is_bare_name, quote};
+use crate::query::{Condition, Span};
 
 /// A parsed Query: which Records it selects and which values it lists as columns.
 ///
@@ -11,6 +11,7 @@ pub struct Query {
     pub(crate) from: Option<Name>,
     pub(crate) at: Option<Glob>,
     pub(crate) select: Vec<Path>,
+    pub(crate) condition: Option<Condition>,
 }
 
 impl Query {
@@ -30,6 +31,12 @@ impl Query {
     #[must_use]
     pub fn select(&self) -> &[Path] {
         &self.select
+    }
+
+    /// Returns the condition of `where` a Record has to meet.
+    #[must_use]
+    pub const fn condition(&self) -> Option<&Condition> {
+        self.condition.as_ref()
     }
 }
 
@@ -141,6 +148,9 @@ impl fmt::Display for Query {
                 write!(f, ", {path}")?;
             }
         }
+        if let Some(condition) = &self.condition {
+            write!(f, " {} {condition}", Keyword::Where)?;
+        }
         Ok(())
     }
 }
@@ -157,7 +167,7 @@ impl fmt::Display for Name {
 
 impl fmt::Display for Glob {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\"{}\"", self.text)
+        quote(f, &self.text)
     }
 }
 

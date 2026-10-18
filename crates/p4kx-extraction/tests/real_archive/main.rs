@@ -8,7 +8,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::cryxml::{self, Format};
 use p4kx_extraction::{
-    Archive, ConflictPolicy, DataForgeEntry, DataForgeError, Entry, ExtractOptions, extract,
+    Archive, ConflictPolicy, DataForge, DataForgeEntry, DataForgeError, Entry, ExtractOptions,
+    Record, extract,
 };
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
@@ -150,30 +151,45 @@ fn reads_the_dataforge_of_a_real_archive() -> TestResult {
         "Game2.dcb is preferred: {}",
         entry.path()
     );
-    match entry.open() {
-        Ok(forge) => {
-            assert!(forge.record_count() > 0, "the DataForge has Records");
-            for record in forge.records() {
-                record.name()?;
-                record.type_name()?;
-                let path = record.record_path()?;
-                assert!(
-                    forge
-                        .records_at_path(path)
-                        .any(|found| found.guid() == record.guid()),
-                    "{path} finds its Record"
-                );
-                assert!(
-                    forge.record_by_guid(record.guid()).is_some(),
-                    "{} finds its Record",
-                    record.guid()
-                );
-            }
-        }
-        Err(DataForgeError::UnsupportedVersion { version }) => {
-            assert!(version > 6, "only a newer version is rejected: {version}");
-        }
-        Err(error) => return Err(error.into()),
+    let forge = entry.open()?;
+    assert!(
+        matches!(forge.version(), 6 | 8),
+        "a supported version: {}",
+        forge.version()
+    );
+    assert!(forge.record_count() > 0, "the DataForge has Records");
+    let failures: Vec<String> = forge
+        .records()
+        .par_bridge()
+        .filter_map(|record| check_record(&forge, record).err())
+        .collect();
+    assert!(
+        failures.is_empty(),
+        "{} of {} Records fail, e.g. {:?}",
+        failures.len(),
+        forge.record_count(),
+        failures.iter().take(10).collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+fn check_record(forge: &DataForge<'_>, record: Record<'_>) -> Result<(), String> {
+    let failed = |error: DataForgeError| format!("{}: {error}", record.guid());
+    record.name().map_err(failed)?;
+    record.type_name().map_err(failed)?;
+    let tag = record.tag().map_err(failed)?;
+    if tag.is_some() != (forge.version() == 8) {
+        return Err(format!("{}: tag {tag:?}", record.guid()));
+    }
+    let path = record.record_path().map_err(failed)?;
+    if !forge
+        .records_at_path(path)
+        .any(|found| found.guid() == record.guid())
+    {
+        return Err(format!("{path} does not find its Record"));
+    }
+    if forge.record_by_guid(record.guid()).is_none() {
+        return Err(format!("{} does not find its Record", record.guid()));
     }
     Ok(())
 }

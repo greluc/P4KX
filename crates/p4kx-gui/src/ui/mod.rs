@@ -2,12 +2,14 @@
 
 mod archive_change;
 mod channels;
+mod dataforge_summary;
 mod empty;
 mod extraction;
 mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
+mod record_tree;
 mod search;
 mod status;
 mod table;

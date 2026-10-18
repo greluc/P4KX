@@ -1,8 +1,10 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod dataforge_text;
 mod extraction_text;
 
+pub use dataforge_text::DataForgeText;
 pub use extraction_text::ExtractionText;
 
 use crate::Language;
@@ -132,6 +134,8 @@ pub enum Text {
     ActionReload,
     /// A text of the Extraction windows.
     Extraction(ExtractionText),
+    /// A text of the DataForge node and tab.
+    DataForge(DataForgeText),
 }
 
 impl Text {
@@ -205,6 +209,7 @@ impl Text {
         Self::BASE
             .into_iter()
             .chain(ExtractionText::ALL.map(Self::Extraction))
+            .chain(DataForgeText::ALL.map(Self::DataForge))
     }
 
     /// Returns the Fluent message id.
@@ -274,7 +279,14 @@ impl Text {
             Self::ArchiveChanged => "archive-changed",
             Self::ActionReload => "action-reload",
             Self::Extraction(text) => text.id(),
+            Self::DataForge(text) => text.id(),
         }
+    }
+}
+
+impl From<DataForgeText> for Text {
+    fn from(text: DataForgeText) -> Self {
+        Self::DataForge(text)
     }
 }
 

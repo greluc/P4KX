@@ -509,6 +509,22 @@
     "arc": "color-primary",
     "periodMs": 900
   },
+  "detailList": {
+    "dsClass": "kv-list kv-ruled",
+    "keyColumnMin": 140,
+    "rowGap": 8.8,
+    "columnGap": 20,
+    "keyFontSize": 14.4,
+    "keyFontWeight": "fw-bold",
+    "keyLetterSpacingEm": 0.04,
+    "keyUppercase": true,
+    "keyColor": "color-gray-2-text",
+    "valueFontSize": 16.8,
+    "valueFontWeight": "fw-regular",
+    "valueColor": "data-fg",
+    "ruleWidth": 1,
+    "ruleColor": "color-gray-3"
+  },
   "link": {
     "dsClass": "a",
     "color": "color-primary",

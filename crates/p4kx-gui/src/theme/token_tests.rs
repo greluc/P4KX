@@ -273,7 +273,7 @@ fn glows_and_shadows_match_the_design_system() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 47] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 52] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
     ("header", "brandMarkSize", desktop::BRAND_MARK),
@@ -322,6 +322,15 @@ const DESKTOP_METRICS: [(&str, &str, f32); 47] = [
     ("progressBar", "height", desktop::PROGRESS_HEIGHT),
     ("spinner", "size", desktop::SPINNER),
     ("spinner", "sizeInline", desktop::SPINNER_INLINE),
+    ("detailList", "keyColumnMin", desktop::DETAIL_KEY_MIN_WIDTH),
+    ("detailList", "rowGap", desktop::DETAIL_ROW_GAP),
+    ("detailList", "columnGap", desktop::DETAIL_COLUMN_GAP),
+    (
+        "detailList",
+        "keyLetterSpacingEm",
+        desktop::DETAIL_KEY_TRACKING,
+    ),
+    ("detailList", "valueFontSize", desktop::DETAIL_VALUE_SIZE),
     ("tooltip", "maxWidth", desktop::TOOLTIP_MAX_WIDTH),
     ("scrollbar", "width", desktop::SCROLLBAR),
     ("scrollbar", "thumbMinLength", desktop::SCROLL_THUMB_MIN),

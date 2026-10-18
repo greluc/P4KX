@@ -195,6 +195,16 @@ pub const SPINNER_INLINE: f32 = 14.0;
 pub const SPINNER_RING: f32 = 2.0;
 /// One turn of a spinner in seconds.
 pub const SPINNER_PERIOD: f64 = 0.9;
+/// The narrowest the key column of a detail list gets.
+pub const DETAIL_KEY_MIN_WIDTH: f32 = 140.0;
+/// The gap between the rows of a detail list.
+pub const DETAIL_ROW_GAP: f32 = 0.55 * REM;
+/// The gap between the key and the value column of a detail list.
+pub const DETAIL_COLUMN_GAP: f32 = 1.25 * REM;
+/// The tracking of a detail list key in em.
+pub const DETAIL_KEY_TRACKING: f32 = 0.04;
+/// The font size of a detail list value.
+pub const DETAIL_VALUE_SIZE: f32 = 1.05 * REM;
 /// The widest a tooltip gets.
 pub const TOOLTIP_MAX_WIDTH: f32 = 272.0;
 /// The width of a scrollbar.

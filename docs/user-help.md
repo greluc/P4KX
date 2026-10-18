@@ -24,6 +24,22 @@ the window stays responsive while it loads.
 
 The limits are fixed.
 
+## DataForge
+
+When the Archive holds DataForge (`Data\Game2.dcb`, or `Data\Game.dcb` in older Archives), a
+**DataForge** node follows the folders of the path tree. Expanding or selecting it loads DataForge
+in the background; a spinner and *Loading…* show on the node meanwhile, and the window stays usable.
+The Records then appear as folders by record path: a Record alone at its record path is named after
+the file, several Records sharing one record path sit in a record folder named after the file.
+Hovering a Record shows its name, type and GUID.
+
+DataForge is loaded once per open Archive and kept until you reload the Archive or it changes on
+disk. A DataForge version this P4K-Extractor does not read, or a database it cannot read, is named
+on the node; the rest of the window keeps working.
+
+The **DataForge** tab of the preview shows the version, the numbers of Records, structs and enums,
+and the first 10 Records in the order DataForge stores them.
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

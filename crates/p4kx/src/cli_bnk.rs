@@ -50,6 +50,6 @@ pub(crate) enum BnkFormat {
     Wem,
     /// A 16-bit PCM WAV.
     Wav,
-    /// An Ogg Vorbis file rebuilt from a Wwise Vorbis WEM without re-encoding.
+    /// An Ogg Vorbis or Ogg Opus file rebuilt from a Wwise Vorbis or Opus WEM without re-encoding.
     Ogg,
 }

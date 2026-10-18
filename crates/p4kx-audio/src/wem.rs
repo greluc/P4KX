@@ -9,6 +9,8 @@ const SAMPLE_COUNT_OFFSET: usize = 0x18;
 const VORBIS_FMT_LEN: usize = 0x42;
 const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+const OPUS_RATE: u32 = 48_000;
+const SWITCH_OPUS_TAG: u16 = 0x3039;
 
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
 #[derive(Debug, Clone)]
@@ -67,12 +69,17 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let codec = Codec::from_tag(format.tag);
         let vorb_sample_count = vorb.and_then(|vorb| order.u32_at(all, vorb.start));
         let sample_count = sample_count(codec, &format, vorb_sample_count, data.len() as u64)?;
+        let sample_rate = if codec == Codec::Opus {
+            OPUS_RATE
+        } else {
+            format.sample_rate
+        };
         Ok(Self {
             order,
             format_tag: format.tag,
             codec,
             channels: format.channels,
-            sample_rate: format.sample_rate,
+            sample_rate,
             block_align: format.block_align,
             channel_mask: format.channel_mask,
             sample_count,
@@ -91,7 +98,8 @@ impl<B: AsRef<[u8]>> Wem<B> {
     }
 
     /// Returns the number of frames, samples per channel, when the header states it or the codec
-    /// allows computing it.
+    /// allows computing it; for Switch Opus at a declared rate other than 48 kHz only the
+    /// conversion counts them.
     #[must_use]
     pub const fn sample_count(&self) -> Option<u64> {
         self.sample_count
@@ -138,7 +146,8 @@ impl<B> Wem<B> {
         self.channels
     }
 
-    /// Returns the sample rate in Hz, at least 1.
+    /// Returns the sample rate in Hz, at least 1; 48 000 for Opus, which always decodes at that
+    /// rate.
     #[must_use]
     pub const fn sample_rate(&self) -> u32 {
         self.sample_rate
@@ -228,7 +237,10 @@ fn sample_count(
                     .filter(|_| format.len == VORBIS_FMT_LEN)
             })
             .map(u64::from),
-        Codec::Opus => format.embedded_sample_count.map(u64::from),
+        Codec::Opus => format
+            .embedded_sample_count
+            .filter(|_| format.tag != SWITCH_OPUS_TAG || format.sample_rate == OPUS_RATE)
+            .map(u64::from),
         _ => None,
     })
 }

@@ -151,7 +151,7 @@ impl<W: Write> OggWriter<W> {
     }
 }
 
-fn crc_update(crc: u32, bytes: &[u8]) -> u32 {
+pub(crate) fn crc_update(crc: u32, bytes: &[u8]) -> u32 {
     bytes.iter().fold(crc, |crc, &byte| {
         let index = usize::from(((crc >> 24) as u8) ^ byte);
         (crc << 8) ^ CRC_TABLE.get(index).copied().unwrap_or_default()

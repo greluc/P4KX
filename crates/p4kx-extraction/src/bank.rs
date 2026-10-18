@@ -21,7 +21,8 @@ pub enum WemFormat {
     Wem,
     /// A 16-bit PCM WAV, as `<id>.wav`; codecs without a decoder and prefetched starts fail per WEM.
     Wav,
-    /// An Ogg Vorbis file rebuilt from a Wwise Vorbis WEM, as `<id>.ogg`; other codecs and
+    /// An Ogg Vorbis or Ogg Opus file rebuilt from a Wwise Vorbis or Opus WEM, as `<id>.ogg`;
+    /// other codecs and
     /// prefetched starts fail per WEM.
     Ogg,
 }

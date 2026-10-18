@@ -99,12 +99,12 @@ fn a_missing_file_and_a_corrupt_wem_give_typed_errors() -> TestResult {
 #[test]
 fn an_undecodable_codec_names_it_and_leaves_no_file() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let input = dir.path().join("opus.wem");
+    let input = dir.path().join("aac.wem");
     fs::write(
         &input,
-        TestWem::encoded(TestCodec::Tag(0x3041), 2, 48_000, 960).bytes(),
+        TestWem::encoded(TestCodec::Tag(0xAAC0), 2, 48_000, 960).bytes(),
     )?;
-    let out = dir.path().join("opus.wav");
+    let out = dir.path().join("aac.wav");
 
     let error = Sound::from_file(&input)?.write_wav_to_file(&out).err();
 
@@ -112,7 +112,7 @@ fn an_undecodable_codec_names_it_and_leaves_no_file() -> TestResult {
         matches!(
             error,
             Some(ConversionError::Audio {
-                source: AudioError::UnsupportedCodec(Codec::Opus),
+                source: AudioError::UnsupportedCodec(Codec::Aac),
                 ..
             })
         ),

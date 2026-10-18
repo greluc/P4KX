@@ -45,6 +45,7 @@ impl RecordLayout {
             tag,
             struct_index: fields.u32(),
             guid: fields.bytes16(),
+            instance_index: fields.u16(),
         }
     }
 }

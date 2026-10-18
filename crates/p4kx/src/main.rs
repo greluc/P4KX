@@ -6,6 +6,7 @@ mod cli;
 mod compare;
 mod cryxml;
 mod dcb;
+mod dcb_export;
 mod exit;
 mod extract;
 mod info;
@@ -31,7 +32,7 @@ fn main() -> ExitCode {
         Command::Extract(args) => extract::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
-        Command::Dcb(args) => dcb::run(&args, json).map(success),
+        Command::Dcb(args) => dcb::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {
                 report(&error);

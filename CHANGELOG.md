@@ -28,6 +28,15 @@ fails while its section is missing.
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
 
+- Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
+  shortcuts working anywhere in the window.
+
+### Changed
+
+- The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
+  tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
+  icon and header mark, an empty state with an "Open Archive" action.
+
 ## [0.1.0]
 
 The first Release: open, browse and extract Star Citizen Archives.

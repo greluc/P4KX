@@ -200,6 +200,7 @@ fn reloading_opens_the_changed_archive_again() -> TestResult {
 fn the_window_offers_a_reload_once_the_archive_changed() -> TestResult {
     let (_dir, path, model) = opened(&small())?;
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1400.0, 800.0])
         .build_ui_state(
             |ui, model: &mut Model| {

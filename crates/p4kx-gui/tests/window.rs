@@ -40,6 +40,7 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
 
 fn harness(language: Language) -> Harness<'static, Model> {
     Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1200.0, 800.0])
         .build_ui_state(
             |ui, model: &mut Model| {
@@ -223,8 +224,10 @@ fn the_language_menu_switches_every_text() -> TestResult {
 }
 
 #[test]
-fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
+fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() -> Result<(), &'static str>
+{
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1200.0, 800.0])
         .build_ui_state(
             |ui, (model, requests): &mut (Model, ui::Requests)| {
@@ -237,7 +240,11 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
 
     harness.get_by_label("Archiv").click();
     harness.run();
-    harness.get_by_label("Archiv öffnen …").click();
+    harness
+        .get_all_by_label("Archiv öffnen …")
+        .last()
+        .ok_or("the menu entry is missing")?
+        .click();
     harness.run();
     harness.get_by_label("Sprache").click();
     harness.run();
@@ -256,6 +263,7 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
         Language::BritishEnglish,
         "switched"
     );
+    Ok(())
 }
 
 #[test]

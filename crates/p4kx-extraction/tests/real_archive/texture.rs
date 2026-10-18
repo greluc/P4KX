@@ -1,4 +1,4 @@
-//! Merging, decoding and PNG export of real textures.
+//! Merging, decoding and PNG export of a sample of the real Archive's textures.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -104,7 +104,16 @@ fn a_sample_of_real_textures_of_every_format_decodes_and_exports_png() -> TestRe
         per_format.len()
     )?;
     assert!(failures.is_empty(), "decoding failed: {failures:#?}");
-    for format in ["BC1_UNORM", "BC3_UNORM", "B8G8R8A8_UNORM"] {
+    for format in [
+        "BC1_UNORM",
+        "BC3_UNORM",
+        "BC4_UNORM",
+        "BC5_UNORM",
+        "BC5_SNORM",
+        "BC7_UNORM",
+        "BC7_UNORM_SRGB",
+        "B8G8R8A8_UNORM",
+    ] {
         assert!(
             summary
                 .iter()

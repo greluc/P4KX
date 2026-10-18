@@ -1,15 +1,25 @@
+use std::sync::Arc;
 use std::time::Duration;
 
-use egui::{CollapsingHeader, Id, ProgressBar, ScrollArea, Ui, Window};
+use egui::text::{LayoutJob, TextFormat};
+use egui::{Id, InnerResponse, ScrollArea, Sense, Ui, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::Progress;
 
 use super::extraction::number;
-use super::row_height;
-use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Model, Texts};
+use crate::theme::desktop::{
+    MODAL_WIDE_WIDTH, MODAL_WIDTH, ROW_HEIGHT, SECTION_LIST_HEIGHT, SPINNER_INLINE,
+};
+use crate::theme::palette;
+use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, Weight, font};
+use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::frames::{self, Tone};
+use crate::widgets::indicator;
+use crate::widgets::rows::{paint_divider, section_header};
+use crate::widgets::text::paint_left;
+use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Language, Model, Texts};
 
 const REFRESH: Duration = Duration::from_millis(100);
-const LIST_HEIGHT: f32 = 180.0;
 const WINDOW: &str = "extraction-run";
 
 pub(super) fn show(ui: &Ui, model: &mut Model) {
@@ -23,13 +33,17 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     match extraction.status() {
         ExtractionStatus::Running(progress) => {
             let cancelling = extraction.is_cancelled();
-            Window::new(texts.get(T::RunningTitle))
+            let title = texts.get(T::RunningTitle);
+            let shown = frames::window(&title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)
+                .default_width(MODAL_WIDTH)
                 .show(ui.ctx(), |ui| {
+                    frames::head(ui, (&title, Tone::Normal), false, None);
                     cancel = running(ui, texts, progress, cancelling);
                 });
+            decorate(ui, shown, Tone::Normal);
             ui.ctx().request_repaint_after(REFRESH);
         }
         ExtractionStatus::Finished(summary) => {
@@ -40,7 +54,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             } else {
                 T::SummaryCancelledTitle
             };
-            outcome_window(ui, texts, title, &mut open, |ui| {
+            outcome_window(ui, texts, (title, Tone::Normal), &mut open, |ui| {
                 finished(ui, texts, summary);
             });
         }
@@ -52,8 +66,8 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 ),
                 None => texts.format(T::Stopped, &[("path", path.into())]),
             };
-            outcome_window(ui, texts, T::FailedTitle, &mut open, |ui| {
-                ui.colored_label(ui.visuals().error_fg_color, text);
+            outcome_window(ui, texts, (T::FailedTitle, Tone::Danger), &mut open, |ui| {
+                ui.colored_label(palette::DANGER_TEXT, text);
             });
         }
     }
@@ -65,21 +79,43 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-fn outcome_window(ui: &Ui, texts: &Texts, title: T, open: &mut bool, body: impl FnOnce(&mut Ui)) {
+fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
+    if let Some(shown) = shown {
+        frames::modal_decoration(ui.ctx(), shown.response.layer_id, shown.response.rect, tone);
+    }
+}
+
+fn outcome_window(
+    ui: &Ui,
+    texts: &Texts,
+    (title, tone): (T, Tone),
+    open: &mut bool,
+    body: impl FnOnce(&mut Ui),
+) {
     let mut close = false;
-    Window::new(texts.get(title))
+    let title = texts.get(title);
+    let close_dialog = texts.get(crate::Text::CloseDialog);
+    let shown = frames::window(&title, tone)
         .id(Id::unique(WINDOW))
         .collapsible(false)
-        .open(open)
-        .default_width(560.0)
+        .default_width(MODAL_WIDE_WIDTH)
         .show(ui.ctx(), |ui| {
+            let closed = frames::head(ui, (&title, tone), false, Some(&close_dialog));
             body(ui);
-            ui.separator();
-            close = ui.button(texts.get(T::Close)).clicked();
+            close = close_foot(ui, texts) || closed;
         });
+    decorate(ui, shown, tone);
     if close {
         *open = false;
     }
+}
+
+fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
+    frames::foot_rule(ui);
+    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        button::button(ui, Kind::Cta, Size::Normal, &texts.get(T::Close), true).clicked()
+    })
+    .inner
 }
 
 fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> bool {
@@ -97,15 +133,21 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
             ("percent", FluentValue::from(f64::from(percent))),
         ],
     ));
-    ui.add(ProgressBar::new(fraction).desired_width(360.0));
+    ui.add_space(SPACE_3);
+    let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
+    indicator::progress(ui, fraction, cancelling, width);
+    frames::foot_rule(ui);
     if cancelling {
         ui.horizontal(|ui| {
-            ui.spinner();
+            indicator::spinner(ui, SPINNER_INLINE);
             ui.label(texts.get(T::Cancelling));
         });
         false
     } else {
-        ui.button(texts.get(T::Cancel)).clicked()
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            button::button(ui, Kind::Ghost, Size::Normal, &texts.get(T::Cancel), true).clicked()
+        })
+        .inner
     }
 }
 
@@ -119,7 +161,7 @@ fn ratio(done: u64, total: u64) -> f32 {
 
 fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     if summary.archive_changed() {
-        ui.colored_label(ui.visuals().error_fg_color, texts.get(T::SummaryChanged));
+        ui.colored_label(palette::WARNING, texts.get(T::SummaryChanged));
     }
     let mut counts = vec![
         ("extracted", number(texts, summary.extracted())),
@@ -134,7 +176,49 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     ui.label(texts.format(text, &counts));
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
-    let failures: Vec<String> = summary
+    let failures = failure_lines(ui, texts, summary);
+    list(
+        ui,
+        texts,
+        (T::SummaryFailed, &failures.lines, Some(&failures.reasons)),
+        true,
+    );
+    list(
+        ui,
+        texts,
+        (T::SummarySkipped, summary.skipped(), None),
+        false,
+    );
+    list(
+        ui,
+        texts,
+        (T::SummaryCancelled, summary.cancelled(), None),
+        false,
+    );
+}
+
+/// The formatted failure lines of a summary and where the reason starts in each.
+#[derive(Clone)]
+struct FailureLines {
+    key: (usize, usize, Language),
+    lines: Arc<[String]>,
+    reasons: Arc<[usize]>,
+}
+
+/// Returns the failure lines of `summary`, formatted once per summary and language.
+fn failure_lines(ui: &Ui, texts: &Texts, summary: &ExtractionSummary) -> FailureLines {
+    let key = (
+        std::ptr::from_ref(summary).addr(),
+        summary.failures().len(),
+        texts.language(),
+    );
+    let id = Id::unique("p4kx-failure-lines");
+    if let Some(cached) = ui.data(|data| data.get_temp::<FailureLines>(id))
+        && cached.key == key
+    {
+        return cached;
+    }
+    let lines: Arc<[String]> = summary
         .failures()
         .iter()
         .map(|failure| {
@@ -147,27 +231,66 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
             )
         })
         .collect();
-    list(ui, texts, T::SummaryFailed, &failures, true);
-    list(ui, texts, T::SummarySkipped, summary.skipped(), false);
-    list(ui, texts, T::SummaryCancelled, summary.cancelled(), false);
+    let reasons = lines
+        .iter()
+        .zip(summary.failures())
+        .map(|(line, failure)| line.len().saturating_sub(failure.reason.len()))
+        .collect();
+    let failures = FailureLines {
+        key,
+        lines,
+        reasons,
+    };
+    ui.data_mut(|data| data.insert_temp(id, failures.clone()));
+    failures
 }
 
-fn list(ui: &mut Ui, texts: &Texts, heading: T, lines: &[String], open: bool) {
+fn list(
+    ui: &mut Ui,
+    texts: &Texts,
+    (heading, lines, reasons): (T, &[String], Option<&[usize]>),
+    open: bool,
+) {
     if lines.is_empty() {
         return;
     }
+    ui.add_space(SPACE_2);
     let title = texts.format(heading, &[("number", number(texts, lines.len()))]);
-    CollapsingHeader::new(title)
+    let id = ui.scope_id().with(heading.id());
+    if !section_header(ui, id, &title, open) {
+        return;
+    }
+    ScrollArea::vertical()
         .id_salt(heading.id())
-        .default_open(open)
-        .show(ui, |ui| {
-            ScrollArea::vertical()
-                .id_salt(heading.id())
-                .max_height(LIST_HEIGHT)
-                .show_rows(ui, row_height(ui), lines.len(), |ui, rows| {
-                    for line in lines.get(rows).unwrap_or_default() {
-                        ui.label(line);
-                    }
-                });
+        .max_height(SECTION_LIST_HEIGHT)
+        .show_rows(ui, ROW_HEIGHT, lines.len(), |ui, rows| {
+            for index in rows {
+                let Some(text) = lines.get(index) else {
+                    continue;
+                };
+                let reason = reasons.and_then(|starts| starts.get(index)).copied();
+                list_row(ui, text, reason);
+            }
         });
+}
+
+fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {
+    let size = vec2(ui.available_width(), ROW_HEIGHT);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, text));
+    let inner = rect.shrink2(vec2(SPACE_3, 0.0));
+    let (path, cause) = reason
+        .and_then(|start| text.split_at_checked(start))
+        .unwrap_or((text, ""));
+    let mut job = LayoutJob::default();
+    let font = font(FS_XS, Weight::Regular);
+    for (part, colour) in [(path, palette::GRAY_1), (cause, palette::DANGER_TEXT)] {
+        job.append(part, 0.0, TextFormat::simple(font.clone(), colour));
+    }
+    job.wrap.max_width = inner.width();
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    let galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+    paint_left(ui, inner, galley, palette::GRAY_1);
+    paint_divider(ui.painter(), rect);
 }

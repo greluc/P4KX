@@ -26,6 +26,8 @@ pub struct DataForge<'a> {
     pub(crate) text: StringTable<'a>,
     pub(crate) blob: StringTable<'a>,
     pub(crate) instance_counts: Box<[u32]>,
+    pub(crate) instance_starts: Box<[u64]>,
+    pub(crate) instances: &'a [u8],
     pub(crate) guid_index: OnceLock<Box<[u32]>>,
     pub(crate) path_index: OnceLock<Box<[u32]>>,
 }
@@ -62,7 +64,9 @@ impl<'a> DataForge<'a> {
         );
         let text = take(&mut reader, header.text_len, 1, "text table")?;
         let blob = take(&mut reader, header.blob_len, 1, "blob table")?;
-        let instance_counts = instance_counts(structs, mappings, reader.remaining())?;
+        let remaining = reader.remaining();
+        let instances = take(&mut reader, 1, remaining, "instance data")?;
+        let Blocks { counts, starts } = instance_blocks(structs, mappings, instances.len())?;
         let forge = Self {
             version: header.version,
             structs,
@@ -74,7 +78,9 @@ impl<'a> DataForge<'a> {
             options,
             text: StringTable::new(text, "text"),
             blob: StringTable::new(blob, "blob"),
-            instance_counts,
+            instance_counts: counts,
+            instance_starts: starts,
+            instances,
             guid_index: OnceLock::new(),
             path_index: OnceLock::new(),
         };
@@ -157,14 +163,21 @@ impl<'a> DataForge<'a> {
     }
 }
 
-/// Returns the number of instances of every struct and checks that the instance data the data
+/// The number of instances of every struct and the offset of its block in the instance data.
+struct Blocks {
+    counts: Box<[u32]>,
+    starts: Box<[u64]>,
+}
+
+/// Returns where the instances of every struct lie and checks that the instance data the data
 /// mappings describe fills the `remaining` bytes exactly.
-fn instance_counts(
+fn instance_blocks(
     structs: Table<'_, StructDef>,
     mappings: Table<'_, DataMapping>,
     remaining: usize,
-) -> Result<Box<[u32]>, DataForgeError> {
+) -> Result<Blocks, DataForgeError> {
     let mut counts = vec![None; structs.len()];
+    let mut starts = vec![0; structs.len()];
     let mut expected = 0_u64;
     for (index, mapping) in mappings.iter().enumerate() {
         let target = usize::try_from(mapping.struct_index).ok();
@@ -179,6 +192,9 @@ fn instance_counts(
                 mapping.struct_index.into(),
             ));
         };
+        if let Some(start) = target.and_then(|target| starts.get_mut(target)) {
+            *start = expected;
+        }
         if slot.replace(mapping.instance_count).is_some() {
             return Err(DataForgeError::DuplicateMapping {
                 struct_index: mapping.struct_index,
@@ -195,7 +211,10 @@ fn instance_counts(
     if expected != actual {
         return Err(DataForgeError::InstanceSize { expected, actual });
     }
-    Ok(counts.into_iter().map(Option::unwrap_or_default).collect())
+    Ok(Blocks {
+        counts: counts.into_iter().map(Option::unwrap_or_default).collect(),
+        starts: starts.into_boxed_slice(),
+    })
 }
 
 pub(crate) const fn out_of_range(

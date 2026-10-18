@@ -39,7 +39,7 @@ impl<'f> Record<'f> {
         self.forge.text.get(self.def.file_name).map(strip_xml)
     }
 
-    /// Returns the tag version 8 stores with every Record, e.g. `SystemsDesign`, or `None` for
+    /// Returns the Record tag version 8 stores with every Record, e.g. `SystemsDesign`, or `None` for
     /// version 6, which has no tags.
     ///
     /// # Errors

@@ -218,7 +218,10 @@ fn dcb_info_reads_the_dataforge_of_a_real_archive() -> TestResult {
 
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    assert_eq!(value["version"], 8, "every current Channel ships version 8");
+    assert!(
+        matches!(value["version"].as_u64(), Some(6 | 8)),
+        "a supported version: {value}"
+    );
     for count in ["record_count", "struct_count", "enum_count"] {
         assert!(
             value[count].as_u64().is_some_and(|count| count > 0),

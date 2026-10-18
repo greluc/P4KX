@@ -4,6 +4,7 @@ mod archive_change;
 mod archive_picker;
 mod channels;
 mod comparison;
+mod comparison_extraction;
 mod comparison_list;
 mod comparison_rows;
 mod comparison_summary;

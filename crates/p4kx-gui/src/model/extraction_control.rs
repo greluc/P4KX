@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use p4kx_extraction::Entry;
 
 use super::Model;
-use crate::extraction::{Confirmation, start};
+use crate::extraction::{Confirmation, Source, start};
 use crate::{Extraction, ExtractionScope, ExtractionSetup};
 
 impl Model {
@@ -30,13 +31,18 @@ impl Model {
         self.extraction_conversion = convert;
     }
 
-    /// Opens the Extraction setup for `scope`, unless no Archive is open, it changed on disk or
-    /// an Extraction runs; a finished Extraction is dismissed.
+    /// Opens the Extraction setup for `scope`, unless an Extraction runs or the scope has no
+    /// source: no open Archive or one that changed on disk, or no finished Comparison for the
+    /// changes of one side; a finished Extraction is dismissed.
     pub fn begin_extraction(&mut self, scope: ExtractionScope) {
-        if self.browser.is_none()
-            || self.extraction.as_ref().is_some_and(Extraction::is_running)
-            || self.check_archive()
-        {
+        if self.extraction.as_ref().is_some_and(Extraction::is_running) {
+            return;
+        }
+        let ready = match scope {
+            ExtractionScope::Changes(_) => self.comparison.view().is_some(),
+            _ => self.browser.is_some() && !self.check_archive(),
+        };
+        if !ready {
             return;
         }
         self.extraction = None;
@@ -63,9 +69,16 @@ impl Model {
         self.extraction_setup = None;
     }
 
-    /// Returns the number of Entries `scope` covers in the open Archive.
+    /// Returns the number of Entries `scope` covers in the open Archive or, for the changes of
+    /// one side, in the finished Comparison.
     #[must_use]
     pub fn scope_len(&self, scope: ExtractionScope) -> usize {
+        if let ExtractionScope::Changes(side) = scope {
+            return self
+                .comparison
+                .view()
+                .map_or(0, |view| view.change_count(side));
+        }
         self.browser
             .as_ref()
             .map_or(0, |browser| browser.scope_len(scope))
@@ -77,20 +90,57 @@ impl Model {
     /// An Extraction of every Entry of the Archive, whatever its scope, first asks for
     /// confirmation and starts only when submitted again while confirming. Nothing starts
     /// without a chosen folder, without Entries in the scope, while another Extraction runs, or
-    /// once the Archive changed on disk.
+    /// once the open Archive changed on disk.
     pub fn submit_extraction(&mut self, wake: impl Fn() + Send + 'static) -> bool {
-        if self.check_archive() {
-            return false;
-        }
-        let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
+        let Some(scope) = self.extraction_setup.as_ref().map(ExtractionSetup::scope) else {
             return false;
         };
-        let ids = browser.scope_entries(setup.scope());
         if self.extraction.as_ref().is_some_and(Extraction::is_running)
-            || setup.folder().is_none()
-            || ids.is_empty()
+            || self
+                .extraction_setup
+                .as_ref()
+                .is_none_or(|setup| setup.folder().is_none())
         {
             return false;
+        }
+        let source = match scope {
+            ExtractionScope::Changes(side) => self
+                .comparison
+                .view()
+                .and_then(|view| view.selection(side))
+                .map(Source::Changes),
+            _ => self.browser_source(),
+        };
+        let Some(source) = source.filter(|source| source.len() > 0) else {
+            return false;
+        };
+        let Some(request) = self
+            .extraction_setup
+            .as_ref()
+            .and_then(|setup| setup.request(source))
+        else {
+            return false;
+        };
+        self.extraction_folder = Some(request.folder.clone());
+        self.extraction_conversion = request.convert;
+        self.extraction = Some(start(request, wake));
+        self.extraction_setup = None;
+        true
+    }
+
+    /// Returns the Entries of the open Archive the setup covers, or `None` when they are not to
+    /// be extracted yet: none, the Archive changed on disk, or a whole-Archive Extraction that
+    /// now asks for confirmation.
+    fn browser_source(&mut self) -> Option<Source> {
+        if self.check_archive() {
+            return None;
+        }
+        let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
+            return None;
+        };
+        let ids = browser.scope_entries(setup.scope());
+        if ids.is_empty() {
+            return None;
         }
         let index = browser.index();
         if ids.len() == index.len() && !setup.is_confirming() {
@@ -102,16 +152,9 @@ impl Model {
                     .map(Entry::uncompressed_size)
                     .sum(),
             });
-            return false;
+            return None;
         }
-        let Some(request) = setup.request(ids) else {
-            return false;
-        };
-        self.extraction_folder = Some(request.folder.clone());
-        self.extraction_conversion = request.convert;
-        self.extraction = Some(start(browser.shared_index(), request, wake));
-        self.extraction_setup = None;
-        true
+        Some(Source::Index(Arc::clone(browser.shared_index()), ids))
     }
 
     /// Returns the running or finished Extraction, or `None` when there is none.

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use egui::{Align, Frame, Galley, Id, Layout, Margin, Ui, vec2};
 
+use super::comparison_extraction;
 use super::comparison_list::{self, ListAction};
 use super::search::{eyebrow, field};
 use super::{Dialog, Requests};
@@ -11,7 +12,9 @@ use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::px;
 use crate::widgets::text::{hairline_below, line, plain};
-use crate::{ComparisonText, ComparisonView, Model, ReportStatus, Text, Texts, format};
+use crate::{
+    ComparisonText, ComparisonView, ExtractionScope, Model, ReportStatus, Text, Texts, format,
+};
 
 /// Shows the list panel of the changes: the Filter, the report and the sortable list.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -92,6 +95,8 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let mut cache = ToolbarCache::load(ui, texts, view);
     let saving = view.is_saving();
     let mut changed = false;
+    let mut extract = None;
+    let mut inline = true;
     let frame = Frame::NONE
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| {
@@ -106,17 +111,31 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
                     if let Some(shown) = cache.shown.clone() {
                         ui.label(shown);
                     }
+                    inline = comparison_extraction::fit_beside_search(ui);
+                    if inline {
+                        extract = comparison_extraction::actions(ui, model);
+                    }
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                         let label = label.map_or_else(|| ui.next_auto_id(), |label| label.id);
                         changed |= field(ui, &mut cache.filter, &cache.hint, label);
                     });
                 });
             });
+            if !inline {
+                ui.horizontal(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        extract = comparison_extraction::actions(ui, model);
+                    });
+                });
+            }
             if let Some(note) = cache.note.clone() {
                 ui.label(note);
             }
         });
     hairline_below(ui, frame.response.rect);
+    if let Some(side) = extract {
+        model.begin_extraction(ExtractionScope::Changes(side));
+    }
     if changed {
         let ctx = ui.ctx().clone();
         if let Some(view) = model.comparison_mut().view_mut() {

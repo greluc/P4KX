@@ -7,6 +7,7 @@ mod filter_job;
 mod orders;
 mod report;
 mod run;
+mod selection;
 mod view;
 
 pub(crate) use orders::rank;
@@ -15,6 +16,7 @@ pub use report::ReportStatus;
 pub use view::{ComparisonView, DirectorySummary, Summary};
 
 use run::{Outcome, Run};
+pub(crate) use selection::ChangeSelection;
 
 /// One of the two Archives of a Comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

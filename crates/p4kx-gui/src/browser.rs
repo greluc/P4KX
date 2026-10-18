@@ -88,6 +88,7 @@ impl Browser {
             ExtractionScope::Shown if self.pending.is_some() => 0,
             ExtractionScope::Shown => self.shown.len(),
             ExtractionScope::All => self.index.len(),
+            ExtractionScope::Changes(_) => 0,
         }
     }
 
@@ -100,6 +101,7 @@ impl Browser {
             ExtractionScope::Shown if self.pending.is_some() => Vec::new(),
             ExtractionScope::Shown => self.shown.clone(),
             ExtractionScope::All => ids.collect(),
+            ExtractionScope::Changes(_) => Vec::new(),
         }
     }
 

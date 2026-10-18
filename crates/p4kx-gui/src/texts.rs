@@ -1,11 +1,13 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
 mod extraction_text;
 mod text_ids;
 
+pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::DataForgeText;
 pub use extraction_text::ExtractionText;
@@ -145,6 +147,8 @@ pub enum Text {
     Comparison(ComparisonText),
     /// A text of the DataForge node and tab.
     DataForge(DataForgeText),
+    /// A text of extracting the changes of one Comparison side.
+    ChangeExtraction(ChangeExtractionText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

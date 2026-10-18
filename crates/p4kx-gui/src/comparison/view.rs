@@ -4,9 +4,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_comparison::{CancelToken, Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
 
+use super::ComparisonSide;
 use super::filter_job::{self, FilterJob, Matched, Polled, Started};
 use super::orders::{ChangeColumn, ChangeOrders, ChangeSort};
 use super::report::{self, ReportJob, ReportStatus};
+use super::selection::{ChangeSelection, selected_len};
 use crate::SortDirection;
 
 /// The counts of the changes below one top-level directory.
@@ -149,6 +151,31 @@ impl ComparisonView {
         }
     }
 
+    /// Returns the number of added and changed Entries of `side` the Filter selects, the ones
+    /// extracting the changes of that side writes; none while a Filter is applied.
+    #[must_use]
+    pub fn change_count(&self, side: ComparisonSide) -> usize {
+        if self.is_filtering() {
+            return 0;
+        }
+        selected_len(side, self.summary().counts)
+    }
+
+    /// Returns the added and changed Entries of `side` the Filter selects, or `None` while a
+    /// Filter is applied.
+    pub(crate) fn selection(&self, side: ComparisonSide) -> Option<ChangeSelection> {
+        (!self.is_filtering()).then(|| {
+            ChangeSelection::new(
+                Arc::clone(&self.comparison),
+                self.matched
+                    .as_ref()
+                    .map(|matched| Arc::clone(&matched.mask)),
+                side,
+                self.summary().counts,
+            )
+        })
+    }
+
     /// Returns how the list is sorted.
     #[must_use]
     pub const fn sort(&self) -> ChangeSort {
@@ -229,7 +256,7 @@ impl ComparisonView {
 
     fn refresh_shown(&mut self) {
         let ascending = self.orders.ascending(self.sort.column).iter().copied();
-        let mask = self.matched.as_ref().map(|matched| matched.mask.as_slice());
+        let mask = self.matched.as_ref().map(|matched| &*matched.mask);
         let keep =
             |id: &u32| mask.is_none_or(|mask| mask.get(*id as usize).copied().unwrap_or(false));
         self.shown = match self.sort.direction {

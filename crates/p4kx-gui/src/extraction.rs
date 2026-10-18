@@ -5,8 +5,10 @@ use std::path::{Path, PathBuf};
 
 use p4kx_extraction::ConflictPolicy;
 
+use crate::ComparisonSide;
+
 pub use job::{Extraction, ExtractionStatus};
-pub(crate) use job::{Request, start, target_naming};
+pub(crate) use job::{Request, Source, start, target_naming};
 pub use summary::{ExtractionSummary, FailedEntry};
 
 /// Which Entries an Extraction writes.
@@ -18,6 +20,9 @@ pub enum ExtractionScope {
     Shown,
     /// Every Entry of the Archive.
     All,
+    /// The added and changed Entries of one side of the finished Comparison that its Filter
+    /// selects; removed Entries never.
+    Changes(ComparisonSide),
 }
 
 /// Where an Extraction writes.
@@ -143,9 +148,9 @@ impl ExtractionSetup {
         self.confirmation = Some(confirmation);
     }
 
-    pub(crate) fn request(&self, ids: Vec<u32>) -> Option<Request> {
+    pub(crate) fn request(&self, source: Source) -> Option<Request> {
         Some(Request {
-            ids,
+            source,
             kind: self.kind,
             folder: self.folder.clone()?,
             policy: match self.kind {

@@ -603,6 +603,12 @@
     "dsClass": "attendance-meter",
     "maxWidth": 320,
     "metrics": "progressBar"
+  },
+  "changeExtraction": {
+    "dsClass": "btn btn-ghost",
+    "position": "list-panel toolbar, left of the shown count and Save report; wraps onto its own right-aligned toolbar row when the search field would get less than 260",
+    "metrics": "buttonGhost",
+    "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,

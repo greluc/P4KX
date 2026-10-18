@@ -8,18 +8,46 @@ use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, Build, CancelToken, ConflictPolicy, ExtractOptions, Progress, create_default_target,
-    extract,
+    Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, Entry, ExtractOptions, Progress,
+    create_default_target, extract,
 };
 
 use super::{ExtractionSummary, TargetKind};
 use crate::EntryIndex;
+use crate::comparison::ChangeSelection;
 use crate::model::describe;
 
+/// The Entries an Extraction writes and the Archive they are read from.
+#[derive(Debug, Clone)]
+pub(crate) enum Source {
+    /// The Entries with these ids of the open Archive.
+    Index(Arc<EntryIndex>, Vec<u32>),
+    /// The added and changed Entries of one side of a Comparison.
+    Changes(ChangeSelection),
+}
+
+impl Source {
+    /// Returns the Archive the Entries are read from.
+    pub(crate) fn archive(&self) -> &Archive {
+        match self {
+            Self::Index(index, _) => index.archive(),
+            Self::Changes(selection) => selection.archive(),
+        }
+    }
+
+    /// Returns the number of Entries.
+    pub(crate) const fn len(&self) -> usize {
+        match self {
+            Self::Index(_, ids) => ids.len(),
+            Self::Changes(selection) => selection.len(),
+        }
+    }
+}
+
 /// What an Extraction writes and where.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct Request {
-    pub(crate) ids: Vec<u32>,
+    pub(crate) source: Source,
     pub(crate) kind: TargetKind,
     pub(crate) folder: PathBuf,
     pub(crate) policy: ConflictPolicy,
@@ -50,6 +78,7 @@ pub enum ExtractionStatus<'a> {
 /// An Extraction running on a background thread, or its outcome.
 #[derive(Debug)]
 pub struct Extraction {
+    archive: PathBuf,
     folder: PathBuf,
     cancel: CancelToken,
     progress: Arc<Mutex<Progress>>,
@@ -57,6 +86,12 @@ pub struct Extraction {
 }
 
 impl Extraction {
+    /// Returns the path of the Archive the Entries are read from.
+    #[must_use]
+    pub fn archive(&self) -> &Path {
+        &self.archive
+    }
+
     /// Returns the chosen folder: the parent of a new folder, or the existing folder.
     #[must_use]
     pub fn folder(&self) -> &Path {
@@ -131,27 +166,23 @@ pub(crate) fn target_naming(archive: &Archive) -> (Option<String>, Option<&str>)
     )
 }
 
-/// Starts writing the Entries of `request` from `index` on a background thread, calling `wake`
-/// from it once the Extraction ended.
-pub(crate) fn start(
-    index: &Arc<EntryIndex>,
-    request: Request,
-    wake: impl Fn() + Send + 'static,
-) -> Extraction {
+/// Starts writing the Entries of `request` on a background thread, calling `wake` from it once
+/// the Extraction ended.
+pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extraction {
     let cancel = CancelToken::new();
     let progress = Arc::new(Mutex::new(Progress {
-        entries_total: request.ids.len(),
+        entries_total: request.source.len(),
         ..Progress::default()
     }));
     let folder = request.folder.clone();
+    let archive = request.source.archive().path().to_path_buf();
     let (sender, result) = mpsc::channel();
-    let thread_index = Arc::clone(index);
     let thread_cancel = cancel.clone();
     let thread_progress = Arc::clone(&progress);
     let spawned = thread::Builder::new()
         .name("extraction".to_owned())
         .spawn(move || {
-            let outcome = run(&thread_index, &request, &thread_cancel, &thread_progress);
+            let outcome = run(&request, &thread_cancel, &thread_progress);
             if sender.send(outcome).is_ok() {
                 wake();
             }
@@ -161,6 +192,7 @@ pub(crate) fn start(
         Err(error) => State::Failed(Some(describe(&error))),
     };
     Extraction {
+        archive,
         folder,
         cancel,
         progress,
@@ -168,17 +200,35 @@ pub(crate) fn start(
     }
 }
 
-fn run(
-    index: &EntryIndex,
+fn run(request: &Request, cancel: &CancelToken, progress: &Mutex<Progress>) -> RunResult {
+    match &request.source {
+        Source::Index(index, ids) => {
+            let mut ids = ids.clone();
+            ids.sort_unstable();
+            let entries: Vec<_> = ids.iter().filter_map(|&id| index.entry(id)).collect();
+            write(
+                (index.archive(), &entries, index.watch()),
+                request,
+                cancel,
+                progress,
+            )
+        }
+        Source::Changes(selection) => {
+            let archive = selection.archive();
+            let watch = ArchiveWatch::new(archive);
+            let entries = selection.entries();
+            write((archive, &entries, &watch), request, cancel, progress)
+        }
+    }
+}
+
+fn write(
+    (archive, entries, watch): (&Archive, &[&Entry], &ArchiveWatch),
     request: &Request,
     cancel: &CancelToken,
     progress: &Mutex<Progress>,
 ) -> RunResult {
-    let archive = index.archive();
     let target = prepare_target(archive, request).map_err(|error| describe(&error))?;
-    let mut ids = request.ids.clone();
-    ids.sort_unstable();
-    let entries: Vec<_> = ids.iter().filter_map(|&id| index.entry(id)).collect();
     let on_progress = |now: Progress| {
         *progress.lock().unwrap_or_else(PoisonError::into_inner) = now;
     };
@@ -187,9 +237,9 @@ fn run(
         convert: request.convert,
         cancel: Some(cancel),
         progress: Some(&on_progress),
-        watch: Some(index.watch()),
+        watch: Some(watch),
     };
-    let report = extract(archive, &entries, &target, &options);
+    let report = extract(archive, entries, &target, &options);
     Ok(ExtractionSummary::new(target, &report))
 }
 

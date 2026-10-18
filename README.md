@@ -161,6 +161,47 @@ Early development (milestone M1). Available today:
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 
+## MCP server
+
+`p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
+stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
+(`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
+write a file:
+
+| Tool | Result |
+|------|--------|
+| `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
+| `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
+
+Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
+or the absolute local path of a `.p4k` file; network, device and relative paths are refused.
+Without it the tools use the Archive given with `--archive` when the server was started. Opened
+Archives stay open between calls and are opened again when their file changes. Listings page:
+`limit` sets the page size (100 by default, at most 1000), and a result with `next_cursor` has a
+next page that `cursor` asks for. `--config-dir`, `--launcher-dir` and `--default-library` (or
+`P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as for `p4kx channels`.
+
+Build it with `cargo build --release -p p4kx-mcp`, then add it to the AI client. Claude Code:
+
+```powershell
+claude mcp add p4kx -- "D:\Tools\p4kx-mcp.exe" --archive LIVE
+```
+
+Claude Desktop and other clients that read an `mcpServers` file:
+
+```json
+{
+  "mcpServers": {
+    "p4kx": {
+      "command": "D:\\Tools\\p4kx-mcp.exe",
+      "args": ["--archive", "LIVE"]
+    }
+  }
+}
+```
+
 ## Build
 
 Requires the stable Rust toolchain (1.99 or newer).

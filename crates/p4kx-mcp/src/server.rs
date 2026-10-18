@@ -1,0 +1,192 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use p4kx_extraction::Archive;
+use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
+use rmcp::{Json, ServerHandler, tool, tool_handler, tool_router};
+
+use crate::archives::Archives;
+use crate::entries;
+use crate::error::{ToolError, capped};
+use crate::locate::Locations;
+use crate::page::Page;
+use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
+use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
+
+const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Citizen. \
+An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
+of a .p4k file; without one the tools use the Archive the server was started with. Listings \
+page: pass next_cursor back as cursor for the next page.";
+
+/// The MCP server: read-only tools over the detected Channels and their Archives.
+#[derive(Debug, Clone)]
+pub(crate) struct Server {
+    state: Arc<State>,
+    tool_router: ToolRouter<Self>,
+}
+
+#[derive(Debug)]
+struct State {
+    locations: Locations,
+    default_archive: Option<PathBuf>,
+    archives: Archives,
+}
+
+impl Server {
+    /// Creates the server; `default_archive` serves calls that name no Archive.
+    pub(crate) fn new(locations: Locations, default_archive: Option<PathBuf>) -> Self {
+        Self {
+            state: Arc::new(State {
+                locations,
+                default_archive,
+                archives: Archives::default(),
+            }),
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    async fn run<T, F>(&self, work: F) -> Result<Json<T>, String>
+    where
+        T: Send + 'static,
+        F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
+    {
+        let state = Arc::clone(&self.state);
+        match tokio::task::spawn_blocking(move || work(&state)).await {
+            Ok(Ok(value)) => Ok(Json(value)),
+            Ok(Err(error)) => Err(error.message()),
+            Err(_) => Err(ToolError::Stopped.message()),
+        }
+    }
+}
+
+impl State {
+    fn archive(&self, archive: Option<&str>) -> Result<Arc<Archive>, ToolError> {
+        let path = match archive {
+            Some(text) => self.locations.resolve(text)?,
+            None => self.default_archive.clone().ok_or(ToolError::NoArchive)?,
+        };
+        self.archives.get(&path)
+    }
+}
+
+#[tool_router(vis = "pub(crate)")]
+impl Server {
+    #[tool(
+        description = "List the installed Channels of Star Citizen (LIVE, PTU, ...) with their Archive path and Build.",
+        annotations(
+            title = "List Channels",
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn list_channels(
+        &self,
+        Parameters(params): Parameters<ChannelsParams>,
+    ) -> Result<Json<ChannelsResult>, String> {
+        self.run(move |state| {
+            let page = Page::new(params.cursor.as_deref(), params.limit)?;
+            let channels = state.locations.channels()?;
+            Ok(ChannelsResult {
+                total: channels.len(),
+                channels: page
+                    .slice(&channels)
+                    .iter()
+                    .map(ChannelShape::from)
+                    .collect(),
+                next_cursor: page.next_cursor(channels.len())?,
+            })
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Summarise an Archive: its Channel, Build, number of Entries, encrypted Entries and sizes.",
+        annotations(
+            title = "Archive info",
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn archive_info(
+        &self,
+        Parameters(params): Parameters<ArchiveParams>,
+    ) -> Result<Json<ArchiveInfo>, String> {
+        self.run(move |state| {
+            let archive = state.archive(params.archive.as_deref())?;
+            Ok(entries::info(&archive))
+        })
+        .await
+    }
+
+    #[tool(
+        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level.",
+        annotations(
+            title = "List Entries",
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn list_entries(
+        &self,
+        Parameters(params): Parameters<ListParams>,
+    ) -> Result<Json<FolderResult>, String> {
+        self.run(move |state| {
+            let folder = capped(
+                "folder",
+                params.folder.as_deref().unwrap_or_default(),
+                MAX_PATH_LEN,
+            )?;
+            let page = Page::new(params.cursor.as_deref(), params.limit)?;
+            let archive = state.archive(params.archive.as_deref())?;
+            entries::list(&archive, folder, page)
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter.",
+        annotations(
+            title = "Search Entries",
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn search_entries(
+        &self,
+        Parameters(params): Parameters<SearchParams>,
+    ) -> Result<Json<SearchResult>, String> {
+        self.run(move |state| {
+            let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
+            let page = Page::new(params.cursor.as_deref(), params.limit)?;
+            let archive = state.archive(params.archive.as_deref())?;
+            entries::search(&archive, filter, page)
+        })
+        .await
+    }
+}
+
+#[expect(
+    clippy::unused_async_trait_impl,
+    reason = "the SDK macro generates async handlers that need no await"
+)]
+#[tool_handler(router = self.tool_router)]
+impl ServerHandler for Server {
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(
+                Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+                    .with_title("P4K-Extractor"),
+            )
+            .with_instructions(INSTRUCTIONS)
+    }
+}

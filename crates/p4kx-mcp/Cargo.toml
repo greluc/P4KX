@@ -1,0 +1,32 @@
+[package]
+name = "p4kx-mcp"
+description = "Read-only MCP server of P4K-Extractor over stdio."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "frontend"
+
+[dependencies]
+p4kx-channels.workspace = true
+p4kx-extraction.workspace = true
+p4kx-settings.workspace = true
+anyhow.workspace = true
+clap = { workspace = true, features = ["env"] }
+rmcp.workspace = true
+schemars.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

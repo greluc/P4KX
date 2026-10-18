@@ -8,6 +8,10 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
+  `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
+  absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
+  page.
 - `p4kx dcb query <archive> "<query>"`: Queries over the Records of the DataForge, defined in
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem

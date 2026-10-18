@@ -2,4 +2,6 @@
 
 mod settings;
 
-pub use settings::{ManualChannels, Settings, SettingsError, default_settings_file};
+pub use settings::{
+    ManualChannels, Settings, SettingsError, WindowGeometry, default_settings_file,
+};

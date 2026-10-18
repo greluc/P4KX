@@ -11,8 +11,30 @@ const FILE_NAME: &str = "settings.toml";
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    /// The interface language as a BCP 47 tag such as `de-DE`, or `None` to follow the system.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     /// The manually added Channel sources.
     pub channels: ManualChannels,
+    /// The last position and size of the main window, or `None` for the default placement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window: Option<WindowGeometry>,
+}
+
+/// Position and size of the main window in logical points.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowGeometry {
+    /// Left edge of the outer window.
+    pub x: i32,
+    /// Top edge of the outer window.
+    pub y: i32,
+    /// Width of the window content.
+    pub width: u32,
+    /// Height of the window content.
+    pub height: u32,
+    /// Whether the window is maximised.
+    #[serde(default)]
+    pub maximized: bool,
 }
 
 /// Manually added folders and Archives, searched in addition to the detected Channels.

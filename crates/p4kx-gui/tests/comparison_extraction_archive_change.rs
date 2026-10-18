@@ -2,7 +2,7 @@
 //! drawing.
 
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use p4kx_gui::{
@@ -45,13 +45,13 @@ fn rewrite(path: &Path, version: usize) -> TestResult {
     )
 }
 
-#[test]
-fn a_change_of_the_browsed_archive_closes_only_its_own_setup_and_extraction() -> TestResult {
-    let dir = tempfile::tempdir()?;
+/// Writes a small old, a large new and a browsed Archive into `dir`, opens the browsed one and
+/// compares the other two; returns the model and the browsed Archive.
+fn browsing_and_compared(dir: &Path) -> Result<(Model, PathBuf), Box<dyn Error>> {
     let (old, new, browsed) = (
-        dir.path().join("old.p4k"),
-        dir.path().join("new.p4k"),
-        dir.path().join("browsed.p4k"),
+        dir.join("old.p4k"),
+        dir.join("new.p4k"),
+        dir.join("browsed.p4k"),
     );
     write(&old, [TestEntry::stored("Data\\same.txt", "same")])?;
     write(
@@ -71,6 +71,13 @@ fn a_change_of_the_browsed_archive_closes_only_its_own_setup_and_extraction() ->
         model.browser().is_some()
             && matches!(model.comparison().status(), ComparisonStatus::Finished(_))
     })?;
+    Ok((model, browsed))
+}
+
+#[test]
+fn a_change_of_the_browsed_archive_closes_only_its_own_setup_and_extraction() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let (mut model, browsed) = browsing_and_compared(dir.path())?;
 
     model.begin_extraction(ExtractionScope::All);
     rewrite(&browsed, 1)?;

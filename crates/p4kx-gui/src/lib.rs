@@ -53,6 +53,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, RecordSearchText,
-    Text, Texts,
+    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
+    RecordSearchText, Text, Texts,
 };

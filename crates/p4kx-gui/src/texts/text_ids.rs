@@ -1,6 +1,4 @@
-use super::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, Text,
-};
+use super::{ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, Text};
 use crate::Language;
 
 impl Text {

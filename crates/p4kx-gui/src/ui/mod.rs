@@ -15,6 +15,8 @@ mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
+mod record_results;
+mod record_search;
 mod record_tree;
 mod search;
 mod shortcuts;
@@ -133,8 +135,12 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .min_size(PREVIEW_MIN_HEIGHT)
         .show(ui, |ui| preview::show(ui, model));
     frames::panel().show(ui, |ui| {
-        search::show(ui, model);
-        table::show(ui, model);
+        if model.browser().is_some_and(crate::Browser::shows_records) {
+            record_search::show(ui, model);
+        } else {
+            search::show(ui, model);
+            table::show(ui, model);
+        }
     });
 }
 

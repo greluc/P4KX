@@ -8,7 +8,7 @@ use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::NoRecordMatch;
-use crate::dcb_query::{InvalidQuery, QueryJson, UnreadableSchema};
+use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
 use crate::texture;
 
@@ -23,7 +23,7 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file that does not exist or a mip level the texture does not have,
 /// has a Filter that matches no Entry or Record, names an output that is one of its inputs, or has
-/// an invalid Query.
+/// an invalid Query or a Query output that does not fit --json.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, an Entry's data or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
@@ -49,7 +49,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound or soundbank file that does not
      exist, a mip level the texture does not have, an output that is one of its inputs,
-     --json without --out for cryxml, an invalid Query, or --json for dcb query
+     --json without --out for cryxml, an invalid Query, or --json with another --format and
+     without --out for dcb query
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
      corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
      corrupt CryXml; a missing texture, sound or soundbank file is 2
@@ -103,7 +104,8 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || texture::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
         || error.downcast_ref::<InvalidQuery>().is_some()
-        || error.downcast_ref::<QueryJson>().is_some()
+        || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
+        || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<InvalidExportTime>().is_some()
         || error.downcast_ref::<MissingCatalogArgs>().is_some()
     {

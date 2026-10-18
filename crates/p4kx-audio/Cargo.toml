@@ -13,6 +13,7 @@ layer = "format"
 
 [dependencies]
 p4kx-foundation.workspace = true
+rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

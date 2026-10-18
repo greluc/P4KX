@@ -1,12 +1,14 @@
 //! The field diff of the Record level for scalar edge cases, through the public API.
 
 mod forge_pair;
+mod nested_diff;
 
 use std::error::Error;
 
 use forge_pair::ForgePair;
-use p4kx_comparison::{RecordChange, Value, ValueError};
-use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue};
+use nested_diff::{change, field_changes};
+use p4kx_comparison::{ChangedValue, RecordChange, Value, ValueError};
+use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -21,41 +23,6 @@ fn database(structure: TestStruct, values: &[(&str, TestValue)]) -> DataForgeBui
         .enumeration("Size", ["Small", "Medium", "Large"])
         .structure(structure)
         .record(record)
-}
-
-type Changes = Vec<(String, Option<String>, Option<String>)>;
-
-fn field_changes(
-    old: &DataForgeBuilder,
-    new: &DataForgeBuilder,
-) -> Result<Changes, Box<dyn Error>> {
-    let pair = ForgePair::new(old, new)?;
-    pair.compare_records(|comparison| {
-        comparison
-            .record_changes()
-            .iter()
-            .flat_map(RecordChange::fields)
-            .map(|field| {
-                (
-                    field.path().to_owned(),
-                    field.old_value().map(|value| format!("{value:?}")),
-                    field.new_value().map(|value| format!("{value:?}")),
-                )
-            })
-            .collect()
-    })
-}
-
-fn change(
-    path: &str,
-    old: Option<&str>,
-    new: Option<&str>,
-) -> (String, Option<String>, Option<String>) {
-    (
-        path.to_owned(),
-        old.map(str::to_owned),
-        new.map(str::to_owned),
-    )
 }
 
 fn floats() -> TestStruct {
@@ -153,10 +120,10 @@ fn an_error_value_on_one_side_is_a_change_with_the_reason() -> TestResult {
             .iter()
             .flat_map(RecordChange::fields)
             .map(|field| match field.new_value() {
-                Some(Value::Error(error)) => {
-                    (field.path().to_owned(), Some(*error), error.to_string())
+                Some(ChangedValue::Value(Value::Error(error))) => {
+                    (field.path().to_string(), Some(*error), error.to_string())
                 }
-                _ => (field.path().to_owned(), None, String::new()),
+                _ => (field.path().to_string(), None, String::new()),
             })
             .collect::<Vec<_>>()
     })?;
@@ -280,92 +247,6 @@ fn every_scalar_kind_reports_a_change() -> TestResult {
             .collect::<Vec<_>>(),
         ["i8", "u64", "text", "label", "id"],
         "every field changed: {changes:?}"
-    );
-    Ok(())
-}
-
-#[test]
-fn values_this_level_does_not_read_are_unchanged_on_both_sides() -> TestResult {
-    let item = || {
-        TestStruct::new("Item")
-            .array("sizes", TestType::Int32)
-            .field("target", TestType::Reference)
-    };
-
-    let changes = field_changes(&database(item(), &[]), &database(item(), &[]))?;
-
-    assert!(changes.is_empty(), "no change: {changes:?}");
-    Ok(())
-}
-
-#[test]
-fn values_this_level_does_not_read_are_left_out_when_one_side_has_them() -> TestResult {
-    let hull = || TestStruct::new("Hull").field("armor", TestType::Int32);
-    let old = DataForgeBuilder::new()
-        .structure(hull())
-        .structure(TestStruct::new("Item").field("speed", TestType::Int32))
-        .record(TestRecord::new(
-            GUID,
-            "Item",
-            "Item.Sample",
-            "libs/items/sample.xml",
-        ));
-    let new = DataForgeBuilder::new()
-        .structure(hull())
-        .structure(
-            TestStruct::new("Item")
-                .field("speed", TestType::Int32)
-                .array("sizes", TestType::Int32)
-                .field("hull", TestType::Class("Hull".to_owned()))
-                .field("target", TestType::Reference),
-        )
-        .record(TestRecord::new(
-            GUID,
-            "Item",
-            "Item.Sample",
-            "libs/items/sample.xml",
-        ));
-
-    let changes = field_changes(&old, &new)?;
-
-    assert!(changes.is_empty(), "nothing compared yet: {changes:?}");
-    Ok(())
-}
-
-#[test]
-fn nested_values_that_differ_are_left_to_the_nested_level() -> TestResult {
-    let hull = || TestStruct::new("Hull").field("armor", TestType::Int32);
-    let item = || {
-        TestStruct::new("Item")
-            .field("speed", TestType::Int32)
-            .array("sizes", TestType::Int32)
-            .field("hull", TestType::Class("Hull".to_owned()))
-            .field("target", TestType::Reference)
-    };
-    let side = |speed: i32, size: i32, armor: i32, target: u128| {
-        DataForgeBuilder::new()
-            .structure(hull())
-            .structure(item())
-            .record(
-                TestRecord::new(GUID, "Item", "Item.Sample", "libs/items/sample.xml")
-                    .value("speed", TestValue::Int32(speed))
-                    .value("sizes", TestValue::Array(vec![TestValue::Int32(size)]))
-                    .value(
-                        "hull",
-                        TestValue::Struct(
-                            TestInstance::new("Hull").value("armor", TestValue::Int32(armor)),
-                        ),
-                    )
-                    .value("target", TestValue::Reference(target)),
-            )
-    };
-
-    let changes = field_changes(&side(1, 2, 3, GUID), &side(4, 5, 6, 0))?;
-
-    assert_eq!(
-        changes,
-        [change("speed", Some("Int32(1)"), Some("Int32(4)"))],
-        "only the scalar field: {changes:?}"
     );
     Ok(())
 }

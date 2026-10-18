@@ -241,21 +241,6 @@ fn a_missing_path_is_marked_at_the_end() -> TestResult {
 }
 
 #[test]
-fn json_output_is_rejected() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path())?;
-    let output = Command::cargo_bin("p4kx")?
-        .args(["--json", "dcb", "query"])
-        .arg(&archive)
-        .arg("from Item")
-        .output()?;
-
-    assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
-    insta::assert_snapshot!(String::from_utf8(output.stderr)?);
-    Ok(())
-}
-
-#[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_documented_examples_select_records_of_a_real_archive() -> TestResult {
     let archive = real_archive_path()?;

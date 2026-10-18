@@ -23,6 +23,7 @@ fn main() -> Result<()> {
     model.set_recent(settings.recent.clone());
     model.set_extraction_folder(settings.extraction_folder.clone());
     model.set_extraction_conversion(settings.extraction_conversion);
+    model.set_extraction_textures(settings.extraction_textures);
     model.set_update_check(settings.update_check);
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {

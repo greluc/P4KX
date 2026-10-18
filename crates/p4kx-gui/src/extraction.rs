@@ -3,7 +3,8 @@ mod summary;
 
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::ConflictPolicy;
+use p4kx_extraction::{ConflictPolicy, TextureConversion};
+use p4kx_settings::ExtractionTextures;
 
 pub use job::{Extraction, ExtractionStatus};
 pub(crate) use job::{Request, start, target_naming};
@@ -47,6 +48,7 @@ pub struct ExtractionSetup {
     folder: Option<PathBuf>,
     policy: ConflictPolicy,
     convert: bool,
+    textures: ExtractionTextures,
     confirmation: Option<Confirmation>,
 }
 
@@ -55,6 +57,7 @@ impl ExtractionSetup {
         scope: ExtractionScope,
         folder: Option<PathBuf>,
         convert: bool,
+        textures: ExtractionTextures,
     ) -> Self {
         Self {
             scope,
@@ -62,6 +65,7 @@ impl ExtractionSetup {
             folder,
             policy: ConflictPolicy::Skip,
             convert,
+            textures,
             confirmation: None,
         }
     }
@@ -111,15 +115,26 @@ impl ExtractionSetup {
         self.policy = policy;
     }
 
-    /// Returns whether `CryXml` Entries are converted to XML.
+    /// Returns whether `CryXml` Entries and textures are converted.
     #[must_use]
     pub const fn convert(&self) -> bool {
         self.convert
     }
 
-    /// Switches the Conversion of `CryXml` Entries to XML on or off.
+    /// Switches the Conversion of `CryXml` Entries and textures on or off.
     pub const fn set_convert(&mut self, convert: bool) {
         self.convert = convert;
+    }
+
+    /// Returns what a Conversion writes for a texture.
+    #[must_use]
+    pub const fn textures(&self) -> ExtractionTextures {
+        self.textures
+    }
+
+    /// Chooses what a Conversion writes for a texture.
+    pub const fn set_textures(&mut self, textures: ExtractionTextures) {
+        self.textures = textures;
     }
 
     /// Returns whether a whole-Archive Extraction waits for confirmation.
@@ -153,6 +168,20 @@ impl ExtractionSetup {
                 TargetKind::ExistingFolder => self.policy,
             },
             convert: self.convert,
+            textures: self.textures,
         })
+    }
+}
+
+/// Returns the texture options of the Extraction service for the stored choices.
+pub(crate) const fn texture_conversion(textures: ExtractionTextures) -> TextureConversion {
+    TextureConversion {
+        merge: textures.merge,
+        png: if textures.png {
+            Some(textures.mip)
+        } else {
+            None
+        },
+        keep_raw: textures.keep_raw,
     }
 }

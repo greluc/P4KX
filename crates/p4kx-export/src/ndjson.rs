@@ -16,11 +16,9 @@ const BATCH_BYTES: usize = 64 << 20;
 const PART_LEN: usize = 64;
 const READ_BUFFER_LEN: usize = 64 << 10;
 
-/// One selected Record with the key that orders it.
+/// One selected Record, in the order of the file.
 struct Line<'r, 'f> {
     record: &'r Record<'f>,
-    path: &'f str,
-    name: &'f str,
 }
 
 /// The lines of one part of a batch and what happened to its Records.
@@ -96,14 +94,6 @@ fn run(
     Ok(())
 }
 
-/// Returns `path` as compared for the record-path order: ASCII lower case, `\` as `/`.
-fn fold(path: &str) -> impl Iterator<Item = u8> + '_ {
-    path.bytes().map(|byte| match byte {
-        b'\\' => b'/',
-        _ => byte.to_ascii_lowercase(),
-    })
-}
-
 /// Builds and writes `lines` in batches of at most [`BATCH_LEN`] Records, sized from the previous
 /// batch to hold about [`BATCH_BYTES`]; returns `false` when the run was cancelled.
 fn stream(
@@ -173,38 +163,32 @@ const fn discard(summary: &mut RecordExportSummary) {
     summary.records_with_errors = 0;
 }
 
-/// Returns the selected Records of `forge` in record-path order (ASCII case and the separator
-/// ignored), then by Record name, then in definition order, each once; Records of another
+/// Returns the selected Records of `forge` in Record order ([`DataForge::path_order`]), each once,
+/// with those whose record path cannot be read last in definition order; Records of another
 /// DataForge become failures.
 fn ordered_lines<'r, 'f>(
     forge: &DataForge<'_>,
     records: &'r [Record<'f>],
     summary: &mut RecordExportSummary,
 ) -> Vec<Line<'r, 'f>> {
-    let mut lines = Vec::with_capacity(records.len());
+    let mut selected: Vec<Option<&'r Record<'f>>> = vec![None; forge.record_count()];
     for record in records {
-        if record.is_from(forge) {
-            lines.push(Line {
-                record,
-                path: record.record_path().unwrap_or_default(),
-                name: record.name().unwrap_or_default(),
-            });
-        } else {
-            summary
+        match selected.get_mut(record.index() as usize) {
+            Some(slot) if record.is_from(forge) => *slot = Some(record),
+            _ => summary
                 .failures
-                .push(failure(record, RecordExportError::OtherDataForge));
+                .push(failure(record, RecordExportError::OtherDataForge)),
         }
     }
-    lines.par_sort_unstable_by(|left, right| {
-        fold(left.path)
-            .cmp(fold(right.path))
-            .then_with(|| left.name.cmp(right.name))
-            .then_with(|| left.record.index().cmp(&right.record.index()))
-    });
-    lines.dedup_by_key(|line| line.record.index());
+    let mut lines: Vec<Line<'r, 'f>> = forge
+        .path_order()
+        .iter()
+        .filter_map(|index| selected.get_mut(*index as usize).and_then(Option::take))
+        .map(|record| Line { record })
+        .collect();
+    lines.extend(selected.into_iter().flatten().map(|record| Line { record }));
     lines
 }
-
 fn write_part<'r, 'f>(scratch: &mut Scratch<'f>, lines: &[Line<'r, 'f>]) -> Part<'r, 'f> {
     let mut part = Part {
         bytes: Vec::new(),

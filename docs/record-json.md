@@ -123,7 +123,8 @@ Record alone at its record path, `<record path>/<Record name>.json` for Records 
 
 `--format ndjson` writes the one file `records.ndjson` into the target folder: one compact Record
 object per line, ordered by record path ignoring ASCII case with `/` and `\` alike, then by Record
-name, then in definition order; each selected Record once. The Records are built in parallel batches and
-streamed into a temporary file, which replaces `records.ndjson` only when complete; a cancelled
-run leaves no file. `--conflict` applies to `records.ndjson`: `skip` keeps an existing file
+name ignoring ASCII case, then in definition order, the order of `--combined`; each selected
+Record once. The Records are built in parallel batches of at most 4096 Records and about 64 MiB
+and streamed into a temporary file, which replaces `records.ndjson` only when complete; a
+cancelled run leaves no file. `--conflict` applies to `records.ndjson`: `skip` keeps an existing file
 without building any Record, `if-changed` keeps it when size and CRC-32C equal the new content.

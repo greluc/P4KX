@@ -264,3 +264,24 @@ fn ndjson_prints_one_line_of_json() -> TestResult {
     insta::assert_snapshot!(serde_json::to_string_pretty(&value)?);
     Ok(())
 }
+
+#[test]
+fn combined_with_a_json_format_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    let output = Command::cargo_bin("p4kx")?
+        .args(["dcb", "export"])
+        .arg(&archive)
+        .arg("--out")
+        .arg(dir.path().join("out"))
+        .args(["--format", "ndjson", "--combined"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "invalid input: {output:?}");
+    assert!(
+        String::from_utf8(output.stderr)?.contains("--combined writes Record XML"),
+        "the reason is named"
+    );
+    Ok(())
+}

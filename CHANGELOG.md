@@ -102,6 +102,13 @@ fails while its section is missing.
   `records.ndjson` with one Record per line in record-path order, with the structure and field
   order of the Record XML, References as objects with `guid`, `path` and `type`, and errors with
   their reason. The new service crate `p4kx-export` writes the Record export in every form.
+- `p4kx dcb export --combined`: every selected Record in one Record XML file in record-path
+  order, named after the DataForge Entry, built in parallel and streamed to disk, byte-identical
+  across runs.
+- Conversion of DataForge during Extraction: with `p4kx extract --convert` or the Conversion
+  switch of the Extraction window, the DataForge Entry is written as one Record XML file per
+  Record below its folder instead of the `.dcb`, with progress and cancellation per Record; the
+  summaries and `--json` count the Records and their error values.
 - DataForge in the window: a DataForge node below the folders of the path tree shows the Records
   as folders by record path, with record folders where several Records share one. It loads in the
   background the first time it is opened, with a loading indicator, and is kept until the Archive

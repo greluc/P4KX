@@ -8,12 +8,15 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{Language, Model, ui};
-use p4kx_testkit::{ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, TestElement, TestEntry};
+use p4kx_testkit::{
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntry,
+    TestRecord, TestStruct, TestType, TestValue,
+};
 use tempfile::TempDir;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const SWITCH: &str = "Convert CryXml to XML and textures";
+const SWITCH: &str = "Convert CryXml and DataForge to XML and textures";
 
 fn vehicle() -> Vec<u8> {
     TestElement::new("Vehicle")
@@ -21,12 +24,34 @@ fn vehicle() -> Vec<u8> {
         .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
 }
 
-fn opened(convert: bool) -> Result<(TempDir, PathBuf, Harness<'static, Model>), Box<dyn Error>> {
+fn database() -> Vec<u8> {
+    let item =
+        |guid: u128, name: &str| TestRecord::new(guid, "Item", name, format!("records/{name}.xml"));
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Item").field("label", TestType::String))
+        .record(item(1, "fine").value("label", TestValue::text("Fine")))
+        .record(item(2, "broken").value("label", TestValue::Raw(vec![0xff; 4])))
+        .build()
+}
+
+type Opened = (TempDir, PathBuf, Harness<'static, Model>);
+
+fn opened(convert: bool) -> Result<Opened, Box<dyn Error>> {
+    opened_with(
+        convert,
+        vec![
+            TestEntry::zstd("Data\\vehicle.xml", vehicle()),
+            TestEntry::stored("Data\\text.xml", b"<a/>".to_vec()),
+        ],
+    )
+}
+
+fn opened_with(convert: bool, entries: Vec<TestEntry>) -> Result<Opened, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
-    ArchiveBuilder::new()
-        .entry(TestEntry::zstd("Data\\vehicle.xml", vehicle()))
-        .entry(TestEntry::stored("Data\\text.xml", b"<a/>".to_vec()))
+    entries
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
     let out = dir.path().join("out");
     fs::create_dir(&out)?;
@@ -140,5 +165,26 @@ fn the_setup_starts_with_the_switch_as_stored() -> TestResult {
             .is_some_and(|setup| !setup.convert()),
         "switched off"
     );
+    Ok(())
+}
+
+#[test]
+fn the_switch_writes_the_dataforge_as_records_and_the_summary_counts_them() -> TestResult {
+    let (_dir, out, mut harness) = opened_with(
+        false,
+        vec![TestEntry::stored("Data\\Game2.dcb", database())],
+    )?;
+
+    extract_shown(&mut harness, true)?;
+
+    harness.get_by_label("Extracted 1 (1 converted), skipped 0, failed 0, cancelled 0");
+    harness.get_by_label(
+        "Records written 2, skipped 0, failed 0, cancelled 0; 1 error values in 1 Records",
+    );
+    assert!(
+        read(&out, "Data/records/broken.xml")?.starts_with(b"<?xml"),
+        "the Record with an error value is written"
+    );
+    assert!(!out.join("Data/Game2.dcb").exists(), "no raw .dcb");
     Ok(())
 }

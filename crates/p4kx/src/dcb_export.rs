@@ -8,7 +8,9 @@ use p4kx_export::{
     NDJSON_FILE, RecordExportOptions, RecordExportSummary, RecordFailure, RecordForm,
     write_record_export,
 };
-use p4kx_extraction::{Archive, DataForgeEntry, Filter, Record};
+use p4kx_extraction::{
+    Archive, DataForgeEntry, Filter, Record, RecordExportReport, export_combined,
+};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -16,6 +18,11 @@ use crate::cli::{Conflict, DcbExportArgs, RecordFormat};
 use crate::exit;
 use crate::extract::{cancel_on_interrupt, policy, prepare_target};
 use crate::json;
+
+/// `--combined` with another format than Record XML.
+#[derive(Debug, Error)]
+#[error("--combined writes Record XML; use --format ndjson for one JSON file")]
+pub(crate) struct CombinedNeedsXml;
 
 /// A Filter that matches no Record of the DataForge.
 #[derive(Debug, Error)]
@@ -28,6 +35,8 @@ struct ReportJson<'a> {
     entry: &'a str,
     format: &'static str,
     target: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file: Option<&'a str>,
     exported: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
@@ -38,7 +47,7 @@ struct ReportJson<'a> {
 }
 
 #[derive(Serialize)]
-struct FailureJson<'a> {
+pub(crate) struct FailureJson<'a> {
     guid: String,
     path: &'a str,
     error: String,
@@ -52,46 +61,47 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
         RecordFormat::Json => RecordForm::Json,
         RecordFormat::Ndjson => RecordForm::Ndjson,
     };
+    if args.combined && form != RecordForm::Xml {
+        return Err(CombinedNeedsXml.into());
+    }
     let archive = Archive::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let records: Vec<Record<'_>> = match &args.filter {
-        None => forge.records().collect(),
-        Some(text) => {
-            let filter = Filter::new(text);
-            let selected: Vec<_> = forge
-                .records()
-                .filter(|record| record.record_path().is_ok_and(|path| filter.matches(path)))
-                .collect();
-            if selected.is_empty() {
-                return Err(NoRecordMatch(text.clone()).into());
-            }
-            selected
-        }
-    };
+    let records = select_records(&forge, args.filter.as_deref())?;
     let target = prepare_target(args.out.as_deref(), &archive)?;
     let cancel = cancel_on_interrupt()?;
     let options = RecordExportOptions {
         policy: policy(args.conflict),
         cancel: Some(&cancel),
     };
-    let report = write_record_export(&forge, &records, form, &target, &options);
+    let combined = args.combined.then(|| combined_name(entry.path()));
+    let combined_report;
+    let summary;
+    let report: Outcome<'_> = if let Some(name) = &combined {
+        combined_report = export_combined(&forge, &records, &target.join(name), &options)?;
+        (&combined_report).into()
+    } else {
+        summary = write_record_export(&forge, &records, form, &target, &options);
+        (&summary).into()
+    };
     let printed = if as_json {
         json::print(&ReportJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
             format: form.name(),
             target: json::path(&target),
-            exported: report.written(),
-            skipped: report.skipped(),
-            failed: report.failures().iter().map(failure_json).collect(),
-            cancelled: report.cancelled(),
-            error_values: report.error_values(),
-            records_with_errors: report.records_with_errors(),
-            error: report.error().map(|error| reason(error)),
+            file: combined.as_deref(),
+            exported: report.written,
+            skipped: report.skipped,
+            failed: report.failures.iter().map(failure_json).collect(),
+            cancelled: report.cancelled,
+            error_values: report.error_values,
+            records_with_errors: report.records_with_errors,
+            error: report.error.map(reason),
         })
     } else {
-        print_report(&report, &target, args.conflict)
+        let into = combined.map_or_else(|| target.clone(), |name| target.join(name));
+        print_report(&report, &into, args.conflict)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -105,11 +115,83 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     }))
 }
 
-fn failure_json(failure: &RecordFailure) -> FailureJson<'_> {
+/// Returns every Record of `forge`, or those whose record path `filter` matches.
+fn select_records<'f>(
+    forge: &'f p4kx_extraction::DataForge<'_>,
+    filter: Option<&str>,
+) -> Result<Vec<Record<'f>>> {
+    let Some(text) = filter else {
+        return Ok(forge.records().collect());
+    };
+    let filter = Filter::new(text);
+    let selected: Vec<_> = forge
+        .records()
+        .filter(|record| record.record_path().is_ok_and(|path| filter.matches(path)))
+        .collect();
+    if selected.is_empty() {
+        return Err(NoRecordMatch(text.to_owned()).into());
+    }
+    Ok(selected)
+}
+
+/// Returns the name of the combined file: the name of the DataForge Entry with `.xml` for its
+/// extension, e.g. `Game2.xml`.
+fn combined_name(entry: &str) -> String {
+    let name = entry.rsplit(['\\', '/']).next().unwrap_or(entry);
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+    format!("{stem}.xml")
+}
+
+pub(crate) fn failure_json(failure: &RecordFailure) -> FailureJson<'_> {
     FailureJson {
         guid: failure.guid().to_string(),
         path: failure.record_path(),
         error: reason(failure.error()),
+    }
+}
+
+/// What a Record export did, from a per-Record or NDJSON export or a combined file.
+pub(crate) struct Outcome<'a> {
+    written: usize,
+    skipped: &'a [String],
+    failures: &'a [RecordFailure],
+    cancelled: usize,
+    error_values: usize,
+    records_with_errors: usize,
+    error: Option<&'a dyn Error>,
+}
+
+impl Outcome<'_> {
+    const fn is_complete(&self) -> bool {
+        self.failures.is_empty() && self.cancelled == 0 && self.error.is_none()
+    }
+}
+
+impl<'a> From<&'a RecordExportSummary> for Outcome<'a> {
+    fn from(summary: &'a RecordExportSummary) -> Self {
+        Self {
+            written: summary.written(),
+            skipped: summary.skipped(),
+            failures: summary.failures(),
+            cancelled: summary.cancelled(),
+            error_values: summary.error_values(),
+            records_with_errors: summary.records_with_errors(),
+            error: summary.error().map(|error| error as &dyn Error),
+        }
+    }
+}
+
+impl<'a> From<&'a RecordExportReport> for Outcome<'a> {
+    fn from(report: &'a RecordExportReport) -> Self {
+        Self {
+            written: report.written(),
+            skipped: report.skipped(),
+            failures: report.failures(),
+            cancelled: report.cancelled(),
+            error_values: report.error_values(),
+            records_with_errors: report.records_with_errors(),
+            error: None,
+        }
     }
 }
 
@@ -124,9 +206,14 @@ fn reason(error: &dyn Error) -> String {
     reason
 }
 
-fn print_report(report: &RecordExportSummary, target: &Path, conflict: Conflict) -> io::Result<()> {
+/// Prints the failed Records to stderr and the kept files and a summary to stdout.
+pub(crate) fn print_report(
+    report: &Outcome<'_>,
+    target: &Path,
+    conflict: Conflict,
+) -> io::Result<()> {
     let mut err = io::stderr().lock();
-    for failure in report.failures() {
+    for failure in report.failures {
         writeln!(
             err,
             "failed {} ({}): {}",
@@ -135,7 +222,7 @@ fn print_report(report: &RecordExportSummary, target: &Path, conflict: Conflict)
             reason(failure.error())
         )?;
     }
-    if let Some(error) = report.error() {
+    if let Some(error) = report.error {
         writeln!(err, "failed {NDJSON_FILE}: {}", reason(error))?;
     }
     let mut out = io::stdout().lock();
@@ -144,18 +231,18 @@ fn print_report(report: &RecordExportSummary, target: &Path, conflict: Conflict)
     } else {
         "already exists"
     };
-    for file in report.skipped() {
+    for file in report.skipped {
         writeln!(out, "skipped {file}: {kept}")?;
     }
     writeln!(
         out,
         "exported {} Records, skipped {}, failed {}, cancelled {} into {}; {} error values in {} Records",
-        report.written(),
-        report.skipped().len(),
-        report.failures().len(),
-        report.cancelled(),
+        report.written,
+        report.skipped.len(),
+        report.failures.len(),
+        report.cancelled,
         target.display(),
-        report.error_values(),
-        report.records_with_errors()
+        report.error_values,
+        report.records_with_errors
     )
 }

@@ -89,6 +89,13 @@ and its causes joined by `: `. Both are in definition order for `xml` and `json`
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.
 
+With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
+`target`, and `exported` counts the Records written into it. When an existing file is kept under
+`--conflict`, `skipped` holds its name and `exported` is 0; under `if-changed` the document was
+still built, so `error_values` and `records_with_errors` still count its Records. A cancelled
+run writes no file and counts every Record not failed in `cancelled`. Without `--combined` the
+field is absent.
+
 ## `p4kx entity loadout <archive> <entity> --json`
 
 ```json
@@ -349,12 +356,15 @@ failures are not repeated on stderr. The exit code is 1 when `failed` is not emp
 ```
 
 With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
-(CryXml Entries as XML and the Entries of converted textures); they count among `extracted`. It
-also holds `"unconverted": [{"path": "Data\\Textures\\hull_ddna.dds", "error": "cannot convert
-the texture: …"}]`, the textures by their header Entry that could not be converted, whose raw
-Entries were written instead (except a header whose path the merged DDS already took); the exit
-code is then 1. Without `--convert` both fields are
-absent.
+(CryXml Entries as XML, the Entries of converted textures and the DataForge Entry as Records);
+they count among `extracted`. It also holds `"unconverted": [{"path":
+"Data\\Textures\\hull_ddna.dds", "error": "cannot convert the texture: …"}]`, the textures by
+their header Entry that could not be converted, whose raw Entries were written instead (except a
+header whose path the merged DDS already took); the exit code is then 1. Without `--convert` both
+fields are absent. When `--convert` converted the DataForge Entry, the report also holds
+`records` with the fields `exported`, `skipped`, `failed`, `cancelled`, `error_values` and
+`records_with_errors` of [`p4kx dcb export`](#p4kx-dcb-export-archive---json); `skipped` lists
+the Record files relative to the folder of the DataForge Entry. Otherwise that field is absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

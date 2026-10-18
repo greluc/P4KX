@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/dcb_query_filter.rs
+source: crates/p4kx/tests/dcb_query_condition.rs
 expression: "error(\"from Weapon where dps = \\\"fast\\\"\")?"
 ---
 error: `=` cannot compare field `dps` of `Weapon`, which holds Double values, with a string

@@ -133,7 +133,9 @@ Double values, with a string"``.
 | `Guid` | a string `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | `=` `!=` `<` `<=` `>` `>=` | by value, ordered as the lower-case text form |
 | `Bool` | `true` or `false` | `=` `!=` `<` `<=` `>` `>=` | `false` before `true` |
 
-- An integer value beyond every integer type (more than about 39 digits) is an error.
+- An integer value beyond every integer type (more than about 39 digits) is an error. A value
+  outside the range of the field's own type is no error: `size8 = 300` just never holds, and
+  `count > -1` always holds for an unsigned field.
 - A number compared with a float field is first rounded to the field's precision, `Single` or
   `Double`, as the value would be stored, so `mass = 0.1` finds a `Single` field that holds 0.1.
   A number beyond the range of that precision is an error.
@@ -159,6 +161,10 @@ cannot be read. An unknown comparison never matches, and the conditions combine 
 `not` of unknown is unknown, `false and unknown` is false, `true or unknown` is true, and any
 other combination with unknown is unknown. A Record is kept only when the whole condition is
 true, so `x = 1` and `not x = 1` together never select a Record without a value for `x`.
+
+A Record whose layout or instance cannot be read is different: no value of it can be read, so
+the condition cannot be decided, and the Record is reported as failed rather than silently
+dropped, as for `select`.
 
 ## Errors
 

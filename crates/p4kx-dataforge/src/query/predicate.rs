@@ -4,7 +4,7 @@ use crate::query::operand::{Operand, OperandError};
 use crate::query::schema::{FieldDef, StructFields};
 use crate::query::{Comparison, Condition, Operator, QueryError, QueryErrorKind};
 
-/// A compiled `where` condition, the predicate a Record has to meet; each comparison is a test numbered in condition order.
+/// A compiled `where` condition, which a Record has to meet; each comparison is a test numbered in condition order.
 #[derive(Debug, Clone)]
 pub(crate) enum Predicate {
     Test(usize, Operator),

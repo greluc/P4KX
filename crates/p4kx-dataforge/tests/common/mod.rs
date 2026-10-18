@@ -1,4 +1,4 @@
-//! The synthetic DataForge the filter tests run over, and helpers to list the selected Records.
+//! The synthetic DataForge the condition tests run over, and helpers to list the selected Records.
 
 use std::error::Error;
 use std::num::NonZeroUsize;

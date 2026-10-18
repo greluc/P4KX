@@ -145,13 +145,9 @@ const fn by_order(operator: Operator, ordering: Ordering) -> bool {
 
 /// Compares floats as IEEE 754 does: NaN is unordered, so only `!=` holds for it.
 fn by_partial_order<T: PartialOrd>(operator: Operator, value: &T, operand: &T) -> bool {
-    match operator {
-        Operator::Equal => value == operand,
-        Operator::NotEqual => value != operand,
-        Operator::Less => value < operand,
-        Operator::LessOrEqual => value <= operand,
-        Operator::Greater => value > operand,
-        Operator::GreaterOrEqual => value >= operand,
-        Operator::Contains | Operator::StartsWith | Operator::Like => false,
-    }
+    value
+        .partial_cmp(operand)
+        .map_or(operator == Operator::NotEqual, |ordering| {
+            by_order(operator, ordering)
+        })
 }

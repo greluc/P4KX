@@ -85,7 +85,7 @@ _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entrie
 **Condition**:
 The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
 a Record has to meet to be selected.
-_Avoid_: filter (a Filter selects Entries), predicate
+_Avoid_: filter (a Filter selects Entries)
 
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.

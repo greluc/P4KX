@@ -1,4 +1,4 @@
-//! Random `where` filters over a synthetic DataForge compile or fail with a span inside the
+//! Random `where` conditions over a synthetic DataForge compile or fail with a span inside the
 //! Query, and running them never panics.
 
 use std::error::Error;
@@ -147,7 +147,7 @@ fn condition(random: &mut Random, depth: usize) -> String {
 }
 
 #[test]
-fn random_filters_compile_or_fail_inside_the_query_and_run() -> TestResult {
+fn random_conditions_compile_or_fail_inside_the_query_and_run() -> TestResult {
     let bytes = database();
     let forge = DataForge::open(&bytes)?;
     let mut random = Random(0x5851_f42d_4c95_7f2d);

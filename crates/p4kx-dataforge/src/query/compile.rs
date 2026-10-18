@@ -82,7 +82,7 @@ impl Query {
     /// Returns a [`QueryError`] with the span of an unknown type or field name, of a field that
     /// holds no single scalar value, of a path that continues behind a scalar field, of a `from`
     /// type whose layout cannot be read, of a comparison whose literal does not fit the field's
-    /// type, or of a literal out of the range of the field's type.
+    /// type, or of a number too large in magnitude to compare.
     pub fn compile<'f>(&self, forge: &'f DataForge<'f>) -> Result<CompiledQuery<'f>, QueryError> {
         let structs = StructFields::read_all(forge);
         let selected = match &self.from {

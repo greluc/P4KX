@@ -1,4 +1,4 @@
-//! Running `where` filters over a synthetic DataForge: the comparison rules of every scalar type.
+//! Running `where` conditions over a synthetic DataForge: the comparison rules of every scalar type.
 
 mod common;
 

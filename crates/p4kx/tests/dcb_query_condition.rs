@@ -1,4 +1,4 @@
-//! `p4kx dcb query` with `where` filters, end to end over a synthetic DataForge.
+//! `p4kx dcb query` with `where` conditions, end to end over a synthetic DataForge.
 
 use std::error::Error;
 use std::path::{Path, PathBuf};

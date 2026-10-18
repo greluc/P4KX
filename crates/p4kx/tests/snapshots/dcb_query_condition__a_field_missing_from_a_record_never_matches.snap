@@ -1,6 +1,6 @@
 ---
-source: crates/p4kx/tests/dcb_query_filter.rs
-expression: "table(\"from Weapon select name, dps where dps != 980\")?"
+source: crates/p4kx/tests/dcb_query_condition.rs
+expression: "table(\"at \\\"*\\\" select name, dps where not dps < 1000\")?"
 ---
 record path                            name      dps
 -------------------------------------  --------  ------

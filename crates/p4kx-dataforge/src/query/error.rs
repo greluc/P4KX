@@ -152,8 +152,8 @@ pub enum QueryErrorKind {
         /// What the literal is.
         literal: LiteralKind,
     },
-    /// A number that has no value in the compared type.
-    #[error("the number is out of the range of {0} values")]
+    /// A number too large in magnitude to compare with values of the field's type.
+    #[error("the number is too large in magnitude to compare with {0} values")]
     NumberOutOfRange(DataType),
     /// A string compared with a GUID field that is no GUID.
     #[error("the string is not a GUID of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")]

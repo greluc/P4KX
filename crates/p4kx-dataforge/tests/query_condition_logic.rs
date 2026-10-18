@@ -1,4 +1,4 @@
-//! Running `where` filters over a synthetic DataForge: precedence, Kleene logic for missing
+//! Running `where` conditions over a synthetic DataForge: precedence, Kleene logic for missing
 //! values, failed Records and the compile errors of comparisons.
 
 mod common;

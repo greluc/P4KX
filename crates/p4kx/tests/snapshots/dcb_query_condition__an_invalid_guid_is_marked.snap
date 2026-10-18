@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/dcb_query_filter.rs
+source: crates/p4kx/tests/dcb_query_condition.rs
 expression: "error(\"from Weapon where maker = \\\"not-a-guid\\\"\")?"
 ---
 error: the string is not a GUID of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx

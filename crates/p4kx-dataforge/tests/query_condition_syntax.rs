@@ -1,4 +1,4 @@
-//! Parsing and printing `where` filters: precedence, word operators, literals and limits.
+//! Parsing and printing `where` conditions: precedence, word operators, literals and limits.
 
 use std::error::Error;
 
@@ -17,7 +17,7 @@ fn kind(text: &str) -> Option<QueryErrorKind> {
 }
 
 #[test]
-fn a_filter_prints_in_canonical_form() -> TestResult {
+fn a_condition_prints_in_canonical_form() -> TestResult {
     assert_eq!(
         canonical("FROM Weapon SELECT damage WHERE damage>1000")?,
         "from Weapon select damage where damage > 1000",
@@ -164,7 +164,7 @@ fn a_comparison_needs_a_value() {
 }
 
 #[test]
-fn filter_errors_carry_their_span() -> TestResult {
+fn condition_errors_carry_their_span() -> TestResult {
     let cases = [
         ("from T where", 12..12),
         ("from T where (a = 1", 19..19),

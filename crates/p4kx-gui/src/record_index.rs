@@ -308,7 +308,7 @@ fn sort_children(nodes: &mut [Node]) {
         let key = |id: &RecordNodeId| {
             nodes
                 .get(id.0 as usize)
-                .map(|node| (node.kind != RecordNodeKind::Folder, &*node.name))
+                .map(|node| (matches!(node.kind, RecordNodeKind::Record(_)), &*node.name))
         };
         children.sort_by(|a, b| match (key(a), key(b)) {
             (Some((a_leaf, a_name)), Some((b_leaf, b_name))) => a_leaf

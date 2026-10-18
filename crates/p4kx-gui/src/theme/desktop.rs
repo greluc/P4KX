@@ -3,7 +3,7 @@
 
 use egui::Color32;
 
-use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, TOUCH_TARGET};
+use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET};
 
 /// The height of a data row in the table, the tree, the channel list and dropdowns.
 pub const ROW_HEIGHT: f32 = 36.0;
@@ -205,6 +205,14 @@ pub const DETAIL_COLUMN_GAP: f32 = 1.25 * REM;
 pub const DETAIL_KEY_TRACKING: f32 = 0.04;
 /// The font size of a detail list value.
 pub const DETAIL_VALUE_SIZE: f32 = 1.05 * REM;
+/// The font size of a `.section-title` inside a panel.
+pub const PANEL_TITLE_SIZE: f32 = REM;
+/// The space above a `.section-title` that follows other content.
+pub const PANEL_TITLE_MARGIN_TOP: f32 = SPACE_8;
+/// The space below a `.section-title`.
+pub const PANEL_TITLE_MARGIN_BOTTOM: f32 = SPACE_4;
+/// The padding between a `.section-title` and its hairline.
+pub const PANEL_TITLE_PADDING_BOTTOM: f32 = SPACE_2;
 /// The widest a tooltip gets.
 pub const TOOLTIP_MAX_WIDTH: f32 = 272.0;
 /// The width of a scrollbar.

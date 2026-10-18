@@ -520,10 +520,23 @@
     "keyUppercase": true,
     "keyColor": "color-gray-2-text",
     "valueFontSize": 16.8,
-    "valueFontWeight": "fw-regular",
+    "valueFontWeight": "fw-thin",
     "valueColor": "data-fg",
     "ruleWidth": 1,
     "ruleColor": "color-gray-3"
+  },
+  "sectionTitle": {
+    "dsClass": "section-title",
+    "fontSize": 16,
+    "fontWeight": "fw-bold",
+    "letterSpacingEm": 0.05,
+    "uppercase": true,
+    "color": "color-gray-1",
+    "marginTop": 32,
+    "marginTopFirst": 0,
+    "marginBottom": 16,
+    "paddingBottom": 8,
+    "borderBottom": {"width": 1, "color": "color-gray-3"}
   },
   "link": {
     "dsClass": "a",

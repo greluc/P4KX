@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
 use egui::{
-    Align2, Color32, CornerRadius, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2,
-    vec2,
+    Align2, Color32, CornerRadius, Galley, Id, Rect, Response, Role, ScrollArea, Sense, Ui,
+    WidgetInfo, pos2, vec2,
 };
 use fluent_bundle::FluentValue;
 
 use crate::theme::desktop::{
     CELL_PADDING_X, DETAIL_COLUMN_GAP, DETAIL_KEY_MIN_WIDTH, DETAIL_KEY_TRACKING, DETAIL_ROW_GAP,
-    DETAIL_VALUE_SIZE, ROW_FONT, ROW_HEIGHT, SECTION_TITLE_PADDING_BOTTOM,
-    SECTION_TITLE_PADDING_TOP, SPINNER_INLINE, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING, ZEBRA,
+    DETAIL_VALUE_SIZE, PANEL_TITLE_MARGIN_BOTTOM, PANEL_TITLE_MARGIN_TOP,
+    PANEL_TITLE_PADDING_BOTTOM, PANEL_TITLE_SIZE, ROW_FONT, ROW_HEIGHT, SPINNER_INLINE,
+    TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING, ZEBRA,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_2XS, FS_SM, TRACKING_OVERLINE, Weight};
+use crate::theme::tokens::{FS_SM, TRACKING_DISPLAY, Weight};
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::rows::paint_divider;
@@ -21,6 +22,8 @@ use crate::{
     DataForgeFailure, DataForgeSummary, DataForgeText, Language, RecordTree, RecordTreeStatus,
     Text, Texts, format,
 };
+
+const ROWS: u8 = 3;
 
 const COLUMNS: [Text; 3] = [
     Text::ColumnName,
@@ -126,30 +129,16 @@ impl Laid {
     }
 
     fn lay_out(ui: &Ui, texts: &Texts, key: Key, summary: &DataForgeSummary) -> Self {
-        let language = texts.language();
-        let count =
-            |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), language);
-        let facts = [
-            (DataForgeText::Version, summary.version().to_string()),
-            (DataForgeText::Records, count(summary.record_count())),
-            (DataForgeText::Structs, count(summary.struct_count())),
-            (DataForgeText::Enums, count(summary.enum_count())),
-        ]
-        .into_iter()
-        .map(|(name, value)| {
-            let name = texts.get(name);
-            let key_text = caps(&name, FS_SM, Weight::Bold, DETAIL_KEY_TRACKING);
-            let value_text = plain(value.clone(), DETAIL_VALUE_SIZE, Weight::Regular);
-            (
-                (name, line(ui, key_text, f32::INFINITY)),
-                (value, line(ui, value_text, key.width)),
-            )
-        })
-        .collect();
+        let facts = facts(ui, texts, key.width, summary);
         let heading_text = texts.get(DataForgeText::FirstRecords);
         let heading = line(
             ui,
-            caps(&heading_text, FS_2XS, Weight::Bold, TRACKING_OVERLINE),
+            caps(
+                &heading_text,
+                PANEL_TITLE_SIZE,
+                Weight::Bold,
+                TRACKING_DISPLAY,
+            ),
             key.width,
         );
         let cell_width = 2.0f32.mul_add(-CELL_PADDING_X, key.width / 3.0).max(0.0);
@@ -223,11 +212,16 @@ impl Laid {
             hairline_below(ui, key_rect);
             hairline_below(ui, value_rect);
         }
-        ui.add_space(SECTION_TITLE_PADDING_TOP);
-        let size = vec2(ui.available_width(), self.heading.1.size().y);
+        ui.add_space(PANEL_TITLE_MARGIN_TOP);
+        let size = vec2(
+            ui.available_width(),
+            self.heading.1.size().y + PANEL_TITLE_PADDING_BOTTOM,
+        );
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-        labelled(ui, (1, 0, 0), &self.heading, (rect, palette::GRAY_2_TEXT));
-        ui.add_space(SECTION_TITLE_PADDING_BOTTOM);
+        let text_rect = rect.with_max_y(rect.bottom() - PANEL_TITLE_PADDING_BOTTOM);
+        labelled(ui, (1, 0, 0), &self.heading, (text_rect, palette::GRAY_1));
+        hairline_below(ui, rect);
+        ui.add_space(PANEL_TITLE_MARGIN_BOTTOM);
         self.table(ui);
     }
 
@@ -242,11 +236,14 @@ impl Laid {
         for (index, row) in self.rows.iter().enumerate() {
             let (rect, _) =
                 ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
-            if index % 2 == 1 {
+            if ui.rect_contains_pointer(rect) {
+                ui.painter()
+                    .rect_filled(rect, CornerRadius::ZERO, palette::GRAY_3);
+            } else if index % 2 == 1 {
                 ui.painter().rect_filled(rect, CornerRadius::ZERO, ZEBRA);
             }
             paint_divider(ui.painter(), rect);
-            cells(ui, (3, index), rect, row);
+            cells(ui, (ROWS, index), rect, row);
         }
     }
 }
@@ -257,12 +254,17 @@ fn cells(ui: &Ui, (section, row): (u8, usize), rect: Rect, cells: &[Labelled]) {
         let left = f32::from(step).mul_add(width, rect.left());
         let cell_rect = Rect::from_min_size(pos2(left, rect.top()), vec2(width, rect.height()))
             .shrink2(vec2(CELL_PADDING_X, 0.0));
-        labelled(
+        let response = labelled(
             ui,
             (section, row, column),
             cell,
             (cell_rect, palette::GRAY_1),
         );
+        if section == ROWS {
+            response.on_hover_ui(|ui| {
+                ui.label(cell.0.as_str());
+            });
+        }
     }
 }
 
@@ -271,16 +273,43 @@ fn labelled(
     salt: (u8, usize, usize),
     (name, galley): &Labelled,
     (rect, colour): (Rect, Color32),
-) {
+) -> Response {
     let at = Align2::LEFT_CENTER
         .align_size_within_rect(galley.size(), rect)
         .min;
-    let area = Rect::from_min_size(at, galley.size());
     let response = ui.interact(
-        area,
+        rect,
         ui.scope_id().with(("dataforge-text", salt)),
         Sense::hover(),
     );
     response.widget_info(|| WidgetInfo::labeled(Role::Label, true, name));
     ui.painter().galley(at, Arc::clone(galley), colour);
+    response
+}
+
+fn facts(
+    ui: &Ui,
+    texts: &Texts,
+    width: f32,
+    summary: &DataForgeSummary,
+) -> Vec<(Labelled, Labelled)> {
+    let language = texts.language();
+    let count = |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), language);
+    [
+        (DataForgeText::Version, summary.version().to_string()),
+        (DataForgeText::Records, count(summary.record_count())),
+        (DataForgeText::Structs, count(summary.struct_count())),
+        (DataForgeText::Enums, count(summary.enum_count())),
+    ]
+    .into_iter()
+    .map(|(name, value)| {
+        let name = texts.get(name);
+        let key_text = caps(&name, FS_SM, Weight::Bold, DETAIL_KEY_TRACKING);
+        let value_text = plain(value.clone(), DETAIL_VALUE_SIZE, Weight::Light);
+        (
+            (name, line(ui, key_text, f32::INFINITY)),
+            (value, line(ui, value_text, width)),
+        )
+    })
+    .collect()
 }

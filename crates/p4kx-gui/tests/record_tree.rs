@@ -28,19 +28,19 @@ fn database() -> DataForgeBuilder {
             2,
             "AmmoParams",
             "AmmoParams.Laser_S1",
-            "libs/foundry/records/ammoparams/ammo.xml",
+            "libs/foundry/records/weapons.xml",
         ))
         .record(TestRecord::new(
             3,
             "EntityClassDefinition",
             "EntityClassDefinition.ANVL_Arrow",
-            "libs/foundry/records/entities/spaceships/anvl_arrow.xml",
+            "libs/foundry/records/arrow.xml",
         ))
         .record(TestRecord::new(
             4,
             "AmmoParams",
             "AmmoParams.Ballistic_S1",
-            "libs/foundry/records/ammoparams/ammo.xml",
+            "libs/foundry/records/weapons.xml",
         ))
 }
 
@@ -173,8 +173,7 @@ fn records_are_grouped_by_record_path() -> TestResult {
         "libs",
         "libs/foundry",
         "libs/foundry/records",
-        "libs/foundry/records/ammoparams",
-        "libs/foundry/records/ammoparams/ammo",
+        "libs/foundry/records/weapons",
         "libs/foundry/records/entities",
         "libs/foundry/records/entities/spaceships",
     ] {
@@ -189,20 +188,19 @@ fn records_are_grouped_by_record_path() -> TestResult {
             "  libs",
             "    foundry",
             "      records",
-            "        ammoparams",
-            "          ammo",
-            "            AmmoParams.Ballistic_S1",
-            "            AmmoParams.Laser_S1",
             "        entities",
             "          spaceships",
             "            aegs_avenger",
-            "            anvl_arrow",
+            "        weapons",
+            "          AmmoParams.Ballistic_S1",
+            "          AmmoParams.Laser_S1",
+            "        arrow",
         ],
-        "folders, a record folder and Records"
+        "folders and record folders before Records"
     );
     let kind = |path: &str| tree.find(path).map(|node| tree.node(node).kind());
     assert_eq!(
-        kind("libs/foundry/records/ammoparams/ammo"),
+        kind("libs/foundry/records/weapons"),
         Some(RecordNodeKind::RecordFolder),
         "two Records share a record path"
     );
@@ -222,9 +220,7 @@ fn a_record_shows_its_name_type_and_guid() -> TestResult {
     expand(&mut model, "")?;
 
     let tree = records(&model)?;
-    let node = tree
-        .find("libs/foundry/records/entities/spaceships/anvl_arrow")
-        .ok_or("no Record")?;
+    let node = tree.find("libs/foundry/records/arrow").ok_or("no Record")?;
     let RecordNodeKind::Record(record) = tree.node(node).kind() else {
         return Err("not a Record".into());
     };
@@ -234,7 +230,7 @@ fn a_record_shows_its_name_type_and_guid() -> TestResult {
     assert_eq!(record.type_name(), "EntityClassDefinition", "type");
     assert_eq!(
         record.record_path(),
-        "libs/foundry/records/entities/spaceships/anvl_arrow",
+        "libs/foundry/records/arrow",
         "record path"
     );
     assert_eq!(

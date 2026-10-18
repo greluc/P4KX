@@ -47,7 +47,8 @@ impl<'a> RecordNode<'a> {
         self.kind
     }
 
-    /// Returns the children, folders first, each group sorted by name ignoring case.
+    /// Returns the children: folders and record folders first, then Records, each group sorted by
+    /// name ignoring case.
     #[must_use]
     pub const fn children(&self) -> &'a [RecordNodeId] {
         self.children
@@ -138,7 +139,7 @@ impl RecordTree {
                 node: ROOT,
                 depth: 0,
             }],
-            generation: 0,
+            generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
             cancelled: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -239,7 +240,8 @@ impl RecordTree {
         self.selected
     }
 
-    /// Returns a number that changes whenever other Records are loaded, for caches keyed by node.
+    /// Returns a number unique to this tree, its Entry and its loaded Records, for caches keyed
+    /// by node.
     pub(crate) const fn generation(&self) -> u64 {
         self.generation
     }

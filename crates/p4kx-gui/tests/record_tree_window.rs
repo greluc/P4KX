@@ -328,3 +328,40 @@ fn a_hundred_and_twenty_thousand_records_stay_virtual() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_running_load_is_dropped_on_reload_and_on_a_change() -> TestResult {
+    let (_dir, path, mut harness) =
+        window(&archive_with(large().build()), Language::BritishEnglish)?;
+    let status_after = |harness: &mut Harness<'_, Model>| {
+        std::thread::sleep(Duration::from_millis(500));
+        harness.run();
+        harness
+            .state()
+            .browser()
+            .and_then(Browser::records)
+            .map(|tree| (format!("{:?}", tree.status()), tree.rows().len()))
+    };
+
+    harness.get_by_label("Expand DataForge").click();
+    harness.run_steps(2);
+    let first_loading = loading(harness.state());
+    harness.state_mut().reload(|| {});
+    wait_until(&mut harness, |model| model.opening_path().is_none())?;
+    let after_reload = status_after(&mut harness);
+    harness.get_by_label("Expand DataForge").click();
+    harness.run_steps(2);
+    let second_loading = loading(harness.state());
+    archive_with(database().build()).write_to(&path)?;
+    harness.state_mut().check_archive();
+    let after_change = status_after(&mut harness);
+
+    assert!(first_loading && second_loading, "both loads were running");
+    assert_eq!(after_reload, Some(("NotLoaded".to_owned(), 1)), "reloaded");
+    assert_eq!(
+        after_change,
+        Some(("ArchiveChanged".to_owned(), 1)),
+        "changed"
+    );
+    Ok(())
+}

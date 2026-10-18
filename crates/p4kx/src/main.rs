@@ -16,6 +16,8 @@ mod info;
 mod json;
 mod list;
 mod progress;
+mod query_file;
+mod query_table;
 mod texture;
 
 use std::io::{self, Write};

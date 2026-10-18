@@ -1,38 +1,69 @@
-use std::io::{self, Write};
+use std::fs;
+use std::io::{self, BufWriter, Write};
 use std::num::NonZeroUsize;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use anyhow::Result;
-use p4kx_extraction::query::{Query, Row};
-use p4kx_extraction::{Archive, DataForgeEntry, Value};
+use anyhow::{Context, Result};
+use p4kx_extraction::query::{CompiledQuery, Query, QueryRun, ResultFormat, ResultWriter, Row};
+use p4kx_extraction::{Archive, DataForgeEntry, DataForgeError};
+use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::DcbQueryArgs;
-use crate::exit;
+use crate::cli::{DcbQueryArgs, QueryFormat};
+use crate::{exit, json, query_file, query_table};
 
-/// The number of rows built and printed at a time.
-const PAGE_SIZE: NonZeroUsize = match NonZeroUsize::new(1024) {
+/// The number of rows built and written at a time.
+pub(crate) const PAGE_SIZE: NonZeroUsize = match NonZeroUsize::new(1024) {
     Some(size) => size,
     None => NonZeroUsize::MIN,
 };
-
-/// The gap between two columns of the table.
-const GAP: &str = "  ";
 
 /// A Query that cannot be parsed or compiled, with its marked position.
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub(crate) struct InvalidQuery(String);
 
-/// `--json` given to `p4kx dcb query`, which prints a table only.
+/// `--json` with a format other than JSON and without `--out`, so stdout would not hold JSON.
 #[derive(Debug, Error)]
-#[error("p4kx dcb query prints a table; --json is not supported")]
-pub(crate) struct QueryJson;
+#[error("--json writes JSON to stdout: use --format json, or --out for the {0} result")]
+pub(crate) struct JsonNeedsJsonFormat(&'static str);
 
-/// Runs a Query over the Archive's DataForge and prints the result as a table.
+/// `--out` names the Archive the Query reads.
+#[derive(Debug, Error)]
+#[error("{} is the Archive the Query reads", .0.display())]
+pub(crate) struct OutputIsArchive(PathBuf);
+
+/// The number of rows written and of Records whose row failed.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct Counts {
+    pub(crate) records: u64,
+    pub(crate) failed: u64,
+}
+
+#[derive(Serialize)]
+struct Summary<'a> {
+    archive: String,
+    format: &'a str,
+    output: String,
+    records: u64,
+    failed: u64,
+}
+
+/// Runs a Query over the Archive's DataForge and writes the result to stdout or `--out`.
 pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
-    if as_json {
-        return Err(QueryJson.into());
+    let format = args.format.unwrap_or(if as_json {
+        QueryFormat::Json
+    } else {
+        QueryFormat::Table
+    });
+    if as_json && args.out.is_none() && format != QueryFormat::Json {
+        return Err(JsonNeedsJsonFormat(name(format)).into());
+    }
+    if let Some(out) = &args.out
+        && is_same_file(out, &args.archive)
+    {
+        return Err(OutputIsArchive(out.clone()).into());
     }
     let query = Query::parse(&args.query)
         .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
@@ -43,144 +74,125 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
         .compile(&forge)
         .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
     let run = compiled.run();
-    let mut table = Table::new(compiled.columns());
-    table.widen_first(run.record_paths().map(line_width));
-    let (mut rows, mut failed) = (0_usize, 0_usize);
-    let printed = (|| -> io::Result<()> {
-        let mut out = io::stdout().lock();
-        let mut err = io::stderr().lock();
-        for page in run.pages(PAGE_SIZE) {
-            let mut lines = Vec::with_capacity(page.len());
-            for row in &page {
-                match row_texts(row) {
-                    Ok(cells) => {
-                        rows = rows.saturating_add(1);
-                        lines.push(cells);
-                    }
-                    Err(reason) => {
-                        failed = failed.saturating_add(1);
-                        writeln!(
-                            err,
-                            "failed {} ({}): {reason}",
-                            row.record_path(),
-                            row.record().guid()
-                        )?;
-                    }
-                }
-            }
-            table.print(&mut out, &lines)?;
+    let counts = match &args.out {
+        None => to_stdout(&compiled, &run, format)?,
+        Some(out) => {
+            let counts = query_file::write_replacing(out, |file| {
+                write_result(&compiled, &run, format, file, false)
+            })
+            .with_context(|| format!("cannot write {}", out.display()))?;
+            print_summary(args, out, format, counts, as_json)?;
+            counts
         }
-        table.print(&mut out, &[])?;
-        let noun = if rows == 1 { "Record" } else { "Records" };
-        if failed == 0 {
-            writeln!(out, "{rows} {noun}")
-        } else {
-            writeln!(out, "{rows} {noun}, {failed} failed")
-        }
-    })();
-    if let Err(error) = printed
-        && error.kind() != io::ErrorKind::BrokenPipe
-    {
-        return Err(error.into());
-    }
-    Ok(ExitCode::from(if failed == 0 {
+    };
+    Ok(ExitCode::from(if counts.failed == 0 {
         exit::SUCCESS
     } else {
         exit::PARTIAL_FAILURE
     }))
 }
 
-/// Returns the texts of a row's columns, the record path first, or why its Record cannot be read.
-fn row_texts(row: &Row<'_>) -> Result<Vec<String>, String> {
-    let cells = row.cells().map_err(ToString::to_string)?;
-    let mut texts = Vec::with_capacity(cells.len() + 1);
-    texts.push(one_line(row.record_path()));
-    texts.extend(
-        cells
-            .iter()
-            .map(|cell| cell.as_ref().map_or_else(String::new, cell_text)),
-    );
-    Ok(texts)
-}
-
-fn cell_text(value: &Value<'_>) -> String {
-    one_line(&value.to_string())
-}
-
-/// Returns `text` on one line: line breaks and tabs escaped, other control characters replaced.
-fn one_line(text: &str) -> String {
-    let mut line = String::with_capacity(text.len());
-    for c in text.chars() {
-        match c {
-            '\n' => line.push_str("\\n"),
-            '\r' => line.push_str("\\r"),
-            '\t' => line.push_str("\\t"),
-            c if c.is_control() => line.push('\u{fffd}'),
-            c => line.push(c),
-        }
+/// Writes the result to stdout; a closed pipe ends the output early without an error.
+fn to_stdout(
+    compiled: &CompiledQuery<'_>,
+    run: &QueryRun<'_, '_>,
+    format: QueryFormat,
+) -> io::Result<Counts> {
+    let out = BufWriter::new(io::stdout().lock());
+    match write_result(compiled, run, format, out, true) {
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(Counts::default()),
+        written => written,
     }
-    line
 }
 
-/// Returns the number of characters [`one_line`] makes of `text`.
-fn line_width(text: &str) -> usize {
-    text.chars()
-        .map(|c| usize::from(matches!(c, '\n' | '\r' | '\t')) + 1)
-        .sum()
-}
-
-/// A table printed page by page: the record-path column fits every row, and a value column widens
-/// when a later page needs more room.
-struct Table {
-    header: Option<Vec<String>>,
-    widths: Vec<usize>,
-}
-
-impl Table {
-    fn new(columns: &[String]) -> Self {
-        let mut header = vec!["record path".to_owned()];
-        header.extend(columns.iter().map(|column| one_line(column)));
-        Self {
-            widths: header.iter().map(|text| text.chars().count()).collect(),
-            header: Some(header),
-        }
-    }
-
-    /// Widens the first column to the largest of `widths`.
-    fn widen_first(&mut self, widths: impl Iterator<Item = usize>) {
-        if let Some(width) = self.widths.first_mut() {
-            *width = widths.fold(*width, usize::max);
-        }
-    }
-
-    /// Prints the rows of one page, after the header when it is still due.
-    fn print(&mut self, out: &mut impl Write, rows: &[Vec<String>]) -> io::Result<()> {
-        for row in rows {
-            for (width, text) in self.widths.iter_mut().zip(row) {
-                *width = (*width).max(text.chars().count());
+/// Writes the result in `format` to `out`, page by page, and reports failed Records on stderr;
+/// with `count_line`, a table ends with the number of Records.
+fn write_result(
+    compiled: &CompiledQuery<'_>,
+    run: &QueryRun<'_, '_>,
+    format: QueryFormat,
+    out: impl Write,
+    count_line: bool,
+) -> io::Result<Counts> {
+    let format = match format {
+        QueryFormat::Table => return query_table::write(compiled.columns(), run, out, count_line),
+        QueryFormat::Csv => ResultFormat::Csv,
+        QueryFormat::Json => ResultFormat::Json,
+    };
+    let mut writer = ResultWriter::new(out, format, compiled.columns())?;
+    let mut failed = 0_u64;
+    for page in run.pages(PAGE_SIZE) {
+        for row in &page {
+            match row.cells() {
+                Ok(cells) => writer.write_row(row.record_path(), cells)?,
+                Err(error) => {
+                    failed = failed.saturating_add(1);
+                    report_failure(row, error)?;
+                }
             }
         }
-        if let Some(header) = self.header.take() {
-            self.line(out, &header)?;
-            let rule: Vec<String> = self.widths.iter().map(|width| "-".repeat(*width)).collect();
-            self.line(out, &rule)?;
-        }
-        for row in rows {
-            self.line(out, row)?;
-        }
-        Ok(())
     }
+    let records = writer.rows();
+    writer.finish()?;
+    Ok(Counts { records, failed })
+}
 
-    fn line(&self, out: &mut impl Write, cells: &[String]) -> io::Result<()> {
-        let mut line = String::new();
-        for (index, (width, text)) in self.widths.iter().zip(cells).enumerate() {
-            if index > 0 {
-                line.push_str(GAP);
-            }
-            line.push_str(text);
-            let padding = width.saturating_sub(text.chars().count());
-            line.extend(std::iter::repeat_n(' ', padding));
-        }
-        writeln!(out, "{}", line.trim_end())
+/// Reports on stderr that the values of `row`'s Record cannot be read.
+pub(crate) fn report_failure(row: &Row<'_>, error: &DataForgeError) -> io::Result<()> {
+    writeln!(
+        io::stderr().lock(),
+        "failed {} ({}): {error}",
+        row.record_path(),
+        row.record().guid()
+    )
+}
+
+fn print_summary(
+    args: &DcbQueryArgs,
+    out: &Path,
+    format: QueryFormat,
+    counts: Counts,
+    as_json: bool,
+) -> io::Result<()> {
+    if as_json {
+        return json::print(&Summary {
+            archive: json::path(&args.archive),
+            format: name(format),
+            output: json::path(out),
+            records: counts.records,
+            failed: counts.failed,
+        });
+    }
+    let noun = if counts.records == 1 {
+        "Record"
+    } else {
+        "Records"
+    };
+    let failed = if counts.failed == 0 {
+        String::new()
+    } else {
+        format!(", {} failed,", counts.failed)
+    };
+    writeln!(
+        io::stdout().lock(),
+        "{} {noun}{failed} written to {}",
+        counts.records,
+        out.display()
+    )
+}
+
+const fn name(format: QueryFormat) -> &'static str {
+    match format {
+        QueryFormat::Table => "table",
+        QueryFormat::Csv => "csv",
+        QueryFormat::Json => "json",
+    }
+}
+
+/// Returns whether `path` names an existing file that is `input`.
+fn is_same_file(path: &Path, input: &Path) -> bool {
+    match (fs::canonicalize(path), fs::canonicalize(input)) {
+        (Ok(path), Ok(input)) => path == input,
+        _ => false,
     }
 }

@@ -7,6 +7,7 @@
 mod compile;
 mod error;
 mod lexer;
+mod output;
 mod parser;
 mod run;
 mod schema;
@@ -17,6 +18,7 @@ mod syntax;
 pub use compile::CompiledQuery;
 pub use error::{Expected, Found, Marked, QueryError, QueryErrorKind};
 pub use lexer::Keyword;
+pub use output::{RECORD_PATH_COLUMN, ResultFormat, ResultWriter};
 pub use run::{Pages, QueryRun, Row};
 pub use span::Span;
 pub use syntax::{Glob, Name, Path, Query, Segment};

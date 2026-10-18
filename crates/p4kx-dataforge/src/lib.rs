@@ -26,6 +26,7 @@ mod strings;
 mod table;
 mod tree;
 mod value;
+mod value_json;
 mod value_text;
 mod xml;
 mod xml_text;

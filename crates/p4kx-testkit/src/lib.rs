@@ -18,8 +18,14 @@ mod dataforge_value;
 mod entity;
 mod entity_sample;
 mod entity_schema;
+mod glb;
+mod glb_container;
 mod layout_v1;
 mod layout_v2;
+mod model;
+mod model_cube;
+mod model_nmc;
+mod model_skin;
 mod real_archive;
 mod split_dds;
 mod test_entry;
@@ -37,6 +43,12 @@ pub use dataforge_value::{TestInstance, TestValue};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;
+pub use glb::{CheckedGlb, check_glb};
+pub use gltf;
+pub use model::{
+    CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
+    TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
+};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

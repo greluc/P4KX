@@ -1,5 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio and chunk
-//! file APIs front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio, chunk
+//! file and model APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -12,8 +12,11 @@ mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
+mod model_companions;
+mod model_source;
 mod options;
 mod output_file;
+mod path_index;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -44,6 +47,7 @@ pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
+pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use p4kx_audio::{
@@ -62,10 +66,13 @@ pub use p4kx_dataforge::{
     RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
     ValueKind,
 };
+pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
+pub use p4kx_model as model;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use path_index::PathIndex;
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };

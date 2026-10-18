@@ -2,12 +2,13 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use p4kx_archive::Archive;
+use p4kx_archive::{Archive, Entry};
 use p4kx_chunks::{Chunk, ChunkFile};
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
 use crate::output_file::{read_error, write_error, write_replacing};
+use crate::path_index::PathIndex;
 use crate::sound::read_capped;
 use crate::texture_parts::is_same_file;
 use crate::{ConversionError, UnknownEntries};
@@ -38,6 +39,22 @@ impl ChunkSource {
             .par_iter()
             .find_first(|entry| same_entry_path(entry.path(), path))
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        Self::from_entry(archive, entry)
+    }
+
+    /// Reads the chunk file Entry at `path` found through `index`; see [`Self::from_archive`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_archive`].
+    pub fn from_index(index: &PathIndex<'_>, path: &str) -> Result<Self, ConversionError> {
+        let entry = index
+            .find(path)
+            .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        Self::from_entry(index.archive(), entry)
+    }
+
+    fn from_entry(archive: &Archive, entry: &Entry) -> Result<Self, ConversionError> {
         let name = entry.path().to_owned();
         let reader = archive.open_entry(entry)?;
         let bytes = read_capped(reader, entry.uncompressed_size(), MAX_CHUNK_FILE_LEN).map_err(

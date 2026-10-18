@@ -30,7 +30,8 @@ impl Layer {
     const fn may_depend_on(self, target: Self) -> bool {
         matches!(
             (self, target),
-            (Self::Format | Self::Testkit, Self::Foundation)
+            (Self::Format, Self::Foundation | Self::Format)
+                | (Self::Testkit, Self::Foundation)
                 | (
                     Self::Service,
                     Self::Foundation | Self::Format | Self::Service

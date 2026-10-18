@@ -2,7 +2,8 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, CubemapLayout, Texture, TextureError};
+use p4kx_extraction::model::ModelError;
+use p4kx_extraction::{Archive, ConversionError, CubemapLayout, GltfError, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
@@ -189,9 +190,9 @@ fn count(parts: Option<u32>) -> String {
     parts.map_or_else(|| UNKNOWN.to_owned(), |parts| parts.to_string())
 }
 
-/// Returns whether `error` is a texture, sound or chunk file failure caused by the command line: an
-/// Entry or file that does not exist, a mip level the texture or a chunk the chunk file does not have,
-/// or an output that is one of the inputs.
+/// Returns whether `error` is a texture, sound, chunk file or model failure caused by the command
+/// line: an Entry, file or geometry companion that does not exist, a mip level the texture, a chunk
+/// the chunk file or a LOD the model does not have, or an output that is one of the inputs.
 pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
@@ -204,12 +205,20 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
                     source: TextureError::NoSuchMip { .. },
                     ..
                 }
+                | ConversionError::Model {
+                    source: ModelError::MissingGeometry { .. },
+                    ..
+                }
+                | ConversionError::Glb {
+                    source: GltfError::NoSuchLod { .. },
+                    ..
+                }
         )
     )
 }
 
-/// Returns whether `error` is a texture, sound or chunk file failure caused by an unreadable,
-/// corrupt or too large Archive, Entry or input file.
+/// Returns whether `error` is a texture, sound, chunk file or model failure caused by an unreadable,
+/// corrupt or too large Archive, Entry, input file or model companion.
 pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
@@ -223,6 +232,13 @@ pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
                 | ConversionError::SoundTooLarge { .. }
                 | ConversionError::Texture {
                     source: TextureError::ReadHeader(_),
+                    ..
+                }
+                | ConversionError::Model {
+                    source: ModelError::Companion { .. }
+                        | ModelError::CompanionChunks { .. }
+                        | ModelError::NoMesh { .. }
+                        | ModelError::Corrupt { .. },
                     ..
                 }
         )

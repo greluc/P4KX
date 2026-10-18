@@ -1,0 +1,202 @@
+use std::io::Write;
+
+use p4kx_model::{Lod, Mesh};
+
+use crate::axes::to_y_up;
+
+const ALIGNMENT: u64 = 4;
+
+/// What one block of the binary chunk holds.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum BlockData<'m> {
+    /// Vertex positions, converted to Y up.
+    Positions(&'m [[f32; 3]]),
+    /// Vertex normals, converted to Y up.
+    Normals(&'m [[f32; 3]]),
+    /// Texture coordinates.
+    Uvs(&'m [[f32; 2]]),
+    /// A submesh's indices as 16-bit values.
+    Short(&'m [u32]),
+    /// A submesh's indices as 32-bit values.
+    Wide(&'m [u32]),
+}
+
+impl BlockData<'_> {
+    const fn len(&self) -> u64 {
+        let (count, size) = match self {
+            Self::Positions(values) | Self::Normals(values) => (values.len(), 12),
+            Self::Uvs(values) => (values.len(), 8),
+            Self::Short(values) => (values.len(), 2),
+            Self::Wide(values) => (values.len(), 4),
+        };
+        count as u64 * size
+    }
+
+    pub(crate) const fn count(&self) -> usize {
+        match self {
+            Self::Positions(values) | Self::Normals(values) => values.len(),
+            Self::Uvs(values) => values.len(),
+            Self::Short(values) | Self::Wide(values) => values.len(),
+        }
+    }
+
+    /// Appends the block's bytes, little-endian, to `out`.
+    fn encode(&self, out: &mut Vec<u8>) {
+        match self {
+            Self::Positions(values) | Self::Normals(values) => {
+                for &value in *values {
+                    for component in to_y_up(value) {
+                        out.extend_from_slice(&component.to_le_bytes());
+                    }
+                }
+            }
+            Self::Uvs(values) => {
+                for component in values.iter().flatten() {
+                    out.extend_from_slice(&component.to_le_bytes());
+                }
+            }
+            Self::Short(values) => {
+                for &value in *values {
+                    let short = u16::try_from(value).unwrap_or(u16::MAX);
+                    out.extend_from_slice(&short.to_le_bytes());
+                }
+            }
+            Self::Wide(values) => {
+                for value in *values {
+                    out.extend_from_slice(&value.to_le_bytes());
+                }
+            }
+        }
+    }
+}
+
+/// One block of the binary chunk at its offset.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Block<'m> {
+    pub(crate) offset: u64,
+    pub(crate) len: u64,
+    pub(crate) data: BlockData<'m>,
+}
+
+/// The primitive of one submesh: its index block and material ID.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PrimitiveLayout {
+    pub(crate) indices: usize,
+    pub(crate) material_id: u16,
+}
+
+/// The blocks of one mesh and the bounds of its converted positions.
+#[derive(Debug, Clone)]
+pub(crate) struct MeshLayout {
+    pub(crate) node: usize,
+    pub(crate) positions: usize,
+    pub(crate) normals: Option<usize>,
+    pub(crate) uvs: Option<usize>,
+    pub(crate) primitives: Vec<PrimitiveLayout>,
+    pub(crate) min: [f32; 3],
+    pub(crate) max: [f32; 3],
+}
+
+/// The binary chunk planned before anything is written: every block with its offset.
+#[derive(Debug, Clone)]
+pub(crate) struct Layout<'m> {
+    pub(crate) blocks: Vec<Block<'m>>,
+    pub(crate) meshes: Vec<MeshLayout>,
+    pub(crate) len: u64,
+}
+
+impl<'m> Layout<'m> {
+    /// Plans the blocks of every mesh of `lod` that has vertices and triangles.
+    pub(crate) fn plan(lod: &'m Lod) -> Self {
+        let mut layout = Self {
+            blocks: Vec::new(),
+            meshes: Vec::new(),
+            len: 0,
+        };
+        for mesh in &lod.meshes {
+            layout.plan_mesh(mesh);
+        }
+        layout
+    }
+
+    fn plan_mesh(&mut self, mesh: &'m Mesh) {
+        let primitives: Vec<(&'m [u32], u16)> = mesh
+            .submeshes
+            .iter()
+            .filter_map(|submesh| {
+                let end = submesh.first_index.checked_add(submesh.index_count)?;
+                let indices = mesh.indices.get(submesh.first_index..end)?;
+                (!indices.is_empty()).then_some((indices, submesh.material_id))
+            })
+            .collect();
+        if mesh.positions.is_empty() || primitives.is_empty() {
+            return;
+        }
+        let (min, max) = bounds(&mesh.positions);
+        let positions = self.push(BlockData::Positions(&mesh.positions));
+        let normals = mesh
+            .normals
+            .as_ref()
+            .filter(|normals| normals.len() == mesh.positions.len())
+            .map(|normals| self.push(BlockData::Normals(normals)));
+        let uvs =
+            (mesh.uvs.len() == mesh.positions.len()).then(|| self.push(BlockData::Uvs(&mesh.uvs)));
+        let short = u16::try_from(mesh.positions.len()).is_ok();
+        let primitives = primitives
+            .into_iter()
+            .map(|(indices, material_id)| PrimitiveLayout {
+                indices: self.push(if short {
+                    BlockData::Short(indices)
+                } else {
+                    BlockData::Wide(indices)
+                }),
+                material_id,
+            })
+            .collect();
+        self.meshes.push(MeshLayout {
+            node: mesh.node,
+            positions,
+            normals,
+            uvs,
+            primitives,
+            min,
+            max,
+        });
+    }
+
+    fn push(&mut self, data: BlockData<'m>) -> usize {
+        let len = data.len();
+        self.blocks.push(Block {
+            offset: self.len,
+            len,
+            data,
+        });
+        self.len = self.len.saturating_add(len.next_multiple_of(ALIGNMENT));
+        self.blocks.len() - 1
+    }
+
+    /// Writes every block with its padding to `out`, reusing one buffer.
+    pub(crate) fn write(&self, out: &mut impl Write) -> std::io::Result<()> {
+        let mut buffer = Vec::new();
+        for block in &self.blocks {
+            buffer.clear();
+            block.data.encode(&mut buffer);
+            let padded = block.len.next_multiple_of(ALIGNMENT);
+            buffer.resize(usize::try_from(padded).unwrap_or(buffer.len()), 0);
+            out.write_all(&buffer)?;
+        }
+        Ok(())
+    }
+}
+
+fn bounds(positions: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
+    let mut min = [f32::INFINITY; 3];
+    let mut max = [f32::NEG_INFINITY; 3];
+    for &position in positions {
+        for ((low, high), value) in min.iter_mut().zip(&mut max).zip(to_y_up(position)) {
+            *low = low.min(value);
+            *high = high.max(value);
+        }
+    }
+    (min, max)
+}

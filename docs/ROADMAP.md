@@ -114,7 +114,7 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 
 ## Engineering
 
-- Workspace of `p4kx-*` crates in three layers with enforced direction (ADR-0003):
+- Workspace of `p4kx-*` crates in three layers with enforced direction (ADR-0003, ADR-0016):
   - formats: `foundation`, `archive`, `cryxml`, `dataforge`, `localization`, `texture`, `audio`,
     `chunks`, `model`, `character`, `gfx`
   - services: `assembly`, `gltf`, `blender`, `comparison`, `export`, `extraction`

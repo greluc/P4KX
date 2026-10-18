@@ -16,18 +16,18 @@ use crate::texture;
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries or Records failed or were cancelled, the target folder could not be created, a
-/// texture is invalid or cannot be merged, decoded or written, or a sound or soundbank is invalid or
-/// cannot be converted or written.
+/// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
+/// cannot be converted or written, or a model cannot be exported or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
-/// neither Archive contains), a file that does not exist, a mip level the texture or a chunk the
-/// chunk file does not have, has a Filter that matches no Entry or Record, names an output that is
+/// neither Archive contains), a file or geometry companion that does not exist, a mip level the
+/// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no Entry or Record, names an output that is
 /// one of its inputs, or has an invalid Query or a Query output that does not fit --json.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive, an Entry's data or the input file cannot be opened or read, is no valid chunk file,
-/// or is too large to read into memory.
+/// The Archive, an Entry's data, the input file or a model companion cannot be opened or read, is
+/// no valid chunk file or model, or is too large to read into memory.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -45,19 +45,22 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   1  partial failure: some Entries or Records failed or were cancelled, the target or the
      settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
      e.g. because its format is not supported, or a sound or soundbank is invalid or cannot be
-     converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder; compare:
-     the Archives or the --diff Entry differ
+     converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, or a model
+     cannot be exported or written, e.g. one in the CrCh container; compare: the Archives or
+     the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
-     does not exist or was never added, a texture, sound, soundbank or chunk file that does
-     not exist, a mip level the texture or a chunk the chunk file does not have, an output
+     does not exist or was never added, a texture, sound, soundbank, chunk file, model or
+     geometry companion that does not exist, a mip level the texture, a chunk the chunk file
+     or a LOD the model does not have, an output
      that is one of its inputs, --json without --out for cryxml, an invalid Query, --json with
      another --format and without --out for dcb query, or an Entity that no Record or several
      Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
-     chunk file, corrupt, a sound, soundbank or chunk file too large to read into memory, or
-     with unreadable Entry data, also a --diff Entry that cannot be read or holds corrupt
-     CryXml; a missing texture, sound, soundbank or chunk file is 2
+     chunk file, corrupt, a corrupt model or companion, a sound, soundbank or chunk file too
+     large to read into memory, or with unreadable Entry data, also a --diff Entry that cannot
+     be read or holds corrupt CryXml; a missing texture, sound, soundbank, chunk file, model or
+     geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
+  geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
+  exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node
+  per model node with its transform, one primitive per submesh with positions, normals and
+  texture coordinates, and one material per material ID. Unknown chunks are skipped and listed.
+  Both commands also take a model file on disk with its companion next to it.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a

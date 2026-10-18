@@ -172,6 +172,12 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
+- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
+  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
+  counts, the material library and material IDs, its bones and every chunk with whether it was
+  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file>` writes it as one
+  glTF 2.0 binary file (GLB), Y up and in metres, and lists the unknown chunks it skipped. Both
+  also take a model file on disk with its companion next to it.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

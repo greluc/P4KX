@@ -87,6 +87,29 @@ and its causes joined by `: `. Both are in Record order. `error` is the reason a
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.
 
+## `p4kx dcb query <archive> <query> --json`
+
+Without `--out`, the line is the Query result itself in its JSON format, as `--format json`
+writes it ([query.md](query.md#json)):
+
+```json
+[{"record path":"libs/foundry/records/ships/avenger","mass":25000.5,"size":"Large"},…]
+```
+
+One object per row in record-path order, keyed by `record path` and then by each `select` path
+in column order, with typed values. `--json` with `--format table` or `--format csv` and
+without `--out` exits with code 2, because stdout would not hold JSON.
+
+With `--out <file>`, the result in `--format` (`json` by default) goes to the file and stdout
+gets the summary:
+
+```json
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+```
+
+`records` counts the rows written and `failed` the Records whose layout cannot be read; each of
+them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+
 ## `p4kx channels --json`
 
 ```json

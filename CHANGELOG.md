@@ -12,6 +12,10 @@ fails while its section is missing.
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem
   and mark its position in the Query, with a suggestion for a mistyped type or field name.
+- `p4kx dcb query --format table|csv|json [--out <file>]`: Query results as RFC 4180 CSV with a
+  header row or as JSON, an array of objects keyed by column with values typed as booleans,
+  numbers and strings, written page by page to stdout or to a file; the columns of the table
+  fit every row.
 - `where` conditions in Queries: comparisons with `=`, `!=`, `<`, `<=`, `>`, `>=` on numbers,
   strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
   `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of
@@ -47,6 +51,9 @@ fails while its section is missing.
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
   and write PCM WEMs as WAV files; every Wwise codec is detected.
+- `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
+  mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
+  per channel, as Wwise writes them, instead of 65.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem` or converted to WAV;
   the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a corrupt soundbank fails

@@ -6,6 +6,8 @@ use std::thread;
 
 use p4kx_extraction::{DataForgeEntry, DataForgeError};
 
+mod reveal;
+
 use crate::EntryIndex;
 use crate::model::describe;
 use crate::record_index::{
@@ -85,7 +87,7 @@ pub enum RecordTreeStatus<'a> {
 }
 
 enum Outcome {
-    Loaded(Box<RecordIndex>),
+    Loaded(Arc<RecordIndex>),
     Failed(DataForgeFailure),
     ArchiveChanged,
 }
@@ -95,7 +97,7 @@ enum State {
     Loading(Receiver<Outcome>),
     Failed(DataForgeFailure),
     ArchiveChanged,
-    Ready(Box<RecordIndex>),
+    Ready(Arc<RecordIndex>),
 }
 
 /// The DataForge node of the path tree: the Records of the open Archive's DataForge as folders
@@ -108,6 +110,7 @@ pub struct RecordTree {
     rows: Vec<RecordRow>,
     generation: u64,
     cancelled: Arc<AtomicBool>,
+    scroll_to: Option<RecordNodeId>,
 }
 
 impl std::fmt::Debug for RecordTree {
@@ -141,6 +144,7 @@ impl RecordTree {
             }],
             generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
             cancelled: Arc::new(AtomicBool::new(false)),
+            scroll_to: None,
         }
     }
 
@@ -371,7 +375,7 @@ fn load(index: &EntryIndex, cancelled: &AtomicBool) -> Outcome {
         return Outcome::ArchiveChanged;
     }
     match built {
-        Ok(records) => Outcome::Loaded(Box::new(records)),
+        Ok(records) => Outcome::Loaded(Arc::new(records)),
         Err(DataForgeError::UnsupportedVersion { version }) => {
             Outcome::Failed(DataForgeFailure::Unsupported { version })
         }

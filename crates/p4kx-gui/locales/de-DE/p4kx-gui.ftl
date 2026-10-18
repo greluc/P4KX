@@ -172,6 +172,15 @@ dataforge-stopped = Das Laden von DataForge aus { $path } brach ohne Ergebnis ab
 dataforge-archive-changed = Das Archiv hat sich auf der Festplatte geändert. Lade es neu, um DataForge zu laden.
 dataforge-version = Version
 dataforge-records = Records
+record-search-label = Records suchen
+record-search-hint = Nach Record-Pfad oder Typ filtern: Glob mit * oder ?, sonst ein beliebiger Teil
+record-search-prompt = Gib einen Teil eines Record-Pfads oder Typnamens ein, um Records zu finden.
+record-search-no-matches = Kein Record passt zur Suche.
+record-search-matches =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
 dataforge-structs = Structs
 dataforge-enums = Enums
 dataforge-first-records = Erste Records

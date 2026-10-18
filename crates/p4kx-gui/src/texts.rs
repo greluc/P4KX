@@ -7,7 +7,7 @@ mod extraction_text;
 mod text_ids;
 
 pub use comparison_text::ComparisonText;
-pub use dataforge_text::DataForgeText;
+pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use extraction_text::ExtractionText;
 
 use crate::Language;

@@ -36,6 +36,7 @@ mod table;
 mod tree;
 mod value;
 mod value_error;
+mod value_json;
 mod value_text;
 mod weak;
 mod xml;

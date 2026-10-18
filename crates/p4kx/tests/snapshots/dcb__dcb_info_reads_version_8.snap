@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb.rs
+expression: stdout
+---
+Archive:         [DIR]/Data.p4k
+Entry:           Data\Game2.dcb
+Version:         8
+Records:         2
+Structs:         3
+Enums:           2

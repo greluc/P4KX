@@ -45,8 +45,8 @@ Early development (milestone M1). Available today:
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge version 6 is read; any other version is reported as not supported,
-  and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
+  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

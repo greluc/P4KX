@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::{DataForgeError, Guid, Value};
+use crate::{ChangedValue, DataForgeError, Guid, Location};
 
 /// How a Record differs between the two sides of a Comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
@@ -79,30 +79,30 @@ impl<'a> RecordState<'a> {
     }
 }
 
-/// One field whose value differs, or that only one side has.
+/// One field or array element whose value differs, or that only one side has.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldChange<'a> {
-    pub(crate) path: &'a str,
-    pub(crate) old: Option<Value<'a>>,
-    pub(crate) new: Option<Value<'a>>,
+    pub(crate) path: Location<'a>,
+    pub(crate) old: Option<ChangedValue<'a>>,
+    pub(crate) new: Option<ChangedValue<'a>>,
 }
 
 impl<'a> FieldChange<'a> {
-    /// Returns the path of the field in the Record: its name for a field of the Record itself.
+    /// Returns where the value lies in the Record, e.g. `hull.plates[1].armor`.
     #[must_use]
-    pub const fn path(&self) -> &'a str {
-        self.path
+    pub const fn path(&self) -> &Location<'a> {
+        &self.path
     }
 
-    /// Returns the old value, `None` when the old side has no such field.
+    /// Returns the old value, `None` when the old side has no such field or element.
     #[must_use]
-    pub const fn old_value(&self) -> Option<&Value<'a>> {
+    pub const fn old_value(&self) -> Option<&ChangedValue<'a>> {
         self.old.as_ref()
     }
 
-    /// Returns the new value, `None` when the new side has no such field.
+    /// Returns the new value, `None` when the new side has no such field or element.
     #[must_use]
-    pub const fn new_value(&self) -> Option<&Value<'a>> {
+    pub const fn new_value(&self) -> Option<&ChangedValue<'a>> {
         self.new.as_ref()
     }
 }
@@ -161,8 +161,9 @@ impl<'a> RecordChange<'a> {
         self.new
     }
 
-    /// Returns the changed fields in field order of the new side, the fields only the old side
-    /// has last; empty for an added or removed Record.
+    /// Returns the changed fields and array elements, nested ones included, depth first in field
+    /// order of the new side with the fields only the old side has last in each struct; empty
+    /// for an added or removed Record.
     #[must_use]
     pub fn fields(&self) -> &[FieldChange<'a>] {
         &self.fields

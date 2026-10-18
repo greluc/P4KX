@@ -8,6 +8,10 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
+  `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
+  absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
+  page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -25,6 +29,12 @@ fails while its section is missing.
   strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
   `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of
   incompatible types is marked as an error, and a missing value never matches.
+- Paths into nested data in Queries: dot paths through inline structs and strong pointers, `[n]`
+  for one array element (null when out of range), `[*]` for every element and `[TypeName]` for
+  the elements of a polymorphic array of that type, e.g.
+  `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
+  list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
+  values holds.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before

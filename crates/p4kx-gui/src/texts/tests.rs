@@ -47,12 +47,18 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("version", "0.2.0".into()),
         ("channel", "LIVE".into()),
         ("change", "Added".into()),
+        ("filter", "*.xml".into()),
+        ("stopped", "yes".into()),
         ("current", "1".into()),
         ("first", "10".into()),
         ("last", "16".into()),
         ("line", "12".into()),
         ("text", "<a/>".into()),
         ("lines", "4,194,304".into()),
+        ("level", "2".into()),
+        ("width", "512".into()),
+        ("height", "256".into()),
+        ("format", "BC7_UNORM".into()),
     ]
 }
 

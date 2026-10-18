@@ -63,7 +63,11 @@ preview-truncated = Gekürzt: angezeigt werden die ersten { $shown } von { $tota
 preview-failed = { $path } kann nicht gelesen werden: { $reason }
 preview-stopped = Das Lesen von { $path } brach ohne Ergebnis ab.
 preview-archive-changed = Das Archiv hat sich auf der Festplatte geändert. Lade es neu, um Einträge anzusehen.
-archive-changed = { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Eine laufende Extraktion wurde gestoppt; lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
+archive-changed =
+    { $stopped ->
+        [yes] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Eine laufende Extraktion wurde gestoppt; lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
+       *[no] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
+    }
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …
@@ -206,3 +210,23 @@ dataforge-enums = Enums
 dataforge-first-records = Erste Records
 column-type = Typ
 column-record-path = Record-Pfad
+change-extraction-action-old = Alt extrahieren ({ $number }) …
+change-extraction-action-new = Neu extrahieren ({ $number }) …
+change-extraction-scope-old = Geänderte Einträge des alten Archivs, in ihrer alten Fassung ({ $number })
+change-extraction-scope-new = Hinzugefügte und geänderte Einträge des neuen Archivs ({ $number })
+change-extraction-scope-filtered = Nur die Änderungen, die zum Filter { $filter } passen
+change-extraction-summary-changed = Das Archiv hat sich während der Extraktion auf der Festplatte geändert. Bereits geschriebene Dateien können veraltet sein; vergleiche die Archive erneut und extrahiere die Änderungen noch einmal.
+
+preview-tab-image = Bild
+image-mip = Mip
+image-format = Format
+image-size = Größe
+image-mips = Mips
+image-faces = Cubemap-Seiten
+image-dimensions = { $width } × { $height }
+image-none = –
+image-shown = Mip { $level }: { $width } × { $height } Pixel
+image-decoding = Mip { $level } von { $path } wird dekodiert …
+image-unsupported = Die Vorschau kann Texturen im Format { $format } nicht dekodieren. Die Tabs Text und Hex zeigen die Daten von { $path } weiterhin.
+image-failed = { $path } kann nicht dekodiert werden: { $reason }
+image-unshowable = Jedes Mip von { $path } ist größer, als die Vorschau zeigen kann.

@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "table(\"from Ship select position.x, position.y, anchor.y\")?"
+---
+record path         position.x  position.y  anchor.y
+------------------  ----------  ----------  --------
+libs/ships/aurora   0           0           null
+libs/ships/avenger  1.5         -2          8
+2 Records

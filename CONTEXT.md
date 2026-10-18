@@ -50,8 +50,8 @@ or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`
 _Avoid_: format version, Archive version
 
 **Preview**:
-The start of one Entry shown in the window as text or as hexadecimal bytes, read without an
-Extraction.
+The start of one Entry shown in the window as text or as hexadecimal bytes, or a texture shown as
+an image one mip at a time, read without an Extraction.
 _Avoid_: viewer, inspector
 
 ### Game data
@@ -98,6 +98,11 @@ _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entrie
 The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
 a Record has to meet to be selected.
 _Avoid_: filter (a Filter selects Entries)
+
+**Component selector**:
+The `[TypeName]` segment of a Query path: it selects the elements of a struct array whose struct
+is that type or derives from it, e.g. `Components[VehicleComponentParams]`.
+_Avoid_: type filter, cast
 
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.

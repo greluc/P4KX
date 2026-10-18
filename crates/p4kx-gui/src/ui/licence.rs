@@ -1,12 +1,13 @@
-use egui::{Align, Layout, ScrollArea, Ui};
+use std::sync::Arc;
 
-use crate::theme::tokens::{FS_SM, SPACE_4, Weight};
+use egui::{Align, Galley, Id, Label, Layout, ScrollArea, Ui};
+
+use crate::theme::desktop::{BUTTON_XS_HEIGHT, ROW_HEIGHT};
+use crate::theme::palette;
+use crate::theme::tokens::{FS_SM, SPACE_3, SPACE_4, SPACE_8, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
-use crate::widgets::text::plain;
 use crate::{ExtractionText, Model, Text, theme};
-
-const LICENCE_HEIGHT: f32 = 420.0;
 
 pub(super) fn show(ui: &Ui, model: &mut Model) {
     if !model.licence_shown() {
@@ -20,11 +21,11 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
             let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
             ScrollArea::vertical()
-                .max_height(LICENCE_HEIGHT)
+                .max_height(text_height(ui))
                 .show(ui, |ui| {
-                    ui.label(plain(theme::FONT_LICENCE, FS_SM, Weight::Regular));
+                    ui.add(Label::new(licence_text(ui)));
                 });
-            ui.add_space(SPACE_4);
+            frames::foot_rule(ui);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 button::button(ui, Kind::Cta, Size::Normal, &close_label, true).clicked()
             })
@@ -40,4 +41,33 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     if shown.inner || shown.should_close() {
         model.set_licence_shown(false);
     }
+}
+
+/// Returns the height left for the text: the window less the canvas gap above and below, the head
+/// and the foot of the modal.
+fn text_height(ui: &Ui) -> f32 {
+    const CHROME: f32 = 2.0 * SPACE_8 + BUTTON_XS_HEIGHT + TOUCH_TARGET + 2.0 * (SPACE_3 + SPACE_4);
+    (ui.ctx().content_rect().height() - CHROME).max(3.0 * ROW_HEIGHT)
+}
+
+/// Returns the licence laid out once per width and scale, so it is not copied every frame.
+fn licence_text(ui: &Ui) -> Arc<Galley> {
+    let width = ui.available_width();
+    let key = (width.to_bits(), ui.ctx().pixels_per_point().to_bits());
+    let id = Id::unique("p4kx-font-licence");
+    if let Some((cached, galley)) = ui.data(|data| data.get_temp::<((u32, u32), Arc<Galley>)>(id))
+        && cached == key
+    {
+        return galley;
+    }
+    let galley = ui.fonts_mut(|fonts| {
+        fonts.layout(
+            theme::FONT_LICENCE.to_owned(),
+            font(FS_SM, Weight::Regular),
+            palette::GRAY_1,
+            width,
+        )
+    });
+    ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&galley))));
+    galley
 }

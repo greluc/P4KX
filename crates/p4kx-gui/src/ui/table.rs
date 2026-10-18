@@ -8,7 +8,9 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
-use crate::widgets::rows::{RowState, paint_divider, paint_row, sort_chevron};
+use crate::widgets::rows::{
+    RowState, focus_inside, paint_divider, paint_row, row_weight, sort_chevron,
+};
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::widgets::toggle::{Check, checkbox_cell};
 use crate::{Browser, Model, SortColumn, SortDirection, Text, Texts, format};
@@ -148,11 +150,7 @@ fn show_row(
     let active = browser.selected_entry() == Some(id);
     let state = RowState::of(active, checked, hovered);
     let (_, colour) = state.colours();
-    let weight = if active {
-        Weight::Bold
-    } else {
-        Weight::Regular
-    };
+    let weight = row_weight(active);
     let mut action = None;
     row.col(|ui| {
         let rect = ui.max_rect();
@@ -172,12 +170,7 @@ fn show_row(
         cell_text(ui, &compression(texts, entry), colour, weight);
     });
     row.col(|ui| {
-        let text = if entry.is_encrypted() {
-            Text::EncryptedYes
-        } else {
-            Text::EncryptedNo
-        };
-        cell_text(ui, &texts.get(text), colour, weight);
+        cell_text(ui, &encryption(texts, entry), colour, weight);
     });
     row.col(|ui| {
         let size = format::size(entry.uncompressed_size(), language);
@@ -185,6 +178,11 @@ fn show_row(
     });
     let response = row.response();
     let is_hovered = response.hovered();
+    focus_inside(
+        &response.ctx.layer_painter(response.layer_id),
+        response.rect,
+        &response,
+    );
     if response
         .on_hover_ui(|ui| {
             ui.label(entry.path());
@@ -246,7 +244,20 @@ fn sort_header(ui: &Ui, browser: &Browser, column: SortColumn, label: &str) -> b
     } else if response.hovered() {
         sort_chevron(ui.painter(), centre, CHEVRON, true, palette::GRAY_2_TEXT);
     }
+    focus_inside(
+        ui.painter(),
+        rect.with_max_y(rect.bottom() - 2.0),
+        &response,
+    );
     response.clicked()
+}
+
+fn encryption(texts: &Texts, entry: &Entry) -> String {
+    texts.get(if entry.is_encrypted() {
+        Text::EncryptedYes
+    } else {
+        Text::EncryptedNo
+    })
 }
 
 fn compression(texts: &Texts, entry: &Entry) -> String {

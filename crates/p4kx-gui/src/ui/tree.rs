@@ -1,12 +1,13 @@
 use egui::{Rect, Role, ScrollArea, Sense, Stroke, Ui, WidgetInfo, pos2, vec2};
 
 use crate::theme::desktop::{
-    CHEVRON, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, TREE_GAP, TREE_INDENT, TREE_PADDING_LEFT,
-    TREE_RAIL_OFFSET,
+    CHEVRON, FOCUS_OFFSET, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, TREE_GAP, TREE_INDENT,
+    TREE_PADDING_LEFT, TREE_RAIL_OFFSET,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_2, Weight};
-use crate::widgets::rows::{RowState, chevron, paint_row};
+use crate::theme::tokens::SPACE_2;
+use crate::widgets::button::focus_ring;
+use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::{Browser, FolderId, Model, Text, Texts, TreeRow};
 
@@ -83,11 +84,8 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
         && toggle(ui, texts, (row.folder, chevron_rect), expanded, name))
     .then_some(Action::Toggle(row.folder));
     let (_, colour) = state.colours();
-    let weight = if active {
-        Weight::Bold
-    } else {
-        Weight::Regular
-    };
+    let weight = row_weight(active);
+
     let text_rect = rect.with_min_x(chevron_rect.right());
     let galley = line(
         ui,
@@ -95,6 +93,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
         (text_rect.width() - SPACE_2).max(0.0),
     );
     paint_left(ui, text_rect, galley, colour);
+    focus_inside(ui.painter(), rect, &response);
     if response
         .on_hover_ui(|ui| {
             ui.label(name);
@@ -126,6 +125,10 @@ fn toggle(
     });
     let centre = pos2(rect.left() + CHEVRON / 2.0, rect.center().y);
     chevron(ui.painter(), centre, CHEVRON, expanded, palette::PRIMARY);
+    if response.has_focus() {
+        let mark = Rect::from_center_size(centre, vec2(CHEVRON, CHEVRON));
+        focus_ring(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
+    }
     response.clicked()
 }
 

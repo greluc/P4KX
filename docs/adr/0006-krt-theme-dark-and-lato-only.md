@@ -49,6 +49,7 @@ Each is forced by egui 0.37 or Windows; colour, form and type stay as the design
 | `:focus-visible` only for keyboard focus | The focus ring shows while a control has focus, also after a click | egui does not tell keyboard focus from pointer focus |
 | Logo as SVG | The glyph is rasterised from its geometry for the window icon and the header mark | egui and Windows need raster images |
 | Web footer `.krt-footer` 16/32 padding | Status bar 32 points high (desktop spec) | a desktop status line, decided in the desktop spec |
+| `.krt-segmented--sm` items: `fs-2xs` Bold, upper case, 0.05 em | Quick filters 12.8 points Regular (Bold when pressed), as written, no tracking | the filters are glob data (desktop spec D.6 and its quickFilter entry) |
 | Touch target 44 points for data rows | 36 point rows, 44 point controls (desktop spec D.1) | mouse and keyboard tool, decided in the desktop spec |
 
 ## Considered Options

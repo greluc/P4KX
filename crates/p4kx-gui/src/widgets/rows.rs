@@ -45,6 +45,15 @@ impl RowState {
     }
 }
 
+/// Returns the weight of a row's text: Bold for the active row.
+pub(crate) const fn row_weight(active: bool) -> Weight {
+    if active {
+        Weight::Bold
+    } else {
+        Weight::Regular
+    }
+}
+
 /// Paints the background of a data row in `state`, with the orange bar of the active row.
 pub(crate) fn paint_row(painter: &Painter, rect: Rect, state: RowState) {
     let (fill, _) = state.colours();
@@ -52,6 +61,18 @@ pub(crate) fn paint_row(painter: &Painter, rect: Rect, state: RowState) {
     if state == RowState::Active {
         let bar = Rect::from_min_size(rect.min, vec2(ACTIVE_BAR, rect.height()));
         painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+    }
+}
+
+/// Paints the focus ring 2 points inside a row or head cell at `rect` while `response` has focus.
+pub(crate) fn focus_inside(painter: &Painter, rect: Rect, response: &egui::Response) {
+    if response.has_focus() {
+        painter.rect_stroke(
+            rect.shrink(FOCUS_WIDTH),
+            CornerRadius::ZERO,
+            Stroke::new(FOCUS_WIDTH, palette::PRIMARY),
+            egui::StrokeKind::Inside,
+        );
     }
 }
 

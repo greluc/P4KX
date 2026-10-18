@@ -8,9 +8,7 @@ use super::{Dialog, Requests};
 use crate::extraction::target_naming;
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
-use crate::theme::tokens::{
-    FS_BODY, FS_SM, FS_XS, SPACE_2, SPACE_3, SPACE_4, TOUCH_TARGET, Weight, font,
-};
+use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
@@ -202,14 +200,7 @@ fn confirm(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
 /// Shows the foot of a modal: the ghost `secondary` and, right of it, the CTA `primary`. Returns
 /// `Some(true)` for the CTA and `Some(false)` for the secondary action.
 pub(super) fn foot(ui: &mut Ui, texts: &Texts, primary: (T, bool), secondary: T) -> Option<bool> {
-    ui.add_space(SPACE_4);
-    let top = ui.cursor().top();
-    ui.painter().hline(
-        ui.max_rect().expand2(vec2(SPACE_4, 0.0)).x_range(),
-        top,
-        egui::Stroke::new(1.0, palette::GRAY_3),
-    );
-    ui.add_space(SPACE_2 + SPACE_2 / 2.0);
+    frames::foot_rule(ui);
     let mut pressed = None;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         let (cta, enabled) = primary;

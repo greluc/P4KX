@@ -10,7 +10,7 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::{FS_2XS, FS_XS, TRACKING_DISPLAY, TRACKING_OVERLINE, Weight};
 use crate::widgets::frames::px;
-use crate::widgets::rows::{RowState, paint_divider, paint_row};
+use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row};
 use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
 use crate::{Model, Text, Texts};
 
@@ -60,6 +60,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, channel: &Channel, current: Option<&Path
     let state = RowState::of(active, false, response.hovered());
     paint_row(ui.painter(), rect, state);
     paint_divider(ui.painter(), rect);
+    focus_inside(ui.painter(), rect, &response);
     let (_, colour) = state.colours();
     let inner = rect.shrink2(vec2(SIDEBAR_PADDING_X, 0.0));
     let name = line(

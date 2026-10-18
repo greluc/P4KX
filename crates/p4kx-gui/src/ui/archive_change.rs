@@ -5,7 +5,7 @@ use crate::theme::desktop::NOTICE_ICON;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_3, Weight};
 use crate::widgets::button::{self, Kind, Size};
-use crate::widgets::frames::{self, Tone};
+use crate::widgets::frames;
 use crate::widgets::indicator::warning_icon;
 use crate::widgets::text::plain;
 use crate::{Extraction, Model, Text};
@@ -27,7 +27,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         .frame(Frame::NONE.fill(palette::SURFACE_PANEL))
         .show_separator_line(false)
         .show(ui, |ui| {
-            frames::alert(ui, Tone::Warning, |ui| {
+            frames::warning_alert(ui, |ui| {
                 ui.spacing_mut().item_spacing.x = SPACE_3;
                 ui.horizontal(|ui| {
                     let (icon, _) = ui

@@ -240,14 +240,15 @@ fn hex_row(ui: &mut Ui, contents: &PreviewContents, index: usize, glyphs: &HexGl
     }
     let painter = ui.painter();
     let y = rect.center().y;
-    let offset = index.saturating_mul(usize::from(HEX_ROW_LEN));
-    painter.text(
-        pos2(rect.left(), y),
-        Align2::LEFT_CENTER,
-        format!("{offset:08X}"),
-        font(FS_XS, Weight::Regular),
-        palette::GRAY_2_TEXT,
-    );
+    let offset = u32::try_from(index.saturating_mul(usize::from(HEX_ROW_LEN))).unwrap_or(u32::MAX);
+    let mut left = rect.left();
+    for byte in offset.to_be_bytes() {
+        if let Some(pair) = glyphs.pairs.get(usize::from(byte)) {
+            let at = pos2(left, y - pair.size().y / 2.0);
+            left += pair.size().x;
+            painter.galley(at, Arc::clone(pair), palette::GRAY_2_TEXT);
+        }
+    }
     for (&byte, column) in contents.hex_row_bytes(index).iter().zip(0_u8..) {
         let colour = if byte == 0 {
             palette::GRAY_2_TEXT

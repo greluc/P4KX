@@ -2,7 +2,6 @@
 //! derives them from the KRT design system for a mouse and keyboard tool.
 
 use egui::Color32;
-use egui::epaint::Shadow;
 
 use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, TOUCH_TARGET};
 
@@ -198,8 +197,6 @@ pub const SPINNER_RING: f32 = 2.0;
 pub const SPINNER_PERIOD: f64 = 0.9;
 /// The widest a tooltip gets.
 pub const TOOLTIP_MAX_WIDTH: f32 = 272.0;
-/// The font size of a tooltip.
-pub const TOOLTIP_SIZE: f32 = 0.78 * REM;
 /// The width of a scrollbar.
 pub const SCROLLBAR: f32 = 12.0;
 /// The width of a thin scrollbar in the sidebar.
@@ -220,28 +217,13 @@ pub const TRANSITION: f32 = 0.2;
 pub const GHOST_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 18);
 /// The outline button's hover tint and the chip tint, `rgba(231,126,35,0.12)`.
 pub const OUTLINE_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 31);
-/// The quiet-danger button's hover tint, `rgba(163,0,10,0.12)`.
-pub const QUIET_DANGER_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 31);
-/// The quiet-danger button's pressed tint, `rgba(163,0,10,0.2)`.
-pub const QUIET_DANGER_PRESSED: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The zebra stripe of a table, `rgba(255,255,255,0.02)`.
 pub const ZEBRA: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 5);
 /// The fill of a warning alert, `rgba(255,210,63,0.15)`.
 pub const ALERT_WARNING_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 210, 63, 38);
-/// The fill of a danger alert, `rgba(163,0,10,0.2)`.
-pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The fill of the empty state while a file is dragged over it, `rgba(231,126,35,0.10)`.
 pub const DROP_TARGET_FILL: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 26);
 /// The track of a spinner, `rgba(231,126,35,0.25)`.
 pub const SPINNER_TRACK: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 64);
-/// The fill of a tooltip, `rgba(0,0,0,0.95)`.
-pub const TOOLTIP_FILL: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 242);
-/// The glow of a tooltip, `0 0 10px rgba(231,126,35,0.3)`.
-pub const TOOLTIP_GLOW: Shadow = Shadow {
-    offset: [0, 0],
-    blur: 10,
-    spread: 0,
-    color: Color32::from_rgba_unmultiplied_const(231, 126, 35, 77),
-};
 /// The flat scrim behind a modal, `rgba(0,0,0,0.8)`.
 pub const SCRIM: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 204);

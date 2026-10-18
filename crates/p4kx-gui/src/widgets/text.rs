@@ -5,7 +5,7 @@ use egui::{
     TextStyle, TextWrapMode, Ui, WidgetInfo, WidgetText, pos2,
 };
 
-use crate::theme::desktop::FOCUS_WIDTH;
+use crate::theme::desktop::{FOCUS_OFFSET, FOCUS_WIDTH};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight, font};
 
@@ -61,6 +61,9 @@ pub(crate) fn link(ui: &mut Ui, text: &str, url: &str) -> Response {
             y,
             Stroke::new(FOCUS_WIDTH / 2.0, palette::ACCENT_LIGHT),
         );
+    }
+    if response.has_focus() {
+        super::button::focus_ring(ui, rect, palette::PRIMARY, FOCUS_OFFSET);
     }
     let response = response.on_hover_cursor(CursorIcon::PointingHand);
     if response.clicked() {

@@ -17,11 +17,10 @@ pub(crate) const MODAL_BODY_WIDTH: f32 = MODAL_WIDTH - 2.0 * SPACE_4;
 /// The width of the body of a wide modal.
 pub(crate) const MODAL_WIDE_BODY_WIDTH: f32 = MODAL_WIDE_WIDTH - 2.0 * SPACE_4;
 
-/// The tone of a modal or an alert.
+/// The tone of a modal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Tone {
     Normal,
-    Warning,
     Danger,
 }
 
@@ -29,7 +28,6 @@ impl Tone {
     const fn accent(self) -> Color32 {
         match self {
             Self::Normal => palette::PRIMARY,
-            Self::Warning => palette::WARNING,
             Self::Danger => palette::DANGER,
         }
     }
@@ -96,13 +94,10 @@ pub(crate) fn preview_body() -> Frame {
     Frame::NONE.inner_margin(margin(PREVIEW_PADDING_X, 8.0))
 }
 
-/// Shows an `.alert` of `tone` with `body` inside.
-pub(crate) fn alert<R>(ui: &mut Ui, tone: Tone, body: impl FnOnce(&mut Ui) -> R) -> R {
-    let fill = match tone {
-        Tone::Warning => crate::theme::desktop::ALERT_WARNING_FILL,
-        Tone::Normal | Tone::Danger => crate::theme::desktop::ALERT_DANGER_FILL,
-    };
-    let accent = tone.accent();
+/// Shows an `.alert.alert-warning` with `body` inside.
+pub(crate) fn warning_alert<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    let fill = crate::theme::desktop::ALERT_WARNING_FILL;
+    let accent = palette::WARNING;
     let response = Frame::NONE
         .fill(fill)
         .stroke(Stroke::new(1.0, accent))
@@ -182,6 +177,18 @@ pub(crate) fn head(
     );
     ui.add_space(SPACE_3 + SPACE_4);
     closed
+}
+
+/// Starts the foot of a modal: its gap and the hairline across the whole modal above it.
+pub(crate) fn foot_rule(ui: &mut Ui) {
+    ui.add_space(SPACE_4);
+    let top = ui.cursor().top();
+    ui.painter().hline(
+        ui.max_rect().expand2(vec2(SPACE_4, 0.0)).x_range(),
+        top,
+        Stroke::new(1.0, palette::GRAY_3),
+    );
+    ui.add_space(SPACE_3);
 }
 
 /// Returns a `.krt-modal` on the flat scrim.

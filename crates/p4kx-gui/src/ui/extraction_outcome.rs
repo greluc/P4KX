@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use egui::text::{LayoutJob, TextFormat};
@@ -10,13 +11,13 @@ use crate::theme::desktop::{
     MODAL_WIDE_WIDTH, MODAL_WIDTH, ROW_HEIGHT, SECTION_LIST_HEIGHT, SPINNER_INLINE,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, SPACE_4, Weight, font};
+use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
 use crate::widgets::text::paint_left;
-use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Model, Texts};
+use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Language, Model, Texts};
 
 const REFRESH: Duration = Duration::from_millis(100);
 const WINDOW: &str = "extraction-run";
@@ -110,7 +111,7 @@ fn outcome_window(
 }
 
 fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
-    ui.add_space(SPACE_4);
+    frames::foot_rule(ui);
     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         button::button(ui, Kind::Cta, Size::Normal, &texts.get(T::Close), true).clicked()
     })
@@ -135,7 +136,7 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
     ui.add_space(SPACE_3);
     let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
     indicator::progress(ui, fraction, cancelling, width);
-    ui.add_space(SPACE_4);
+    frames::foot_rule(ui);
     if cancelling {
         ui.horizontal(|ui| {
             indicator::spinner(ui, SPINNER_INLINE);
@@ -173,28 +174,11 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     ));
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
-    let failures: Vec<String> = summary
-        .failures()
-        .iter()
-        .map(|failure| {
-            texts.format(
-                T::SummaryFailure,
-                &[
-                    ("path", failure.path.clone().into()),
-                    ("reason", failure.reason.clone().into()),
-                ],
-            )
-        })
-        .collect();
-    let reasons: Vec<usize> = failures
-        .iter()
-        .zip(summary.failures())
-        .map(|(line, failure)| line.len().saturating_sub(failure.reason.len()))
-        .collect();
+    let failures = failure_lines(ui, texts, summary);
     list(
         ui,
         texts,
-        (T::SummaryFailed, &failures, Some(&reasons)),
+        (T::SummaryFailed, &failures.lines, Some(&failures.reasons)),
         true,
     );
     list(
@@ -209,6 +193,54 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
         (T::SummaryCancelled, summary.cancelled(), None),
         false,
     );
+}
+
+/// The formatted failure lines of a summary and where the reason starts in each.
+#[derive(Clone)]
+struct FailureLines {
+    key: (usize, usize, Language),
+    lines: Arc<[String]>,
+    reasons: Arc<[usize]>,
+}
+
+/// Returns the failure lines of `summary`, formatted once per summary and language.
+fn failure_lines(ui: &Ui, texts: &Texts, summary: &ExtractionSummary) -> FailureLines {
+    let key = (
+        std::ptr::from_ref(summary).addr(),
+        summary.failures().len(),
+        texts.language(),
+    );
+    let id = Id::unique("p4kx-failure-lines");
+    if let Some(cached) = ui.data(|data| data.get_temp::<FailureLines>(id))
+        && cached.key == key
+    {
+        return cached;
+    }
+    let lines: Arc<[String]> = summary
+        .failures()
+        .iter()
+        .map(|failure| {
+            texts.format(
+                T::SummaryFailure,
+                &[
+                    ("path", failure.path.clone().into()),
+                    ("reason", failure.reason.clone().into()),
+                ],
+            )
+        })
+        .collect();
+    let reasons = lines
+        .iter()
+        .zip(summary.failures())
+        .map(|(line, failure)| line.len().saturating_sub(failure.reason.len()))
+        .collect();
+    let failures = FailureLines {
+        key,
+        lines,
+        reasons,
+    };
+    ui.data_mut(|data| data.insert_temp(id, failures.clone()));
+    failures
 }
 
 fn list(

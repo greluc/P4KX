@@ -7,7 +7,7 @@ use crate::theme::desktop::{
     BRAND_PADDING_RIGHT, DROPDOWN_ITEM_PADDING_X, DROPDOWN_MIN_WIDTH, MENU_LINK_PADDING_X,
     MENU_LINK_SIZE,
 };
-use crate::theme::tokens::{TOUCH_TARGET, TRACKING_DISPLAY, Weight};
+use crate::theme::tokens::{FS_SM, TOUCH_TARGET, TRACKING_DISPLAY, Weight, font};
 use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
@@ -48,7 +48,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             label(&response.response, &language_menu);
             let response = ui.menu_button(link(&help_menu), |ui| {
                 dropdown(ui);
-                show_licence = ui.button(licence.as_str()).clicked();
+                show_licence = ui.button(entry(&licence)).clicked();
                 ui.separator();
                 indented(ui, |ui| toggle::checkbox(ui, &mut enabled, &update_check));
             });
@@ -74,6 +74,11 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
 
 fn link(text: &str) -> egui::RichText {
     caps(text, MENU_LINK_SIZE, Weight::Bold, TRACKING_DISPLAY)
+}
+
+/// Returns a `.krt-combobox__option` label: 14.4 points Regular, as written.
+fn entry(text: &str) -> egui::RichText {
+    egui::RichText::new(text).font(font(FS_SM, Weight::Regular))
 }
 
 fn dropdown(ui: &mut Ui) {
@@ -104,12 +109,12 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
             (Text::ActionAddFolder, Dialog::AddFolder),
             (Text::ActionAddArchive, Dialog::AddArchive),
         ] {
-            if ui.button(texts.get(text)).clicked() {
+            if ui.button(entry(&texts.get(text))).clicked() {
                 requests.dialog = Some(dialog);
             }
         }
         ui.separator();
-        ui.menu_button(texts.get(Text::MenuRecent), |ui| {
+        ui.menu_button(entry(&texts.get(Text::MenuRecent)), |ui| {
             dropdown(ui);
             reopen = recent_menu(ui, texts, model);
         });
@@ -120,11 +125,11 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
 
 fn recent_menu(ui: &mut Ui, texts: &Texts, model: &Model) -> Option<PathBuf> {
     if model.recent().is_empty() {
-        ui.weak(texts.get(Text::RecentNone));
+        ui.label(entry(&texts.get(Text::RecentNone)).color(crate::theme::palette::GRAY_2_TEXT));
     }
     let mut reopen = None;
     for path in model.recent() {
-        if ui.button(path.display().to_string()).clicked() {
+        if ui.button(entry(&path.display().to_string())).clicked() {
             reopen = Some(path.clone());
         }
     }

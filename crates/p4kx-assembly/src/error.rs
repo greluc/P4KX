@@ -44,7 +44,9 @@ pub enum LoadoutError {
         reason: String,
     },
     /// The Entity is already attached further up the same branch.
-    #[error("the Entity {guid} already holds this port further up; attaching it again never ends")]
+    #[error(
+        "the Entity {guid} is already attached further up this branch; attaching it again never ends"
+    )]
     Cycle {
         /// The GUID of the Entity.
         guid: Guid,

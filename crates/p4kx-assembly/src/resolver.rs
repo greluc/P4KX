@@ -6,7 +6,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::entities::is_entity;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
-use crate::{Entities, EntityNode, LoadoutError, LoadoutFiles, xml};
+use crate::{Entities, EntityNode, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH, xml};
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
 pub(crate) type EntriesResult = Result<Arc<[EntrySpec]>, LoadoutError>;
@@ -118,39 +118,47 @@ impl<'f> LoadoutResolver<'f> {
         }
     }
 
-    /// Reads the specs of every Entity reachable from `root` through Record Loadouts in
-    /// parallel, level by level.
+    /// Reads the specs of the Entities reachable from `root` through Record Loadouts and port
+    /// defaults in parallel, level by level, as deep as a tree is resolved.
     fn prefetch(&mut self, root: Record<'f>) {
         let mut frontier = vec![root];
-        while !frontier.is_empty() {
-            let read: Vec<(Guid, SpecResult)> = frontier
+        for _ in 0..=MAX_LOADOUT_DEPTH {
+            let (cached, missing): (Vec<_>, Vec<_>) = frontier
+                .into_iter()
+                .partition(|record| self.specs.contains_key(&record.guid()));
+            let read: Vec<(Guid, SpecResult)> = missing
                 .into_par_iter()
                 .map_init(TreeBuilder::new, |builder, record| {
                     (record.guid(), Arc::new(read_spec(builder, &record)))
                 })
                 .collect();
-            let mut seen = HashSet::new();
-            let mut next = Vec::new();
+            let mut level: Vec<SpecResult> = cached
+                .iter()
+                .filter_map(|record| self.specs.get(&record.guid()).cloned())
+                .collect();
             for (guid, spec) in read {
-                if let Ok(spec) = spec.as_ref() {
-                    for target in spec.targets() {
-                        if let Some(record) = self.record_of(target)
-                            && !self.specs.contains_key(&record.guid())
-                            && record.guid() != guid
-                            && seen.insert(record.guid())
-                        {
-                            next.push(record);
-                        }
-                    }
-                }
+                level.push(Arc::clone(&spec));
                 self.specs.insert(guid, spec);
             }
-            next.retain(|record| !self.specs.contains_key(&record.guid()));
-            frontier = next;
+            frontier = self.unread_targets(&level);
+            if frontier.is_empty() {
+                break;
+            }
         }
     }
-}
 
+    /// Returns the Records the specs name that are not read yet, each once.
+    fn unread_targets(&self, specs: &[SpecResult]) -> Vec<Record<'f>> {
+        let mut seen = HashSet::new();
+        specs
+            .iter()
+            .filter_map(|spec| spec.as_ref().as_ref().ok())
+            .flat_map(EntitySpec::targets)
+            .filter_map(|target| self.record_of(target))
+            .filter(|record| !self.specs.contains_key(&record.guid()) && seen.insert(record.guid()))
+            .collect()
+    }
+}
 /// Reads the spec of one Record, which must be an Entity.
 fn read_spec<'f>(
     builder: &mut TreeBuilder<'f>,

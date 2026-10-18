@@ -130,9 +130,9 @@ parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rot
 An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
 target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are
 `dangling_reference`, `invalid_reference`, `unknown_class`, `not_an_entity`,
-`unreadable_record`, `cycle` (the Entity already holds the port further up the branch),
-`too_deep` (more than 32 attached Entities below the root), `too_many_ports` (more than 65,536
-ports in the tree), `no_loadout_files` and `xml_loadout` (an XML Loadout that is missing, corrupt,
+`unreadable_record`, `cycle` (the Entity is already attached further up the branch),
+`too_deep` (more than 32 attached Entities below the root), `too_many_ports` (the tree reached
+65,536 ports, so the Entities of later ports are not attached), `no_loadout_files` and `xml_loadout` (an XML Loadout that is missing, corrupt,
 includes itself or nests deeper than 8 includes).
 
 The tree is resolved from the Records: an Entity's ports are the entries of its default Loadout
@@ -141,7 +141,8 @@ the Archive with the Loadouts it includes) in Loadout order, each replaced in pl
 of the same port, ignoring case, in the Loadout given by the entry that attached the Entity, with
 that Loadout's other entries appended; then the ports its `SItemPortContainerComponentParams`
 defines and no Loadout names, in definition order. An entry names its Entity by Reference, or by
-class name when it has none. The same Archive always gives the same document.
+class name when it has none; of several Entities with one class name, the first in definition
+order is attached. The same Archive always gives the same document.
 
 ## `p4kx channels --json`
 

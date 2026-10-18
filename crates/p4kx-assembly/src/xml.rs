@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use p4kx_cryxml::{Element, Xml};
@@ -54,40 +55,58 @@ impl Node for roxmltree::Node<'_, '_> {
 /// Reads the XML Loadout at `path` with the Loadouts it includes: the entries of the included
 /// Loadouts in order, each overridden by the later ones and by the file's own entries per port.
 pub(crate) fn load(files: &dyn LoadoutFiles, path: &str) -> Result<Vec<EntrySpec>, LoadoutError> {
-    let mut stack = Vec::new();
-    load_nested(files, path, &mut stack)
+    let mut loader = Loader {
+        files,
+        stack: Vec::new(),
+        done: HashMap::new(),
+    };
+    loader.load(path)
 }
 
-fn load_nested(
-    files: &dyn LoadoutFiles,
-    path: &str,
-    stack: &mut Vec<String>,
-) -> Result<Vec<EntrySpec>, LoadoutError> {
-    let failed = |reason: String| LoadoutError::XmlLoadout {
-        path: path.to_owned(),
-        reason,
-    };
-    if stack.iter().any(|seen| seen.eq_ignore_ascii_case(path)) {
-        return Err(failed("it includes itself".to_owned()));
+/// Reads one XML Loadout with its includes, each file once.
+struct Loader<'l> {
+    files: &'l dyn LoadoutFiles,
+    stack: Vec<String>,
+    done: HashMap<String, Vec<EntrySpec>>,
+}
+
+impl Loader<'_> {
+    fn load(&mut self, path: &str) -> Result<Vec<EntrySpec>, LoadoutError> {
+        if let Some(entries) = self.done.get(&path.to_ascii_lowercase()) {
+            return Ok(entries.clone());
+        }
+        let failed = |reason: String| LoadoutError::XmlLoadout {
+            path: path.to_owned(),
+            reason,
+        };
+        if self
+            .stack
+            .iter()
+            .any(|seen| seen.eq_ignore_ascii_case(path))
+        {
+            return Err(failed("it includes itself".to_owned()));
+        }
+        if self.stack.len() >= MAX_XML_INCLUDE_DEPTH {
+            return Err(failed(format!(
+                "it is included deeper than {MAX_XML_INCLUDE_DEPTH} Loadouts"
+            )));
+        }
+        let bytes = self
+            .files
+            .read(path)
+            .map_err(|error| failed(error.to_string()))?;
+        let loadout = parse(&bytes).map_err(failed)?;
+        self.stack.push(path.to_owned());
+        let mut entries = Vec::new();
+        for include in &loadout.includes {
+            let included = self.load(include);
+            merge_into(&mut entries, included?);
+        }
+        self.stack.pop();
+        merge_into(&mut entries, loadout.entries);
+        self.done.insert(path.to_ascii_lowercase(), entries.clone());
+        Ok(entries)
     }
-    if stack.len() >= MAX_XML_INCLUDE_DEPTH {
-        return Err(failed(format!(
-            "it is included deeper than {MAX_XML_INCLUDE_DEPTH} Loadouts"
-        )));
-    }
-    let bytes = files
-        .read(path)
-        .map_err(|error| failed(error.to_string()))?;
-    let loadout = parse(&bytes).map_err(failed)?;
-    stack.push(path.to_owned());
-    let mut entries = Vec::new();
-    for include in &loadout.includes {
-        let included = load_nested(files, include, stack);
-        merge_into(&mut entries, included?);
-    }
-    stack.pop();
-    merge_into(&mut entries, loadout.entries);
-    Ok(entries)
 }
 
 /// Replaces the entry of each port `overrides` names, ignoring ASCII case, and appends the rest.
@@ -152,7 +171,7 @@ fn read_items<N: Node>(items: N, depth: usize) -> Result<Vec<EntrySpec>, String>
         let mut nested = Vec::new();
         for child in item.children() {
             if child.name() == "Items" {
-                nested.extend(read_items(child, depth + 1)?);
+                nested.extend(read_items(child, depth.saturating_add(1))?);
             }
         }
         entries.push(EntrySpec {

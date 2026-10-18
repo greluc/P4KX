@@ -26,7 +26,9 @@ impl<'f> Entities<'f> {
     pub fn new(forge: &'f DataForge<'f>) -> Self {
         let mut classes: HashMap<Box<str>, Vec<Record<'f>>> = HashMap::new();
         for record in forge.records() {
-            if let Some(class) = record.name().ok().and_then(class_name_of) {
+            if let Some(class) = record.name().ok().and_then(class_name_of)
+                && is_entity(&record)
+            {
                 classes
                     .entry(class.to_ascii_lowercase().into_boxed_str())
                     .or_default()
@@ -68,7 +70,7 @@ impl<'f> Entities<'f> {
         } else if text.contains(['/', '\\']) {
             self.forge.records_at_path(text).filter(is_entity).collect()
         } else {
-            let class = class_name_of(text).unwrap_or(text);
+            let class = strip_prefix_ignoring_case(text).unwrap_or(text);
             self.by_class_name_all(class).to_vec()
         };
         match matches.as_slice() {
@@ -105,6 +107,15 @@ pub(crate) fn is_entity(record: &Record<'_>) -> bool {
 /// Returns the class name in an Entity's Record name, or `None` for any other name.
 pub(crate) fn class_name_of(name: &str) -> Option<&str> {
     name.strip_prefix(NAME_PREFIX)
+}
+
+/// Returns the class name in a Record name typed in any case, or `None` without the prefix.
+fn strip_prefix_ignoring_case(text: &str) -> Option<&str> {
+    let prefix = text.get(..NAME_PREFIX.len())?;
+    prefix
+        .eq_ignore_ascii_case(NAME_PREFIX)
+        .then(|| text.get(NAME_PREFIX.len()..))
+        .flatten()
 }
 
 fn describe(record: &Record<'_>) -> String {

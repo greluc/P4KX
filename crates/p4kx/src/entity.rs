@@ -69,7 +69,7 @@ fn print_node(out: &mut impl Write, node: &EntityNode, depth: usize) -> io::Resu
     for port in node.ports() {
         writeln!(out, "{indent}{}", port_line(port))?;
         if let Attachment::Entity(child) = port.attachment() {
-            print_node(out, child, depth + 1)?;
+            print_node(out, child, depth.saturating_add(1))?;
         }
     }
     Ok(())

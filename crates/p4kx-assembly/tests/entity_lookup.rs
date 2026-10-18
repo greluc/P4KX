@@ -51,6 +51,12 @@ fn an_entity_is_found_by_class_name_ignoring_case() -> TestResult {
         assert_eq!(class_of(entities, "AEGS_Avenger_Titan")?, expected, "exact");
         assert_eq!(class_of(entities, "aegs_avenger_titan")?, expected, "case");
         assert_eq!(class_of(entities, expected)?, expected, "Record name");
+        let lower = expected.to_ascii_lowercase();
+        assert_eq!(
+            class_of(entities, &lower)?,
+            expected,
+            "Record name in lower case"
+        );
         Ok(())
     })
 }

@@ -16,12 +16,13 @@ impl Counts {
     pub(crate) fn of(node: &EntityNode) -> Self {
         let mut counts = Self::default();
         for (_, port) in node.walk() {
-            counts.ports += 1;
-            match port.attachment() {
-                Attachment::Empty => counts.empty += 1,
-                Attachment::Entity(_) => counts.attached += 1,
-                Attachment::Unresolved(_) => counts.unresolved += 1,
-            }
+            counts.ports = counts.ports.saturating_add(1);
+            let count = match port.attachment() {
+                Attachment::Empty => &mut counts.empty,
+                Attachment::Entity(_) => &mut counts.attached,
+                Attachment::Unresolved(_) => &mut counts.unresolved,
+            };
+            *count = count.saturating_add(1);
         }
         counts
     }

@@ -73,7 +73,10 @@ Early development (milestone M1). Available today:
   row per Record in record-path order, e.g.
   `p4kx dcb query Data.p4k 'from EntityClassDefinition at "*/spaceships/*"'`. `from <type>`
   selects a type and every type deriving from it, `at "<glob>"` selects by record path with the
-  rules of `search`. An invalid Query exits with code 2 and marks its position.
+  rules of `search`. An invalid Query exits with code 2 and marks its position. `--format csv`
+  writes RFC 4180 CSV with a header row and `--format json` (or `--json`) one line of JSON, an
+  array of objects keyed by column with typed values; `--out <file>` writes the result to a file
+  instead of stdout and prints a summary.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_output.rs
+expression: "csv.replace(\"\\r\\n\", \"<CRLF>\\n\")"
+---
+record path,name,crew,mass,size,docked<CRLF>
+libs/items/box,Box,,-0.25,Small,<CRLF>
+libs/items/note,"two
+lines",,NaN,error: offset 4294967295 in the text table is not a valid string,<CRLF>
+libs/ships/avenger,"Avenger, ""Titan""",2,25000.5,Large,false<CRLF>

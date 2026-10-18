@@ -12,6 +12,10 @@ fails while its section is missing.
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem
   and mark its position in the Query, with a suggestion for a mistyped type or field name.
+- `p4kx dcb query --format table|csv|json [--out <file>]`: Query results as RFC 4180 CSV with a
+  header row or as JSON, an array of objects keyed by column with values typed as booleans,
+  numbers and strings, written page by page to stdout or to a file; the columns of the table
+  fit every row.
 - `where` conditions in Queries: comparisons with `=`, `!=`, `<`, `<=`, `>`, `>=` on numbers,
   strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
   `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of

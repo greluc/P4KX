@@ -2889,6 +2889,7 @@ dependencies = [
  "p4kx-testkit",
  "rayon",
  "roxmltree",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 

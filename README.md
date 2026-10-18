@@ -55,6 +55,11 @@ Early development (milestone M1). Available today:
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
   truncated or oversized part is named in the error and nothing is written. Split cubemaps and
   texture arrays are not merged yet.
+- `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file.
+  Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
+  Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
+  with an error naming it, and a corrupt or truncated WEM fails with the reason.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

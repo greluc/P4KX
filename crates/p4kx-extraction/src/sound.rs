@@ -1,0 +1,174 @@
+use std::fs::{self, File};
+use std::io::{self, BufWriter, Read};
+use std::path::{Path, PathBuf};
+
+use p4kx_archive::Archive;
+use p4kx_audio::{AudioError, WavReport, Wem};
+use rayon::prelude::*;
+
+use crate::texture::{create_temporary, read_error, write_error};
+use crate::texture_parts::is_same_file;
+use crate::{ConversionError, UnknownEntries};
+
+/// The largest WEM read into memory, far above the largest sound of a real Archive.
+pub const MAX_SOUND_LEN: u64 = 512 << 20;
+const WRITE_BUFFER_LEN: usize = 256 * 1024;
+
+/// A Wwise WEM sound read from an Entry of an Archive or from a file on disk.
+#[derive(Debug)]
+pub struct Sound {
+    name: String,
+    file: Option<PathBuf>,
+    wem: Wem<Vec<u8>>,
+}
+
+impl Sound {
+    /// Reads and parses the WEM Entry at `path`, matched with either separator and ignoring ASCII
+    /// case.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::UnknownEntry`] when no Entry has that path,
+    /// [`ConversionError::SoundTooLarge`] when it exceeds [`MAX_SOUND_LEN`], and another
+    /// [`ConversionError`] when it cannot be read or is no valid WEM.
+    pub fn from_archive(archive: &Archive, path: &str) -> Result<Self, ConversionError> {
+        let entry = archive
+            .entries()
+            .par_iter()
+            .find_first(|entry| is_same_entry_path(entry.path(), path))
+            .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        let name = entry.path().to_owned();
+        let reader = archive.open_entry(entry)?;
+        let bytes = read_capped(reader, entry.uncompressed_size()).map_err(|source| {
+            ConversionError::ReadEntry {
+                entry: name.clone(),
+                source,
+            }
+        })?;
+        Self::parse(name, None, bytes)
+    }
+
+    /// Reads and parses the WEM file at `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::NoSuchFile`] when the file does not exist,
+    /// [`ConversionError::SoundTooLarge`] when it exceeds [`MAX_SOUND_LEN`], and another
+    /// [`ConversionError`] when it cannot be read or is no valid WEM.
+    pub fn from_file(path: &Path) -> Result<Self, ConversionError> {
+        let file = File::open(path).map_err(|source| {
+            if source.kind() == io::ErrorKind::NotFound {
+                ConversionError::NoSuchFile {
+                    path: path.to_path_buf(),
+                }
+            } else {
+                read_error(path, source)
+            }
+        })?;
+        let len = file
+            .metadata()
+            .map_err(|source| read_error(path, source))?
+            .len();
+        let name = path.display().to_string();
+        let bytes = read_capped(file, len).map_err(|source| read_error(path, source))?;
+        Self::parse(name, Some(path.to_path_buf()), bytes)
+    }
+
+    fn parse(
+        name: String,
+        file: Option<PathBuf>,
+        bytes: Option<Vec<u8>>,
+    ) -> Result<Self, ConversionError> {
+        let Some(bytes) = bytes else {
+            return Err(ConversionError::SoundTooLarge {
+                sound: name,
+                limit: MAX_SOUND_LEN,
+            });
+        };
+        match Wem::parse(bytes) {
+            Ok(wem) => Ok(Self { name, file, wem }),
+            Err(source) => Err(ConversionError::Audio {
+                sound: name,
+                source,
+            }),
+        }
+    }
+
+    /// Returns the name of the sound: its Entry path or its path on disk.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the parsed WEM.
+    #[must_use]
+    pub const fn wem(&self) -> &Wem<Vec<u8>> {
+        &self.wem
+    }
+
+    /// Writes the sound as a WAV file to `out`, replacing it; the file is written under a
+    /// temporary name first, so a failed conversion leaves nothing behind.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::Audio`] naming the codec when it cannot be decoded,
+    /// [`ConversionError::OutputIsInput`] when `out` is the WEM file itself, and
+    /// [`ConversionError::Write`] when the file cannot be written.
+    pub fn write_wav_to_file(&self, out: &Path) -> Result<WavReport, ConversionError> {
+        if let Some(file) = &self.file
+            && is_same_file(out, [file.clone()])
+        {
+            return Err(ConversionError::OutputIsInput {
+                path: out.to_path_buf(),
+            });
+        }
+        let (temporary, file) = create_temporary(out)?;
+        let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
+        let result = self
+            .wem
+            .write_wav(&mut writer)
+            .map_err(|source| self.audio_error(out, source))
+            .and_then(|report| {
+                writer
+                    .into_inner()
+                    .map_err(io::IntoInnerError::into_error)
+                    .and_then(|file| file.sync_all())
+                    .map_err(|source| write_error(out, source))?;
+                fs::rename(&temporary, out).map_err(|source| write_error(out, source))?;
+                Ok(report)
+            });
+        if result.is_err() {
+            let _ignored = fs::remove_file(&temporary);
+        }
+        result
+    }
+
+    fn audio_error(&self, out: &Path, source: AudioError) -> ConversionError {
+        match source {
+            AudioError::Write(source) => write_error(out, source),
+            source => ConversionError::Audio {
+                sound: self.name.clone(),
+                source,
+            },
+        }
+    }
+}
+
+fn read_capped(reader: impl Read, declared_len: u64) -> io::Result<Option<Vec<u8>>> {
+    let capacity = usize::try_from(declared_len.min(MAX_SOUND_LEN)).unwrap_or(0);
+    let mut bytes = Vec::with_capacity(capacity);
+    reader.take(MAX_SOUND_LEN + 1).read_to_end(&mut bytes)?;
+    Ok((bytes.len() as u64 <= MAX_SOUND_LEN).then_some(bytes))
+}
+
+fn is_same_entry_path(entry: &str, requested: &str) -> bool {
+    let normalise = |byte: u8| match byte {
+        b'/' => b'\\',
+        other => other.to_ascii_lowercase(),
+    };
+    entry.len() == requested.len()
+        && entry
+            .bytes()
+            .zip(requested.bytes())
+            .all(|(left, right)| normalise(left) == normalise(right))
+}

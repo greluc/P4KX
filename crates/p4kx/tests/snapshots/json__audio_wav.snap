@@ -1,0 +1,12 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "channels": 2,
+  "output": "[DIR]/100.wav",
+  "sample_count": 1200,
+  "sample_rate": 48000,
+  "size": 4844,
+  "sound": "Data\\Sounds\\wwise\\Media\\100.wem"
+}

@@ -1,5 +1,6 @@
 //! `p4kx`, the command-line interface of P4K-Extractor.
 
+mod audio;
 mod channels;
 mod cli;
 mod exit;
@@ -28,6 +29,7 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Texture(args) => texture::run(&args, json).map(success),
+        Command::Audio(args) => audio::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

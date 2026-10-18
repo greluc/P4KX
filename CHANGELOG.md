@@ -10,6 +10,8 @@ fails while its section is missing.
 
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
+- `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
+  and write PCM WEMs as WAV files; every Wwise codec is detected.
 
 ## [0.1.0]
 

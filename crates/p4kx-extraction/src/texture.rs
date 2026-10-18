@@ -186,7 +186,7 @@ fn parse_start(reader: impl Read, name: &str) -> Result<DdsHeader, ConversionErr
     DdsHeader::parse(&start).map_err(|error| ConversionError::of_texture(name, error))
 }
 
-fn create_temporary(out: &Path) -> Result<(PathBuf, File), ConversionError> {
+pub(crate) fn create_temporary(out: &Path) -> Result<(PathBuf, File), ConversionError> {
     let file_name = out
         .file_name()
         .ok_or_else(|| write_error(out, io::Error::from(io::ErrorKind::InvalidInput)))?;
@@ -201,14 +201,14 @@ fn create_temporary(out: &Path) -> Result<(PathBuf, File), ConversionError> {
     Ok((temporary, file))
 }
 
-fn read_error(path: &Path, source: io::Error) -> ConversionError {
+pub(crate) fn read_error(path: &Path, source: io::Error) -> ConversionError {
     ConversionError::Read {
         path: path.to_path_buf(),
         source,
     }
 }
 
-fn write_error(path: &Path, source: io::Error) -> ConversionError {
+pub(crate) fn write_error(path: &Path, source: io::Error) -> ConversionError {
     ConversionError::Write {
         path: path.to_path_buf(),
         source,

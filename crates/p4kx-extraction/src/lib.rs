@@ -7,6 +7,7 @@ mod filter;
 mod options;
 mod report;
 mod selection;
+mod sound;
 mod target;
 mod texture;
 mod texture_parts;
@@ -19,11 +20,13 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_audio::{AudioError, ByteOrder, Codec, WavReport, Wem};
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, MergeReport, TextureError, TextureFormat,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
+pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name};
 pub use texture::Texture;
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

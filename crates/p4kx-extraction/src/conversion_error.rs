@@ -2,18 +2,19 @@ use std::io;
 use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
+use p4kx_audio::AudioError;
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
 use crate::UnknownEntries;
 
-/// A failure to convert a texture.
+/// A failure to convert a texture or a sound.
 #[derive(Debug, Error)]
 pub enum ConversionError {
     /// The Archive holds no Entry with the requested path.
     #[error(transparent)]
     UnknownEntry(#[from] UnknownEntries),
-    /// The header file on disk does not exist.
+    /// The header or sound file on disk does not exist.
     #[error("{} does not exist", path.display())]
     NoSuchFile {
         /// The requested file.
@@ -75,7 +76,33 @@ pub enum ConversionError {
         #[source]
         source: TextureError,
     },
-    /// The output file is the header or one of its parts.
+    /// An Entry's data could not be read.
+    #[error("cannot read {entry}")]
+    ReadEntry {
+        /// The Entry path.
+        entry: String,
+        /// Underlying I/O error.
+        #[source]
+        source: io::Error,
+    },
+    /// The sound is larger than the limit for reading it into memory.
+    #[error("{sound} is larger than {limit} bytes")]
+    SoundTooLarge {
+        /// The Entry path or file of the sound.
+        sound: String,
+        /// The limit in bytes.
+        limit: u64,
+    },
+    /// The sound cannot be read or converted.
+    #[error("{sound}")]
+    Audio {
+        /// The Entry path or file of the sound.
+        sound: String,
+        /// What is wrong.
+        #[source]
+        source: AudioError,
+    },
+    /// The output file is the header or one of its parts, or the sound file.
     #[error("{} is an input of the merge", path.display())]
     OutputIsInput {
         /// The output file.

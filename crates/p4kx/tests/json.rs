@@ -4,12 +4,16 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat, write_build_manifest};
+use p4kx_testkit::{
+    ArchiveBuilder, SplitDds, TestCodec, TestEntry, TestTextureFormat, TestWem, test_signal,
+    write_build_manifest,
+};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const TEXTURE: &str = "Data\\Textures\\hull_ddna.dds";
+const SOUND: &str = "Data\\Sounds\\wwise\\Media\\100.wem";
 
 struct Fixture {
     root: tempfile::TempDir,
@@ -58,6 +62,15 @@ impl Fixture {
             .entries(TEXTURE)
             .into_iter()
             .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+            .write_to(&archive)?;
+        Ok(archive)
+    }
+
+    fn sound_archive(&self) -> Result<PathBuf, Box<dyn Error>> {
+        let archive = self.dir().join("Data.p4k");
+        let wem = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &test_signal(1_200, 2));
+        ArchiveBuilder::new()
+            .entry(TestEntry::stored(SOUND, wem.bytes()))
             .write_to(&archive)?;
         Ok(archive)
     }
@@ -283,6 +296,44 @@ fn texture_merge() -> TestResult {
             .arg(TEXTURE)
             .arg("--out")
             .arg(fixture.dir().join("hull_ddna.dds")),
+        0,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn audio_info() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.sound_archive()?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["audio", "info"])
+            .arg(&archive)
+            .arg(SOUND),
+        0,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn audio_wav() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.sound_archive()?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["audio", "wav"])
+            .arg(&archive)
+            .arg(SOUND)
+            .arg("--out")
+            .arg(fixture.dir().join("100.wav")),
         0,
     )?;
 

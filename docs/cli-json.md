@@ -100,6 +100,35 @@ Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
 
 `parts` is the number of mip parts merged and `size` the size of the written DDS file.
 
+## `p4kx audio info <archive> <entry> --json`
+
+Also `p4kx audio info <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\100.wem", "codec": "pcm", "codec_name": "PCM",
+ "format_tag": 65534, "channels": 2, "sample_rate": 48000, "sample_count": 1200,
+ "duration_seconds": 0.025}
+```
+
+`sound` is the Entry path, or the path of the file on disk. `codec` is one of `pcm`,
+`ima_adpcm`, `vorbis`, `opus`, `ptadpcm`, `xwma`, `xma2`, `aac`, `dsp`, `hevag`, `atrac9` or
+`unknown`; `codec_name` is its readable name and `format_tag` the raw tag of the `fmt` chunk.
+`sample_count` is the number of frames (samples per channel) and `duration_seconds` the playing
+time; both are `null` when the header does not state them and the codec does not allow computing
+them.
+
+## `p4kx audio wav <archive> <entry> --out <file> --json`
+
+Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\100.wem", "output": "…\\100.wav", "channels": 2,
+ "sample_rate": 48000, "sample_count": 1200, "size": 4844}
+```
+
+`sample_count` is the number of frames written and `size` the size of the written WAV file. A
+codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
+
 ## `p4kx extract … --json`
 
 ```json

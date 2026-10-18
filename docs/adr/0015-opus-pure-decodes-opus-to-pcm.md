@@ -14,9 +14,11 @@ vgmstream: a Wwise mapping of 255 gets channel mapping family 255 with the ident
 instead of family 1, which RFC 7845 limits to 8 channels and which would reorder the channels,
 and Switch Opus is read for one and two channels only, as vgmstream builds no mapping for more.
 The `meta` chunk some Gears 5 WEMs carry before their Ogg data is not read. An embedded Ogg
-stream keeps its own `OpusHead` and `OpusTags`. Packets are capped at 64 KiB, a multistream packet is split by its self-delimited framing with every length checked, and the decoder runs inside `catch_unwind` like lewton (ADR-0013). Star Citizen's LIVE and PTU
-Archives hold no Opus WEM, so the synthetic WEMs of the testkit, encoded with the same crate, are
-the only test data. Its notice lives in `THIRD-PARTY-NOTICES`. Decided for issue #94.
+stream keeps its own `OpusHead` and `OpusTags`. Packets are capped at 64 KiB, a multistream
+packet is split by its self-delimited framing with every length checked, and the decoder runs
+inside `catch_unwind` like lewton (ADR-0013). Star Citizen's LIVE and PTU Archives hold no Opus
+WEM, so the synthetic WEMs of the testkit, encoded with the same crate, are the only test data.
+Its notice lives in `THIRD-PARTY-NOTICES`. Decided for issue #94.
 
 ## Considered Options
 

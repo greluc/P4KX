@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/socpak.rs
+expression: "String::from_utf8(output.stdout)?"
+---
+METHOD     ENCRYPTED     COMPRESSED           SIZE  PATH
+store      no                    30             30  ship_interior\ship_interior.xml
+deflate    no                    23             21  ship_interior\entdata\2002.entxml
+store      no                   307            307  ship_interior\modules\cockpit.socpak

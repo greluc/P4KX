@@ -21,6 +21,7 @@ pub struct TestEntry {
     pub(crate) payload: Vec<u8>,
     pub(crate) uncompressed_size: u64,
     pub(crate) crc32c: u32,
+    pub(crate) crc32: u32,
     pub(crate) encrypted: bool,
 }
 
@@ -103,6 +104,7 @@ impl TestEntry {
             payload,
             uncompressed_size: data.len() as u64,
             crc32c: crc32c::crc32c(data),
+            crc32: crc32fast::hash(data),
             encrypted: false,
         }
     }

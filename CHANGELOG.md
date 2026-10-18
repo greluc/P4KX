@@ -8,10 +8,25 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
+  socpak containers, also nested ones, are read from the Archive without extracting them first,
+  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
+  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
+  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
+- `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
+  character files as JSON and back. The new `p4kx-character` crate checks magic, size and
+  CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
+  item ports and material choices; an unchanged JSON gives back the original file byte for byte,
+  an edited one a new file with a correct CRC-32C. Unknown versions and CRC-32C mismatches are
+  errors that name them.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- The Query tab of the window: run Queries over the DataForge of the open Archive in the
+  background with progress and cancel, see an invalid Query explained with its line and column
+  and underlined in the editor, sort the result table by any column, page through large results,
+  and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -97,6 +112,10 @@ fails while its section is missing.
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a
   corrupt soundbank fails with an error naming the section.
+- `p4kx chunks list` and `p4kx chunks dump`: list the chunks of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) from an Archive or from disk,
+  in the `#ivo` (`0x900`) or the `CrCh` (`0x746`) container, with type, type ID, version, chunk
+  ID, byte order, offset and size, unknown types marked; and write one chunk's bytes to a file.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

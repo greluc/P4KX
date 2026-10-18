@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::RecentArchives;
+
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
 
@@ -14,6 +16,9 @@ pub struct Settings {
     /// The interface language as a BCP 47 tag such as `de-DE`, or `None` to follow the system.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// The recently opened Archives.
+    #[serde(skip_serializing_if = "RecentArchives::is_empty")]
+    pub recent: RecentArchives,
     /// The manually added Channel sources.
     pub channels: ManualChannels,
     /// The last position and size of the main window, or `None` for the default placement.
@@ -121,6 +126,16 @@ impl ManualChannels {
     /// Adds `archive` unless it is already listed; returns whether it was added.
     pub fn add_archive(&mut self, archive: PathBuf) -> bool {
         add(&mut self.archives, archive)
+    }
+
+    /// Adds every folder and Archive of `other` that is not listed yet.
+    pub fn merge(&mut self, other: &Self) {
+        for folder in &other.folders {
+            self.add_folder(folder.clone());
+        }
+        for archive in &other.archives {
+            self.add_archive(archive.clone());
+        }
     }
 
     /// Removes `path` from the folders and the Archives, matching equal or equivalent paths;

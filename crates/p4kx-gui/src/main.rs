@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
-use p4kx_gui::{App, Language, Model, Text, theme, window};
+use p4kx_channels::SearchPaths;
+use p4kx_gui::{App, ChannelList, Language, Model, Text, theme, window};
 use p4kx_settings::{Settings, default_settings_file};
 
 fn main() -> Result<()> {
@@ -14,7 +15,12 @@ fn main() -> Result<()> {
         .as_deref()
         .and_then(|file| Settings::load(file).ok())
         .unwrap_or_default();
-    let model = Model::new(Language::resolve(settings.language.as_deref()));
+    let mut model = Model::new(Language::resolve(settings.language.as_deref()));
+    model.set_channels(ChannelList::new(
+        SearchPaths::standard(),
+        settings.channels.clone(),
+    ));
+    model.set_recent(settings.recent.clone());
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),

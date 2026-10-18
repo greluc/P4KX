@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod channels;
 mod licence;
 mod menu;
 mod status;
@@ -12,28 +13,51 @@ use egui::{CentralPanel, Panel, Ui};
 
 use crate::{Model, Text};
 
+/// A dialog the host shows for the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Dialog {
+    /// Picks an Archive to open.
+    OpenArchive,
+    /// Picks a folder to add as a manual entry.
+    AddFolder,
+    /// Picks an Archive to add as a manual entry.
+    AddArchive,
+}
+
 /// What the window asks of its host after a frame.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Requests {
-    /// The user asked for the open dialog.
-    pub open_dialog: bool,
+    /// The dialog the user asked for.
+    pub dialog: Option<Dialog>,
     /// The user switched the interface language.
     pub language_changed: bool,
+    /// The recent Archives or the manual entries changed and are to be stored.
+    pub settings_changed: bool,
 }
 
 /// Draws the whole window for `model` and applies what the user did to it.
 pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
-    model.poll();
+    let mut requests = Requests {
+        settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
+        ..Requests::default()
+    };
     if let Some(path) = dropped_file(ui) {
-        open(ui, model, path);
+        if path.is_dir() {
+            requests.settings_changed |= model.add_manual(path);
+        } else {
+            open(ui, model, path);
+        }
     }
-    let mut requests = Requests::default();
     Panel::top("menu").show(ui, |ui| menu::show(ui, model, &mut requests));
     Panel::bottom("status").show(ui, |ui| status::show(ui, model));
-    Panel::left("tree")
+    Panel::left("side")
         .resizable(true)
         .default_size(280.0)
-        .show(ui, |ui| tree::show(ui, model));
+        .show(ui, |ui| {
+            channels::show(ui, model);
+            ui.separator();
+            tree::show(ui, model);
+        });
     CentralPanel::default().show(ui, |ui| {
         if is_dragging_file(ui) || model.browser().is_none() {
             ui.centered_and_justified(|ui| ui.label(model.texts().get(Text::DropHint)));

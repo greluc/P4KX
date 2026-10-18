@@ -2666,6 +2666,7 @@ dependencies = [
  "egui_kittest",
  "fluent-bundle",
  "fluent-syntax",
+ "p4kx-channels",
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",

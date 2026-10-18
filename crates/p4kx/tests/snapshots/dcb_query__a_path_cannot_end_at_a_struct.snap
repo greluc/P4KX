@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from Item select origin\")?"
+---
+error: field `origin` of `Item` holds a struct; a path has to end at a scalar value
+  from Item select origin
+                   ^^^^^^

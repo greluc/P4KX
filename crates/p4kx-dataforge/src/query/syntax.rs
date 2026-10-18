@@ -108,6 +108,21 @@ impl Path {
     pub const fn span(&self) -> Span {
         self.span
     }
+
+    /// Returns whether the path can reach several values, through `[*]` or `[TypeName]`.
+    #[must_use]
+    pub fn is_multi_valued(&self) -> bool {
+        self.tail.iter().any(Segment::is_multi_valued)
+    }
+
+    /// Returns the path with names as written but without backticks, for messages.
+    pub(crate) fn written(&self) -> String {
+        let mut text = self.head.text.clone();
+        for segment in &self.tail {
+            text.push_str(&segment.written());
+        }
+        text
+    }
 }
 
 /// One step of a [`Path`] behind its first field.
@@ -116,14 +131,48 @@ impl Path {
 pub enum Segment {
     /// `.` and a field by name.
     Field(Name),
+    /// `[n]`, the element at index `n`, counted from 0.
+    Index {
+        /// The index.
+        index: u32,
+        /// Where the brackets stand in the Query.
+        span: Span,
+    },
+    /// `[*]`, every element.
+    All(Span),
+    /// `[TypeName]`, the elements whose struct is the named one or derives from it.
+    Type {
+        /// The struct name.
+        name: Name,
+        /// Where the brackets stand in the Query.
+        span: Span,
+    },
 }
 
 impl Segment {
-    /// Returns where the segment stands in the Query.
+    /// Returns where the segment stands in the Query: the name of a field, the brackets of the
+    /// others.
     #[must_use]
     pub const fn span(&self) -> Span {
         match self {
             Self::Field(name) => name.span,
+            Self::Index { span, .. } | Self::All(span) | Self::Type { span, .. } => *span,
+        }
+    }
+
+    /// Returns whether the segment can select several values: `[*]` and `[TypeName]`.
+    #[must_use]
+    pub const fn is_multi_valued(&self) -> bool {
+        matches!(self, Self::All(_) | Self::Type { .. })
+    }
+
+    /// Returns the segment with its name as written but without backticks, for messages.
+    pub(crate) fn written(&self) -> String {
+        match self {
+            Self::Field(name) => format!(".{}", name.text),
+            Self::Index { index, .. } => format!("[{index}]"),
+            Self::All(_) => "[*]".to_owned(),
+            Self::Type { name, .. } => format!("[{}]", name.text),
         }
     }
 }
@@ -177,6 +226,9 @@ impl fmt::Display for Path {
         for segment in &self.tail {
             match segment {
                 Segment::Field(name) => write!(f, ".{name}")?,
+                Segment::Index { index, .. } => write!(f, "[{index}]")?,
+                Segment::All(_) => f.write_str("[*]")?,
+                Segment::Type { name, .. } => write!(f, "[{name}]")?,
             }
         }
         Ok(())

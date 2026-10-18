@@ -304,7 +304,7 @@ impl<'f> TreeBuilder<'f> {
     }
 }
 
-fn element_bytes<'f>(forge: &DataForge<'f>, kind: ValueKind, element: u32) -> &'f [u8] {
+pub(crate) fn element_bytes<'f>(forge: &DataForge<'f>, kind: ValueKind, element: u32) -> &'f [u8] {
     let len = kind.element_len();
     let start = (element as usize).checked_mul(len);
     let end = start.and_then(|start| start.checked_add(len));
@@ -317,12 +317,12 @@ fn element_bytes<'f>(forge: &DataForge<'f>, kind: ValueKind, element: u32) -> &'
 }
 
 /// Returns the two little-endian words at the start of a pointer or an array header.
-fn words(bytes: &[u8]) -> [u32; 2] {
+pub(crate) fn words(bytes: &[u8]) -> [u32; 2] {
     [0, 4].map(|at| u32::from_le_bytes(first_bytes(bytes.get(at..).unwrap_or_default())))
 }
 
 /// Returns the struct and instance a pointer names, or `None` for a null pointer.
-fn pointer(bytes: &[u8]) -> Option<(u32, u32)> {
+pub(crate) fn pointer(bytes: &[u8]) -> Option<(u32, u32)> {
     let [struct_index, instance] = words(bytes);
     (struct_index != NULL || instance != NULL).then_some((struct_index, instance))
 }

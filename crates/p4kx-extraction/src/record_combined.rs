@@ -6,7 +6,6 @@ use p4kx_dataforge::{DataForge, RECORD_XML_NAMESPACE, Record, RecordXml, TreeBui
 use rayon::prelude::*;
 
 use crate::record_export::file_crc;
-use crate::record_files::fold;
 use crate::write::{create_temporary, read_existing_error, write_error};
 use crate::{
     CancelToken, ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions,
@@ -20,7 +19,8 @@ const HEAD: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<p4kx:records 
 /// Writes `records` of `forge` as one Record XML document, the file `file`, in record-path order.
 ///
 /// The root element `p4kx:records` declares the `p4kx` namespace once and holds one Record
-/// element per Record, ordered by record path ignoring case and then by definition order; a
+/// element per Record, ordered by record path ignoring ASCII case with `/` and `\` alike, then
+/// by Record name, then by definition order; a
 /// Record selected twice is written once. Records are built in parallel and streamed to the file
 /// in that order, so the same Records always give the same bytes and no more than a batch of
 /// Records is held at a time. An existing `file` is handled by the [`ConflictPolicy`] of
@@ -74,6 +74,7 @@ pub fn export_combined(
         if existing && options.policy == ConflictPolicy::IfChanged && is_unchanged(file, len, crc)?
         {
             report.skipped.push(name);
+            report.written = 0;
             return Ok(false);
         }
         fs::rename(&temporary, file)
@@ -122,7 +123,8 @@ fn order(
     let key = |position: &usize| {
         records.get(*position).map(|record| {
             (
-                fold(record.record_path().unwrap_or_default()).collect::<String>(),
+                fold_ascii(record.record_path().unwrap_or_default()),
+                record.name().unwrap_or_default(),
                 record.index(),
             )
         })
@@ -130,6 +132,16 @@ fn order(
     order.par_sort_by_cached_key(key);
     order.dedup_by_key(|position| records.get(*position).map(Record::index));
     order
+}
+
+/// Returns `path` with ASCII letters in lower case and `\` as `/`, the key of record-path order.
+fn fold_ascii(path: &str) -> Vec<u8> {
+    path.bytes()
+        .map(|byte| match byte {
+            b'\\' => b'/',
+            other => other.to_ascii_lowercase(),
+        })
+        .collect()
 }
 
 fn failure(record: &Record<'_>, error: RecordExportError) -> RecordFailure {
@@ -142,7 +154,7 @@ fn failure(record: &Record<'_>, error: RecordExportError) -> RecordFailure {
 
 /// How one Record of a batch was built.
 enum Built {
-    Xml { bytes: Vec<u8>, errors: usize },
+    Xml { bytes: Vec<u8>, error_values: usize },
     Failed(RecordFailure),
     Cancelled,
 }
@@ -170,7 +182,7 @@ fn build<'f>(
     match scratch.xml.write_wrapped_element(&tree, 1, &mut bytes) {
         Ok(()) => Built::Xml {
             bytes,
-            errors: tree.error_count(),
+            error_values: tree.error_count(),
         },
         Err(source) => Built::Failed(failure(
             record,
@@ -255,15 +267,20 @@ impl<'p> Document<'p> {
     ) -> Result<bool, ExtractionError> {
         for built in batch {
             match built {
-                Built::Xml { bytes, errors } => {
+                Built::Xml {
+                    bytes,
+                    error_values,
+                } => {
                     if !self.has_records {
                         self.has_records = true;
                         self.put(b">\n")?;
                     }
                     self.put(&bytes)?;
-                    report.written += 1;
-                    report.error_values += errors;
-                    report.records_with_errors += usize::from(errors > 0);
+                    report.written = report.written.saturating_add(1);
+                    report.error_values = report.error_values.saturating_add(error_values);
+                    report.records_with_errors = report
+                        .records_with_errors
+                        .saturating_add(usize::from(error_values > 0));
                 }
                 Built::Failed(failure) => report.failures.push(failure),
                 Built::Cancelled => return Ok(false),

@@ -188,7 +188,8 @@ fn combined_applies_the_conflict_policies_to_the_file() -> TestResult {
     );
     assert_eq!(refreshed, original, "if-changed rewrites a changed file");
     assert!(
-        unchanged.starts_with("skipped Game2.xml: unchanged"),
+        unchanged.starts_with("skipped Game2.xml: unchanged")
+            && unchanged.contains("exported 0 Records, skipped 1"),
         "if-changed keeps an unchanged file: {unchanged}"
     );
     assert_eq!(fs::read(&file)?, original, "overwrite replaces the file");

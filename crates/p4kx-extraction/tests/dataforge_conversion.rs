@@ -305,7 +305,7 @@ fn cancelling_while_records_are_written_stops_the_run() -> TestResult {
     let fixture = fixture(vec![TestEntry::stored("Data\\Game2.dcb", database(3000))])?;
     let cancel = CancelToken::new();
     let on_progress = |progress: Progress| {
-        if progress.bytes_done > 0 {
+        if progress.bytes_done * 2 > progress.bytes_total {
             cancel.cancel();
         }
     };

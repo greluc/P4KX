@@ -17,7 +17,7 @@ impl EntryWriter<'_> {
     /// of its path, and reports its end to the tracker.
     ///
     /// Each Record file is handled by the Conflict policy on its own. The Entry's size is counted
-    /// as progress in equal parts as the Records end. Once the run is to stop, the Records not yet
+    /// as progress, half while it is read and the rest in equal parts as the Records end. Once the run is to stop, the Records not yet
     /// written are cancelled and so is the Entry; Records written before stay.
     pub(crate) fn write_dataforge(
         &self,
@@ -59,13 +59,14 @@ impl EntryWriter<'_> {
         let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
         bytes.try_reserve_exact(reserve).map_err(|_| too_large())?;
         let mut reader = self.archive.open_entry(entry)?;
-        if !self.read_all(&mut reader, bytes, len, &mut buffers.chunk)? {
+        if !self.read_all(&mut reader, bytes, len, &mut buffers.chunk, credited)? {
             return Ok((Outcome::Cancelled, None));
         }
         let forge = DataForge::open(bytes).map_err(ExtractionError::DataForge)?;
         let folder = create_folders(self.target, relative.parent())?;
         let records: Vec<Record<'_>> = forge.records().collect();
-        let share = size.checked_div(records.len() as u64).unwrap_or_default();
+        let rest = size.saturating_sub(credited.load(Ordering::Relaxed));
+        let share = rest.checked_div(records.len() as u64).unwrap_or_default();
         let run = RecordRun {
             policy: self.policy,
             stop: &|| self.tracker.should_stop(),
@@ -83,14 +84,15 @@ impl EntryWriter<'_> {
         Ok((outcome, Some(report)))
     }
 
-    /// Reads the Entry into `bytes` through `chunk`, up to `len` bytes; returns `false` once the
-    /// run is to stop.
+    /// Reads the Entry into `bytes` through `chunk`, up to `len` bytes, counting half of each chunk
+    /// as progress in `credited`; returns `false` once the run is to stop.
     fn read_all(
         &self,
         reader: &mut impl Read,
         bytes: &mut Vec<u8>,
         len: usize,
         chunk: &mut [u8],
+        credited: &AtomicU64,
     ) -> Result<bool, ExtractionError> {
         loop {
             match self
@@ -106,6 +108,9 @@ impl EntryWriter<'_> {
                         )));
                     }
                     bytes.extend_from_slice(data);
+                    let half = count as u64 / 2;
+                    credited.fetch_add(half, Ordering::Relaxed);
+                    self.tracker.wrote(half);
                 }
                 Chunk::End => return Ok(true),
                 Chunk::Cancelled => return Ok(false),

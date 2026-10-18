@@ -188,3 +188,38 @@ fn a_folder_in_the_way_is_an_error() -> TestResult {
     assert!(file.is_dir(), "the folder stays");
     Ok(())
 }
+
+#[test]
+fn records_sharing_a_record_path_are_ordered_by_name_then_definition_order() -> TestResult {
+    let item = |guid: u128, name: &str, file: &str| {
+        TestRecord::new(guid, "Item", name, file).value("count", TestValue::Int32(1))
+    };
+    let bytes = builder([
+        item(1, "Item.B", "records/shared.xml"),
+        item(2, "Item.A", "Records\\Shared.xml"),
+        item(3, "Item.B", "records/shared.xml"),
+        item(4, "Item.C", "records/a.xml"),
+    ])
+    .build();
+    let forge = DataForge::open(&bytes)?;
+    let records: Vec<_> = forge.records().collect();
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("all.xml");
+
+    export_combined(&forge, &records, &file, &RecordExportOptions::default())?;
+
+    let xml = fs::read_to_string(&file)?;
+    let document = roxmltree::Document::parse(&xml)?;
+    let guids: Vec<_> = document
+        .root_element()
+        .children()
+        .filter_map(|node| node.attribute("guid"))
+        .map(|guid| guid.trim_start_matches(['0', '-']).to_owned())
+        .collect();
+    assert_eq!(
+        guids,
+        ["4", "2", "1", "3"],
+        "record path ignoring case, then name, then definition order"
+    );
+    Ok(())
+}

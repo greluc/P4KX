@@ -85,7 +85,7 @@ fn parse_record(head: &str, chunk: &str) -> Result<String, Box<dyn std::error::E
     let mut elements = document
         .root_element()
         .children()
-        .filter(|node| node.is_element());
+        .filter(roxmltree::Node::is_element);
     let record = elements.next().ok_or("a Record element")?;
     assert!(elements.next().is_none(), "one Record per chunk: {chunk}");
     Ok(record.attribute("path").ok_or("a record path")?.to_owned())

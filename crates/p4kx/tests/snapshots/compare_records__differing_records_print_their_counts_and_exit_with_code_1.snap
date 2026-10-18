@@ -1,0 +1,16 @@
+---
+source: crates/p4kx/tests/compare_records.rs
+expression: summary
+---
+Old:             LIVE/Data.p4k
+Old Channel:     LIVE
+Old Build:       unknown
+New:             PTU/Data.p4k
+New Channel:     PTU
+New Build:       unknown
+Filter:          none
+Records added:   1
+Records removed: 1
+Records moved:   1
+Records changed: 1
+Records unreadable: 0

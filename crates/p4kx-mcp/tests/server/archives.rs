@@ -56,6 +56,12 @@ fn list_channels_includes_manual_archives_from_the_settings() -> TestResult {
         .unwrap_or_default();
     assert_eq!(names, ["LIVE", "PTU"], "default first, then manual");
     assert_eq!(channels["channels"][1]["source"], "manual", "PTU is manual");
+    let first = server.ok("list_channels", &json!({ "limit": 1 }))?;
+    assert_eq!(first["channels"][0]["name"], "LIVE", "the first page");
+    let cursor = first["next_cursor"].as_str().unwrap_or_default();
+    let second = server.ok("list_channels", &json!({ "limit": 1, "cursor": cursor }))?;
+    assert_eq!(second["channels"][0]["name"], "PTU", "the second page");
+    assert!(second.get("next_cursor").is_none(), "the last page");
     Ok(())
 }
 

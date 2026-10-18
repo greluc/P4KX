@@ -140,7 +140,17 @@ fn the_page_size_is_capped_at_one_thousand() -> TestResult {
         Some(1000),
         "at most 1000"
     );
-    assert_eq!(page["next_cursor"], "1000", "a next page");
+    let cursor = page["next_cursor"].as_str().unwrap_or_default();
+    let rest = server.ok(
+        "search_entries",
+        &json!({ "filter": "Many", "limit": 5000, "cursor": cursor }),
+    )?;
+    assert_eq!(
+        rest["entries"].as_array().map(Vec::len),
+        Some(5),
+        "the next page holds the rest"
+    );
+    assert!(rest.get("next_cursor").is_none(), "the last page");
     let default = server.ok("search_entries", &json!({ "filter": "Many" }))?;
     assert_eq!(
         default["entries"].as_array().map(Vec::len),
@@ -210,8 +220,15 @@ fn bad_cursors_and_oversized_filters_are_tool_errors() -> TestResult {
         let message = server.error("search_entries", &json!({ "filter": "", "cursor": cursor }))?;
         assert!(message.contains("cursor"), "{cursor:?}: {message}");
     }
-    let message = server.error("list_entries", &json!({ "cursor": "7" }))?;
-    assert!(message.contains("cursor"), "beyond the listing: {message}");
+    let page = server.ok("search_entries", &json!({ "filter": "Data", "limit": 2 }))?;
+    let cursor = page["next_cursor"].as_str().unwrap_or_default();
+    let message = server.error("list_entries", &json!({ "cursor": cursor }))?;
+    assert!(message.contains("cursor"), "another listing: {message}");
+    let message = server.error(
+        "search_entries",
+        &json!({ "filter": "Libs", "limit": 2, "cursor": cursor }),
+    )?;
+    assert!(message.contains("cursor"), "another filter: {message}");
     let message = server.error("search_entries", &json!({ "filter": "x".repeat(2000) }))?;
     assert!(
         message.contains("longer than"),

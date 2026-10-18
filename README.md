@@ -176,11 +176,12 @@ write a file:
 | `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
-or the absolute local path of a `.p4k` file; network, device and relative paths are refused.
+or the absolute path of a `.p4k` file on a drive letter; UNC, device and relative paths and paths
+with `..` are refused.
 Without it the tools use the Archive given with `--archive` when the server was started. Opened
 Archives stay open between calls and are opened again when their file changes. Listings page:
 `limit` sets the page size (100 by default, at most 1000), and a result with `next_cursor` has a
-next page that `cursor` asks for. `--config-dir`, `--launcher-dir` and `--default-library` (or
+next page that `cursor` asks for; a cursor only continues the listing that returned it. `--config-dir`, `--launcher-dir` and `--default-library` (or
 `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as for `p4kx channels`.
 
 Build it with `cargo build --release -p p4kx-mcp`, then add it to the AI client. Claude Code:

@@ -10,14 +10,24 @@ use crate::shapes::{ArchiveInfo, BuildShape, EntryShape, FolderItem, FolderResul
 /// Returns the summary of `archive`.
 pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
     let entries = archive.entries();
+    let (encrypted_count, compressed_size, size) =
+        entries
+            .iter()
+            .fold((0, 0_u64, 0_u64), |(encrypted, compressed, size), entry| {
+                (
+                    encrypted + usize::from(entry.is_encrypted()),
+                    compressed.saturating_add(entry.compressed_size()),
+                    size.saturating_add(entry.uncompressed_size()),
+                )
+            });
     ArchiveInfo {
         archive: archive.path().display().to_string(),
         channel: p4kx_channels::channel_name(archive.path()),
         build: archive.build().map(BuildShape::from),
         entry_count: entries.len(),
-        encrypted_count: entries.iter().filter(|entry| entry.is_encrypted()).count(),
-        compressed_size: entries.iter().map(Entry::compressed_size).sum(),
-        size: entries.iter().map(Entry::uncompressed_size).sum(),
+        encrypted_count,
+        compressed_size,
+        size,
     }
 }
 

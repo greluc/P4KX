@@ -1,29 +1,40 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use crate::error::ToolError;
 
 /// The page size when a call gives none.
 pub(crate) const DEFAULT_LIMIT: usize = 100;
 /// The largest page size; a larger `limit` is lowered to it.
 pub(crate) const MAX_LIMIT: usize = 1000;
-const MAX_CURSOR_LEN: usize = 20;
+const MAX_OFFSET_LEN: usize = 20;
+const LISTING_LEN: usize = 16;
+const MAX_CURSOR_LEN: usize = MAX_OFFSET_LEN + 1 + LISTING_LEN;
 
 /// One page of a listing: the items from `offset`, at most `limit` of them.
+///
+/// A cursor is `<offset>-<listing>`, where the listing is a hash of the tool and its arguments,
+/// so a cursor only continues the listing that returned it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Page {
     offset: usize,
     limit: usize,
+    listing: u64,
 }
 
 impl Page {
-    /// Creates the page a call asks for with its `cursor` and `limit`.
-    pub(crate) fn new(cursor: Option<&str>, limit: Option<u32>) -> Result<Self, ToolError> {
+    /// Creates the page a call of the listing `listing` asks for with its `cursor` and `limit`.
+    pub(crate) fn new(
+        listing: &impl Hash,
+        cursor: Option<&str>,
+        limit: Option<u32>,
+    ) -> Result<Self, ToolError> {
+        let mut hasher = DefaultHasher::new();
+        listing.hash(&mut hasher);
+        let listing = hasher.finish();
         let offset = match cursor {
             None => 0,
             Some(text) => {
-                let parsed = (text.len() <= MAX_CURSOR_LEN
-                    && text.bytes().all(|b| b.is_ascii_digit()))
-                .then(|| text.parse::<usize>().ok())
-                .flatten();
-                parsed.ok_or_else(|| ToolError::BadCursor(cursor_excerpt(text)))?
+                parse(text, listing).ok_or_else(|| ToolError::BadCursor(excerpt(text)))?
             }
         };
         let limit = limit.map_or(DEFAULT_LIMIT, |limit| {
@@ -31,7 +42,11 @@ impl Page {
                 .unwrap_or(MAX_LIMIT)
                 .clamp(1, MAX_LIMIT)
         });
-        Ok(Self { offset, limit })
+        Ok(Self {
+            offset,
+            limit,
+            listing,
+        })
     }
 
     /// Returns whether the item at `index` of the listing is on this page.
@@ -43,10 +58,10 @@ impl Page {
     /// page; an offset beyond `total` is a bad cursor.
     pub(crate) fn next_cursor(self, total: usize) -> Result<Option<String>, ToolError> {
         if self.offset > total {
-            return Err(ToolError::BadCursor(self.offset.to_string()));
+            return Err(ToolError::BadCursor(self.cursor(self.offset)));
         }
         let end = self.offset.saturating_add(self.limit);
-        Ok((end < total).then(|| end.to_string()))
+        Ok((end < total).then(|| self.cursor(end)))
     }
 
     /// Returns the page size.
@@ -60,9 +75,22 @@ impl Page {
         let end = start.saturating_add(self.limit).min(items.len());
         items.get(start..end).unwrap_or_default()
     }
+
+    fn cursor(self, offset: usize) -> String {
+        format!("{offset}-{:0width$x}", self.listing, width = LISTING_LEN)
+    }
 }
 
-fn cursor_excerpt(text: &str) -> String {
+fn parse(text: &str, listing: u64) -> Option<usize> {
+    let (offset, key) = text.split_once('-')?;
+    let valid = (1..=MAX_OFFSET_LEN).contains(&offset.len())
+        && offset.bytes().all(|byte| byte.is_ascii_digit())
+        && key.len() == LISTING_LEN
+        && u64::from_str_radix(key, 16).ok()? == listing;
+    valid.then(|| offset.parse().ok()).flatten()
+}
+
+fn excerpt(text: &str) -> String {
     text.chars().take(MAX_CURSOR_LEN).collect()
 }
 
@@ -73,22 +101,43 @@ mod tests {
     #[test]
     fn limits_are_clamped_to_the_page_size_range() {
         assert_eq!(
-            Page::new(None, Some(0)).map(Page::limit).ok(),
+            Page::new(&"a", None, Some(0)).map(Page::limit).ok(),
             Some(1),
             "at least one"
         );
         assert_eq!(
-            Page::new(None, Some(u32::MAX)).map(Page::limit).ok(),
+            Page::new(&"a", None, Some(u32::MAX)).map(Page::limit).ok(),
             Some(MAX_LIMIT),
             "at most the cap"
         );
     }
 
     #[test]
-    fn only_decimal_cursors_are_accepted() {
-        for cursor in ["", "-1", "1e3", "abc", "123456789012345678901"] {
+    fn a_cursor_continues_only_its_own_listing() -> Result<(), Box<dyn std::error::Error>> {
+        let first = Page::new(&"a", None, Some(2))?;
+        let cursor = first.next_cursor(5)?.ok_or("a next page")?;
+        let second = Page::new(&"a", Some(&cursor), Some(2))?;
+        assert!(second.contains(2) && !second.contains(1), "the second page");
+        assert!(
+            Page::new(&"b", Some(&cursor), None).is_err(),
+            "another listing rejects it"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_cursors_are_rejected() {
+        for cursor in [
+            "",
+            "-1",
+            "1e3",
+            "abc",
+            "2-",
+            "-0000000000000000",
+            "123456789012345678901-0000000000000000",
+        ] {
             assert!(
-                Page::new(Some(cursor), None).is_err(),
+                Page::new(&"a", Some(cursor), None).is_err(),
                 "{cursor:?} is rejected"
             );
         }

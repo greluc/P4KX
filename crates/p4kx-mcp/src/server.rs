@@ -88,7 +88,7 @@ impl Server {
         Parameters(params): Parameters<ChannelsParams>,
     ) -> Result<Json<ChannelsResult>, String> {
         self.run(move |state| {
-            let page = Page::new(params.cursor.as_deref(), params.limit)?;
+            let page = Page::new(&"list_channels", params.cursor.as_deref(), params.limit)?;
             let channels = state.locations.channels()?;
             Ok(ChannelsResult {
                 total: channels.len(),
@@ -144,8 +144,9 @@ impl Server {
                 params.folder.as_deref().unwrap_or_default(),
                 MAX_PATH_LEN,
             )?;
-            let page = Page::new(params.cursor.as_deref(), params.limit)?;
             let archive = state.archive(params.archive.as_deref())?;
+            let listing = ("list_entries", archive.path(), folder);
+            let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             entries::list(&archive, folder, page)
         })
         .await
@@ -167,8 +168,9 @@ impl Server {
     ) -> Result<Json<SearchResult>, String> {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
-            let page = Page::new(params.cursor.as_deref(), params.limit)?;
             let archive = state.archive(params.archive.as_deref())?;
+            let listing = ("search_entries", archive.path(), filter);
+            let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             entries::search(&archive, filter, page)
         })
         .await

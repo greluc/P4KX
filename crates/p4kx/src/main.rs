@@ -6,6 +6,8 @@ mod channels;
 mod cli;
 mod cli_audio;
 mod cli_bnk;
+mod cli_dcb;
+mod cli_entity;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -13,6 +15,8 @@ mod dcb;
 mod dcb_export;
 mod dcb_query;
 mod diff;
+mod entity;
+mod entity_json;
 mod exit;
 mod extract;
 mod info;
@@ -43,6 +47,7 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),
+        Command::Entity(args) => entity::run(&args, json).map(success),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {
                 report(&error);

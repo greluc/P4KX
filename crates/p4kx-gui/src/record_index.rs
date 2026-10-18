@@ -112,6 +112,7 @@ pub(crate) struct Node {
     pub(crate) name: Box<str>,
     pub(crate) kind: RecordNodeKind,
     pub(crate) children: Vec<RecordNodeId>,
+    pub(crate) parent: Option<RecordNodeId>,
 }
 
 /// Every Record of a DataForge with the folder tree of their record paths.
@@ -120,6 +121,8 @@ pub(crate) struct RecordIndex {
     pub(crate) records: Vec<RecordInfo>,
     pub(crate) nodes: Vec<Node>,
     pub(crate) summary: DataForgeSummary,
+    pub(crate) by_path: Vec<RecordId>,
+    pub(crate) record_nodes: Vec<RecordNodeId>,
 }
 
 impl RecordIndex {
@@ -137,11 +140,21 @@ impl RecordIndex {
             enum_count: forge.enum_count(),
             first_records: records.iter().take(SUMMARY_RECORDS).cloned().collect(),
         };
-        let nodes = tree(&records);
+        let (nodes, by_path) = tree(&records);
+        let mut record_nodes = vec![RecordNodeId(0); records.len()];
+        for (node, id) in nodes.iter().zip((0..).map(RecordNodeId)) {
+            if let RecordNodeKind::Record(record) = node.kind
+                && let Some(slot) = record_nodes.get_mut(record.0 as usize)
+            {
+                *slot = id;
+            }
+        }
         Self {
             records,
             nodes,
             summary,
+            by_path: by_path.into_iter().map(RecordId).collect(),
+            record_nodes,
         }
     }
 }
@@ -178,7 +191,7 @@ fn segments(path: &str) -> Vec<&str> {
         .collect()
 }
 
-fn tree(records: &[RecordInfo]) -> Vec<Node> {
+fn tree(records: &[RecordInfo]) -> (Vec<Node>, Vec<u32>) {
     let mut order: Vec<u32> = (0..records.len())
         .filter_map(|index| u32::try_from(index).ok())
         .collect();
@@ -210,7 +223,7 @@ fn tree(records: &[RecordInfo]) -> Vec<Node> {
         builder.add_group(parent, file, group, records);
     }
     sort_children(&mut builder.nodes);
-    builder.nodes
+    (builder.nodes, order)
 }
 
 fn folder(name: &str) -> Node {
@@ -218,6 +231,7 @@ fn folder(name: &str) -> Node {
         name: name.into(),
         kind: RecordNodeKind::Folder,
         children: Vec::new(),
+        parent: None,
     }
 }
 
@@ -255,7 +269,10 @@ impl Builder {
         if let Some(parent) = self.nodes.get_mut(parent as usize) {
             parent.children.push(RecordNodeId(id));
         }
-        self.nodes.push(node);
+        self.nodes.push(Node {
+            parent: Some(RecordNodeId(parent)),
+            ..node
+        });
         Some(id)
     }
 
@@ -270,6 +287,7 @@ impl Builder {
             name: name.into(),
             kind: RecordNodeKind::Record(RecordId(index)),
             children: Vec::new(),
+            parent: None,
         };
         let name_of = |index: u32| records.get(index as usize).map_or("", |info| &*info.name);
         match (file, group) {

@@ -6,7 +6,7 @@ use p4kx_cryxml::CryXmlError;
 use p4kx_dataforge::DataForgeError;
 use thiserror::Error;
 
-use crate::RecordExportReport;
+use crate::{ConversionError, RecordExportReport};
 
 /// Why one Entry of an Extraction was not written.
 #[derive(Debug, Error)]
@@ -40,6 +40,9 @@ pub enum ExtractionError {
         /// The largest size converted.
         limit: u64,
     },
+    /// The texture could not be converted.
+    #[error("cannot convert the texture")]
+    Texture(#[source] ConversionError),
     /// The Entry is DataForge that could not be opened to convert its Records.
     #[error("cannot convert the DataForge")]
     DataForge(#[source] DataForgeError),
@@ -82,6 +85,7 @@ pub struct ExtractionReport {
     pub(crate) converted: Option<usize>,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
+    pub(crate) unconverted: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
     pub(crate) archive_changed: bool,
     pub(crate) records: Option<RecordExportReport>,
@@ -94,8 +98,9 @@ impl ExtractionReport {
         self.extracted
     }
 
-    /// Returns the number of Entries written converted, `CryXml` as XML and the DataForge Entry as
-    /// Records, or `None` when the run did not convert; they count among the
+    /// Returns the number of Entries written converted, `CryXml` as XML, the Entries of a
+    /// converted texture and the DataForge Entry as Records, or `None` when the run did not
+    /// convert; they count among the
     /// [`extracted`](Self::extracted) Entries.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
@@ -112,6 +117,14 @@ impl ExtractionReport {
     #[must_use]
     pub fn failures(&self) -> &[EntryFailure] {
         &self.failures
+    }
+
+    /// Returns the textures, by the path of their header Entry, that a Conversion could not
+    /// fully convert, with the reason; their raw Entries were written instead, except a header
+    /// whose path the merged DDS already took.
+    #[must_use]
+    pub fn unconverted(&self) -> &[EntryFailure] {
+        &self.unconverted
     }
 
     /// Returns the paths of Entries not written because the run was cancelled.
@@ -133,14 +146,18 @@ impl ExtractionReport {
         self.records.as_ref()
     }
 
-    /// Returns whether no Entry or Record failed, the run was not cancelled and the Archive did
-    /// not change.
+    /// Returns whether no Entry or Record failed, every texture was converted, the run was not
+    /// cancelled and the Archive did not change.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
         let records = match &self.records {
             Some(records) => records.is_complete(),
             None => true,
         };
-        records && self.failures.is_empty() && self.cancelled.is_empty() && !self.archive_changed
+        records
+            && self.failures.is_empty()
+            && self.unconverted.is_empty()
+            && self.cancelled.is_empty()
+            && !self.archive_changed
     }
 }

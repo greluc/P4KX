@@ -59,9 +59,11 @@ pub struct Progress {
 pub struct ExtractOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
-    /// Converts `CryXml` Entries to UTF-8 XML and writes the DataForge Entry as Record XML files;
-    /// text XML and every other Entry stay unchanged.
+    /// Converts `CryXml` Entries to UTF-8 XML, split DDS textures as `textures` says and the
+    /// DataForge Entry to Record XML files; text XML and every other Entry stay unchanged.
     pub convert: bool,
+    /// What a Conversion writes for a DDS texture; ignored while `convert` is off.
+    pub textures: TextureConversion,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
@@ -75,9 +77,48 @@ impl fmt::Debug for ExtractOptions<'_> {
         f.debug_struct("ExtractOptions")
             .field("policy", &self.policy)
             .field("convert", &self.convert)
+            .field("textures", &self.textures)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("watch", &self.watch)
             .finish()
+    }
+}
+
+/// What a Conversion writes for a DDS texture: the header Entry `<name>.dds` and its parts
+/// `<name>.dds.1` … `<name>.dds.N`.
+///
+/// The outputs combine. The merged DDS takes the header's path, the PNG is `<name>.png` next to
+/// it, with an alpha tail `<name>.dds.a` in its alpha channel; without a PNG, the merge writes
+/// the alpha tail merged under its own path. With neither the merge nor the PNG chosen, the
+/// texture's Entries are written unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TextureConversion {
+    /// Writes the header and its parts merged into one standard DDS file.
+    pub merge: bool,
+    /// Writes one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR: the given level, 0
+    /// being the largest, or the smallest mip when the texture has fewer levels; `None` writes
+    /// no image.
+    pub png: Option<u32>,
+    /// Also writes the Entries unchanged; with the merge, the merged DDS replaces the raw header.
+    pub keep_raw: bool,
+}
+
+impl TextureConversion {
+    /// Returns whether a texture is converted at all rather than written unchanged.
+    #[must_use]
+    pub const fn converts(&self) -> bool {
+        self.merge || self.png.is_some()
+    }
+}
+
+impl Default for TextureConversion {
+    /// Merges the texture and exports its largest mip as PNG, without the raw parts.
+    fn default() -> Self {
+        Self {
+            merge: true,
+            png: Some(0),
+            keep_raw: false,
+        }
     }
 }

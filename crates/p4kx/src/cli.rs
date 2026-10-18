@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_dcb::{
+    DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
+};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -70,7 +73,8 @@ pub(crate) enum AudioAction {
     /// Prints the codec, channels, sample rate and duration of a WEM.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(AudioSource),
-    /// Writes a PCM WEM as a 16-bit WAV file; other codecs fail with an error naming them.
+    /// Writes a PCM, IMA ADPCM or PTADPCM WEM as a 16-bit WAV file; other codecs fail with an
+    /// error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Wav {
         /// The sound.
@@ -90,78 +94,6 @@ pub(crate) struct AudioSource {
     pub(crate) path: PathBuf,
     /// Path of the WEM Entry in the Archive, with `\` or `/` as separator, ignoring case.
     pub(crate) entry: Option<String>,
-}
-
-/// Arguments of `p4kx dcb`.
-#[derive(Debug, Args)]
-pub(crate) struct DcbArgs {
-    /// What to read.
-    #[command(subcommand)]
-    pub(crate) command: DcbCommand,
-}
-
-/// The subcommands of `p4kx dcb`.
-#[derive(Debug, Subcommand)]
-pub(crate) enum DcbCommand {
-    /// Prints the version of the DataForge and its number of Records, structs and enums.
-    #[command(after_help = EXIT_CODES_HELP)]
-    Info(DcbInfoArgs),
-    /// Writes Records as Record XML into a target folder, one file per Record under its record
-    /// path or, with --combined, all of them in one file.
-    #[command(after_help = EXIT_CODES_HELP)]
-    Export(DcbExportArgs),
-    /// Runs a Query over the Records and prints the result as a table, the record path first.
-    #[command(after_help = EXIT_CODES_HELP)]
-    Query(DcbQueryArgs),
-}
-
-/// Arguments of `p4kx dcb query`.
-#[derive(Debug, Args)]
-pub(crate) struct DcbQueryArgs {
-    /// Path of the Data.p4k Archive.
-    pub(crate) archive: PathBuf,
-    /// The Query, defined in docs/query.md, e.g.
-    /// `from EntityClassDefinition at "*/spaceships/*" select Size`.
-    pub(crate) query: String,
-}
-
-/// Arguments of `p4kx dcb export`.
-#[derive(Debug, Args)]
-pub(crate) struct DcbExportArgs {
-    /// Path of the Data.p4k Archive.
-    pub(crate) archive: PathBuf,
-    /// The format of the Record files.
-    #[arg(long, value_enum, default_value_t = RecordFormat::Xml)]
-    pub(crate) format: RecordFormat,
-    /// Exports only the Records whose record path matches, with the rules of `p4kx search`: a
-    /// glob with `*` or `?`, otherwise text anywhere in the path; ignores case, `\` and `/` alike.
-    #[arg(long, value_name = "FILTER")]
-    pub(crate) filter: Option<String>,
-    /// Writes every selected Record into one file in record-path order, named after the
-    /// DataForge Entry, e.g. Game2.xml, instead of one file per Record.
-    #[arg(long)]
-    pub(crate) combined: bool,
-    /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
-    /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
-    #[arg(long, value_name = "FOLDER")]
-    pub(crate) out: Option<PathBuf>,
-    /// What to do with a file that already exists in the target.
-    #[arg(long, value_enum, default_value_t = Conflict::Skip)]
-    pub(crate) conflict: Conflict,
-}
-
-/// The values of `p4kx dcb export --format`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum RecordFormat {
-    /// Record XML, defined in docs/record-xml.md.
-    Xml,
-}
-
-/// Arguments of `p4kx dcb info`.
-#[derive(Debug, Args)]
-pub(crate) struct DcbInfoArgs {
-    /// Path of the Data.p4k Archive.
-    pub(crate) archive: PathBuf,
 }
 
 /// Arguments of `p4kx cryxml`.
@@ -311,14 +243,45 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
-    /// Converts CryXml Entries to UTF-8 XML and writes the DataForge Entry as one Record XML file
-    /// per Record below its folder instead of the .dcb; text XML and every other Entry are
-    /// written unchanged.
+    /// Converts CryXml Entries to UTF-8 XML, DDS textures as --textures says and the DataForge
+    /// Entry to one Record XML file per Record below its folder instead of the .dcb; text XML and
+    /// every other Entry are written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,
+    /// What --convert writes for a texture <name>.dds, its parts <name>.dds.1 … .N and any alpha
+    /// tail <name>.dds.a: `merge` one standard DDS under the header's path (and, without `png`,
+    /// the tail merged under its own path), `png` the mip --mip as <name>.png with the tail as
+    /// alpha, a high-range texture as OpenEXR <name>.exr and a cubemap as six face files, `raw`
+    /// the Entries unchanged (with `merge`, only the parts); a texture that cannot be converted
+    /// is reported and written raw.
+    #[arg(
+        long,
+        value_enum,
+        value_delimiter = ',',
+        num_args = 1..,
+        default_values_t = [TextureOutput::Merge, TextureOutput::Png],
+        requires = "convert",
+        value_name = "OUTPUTS"
+    )]
+    pub(crate) textures: Vec<TextureOutput>,
+    /// The mip level --convert exports as PNG or OpenEXR, 0 being the largest; a texture with
+    /// fewer levels exports its smallest.
+    #[arg(long, default_value_t = 0, requires = "convert", value_name = "LEVEL")]
+    pub(crate) mip: u32,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,
+}
+
+/// The values of `p4kx extract --textures`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TextureOutput {
+    /// Merge the header and its parts into one standard DDS file.
+    Merge,
+    /// Export one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR.
+    Png,
+    /// Write the Entries unchanged as well.
+    Raw,
 }
 
 /// The values of `p4kx extract --conflict`.

@@ -49,6 +49,12 @@ impl<'a> Tracker<'a> {
         self.update(|progress| progress.bytes_done += count);
     }
 
+    /// Takes back `count` bytes recorded through [`wrote`](Self::wrote) that no Entry will
+    /// account for when it ends.
+    pub(crate) fn retract(&self, count: u64) {
+        self.update(|progress| progress.bytes_done = progress.bytes_done.saturating_sub(count));
+    }
+
     /// Records the end of an Entry of which `written` bytes were reported through
     /// [`wrote`](Self::wrote).
     pub(crate) fn ended(&self, entry: &Entry, written: u64) {

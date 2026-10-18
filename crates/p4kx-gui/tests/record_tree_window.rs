@@ -226,6 +226,10 @@ fn selecting_an_entry_returns_from_the_dataforge_tab_to_its_preview() -> TestRes
         .get_by_role_and_label(Role::Button, "DataForge")
         .click();
     wait_until(&mut harness, settled)?;
+    harness
+        .get_by_role_and_label(Role::Button, "Data.p4k")
+        .click();
+    harness.run();
 
     harness.get_by_label("readme.txt").click();
     wait_until(&mut harness, |model| {

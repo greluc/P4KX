@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::{ExtractionReport, RecordExportReport};
+use p4kx_extraction::{EntryFailure, ExtractionReport, RecordExportReport};
 
 use crate::model::describe;
 
@@ -51,6 +51,7 @@ pub struct ExtractionSummary {
     converted: Option<usize>,
     skipped: Vec<String>,
     failures: Vec<FailedEntry>,
+    unconverted: Vec<FailedEntry>,
     cancelled: Vec<String>,
     archive_changed: bool,
     records: Option<RecordCounts>,
@@ -63,14 +64,8 @@ impl ExtractionSummary {
             extracted: report.extracted(),
             converted: report.converted(),
             skipped: report.skipped().to_vec(),
-            failures: report
-                .failures()
-                .iter()
-                .map(|failure| FailedEntry {
-                    path: failure.path().to_owned(),
-                    reason: describe(failure.error()),
-                })
-                .collect(),
+            failures: failed_entries(report.failures()),
+            unconverted: failed_entries(report.unconverted()),
             cancelled: report.cancelled().to_vec(),
             archive_changed: report.archive_changed(),
             records: report.records().map(RecordCounts::new),
@@ -89,7 +84,8 @@ impl ExtractionSummary {
         self.extracted
     }
 
-    /// Returns the number of `CryXml` Entries written as XML, or `None` when Conversion was off.
+    /// Returns the number of Entries written converted, `CryXml` as XML, the Entries of converted
+    /// textures and the DataForge Entry as Records, or `None` when Conversion was off.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
         self.converted
@@ -105,6 +101,13 @@ impl ExtractionSummary {
     #[must_use]
     pub fn failures(&self) -> &[FailedEntry] {
         &self.failures
+    }
+
+    /// Returns the textures, by their header Entry, that could not be converted, with the
+    /// reason; their raw Entries were written instead.
+    #[must_use]
+    pub fn unconverted(&self) -> &[FailedEntry] {
+        &self.unconverted
     }
 
     /// Returns the paths of Entries not written because the Extraction was cancelled.
@@ -125,4 +128,14 @@ impl ExtractionSummary {
     pub const fn archive_changed(&self) -> bool {
         self.archive_changed
     }
+}
+
+fn failed_entries(failures: &[EntryFailure]) -> Vec<FailedEntry> {
+    failures
+        .iter()
+        .map(|failure| FailedEntry {
+            path: failure.path().to_owned(),
+            reason: describe(failure.error()),
+        })
+        .collect()
 }

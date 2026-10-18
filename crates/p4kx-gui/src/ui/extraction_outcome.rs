@@ -17,7 +17,9 @@ use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
 use crate::widgets::text::paint_left;
-use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Language, Model, Texts};
+use crate::{
+    ExtractionStatus, ExtractionSummary, ExtractionText as T, FailedEntry, Language, Model, Texts,
+};
 
 const REFRESH: Duration = Duration::from_millis(100);
 const WINDOW: &str = "extraction-run";
@@ -187,13 +189,18 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     }
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
-    let failures = failure_lines(ui, texts, summary);
-    list(
-        ui,
-        texts,
-        (T::SummaryFailed, &failures.lines, Some(&failures.reasons)),
-        true,
-    );
+    for (heading, failed) in [
+        (T::SummaryFailed, summary.failures()),
+        (T::SummaryUnconverted, summary.unconverted()),
+    ] {
+        let lines = failure_lines(ui, texts, (summary, heading), failed);
+        list(
+            ui,
+            texts,
+            (heading, &lines.lines, Some(&lines.reasons)),
+            true,
+        );
+    }
     list(
         ui,
         texts,
@@ -216,21 +223,26 @@ struct FailureLines {
     reasons: Arc<[usize]>,
 }
 
-/// Returns the failure lines of `summary`, formatted once per summary and language.
-fn failure_lines(ui: &Ui, texts: &Texts, summary: &ExtractionSummary) -> FailureLines {
+/// Returns the lines of `failed`, the list under `heading` of `summary`, formatted once per
+/// summary and language.
+fn failure_lines(
+    ui: &Ui,
+    texts: &Texts,
+    (summary, heading): (&ExtractionSummary, T),
+    failed: &[FailedEntry],
+) -> FailureLines {
     let key = (
         std::ptr::from_ref(summary).addr(),
-        summary.failures().len(),
+        failed.len(),
         texts.language(),
     );
-    let id = Id::unique("p4kx-failure-lines");
+    let id = Id::unique("p4kx-failure-lines").with(heading.id());
     if let Some(cached) = ui.data(|data| data.get_temp::<FailureLines>(id))
         && cached.key == key
     {
         return cached;
     }
-    let lines: Arc<[String]> = summary
-        .failures()
+    let lines: Arc<[String]> = failed
         .iter()
         .map(|failure| {
             texts.format(
@@ -244,7 +256,7 @@ fn failure_lines(ui: &Ui, texts: &Texts, summary: &ExtractionSummary) -> Failure
         .collect();
     let reasons = lines
         .iter()
-        .zip(summary.failures())
+        .zip(failed)
         .map(|(line, failure)| line.len().saturating_sub(failure.reason.len()))
         .collect();
     let failures = FailureLines {

@@ -207,6 +207,75 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
     Ok(())
 }
 
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn searching_the_records_of_a_real_archive_keeps_frames_short() -> TestResult {
+    let mut harness = opened()?;
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Button, "DataForge")
+        .click();
+    harness.run_steps(2);
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .click();
+    harness.run_steps(2);
+
+    for character in ["s", "h", "i", "p", "s", "/"] {
+        harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .type_text(character);
+        let took = timed_step(&mut harness);
+        assert!(took < FRAME_LIMIT, "typing {character:?} took {took:?}");
+    }
+    step_until_records_found(&mut harness);
+    let browser = harness.state().browser().ok_or("no Archive")?;
+    let tree = browser.records().ok_or("no DataForge")?;
+    let matches = browser.record_matches().ok_or("no matches")?;
+    let filter = Filter::new("ships/");
+    assert_eq!(browser.record_search_text(), "ships/", "every key arrived");
+    assert!(matches.len() > 100, "ships/ matches Records");
+    assert!(
+        matches
+            .iter()
+            .filter_map(|&id| tree.record(id))
+            .all(|record| {
+                filter.matches(record.record_path()) || filter.matches(record.type_name())
+            }),
+        "every match matches the Filter"
+    );
+    let first = *matches.first().ok_or("no first match")?;
+    if let Some(browser) = harness.state_mut().browser_mut() {
+        browser.pick_record(first);
+    }
+    let took = timed_step(&mut harness).max(timed_step(&mut harness));
+    assert!(took < FRAME_LIMIT, "picking took {took:?}");
+    let tree = records(&harness).ok_or("no DataForge")?;
+    assert_eq!(tree.selected(), tree.record_node(first), "picked");
+    Ok(())
+}
+
+fn step_until_records_found(harness: &mut Harness<'_, Model>) {
+    let deadline = Instant::now() + Duration::from_secs(120);
+    while harness
+        .state()
+        .browser()
+        .is_some_and(|browser| browser.is_searching_records() || browser.record_matches().is_none())
+    {
+        assert!(
+            Instant::now() < deadline,
+            "the Record search did not finish"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+        let took = timed_step(harness);
+        assert!(took < FRAME_LIMIT, "a frame while searching took {took:?}");
+    }
+    let took = timed_step(harness);
+    assert!(
+        took < FRAME_LIMIT,
+        "the frame after the search took {took:?}"
+    );
+}
+
 fn records<'h>(harness: &'h Harness<'_, Model>) -> Option<&'h RecordTree> {
     harness.state().browser().and_then(Browser::records)
 }

@@ -37,8 +37,18 @@ pub enum ExtractionText {
     PolicyOverwrite,
     /// Replaces existing files only when they differ.
     PolicyIfChanged,
-    /// The switch that converts `CryXml` Entries and DataForge to XML.
+    /// The switch that converts `CryXml` Entries and DataForge to XML and textures.
     Conversion,
+    /// The switch that merges a split texture into one DDS file.
+    TextureMerge,
+    /// The switch that exports a texture as PNG.
+    TexturePng,
+    /// The choice of the largest mip for the PNG.
+    TextureMipLargest,
+    /// The choice of a smaller mip level for the PNG.
+    TextureMipLevel,
+    /// The switch that also writes the raw Entries of a texture.
+    TextureRaw,
     /// The action that starts the Extraction.
     Start,
     /// The action that closes a window.
@@ -81,6 +91,8 @@ pub enum ExtractionText {
     SummarySkipped,
     /// The heading of the cancelled Entries; takes `number`.
     SummaryCancelled,
+    /// The heading of the textures that were not converted; takes `number`.
+    SummaryUnconverted,
     /// One failed Entry; takes `path` and `reason`.
     SummaryFailure,
     /// The title of the window shown when the Extraction could not run.
@@ -93,7 +105,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 43] = [
+    pub const ALL: [Self; 49] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -113,6 +125,11 @@ impl ExtractionText {
         Self::PolicyOverwrite,
         Self::PolicyIfChanged,
         Self::Conversion,
+        Self::TextureMerge,
+        Self::TexturePng,
+        Self::TextureMipLargest,
+        Self::TextureMipLevel,
+        Self::TextureRaw,
         Self::Start,
         Self::Close,
         Self::ConfirmAll,
@@ -133,6 +150,7 @@ impl ExtractionText {
         Self::SummaryFailed,
         Self::SummarySkipped,
         Self::SummaryCancelled,
+        Self::SummaryUnconverted,
         Self::SummaryFailure,
         Self::FailedTitle,
         Self::Failed,
@@ -162,6 +180,11 @@ impl ExtractionText {
             Self::PolicyOverwrite => "extraction-policy-overwrite",
             Self::PolicyIfChanged => "extraction-policy-if-changed",
             Self::Conversion => "extraction-conversion",
+            Self::TextureMerge => "extraction-texture-merge",
+            Self::TexturePng => "extraction-texture-png",
+            Self::TextureMipLargest => "extraction-texture-mip-largest",
+            Self::TextureMipLevel => "extraction-texture-mip-level",
+            Self::TextureRaw => "extraction-texture-raw",
             Self::Start => "extraction-start",
             Self::Close => "extraction-close",
             Self::ConfirmAll => "extraction-confirm-all",
@@ -182,6 +205,7 @@ impl ExtractionText {
             Self::SummaryFailed => "extraction-summary-failed",
             Self::SummarySkipped => "extraction-summary-skipped",
             Self::SummaryCancelled => "extraction-summary-cancelled",
+            Self::SummaryUnconverted => "extraction-summary-unconverted",
             Self::SummaryFailure => "extraction-summary-failure",
             Self::FailedTitle => "extraction-failed-title",
             Self::Failed => "extraction-failed",

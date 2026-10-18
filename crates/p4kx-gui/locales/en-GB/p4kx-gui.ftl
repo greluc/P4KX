@@ -83,7 +83,12 @@ extraction-policy-heading = Files that already exist
 extraction-policy-skip = Skip
 extraction-policy-overwrite = Overwrite
 extraction-policy-if-changed = Overwrite only if changed
-extraction-conversion = Convert CryXml and DataForge to XML
+extraction-conversion = Convert CryXml and DataForge to XML and textures
+extraction-texture-merge = Merge split textures into one DDS
+extraction-texture-png = Export textures as PNG (high-range as OpenEXR)
+extraction-texture-mip-largest = Largest mip
+extraction-texture-mip-level = Mip level
+extraction-texture-raw = Keep the raw texture parts
 extraction-start = Extract
 extraction-close = Close
 extraction-confirm-all =
@@ -108,6 +113,7 @@ extraction-summary-target = Target: { $path }
 extraction-summary-failed = Failed ({ $number })
 extraction-summary-skipped = Skipped ({ $number })
 extraction-summary-cancelled = Cancelled ({ $number })
+extraction-summary-unconverted = Not converted ({ $number })
 extraction-summary-failure = { $path }: { $reason }
 extraction-failed = Cannot prepare the target in { $path }: { $reason }
 extraction-stopped = The Extraction into { $path } stopped without a result.
@@ -167,6 +173,15 @@ dataforge-stopped = Loading DataForge from { $path } stopped without a result.
 dataforge-archive-changed = The Archive changed on disk. Reload it to load DataForge.
 dataforge-version = Version
 dataforge-records = Records
+record-search-label = Search Records
+record-search-hint = Filter by record path or type: a glob with * or ?, otherwise any part
+record-search-prompt = Type part of a record path or type name to find Records.
+record-search-no-matches = No Record matches the search.
+record-search-matches =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
 dataforge-structs = Structs
 dataforge-enums = Enums
 dataforge-first-records = First Records

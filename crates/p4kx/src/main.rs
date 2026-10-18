@@ -5,6 +5,7 @@ mod bnk;
 mod channels;
 mod cli;
 mod cli_bnk;
+mod cli_dcb;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -18,6 +19,9 @@ mod info;
 mod json;
 mod list;
 mod progress;
+mod query_file;
+mod query_rows;
+mod query_table;
 mod texture;
 mod texture_image;
 

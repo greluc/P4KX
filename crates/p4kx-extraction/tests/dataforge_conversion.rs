@@ -10,7 +10,8 @@ use p4kx_extraction::{
     Progress, extract,
 };
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, SplitDds, TestElement,
+    TestEntry, TestRecord, TestStruct, TestTextureFormat, TestType, TestValue,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -337,6 +338,46 @@ fn cancelling_while_records_are_written_stops_the_run() -> TestResult {
             .extension()
             .is_some_and(|extension| extension == "xml")),
         "no partial file remains"
+    );
+    Ok(())
+}
+
+#[test]
+fn cryxml_textures_and_the_dataforge_convert_in_one_run() -> TestResult {
+    let cryxml = TestElement::new("Ship")
+        .attribute("name", "Gladius")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let mut entries = SplitDds::new(TestTextureFormat::LegacyDxt5, 32, 16)
+        .split(3)
+        .entries("Data\\Textures\\rock_diff.dds");
+    entries.push(TestEntry::stored("Data\\ship.xml", cryxml));
+    entries.push(TestEntry::stored("Data\\Game2.dcb", database(2)));
+    let fixture = fixture(entries)?;
+
+    let report = run(&fixture, &converting());
+
+    assert!(report.is_complete(), "complete: {report:?}");
+    assert_eq!(
+        files(&fixture.target)?,
+        [
+            "Data/Textures/rock_diff.dds",
+            "Data/Textures/rock_diff.png",
+            "Data/libs/foundry/records/items/n0.xml",
+            "Data/libs/foundry/records/items/n1.xml",
+            "Data/ship.xml",
+        ],
+        "the texture merged and exported, the Records written, the CryXml converted"
+    );
+    assert!(
+        fs::read(fixture.target.join("Data/ship.xml"))?.starts_with(b"<?xml"),
+        "CryXml as XML"
+    );
+    assert_eq!(
+        report
+            .records()
+            .map(p4kx_extraction::RecordExportReport::written),
+        Some(2),
+        "both Records"
     );
     Ok(())
 }

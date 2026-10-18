@@ -25,7 +25,8 @@ use crate::{
 
 const ROWS: u8 = 3;
 
-const COLUMNS: [Text; 3] = [
+/// The columns of a table of Records.
+pub(super) const COLUMNS: [Text; 3] = [
     Text::ColumnName,
     Text::DataForge(DataForgeText::ColumnType),
     Text::DataForge(DataForgeText::ColumnRecordPath),

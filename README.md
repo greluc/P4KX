@@ -63,7 +63,7 @@ Early development (milestone M1). Available today:
 
 ## Build
 
-Requires the stable Rust toolchain (1.98 or newer).
+Requires the stable Rust toolchain (1.99 or newer).
 
 ```powershell
 cargo build --release

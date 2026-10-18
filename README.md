@@ -83,7 +83,7 @@ Early development (milestone M1). Available today:
   use decode with pure-Rust decoders; any other format fails with a message naming it and exit
   code 1. A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead, to
   `<file>` with the extension `.exr`, so its range is not clipped; `--tone-map` writes an 8-bit PNG
-  instead, Reinhard tone-mapped and sRGB-encoded (ADR-0009); the message names both the requested
+  instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010); the message names both the requested
   and the written file, and `--tone-map` on any other texture only prints a note. Cubemaps,
   texture arrays and volumes are not decoded yet.
 - `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two

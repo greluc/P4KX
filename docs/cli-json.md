@@ -59,6 +59,15 @@ when nothing matches.
 `channel` is the name of the folder holding the Archive, or `null` when there is none; `build` is
 `null` when the Build is unknown.
 
+## `p4kx dcb info <archive> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb", "version": 6, "record_count": 117709,
+ "struct_count": 6696, "enum_count": 774}
+```
+
+`entry` is the path of the DataForge Entry as the Archive stores it.
+
 ## `p4kx channels --json`
 
 ```json

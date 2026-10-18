@@ -1,17 +1,28 @@
-use egui::{Align, Layout, Ui};
+use egui::{Align, Color32, Label, Layout, Ui};
 use fluent_bundle::FluentValue;
 
 use p4kx_extraction::Build;
 
+use crate::theme::desktop::{SPINNER_INLINE, STATUS_ITEM_PADDING_X, STATUS_PATH_MAX_WIDTH};
+use crate::theme::palette;
+use crate::theme::tokens::{FS_XS, Weight};
+use crate::widgets::indicator;
+use crate::widgets::text::{link, plain};
 use crate::{Browser, Model, Text, Texts, format};
 
+/// Shows the status bar, the desktop density of `.krt-footer`.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
     let texts = model.texts();
-    ui.horizontal(|ui| {
+    ui.spacing_mut().item_spacing.x = STATUS_ITEM_PADDING_X;
+    ui.horizontal_centered(|ui| {
         if let Some(path) = model.opening_path() {
-            ui.spinner();
+            indicator::spinner(ui, SPINNER_INLINE);
             let path = path.display().to_string();
-            ui.label(texts.format(Text::StatusOpening, &[("path", path.into())]));
+            item(
+                ui,
+                texts.format(Text::StatusOpening, &[("path", path.into())]),
+                palette::PRIMARY,
+            );
         } else if let Some(failure) = model.failure() {
             let path = failure.path.display().to_string();
             let text = match &failure.reason {
@@ -21,20 +32,12 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                 ),
                 None => texts.format(Text::StatusOpeningStopped, &[("path", path.into())]),
             };
-            ui.colored_label(ui.visuals().error_fg_color, text);
+            item(ui, text, palette::DANGER_TEXT);
         } else if model.browser().is_none() {
-            ui.label(texts.get(Text::StatusEmpty));
+            item(ui, texts.get(Text::StatusEmpty), palette::GRAY_2_TEXT);
         }
         if let Some(browser) = model.browser() {
-            for part in browser_parts(texts, browser) {
-                ui.separator();
-                ui.label(part);
-            }
-            if browser.is_searching() {
-                ui.separator();
-                ui.spinner();
-                ui.label(texts.get(Text::StatusSearching));
-            }
+            browser_items(ui, texts, browser);
         }
         if let Some(release) = model.newer_release() {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -42,22 +45,32 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                     Text::UpdateAvailable,
                     &[("version", release.version.clone().into())],
                 );
-                ui.hyperlink_to(text, &release.page);
+                link(ui, &text, &release.page);
             });
         }
     });
 }
 
-fn browser_parts(texts: &Texts, browser: &Browser) -> [String; 5] {
+fn item(ui: &mut Ui, text: String, colour: Color32) {
+    ui.add(
+        Label::new(plain(text, FS_XS, Weight::Regular).color(colour))
+            .truncate()
+            .selectable(false),
+    );
+}
+
+fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
     let language = texts.language();
     let archive = browser.index().archive();
     let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
     let number =
         |value: usize| -> FluentValue<'static> { format::number(count(value), language).into() };
-    let build = build_label(texts, archive.build());
-    [
-        archive.path().display().to_string(),
-        build,
+    ui.scope(|ui| {
+        ui.set_max_width(STATUS_PATH_MAX_WIDTH);
+        item(ui, archive.path().display().to_string(), palette::GRAY_1);
+    });
+    let parts = [
+        build_label(texts, archive.build()),
         texts.format(
             Text::StatusEntries,
             &[
@@ -70,7 +83,16 @@ fn browser_parts(texts: &Texts, browser: &Browser) -> [String; 5] {
             &[("number", number(browser.shown().len()))],
         ),
         selected_label(texts, browser, number),
-    ]
+    ];
+    for part in parts {
+        ui.separator();
+        item(ui, part, palette::GRAY_2_TEXT);
+    }
+    if browser.is_searching() {
+        ui.separator();
+        indicator::spinner(ui, SPINNER_INLINE);
+        item(ui, texts.get(Text::StatusSearching), palette::PRIMARY);
+    }
 }
 
 fn selected_label(

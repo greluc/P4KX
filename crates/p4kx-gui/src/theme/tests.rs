@@ -8,7 +8,11 @@ fn the_style_is_dark_with_the_krt_surfaces() {
 
     assert!(visuals.dark_mode, "dark mode");
     assert_eq!(visuals.panel_fill, palette::GRAY_4, "Grau 4 surface");
-    assert_eq!(visuals.extreme_bg_color, palette::BLACK, "black canvas");
+    assert_eq!(
+        visuals.extreme_bg_color,
+        palette::GRAY_4,
+        "Grau 4 scroll track"
+    );
     assert_eq!(visuals.text_color(), palette::GRAY_1, "Grau 1 body text");
     assert_eq!(
         visuals.weak_text_color(),
@@ -28,8 +32,8 @@ fn orange_marks_selection_links_and_focus() {
     );
     assert_eq!(
         visuals.selection.stroke.color,
-        palette::BLACK,
-        "selected text"
+        palette::PRIMARY,
+        "focused input border"
     );
     assert_eq!(visuals.hyperlink_color, palette::PRIMARY, "links");
     assert_eq!(visuals.text_cursor.stroke.color, palette::PRIMARY, "cursor");

@@ -1,11 +1,12 @@
 use std::io::{self, Write};
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::{Archive, DataForgeEntry};
 use serde::Serialize;
 
 use crate::cli::{DcbArgs, DcbCommand, DcbInfoArgs};
-use crate::json;
+use crate::{dcb_export, exit, json};
 
 #[derive(Serialize)]
 struct Summary<'a> {
@@ -18,9 +19,10 @@ struct Summary<'a> {
 }
 
 /// Runs a `p4kx dcb` subcommand.
-pub(crate) fn run(args: &DcbArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &DcbArgs, as_json: bool) -> Result<ExitCode> {
     match &args.command {
-        DcbCommand::Info(args) => info(args, as_json),
+        DcbCommand::Info(args) => info(args, as_json).map(|()| ExitCode::from(exit::SUCCESS)),
+        DcbCommand::Export(args) => dcb_export::run(args, as_json),
     }
 }
 

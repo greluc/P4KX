@@ -11,6 +11,7 @@ use p4kx_extraction::{Archive, ConflictPolicy, Entry, ExtractOptions, extract};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
+mod records;
 mod texture;
 
 type TestResult = Result<(), Box<dyn Error>>;

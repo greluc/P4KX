@@ -52,6 +52,13 @@ Early development (milestone M1). Available today:
   elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
   `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
   files and the launcher's settings store are never opened.
+- `p4kx texture info <archive> <entry>` prints the format, size, depth, mip count, array size,
+  cubemap faces and number of mip parts of a DDS texture; `p4kx texture merge <archive> <entry>
+  --out <file>` merges the header Entry and its mip parts `<entry>.1` … `<entry>.N` into one
+  standard DDS file that common tools open. Both also take a header file on disk instead of an
+  Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
+  truncated or oversized part is named in the error and nothing is written. Split cubemaps and
+  texture arrays are not merged yet.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

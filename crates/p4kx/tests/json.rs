@@ -4,10 +4,12 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
+use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat, write_build_manifest};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+const TEXTURE: &str = "Data\\Textures\\hull_ddna.dds";
 
 struct Fixture {
     root: tempfile::TempDir,
@@ -46,6 +48,17 @@ impl Fixture {
                 "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
             )?;
         }
+        Ok(archive)
+    }
+
+    fn texture_archive(&self) -> Result<PathBuf, Box<dyn Error>> {
+        let archive = self.dir().join("Data.p4k");
+        SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32)
+            .split(4)
+            .entries(TEXTURE)
+            .into_iter()
+            .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+            .write_to(&archive)?;
         Ok(archive)
     }
 
@@ -233,6 +246,44 @@ fn extract_with_a_filter() -> TestResult {
             .args(["--filter", "*.xml", "--out"])
             .arg(fixture.dir().join("out")),
         1,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn texture_info() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.texture_archive()?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["texture", "info"])
+            .arg(&archive)
+            .arg(TEXTURE),
+        0,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn texture_merge() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.texture_archive()?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["texture", "merge"])
+            .arg(&archive)
+            .arg(TEXTURE)
+            .arg("--out")
+            .arg(fixture.dir().join("hull_ddna.dds")),
+        0,
     )?;
 
     insta::assert_snapshot!(json);

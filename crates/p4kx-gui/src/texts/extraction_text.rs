@@ -37,6 +37,8 @@ pub enum ExtractionText {
     PolicyOverwrite,
     /// Replaces existing files only when they differ.
     PolicyIfChanged,
+    /// The switch that converts `CryXml` Entries to XML.
+    Conversion,
     /// The action that starts the Extraction.
     Start,
     /// The action that closes a window.
@@ -65,6 +67,9 @@ pub enum ExtractionText {
     SummaryChanged,
     /// The counts of the summary; takes `extracted`, `skipped`, `failed` and `cancelled`.
     SummaryCounts,
+    /// The counts of the summary with Conversion on; takes `extracted`, `converted`, `skipped`,
+    /// `failed` and `cancelled`.
+    SummaryCountsConverted,
     /// The target folder; takes `path`.
     SummaryTarget,
     /// The heading of the failed Entries; takes `number`.
@@ -85,7 +90,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 42] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -104,6 +109,7 @@ impl ExtractionText {
         Self::PolicySkip,
         Self::PolicyOverwrite,
         Self::PolicyIfChanged,
+        Self::Conversion,
         Self::Start,
         Self::Close,
         Self::ConfirmAll,
@@ -118,6 +124,7 @@ impl ExtractionText {
         Self::SummaryChangedTitle,
         Self::SummaryChanged,
         Self::SummaryCounts,
+        Self::SummaryCountsConverted,
         Self::SummaryTarget,
         Self::SummaryFailed,
         Self::SummarySkipped,
@@ -150,6 +157,7 @@ impl ExtractionText {
             Self::PolicySkip => "extraction-policy-skip",
             Self::PolicyOverwrite => "extraction-policy-overwrite",
             Self::PolicyIfChanged => "extraction-policy-if-changed",
+            Self::Conversion => "extraction-conversion",
             Self::Start => "extraction-start",
             Self::Close => "extraction-close",
             Self::ConfirmAll => "extraction-confirm-all",
@@ -164,6 +172,7 @@ impl ExtractionText {
             Self::SummaryChangedTitle => "extraction-summary-changed-title",
             Self::SummaryChanged => "extraction-summary-changed",
             Self::SummaryCounts => "extraction-summary-counts",
+            Self::SummaryCountsConverted => "extraction-summary-counts-converted",
             Self::SummaryTarget => "extraction-summary-target",
             Self::SummaryFailed => "extraction-summary-failed",
             Self::SummarySkipped => "extraction-summary-skipped",

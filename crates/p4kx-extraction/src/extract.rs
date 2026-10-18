@@ -3,12 +3,11 @@ use std::path::Path;
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
+use crate::buffers::Buffers;
 use crate::dependent::split_dependent;
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{EntryFailure, ExtractOptions, ExtractionReport};
-
-const BUFFER_LEN: usize = 1 << 20;
 
 /// Runs an Extraction of `entries` from `archive` into the existing folder `target`.
 ///
@@ -35,6 +34,7 @@ pub fn extract(
                 .iter()
                 .map(|entry| entry.path().to_owned())
                 .collect(),
+            converted: options.convert.then_some(0),
             archive_changed: true,
             ..ExtractionReport::default()
         };
@@ -44,6 +44,7 @@ pub fn extract(
         archive,
         target,
         policy: options.policy,
+        convert: options.convert,
         tracker: &tracker,
     };
     let (independent, dependent) = split_dependent(entries.iter().map(|entry| entry.path()));
@@ -54,20 +55,27 @@ pub fn extract(
             .collect()
     };
     let (independent, dependent) = (indexed(independent), indexed(dependent));
-    let run = |buffer: &mut Vec<u8>, (index, entry): (usize, &Entry)| {
-        (index, entry.path().to_owned(), writer.write(entry, buffer))
+    let run = |buffers: &mut Buffers, (index, entry): (usize, &Entry)| {
+        (index, entry.path().to_owned(), writer.write(entry, buffers))
     };
     let mut outcomes: Vec<_> = independent
         .into_par_iter()
-        .map_init(|| vec![0; BUFFER_LEN], run)
+        .map_init(Buffers::new, run)
         .collect();
-    let mut buffer = vec![0; BUFFER_LEN];
-    outcomes.extend(dependent.into_iter().map(|item| run(&mut buffer, item)));
+    let mut buffers = Buffers::new();
+    outcomes.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
-    let mut report = ExtractionReport::default();
+    let mut report = ExtractionReport {
+        converted: options.convert.then_some(0),
+        ..ExtractionReport::default()
+    };
     for (_, path, outcome) in outcomes {
         match outcome {
             Outcome::Written => report.extracted += 1,
+            Outcome::Converted => {
+                report.extracted += 1;
+                report.converted = report.converted.map(|count| count + 1);
+            }
             Outcome::Kept => report.skipped.push(path),
             Outcome::Cancelled => report.cancelled.push(path),
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),

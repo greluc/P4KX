@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_condition.rs
+expression: "table(\"from Weapon select name, size, ballistic \\\n         where size = \\\"S3\\\" or size = \\\"S1\\\" and not ballistic = false\")?"
+---
+record path                            name      size  ballistic
+-------------------------------------  --------  ----  ---------
+libs/foundry/records/weapons/cutter    Cutter    S3    true
+libs/foundry/records/weapons/deadbolt  Deadbolt  S3    false
+2 Records

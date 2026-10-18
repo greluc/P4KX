@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::TestInstance;
 use crate::bytes::{put_u16, put_u32};
 use crate::dataforge_schema::{TestPool, TestProperty, TestRecord, TestStruct, TestType};
 
@@ -13,14 +14,17 @@ const CONVERSION_SIMPLE_ARRAY: u16 = 2;
 /// Builds a synthetic DataForge database in the byte layout of version 6 or 8 from a declarative
 /// description of its structs, enums and Records.
 ///
-/// Every Record gets one zero-filled instance of its struct; struct and enum names refer to
-/// declarations by name, and an unknown name is written as index `u32::MAX`.
+/// Every Record gets one instance of its struct, zero-filled except for its values and with null
+/// pointers where none is set; struct values, arrays and pointers add instances and pool values.
+/// Struct and enum names refer to declarations by name, and an unknown name is written as index
+/// `u32::MAX`.
 #[derive(Debug, Clone)]
 pub struct DataForgeBuilder {
     version: u32,
     pub(crate) structs: Vec<TestStruct>,
     enums: Vec<(String, Vec<String>)>,
     pub(crate) records: Vec<TestRecord>,
+    pub(crate) instances: Vec<(String, TestInstance)>,
     extra_values: [u32; TestPool::COUNT],
 }
 
@@ -39,6 +43,7 @@ impl DataForgeBuilder {
             structs: Vec::new(),
             enums: Vec::new(),
             records: Vec::new(),
+            instances: Vec::new(),
             extra_values: [0; TestPool::COUNT],
         }
     }
@@ -74,6 +79,14 @@ impl DataForgeBuilder {
     #[must_use]
     pub fn record(mut self, record: TestRecord) -> Self {
         self.records.push(record);
+        self
+    }
+
+    /// Adds an instance of a struct that is no Record, e.g. the target of a weak pointer;
+    /// [`TestValue::Pointer`](crate::TestValue::Pointer) refers to it by `name`.
+    #[must_use]
+    pub fn instance(mut self, name: impl Into<String>, instance: TestInstance) -> Self {
+        self.instances.push((name.into(), instance));
         self
     }
 
@@ -123,6 +136,7 @@ pub(crate) struct Writer<'a> {
     pub(crate) sizes: Vec<u32>,
     pub(crate) text: Strings,
     blob: Strings,
+    pub(crate) names: HashMap<String, (u32, u32)>,
 }
 
 impl<'a> Writer<'a> {
@@ -136,6 +150,7 @@ impl<'a> Writer<'a> {
             sizes: Vec::new(),
             text: Strings::default(),
             blob: Strings::default(),
+            names: HashMap::new(),
         };
         writer.sizes = (0..spec.structs.len())
             .map(|index| {
@@ -210,10 +225,9 @@ impl<'a> Writer<'a> {
         let spec = self.spec;
         let (structs, properties, property_count) = self.struct_tables();
         let (enums, options) = self.enum_tables();
-        let (records, instance_counts) = self.records();
-        let mappings = Self::mappings(&instance_counts);
-        let instances = self.instances(&instance_counts);
-        let option_count = to_u32(options.len() / 4);
+        let instances = self.instances(options);
+        let records = self.records(&instances.records);
+        let mappings = Self::mappings(&instances.counts);
         let mut out = Vec::new();
         for word in [0, spec.version, 0, 0] {
             put_u32(&mut out, word);
@@ -228,11 +242,7 @@ impl<'a> Writer<'a> {
             put_u32(&mut out, count);
         }
         for pool in TestPool::HEADER {
-            let own = if pool == TestPool::EnumOption {
-                option_count
-            } else {
-                0
-            };
+            let own = to_u32(instances.pool(pool).len() / pool.element_len());
             put_u32(&mut out, own.saturating_add(self.extra(pool)));
         }
         put_u32(&mut out, to_u32(self.text.bytes.len()));
@@ -241,9 +251,7 @@ impl<'a> Writer<'a> {
             out.extend_from_slice(table);
         }
         for pool in TestPool::STORED {
-            if pool == TestPool::EnumOption {
-                out.extend_from_slice(&options);
-            }
+            out.extend_from_slice(instances.pool(pool));
             out.resize(
                 out.len() + self.extra(pool) as usize * pool.element_len(),
                 0,
@@ -251,7 +259,9 @@ impl<'a> Writer<'a> {
         }
         out.extend_from_slice(&self.text.bytes);
         out.extend_from_slice(&self.blob.bytes);
-        out.extend_from_slice(&instances);
+        for block in &instances.blocks {
+            out.extend_from_slice(block);
+        }
         out
     }
 
@@ -308,16 +318,11 @@ impl<'a> Writer<'a> {
         mappings
     }
 
-    fn records(&mut self) -> (Vec<u8>, Vec<u32>) {
-        let mut instance_counts = vec![0_u32; self.spec.structs.len()];
+    fn records(&mut self, instances: &[u32]) -> Vec<u8> {
         let mut rows = Vec::new();
-        for record in &self.spec.records {
+        for (record, instance) in self.spec.records.iter().zip(instances) {
             let struct_index = self.lookup_struct(Some(&record.type_name));
-            let slot = instance_counts.get_mut(struct_index as usize);
-            let instance = slot.as_ref().map_or(0, |count| **count);
-            if let Some(count) = slot {
-                *count = count.saturating_add(1);
-            }
+            let instance = *instance;
             let size = self.sizes.get(struct_index as usize).copied().unwrap_or(0);
             put_u32(&mut rows, self.blob.offset(&record.name));
             put_u32(&mut rows, self.text.offset(&record.file_name));
@@ -329,7 +334,7 @@ impl<'a> Writer<'a> {
             put_u16(&mut rows, to_u16(instance as usize));
             put_u16(&mut rows, to_u16(size as usize));
         }
-        (rows, instance_counts)
+        rows
     }
 
     fn put_property(&mut self, out: &mut Vec<u8>, property: &TestProperty) {

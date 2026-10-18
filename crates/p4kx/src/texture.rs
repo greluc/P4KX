@@ -2,13 +2,15 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, Texture, TextureError};
+use p4kx_extraction::{Archive, ConversionError, CubemapLayout, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
 use crate::json;
+use crate::texture_image::{ImageOptions, export_image};
 
 const UNKNOWN: &str = "unknown";
+const NONE: &str = "none";
 
 #[derive(Serialize)]
 struct InfoJson<'a> {
@@ -22,6 +24,50 @@ struct InfoJson<'a> {
     faces: u32,
     cubemap: bool,
     parts: Option<u32>,
+    alpha_tail: Option<AlphaTailJson>,
+}
+
+#[derive(Serialize)]
+struct AlphaTailJson {
+    format: Option<String>,
+    parts: Option<u32>,
+    error: Option<String>,
+}
+
+impl AlphaTailJson {
+    fn of(tail: Result<Texture<'_>, ConversionError>) -> Self {
+        match tail {
+            Ok(tail) => Self {
+                format: Some(tail.header().format().to_string()),
+                parts: tail.part_count().ok(),
+                error: None,
+            },
+            Err(error) => Self {
+                format: None,
+                parts: None,
+                error: Some(error_chain(&error)),
+            },
+        }
+    }
+
+    fn describe(&self) -> String {
+        match (&self.format, &self.error) {
+            (_, Some(error)) => format!("broken: {error}"),
+            (Some(format), None) => format!("{format}, {} parts", count(self.parts)),
+            (None, None) => UNKNOWN.to_owned(),
+        }
+    }
+}
+
+fn error_chain(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 #[derive(Serialize)]
@@ -32,15 +78,6 @@ struct MergeJson<'a> {
     size: u64,
 }
 
-#[derive(Serialize)]
-struct PngJson<'a> {
-    texture: &'a str,
-    output: String,
-    mip: u32,
-    width: u32,
-    height: u32,
-}
-
 /// Runs `p4kx texture info`, `merge` or `png`.
 pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
     match &args.action {
@@ -48,8 +85,25 @@ pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
         TextureAction::Merge { source, out } => {
             with_texture(source, |texture| merge(texture, out, as_json))
         }
-        TextureAction::Png { source, out, mip } => {
-            with_texture(source, |texture| png(texture, out, *mip, as_json))
+        TextureAction::Png {
+            source,
+            out,
+            mip,
+            cross,
+            tone_map,
+        } => {
+            let options = ImageOptions {
+                mip: *mip,
+                layout: if *cross {
+                    CubemapLayout::Cross
+                } else {
+                    CubemapLayout::Faces
+                },
+                tone_map: *tone_map,
+            };
+            with_texture(source, |texture| {
+                export_image(texture, out, options, as_json)
+            })
         }
     }
 }
@@ -80,6 +134,7 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         faces: header.faces(),
         cubemap: header.is_cubemap(),
         parts: texture.part_count().ok(),
+        alpha_tail: texture.alpha_tail().map(AlphaTailJson::of),
     };
     if as_json {
         json::print(&info)?;
@@ -93,10 +148,12 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         ("Mips", info.mip_count.to_string()),
         ("Array size", info.array_size.to_string()),
         ("Faces", info.faces.to_string()),
+        ("Parts", count(info.parts)),
         (
-            "Parts",
-            info.parts
-                .map_or_else(|| UNKNOWN.to_owned(), |parts| parts.to_string()),
+            "Alpha tail",
+            info.alpha_tail
+                .as_ref()
+                .map_or_else(|| NONE.to_owned(), AlphaTailJson::describe),
         ),
     ];
     let mut out = io::stdout().lock();
@@ -128,28 +185,8 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn png(texture: &Texture<'_>, out: &Path, mip: u32, as_json: bool) -> Result<()> {
-    let report = texture.png_to_file(out, mip)?;
-    if as_json {
-        json::print(&PngJson {
-            texture: texture.name(),
-            output: json::path(out),
-            mip: report.level,
-            width: report.width,
-            height: report.height,
-        })?;
-    } else {
-        writeln!(
-            io::stdout().lock(),
-            "wrote mip {} of {}, {} x {}, to {}",
-            report.level,
-            texture.name(),
-            report.width,
-            report.height,
-            out.display()
-        )?;
-    }
-    Ok(())
+fn count(parts: Option<u32>) -> String {
+    parts.map_or_else(|| UNKNOWN.to_owned(), |parts| parts.to_string())
 }
 
 /// Returns whether `error` is a texture or sound failure caused by the command line: an Entry or

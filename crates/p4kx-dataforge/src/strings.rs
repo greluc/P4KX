@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::ffi::CStr;
 
-use crate::DataForgeError;
+use crate::{DataForgeError, ValueError};
 
 /// A table of NUL-terminated UTF-8 strings addressed by byte offset.
 #[derive(Debug, Clone, Copy)]
@@ -26,6 +26,14 @@ impl<'a> StringTable<'a> {
                 table: self.name,
                 offset,
             })
+    }
+
+    /// Returns the string starting at `offset` as a field value.
+    pub(crate) fn value(&self, offset: u32) -> Result<&'a str, ValueError> {
+        self.get(offset).map_err(|_| ValueError::InvalidString {
+            table: self.name,
+            offset,
+        })
     }
 }
 

@@ -1,0 +1,216 @@
+use schemars::JsonSchema;
+use serde::Serialize;
+
+use crate::{DataForgeError, Guid, Value};
+
+/// How a Record differs between the two sides of a Comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum RecordChangeKind {
+    /// Only the new side has the GUID.
+    Added,
+    /// Only the old side has the GUID.
+    Removed,
+    /// Both sides have the GUID at different record paths; fields may differ as well.
+    Moved,
+    /// Both sides have the GUID at the same record path, with a different name, type or field.
+    Changed,
+    /// The Record cannot be read on at least one side, so it was not compared.
+    Unreadable,
+}
+
+/// One side of a Comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordSide {
+    /// The old Archive.
+    Old,
+    /// The new Archive.
+    New,
+}
+
+/// Why a Record cannot be read on one side.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordError {
+    pub(crate) side: RecordSide,
+    pub(crate) error: DataForgeError,
+}
+
+impl RecordError {
+    /// Returns the side whose Record cannot be read.
+    #[must_use]
+    pub const fn side(&self) -> RecordSide {
+        self.side
+    }
+
+    /// Returns what cannot be read.
+    #[must_use]
+    pub const fn error(&self) -> &DataForgeError {
+        &self.error
+    }
+}
+
+/// What identifies a Record on one side: its record path, name and type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RecordState<'a> {
+    pub(crate) record_path: &'a str,
+    pub(crate) name: &'a str,
+    pub(crate) type_name: &'a str,
+}
+
+impl<'a> RecordState<'a> {
+    /// Returns the record path, without `.xml`.
+    #[must_use]
+    pub const fn record_path(&self) -> &'a str {
+        self.record_path
+    }
+
+    /// Returns the Record name, e.g. `EntityClassDefinition.AEGS_Avenger`.
+    #[must_use]
+    pub const fn name(&self) -> &'a str {
+        self.name
+    }
+
+    /// Returns the name of the Record's struct.
+    #[must_use]
+    pub const fn type_name(&self) -> &'a str {
+        self.type_name
+    }
+}
+
+/// One field whose value differs, or that only one side has.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldChange<'a> {
+    pub(crate) path: &'a str,
+    pub(crate) old: Option<Value<'a>>,
+    pub(crate) new: Option<Value<'a>>,
+}
+
+impl<'a> FieldChange<'a> {
+    /// Returns the path of the field in the Record: its name for a field of the Record itself.
+    #[must_use]
+    pub const fn path(&self) -> &'a str {
+        self.path
+    }
+
+    /// Returns the old value, `None` when the old side has no such field.
+    #[must_use]
+    pub const fn old_value(&self) -> Option<&Value<'a>> {
+        self.old.as_ref()
+    }
+
+    /// Returns the new value, `None` when the new side has no such field.
+    #[must_use]
+    pub const fn new_value(&self) -> Option<&Value<'a>> {
+        self.new.as_ref()
+    }
+}
+
+/// One Record that was added, removed, moved or changed.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordChange<'a> {
+    pub(crate) guid: Guid,
+    pub(crate) old: Option<RecordState<'a>>,
+    pub(crate) new: Option<RecordState<'a>>,
+    pub(crate) fields: Vec<FieldChange<'a>>,
+    pub(crate) errors: Vec<RecordError>,
+}
+
+impl<'a> RecordChange<'a> {
+    /// Returns how the Record differs.
+    #[must_use]
+    pub fn kind(&self) -> RecordChangeKind {
+        if !self.errors.is_empty() {
+            return RecordChangeKind::Unreadable;
+        }
+        match (self.old, self.new) {
+            (Some(old), Some(new))
+                if !crate::path_key::eq_normalised(old.record_path, new.record_path) =>
+            {
+                RecordChangeKind::Moved
+            }
+            (Some(_), Some(_)) => RecordChangeKind::Changed,
+            (Some(_), None) => RecordChangeKind::Removed,
+            (None, _) => RecordChangeKind::Added,
+        }
+    }
+
+    /// Returns the GUID that joins both sides.
+    #[must_use]
+    pub const fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    /// Returns the record path of the new side, or of the old side when the new side has none;
+    /// empty when neither record path can be read.
+    #[must_use]
+    pub fn path(&self) -> &'a str {
+        self.new.or(self.old).map_or("", |side| side.record_path)
+    }
+
+    /// Returns the Record on the old side, `None` when it was added or cannot be read.
+    #[must_use]
+    pub const fn old_record(&self) -> Option<RecordState<'a>> {
+        self.old
+    }
+
+    /// Returns the Record on the new side, `None` when it was removed or cannot be read.
+    #[must_use]
+    pub const fn new_record(&self) -> Option<RecordState<'a>> {
+        self.new
+    }
+
+    /// Returns the changed fields in field order of the new side, the fields only the old side
+    /// has last; empty for an added or removed Record.
+    #[must_use]
+    pub fn fields(&self) -> &[FieldChange<'a>] {
+        &self.fields
+    }
+
+    /// Returns why the Record cannot be read, one entry per side; empty unless it is unreadable.
+    #[must_use]
+    pub fn errors(&self) -> &[RecordError] {
+        &self.errors
+    }
+}
+
+/// The number of Records per change kind.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, JsonSchema)]
+#[non_exhaustive]
+pub struct RecordCounts {
+    /// Records only the new side has.
+    pub added: usize,
+    /// Records only the old side has.
+    pub removed: usize,
+    /// Records at another record path.
+    pub moved: usize,
+    /// Records at the same record path with a different name, type or field.
+    pub changed: usize,
+    /// Records that cannot be read on at least one side.
+    pub unreadable: usize,
+}
+
+impl RecordCounts {
+    /// Counts `changes` per change kind.
+    pub(crate) fn of(changes: &[RecordChange<'_>]) -> Self {
+        let mut counts = Self::default();
+        for change in changes {
+            let count = match change.kind() {
+                RecordChangeKind::Added => &mut counts.added,
+                RecordChangeKind::Removed => &mut counts.removed,
+                RecordChangeKind::Moved => &mut counts.moved,
+                RecordChangeKind::Changed => &mut counts.changed,
+                RecordChangeKind::Unreadable => &mut counts.unreadable,
+            };
+            *count += 1;
+        }
+        counts
+    }
+
+    /// Returns the number of Records of every change kind.
+    #[must_use]
+    pub const fn total(&self) -> usize {
+        self.added + self.removed + self.moved + self.changed + self.unreadable
+    }
+}

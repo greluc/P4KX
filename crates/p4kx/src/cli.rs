@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -37,8 +38,8 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
-    /// Compares the Entries of an old and a new Archive, or prints the line diff of one Entry;
-    /// exits with 1 when they differ.
+    /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
+    /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
@@ -50,6 +51,9 @@ pub(crate) enum Command {
     /// Shows a Wwise WEM sound or converts it to WAV.
     #[command(after_help = EXIT_CODES_HELP)]
     Audio(AudioArgs),
+    /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Bnk(BnkArgs),
 }
 
 /// Arguments of `p4kx audio`.
@@ -177,10 +181,12 @@ pub(crate) struct TextureArgs {
 /// The actions of `p4kx texture`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum TextureAction {
-    /// Prints the format, size, depth, mip count, array size, cubemap faces and parts of a texture.
+    /// Prints the format, size, depth, mip count, array size, cubemap faces, parts and alpha tail
+    /// of a texture.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(TextureSource),
-    /// Merges the header and the mip parts of a texture into one standard DDS file.
+    /// Merges the header and the mip parts of a texture into one standard DDS file; a cubemap
+    /// stays a cubemap. The alpha tail is not included; name <ENTRY>.a to merge it on its own.
     #[command(after_help = EXIT_CODES_HELP)]
     Merge {
         /// The texture.
@@ -190,18 +196,28 @@ pub(crate) enum TextureAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG.
+    /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
+    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
         #[command(flatten)]
         source: TextureSource,
-        /// The PNG file to write; an existing file is replaced.
+        /// The PNG file to write; an existing file is replaced. A high-range texture goes to FILE
+        /// with the extension .exr instead, unless --tone-map is given.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// The mip level to export, 0 being the largest.
         #[arg(long, value_name = "LEVEL", default_value_t = 0)]
         mip: u32,
+        /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
+        #[arg(long)]
+        cross: bool,
+        /// Writes a high-range texture as an 8-bit PNG to FILE too, tone-mapped: Reinhard per
+        /// channel, then sRGB. Other textures are 8-bit already; for them it only prints a note.
+        #[arg(long)]
+        tone_map: bool,
     },
 }
 
@@ -209,11 +225,12 @@ pub(crate) enum TextureAction {
 #[derive(Debug, Args)]
 pub(crate) struct TextureSource {
     /// A Data.p4k Archive when ENTRY is given; otherwise the texture's header file, with its parts
-    /// <FILE>.1 … <FILE>.N next to it.
+    /// <FILE>.1 … <FILE>.N and any alpha tail <FILE>.a, <FILE>.1a … next to it.
     #[arg(value_name = "ARCHIVE_OR_FILE")]
     pub(crate) path: PathBuf,
     /// Path of the texture's header Entry in the Archive, with `\` or `/` as separator, ignoring
-    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N.
+    /// case; its parts are the Entries <ENTRY>.1 … <ENTRY>.N and its alpha tail <ENTRY>.a with
+    /// <ENTRY>.1a … <ENTRY>.Na.
     pub(crate) entry: Option<String>,
 }
 
@@ -245,7 +262,13 @@ pub(crate) struct CompareArgs {
     /// or changed in size or CRC-32C. Every level is compared when none is given.
     #[arg(long)]
     pub(crate) entries: bool,
-    /// Compares only the Entries the Filter matches, with the rules of `p4kx search`.
+    /// Compares the Records of both DataForges, joined by GUID: added, removed, moved to another
+    /// record path, or changed in name, type or a field value. Every level is compared when none
+    /// is given.
+    #[arg(long)]
+    pub(crate) records: bool,
+    /// Compares only the Entries whose path and the Records whose record path on either side the
+    /// Filter matches, with the rules of `p4kx search`.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
     /// Writes the Comparison as a JSON report to FILE; an existing file is replaced.

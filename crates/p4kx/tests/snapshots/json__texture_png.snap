@@ -3,6 +3,11 @@ source: crates/p4kx/tests/json.rs
 expression: json
 ---
 {
+  "alpha_tail": false,
+  "files": [
+    "[DIR]/hull_diff.png"
+  ],
+  "format": "png",
   "height": 16,
   "mip": 1,
   "output": "[DIR]/hull_diff.png",

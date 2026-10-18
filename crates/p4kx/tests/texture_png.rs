@@ -260,7 +260,15 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(
         dir.path(),
-        &SplitDds::new(block_format(95, 16), 16, 16).split(1),
+        &SplitDds::new(
+            TestTextureFormat::Dx10Pixel {
+                dxgi_format: 67,
+                pixel_bytes: 4,
+            },
+            16,
+            16,
+        )
+        .split(1),
     )?;
     let out = dir.path().join("panel_diff.png");
 
@@ -273,7 +281,7 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
         .assert()
         .code(1)
         .stderr(predicate::str::contains(
-            "decoding the texture format BC6H_UF16 is not supported",
+            "decoding the texture format R9G9B9E5_SHAREDEXP is not supported",
         ));
 
     assert!(!out.exists(), "nothing is written");

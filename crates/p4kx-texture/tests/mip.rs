@@ -90,20 +90,6 @@ fn a_mip_beyond_the_chain_is_named() {
 }
 
 #[test]
-fn cubemaps_and_volumes_are_not_decoded_yet() {
-    let cube = SplitDds::new(TestTextureFormat::LegacyDxt1, 16, 16).cubemap();
-    let volume = SplitDds::new(TestTextureFormat::LegacyBgra8, 8, 8).volume(4);
-
-    for (dds, images) in [(cube, 6), (volume, 4)] {
-        let result = read(&dds, 0);
-        assert!(
-            matches!(result, Err(TextureError::UnsupportedImage { images: found }) if found == images),
-            "{images} images: {result:?}"
-        );
-    }
-}
-
-#[test]
 fn a_missing_part_is_named() {
     let dds = SplitDds::new(TestTextureFormat::LegacyDxt5, 32, 32).split(3);
     let header = dds.header_bytes();

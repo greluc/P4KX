@@ -1,4 +1,5 @@
-//! The folder the GUI last chose for an Extraction, kept in the settings file.
+//! The folder and the Conversion switch the GUI last chose for an Extraction, kept in the
+//! settings file.
 
 use std::error::Error;
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ fn the_extraction_folder_survives_a_round_trip_next_to_the_tables() -> TestResul
     let file = folder.path().join("settings.toml");
     let mut settings = Settings {
         extraction_folder: Some(PathBuf::from(r"D:\Exports")),
+        extraction_conversion: true,
         window: Some(WindowGeometry {
             x: 0,
             y: 0,
@@ -37,5 +39,15 @@ fn a_file_without_an_extraction_folder_leaves_it_unset() -> TestResult {
     std::fs::write(&file, "language = \"de-DE\"\n")?;
 
     assert_eq!(Settings::load(&file)?.extraction_folder, None, "unset");
+    Ok(())
+}
+
+#[test]
+fn a_file_without_the_conversion_switch_leaves_it_off() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    std::fs::write(&file, "language = \"de-DE\"\n")?;
+
+    assert!(!Settings::load(&file)?.extraction_conversion, "off");
     Ok(())
 }

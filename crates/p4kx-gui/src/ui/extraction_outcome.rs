@@ -121,15 +121,17 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     if summary.archive_changed() {
         ui.colored_label(ui.visuals().error_fg_color, texts.get(T::SummaryChanged));
     }
-    ui.label(texts.format(
-        T::SummaryCounts,
-        &[
-            ("extracted", number(texts, summary.extracted())),
-            ("skipped", number(texts, summary.skipped().len())),
-            ("failed", number(texts, summary.failures().len())),
-            ("cancelled", number(texts, summary.cancelled().len())),
-        ],
-    ));
+    let mut counts = vec![
+        ("extracted", number(texts, summary.extracted())),
+        ("skipped", number(texts, summary.skipped().len())),
+        ("failed", number(texts, summary.failures().len())),
+        ("cancelled", number(texts, summary.cancelled().len())),
+    ];
+    let text = summary.converted().map_or(T::SummaryCounts, |converted| {
+        counts.push(("converted", number(texts, converted)));
+        T::SummaryCountsConverted
+    });
+    ui.label(texts.format(text, &counts));
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
     let failures: Vec<String> = summary

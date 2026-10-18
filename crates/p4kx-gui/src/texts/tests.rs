@@ -37,6 +37,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("done", "1".into()),
         ("percent", "50".into()),
         ("extracted", "2".into()),
+        ("converted", "1".into()),
         ("skipped", "1".into()),
         ("failed", "0".into()),
         ("cancelled", "0".into()),

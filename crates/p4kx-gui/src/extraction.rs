@@ -39,23 +39,29 @@ pub struct Confirmation {
     pub bytes: u64,
 }
 
-/// The choices of an Extraction before it starts: scope, target and Conflict policy.
+/// The choices of an Extraction before it starts: scope, target, Conflict policy and Conversion.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtractionSetup {
     scope: ExtractionScope,
     kind: TargetKind,
     folder: Option<PathBuf>,
     policy: ConflictPolicy,
+    convert: bool,
     confirmation: Option<Confirmation>,
 }
 
 impl ExtractionSetup {
-    pub(crate) const fn new(scope: ExtractionScope, folder: Option<PathBuf>) -> Self {
+    pub(crate) const fn new(
+        scope: ExtractionScope,
+        folder: Option<PathBuf>,
+        convert: bool,
+    ) -> Self {
         Self {
             scope,
             kind: TargetKind::NewFolder,
             folder,
             policy: ConflictPolicy::Skip,
+            convert,
             confirmation: None,
         }
     }
@@ -105,6 +111,17 @@ impl ExtractionSetup {
         self.policy = policy;
     }
 
+    /// Returns whether `CryXml` Entries are converted to XML.
+    #[must_use]
+    pub const fn convert(&self) -> bool {
+        self.convert
+    }
+
+    /// Switches the Conversion of `CryXml` Entries to XML on or off.
+    pub const fn set_convert(&mut self, convert: bool) {
+        self.convert = convert;
+    }
+
     /// Returns whether a whole-Archive Extraction waits for confirmation.
     #[must_use]
     pub const fn is_confirming(&self) -> bool {
@@ -135,6 +152,7 @@ impl ExtractionSetup {
                 TargetKind::NewFolder => ConflictPolicy::Skip,
                 TargetKind::ExistingFolder => self.policy,
             },
+            convert: self.convert,
         })
     }
 }

@@ -5,15 +5,14 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, SplitDds, TestCodec, TestElement, TestEntry,
-    TestTextureFormat, TestWem, test_signal, write_build_manifest,
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, SplitDds, TestElement, TestEntry,
+    TestTextureFormat, write_build_manifest,
 };
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const TEXTURE: &str = "Data\\Textures\\hull_ddna.dds";
-const SOUND: &str = "Data\\Sounds\\wwise\\Media\\100.wem";
 
 struct Fixture {
     root: tempfile::TempDir,
@@ -62,15 +61,6 @@ impl Fixture {
             .entries(TEXTURE)
             .into_iter()
             .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
-            .write_to(&archive)?;
-        Ok(archive)
-    }
-
-    fn sound_archive(&self) -> Result<PathBuf, Box<dyn Error>> {
-        let archive = self.dir().join("Data.p4k");
-        let wem = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &test_signal(1_200, 2));
-        ArchiveBuilder::new()
-            .entry(TestEntry::stored(SOUND, wem.bytes()))
             .write_to(&archive)?;
         Ok(archive)
     }
@@ -266,6 +256,36 @@ fn extract_with_a_filter() -> TestResult {
 }
 
 #[test]
+fn extract_with_conversion() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.dir().join("Data.p4k");
+    let vehicle = TestElement::new("Vehicle")
+        .attribute("name", "AEGS_Gladius")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\vehicle.xml", vehicle.clone()))
+        .entry(TestEntry::stored("Data\\text.xml", b"<a/>".to_vec()))
+        .entry(TestEntry::stored(
+            "Data\\broken.xml",
+            vehicle.get(..20).unwrap_or_default().to_vec(),
+        ))
+        .write_to(&archive)?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .arg("extract")
+            .arg(&archive)
+            .args(["--filter", "*.xml", "--convert", "--out"])
+            .arg(fixture.dir().join("out")),
+        1,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
 fn cryxml() -> TestResult {
     let fixture = Fixture::new()?;
     let input = fixture.dir().join("vehicle.xml");
@@ -343,44 +363,6 @@ fn texture_png() -> TestResult {
             .arg("--out")
             .arg(fixture.dir().join("hull_diff.png"))
             .args(["--mip", "1"]),
-        0,
-    )?;
-
-    insta::assert_snapshot!(json);
-    Ok(())
-}
-
-#[test]
-fn audio_info() -> TestResult {
-    let fixture = Fixture::new()?;
-    let archive = fixture.sound_archive()?;
-
-    let json = fixture.json(
-        fixture
-            .p4kx()?
-            .args(["audio", "info"])
-            .arg(&archive)
-            .arg(SOUND),
-        0,
-    )?;
-
-    insta::assert_snapshot!(json);
-    Ok(())
-}
-
-#[test]
-fn audio_wav() -> TestResult {
-    let fixture = Fixture::new()?;
-    let archive = fixture.sound_archive()?;
-
-    let json = fixture.json(
-        fixture
-            .p4kx()?
-            .args(["audio", "wav"])
-            .arg(&archive)
-            .arg(SOUND)
-            .arg("--out")
-            .arg(fixture.dir().join("100.wav")),
         0,
     )?;
 

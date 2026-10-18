@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/compare_diff.rs
+expression: "diff(dir.path(), \"v.xml\", true, 1)?"
+---
+{"path":"v.xml","change":"added","differs":true,"content":"text","old":null,"new":{"size":88,"crc32c":2999909606,"encoding":"CRY3SDK"},"hunks":[{"old_start":0,"old_lines":0,"new_start":1,"new_lines":2,"lines":[{"kind":"added","text":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"},{"kind":"added","text":"<a b=\"1\"/>\n"}]}]}

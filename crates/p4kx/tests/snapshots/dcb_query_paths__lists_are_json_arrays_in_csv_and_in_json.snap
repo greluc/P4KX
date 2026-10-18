@@ -3,7 +3,7 @@ source: crates/p4kx/tests/dcb_query_paths.rs
 expression: "format!(\"{csv}\\n{json}\")"
 ---
 record path,tags[*],Components[*].name,Components[Shield].hp,tags[0]
-libs/ships/aurora,[slow],"[null, Wall]",[10],slow
-libs/ships/avenger,"[fast, small]","[Laser, Bubble, Cannon]",[900],fast
+libs/ships/aurora,"[""slow""]","[null,""Wall""]",[10],slow
+libs/ships/avenger,"[""fast"",""small""]","[""Laser"",""Bubble"",""Cannon""]",[900],fast
 
 [{"record path":"libs/ships/aurora","tags[*]":["slow"],"Components[*].name":[null,"Wall"],"Components[Shield].hp":[10],"tags[0]":"slow"},{"record path":"libs/ships/avenger","tags[*]":["fast","small"],"Components[*].name":["Laser","Bubble","Cannon"],"Components[Shield].hp":[900],"tags[0]":"fast"}]

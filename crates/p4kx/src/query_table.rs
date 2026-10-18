@@ -9,6 +9,9 @@ use crate::query_rows::{Counts, PAGE_SIZE, for_each_row};
 /// The gap between two columns of the table.
 const GAP: &str = "  ";
 
+/// The most values of a list a table cell shows.
+const LIST_SHOWN: usize = 8;
+
 /// Writes the result as a table whose columns fit every row: a first pass over the pages
 /// measures the columns, a second one writes the rows; with `count_line`, the table ends with
 /// the number of Records.
@@ -44,7 +47,6 @@ pub(crate) fn write(
 /// Returns the width of each column: the widest of its heading and its texts in every row.
 fn measure(run: &QueryRun<'_, '_>, header: &[String]) -> Vec<usize> {
     let mut widths: Vec<usize> = header.iter().map(|text| text.chars().count()).collect();
-    let mut text = String::new();
     for page in run.pages(PAGE_SIZE) {
         for row in &page {
             let Ok(cells) = row.cells() else {
@@ -53,9 +55,8 @@ fn measure(run: &QueryRun<'_, '_>, header: &[String]) -> Vec<usize> {
             widen(&mut widths, 0, line_width(row.record_path()));
             for (index, cell) in cells.iter().enumerate() {
                 if let Some(value) = cell {
-                    text.clear();
-                    let _infallible = write!(text, "{value}");
-                    widen(&mut widths, index.saturating_add(1), line_width(&text));
+                    let width = cell_text(value).chars().count();
+                    widen(&mut widths, index.saturating_add(1), width);
                 }
             }
         }
@@ -69,8 +70,24 @@ fn widen(widths: &mut [usize], index: usize, width: usize) {
     }
 }
 
+/// Returns the text of a cell on one line; a list longer than [`LIST_SHOWN`] values shows its
+/// first ones and how many more it holds, e.g. `[1, 2, 3, 4, 5, 6, 7, 8, … 92 more]`.
 fn cell_text(value: &Value<'_>) -> String {
-    one_line(&value.to_string())
+    let Value::Array(items) = value else {
+        return one_line(&value.to_string());
+    };
+    let mut text = String::from("[");
+    for (index, item) in items.iter().take(LIST_SHOWN).enumerate() {
+        if index > 0 {
+            text.push_str(", ");
+        }
+        let _infallible = write!(text, "{item}");
+    }
+    if items.len() > LIST_SHOWN {
+        let _infallible = write!(text, ", … {} more", items.len().saturating_sub(LIST_SHOWN));
+    }
+    text.push(']');
+    one_line(&text)
 }
 
 /// Returns `text` on one line: line breaks and tabs escaped, other control characters replaced.

@@ -6,6 +6,7 @@ use rayon::prelude::*;
 use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
 use crate::query::compile::Plan;
+use crate::query::walk::{Place, WalkState};
 use crate::{DataForgeError, Record, Value};
 
 /// The Records a compiled Query selects, ordered by record path and then by definition order;
@@ -53,8 +54,8 @@ impl<'f> CompiledQuery<'f> {
             return true;
         };
         match self.plan_of(record) {
-            Some(Plan::Read { tests, .. }) => self.instance_of(record).map_or(true, |bytes| {
-                predicate.eval(self.forge, tests, bytes) == Some(true)
+            Some(Plan::Read { tests, .. }) => self.instance_of(record).map_or(true, |place| {
+                predicate.eval(self.forge, tests, place, &mut WalkState::new()) == Some(true)
             }),
             Some(Plan::Broken(_)) => true,
             None => false,
@@ -166,10 +167,11 @@ impl<'f> CompiledQuery<'f> {
         let cells = match self.plan_of(index)? {
             _ if self.columns.is_empty() && self.predicate.is_none() => Ok(Vec::new()),
             Plan::Broken(error) => Err(error.clone()),
-            Plan::Read { columns, .. } => self.instance_of(index).map(|bytes| {
+            Plan::Read { columns, .. } => self.instance_of(index).map(|place| {
+                let mut state = WalkState::new();
                 columns
                     .iter()
-                    .map(|column| column.as_ref()?.cell(self.forge, bytes))
+                    .map(|column| Some(column.as_ref()?.cell(self.forge, place, &mut state)))
                     .collect()
             }),
         };
@@ -180,15 +182,19 @@ impl<'f> CompiledQuery<'f> {
         })
     }
 
-    /// Returns the bytes of the Record's instance, which the Record tree reads its values from.
-    fn instance_of(&self, index: u32) -> Result<&'f [u8], DataForgeError> {
+    /// Returns the Record's instance, which the Record tree reads its values from.
+    fn instance_of(&self, index: u32) -> Result<Place<'f>, DataForgeError> {
         let forge = self.forge;
         let def = forge
             .record_def(index)
             .ok_or_else(|| out_of_range("Record", index as usize, "Record", index.into()))?;
         let instance = u32::from(def.instance_index);
-        forge
+        let bytes = forge
             .instance(def.struct_index, instance)
-            .ok_or_else(|| out_of_range("Record", index as usize, "instance", instance.into()))
+            .ok_or_else(|| out_of_range("Record", index as usize, "instance", instance.into()))?;
+        Ok(Place::Instance {
+            struct_index: def.struct_index,
+            bytes,
+        })
     }
 }

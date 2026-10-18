@@ -73,7 +73,10 @@ Columns separated by two spaces and padded to the widest text of the column over
 line of `-` under the headings, and on stdout a last line with the number of Records. Line
 breaks and tabs in a value are shown as `\n`, `\r` and `\t`, other control characters as
 U+FFFD. The widths are measured in a first pass over the pages, so the Records are read twice.
-The table is for reading; scripts use CSV or JSON.
+A list ([Several values](#several-values)) is written as its values in brackets separated by
+`, `, e.g. `[250.5, 1200]`; a list of more than 8 values shows the first 8 and how many more
+there are, e.g. `[t1, t2, t3, t4, t5, t6, t7, t8, … 4 more]`. The table is for reading; scripts
+use CSV or JSON.
 
 ### CSV
 
@@ -87,8 +90,9 @@ CSV after [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180):
 - A value is written in its Record XML text ([record-xml.md](record-xml.md#values)): `true`,
   `25000.5`, `NaN`, the enum option, the GUID in lower case. A value that cannot be read is
   `error: <reason>`. An empty cell (a Record without the field) is an empty field, as is an
-  empty string. A list ([Several values](#several-values)) is its values in brackets separated
-  by `, `, e.g. `"[250.5, 1200]"`.
+  empty string. A list ([Several values](#several-values)) is written as the JSON array the
+  JSON format writes for it, in a quoted field, e.g. `"[""fast"",""small""]"` or `[250.5,1200]`,
+  so that a value holding `,` or `]` stays unambiguous.
 - Values are written unchanged: a text starting with `=`, `+`, `-` or `@` stays as it is, so a
   spreadsheet may read it as a formula.
 
@@ -217,8 +221,9 @@ end at a scalar: a boolean, integer, float, string, localisation key, GUID or en
 - A null pointer reaches `null`, and so does a path through it; so does an index out of range.
   `[TypeName]` skips null pointers, as they have no type.
 - A pointer to an instance of a struct that does not derive from the declared one, an array that
-  lies outside its values or a pointer to a missing instance reaches an error value, shown as
-  `error: …` at its place.
+  lies outside its values, a pointer to a missing instance or struct (also under `[TypeName]`)
+  and an instance shorter than the layout the path reads it with reach an error value, shown as
+  `error: …` at its place. A layout that cannot be read never reads as `null` or `[]`.
 - References and weak pointers are links, not owned values: a path cannot continue behind them,
   and since they are no scalars, it cannot end at them either.
 
@@ -246,16 +251,20 @@ nested arrays flattened, e.g. `Components[*].name` of a ship with a null first c
 `[null, Wall]`. A null or error value stays at its place, so two lists over the same array line up
 element by element. A path without `[*]` and `[TypeName]` always gives one value, never a list.
 
-In a table and in CSV a list is written as its values in their text form, separated by `, ` in
-brackets, e.g. `[250.5, 1200]` or `[]`. The values are not quoted, so a string holding `, ` or
-`]` reads ambiguously there; scripts use JSON, where a list is an array of the values, each typed
-as a single value would be.
+JSON writes a list as an array of the values, each typed as a single value would be, and CSV
+writes that same JSON array in its field. The table writes the values in their text form,
+separated by `, ` in brackets, e.g. `[250.5, 1200]` or `[]`, shortened after 8 values; the
+values are not quoted there, so a string holding `, ` or `]` reads ambiguously in the table only.
 
-A path reaches at most 65,536 array elements in one Record (`MAX_PATH_VALUES`), counted over all
-its brackets; `[n]` counts one element and `[*]` and `[TypeName]` every element of their array.
-A path that would reach more has the error value `error: the path reaches more than 65536 array
-elements` in its cell. A comparison over it is unknown, unless a value the path reached before
-the limit already holds.
+The paths of one Record reach at most 4,096 array elements together (`MAX_PATH_VALUES`): every
+column of its row counts against one budget, and every comparison of its condition against
+another. `[n]` counts one element, `[*]` and `[TypeName]` every element of their array, also those
+`[TypeName]` skips, and nested brackets count on every level: `Components[*].modes[*]` counts the
+components and then the modes of each. A bracket that would go beyond the budget gives the error
+value `error: the paths of the Record reach more than 4096 array elements` in its cell, and the
+cells after it can still read what remains. A comparison that hits the limit is unknown, unless a
+value it reached before already holds. The limit bounds the memory of a page: at most 4,096
+values per row.
 
 ## Conditions
 
@@ -307,9 +316,10 @@ A comparison over a path through `[*]` or `[TypeName]` holds when **any** of the
 reaches holds: `Components[Weapon].damage > 1000` keeps a ship with at least one weapon above
 1000. It is false when every value compares false, also when the path reaches no value at all,
 and unknown when none holds but one is unknown, e.g. null. So `not Components[*].name = "x"`
-keeps the Records where no component is named `x`, and a condition that has to hold for **all**
-values is written as the negation of its opposite: `not Components[Weapon].damage <= 1000` keeps
-the ships whose every weapon does more than 1000 damage, ships without weapons included.
+keeps the Records where no component is named `x` and every name is known (no null component),
+and a condition that has to hold for **all** values is written as the negation of its opposite:
+`not Components[Weapon].damage <= 1000` keeps the ships whose every weapon does more than 1000
+damage, ships without weapons included.
 
 ### Missing values
 

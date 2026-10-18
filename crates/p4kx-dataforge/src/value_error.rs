@@ -87,6 +87,16 @@ pub enum ValueError {
         /// The GUID of the missing Record.
         guid: Guid,
     },
+    /// A weak pointer refers to an instance that is neither inside the Record nor a Record.
+    #[error(
+        "the weak pointer refers to instance {instance_index} of struct {struct_index}, which lies outside the Record"
+    )]
+    OutsideRecord {
+        /// The struct index of the pointer.
+        struct_index: u32,
+        /// The instance index of the pointer.
+        instance_index: u32,
+    },
     /// A strong pointer refers to an instance of a struct that neither is nor derives from the
     /// struct the field declares.
     #[error(
@@ -98,21 +108,23 @@ pub enum ValueError {
         /// The struct the field declares.
         declared: u32,
     },
-    /// A Query path reaches more array elements in one Record than
+    /// The paths of a Query reach more array elements in one Record than
     /// [`MAX_PATH_VALUES`](crate::query::MAX_PATH_VALUES).
-    #[error("the path reaches more than {limit} array elements")]
+    #[error("the paths of the Record reach more than {limit} array elements")]
     PathTooWide {
-        /// The most elements a path may reach.
+        /// The most elements the paths of one Record may reach.
         limit: usize,
     },
-    /// A weak pointer refers to an instance that is neither inside the Record nor a Record.
+    /// An instance is shorter than the layout a Query path reads it with.
     #[error(
-        "the weak pointer refers to instance {instance_index} of struct {struct_index}, which lies outside the Record"
+        "the instance of struct {struct_index} has {size} bytes, but the path reads up to byte {needed}"
     )]
-    OutsideRecord {
-        /// The struct index of the pointer.
+    InstanceTooShort {
+        /// The struct of the instance.
         struct_index: u32,
-        /// The instance index of the pointer.
-        instance_index: u32,
+        /// The bytes the instance has.
+        size: u64,
+        /// The end of the bytes the path reads.
+        needed: u64,
     },
 }

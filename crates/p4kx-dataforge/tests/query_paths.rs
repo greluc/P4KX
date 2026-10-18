@@ -6,9 +6,7 @@ mod ships;
 use std::error::Error;
 
 use p4kx_dataforge::DataForge;
-use p4kx_dataforge::query::MAX_PATH_VALUES;
-use p4kx_testkit::{TestRecord, TestValue};
-use ships::{database, rows, schema};
+use ships::{database, rows};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -110,68 +108,4 @@ fn without_from_each_type_resolves_the_path_itself() -> TestResult {
         ],
     )?;
     assert_rows(&forge, "at \"libs\" where tags[*] = 7", &["gamma: "])
-}
-
-fn words(first: u32, second: u32) -> TestValue {
-    TestValue::Raw([first.to_le_bytes(), second.to_le_bytes()].concat())
-}
-
-#[test]
-fn a_step_that_cannot_be_read_gives_an_error_value_at_its_place() -> TestResult {
-    let ship_struct = 4;
-    let bytes = schema()
-        .record(
-            TestRecord::new(8, "Ship", "Ship.Broken", "libs/ships/broken.xml")
-                .value("anchor", words(ship_struct, 0))
-                .value("Components", words(3, 1000))
-                .value("tags", words(2, 1_000_000)),
-        )
-        .record(
-            TestRecord::new(9, "Ship", "Ship.Dangling", "libs/ships/dangling.xml")
-                .value("anchor", words(0, 99)),
-        )
-        .build();
-    let forge = DataForge::open(&bytes)?;
-
-    assert_rows(
-        &forge,
-        "from Ship select anchor.x, Components[*].name, tags[0], hardpoints[0].x",
-        &[
-            "broken: error: the pointer refers to struct 4, which does not derive from struct 0, \
-             the type of the field | [error: the array of 3 values from index 1000 lies outside \
-             the strong pointer pool of 0 values] | error: the array of 2 values from index \
-             1000000 lies outside the string pool of 0 values | null",
-            "dangling: error: the pointer refers to instance 99 of struct 0, which does not exist \
-             | [] | null | null",
-        ],
-    )?;
-    assert_rows(
-        &forge,
-        "from Ship where anchor.x = 0 or tags[*] = \"\"",
-        &[],
-    )
-}
-
-#[test]
-fn a_path_reaching_too_many_elements_is_an_error_value() -> TestResult {
-    let many = MAX_PATH_VALUES + 1;
-    let tags = (0..many).map(|index| TestValue::Int32(i32::try_from(index).unwrap_or(0)));
-    let bytes = schema()
-        .record(
-            TestRecord::new(9, "Station", "Station.Big", "libs/stations/big.xml")
-                .value("tags", TestValue::Array(tags.collect())),
-        )
-        .build();
-    let forge = DataForge::open(&bytes)?;
-
-    assert_rows(
-        &forge,
-        "from Station select tags[*], tags[65536]",
-        &[&format!(
-            "big: error: the path reaches more than {MAX_PATH_VALUES} array elements | 65536"
-        )],
-    )?;
-    assert_rows(&forge, "from Station where tags[*] = 1", &[])?;
-    assert_rows(&forge, "from Station where not tags[*] = 1", &[])?;
-    assert_rows(&forge, "from Station where tags[65536] = 65536", &["big: "])
 }

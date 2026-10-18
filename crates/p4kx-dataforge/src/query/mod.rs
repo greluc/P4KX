@@ -22,8 +22,9 @@ mod schema;
 mod span;
 mod suggest;
 mod syntax;
+mod walk;
 
-pub use compile::CompiledQuery;
+pub use compile::{ColumnKind, CompiledQuery};
 pub use condition::{Comparison, Condition, Literal, LiteralValue, MAX_CONDITION_DEPTH, Operator};
 pub use error::{Marked, QueryError, QueryErrorKind};
 pub use expected::{Expected, Found, LiteralKind};
@@ -36,8 +37,10 @@ pub use syntax::{Glob, Name, Path, Query, Segment};
 /// The most segments a path has behind its first field: `.name`, `[n]`, `[*]` and `[TypeName]`.
 pub const MAX_PATH_SEGMENTS: usize = 64;
 
-/// The most array elements one path reaches in one Record; beyond them its value is an error.
-pub const MAX_PATH_VALUES: usize = 65_536;
+/// The most array elements the paths of one Record reach together, over every column when its
+/// row is built and over every comparison when its condition is checked; beyond them a value is
+/// an error.
+pub const MAX_PATH_VALUES: usize = 4_096;
 
 /// The longest Query text in bytes.
 pub const MAX_QUERY_LEN: usize = 65_536;

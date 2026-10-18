@@ -24,7 +24,8 @@ fails while its section is missing.
   for one array element (null when out of range), `[*]` for every element and `[TypeName]` for
   the elements of a polymorphic array of that type, e.g.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
-  list per cell, and a comparison over it holds when one of its values holds.
+  list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
+  values holds.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust

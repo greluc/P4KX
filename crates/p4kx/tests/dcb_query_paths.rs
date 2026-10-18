@@ -92,6 +92,17 @@ fn database() -> Vec<u8> {
                 )
                 .value("tags", TestValue::Array(vec![TestValue::text("slow")])),
         )
+        .structure(TestStruct::new("Wreck").array("tags", TestType::String))
+        .record(
+            TestRecord::new(3, "Wreck", "Wreck.Hull", "libs/wrecks/hull.xml").value(
+                "tags",
+                TestValue::Array(
+                    (1..=12)
+                        .map(|tag| TestValue::text(format!("t{tag}")))
+                        .collect(),
+                ),
+            ),
+        )
         .build()
 }
 
@@ -130,12 +141,21 @@ fn error(text: &str) -> Result<String, Box<dyn Error>> {
 }
 
 #[test]
-fn lists_are_bracketed_text_in_csv_and_arrays_in_json() -> TestResult {
+fn lists_are_json_arrays_in_csv_and_in_json() -> TestResult {
     let text = "from Ship select tags[*], Components[*].name, Components[Shield].hp, tags[0]";
     let (csv, _) = query_as(text, "csv", 0)?;
     let (json, _) = query_as(text, "json", 0)?;
 
     insta::assert_snapshot!(format!("{csv}\n{json}"));
+    Ok(())
+}
+
+#[test]
+fn a_long_list_is_shortened_in_the_table_only() -> TestResult {
+    let text = "from Wreck select tags[*]";
+    let (csv, _) = query_as(text, "csv", 0)?;
+
+    insta::assert_snapshot!(format!("{}\n{csv}", table(text)?));
     Ok(())
 }
 

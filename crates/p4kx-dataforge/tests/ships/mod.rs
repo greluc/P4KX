@@ -43,7 +43,11 @@ pub(crate) fn schema() -> DataForgeBuilder {
                 .field("x", TestType::Single)
                 .field("y", TestType::Single),
         )
-        .structure(TestStruct::new("Component").field("name", TestType::String))
+        .structure(
+            TestStruct::new("Component")
+                .field("name", TestType::String)
+                .array("modes", TestType::Int32),
+        )
         .structure(
             TestStruct::new("Weapon")
                 .parent("Component")
@@ -72,6 +76,7 @@ pub(crate) fn schema() -> DataForgeBuilder {
                 .field("position", TestType::Single)
                 .array("tags", TestType::Int32),
         )
+        .structure(TestStruct::new("Tiny").parent("Vector").declared_size(4))
 }
 
 pub(crate) fn database() -> Vec<u8> {

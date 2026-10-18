@@ -7,16 +7,39 @@ use crate::query::schema::{StructFields, ancestors_include};
 use crate::query::suggest::closest;
 use crate::query::syntax::{Name, Query};
 use crate::query::{Comparison, QueryError, QueryErrorKind};
-use crate::{DataForge, DataForgeError};
+use crate::{DataForge, DataForgeError, DataType};
 
 /// A Query checked against one DataForge and ready to run.
 #[derive(Debug)]
 pub struct CompiledQuery<'f> {
     pub(crate) forge: &'f DataForge<'f>,
     pub(crate) columns: Vec<String>,
+    pub(crate) kinds: Vec<ColumnKind>,
     pub(crate) pattern: Option<PathPattern>,
     pub(crate) predicate: Option<Predicate>,
     pub(crate) plans: Box<[Option<Plan>]>,
+}
+
+/// What the cells of one column hold, known before any Record is read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnKind {
+    multi_valued: bool,
+    data_types: Box<[DataType]>,
+}
+
+impl ColumnKind {
+    /// Returns whether every cell is a list, for a path through `[*]` or `[TypeName]`.
+    #[must_use]
+    pub const fn is_multi_valued(&self) -> bool {
+        self.multi_valued
+    }
+
+    /// Returns the types of the scalars the path ends at: one with `from`, without `from` one per
+    /// distinct type it resolves to, in struct order.
+    #[must_use]
+    pub fn data_types(&self) -> &[DataType] {
+        &self.data_types
+    }
 }
 
 /// How the columns and the compared values are read from the Records of one selected struct.
@@ -38,6 +61,12 @@ impl<'f> CompiledQuery<'f> {
     #[must_use]
     pub fn columns(&self) -> &[String] {
         &self.columns
+    }
+
+    /// Returns what the cells of each column after the record path hold, in column order.
+    #[must_use]
+    pub fn column_kinds(&self) -> &[ColumnKind] {
+        &self.kinds
     }
 
     /// Returns the DataForge the Query was compiled for.
@@ -91,8 +120,26 @@ impl Query {
             .enumerate()
             .map(|(index, selected)| selected.then(|| plan(&structs, index, &columns, &compared)))
             .collect();
+        let kinds = self
+            .select
+            .iter()
+            .zip(&columns)
+            .map(|(path, plan)| {
+                let mut data_types: Vec<DataType> = Vec::new();
+                for leaf in plan.leaves() {
+                    if !data_types.contains(&leaf) {
+                        data_types.push(leaf);
+                    }
+                }
+                ColumnKind {
+                    multi_valued: path.is_multi_valued(),
+                    data_types: data_types.into_boxed_slice(),
+                }
+            })
+            .collect();
         Ok(CompiledQuery {
             forge,
+            kinds,
             columns: self.select.iter().map(ToString::to_string).collect(),
             pattern: self.at.as_ref().map(|at| PathPattern::new(at.as_str())),
             predicate,

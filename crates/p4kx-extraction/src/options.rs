@@ -2,6 +2,8 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::ArchiveWatch;
+
 /// What an Extraction does with a file that already exists in the target.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum ConflictPolicy {
@@ -61,6 +63,8 @@ pub struct ExtractOptions<'a> {
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
     pub progress: Option<&'a (dyn Fn(Progress) + Sync)>,
+    /// Checked before the run, periodically during it and after it; a change stops the run.
+    pub watch: Option<&'a ArchiveWatch>,
 }
 
 impl fmt::Debug for ExtractOptions<'_> {
@@ -69,6 +73,7 @@ impl fmt::Debug for ExtractOptions<'_> {
             .field("policy", &self.policy)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("watch", &self.watch)
             .finish()
     }
 }

@@ -87,6 +87,12 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
             );
             ui.colored_label(ui.visuals().error_fg_color, text);
         }
+        PreviewStatus::ArchiveChanged => {
+            ui.colored_label(
+                ui.visuals().error_fg_color,
+                texts.get(Text::PreviewArchiveChanged),
+            );
+        }
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     }
 }

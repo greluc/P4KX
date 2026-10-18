@@ -8,6 +8,7 @@ mod report;
 mod selection;
 mod target;
 mod tracker;
+mod watch;
 mod write;
 
 pub use extract::extract;
@@ -17,3 +18,4 @@ pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, En
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use target::{create_default_target, default_target_name};
+pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

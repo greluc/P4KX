@@ -3,6 +3,7 @@ source: crates/p4kx/tests/json.rs
 expression: json
 ---
 {
+  "archive_changed": false,
   "cancelled": [],
   "extracted": 1,
   "failed": [

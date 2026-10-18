@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, Build, CancelToken, ConflictPolicy, Entry, EntryFailure, ExtractOptions,
+    Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, Entry, EntryFailure, ExtractOptions,
     ExtractionReport, Filter, Progress, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
@@ -31,6 +31,7 @@ struct ReportJson<'a> {
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
     cancelled: &'a [String],
+    archive_changed: bool,
 }
 
 #[derive(Serialize)]
@@ -40,11 +41,12 @@ struct FailureJson<'a> {
 }
 
 /// Extracts the requested Entries, showing progress, stopping on Ctrl+C and quitting on a second
-/// Ctrl+C, and prints the
-/// report: as JSON, or the skipped and cancelled Entries and a summary to stdout and the failed
-/// Entries to stderr.
+/// Ctrl+C and stopping when the Archive changes on disk, and prints the report: as JSON, or the
+/// skipped and cancelled Entries and a summary to stdout and the failed Entries and a change of
+/// the Archive to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
+    let watch = ArchiveWatch::new(&archive);
     let entries = requested_entries(args, &archive)?;
     let target = prepare_target(args, &archive)?;
     let cancel = CancelToken::new();
@@ -70,6 +72,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         policy: policy(args.conflict),
         cancel: Some(&cancel),
         progress: Some(&on_progress),
+        watch: Some(&watch),
     };
     let report = extract(&archive, &entries, &target, &options);
     line.finish();
@@ -83,11 +86,22 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     {
         return Err(error.into());
     }
-    Ok(ExitCode::from(if report.is_complete() {
+    if report.archive_changed()
+        && let Err(changed) = watch.check()
+    {
+        let _ignored = writeln!(io::stderr().lock(), "error: {changed}");
+    }
+    Ok(ExitCode::from(exit_code(&report)))
+}
+
+const fn exit_code(report: &ExtractionReport) -> u8 {
+    if report.archive_changed() {
+        exit::ARCHIVE_CHANGED
+    } else if report.is_complete() {
         exit::SUCCESS
     } else {
         exit::PARTIAL_FAILURE
-    }))
+    }
 }
 
 const fn policy(conflict: Conflict) -> ConflictPolicy {
@@ -136,6 +150,7 @@ fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a
             })
             .collect(),
         cancelled: report.cancelled(),
+        archive_changed: report.archive_changed(),
     }
 }
 
@@ -176,4 +191,57 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
         report.cancelled().len(),
         target.display()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+    use std::fs;
+
+    use p4kx_extraction::{Archive, ArchiveWatch, ExtractOptions, extract};
+    use p4kx_testkit::{ArchiveBuilder, TestEntry};
+
+    use super::exit_code;
+    use crate::exit;
+
+    fn builder() -> ArchiveBuilder {
+        ArchiveBuilder::new().entry(TestEntry::stored("Data\\readme.txt", "hello"))
+    }
+
+    fn extract_after(change: bool) -> Result<u8, Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("Data.p4k");
+        builder().write_to(&path)?;
+        let archive = Archive::open(&path)?;
+        let watch = ArchiveWatch::new(&archive);
+        if change {
+            builder()
+                .entry(TestEntry::stored("Data\\patch.txt", "new"))
+                .write_to(&path)?;
+        }
+        let target = dir.path().join("out");
+        fs::create_dir(&target)?;
+        let entries: Vec<_> = archive.entries().iter().collect();
+        let options = ExtractOptions {
+            watch: Some(&watch),
+            ..ExtractOptions::default()
+        };
+        Ok(exit_code(&extract(&archive, &entries, &target, &options)))
+    }
+
+    #[test]
+    fn an_unchanged_archive_ends_with_success() -> Result<(), Box<dyn Error>> {
+        assert_eq!(extract_after(false)?, exit::SUCCESS, "nothing changed");
+        Ok(())
+    }
+
+    #[test]
+    fn a_changed_archive_ends_with_its_own_exit_code() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            extract_after(true)?,
+            exit::ARCHIVE_CHANGED,
+            "the Archive was rewritten after it was opened"
+        );
+        Ok(())
+    }
 }

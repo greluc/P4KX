@@ -64,6 +64,7 @@ pub struct ExtractionReport {
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
+    pub(crate) archive_changed: bool,
 }
 
 impl ExtractionReport {
@@ -91,9 +92,15 @@ impl ExtractionReport {
         &self.cancelled
     }
 
-    /// Returns whether no Entry failed and the run was not cancelled.
+    /// Returns whether the Archive changed on disk before or during the run, which then stopped.
+    #[must_use]
+    pub const fn archive_changed(&self) -> bool {
+        self.archive_changed
+    }
+
+    /// Returns whether no Entry failed, the run was not cancelled and the Archive did not change.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty() && self.cancelled.is_empty()
+        self.failures.is_empty() && self.cancelled.is_empty() && !self.archive_changed
     }
 }

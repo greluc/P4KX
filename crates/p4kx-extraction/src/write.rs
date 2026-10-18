@@ -44,11 +44,15 @@ pub(crate) struct EntryWriter<'a> {
 
 impl EntryWriter<'_> {
     /// Writes `entry`, using `buffer` for its data, and reports its end to the tracker.
+    ///
+    /// An Entry that failed because the watched Archive changed counts as cancelled.
     pub(crate) fn write(&self, entry: &Entry, buffer: &mut [u8]) -> Outcome {
         let mut written = 0;
-        let outcome = self
-            .try_write(entry, buffer, &mut written)
-            .unwrap_or_else(Outcome::Failed);
+        let outcome = match self.try_write(entry, buffer, &mut written) {
+            Ok(outcome) => outcome,
+            Err(_) if self.tracker.archive_file_changed() => Outcome::Cancelled,
+            Err(error) => Outcome::Failed(error),
+        };
         self.tracker.ended(entry, written);
         outcome
     }
@@ -59,7 +63,7 @@ impl EntryWriter<'_> {
         buffer: &mut [u8],
         written: &mut u64,
     ) -> Result<Outcome, ExtractionError> {
-        if self.tracker.is_cancelled() {
+        if self.tracker.should_stop() {
             return Ok(Outcome::Cancelled);
         }
         let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
@@ -74,7 +78,7 @@ impl EntryWriter<'_> {
         let mut reader = self.archive.open_entry(entry)?;
         let (temporary, file) = create_temporary(&folder)?;
         let copied = self.copy(&mut reader, file, buffer, &destination, written);
-        if !matches!(copied, Ok(Chunk::End)) {
+        if !matches!(copied, Ok(Chunk::End)) || self.tracker.archive_file_changed() {
             let _ignored = fs::remove_file(&temporary);
             return copied.map(|_| Outcome::Cancelled);
         }
@@ -153,7 +157,7 @@ impl EntryWriter<'_> {
 
     fn read_chunk(&self, reader: &mut impl Read, buffer: &mut [u8]) -> io::Result<Chunk> {
         loop {
-            if self.tracker.is_cancelled() {
+            if self.tracker.should_stop() {
                 return Ok(Chunk::Cancelled);
             }
             match reader.read(buffer) {

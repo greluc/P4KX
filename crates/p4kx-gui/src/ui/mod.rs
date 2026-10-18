@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod archive_change;
 mod channels;
 mod extraction;
 mod extraction_outcome;
@@ -59,6 +60,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         }
     }
     Panel::top("menu").show(ui, |ui| menu::show(ui, model, &mut requests));
+    archive_change::show(ui, model);
     Panel::bottom("status").show(ui, |ui| status::show(ui, model));
     Panel::left("side")
         .resizable(true)

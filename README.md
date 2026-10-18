@@ -59,6 +59,7 @@ Early development (milestone M1). Available today:
 | 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, or a Channel path that does not exist or was never added |
 | 3 | The Archive cannot be read: missing, not an Archive or corrupt |
+| 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 
 ## Build

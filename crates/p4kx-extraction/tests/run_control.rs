@@ -144,6 +144,7 @@ fn cancelling_an_overwrite_keeps_the_existing_file() -> TestResult {
             policy: ConflictPolicy::Overwrite,
             cancel: Some(&cancel),
             progress: Some(&on_progress),
+            watch: None,
         },
     );
 

@@ -18,6 +18,10 @@ const BUFFER_LEN: usize = 1 << 20;
 /// rejected, and existing links below `target` are never followed. A failed or cancelled Entry
 /// leaves no partial file and keeps an existing one; once the token of `options` is cancelled,
 /// the Entries not yet complete are reported as cancelled.
+///
+/// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
+/// reported. The watch is checked before the run, periodically during it, before each file is
+/// put in place and after the run.
 #[must_use]
 pub fn extract(
     archive: &Archive,
@@ -25,7 +29,17 @@ pub fn extract(
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
-    let tracker = Tracker::new(entries, options.cancel, options.progress);
+    if options.watch.is_some_and(|watch| watch.check().is_err()) {
+        return ExtractionReport {
+            cancelled: entries
+                .iter()
+                .map(|entry| entry.path().to_owned())
+                .collect(),
+            archive_changed: true,
+            ..ExtractionReport::default()
+        };
+    }
+    let tracker = Tracker::new(entries, options.cancel, options.watch, options.progress);
     let writer = EntryWriter {
         archive,
         target,
@@ -52,6 +66,7 @@ pub fn extract(
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
+    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }
 

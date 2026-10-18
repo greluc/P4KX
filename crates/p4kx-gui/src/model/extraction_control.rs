@@ -18,10 +18,13 @@ impl Model {
         self.extraction_folder = folder;
     }
 
-    /// Opens the Extraction setup for `scope`, unless no Archive is open or an Extraction runs;
-    /// a finished Extraction is dismissed.
+    /// Opens the Extraction setup for `scope`, unless no Archive is open, it changed on disk or
+    /// an Extraction runs; a finished Extraction is dismissed.
     pub fn begin_extraction(&mut self, scope: ExtractionScope) {
-        if self.browser.is_none() || self.extraction.as_ref().is_some_and(Extraction::is_running) {
+        if self.browser.is_none()
+            || self.extraction.as_ref().is_some_and(Extraction::is_running)
+            || self.check_archive()
+        {
             return;
         }
         self.extraction = None;
@@ -57,8 +60,12 @@ impl Model {
     ///
     /// An Extraction of every Entry of the Archive, whatever its scope, first asks for
     /// confirmation and starts only when submitted again while confirming. Nothing starts
-    /// without a chosen folder, without Entries in the scope, or while another Extraction runs.
+    /// without a chosen folder, without Entries in the scope, while another Extraction runs, or
+    /// once the Archive changed on disk.
     pub fn submit_extraction(&mut self, wake: impl Fn() + Send + 'static) -> bool {
+        if self.check_archive() {
+            return false;
+        }
         let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
             return false;
         };

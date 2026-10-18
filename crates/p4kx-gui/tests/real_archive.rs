@@ -9,7 +9,10 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_extraction::{Archive, Entry, Filter};
-use p4kx_gui::{Browser, EntryIndex, Language, Model, Sort, SortColumn, SortDirection, ui};
+use p4kx_gui::{
+    Browser, EntryIndex, Language, Model, RecordTree, RecordTreeStatus, Sort, SortColumn,
+    SortDirection, ui,
+};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -145,6 +148,67 @@ fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
     let shown = harness.state().browser().map_or(0, |b| b.shown().len());
     assert!(shown > 0, "aurora matches Entries");
     Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
+    let mut harness = opened()?;
+
+    harness.get_by_label("Expand DataForge").click();
+    let took = timed_step(&mut harness);
+    assert!(took < FRAME_LIMIT, "the click took {took:?}");
+    let deadline = Instant::now() + Duration::from_secs(120);
+    while !records(&harness).is_some_and(|tree| {
+        !matches!(
+            tree.status(),
+            RecordTreeStatus::Loading | RecordTreeStatus::NotLoaded
+        )
+    }) {
+        assert!(Instant::now() < deadline, "DataForge did not load");
+        std::thread::sleep(Duration::from_millis(2));
+        let took = timed_step(&mut harness);
+        assert!(took < FRAME_LIMIT, "a frame while loading took {took:?}");
+    }
+    let Some(RecordTreeStatus::Ready(summary)) = records(&harness).map(RecordTree::status) else {
+        return Err(format!("not loaded: {:?}", records(&harness)).into());
+    };
+    assert!(summary.record_count() > 50_000, "a real DataForge");
+    for folder in ["libs", "foundry", "records"] {
+        harness.get_by_label(&format!("Expand {folder}")).click();
+        let took = timed_step(&mut harness).max(timed_step(&mut harness));
+        assert!(took < FRAME_LIMIT, "expanding {folder} took {took:?}");
+    }
+    let largest = records(&harness).and_then(|tree| {
+        let folder = tree.find("libs/foundry/records")?;
+        tree.node(folder)
+            .children()
+            .iter()
+            .copied()
+            .max_by_key(|&child| tree.node(child).children().len())
+    });
+    if let (Some(browser), Some(largest)) = (harness.state_mut().browser_mut(), largest) {
+        browser.toggle_record_node(largest, || {});
+    }
+    let took = timed_step(&mut harness);
+    assert!(took < FRAME_LIMIT, "the largest folder took {took:?}");
+    harness.hover_at(egui::pos2(150.0, 450.0));
+    for _ in 0..20 {
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Page,
+            delta: egui::vec2(0.0, -2.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: egui::Modifiers::NONE,
+            source: egui::MouseWheelSource::Wheel,
+        });
+        let took = timed_step(&mut harness);
+        assert!(took < FRAME_LIMIT, "scrolling the Records took {took:?}");
+    }
+    Ok(())
+}
+
+fn records<'h>(harness: &'h Harness<'_, Model>) -> Option<&'h RecordTree> {
+    harness.state().browser().and_then(Browser::records)
 }
 
 fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {

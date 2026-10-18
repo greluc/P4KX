@@ -153,7 +153,7 @@ impl Chain {
 }
 
 /// Returns the bytes of the Record's instance of its struct.
-fn instance<'f>(
+pub(crate) fn instance<'f>(
     forge: &'f DataForge<'f>,
     index: u32,
     def: RecordDef,

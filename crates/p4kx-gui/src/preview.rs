@@ -27,6 +27,8 @@ pub enum PreviewTab {
     Text,
     /// The data as offsets, hexadecimal bytes and printable characters.
     Hex,
+    /// The summary of the Archive's DataForge instead of the selected Entry.
+    DataForge,
 }
 
 /// Where the preview of an Entry stands.

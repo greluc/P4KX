@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from Item select mass,\")?"
+---
+error: expected a field name, found the end of the Query
+  from Item select mass,
+                        ^

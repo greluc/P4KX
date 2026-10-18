@@ -4,6 +4,7 @@ use crate::header::MAX_HEADER_LEN;
 use crate::{DdsHeader, TextureError};
 
 const COPY_BUFFER_LEN: usize = 64 * 1024;
+const INITIAL_CAPACITY: u64 = 16 * 1024 * 1024;
 
 /// Gives access to the sibling parts `.dds.1` … `.dds.N` of a header Entry, wherever they are
 /// stored.
@@ -40,15 +41,18 @@ pub struct MergeReport {
 }
 
 /// Writes the header Entry `header` of `header_size` bytes and its sibling parts as one standard
-/// DDS file to `out`: the header, then every mip from the largest to the smallest.
+/// DDS file to `out`.
 ///
-/// Every part's length is checked before anything is written; the data is streamed.
+/// The header comes first, then every mip from the largest to the smallest, image by image for a
+/// cubemap or texture array. Every part's length is checked before anything is written. The
+/// parts are streamed; a texture with several images per mip holds the small mips of the header
+/// Entry in memory and opens each part once per image.
 ///
 /// # Errors
 ///
 /// Returns a [`TextureError`] when the header is not a DDS header or its format's size is
 /// unknown, a part is missing, truncated or oversized, the header's tail is not a run of whole
-/// mips, a split texture has several images per mip, or reading or writing fails.
+/// mips, or reading or writing fails.
 pub fn merge<R, S, W>(
     mut header: R,
     header_size: u64,
@@ -67,17 +71,17 @@ where
     let start = prefix.get(..prefix_len).unwrap_or_default();
     let dds = DdsHeader::parse(start)?;
     let parts = dds.part_count(header_size)?;
-    if parts > 0 && dds.surfaces() > 1 {
-        return Err(TextureError::UnsupportedLayout {
-            surfaces: dds.surfaces(),
-        });
-    }
     let sizes = part_sizes(&dds, parts, siblings)?;
     let (own_header, own_tail) = start
         .split_at_checked(dds.header_len())
         .unwrap_or((start, &[]));
     out.write_all(own_header).map_err(TextureError::Write)?;
     let mut buffer = vec![0; COPY_BUFFER_LEN];
+    if parts > 0 && dds.surfaces() > 1 {
+        let tail = read_tail(&dds, own_tail.chain(header), header_size)?;
+        write_surfaces(&dds, parts, &tail, siblings, out, &mut buffer)?;
+        return finish(dds, parts, header_size, out);
+    }
     for (index, expected) in (1..=parts).rev().zip(sizes.into_iter().rev()) {
         let reader = siblings
             .open_part(index)
@@ -103,6 +107,15 @@ where
             needed: header_size,
         });
     }
+    finish(dds, parts, header_size, out)
+}
+
+fn finish<W: Write + ?Sized>(
+    dds: DdsHeader,
+    parts: u32,
+    header_size: u64,
+    out: &mut W,
+) -> Result<MergeReport, TextureError> {
     out.flush().map_err(TextureError::Write)?;
     let merged_parts: u64 = (1..=parts)
         .filter_map(|index| dds.mip_size(parts - index))
@@ -112,6 +125,78 @@ where
         parts,
         size: header_size.saturating_add(merged_parts),
     })
+}
+
+/// Reads the mips that follow the header in the header Entry, each image's smallest mips one
+/// image after the other.
+fn read_tail(dds: &DdsHeader, tail: impl Read, header_size: u64) -> Result<Vec<u8>, TextureError> {
+    let header_len = dds.header_len() as u64;
+    let len = header_size.saturating_sub(header_len);
+    let data = read_up_to(tail, len).map_err(TextureError::ReadHeader)?;
+    if (data.len() as u64) < len {
+        return Err(TextureError::TruncatedHeader {
+            len: header_len + data.len() as u64,
+            needed: header_size,
+        });
+    }
+    Ok(data)
+}
+
+/// Writes a texture with several images per mip in the standard layout: image by image, each
+/// with its mips from the largest to the smallest. A part holds one mip of every image, so it is
+/// opened once per image and read from that image's offset.
+fn write_surfaces<S, W>(
+    dds: &DdsHeader,
+    parts: u32,
+    tail: &[u8],
+    siblings: &S,
+    out: &mut W,
+    buffer: &mut [u8],
+) -> Result<(), TextureError>
+where
+    S: SiblingReader + ?Sized,
+    W: Write + ?Sized,
+{
+    let unsupported = || TextureError::UnsupportedFormat(dds.format());
+    let pitch = dds
+        .surface_chain_size(parts..dds.mip_count())
+        .and_then(|pitch| usize::try_from(pitch).ok())
+        .ok_or_else(unsupported)?;
+    for surface in 0..dds.surfaces() {
+        let own_mips = usize::try_from(surface)
+            .ok()
+            .and_then(|surface| pitch.checked_mul(surface))
+            .and_then(|start| tail.get(start..start.checked_add(pitch)?))
+            .ok_or(TextureError::TailMismatch {
+                tail: tail.len() as u64,
+            })?;
+        for level in 0..parts {
+            let index = parts - level;
+            let size = dds.surface_size(level).ok_or_else(unsupported)?;
+            let offset = size
+                .checked_mul(u64::from(surface))
+                .ok_or_else(unsupported)?;
+            let read_error = |source| TextureError::ReadPart { index, source };
+            let mut reader = siblings.open_part(index).map_err(read_error)?;
+            let skipped =
+                io::copy(&mut reader.by_ref().take(offset), &mut io::sink()).map_err(read_error)?;
+            let copied = if skipped == offset {
+                copy(&mut reader, size, out, buffer)
+                    .map_err(|error| error.into_texture_error(read_error))?
+            } else {
+                0
+            };
+            if copied < size {
+                return Err(TextureError::TruncatedPart {
+                    index,
+                    expected: size,
+                    actual: copied,
+                });
+            }
+        }
+        out.write_all(own_mips).map_err(TextureError::Write)?;
+    }
+    Ok(())
 }
 
 fn part_sizes<S>(dds: &DdsHeader, parts: u32, siblings: &S) -> Result<Vec<u64>, TextureError>
@@ -170,6 +255,14 @@ pub(crate) fn read_prefix(
         }
     }
     Ok(filled)
+}
+
+/// Reads up to `size` bytes, growing the buffer with the data instead of trusting `size`.
+pub(crate) fn read_up_to(reader: impl Read, size: u64) -> io::Result<Vec<u8>> {
+    let capacity = usize::try_from(size.min(INITIAL_CAPACITY)).unwrap_or_default();
+    let mut data = Vec::with_capacity(capacity);
+    reader.take(size).read_to_end(&mut data)?;
+    Ok(data)
 }
 
 enum CopyError {

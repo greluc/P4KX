@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"at \\\"*/ITEMS/*\\\" select mass\")?"
+---
+record path                       mass
+--------------------------------  ----
+libs/foundry/records/items/boxes  2.5
+libs/foundry/records/items/boxes  1
+2 Records

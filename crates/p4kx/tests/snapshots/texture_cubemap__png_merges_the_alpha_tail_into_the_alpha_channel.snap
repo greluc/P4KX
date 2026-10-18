@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/texture_cubemap.rs
+expression: pixel_snapshot(&out)?
+---
+4 x 2
+19120b60 352e2767 514a436e 6d665f75
+89827b7c a59e9783 c1bab38a ddd6cf91

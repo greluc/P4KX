@@ -42,6 +42,7 @@ struct Summary {
     output: String,
     records: u64,
     failed: u64,
+    unresolved_references: u64,
 }
 
 /// A compiled Query with its selected Records, written in one format.
@@ -150,6 +151,7 @@ fn print_summary(
             output: json::path(out),
             records: counts.records,
             failed: counts.failed,
+            unresolved_references: counts.unresolved,
         });
     }
     let written = format!(" written to {}", out.display());

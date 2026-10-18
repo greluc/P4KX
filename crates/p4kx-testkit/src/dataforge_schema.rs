@@ -41,6 +41,8 @@ pub enum TestType {
     WeakPointer(String),
     /// A Reference to a Record.
     Reference,
+    /// A Reference to a Record of the named struct or of a struct deriving from it.
+    ReferenceTo(String),
 }
 
 impl TestType {
@@ -64,7 +66,7 @@ impl TestType {
             Self::Class(_) => 0x0010,
             Self::StrongPointer(_) => 0x0110,
             Self::WeakPointer(_) => 0x0210,
-            Self::Reference => 0x0310,
+            Self::Reference | Self::ReferenceTo(_) => 0x0310,
         }
     }
 }
@@ -295,7 +297,7 @@ impl TestPool {
             TestType::Enum(_) => Self::Enum,
             TestType::StrongPointer(_) => Self::StrongPointer,
             TestType::WeakPointer(_) => Self::WeakPointer,
-            TestType::Reference => Self::Reference,
+            TestType::Reference | TestType::ReferenceTo(_) => Self::Reference,
             TestType::Class(_) => return None,
         })
     }

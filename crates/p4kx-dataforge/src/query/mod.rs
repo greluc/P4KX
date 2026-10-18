@@ -34,8 +34,13 @@ pub use run::{Pages, QueryRun, Row};
 pub use span::Span;
 pub use syntax::{Glob, Name, Path, Query, Segment};
 
-/// The most segments a path has behind its first field: `.name`, `[n]`, `[*]` and `[TypeName]`.
+/// The most segments a path has behind its first field: `.name`, `[n]`, `[*]`, `[TypeName]`
+/// and `->name`.
 pub const MAX_PATH_SEGMENTS: usize = 64;
+
+/// The most References and weak pointers one path follows with `->`; each `->` follows one, so
+/// no cycle in the data makes a path follow more.
+pub const MAX_PATH_REFERENCES: usize = 16;
 
 /// The most array elements the columns of one row reach together, and each comparison of a
 /// condition on its own; beyond them a cell is an error and a comparison unknown.

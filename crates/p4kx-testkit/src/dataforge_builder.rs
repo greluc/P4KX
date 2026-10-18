@@ -202,7 +202,7 @@ impl<'a> Writer<'a> {
             | TestType::StrongPointer(_)
             | TestType::WeakPointer(_) => 8,
             TestType::Guid => 16,
-            TestType::Reference => 20,
+            TestType::Reference | TestType::ReferenceTo(_) => 20,
             TestType::Class(name) => self
                 .struct_index
                 .get(name.as_str())
@@ -213,9 +213,10 @@ impl<'a> Writer<'a> {
     fn property_target(&self, ty: &TestType) -> u16 {
         let target = match ty {
             TestType::Enum(name) => self.enum_index.get(name.as_str()),
-            TestType::Class(name) | TestType::StrongPointer(name) | TestType::WeakPointer(name) => {
-                self.struct_index.get(name.as_str())
-            }
+            TestType::Class(name)
+            | TestType::StrongPointer(name)
+            | TestType::WeakPointer(name)
+            | TestType::ReferenceTo(name) => self.struct_index.get(name.as_str()),
             _ => None,
         };
         target.map_or(u16::MAX, |index| u16::try_from(*index).unwrap_or(u16::MAX))
@@ -345,7 +346,8 @@ impl<'a> Writer<'a> {
                 TestType::Class(_)
                 | TestType::StrongPointer(_)
                 | TestType::WeakPointer(_)
-                | TestType::Reference,
+                | TestType::Reference
+                | TestType::ReferenceTo(_),
             ) => CONVERSION_COMPLEX_ARRAY,
             (true, _) => CONVERSION_SIMPLE_ARRAY,
         };

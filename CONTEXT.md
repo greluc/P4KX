@@ -90,6 +90,11 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Unresolved Reference**:
+A Reference that links to no Record, null or dangling, or a null weak pointer, met where a Query
+path follows it with `->`; it reaches null and is counted in the Query result.
+_Avoid_: broken link, missing Reference
+
 **Query**:
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)

@@ -181,11 +181,15 @@ With `--out <file>`, the result in `--format` (`json` by default) goes to the fi
 gets the summary:
 
 ```json
-{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0,
+ "unresolved_references": 2}
 ```
 
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+`unresolved_references` counts the null or dangling References and null weak pointers that `->`
+met in the `select` paths of the rows written ([query.md](query.md#following-references)); they
+reach `null` and change no exit code.
 
 ## `p4kx catalog <archive> --out <file> --json`
 

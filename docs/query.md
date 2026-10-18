@@ -16,6 +16,7 @@ from EntityClassDefinition at "*/spaceships/*" select Category, Invisible where 
 at "*/spaceships/*" select Icon, Category where Icon like "default.*" and (Category contains "def" or Invisible = true)
 from EntityClassDefinition at "libs/foundry/records/entities/spaceships/*" select Components[VehicleComponentParams].vehicleName, Components[VehicleComponentParams].crewSize where Components[VehicleComponentParams].crewSize >= 4
 from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Size, Components[SAttachableComponentParams].AttachDef.Type where Components[SAttachableComponentParams].AttachDef.Size >= 7
+from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Manufacturer->Code, Components[SAttachableComponentParams].AttachDef.Manufacturer->Localization.Name where Components[SAttachableComponentParams].AttachDef.Manufacturer->Code = "BEH"
 ```
 
 - `from EntityClassDefinition` lists every Record of type `EntityClassDefinition` or of a struct
@@ -26,6 +27,8 @@ from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableC
 - `Components[VehicleComponentParams].crewSize` reads the field `crewSize` of the components of
   type `VehicleComponentParams`, wherever they stand in the array `Components`
   ([Paths into nested data](#paths-into-nested-data)).
+- `Manufacturer->Code` follows the Reference `Manufacturer` to the Record it links to and reads
+  its field `Code` ([Following References](#following-references)).
 
 The opt-in tests against a real Archive run these examples.
 
@@ -42,8 +45,8 @@ the Record's position in the DataForge. Records share record paths, so a
 record path can appear in several rows.
 
 A cell holds the one value its path reaches, or for a path through `[*]` or `[TypeName]` a list
-of every value it reaches ([Several values](#several-values)). A null pointer or an index out of
-range on the way gives `null`. Without `from`, a Record whose type does not resolve the path,
+of every value it reaches ([Several values](#several-values)). A null pointer, an index out of
+range or a null or dangling Reference on the way gives `null`. Without `from`, a Record whose type does not resolve the path,
 e.g. has no field of the first name, gives an empty cell; with `from`, every selected type
 declares the fields of the named type. A value that cannot be read shows its reason as
 `error: …`. A Record whose layout cannot be read gives no row and is
@@ -61,7 +64,8 @@ The result is written page by page: the rows of one page are built in parallel a
 before the next page is built, so the result is never held in memory as a whole. With `--out`
 it goes to a temporary file next to the target, which is renamed to the target once complete
 and replaces an existing file; stdout then gets one summary line such as
-`3 Records written to result.csv`, or a JSON summary with `--json` (see
+`3 Records written to result.csv`, followed by `, 2 unresolved References` when `->` met
+References that link to no Record ([Following References](#following-references)), or a JSON summary with `--json` (see
 [cli-json.md](cli-json.md)). A Record whose layout cannot be read gives no row in any format;
 it is reported on stderr and the exit code is 1. An `--out` that is the Archive itself is
 rejected with exit code 2, and so is `--json` with another format and without `--out`. A run
@@ -71,7 +75,8 @@ behind; the target itself is never half written.
 ### Table
 
 Columns separated by two spaces and padded to the widest text of the column over all rows, a
-line of `-` under the headings, and on stdout a last line with the number of Records. Line
+line of `-` under the headings, and on stdout a last line with the number of Records and, when
+there are any, of unresolved References, e.g. `3 Records, 2 unresolved References`. Line
 breaks and tabs in a value are shown as `\n`, `\r` and `\t`, other control characters as
 U+FFFD. The widths are measured in a first pass over the pages, so the Records are read twice.
 A list ([Several values](#several-values)) is written as its values in brackets separated by
@@ -137,7 +142,8 @@ path       = name { segment } ;
 segment    = "." name
            | "[" index "]"
            | "[" "*" "]"
-           | "[" name "]" ;
+           | "[" name "]"
+           | "->" name ;
 index      = digit { digit } ;
 condition  = term { "or" term } ;
 term       = factor { "and" factor } ;
@@ -161,7 +167,8 @@ string     = '"' { char-but-quote | '""' } '"' ;
 - The clauses come in the order `from`, `at`, `select`, `where`; each appears at most once, and
   at least one of `from` and `at` is given.
 - A Query is at most 65,536 bytes long.
-- A path has at most 64 segments behind its first name.
+- A path has at most 64 segments behind its first name, and at most 16 of them are `->`
+  (`MAX_PATH_REFERENCES`).
 - An index is a whole number from 0 to 4,294,967,295 without sign, fraction or exponent;
   leading zeros are allowed, so `[007]` is `[7]`.
 
@@ -193,8 +200,9 @@ unknown name is an error that names the closest known one, if any, e.g.
 - A path starts with a field of the Record's type, inherited fields included. With `from`, the
   fields are those of the named struct. Without `from`, each Record's own type is used, and a name
   that no struct declares is an error.
-- A name behind `.` is a field of the struct the path has reached, and a name in brackets is a
-  struct; both follow [Paths into nested data](#paths-into-nested-data).
+- A name behind `.` is a field of the struct the path has reached, a name behind `->` a field of
+  the struct a Reference links to, and a name in brackets is a struct; they follow
+  [Paths into nested data](#paths-into-nested-data).
 
 ### Record-path glob
 
@@ -214,6 +222,7 @@ end at a scalar: a boolean, integer, float, string, localisation key, GUID or en
 | `[n]` | an array | the element at index `n`, counted from 0; `null` when the array has `n` or fewer elements |
 | `[*]` | an array | every element, in stored order |
 | `[TypeName]` | an array of inline structs or strong pointers | every element whose struct is `TypeName` or derives from it, in stored order |
+| `->name` | a Reference or a weak pointer | the field `name` of the Record the Reference links to, or of the instance the weak pointer names ([Following References](#following-references)) |
 
 - Behind a strong pointer the fields are those of the struct the field declares, also when the
   pointer owns an instance of a struct deriving from it; behind `[TypeName]` they are those of
@@ -225,14 +234,16 @@ end at a scalar: a boolean, integer, float, string, localisation key, GUID or en
   lies outside its values, a pointer to a missing instance or struct (also under `[TypeName]`)
   and an instance shorter than the layout the path reads it with reach an error value, shown as
   `error: …` at its place. A layout that cannot be read never reads as `null` or `[]`.
-- References and weak pointers are links, not owned values: a path cannot continue behind them,
-  and since they are no scalars, it cannot end at them either.
+- References and weak pointers are links, not owned values: a path continues behind them only
+  with `->`, and since they are no scalars, it cannot end at them either.
 
 These are compile errors, marked on the segment or name that causes them:
 
 - a field the struct does not declare, or a `TypeName` no struct has, with a suggestion;
 - `.name` behind a scalar, behind an array (select its elements first) or behind a Reference or
-  a weak pointer;
+  a weak pointer (the message points to `->name`);
+- `->` behind a value that is neither a Reference nor a weak pointer, behind an array of them
+  (select its elements first) or behind one whose field declares no struct, marked on the `->`;
 - `[n]`, `[*]` or `[TypeName]` behind a value that is no array, and `[TypeName]` behind an array
   of scalars or links;
 - a `TypeName` that neither is nor derives from the struct of the elements, nor is one of its
@@ -243,6 +254,26 @@ Without `from`, the path is resolved for each Record's own type: a type that doe
 gives an empty cell and no value to compare, and the path is a compile error only when it
 resolves in no type; the error is then the one of the first struct that declares its first
 field.
+
+### Following References
+
+`->name` follows a Reference to the Record it links to, or a weak pointer to the instance it
+names, and continues the path there with the field `name`. `->` can be chained, as in
+`maker->home->name`, and stands behind array elements, as in `escorts[*]->name`, which follows
+each element and gives one value per element. It works alike in `select` and in `where`.
+
+- The fields behind `->` are those of the struct the Reference or weak pointer field declares,
+  also when the Record it links to is of a struct deriving from it. A Record or instance of a
+  struct that neither is nor derives from the declared one reaches an error value, as behind a
+  strong pointer.
+- A null Reference, a Reference to a GUID no Record has (a dangling one) and a null weak pointer
+  reach `null`, and so does the rest of the path behind them. Each one the `select` paths of a
+  row meet counts as an unresolved Reference, and [the result](#output-formats) reports their
+  number; in `where`, the comparison is unknown, as for any `null`. A weak pointer to an
+  instance that does not exist reaches an error value, as a strong pointer does.
+- A path follows each Reference it names once and names at most 16 (`MAX_PATH_REFERENCES`), so
+  References that link in a cycle cannot make it follow more. `->` counts no array element
+  against `MAX_PATH_VALUES`.
 
 ### Several values
 
@@ -356,7 +387,8 @@ by `from` has a layout the DataForge cannot give, since that DataForge is corrup
 ## Canonical form
 
 A parsed Query prints in one canonical form: keywords and word operators in lower case, one
-space between tokens, `, ` between paths, no spaces around `.` and inside or before brackets,
+space between tokens, `, ` between paths, no spaces around `.` and `->` and inside or before
+brackets,
 indices without leading zeros, backticks only where a name needs them, numbers as written,
 strings with each quote doubled, and parentheses only where precedence needs them, e.g.
-``from Ship select Components[Weapon].damage, tags[0], `a b`[*]``. Parsing the canonical form gives the same Query.
+``from Ship select Components[Weapon].damage, tags[0], `a b`[*], maker->name``. Parsing the canonical form gives the same Query.

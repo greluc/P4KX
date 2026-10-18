@@ -31,6 +31,11 @@ fails while its section is missing.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
   list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
   values holds.
+- `->` in Query paths follows a Reference to the Record it links to, or a weak pointer to its
+  instance, in `select` and `where`, chained and behind array elements, e.g.
+  `AttachDef.Manufacturer->Code` or `escorts[*]->name`. A null or dangling Reference gives null
+  and is counted as unresolved in the result summary; `->` where no Reference stands is marked
+  as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before

@@ -71,7 +71,7 @@ impl<'f> Entities<'f> {
             self.forge.records_at_path(text).filter(is_entity).collect()
         } else {
             let class = strip_prefix_ignoring_case(text).unwrap_or(text);
-            self.by_class_name_all(class).to_vec()
+            self.class_candidates(class).to_vec()
         };
         match matches.as_slice() {
             [record] => Ok(*record),
@@ -89,10 +89,11 @@ impl<'f> Entities<'f> {
     /// case, or `None` when there is none.
     #[must_use]
     pub fn by_class_name(&self, name: &str) -> Option<Record<'f>> {
-        self.by_class_name_all(name).first().copied()
+        self.class_candidates(name).first().copied()
     }
 
-    fn by_class_name_all(&self, name: &str) -> &[Record<'f>] {
+    /// Returns every Entity with the class name `name` in definition order, ignoring ASCII case.
+    pub(crate) fn class_candidates(&self, name: &str) -> &[Record<'f>] {
         self.classes
             .get(name.to_ascii_lowercase().as_str())
             .map_or(&[], Vec::as_slice)
@@ -118,7 +119,8 @@ fn strip_prefix_ignoring_case(text: &str) -> Option<&str> {
         .flatten()
 }
 
-fn describe(record: &Record<'_>) -> String {
+/// Returns the GUID and record path of a Record, to name it among candidates.
+pub(crate) fn describe(record: &Record<'_>) -> String {
     format!(
         "{} ({})",
         record.guid(),

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::Write as _;
 
 use p4kx_assembly::{
     Attachment, EntityNode, LoadoutError, LoadoutFileError, LoadoutFiles, LoadoutResolver,
@@ -211,6 +212,71 @@ fn an_xml_loadout_of_an_entry_overrides_the_attached_entity_s_own() -> TestResul
         lines(&panel),
         ["sticker Decal_Red"],
         "the own Loadout stays"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_missing_include_is_an_issue_and_the_rest_still_loads() -> TestResult {
+    let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
+    let door = b"<Loadout>\
+        <Loadouts><Loadout loadout=\"Loadouts/Gone.xml\"/></Loadouts>\
+        <Items><Item portName=\"left\" itemName=\"Decal_Red\"/></Items>\
+        </Loadout>"
+        .to_vec();
+    let files = files(&[("loadouts/door.xml", door)]);
+    let tree = resolve(&builder, Some(&files))?;
+    assert_eq!(lines(&tree), ["left Decal_Red"], "the own items load");
+    let issues: Vec<String> = tree.issues().iter().map(ToString::to_string).collect();
+    assert_eq!(
+        issues,
+        ["the XML Loadout Loadouts/Gone.xml cannot be read: there is no such file"],
+        "the include is reported"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_huge_xml_loadout_merges_its_includes_in_linear_time() -> TestResult {
+    let count = 200_000;
+    let items = |class_name: &str| {
+        let mut text = String::from("<Items>");
+        for index in 0..count {
+            let _infallible = write!(
+                text,
+                "<Item portName=\"port_{index}\" itemName=\"{class_name}\"/>"
+            );
+        }
+        text.push_str("</Items>");
+        text
+    };
+    let base = format!("<Loadout>{}</Loadout>", items("Decal_Red"));
+    let door = format!(
+        "<Loadout><Loadouts><Loadout loadout=\"Loadouts/Base.xml\"/></Loadouts>{}</Loadout>",
+        items("")
+    );
+    let files = files(&[
+        ("loadouts/base.xml", base.into_bytes()),
+        ("loadouts/door.xml", door.into_bytes()),
+    ]);
+    let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
+    let started = std::time::Instant::now();
+    let tree = resolve(&builder, Some(&files))?;
+    let elapsed = started.elapsed();
+    assert_eq!(
+        tree.ports().len(),
+        p4kx_assembly::MAX_LOADOUT_PORTS,
+        "capped after the merge"
+    );
+    assert!(
+        tree.ports()
+            .iter()
+            .all(|port| port.attachment() == &Attachment::Empty),
+        "every port overridden as empty"
+    );
+    assert!(
+        elapsed < std::time::Duration::from_secs(30),
+        "200,000 ports merged in {elapsed:?}"
     );
     Ok(())
 }

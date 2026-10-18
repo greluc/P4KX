@@ -127,20 +127,60 @@ fn a_loadout_larger_than_the_limit_ends_in_too_many_ports() -> TestResult {
         entity(B, "Leaf").loadout(manual(ports(None))),
     ]);
     let root = resolve(&builder, "Hub")?;
-    let walked = root.walk();
-    assert!(
-        walked.len() <= MAX_LOADOUT_PORTS + fan,
-        "bounded: {}",
-        walked.len()
-    );
-    assert!(
-        root.unresolved()
-            .any(|(_, unresolved)| *unresolved.error() == LoadoutError::TooManyPorts),
-        "the ports past the limit are reported"
-    );
+    assert_eq!(root.walk().len(), MAX_LOADOUT_PORTS, "exactly the limit");
+    let capped = capped_nodes(&root);
+    assert_eq!(capped, 2, "the Leaf that reached it and the Hub after it");
     Ok(())
 }
 
+#[test]
+fn empty_ports_alone_also_stop_at_the_limit() -> TestResult {
+    let entries = (0..MAX_LOADOUT_PORTS + 10)
+        .map(|index| TestLoadoutEntry::empty(format!("p{index}")))
+        .collect();
+    let builder = database(&[entity(A, "Rack").loadout(manual(entries))]);
+    let root = resolve(&builder, "Rack")?;
+    assert_eq!(root.ports().len(), MAX_LOADOUT_PORTS, "the ports so far");
+    assert_eq!(root.issues(), [LoadoutError::TooManyPorts], "one issue");
+    Ok(())
+}
+
+fn capped_nodes(node: &EntityNode) -> usize {
+    let own = usize::from(node.issues().contains(&LoadoutError::TooManyPorts));
+    own + node
+        .ports()
+        .iter()
+        .map(|port| match port.attachment() {
+            Attachment::Entity(child) => capped_nodes(child),
+            _ => 0,
+        })
+        .sum::<usize>()
+}
+
+#[test]
+fn an_ambiguous_class_name_attaches_the_first_entity_and_says_so() -> TestResult {
+    let builder = database(&[
+        entity(A, "Ship").loadout(manual(vec![TestLoadoutEntry::class("seat", "SEAT")])),
+        TestEntity::new(B, "Seat", "entities/seat_one.xml"),
+        TestEntity::new(C, "Seat", "entities/seat_two.xml"),
+    ]);
+    let seat = child(&resolve(&builder, "Ship")?, "seat")?;
+    assert_eq!(
+        seat.record_path(),
+        "entities/seat_one",
+        "the first in definition order"
+    );
+    let issue = seat.issues().first().ok_or("no issue")?;
+    assert_eq!(issue.kind(), "ambiguous_class", "kind");
+    assert_eq!(
+        issue.to_string(),
+        "2 Entities have the class name SEAT; the first is attached: \
+         00000000-0000-0000-0000-000000002000 (entities/seat_one), \
+         00000000-0000-0000-0000-000000003000 (entities/seat_two)",
+        "reason"
+    );
+    Ok(())
+}
 #[test]
 fn an_entry_loadout_overrides_the_attached_entity_s_own_per_port() -> TestResult {
     let builder = database(&[

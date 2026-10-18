@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntity,
-    TestEntry, TestLoadout, real_archive_path, sample_ship,
+    TestEntry, TestLoadout, TestLoadoutEntry, TestRecord, TestStruct, TestType, entity_schema,
+    real_archive_path, sample_ship,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -110,10 +111,9 @@ fn an_xml_loadout_is_read_from_the_archive() -> TestResult {
         TestEntity::new(0x2, "Decal", "entities/decal.xml"),
     ]
     .iter()
-    .fold(
-        p4kx_testkit::entity_schema(DataForgeBuilder::new()),
-        |builder, entity| builder.record(entity.record()),
-    );
+    .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
+        builder.record(entity.record())
+    });
     let door = TestElement::new("Loadout").child(
         TestElement::new("Items").child(
             TestElement::new("Item")
@@ -132,6 +132,49 @@ fn an_xml_loadout_is_read_from_the_archive() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn control_characters_in_names_are_escaped_in_the_text() -> TestResult {
+    let odd = TestEntity::new(0x1, "Odd", "entities/odd.xml").loadout(TestLoadout::Manual(vec![
+        TestLoadoutEntry::empty("line\nbreak\u{1b}[31m"),
+    ]));
+    let database = entity_schema(DataForgeBuilder::new()).record(odd.record());
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database, Vec::new())?;
+    let run = loadout(&archive, "Odd", false, 0)?;
+    assert!(
+        run.stdout.contains("  line\\nbreak\u{fffd}[31m: -\n"),
+        "one line, no escape sequence: {:?}",
+        run.stdout
+    );
+    Ok(())
+}
+
+#[test]
+fn an_entity_whose_record_cannot_be_read_exits_with_code_5() -> TestResult {
+    let database = DataForgeBuilder::new()
+        .structure(
+            TestStruct::new("EntityClassDefinition")
+                .declared_size(2)
+                .field("Category", TestType::Int32),
+        )
+        .record(TestRecord::new(
+            0x1,
+            "EntityClassDefinition",
+            "EntityClassDefinition.Broken",
+            "entities/broken.xml",
+        ));
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database, Vec::new())?;
+    let run = loadout(&archive, "Broken", true, 5)?;
+    assert!(run.stdout.is_empty(), "no JSON: {}", run.stdout);
+    assert!(
+        run.stderr
+            .starts_with("error: the Record 00000000-0000-0000-0000-000000000001 cannot be read"),
+        "message: {}",
+        run.stderr
+    );
+    Ok(())
+}
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_ships_and_a_vehicle_resolve_with_few_unresolved_ports() -> TestResult {

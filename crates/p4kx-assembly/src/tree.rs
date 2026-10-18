@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use p4kx_dataforge::Guid;
 
 use crate::entities::class_name_of;
@@ -91,7 +93,7 @@ fn walk<'n>(node: &'n EntityNode, prefix: &str, ports: &mut Vec<(String, &'n Por
 pub struct PortNode {
     pub(crate) name: String,
     pub(crate) source: PortSource,
-    pub(crate) definition: Option<PortDefinition>,
+    pub(crate) definition: Option<Arc<PortDefinition>>,
     pub(crate) attachment: Attachment,
 }
 
@@ -111,8 +113,8 @@ impl PortNode {
     /// Returns the port's definition in the Entity Record, or `None` when the Record defines no
     /// port of this name, e.g. a ship port from its vehicle definition.
     #[must_use]
-    pub const fn definition(&self) -> Option<&PortDefinition> {
-        self.definition.as_ref()
+    pub fn definition(&self) -> Option<&PortDefinition> {
+        self.definition.as_deref()
     }
 
     /// Returns what the port holds.

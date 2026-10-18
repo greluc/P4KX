@@ -1,5 +1,11 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use p4kx_dataforge::Guid;
 
+use crate::entities::describe;
+use crate::merge::{merge_by_port, port_key};
+use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::{
@@ -20,6 +26,25 @@ impl Walk {
             ports: 0,
         }
     }
+
+    /// Counts one more port, or returns `false` when the tree already holds
+    /// [`MAX_LOADOUT_PORTS`].
+    const fn reserve(&mut self) -> bool {
+        if self.ports >= MAX_LOADOUT_PORTS {
+            return false;
+        }
+        self.ports = self.ports.saturating_add(1);
+        true
+    }
+}
+
+/// One port of an Entity before it is resolved.
+struct Pending<'s> {
+    name: &'s str,
+    source: PortSource,
+    definition: Option<Arc<PortDefinition>>,
+    target: &'s TargetSpec,
+    loadout: Option<&'s LoadoutSpec>,
 }
 
 impl LoadoutResolver<'_> {
@@ -31,50 +56,18 @@ impl LoadoutResolver<'_> {
         walk: &mut Walk,
     ) -> EntityNode {
         let mut issues = Vec::new();
-        let mut entries: Vec<(EntrySpec, PortSource)> = Vec::new();
-        match self.entries(spec.loadout.as_ref()) {
-            Ok(own) => entries.extend(own.iter().map(|entry| (entry.clone(), PortSource::Loadout))),
-            Err(error) => issues.push(error),
-        }
-        if overrides.is_some() {
-            match self.entries(overrides) {
-                Ok(given) => override_entries(&mut entries, &given),
-                Err(error) => issues.push(error),
+        let entries = self.merged_entries(spec, overrides, &mut issues);
+        let mut ports = Vec::new();
+        for pending in pending_ports(spec, &entries) {
+            if !walk.reserve() {
+                issues.push(LoadoutError::TooManyPorts);
+                break;
             }
-        }
-        let mut ports = Vec::with_capacity(entries.len());
-        for (entry, source) in &entries {
-            walk.ports = walk.ports.saturating_add(1);
-            let definition = spec
-                .ports
-                .iter()
-                .find(|port| port.name.eq_ignore_ascii_case(&entry.port))
-                .map(|port| port.definition.clone());
             ports.push(PortNode {
-                name: entry.port.clone(),
-                source: *source,
-                definition,
-                attachment: self.attach(&entry.target, entry.loadout.as_ref(), walk),
-            });
-        }
-        for port in &spec.ports {
-            if entries
-                .iter()
-                .any(|(entry, _)| entry.port.eq_ignore_ascii_case(&port.name))
-            {
-                continue;
-            }
-            walk.ports = walk.ports.saturating_add(1);
-            let source = if port.default_item == TargetSpec::None {
-                PortSource::Unset
-            } else {
-                PortSource::PortDefault
-            };
-            ports.push(PortNode {
-                name: port.name.clone(),
-                source,
-                definition: Some(port.definition.clone()),
-                attachment: self.attach(&port.default_item, None, walk),
+                name: pending.name.to_owned(),
+                source: pending.source,
+                definition: pending.definition,
+                attachment: self.attach(pending.target, pending.loadout, walk),
             });
         }
         EntityNode {
@@ -84,6 +77,39 @@ impl LoadoutResolver<'_> {
             ports,
             issues,
         }
+    }
+
+    /// Returns the entries of the Entity's own Loadout, each replaced in place by the entry of
+    /// the same port in `overrides`, with the other overriding entries appended.
+    fn merged_entries(
+        &mut self,
+        spec: &EntitySpec,
+        overrides: Option<&LoadoutSpec>,
+        issues: &mut Vec<LoadoutError>,
+    ) -> Vec<(EntrySpec, PortSource)> {
+        let mut entries = Vec::new();
+        match self.entries(spec.loadout.as_ref()) {
+            Ok(own) => {
+                issues.extend(own.issues.iter().cloned());
+                entries.extend(
+                    own.list
+                        .iter()
+                        .map(|entry| (entry.clone(), PortSource::Loadout)),
+                );
+            }
+            Err(error) => issues.push(error),
+        }
+        if overrides.is_some() {
+            match self.entries(overrides) {
+                Ok(given) => {
+                    issues.extend(given.issues.iter().cloned());
+                    let given = given.list.iter().map(|e| (e.clone(), PortSource::Override));
+                    merge_by_port(&mut entries, given, |(entry, _)| &entry.port);
+                }
+                Err(error) => issues.push(error),
+            }
+        }
+        entries
     }
 
     /// Resolves what one port holds.
@@ -123,10 +149,62 @@ impl LoadoutResolver<'_> {
             Err(error) => return unresolved(named, error.clone()),
         };
         walk.ancestors.push(guid);
-        let child = self.node(spec, loadout, walk);
+        let mut child = self.node(spec, loadout, walk);
         walk.ancestors.pop();
+        if let Some(ambiguity) = self.ambiguity(target) {
+            child.issues.insert(0, ambiguity);
+        }
         Attachment::Entity(Box::new(child))
     }
+
+    /// Returns the ambiguity of a class name that several Entities have, if it is one.
+    fn ambiguity(&self, target: &TargetSpec) -> Option<LoadoutError> {
+        let TargetSpec::ClassName(name) = target else {
+            return None;
+        };
+        let candidates = self.entities.class_candidates(name);
+        (candidates.len() > 1).then(|| LoadoutError::AmbiguousClass {
+            name: name.clone(),
+            candidates: candidates.iter().map(describe).collect(),
+        })
+    }
+}
+
+/// Returns the ports of an Entity in order: the merged Loadout entries, then the defined ports
+/// no entry names.
+fn pending_ports<'s>(
+    spec: &'s EntitySpec,
+    entries: &'s [(EntrySpec, PortSource)],
+) -> impl Iterator<Item = Pending<'s>> {
+    let named: HashSet<String> = entries
+        .iter()
+        .map(|(entry, _)| port_key(&entry.port))
+        .collect();
+    let from_entries = entries.iter().map(|(entry, source)| Pending {
+        name: &entry.port,
+        source: *source,
+        definition: spec
+            .port(&entry.port)
+            .map(|port| Arc::clone(&port.definition)),
+        target: &entry.target,
+        loadout: entry.loadout.as_ref(),
+    });
+    let defined = spec
+        .ports
+        .iter()
+        .filter(move |port| !named.contains(&port_key(&port.name)))
+        .map(|port| Pending {
+            name: &port.name,
+            source: if port.default_item == TargetSpec::None {
+                PortSource::Unset
+            } else {
+                PortSource::PortDefault
+            },
+            definition: Some(Arc::clone(&port.definition)),
+            target: &port.default_item,
+            loadout: None,
+        });
+    from_entries.chain(defined)
 }
 
 /// Returns why the Entity `guid` may not be attached below the current branch, if it may not.
@@ -135,24 +213,8 @@ fn limit(walk: &Walk, guid: Guid) -> Option<LoadoutError> {
         Some(LoadoutError::Cycle { guid })
     } else if walk.ancestors.len() > MAX_LOADOUT_DEPTH {
         Some(LoadoutError::TooDeep)
-    } else if walk.ports >= MAX_LOADOUT_PORTS {
-        Some(LoadoutError::TooManyPorts)
     } else {
         None
-    }
-}
-
-/// Replaces the entry of each port `given` names, ignoring ASCII case, and appends the rest.
-fn override_entries(entries: &mut Vec<(EntrySpec, PortSource)>, given: &[EntrySpec]) {
-    for entry in given {
-        let replacement = (entry.clone(), PortSource::Override);
-        match entries
-            .iter_mut()
-            .find(|(old, _)| old.port.eq_ignore_ascii_case(&entry.port))
-        {
-            Some(old) => *old = replacement,
-            None => entries.push(replacement),
-        }
     }
 }
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use p4kx_cryxml::{Element, Xml};
 
+use crate::merge::merge_by_port;
 use crate::spec::{EntrySpec, LoadoutSpec, TargetSpec};
 use crate::{LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH};
 
@@ -52,15 +53,27 @@ impl Node for roxmltree::Node<'_, '_> {
     }
 }
 
+/// The entries of an XML Loadout and why parts of it cannot be read.
+pub(crate) struct XmlEntries {
+    pub(crate) entries: Vec<EntrySpec>,
+    pub(crate) issues: Vec<LoadoutError>,
+}
+
 /// Reads the XML Loadout at `path` with the Loadouts it includes: the entries of the included
 /// Loadouts in order, each overridden by the later ones and by the file's own entries per port.
-pub(crate) fn load(files: &dyn LoadoutFiles, path: &str) -> Result<Vec<EntrySpec>, LoadoutError> {
+/// An include that cannot be read is an issue; the rest still loads.
+pub(crate) fn load(files: &dyn LoadoutFiles, path: &str) -> Result<XmlEntries, LoadoutError> {
     let mut loader = Loader {
         files,
         stack: Vec::new(),
         done: HashMap::new(),
+        issues: Vec::new(),
     };
-    loader.load(path)
+    let entries = loader.load(path)?;
+    Ok(XmlEntries {
+        entries,
+        issues: loader.issues,
+    })
 }
 
 /// Reads one XML Loadout with its includes, each file once.
@@ -68,6 +81,7 @@ struct Loader<'l> {
     files: &'l dyn LoadoutFiles,
     stack: Vec<String>,
     done: HashMap<String, Vec<EntrySpec>>,
+    issues: Vec<LoadoutError>,
 }
 
 impl Loader<'_> {
@@ -99,8 +113,10 @@ impl Loader<'_> {
         self.stack.push(path.to_owned());
         let mut entries = Vec::new();
         for include in &loadout.includes {
-            let included = self.load(include);
-            merge_into(&mut entries, included?);
+            match self.load(include) {
+                Ok(included) => merge_into(&mut entries, included),
+                Err(error) => self.issues.push(error),
+            }
         }
         self.stack.pop();
         merge_into(&mut entries, loadout.entries);
@@ -110,18 +126,9 @@ impl Loader<'_> {
 }
 
 /// Replaces the entry of each port `overrides` names, ignoring ASCII case, and appends the rest.
-pub(crate) fn merge_into(entries: &mut Vec<EntrySpec>, overrides: Vec<EntrySpec>) {
-    for entry in overrides {
-        match entries
-            .iter_mut()
-            .find(|old| old.port.eq_ignore_ascii_case(&entry.port))
-        {
-            Some(old) => *old = entry,
-            None => entries.push(entry),
-        }
-    }
+fn merge_into(entries: &mut Vec<EntrySpec>, overrides: Vec<EntrySpec>) {
+    merge_by_port(entries, overrides, |entry| &entry.port);
 }
-
 fn parse(bytes: &[u8]) -> Result<XmlLoadout, String> {
     match p4kx_cryxml::read(bytes).map_err(|error| error.to_string())? {
         Xml::CryXml(document) => read_root(document.root()),

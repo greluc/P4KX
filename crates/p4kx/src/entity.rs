@@ -9,6 +9,7 @@ use p4kx_extraction::{Archive, DataForgeEntry};
 use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
 use crate::json;
+use crate::query_table::one_line;
 
 /// Runs a `p4kx entity` subcommand.
 pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<()> {
@@ -45,13 +46,13 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
 
 fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(
-        out,
+    let header = format!(
         "{}  {}  {}",
         tree.class_name(),
         tree.guid(),
         tree.record_path()
-    )?;
+    );
+    writeln!(out, "{}", one_line(&header))?;
     print_node(&mut out, tree, 1)?;
     writeln!(
         out,
@@ -64,10 +65,10 @@ fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
 fn print_node(out: &mut impl Write, node: &EntityNode, depth: usize) -> io::Result<()> {
     let indent = "  ".repeat(depth);
     for issue in node.issues() {
-        writeln!(out, "{indent}! {issue}")?;
+        writeln!(out, "{indent}! {}", one_line(&issue.to_string()))?;
     }
     for port in node.ports() {
-        writeln!(out, "{indent}{}", port_line(port))?;
+        writeln!(out, "{indent}{}", one_line(&port_line(port)))?;
         if let Attachment::Entity(child) = port.attachment() {
             print_node(out, child, depth.saturating_add(1))?;
         }

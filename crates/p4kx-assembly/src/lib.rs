@@ -15,6 +15,7 @@
 mod entities;
 mod error;
 mod files;
+mod merge;
 mod node;
 mod port;
 mod read;
@@ -35,6 +36,6 @@ pub use xml::MAX_XML_INCLUDE_DEPTH;
 /// are [`LoadoutError::TooDeep`].
 pub const MAX_LOADOUT_DEPTH: usize = 32;
 
-/// The most ports one Loadout tree holds; further attachments are
-/// [`LoadoutError::TooManyPorts`].
+/// The most ports one Loadout tree holds; an Entity whose ports would pass it keeps the ports so
+/// far and has [`LoadoutError::TooManyPorts`] among its issues.
 pub const MAX_LOADOUT_PORTS: usize = 1 << 16;

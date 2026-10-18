@@ -9,7 +9,23 @@ use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::{Entities, EntityNode, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH, xml};
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
-pub(crate) type EntriesResult = Result<Arc<[EntrySpec]>, LoadoutError>;
+pub(crate) type EntriesResult = Result<Entries, LoadoutError>;
+
+/// The entries of a Loadout and why parts of it cannot be read.
+#[derive(Debug, Clone)]
+pub(crate) struct Entries {
+    pub(crate) list: Arc<[EntrySpec]>,
+    pub(crate) issues: Arc<[LoadoutError]>,
+}
+
+impl Entries {
+    fn complete(list: Arc<[EntrySpec]>) -> Self {
+        Self {
+            list,
+            issues: Arc::from([]),
+        }
+    }
+}
 
 /// Resolves the default Loadouts of Entities into [`EntityNode`] trees.
 ///
@@ -95,15 +111,20 @@ impl<'f> LoadoutResolver<'f> {
     /// Returns the entries of a Loadout, reading an XML Loadout once per resolver.
     pub(crate) fn entries(&mut self, loadout: Option<&LoadoutSpec>) -> EntriesResult {
         match loadout {
-            None => Ok(Arc::from([])),
-            Some(LoadoutSpec::Manual(entries)) => Ok(Arc::clone(entries)),
+            None => Ok(Entries::complete(Arc::from([]))),
+            Some(LoadoutSpec::Manual(entries)) => Ok(Entries::complete(Arc::clone(entries))),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
                     return Err(LoadoutError::NoLoadoutFiles { path: path.clone() });
                 };
                 self.xml
                     .entry(path.to_ascii_lowercase())
-                    .or_insert_with(|| xml::load(files, path).map(Arc::from))
+                    .or_insert_with(|| {
+                        xml::load(files, path).map(|loaded| Entries {
+                            list: Arc::from(loaded.entries),
+                            issues: Arc::from(loaded.issues),
+                        })
+                    })
                     .clone()
             }
         }

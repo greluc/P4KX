@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
+use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text};
 
@@ -43,7 +45,7 @@ pub(crate) struct EntrySpec {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PortSpec {
     pub(crate) name: String,
-    pub(crate) definition: PortDefinition,
+    pub(crate) definition: Arc<PortDefinition>,
     pub(crate) default_item: TargetSpec,
 }
 
@@ -54,6 +56,7 @@ pub(crate) struct EntitySpec {
     pub(crate) record_path: String,
     pub(crate) name: String,
     pub(crate) ports: Vec<PortSpec>,
+    pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
 }
 
@@ -75,19 +78,31 @@ impl EntitySpec {
             .flat_map(|component| struct_items(component, "Ports"))
             .map(|port| PortSpec {
                 name: text(port, "Name").to_owned(),
-                definition: read_definition(port),
+                definition: Arc::new(read_definition(port)),
                 default_item: struct_field(port, "defaultItem")
                     .and_then(|item| item.field("entityClass"))
                     .map_or(TargetSpec::None, reference_target),
             })
-            .collect();
+            .collect::<Vec<_>>();
+        let mut port_index = HashMap::with_capacity(ports.len());
+        for (at, port) in ports.iter().enumerate() {
+            port_index.entry(port_key(&port.name)).or_insert(at);
+        }
         Self {
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
             name: tree.name().to_owned(),
             ports,
+            port_index,
             loadout,
         }
+    }
+
+    /// Returns the first port this Entity defines with the name `name`, ignoring ASCII case.
+    pub(crate) fn port(&self, name: &str) -> Option<&PortSpec> {
+        self.port_index
+            .get(&port_key(name))
+            .and_then(|at| self.ports.get(*at))
     }
 
     /// Returns every target the Entity's own Loadout and port defaults name, nested ones

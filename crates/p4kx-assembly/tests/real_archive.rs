@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use p4kx_assembly::{ArchiveFiles, Attachment, LoadoutResolver};
+use p4kx_assembly::{ArchiveFiles, Attachment, LoadoutResolver, PortSource};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::real_archive_path;
 
@@ -58,6 +58,11 @@ fn every_ship_and_vehicle_resolves_with_few_unresolved_ports() -> TestResult {
             .iter()
             .any(|path| path == "hardpoint_weapon_class2_nose/hardpoint_class_2"),
         "the nose gun sits in its mount: {paths:?}"
+    );
+    let sources: Vec<PortSource> = tree.walk().iter().map(|(_, port)| port.source()).collect();
+    assert!(
+        sources.contains(&PortSource::Loadout) && sources.contains(&PortSource::Override),
+        "the Titan shows its own Loadout and the overrides its entries give: {sources:?}"
     );
     Ok(())
 }

@@ -107,7 +107,7 @@ A **Node** is one Entity:
 | `record_path` | string | Record path without `.xml` |
 | `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
-| `issues` | array | An Error (without target) per part of the Entity's own Loadout that cannot be read, e.g. a missing XML Loadout |
+| `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, or the port limit |
 | `ports` | array | One Port per port, see below for the order |
 
 A **Port**:
@@ -128,14 +128,23 @@ parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rot
 (`[x, y, z]` in degrees as stored).
 
 An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
-target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are
-`dangling_reference`, `invalid_reference`, `unknown_class`, `not_an_entity`,
-`unreadable_record`, `cycle` (the Entity is already attached further up the branch),
-`too_deep` (more than 32 attached Entities below the root), `too_many_ports` (the tree reached
-65,536 ports, so the Entities of later ports are not attached), `no_loadout_files` and `xml_loadout` (an XML Loadout that is missing, corrupt,
-includes itself or nests deeper than 8 includes).
+target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
 
-The tree is resolved from the Records: an Entity's ports are the entries of its default Loadout
+- at a port: `dangling_reference`, `invalid_reference`, `unknown_class`, `not_an_entity`,
+  `unreadable_record`, `cycle` (the Entity is already attached further up the branch) and
+  `too_deep` (more than 32 attached Entities below the root);
+- among the `issues` of an Entity: `too_many_ports` (the tree reached 65,536 ports, so this
+  Entity's further ports are left out; the tree never holds more), `ambiguous_class` (several
+  Entities have the class name the entry names; the first in definition order is attached and
+  the reason lists every candidate), `no_loadout_files` and `xml_loadout` (an XML Loadout or one
+  it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
+  could be read is still listed).
+
+New kinds may be added in later versions; a script should treat an unknown `kind` as an error it
+cannot interpret rather than fail.
+
+The tree is resolved from the Records ([ADR-0011](adr/0011-per-port-loadout-override.md)): an
+Entity's ports are the entries of its default Loadout
 (`SEntityComponentDefaultLoadoutParams`: a manual Loadout's entries, or an XML Loadout read from
 the Archive with the Loadouts it includes) in Loadout order, each replaced in place by the entry
 of the same port, ignoring case, in the Loadout given by the entry that attached the Entity, with

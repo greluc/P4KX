@@ -27,6 +27,18 @@ pub enum LoadoutError {
         /// The class name.
         name: String,
     },
+    /// Several Entities have the class name; the first in definition order is attached.
+    #[error(
+        "{} Entities have the class name {name}; the first is attached: {}",
+        candidates.len(),
+        candidates.join(", ")
+    )]
+    AmbiguousClass {
+        /// The class name.
+        name: String,
+        /// The GUID and record path of each Entity, in definition order.
+        candidates: Vec<String>,
+    },
     /// The Record is no Entity.
     #[error("the Record {guid} is a {type_name}, not an Entity")]
     NotAnEntity {
@@ -54,8 +66,8 @@ pub enum LoadoutError {
     /// The branch is deeper than [`MAX_LOADOUT_DEPTH`].
     #[error("the Loadout is nested deeper than {MAX_LOADOUT_DEPTH} Entities")]
     TooDeep,
-    /// The Loadout holds more than [`MAX_LOADOUT_PORTS`] ports.
-    #[error("the Loadout holds more than {MAX_LOADOUT_PORTS} ports")]
+    /// The tree reached [`MAX_LOADOUT_PORTS`] ports, so the Entity's further ports are left out.
+    #[error("the Loadout tree reached {MAX_LOADOUT_PORTS} ports; further ports are left out")]
     TooManyPorts,
     /// An XML Loadout is named, but no Archive to read it from was given.
     #[error("the XML Loadout {path} is not read without its Archive")]
@@ -82,6 +94,7 @@ impl LoadoutError {
             Self::DanglingReference { .. } => "dangling_reference",
             Self::InvalidReference { .. } => "invalid_reference",
             Self::UnknownClass { .. } => "unknown_class",
+            Self::AmbiguousClass { .. } => "ambiguous_class",
             Self::NotAnEntity { .. } => "not_an_entity",
             Self::UnreadableRecord { .. } => "unreadable_record",
             Self::Cycle { .. } => "cycle",

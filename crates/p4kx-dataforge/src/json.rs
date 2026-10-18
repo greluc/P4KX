@@ -217,19 +217,6 @@ impl<W: Write> Out<'_, W> {
     }
 }
 
-impl RecordTree<'_> {
-    /// Writes the Record as one Record JSON object in `layout` to `out`.
-    ///
-    /// Use a [`RecordJson`] instead to write many Records with one scratch space.
-    ///
-    /// # Errors
-    ///
-    /// Returns the I/O error of `out`.
-    pub fn write_json<W: Write>(&self, layout: JsonLayout, out: &mut W) -> io::Result<()> {
-        RecordJson::new(layout).write(self, out)
-    }
-}
-
 fn write_reference<W: Write>(
     out: &mut Out<'_, W>,
     reference: &Reference<'_>,

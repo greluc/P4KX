@@ -12,7 +12,8 @@ use crate::{RecordExportSummary, RecordForm, ndjson};
 /// [`RecordForm::Xml`] and [`RecordForm::Json`] write one file per Record under its record path
 /// (ADR-0008), in parallel, with the [`ConflictPolicy`](crate::ConflictPolicy) of `options` for
 /// every file. [`RecordForm::Ndjson`] writes [`NDJSON_FILE`](crate::NDJSON_FILE) with one compact
-/// Record JSON object per line, ordered by record path, then Record name, then definition order;
+/// Record JSON object per line, ordered by record path (ASCII case and separator ignored), then
+/// Record name, then definition order;
 /// each Record once. Its Records are built in parallel batches and streamed into a temporary file
 /// that replaces the file only once complete; the Conflict policy applies to that file. The same
 /// Records always give the same bytes. A Record whose tree cannot be built, or that belongs to

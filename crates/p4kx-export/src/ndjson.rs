@@ -25,7 +25,7 @@ struct Line<'r, 'f> {
 /// The lines of one part of a batch and what happened to its Records.
 struct Part<'r, 'f> {
     bytes: Vec<u8>,
-    errors: Vec<usize>,
+    error_counts: Vec<usize>,
     failures: Vec<(&'r Record<'f>, RecordExportError)>,
 }
 
@@ -88,7 +88,19 @@ fn run(
         summary.written = 0;
         return Ok(());
     }
-    output.persist(&destination)
+    if output.persist(&destination, existing.is_some())? {
+        summary.skipped.push(NDJSON_FILE.to_owned());
+        discard(summary);
+    }
+    Ok(())
+}
+
+/// Returns `path` as compared for the record-path order: ASCII lower case, `\` as `/`.
+fn fold(path: &str) -> impl Iterator<Item = u8> + '_ {
+    path.bytes().map(|byte| match byte {
+        b'\\' => b'/',
+        _ => byte.to_ascii_lowercase(),
+    })
 }
 
 /// Builds and writes `lines` in batches; returns `false` when the run was cancelled.
@@ -121,8 +133,8 @@ fn stream(
                 .append(&part.bytes)
                 .map_err(|error| write_error(destination, error))?;
             failed_lines = failed_lines.saturating_add(part.failures.len());
-            summary.written = summary.written.saturating_add(part.errors.len());
-            for errors in part.errors {
+            summary.written = summary.written.saturating_add(part.error_counts.len());
+            for errors in part.error_counts {
                 summary.error_values = summary.error_values.saturating_add(errors);
                 summary.records_with_errors = summary
                     .records_with_errors
@@ -145,8 +157,9 @@ const fn discard(summary: &mut RecordExportSummary) {
     summary.records_with_errors = 0;
 }
 
-/// Returns the selected Records of `forge` in record-path order, then by Record name, then in
-/// definition order, each once; Records of another DataForge become failures.
+/// Returns the selected Records of `forge` in record-path order (ASCII case and the separator
+/// ignored), then by Record name, then in definition order, each once; Records of another
+/// DataForge become failures.
 fn ordered_lines<'r, 'f>(
     forge: &DataForge<'_>,
     records: &'r [Record<'f>],
@@ -167,8 +180,8 @@ fn ordered_lines<'r, 'f>(
         }
     }
     lines.par_sort_unstable_by(|left, right| {
-        left.path
-            .cmp(right.path)
+        fold(left.path)
+            .cmp(fold(right.path))
             .then_with(|| left.name.cmp(right.name))
             .then_with(|| left.record.index().cmp(&right.record.index()))
     });
@@ -179,7 +192,7 @@ fn ordered_lines<'r, 'f>(
 fn write_part<'r, 'f>(scratch: &mut Scratch<'f>, lines: &[Line<'r, 'f>]) -> Part<'r, 'f> {
     let mut part = Part {
         bytes: Vec::new(),
-        errors: Vec::with_capacity(lines.len()),
+        error_counts: Vec::with_capacity(lines.len()),
         failures: Vec::new(),
     };
     for line in lines {
@@ -189,7 +202,7 @@ fn write_part<'r, 'f>(scratch: &mut Scratch<'f>, lines: &[Line<'r, 'f>]) -> Part
                 match scratch.json.write(&tree, &mut part.bytes) {
                     Ok(()) => {
                         part.bytes.push(b'\n');
-                        part.errors.push(tree.error_count());
+                        part.error_counts.push(tree.error_count());
                     }
                     Err(error) => {
                         part.bytes.truncate(start);
@@ -234,14 +247,23 @@ impl Output {
         Ok(())
     }
 
-    fn persist(self, destination: &Path) -> Result<(), ExtractionError> {
+    /// Puts the file in place at `destination`, replacing a file there only when `replace`;
+    /// returns `true` when a file that appeared meanwhile is kept instead.
+    fn persist(self, destination: &Path, replace: bool) -> Result<bool, ExtractionError> {
         let file = self
             .file
             .into_inner()
             .map_err(|error| write_error(destination, error.into_error()))?;
-        file.persist(destination)
-            .map(|_| ())
-            .map_err(|error| write_error(destination, error.error))
+        let persisted = if replace {
+            file.persist(destination)
+        } else {
+            file.persist_noclobber(destination)
+        };
+        match persisted {
+            Ok(_) => Ok(false),
+            Err(_) if !replace && destination.exists() => Ok(true),
+            Err(error) => Err(write_error(destination, error.error)),
+        }
     }
 }
 

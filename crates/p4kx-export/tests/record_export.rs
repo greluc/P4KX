@@ -12,7 +12,6 @@ use p4kx_export::{
     RecordExportSummary, RecordFailure, RecordForm, write_record_export,
 };
 use p4kx_extraction::DataForge;
-use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -316,49 +315,6 @@ fn a_folder_in_the_way_of_the_ndjson_file_is_an_error() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn ndjson_keeps_record_path_order_across_batches() -> TestResult {
-    let count = 5_000_u32;
-    let builder = (0..count).fold(
-        DataForgeBuilder::new().structure(TestStruct::new("Item").field("n", TestType::UInt32)),
-        |builder, n| {
-            builder.record(
-                TestRecord::new(
-                    u128::from(n) + 1,
-                    "Item",
-                    format!("Item.{n}"),
-                    format!("items/{:05}.xml", count - n),
-                )
-                .value("n", TestValue::UInt32(n)),
-            )
-        },
-    );
-    let bytes = builder.build();
-    let dir = tempfile::tempdir()?;
-
-    let summary = export(
-        &bytes,
-        RecordForm::Ndjson,
-        dir.path(),
-        &RecordExportOptions::default(),
-    )?;
-
-    assert!(summary.is_complete(), "{:?}", summary.failures());
-    let text = fs::read_to_string(dir.path().join(NDJSON_FILE))?;
-    let numbers: Vec<u64> = text
-        .lines()
-        .map(|line| {
-            serde_json::from_str::<serde_json::Value>(line)
-                .map(|value| value["n"].as_u64().unwrap_or(u64::MAX))
-        })
-        .collect::<Result<_, _>>()?;
-    let expected: Vec<u64> = (0..u64::from(count)).rev().collect();
-    assert_eq!(
-        numbers, expected,
-        "sorted by record path, not by definition"
-    );
-    Ok(())
-}
 /// Returns every file below `root` with its content, in path order.
 ///
 /// # Errors

@@ -119,8 +119,8 @@ Record alone at its record path, `<record path>/<Record name>.json` for Records 
 ([ADR-0008](adr/0008-record-files-by-record-path.md)). `--conflict` applies to every file.
 
 `--format ndjson` writes the one file `records.ndjson` into the target folder: one compact Record
-object per line, ordered by record path, then by Record name, then in definition order, comparing
-text by its UTF-8 bytes; each selected Record once. The Records are built in parallel batches and
+object per line, ordered by record path ignoring ASCII case with `/` and `\` alike, then by Record
+name, then in definition order; each selected Record once. The Records are built in parallel batches and
 streamed into a temporary file, which replaces `records.ndjson` only when complete; a cancelled
 run leaves no file. `--conflict` applies to `records.ndjson`: `skip` keeps an existing file
 without building any Record, `if-changed` keeps it when size and CRC-32C equal the new content.

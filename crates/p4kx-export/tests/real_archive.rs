@@ -57,13 +57,15 @@ fn every_record_of_a_real_archive_is_valid_ndjson() -> TestResult {
         records.len(),
         invalid.iter().take(5).collect::<Vec<_>>()
     );
-    let mut previous = "";
+    let mut previous = String::new();
     for line in text.lines() {
         let path = line
             .split("\"$path\":\"")
             .nth(1)
             .and_then(|rest| rest.split('"').next())
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .replace("\\\\", "/");
         assert!(
             previous <= path,
             "record-path order: {previous} before {path}"

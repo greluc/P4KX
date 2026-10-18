@@ -162,6 +162,25 @@ comparison-no-matches = Keine Änderung passt zum Filter.
 comparison-shown = { $number } angezeigt
 comparison-row = { $change }: { $path }
 
+diff-previous = Vorheriger Unterschied
+diff-next = Nächster Unterschied
+diff-position = Unterschied { $current } von { $total }
+diff-head-old = Alt
+diff-head-new = Neu
+diff-hunk = Zeilen { $first }–{ $last }
+diff-hunk-empty = Keine Zeilen
+diff-loading = Zeilenvergleich von { $path } wird gelesen …
+diff-binary = { $path } ist binär, daher gibt es keinen Zeilenvergleich.
+diff-too-large = { $path } ist zu groß für einen Zeilenvergleich: Eine Seite hat mehr als { $size } oder { $lines } Zeilen.
+diff-failed = { $path } lässt sich nicht vergleichen: { $reason }
+diff-stopped = Der Zeilenvergleich von { $path } endete ohne Ergebnis.
+diff-equal = Die Zeilen beider Seiten sind gleich; nur die gespeicherten Bytes unterscheiden sich.
+diff-line-context = Zeile { $line }: { $text }
+diff-line-removed = Entfernte Zeile { $line }: { $text }
+diff-line-added = Hinzugefügte Zeile { $line }: { $text }
+diff-marker-removed = −
+diff-marker-added = +
+
 dataforge-node = DataForge
 dataforge-node-loading = Wird geladen …
 preview-tab-dataforge = DataForge

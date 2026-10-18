@@ -176,6 +176,20 @@ gets the summary:
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
 
+## `p4kx catalog <archive> --out <file> --json`
+
+```json
+{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
+ "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
+ "complete": true}], "skipped": 2}
+```
+
+The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
+in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
+`null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
+development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
+them.
+
 ## `p4kx channels --json`
 
 ```json

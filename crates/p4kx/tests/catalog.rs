@@ -260,3 +260,24 @@ fn catalog_without_a_german_global_ini_leaves_german_null_and_counts_it() -> Tes
     insta::assert_snapshot!("catalog_summary_without_german", summary);
     Ok(())
 }
+
+#[test]
+fn catalog_with_a_corrupt_german_global_ini_cannot_read_the_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let corrupt = TestEntry::zstd(
+        "Data\\Localization\\german_(germany)\\global.ini",
+        b"manufacturer_NameACAS=\xff\xfe\r\n".to_vec(),
+    );
+    let archive = write_archive_with(dir.path(), &[english(), corrupt])?;
+    let output = p4kx(&["catalog"])?
+        .arg(&archive)
+        .arg("--out")
+        .arg(dir.path().join("corrupt.json"))
+        .output()?;
+    assert_eq!(output.status.code(), Some(3), "exit code: {output:?}");
+    assert!(
+        String::from_utf8(output.stderr)?.contains("german_(germany)"),
+        "names the Entry"
+    );
+    Ok(())
+}

@@ -30,25 +30,26 @@ impl<'a> GlobalIni<'a> {
     /// # Errors
     ///
     /// Returns [`LocalizationError::TooLarge`] when `bytes` exceed [`MAX_GLOBAL_INI_SIZE`],
+    /// [`LocalizationError::OutOfMemory`] when the index cannot be reserved,
     /// [`LocalizationError::TooManyKeys`] when they hold more than [`MAX_GLOBAL_INI_KEYS`] keys,
     /// and [`LocalizationError::InvalidUtf8`] when they are not UTF-8.
     pub fn parse(bytes: &'a [u8]) -> Result<Self, LocalizationError> {
         let size = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-        let too_large = LocalizationError::TooLarge {
-            size,
-            limit: MAX_GLOBAL_INI_SIZE,
-        };
         if size > MAX_GLOBAL_INI_SIZE {
-            return Err(too_large);
+            return Err(LocalizationError::TooLarge {
+                size,
+                limit: MAX_GLOBAL_INI_SIZE,
+            });
         }
         let body = bytes.strip_prefix(BYTE_ORDER_MARK).unwrap_or(bytes);
         let text = str::from_utf8(body).map_err(|error| LocalizationError::InvalidUtf8 {
             line: line_of(body, error.valid_up_to()),
         })?;
         let mut texts = HashMap::new();
+        let keys = (body.len() / BYTES_PER_KEY_ESTIMATE).min(MAX_GLOBAL_INI_KEYS);
         texts
-            .try_reserve((body.len() / BYTES_PER_KEY_ESTIMATE).min(MAX_GLOBAL_INI_KEYS))
-            .map_err(|_| too_large)?;
+            .try_reserve(keys)
+            .map_err(|_| LocalizationError::OutOfMemory { keys })?;
         for line in text.split('\n') {
             let line = line.strip_suffix('\r').unwrap_or(line);
             let Some((key, value)) = line.split_once('=') else {

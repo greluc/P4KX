@@ -1,9 +1,11 @@
+use std::borrow::Cow;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::{Archive, GlobalIni, Language, LocalizationEntry, LocalizationLoadError};
 use rayon::prelude::*;
 
 use crate::contract::LocalisedText;
+use crate::selection::is_placeholder_key;
 use crate::{CatalogError, TextSummary};
 
 /// The `global.ini` Entry of every language in [`Language::ALL`], `None` for a language the
@@ -40,6 +42,7 @@ fn read_if_present(
 /// called from any worker thread.
 pub(crate) struct Texts<'e> {
     languages: Vec<LanguageTexts<'e>>,
+    placeholders: AtomicUsize,
 }
 
 impl<'e> Texts<'e> {
@@ -50,11 +53,16 @@ impl<'e> Texts<'e> {
             .par_iter()
             .map(|(language, entry)| LanguageTexts::parse(*language, entry.as_ref()))
             .collect::<Result<_, _>>()?;
-        Ok(Self { languages })
+        Ok(Self {
+            languages,
+            placeholders: AtomicUsize::new(0),
+        })
     }
 
-    /// Returns the text with localisation `key` and its English and German texts; without a key
-    /// every part is `None` and nothing is counted.
+    /// Returns the text with localisation `key` and its English and German texts, each with `\n`
+    /// decoded to a line feed; without a key every part is `None` and nothing is counted, and a
+    /// [placeholder key](crate::PLACEHOLDER_KEYS) keeps the key, has no texts and is counted as a
+    /// placeholder.
     pub(crate) fn localised<'a>(&self, key: Option<&'a str>) -> LocalisedText<'a>
     where
         'e: 'a,
@@ -62,6 +70,13 @@ impl<'e> Texts<'e> {
         let Some(key) = key else {
             return LocalisedText::default();
         };
+        if is_placeholder_key(key) {
+            self.placeholders.fetch_add(1, Ordering::Relaxed);
+            return LocalisedText {
+                key: Some(key),
+                ..LocalisedText::default()
+            };
+        }
         LocalisedText {
             key: Some(key),
             en: self.resolve(Language::English, key),
@@ -71,14 +86,19 @@ impl<'e> Texts<'e> {
 
     /// Returns what resolved per language, in the order of [`Language::ALL`].
     pub(crate) fn summary(&self) -> Vec<TextSummary> {
-        self.languages.iter().map(LanguageTexts::summary).collect()
+        let placeholder = self.placeholders.load(Ordering::Relaxed);
+        self.languages
+            .iter()
+            .map(|texts| texts.summary(placeholder))
+            .collect()
     }
 
-    fn resolve(&self, language: Language, key: &str) -> Option<&'e str> {
+    fn resolve(&self, language: Language, key: &str) -> Option<Cow<'e, str>> {
         self.languages
             .iter()
             .find(|texts| texts.language == language)
             .and_then(|texts| texts.resolve(key))
+            .map(decode_line_breaks)
     }
 }
 
@@ -111,7 +131,11 @@ impl<'e> LanguageTexts<'e> {
     }
 
     fn resolve(&self, key: &str) -> Option<&'e str> {
-        let text = self.ini.as_ref().and_then(|ini| ini.resolve(key));
+        let text = self
+            .ini
+            .as_ref()
+            .and_then(|ini| ini.resolve(key))
+            .filter(|text| !text.is_empty());
         let counter = if text.is_some() {
             &self.resolved
         } else {
@@ -121,12 +145,22 @@ impl<'e> LanguageTexts<'e> {
         text
     }
 
-    fn summary(&self) -> TextSummary {
+    fn summary(&self, placeholder: usize) -> TextSummary {
         TextSummary {
             language: self.language,
             available: self.ini.is_some(),
             resolved: self.resolved.load(Ordering::Relaxed),
             unresolved: self.unresolved.load(Ordering::Relaxed),
+            placeholder,
         }
+    }
+}
+
+/// Returns `text` with every `\n` escape turned into a line feed, borrowed when it has none.
+fn decode_line_breaks(text: &str) -> Cow<'_, str> {
+    if text.contains("\\n") {
+        Cow::Owned(text.replace("\\n", "\n"))
+    } else {
+        Cow::Borrowed(text)
     }
 }

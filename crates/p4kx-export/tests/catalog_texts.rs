@@ -61,6 +61,12 @@ fn database() -> Vec<u8> {
             "@manufacturer_NameDRAK",
             "",
         ))
+        .record(manufacturer(
+            0x3000_0000_0000_4000_8000_0000_0000_0003,
+            "MISC",
+            "@loc_placeholder",
+            "@manufacturer_DescMISC",
+        ))
         .build()
 }
 
@@ -71,6 +77,8 @@ fn english() -> TestEntry {
             .text("manufacturer_NameACAS", "Ace Astrogation")
             .text("manufacturer_DescACAS", "Power plants.")
             .text("manufacturer_NameDRAK", "Drake Interplanetary")
+            .text("LOC_PLACEHOLDER", "<= PLACEHOLDER =>")
+            .text("manufacturer_DescMISC", "Line one\\nLine two\rkept")
             .build(),
     )
 }
@@ -81,6 +89,7 @@ fn german() -> TestEntry {
         GlobalIniBuilder::new()
             .text("manufacturer_NameACAS", "Ace Astrogation")
             .text("manufacturer_DescACAS", "Kraftwerke.")
+            .text("manufacturer_DescMISC", "")
             .build(),
     )
 }
@@ -137,17 +146,19 @@ fn a_missing_key_leaves_its_text_null_keeps_the_key_and_is_counted() -> TestResu
             TextSummary {
                 language: Language::English,
                 available: true,
-                resolved: 3,
+                resolved: 4,
                 unresolved: 0,
+                placeholder: 1,
             },
             TextSummary {
                 language: Language::German,
                 available: true,
                 resolved: 2,
-                unresolved: 1,
+                unresolved: 2,
+                placeholder: 1,
             },
         ],
-        "three keys, one not in German"
+        "four keys and a placeholder; one key not in German, one empty"
     );
     Ok(())
 }
@@ -166,9 +177,47 @@ fn a_missing_language_leaves_its_texts_null_and_counts_every_key() -> TestResult
             language: Language::German,
             available: false,
             resolved: 0,
-            unresolved: 3,
+            unresolved: 4,
+            placeholder: 1,
         }),
         "German is missing"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_placeholder_key_keeps_the_key_has_no_texts_and_is_counted_apart() -> TestResult {
+    let (catalog, summary) = catalog(vec![english(), german()])?;
+    assert_eq!(
+        texts(&catalog, 2).0,
+        json!({"key": "@loc_placeholder", "en": null, "de": null}),
+        "LOC_PLACEHOLDER=<= PLACEHOLDER => is not a name"
+    );
+    assert!(
+        summary.iter().all(|texts| texts.placeholder == 1),
+        "one placeholder in every language: {summary:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_empty_text_is_null_and_unresolved() -> TestResult {
+    let (catalog, _) = catalog(vec![english(), german()])?;
+    assert_eq!(
+        texts(&catalog, 2).1["de"],
+        Value::Null,
+        "manufacturer_DescMISC= in German"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_line_break_escape_becomes_a_line_feed_and_a_lone_cr_stays() -> TestResult {
+    let (catalog, _) = catalog(vec![english(), german()])?;
+    assert_eq!(
+        texts(&catalog, 2).1["en"],
+        "Line one\nLine two\rkept",
+        "\\n decoded in a CRLF file, the lone CR kept"
     );
     Ok(())
 }

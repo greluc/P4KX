@@ -177,7 +177,7 @@ Early development (milestone M1). Available today:
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
-| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
+| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |

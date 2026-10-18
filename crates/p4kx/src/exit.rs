@@ -2,8 +2,11 @@ use std::process::ExitCode;
 
 use p4kx_assembly::{EntityLookupError, LoadoutError};
 use p4kx_comparison::LineDiffError;
+use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
-use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
+use p4kx_extraction::{
+    ArchiveError, DataForgeError, DataForgeLoadError, LocalizationLoadError, UnknownEntries,
+};
 
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
@@ -54,7 +57,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      without --out for dcb query, or an Entity that no Record or several Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
      corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
-     corrupt CryXml; a missing texture, sound or soundbank file is 2
+     corrupt CryXml, or a global.ini of the catalog that is corrupt or cannot be read; a
+     missing texture, sound or soundbank file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
@@ -87,6 +91,11 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || texture::is_archive_error(error)
         || error.downcast_ref::<CryXmlError>().is_some()
         || error.downcast_ref::<UnreadableInput>().is_some()
+        || error.downcast_ref::<LocalizationLoadError>().is_some()
+        || matches!(
+            error.downcast_ref::<CatalogError>(),
+            Some(CatalogError::Texts { .. })
+        )
         || matches!(
             dataforge,
             Some(DataForgeLoadError::Archive(_) | DataForgeLoadError::Read { .. })

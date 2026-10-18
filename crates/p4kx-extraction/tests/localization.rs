@@ -85,6 +85,26 @@ fn an_entry_shorter_than_its_size_is_a_read_error() -> TestResult {
 }
 
 #[test]
+fn an_entry_longer_than_its_size_is_a_read_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let text = english();
+    let claimed = u64::try_from(text.len())? - 4;
+    let archive = open(
+        dir.path(),
+        &ArchiveBuilder::new().entry(
+            TestEntry::zstd(Language::English.global_ini_path(), text)
+                .with_uncompressed_size(claimed),
+        ),
+    )?;
+    let result = LocalizationEntry::read(&archive, Language::English);
+    assert!(
+        matches!(result, Err(LocalizationLoadError::Read { .. })),
+        "overlong: {result:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_entry_that_claims_more_than_the_limit_is_not_read() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = open(

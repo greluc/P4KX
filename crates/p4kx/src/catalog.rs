@@ -47,6 +47,7 @@ struct TextJson {
     available: bool,
     resolved: usize,
     unresolved: usize,
+    placeholder: usize,
 }
 
 #[derive(Serialize)]
@@ -168,6 +169,7 @@ fn summary_json(archive: &Archive, out: &Path, summary: &CatalogSummary) -> Summ
                 available: text.available,
                 resolved: text.resolved,
                 unresolved: text.unresolved,
+                placeholder: text.placeholder,
             })
             .collect(),
         unresolved: summary.unresolved(),
@@ -189,10 +191,11 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     for text in summary.texts() {
         writeln!(
             stdout,
-            "{}: {} texts resolved, {} unresolved{}",
+            "{}: {} texts resolved, {} unresolved, {} placeholders{}",
             text.language,
             text.resolved,
             text.unresolved,
+            text.placeholder,
             if text.available {
                 ""
             } else {

@@ -55,8 +55,11 @@ pub struct TextSummary {
     /// The texts whose key the language resolved.
     pub resolved: usize,
     /// The texts whose key the language lacks, or every text with a key when it is not available;
-    /// their text in this language is `null`.
+    /// their text in this language is `null`. A key whose text is empty counts here.
     pub unresolved: usize,
+    /// The texts with a [placeholder key](crate::PLACEHOLDER_KEYS), the same in every language;
+    /// they are neither resolved nor unresolved.
+    pub placeholder: usize,
 }
 
 /// What a catalog holds: the counts per kind, how its texts resolved and its size.

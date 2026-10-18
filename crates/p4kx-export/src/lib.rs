@@ -36,7 +36,7 @@ pub use p4kx_extraction::{
 };
 pub use record_export::write_record_export;
 pub use record_summary::RecordExportSummary;
-pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
+pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, PLACEHOLDER_KEYS};
 pub use summary::{
     BuiltCatalog, CatalogSummary, KindSummary, SizeWarning, TextSummary, UPLOAD_LIMIT,
     UPLOAD_WARNING_SIZE,

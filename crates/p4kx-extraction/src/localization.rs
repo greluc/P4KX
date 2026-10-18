@@ -31,34 +31,25 @@ impl LocalizationEntry {
             Self::locate(archive, language).ok_or(LocalizationLoadError::Missing { language })?;
         let path = entry.path().to_owned();
         let size = entry.uncompressed_size();
-        let too_large = |path| LocalizationLoadError::TooLarge {
-            path,
-            size,
-            limit: MAX_GLOBAL_INI_SIZE,
-        };
         if size > MAX_GLOBAL_INI_SIZE {
-            return Err(too_large(path));
+            return Err(LocalizationLoadError::TooLarge {
+                path,
+                size,
+                limit: MAX_GLOBAL_INI_SIZE,
+            });
         }
         let mut bytes = Vec::new();
         let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
         if bytes.try_reserve_exact(reserve).is_err() {
-            return Err(too_large(path));
+            return Err(LocalizationLoadError::OutOfMemory { path, size });
         }
-        let failed = |source| LocalizationLoadError::Read {
-            path: path.clone(),
-            source,
-        };
         let read = archive
             .open_entry(entry)
             .map_err(LocalizationLoadError::Archive)?
-            .take(size)
-            .read_to_end(&mut bytes)
-            .map_err(failed)?;
-        if u64::try_from(read).ok() != Some(size) {
-            return Err(failed(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!("the Entry ended after {read} of {size} bytes"),
-            )));
+            .reject_overlong()
+            .read_to_end(&mut bytes);
+        if let Err(source) = read {
+            return Err(LocalizationLoadError::Read { path, source });
         }
         Ok(Self {
             language,
@@ -109,7 +100,7 @@ pub enum LocalizationLoadError {
         /// The language.
         language: Language,
     },
-    /// The Entry is larger than [`MAX_GLOBAL_INI_SIZE`] or than the memory that can be reserved.
+    /// The Entry is larger than [`MAX_GLOBAL_INI_SIZE`].
     #[error("the Entry {path} claims {size} bytes, more than the limit of {limit} bytes")]
     TooLarge {
         /// The Entry path.
@@ -119,10 +110,19 @@ pub enum LocalizationLoadError {
         /// The largest size that is read.
         limit: u64,
     },
+    /// The memory to read the Entry into cannot be reserved.
+    #[error("cannot reserve the memory to read the {size} bytes of the Entry {path}")]
+    OutOfMemory {
+        /// The Entry path.
+        path: String,
+        /// The uncompressed size the Archive gives.
+        size: u64,
+    },
     /// The Entry cannot be opened in the Archive.
     #[error(transparent)]
     Archive(ArchiveError),
-    /// Reading, decrypting or decompressing the Entry failed.
+    /// Reading, decrypting or decompressing the Entry failed, or its data is shorter or longer
+    /// than its stated size.
     #[error("cannot read the Entry {path}")]
     Read {
         /// The Entry path.

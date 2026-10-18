@@ -5,7 +5,7 @@ mod comparing;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
@@ -73,6 +73,12 @@ fn extract(
     }
 }
 
+/// Returns the file an Entry path with backslashes is written to below `out`.
+fn at(out: &Path, path: &str) -> PathBuf {
+    path.split('\\')
+        .fold(out.to_path_buf(), |dir, part| dir.join(part))
+}
+
 fn written(out: &Path) -> Result<BTreeMap<String, usize>, Box<dyn Error>> {
     let mut files = BTreeMap::new();
     let mut folders = vec![out.to_path_buf()];
@@ -119,7 +125,7 @@ fn the_new_side_yields_its_added_and_changed_entries() -> TestResult {
         "the new versions, nothing unchanged or removed"
     );
     assert_eq!(
-        fs::read(out.join("Data\\Libs\\crc.xml"))?,
+        fs::read(at(&out, "Data\\Libs\\crc.xml"))?,
         vec![9; 40],
         "new bytes"
     );
@@ -153,7 +159,7 @@ fn the_old_side_yields_its_changed_entries_but_never_the_removed_ones() -> TestR
         "the old versions, the removed Entry left out"
     );
     assert_eq!(
-        fs::read(out.join("Data\\Libs\\crc.xml"))?,
+        fs::read(at(&out, "Data\\Libs\\crc.xml"))?,
         vec![4; 40],
         "old bytes"
     );
@@ -212,7 +218,7 @@ fn the_conflict_policy_of_the_setup_applies() -> TestResult {
     let mut model = compared(&pair, "")?;
     let out = pair.dir.path().join("out-policy");
     fs::create_dir_all(out.join("Engine"))?;
-    fs::write(out.join("Engine\\added.cfg"), b"mine")?;
+    fs::write(at(&out, "Engine\\added.cfg"), b"mine")?;
 
     let summary = extract(
         &mut model,
@@ -223,7 +229,7 @@ fn the_conflict_policy_of_the_setup_applies() -> TestResult {
 
     assert_eq!(summary.skipped(), ["Engine\\added.cfg"], "kept");
     assert_eq!(
-        fs::read(out.join("Engine\\added.cfg"))?,
+        fs::read(at(&out, "Engine\\added.cfg"))?,
         b"mine",
         "untouched"
     );

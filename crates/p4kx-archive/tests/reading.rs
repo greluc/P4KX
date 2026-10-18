@@ -34,25 +34,6 @@ fn reads_the_data_of_stored_entries() -> TestResult {
 }
 
 #[test]
-fn reading_an_encrypted_entry_is_not_supported_yet() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let path = dir.path().join("Data.p4k");
-    ArchiveBuilder::new()
-        .entry(TestEntry::stored("Data\\secret.xml", b"<s/>".to_vec()).flagged_encrypted())
-        .write_to(&path)?;
-    let archive = Archive::open(&path)?;
-    let entry = archive.entries().first().ok_or("Entry missing")?;
-
-    let result = archive.open_entry(entry);
-
-    assert!(
-        matches!(result, Err(ArchiveError::Encrypted { ref entry, .. }) if entry == "Data\\secret.xml"),
-        "encrypted Entries are refused: {result:?}"
-    );
-    Ok(())
-}
-
-#[test]
 fn a_broken_local_header_is_reported_as_corrupt() -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");

@@ -15,9 +15,6 @@ pub(crate) enum FormatError {
         reason: String,
     },
     Truncated(ParseError),
-    Encrypted {
-        entry: String,
-    },
     UnsupportedCompression {
         entry: String,
         compression: Compression,
@@ -45,7 +42,6 @@ impl FormatError {
                 reason,
             },
             Self::Truncated(source) => ArchiveError::Truncated { path, source },
-            Self::Encrypted { entry } => ArchiveError::Encrypted { path, entry },
             Self::UnsupportedCompression { entry, compression } => {
                 ArchiveError::UnsupportedCompression {
                     path,

@@ -44,13 +44,14 @@ impl Archive {
         &self.entries
     }
 
-    /// Opens the data of `entry`, which must be one of this Archive's Entries.
+    /// Opens the decrypted and decompressed data of `entry`, which must be one of this Archive's
+    /// Entries.
     ///
     /// # Errors
     ///
-    /// Returns [`ArchiveError::Encrypted`] or [`ArchiveError::UnsupportedCompression`] for Entries
-    /// this version cannot read yet, and another [`ArchiveError`] when the local header is
-    /// malformed or cannot be read.
+    /// Returns [`ArchiveError::UnsupportedCompression`] for compression methods other than store,
+    /// deflate and zstd, and another [`ArchiveError`] when the local header is malformed or cannot
+    /// be read, or encrypted data is not a whole number of AES blocks.
     pub fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
         entry_reader::open(&self.source, entry).map_err(|error| error.at(&self.path))
     }

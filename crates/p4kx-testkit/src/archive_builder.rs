@@ -1,6 +1,8 @@
 use std::io;
 use std::path::Path;
 
+use crate::TestEntry;
+
 const LOCAL_HEADER_CIG: u32 = 0x1403_4B50;
 const CENTRAL_HEADER: u32 = 0x0201_4B50;
 const ZIP64_END: u32 = 0x0606_4B50;
@@ -16,34 +18,6 @@ const BLOCK_CIG_HASH: u16 = 0x5003;
 const CIG_KEY_LEN: usize = 128;
 const CIG_HASH_LEN: usize = 32;
 const END_COMMENT_LEN: u16 = 16;
-const METHOD_STORE: u16 = 0;
-
-/// One Entry of a synthetic Archive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TestEntry {
-    path: String,
-    data: Vec<u8>,
-    encrypted: bool,
-}
-
-impl TestEntry {
-    /// Creates an Entry whose data is stored without compression.
-    #[must_use]
-    pub fn stored(path: impl Into<String>, data: impl Into<Vec<u8>>) -> Self {
-        Self {
-            path: path.into(),
-            data: data.into(),
-            encrypted: false,
-        }
-    }
-
-    /// Marks the Entry as encrypted in the central directory; the data is written unchanged.
-    #[must_use]
-    pub const fn flagged_encrypted(mut self) -> Self {
-        self.encrypted = true;
-        self
-    }
-}
 
 /// Builds a synthetic Archive in the v1 layout of real Star Citizen Archives.
 ///
@@ -106,7 +80,7 @@ fn write_local_entry(out: &mut Vec<u8>, entry: &TestEntry) -> u64 {
     put_u32(out, LOCAL_HEADER_CIG);
     put_u16(out, VERSION);
     put_u16(out, 0);
-    put_u16(out, METHOD_STORE);
+    put_u16(out, entry.method);
     put_u32(out, 0);
     put_u32(out, 0);
     put_u32(out, MARKER_32);
@@ -114,7 +88,7 @@ fn write_local_entry(out: &mut Vec<u8>, entry: &TestEntry) -> u64 {
     put_u16(out, len_u16(entry.path.as_bytes()));
     put_u16(out, 0);
     out.extend_from_slice(entry.path.as_bytes());
-    out.extend_from_slice(&entry.data);
+    out.extend_from_slice(&entry.payload);
     offset
 }
 
@@ -124,7 +98,7 @@ fn write_central_entry(out: &mut Vec<u8>, entry: &TestEntry, local_offset: u64) 
     put_u16(out, VERSION);
     put_u16(out, VERSION);
     put_u16(out, 0);
-    put_u16(out, METHOD_STORE);
+    put_u16(out, entry.method);
     put_u32(out, 0);
     put_u32(out, 0);
     put_u32(out, MARKER_32);
@@ -141,10 +115,9 @@ fn write_central_entry(out: &mut Vec<u8>, entry: &TestEntry, local_offset: u64) 
 }
 
 fn central_extra(entry: &TestEntry, local_offset: u64) -> Vec<u8> {
-    let size = len_u64(&entry.data);
     let mut zip64 = Vec::new();
-    put_u64(&mut zip64, size);
-    put_u64(&mut zip64, size);
+    put_u64(&mut zip64, entry.uncompressed_size);
+    put_u64(&mut zip64, len_u64(&entry.payload));
     put_u64(&mut zip64, local_offset);
     put_u32(&mut zip64, 0);
     let mut extra = Vec::new();

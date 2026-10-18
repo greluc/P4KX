@@ -3,6 +3,7 @@
 mod channels;
 mod cli;
 mod compare;
+mod cryxml;
 mod exit;
 mod extract;
 mod info;
@@ -34,6 +35,7 @@ fn main() -> ExitCode {
                 exit::for_compare_error(&error)
             });
         }
+        Command::CryXml(args) => cryxml::run(&args, json).map(success),
         Command::Texture(args) => texture::run(&args, json).map(success),
     };
     match result {

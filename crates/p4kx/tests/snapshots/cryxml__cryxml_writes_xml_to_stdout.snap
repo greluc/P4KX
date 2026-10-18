@@ -1,0 +1,12 @@
+---
+source: crates/p4kx/tests/cryxml.rs
+expression: xml
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<Vehicle name="AEGS_Gladius" displayName="@vehicle_NameAEGS_Gladius">
+  <Parts>
+    <Part name="Hull" damageMax="2500"/>
+    <Part name="Wing_Left &amp; Right"/>
+  </Parts>
+  <Description>Light &lt;fighter&gt;</Description>
+</Vehicle>

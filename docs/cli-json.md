@@ -136,3 +136,13 @@ separator kind. The exit code is 0 without and 1 with differences.
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
 
 `entries` is absent when the Entry level was not compared.
+
+## `p4kx cryxml <file> --out <file> --json`
+
+```json
+{"input": "…", "output": "…", "format": "CryXmlB", "byte_order": "little"}
+```
+
+`format` is the signature, `CryXmlB`, `CryXml` or `CRY3SDK`, or `text` for text XML written
+unchanged; `byte_order` is `little`, `big`, or `null` for text XML. `--json` needs `--out`,
+because the XML would otherwise share stdout with the JSON; without it the exit code is 2.

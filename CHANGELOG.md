@@ -14,6 +14,8 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
+  order) to well-formed UTF-8 XML; text XML is written unchanged.
 
 ## [0.1.0]
 

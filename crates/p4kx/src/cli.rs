@@ -37,9 +37,22 @@ pub(crate) enum Command {
     /// Compares the Entries of an old and a new Archive; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
+    /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
+    #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
+    CryXml(CryXmlArgs),
     /// Shows or merges a DDS texture split into a header and mip parts.
     #[command(after_help = EXIT_CODES_HELP)]
     Texture(TextureArgs),
+}
+
+/// Arguments of `p4kx cryxml`.
+#[derive(Debug, Args)]
+pub(crate) struct CryXmlArgs {
+    /// Path of the CryXml or text XML file.
+    pub(crate) file: PathBuf,
+    /// Writes the XML to this file instead of stdout; needed with --json.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) out: Option<PathBuf>,
 }
 
 /// Arguments of `p4kx texture`.

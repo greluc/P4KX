@@ -16,6 +16,9 @@ use rayon::prelude::*;
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;
 
+#[path = "real_archive/records.rs"]
+mod records;
+
 const PER_KIND: usize = 10;
 const MAX_SIZE: u64 = 4 << 20;
 const CRYXML_EXTENSIONS: [&str; 2] = [".xml", ".mtl"];

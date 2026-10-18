@@ -68,6 +68,23 @@ when nothing matches.
 
 `entry` is the path of the DataForge Entry as the Archive stores it.
 
+## `p4kx dcb export <archive> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb", "format": "xml", "target": "…", "exported": 3,
+ "skipped": ["libs/foundry/records/ships/avenger.xml"],
+ "failed": [{"guid": "…", "path": "libs/foundry/records/odd", "error": "…"}], "cancelled": 0,
+ "error_values": 1, "records_with_errors": 1}
+```
+
+`exported` counts the Record files written. `skipped` lists the files, relative to `target` with
+`/` as separator, whose existing file was kept under `--conflict`; `failed` lists the Records not
+written with GUID, record path and the reason and its causes joined by `: `. Both are in Record
+order. `error_values` counts the values written as errors (see
+[record-xml.md](record-xml.md#child-elements)) in the Records written or kept, and
+`records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
+empty.
+
 ## `p4kx channels --json`
 
 ```json

@@ -6,6 +6,7 @@ use p4kx_foundation::ByteReader;
 
 use crate::decode::{CorruptAs, ExactSize, ZstdOrPlain};
 use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
+use crate::entry::DataStart;
 use crate::format_error::FormatError;
 use crate::source::Source;
 use crate::{Compression, Entry};
@@ -60,10 +61,12 @@ impl Read for RawReader<'_> {
     }
 }
 
-/// Opens the data of `entry` after checking its local header.
+/// Opens the data of `entry` after checking its local header, if its layout has one.
 pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
-    let offset = entry.local_header_offset;
-    let data_offset = read_local_header(source, offset)?;
+    let (offset, data_offset) = match entry.data {
+        DataStart::LocalHeader(offset) => (offset, read_local_header(source, offset)?),
+        DataStart::Direct(offset) => (offset, offset),
+    };
     if !fits(source, data_offset, entry.compressed_size) {
         return Err(FormatError::corrupt(
             offset,

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::format_error::FormatError;
 use crate::source::Source;
-use crate::{ArchiveError, Entry, EntryReader, central_directory, end_records, entry_reader};
+use crate::{ArchiveError, Entry, EntryReader, entry_reader, layout};
 
 /// An opened Archive with its Entries.
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub struct Archive {
 }
 
 impl Archive {
-    /// Opens the Archive at `path` and reads its central directory.
+    /// Opens the Archive at `path` and reads its central directory, in the v1 or the v2 layout.
     ///
     /// The file is opened read-only and stays readable and writable for other processes such as
     /// the launcher and the game.
@@ -24,7 +24,7 @@ impl Archive {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
         let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
-        let entries = read_entries(&source).map_err(|error| error.at(path))?;
+        let entries = layout::read_entries(&source).map_err(|error| error.at(path))?;
         Ok(Self {
             path: path.to_path_buf(),
             source,
@@ -55,16 +55,4 @@ impl Archive {
     pub fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
         entry_reader::open(&self.source, entry).map_err(|error| error.at(&self.path))
     }
-}
-
-fn read_entries(source: &Source) -> Result<Vec<Entry>, FormatError> {
-    let location = end_records::locate_directory(source)?;
-    let size = usize::try_from(location.size).map_err(|_| {
-        FormatError::corrupt(
-            location.offset,
-            "central directory does not fit into memory",
-        )
-    })?;
-    let directory = source.read_at(location.offset, size)?;
-    central_directory::parse_entries(&directory, location.offset, location.entry_count)
 }

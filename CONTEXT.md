@@ -25,6 +25,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Layout**:
+The on-disk structure of an Archive's directory: v1 (ZIP64 central directory with local headers)
+or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`).
+_Avoid_: format version, Archive version
+
 ### Game data
 
 **DataForge**:

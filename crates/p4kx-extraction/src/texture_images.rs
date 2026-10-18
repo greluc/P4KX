@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 
+use p4kx_archive::Checksum;
 use p4kx_texture::{Mip, TextureError, read_mip, write_exr, write_png};
 
 use crate::buffers::Buffers;
@@ -110,7 +111,12 @@ impl EntryWriter<'_> {
         images
             .encode(index, encoded)
             .map_err(|error| source.texture_error(error))?;
-        let expected = || (encoded.len() as u64, crc32c::crc32c(encoded));
+        let expected = || {
+            (
+                encoded.len() as u64,
+                Checksum::Crc32c(crc32c::crc32c(encoded)),
+            )
+        };
         if let Some(outcome) = self.decide(destination, expected, &mut buffers.chunk)? {
             return Ok(step_of(&outcome));
         }

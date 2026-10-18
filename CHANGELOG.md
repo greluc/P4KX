@@ -8,6 +8,11 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
+  socpak containers, also nested ones, are read from the Archive without extracting them first,
+  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
+  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
+  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
 - `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
   character files as JSON and back. The new `p4kx-character` crate checks magic, size and
   CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
@@ -22,6 +27,10 @@ fails while its section is missing.
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
+- The Record changes of a Comparison in the window: a Records tab lists every added, removed,
+  moved, changed and unreadable Record with its record path and type, sorted and filtered like the
+  Entries, and a selected Record shows its field changes with old and new value, links by the
+  record path of their target and unreadable values with their reason.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

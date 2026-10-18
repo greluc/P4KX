@@ -7,6 +7,11 @@ mod diff;
 mod diff_document;
 mod filter_job;
 mod orders;
+mod record_detail;
+mod record_fields;
+mod record_filter;
+mod record_list;
+mod record_view;
 mod report;
 mod run;
 mod selection;
@@ -17,6 +22,11 @@ pub(crate) use diff_document::shown_len;
 pub use diff_document::{DiffCell, DiffDocument, DiffHunk, DiffRow};
 pub(crate) use orders::rank;
 pub use orders::{ChangeColumn, ChangeSort};
+pub use record_detail::{RecordDetail, RecordDetailStatus};
+pub use record_fields::{FieldName, FieldRow, FieldValue, RecordFields, SideError};
+pub(crate) use record_list::kind_rank;
+pub use record_list::{RecordChangeColumn, RecordChangeList, RecordChangeRow, RecordChangeSort};
+pub use record_view::{ComparisonList, RecordChangeView};
 pub use report::ReportStatus;
 pub use view::{ComparisonView, DirectorySummary, Summary};
 
@@ -70,6 +80,13 @@ pub enum ComparisonStage {
         /// Entries joined so far.
         done: usize,
         /// Entries of both sides.
+        total: usize,
+    },
+    /// The Records both sides have are being compared field by field; `done` of `total`.
+    ComparingRecords {
+        /// Records compared so far.
+        done: usize,
+        /// Records both sides have.
         total: usize,
     },
     /// The list is being sorted for display.

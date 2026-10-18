@@ -3,7 +3,10 @@ use fluent_bundle::FluentValue;
 
 use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
-use super::{Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_summary, comparison_table};
+use super::{
+    Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_lists, comparison_summary,
+    comparison_table, record_fields,
+};
 use crate::theme::desktop::{
     COMPARISON_PROGRESS_WIDTH, PREVIEW_MIN_HEIGHT, SPINNER, TOOLBAR_PADDING,
 };
@@ -15,7 +18,8 @@ use crate::widgets::indicator;
 use crate::widgets::text::{hairline_below, plain};
 use crate::widgets::toggle;
 use crate::{
-    ComparisonSide, ComparisonStage, ComparisonStatus, ComparisonText, Model, Texts, format,
+    ComparisonSide, ComparisonStage, ComparisonStatus, ComparisonText, Model, RecordChangeText,
+    RecordChangeView, Text, Texts, format,
 };
 
 const SIDES: [(ComparisonSide, ComparisonText); 2] = [
@@ -29,10 +33,31 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| setup(ui, model, requests));
     hairline_below(ui, toolbar.response.rect);
-    if let Some(view) = model.comparison().view() {
+    if model.comparison().view().is_some() {
         comparison_summary::show(ui, model);
+        comparison_lists::tabs(ui, model);
+        let Some(view) = model.comparison().view() else {
+            return;
+        };
+        let records = comparison_lists::records_shown(view);
+        let selected = if records {
+            view.records().and_then(RecordChangeView::selected)
+        } else {
+            view.selected()
+        };
         let mut list = ui.available_rect_before_wrap();
-        if view.selected().is_some() {
+        if records && selected.is_some() {
+            let fields = Panel::bottom("comparison-record-fields")
+                .frame(frames::panel().outer_margin(Margin {
+                    top: RESIZE_GAP,
+                    ..Margin::ZERO
+                }))
+                .resizable(true)
+                .default_size((list.height() / 2.0).floor().max(PREVIEW_MIN_HEIGHT))
+                .min_size(PREVIEW_MIN_HEIGHT)
+                .show(ui, |ui| record_fields::show(ui, model));
+            list.max.y = list.max.y.min(fields.response.rect.top());
+        } else if selected.is_some() {
             let diff = Panel::bottom("comparison-diff")
                 .frame(frames::panel().outer_margin(Margin {
                     top: RESIZE_GAP,
@@ -158,32 +183,42 @@ fn stage_text(texts: &Texts, stage: ComparisonStage) -> (String, Option<f32>) {
         ComparisonStage::Opening => (texts.get(ComparisonText::Opening), None),
         ComparisonStage::Preparing => (texts.get(ComparisonText::Preparing), None),
         ComparisonStage::Comparing { done, total } => {
-            let language = texts.language();
-            let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
-            let percent = count(done)
-                .saturating_mul(100)
-                .checked_div(count(total))
-                .unwrap_or(0)
-                .min(100);
-            let number = |value: usize| -> FluentValue<'static> {
-                format::number(count(value), language).into()
-            };
-            let text = texts.format(
-                ComparisonText::Progress,
-                &[
-                    ("done", number(done)),
-                    ("total", number(total)),
-                    ("percent", percent.to_string().into()),
-                ],
-            );
-            #[expect(
-                clippy::cast_precision_loss,
-                reason = "a percentage needs no more than f32 precision"
-            )]
-            let fraction = percent as f32 / 100.0;
-            (text, Some(fraction))
+            counted(texts, ComparisonText::Progress, (done, total))
+        }
+        ComparisonStage::ComparingRecords { done, total } => {
+            counted(texts, RecordChangeText::Progress, (done, total))
         }
     }
+}
+
+fn counted(
+    texts: &Texts,
+    progress: impl Into<Text>,
+    (done, total): (usize, usize),
+) -> (String, Option<f32>) {
+    let language = texts.language();
+    let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+    let percent = count(done)
+        .saturating_mul(100)
+        .checked_div(count(total))
+        .unwrap_or(0)
+        .min(100);
+    let number =
+        |value: usize| -> FluentValue<'static> { format::number(count(value), language).into() };
+    let text = texts.format(
+        progress,
+        &[
+            ("done", number(done)),
+            ("total", number(total)),
+            ("percent", percent.to_string().into()),
+        ],
+    );
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a percentage needs no more than f32 precision"
+    )]
+    let fraction = percent as f32 / 100.0;
+    (text, Some(fraction))
 }
 
 fn empty(ui: &mut Ui, texts: &Texts) {

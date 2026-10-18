@@ -15,6 +15,7 @@ layer = "service"
 p4kx-archive.workspace = true
 p4kx-channels.workspace = true
 p4kx-cryxml.workspace = true
+p4kx-dataforge.workspace = true
 p4kx-extraction.workspace = true
 rayon.workspace = true
 schemars.workspace = true

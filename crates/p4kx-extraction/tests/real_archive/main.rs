@@ -14,6 +14,7 @@ use rayon::prelude::*;
 mod cubemap_alpha;
 mod records;
 mod sound;
+mod soundbank;
 mod texture;
 mod texture_hdr;
 mod texture_hdr_cube;

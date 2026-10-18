@@ -1,5 +1,6 @@
-use egui::{Rect, Role, ScrollArea, Sense, Stroke, Ui, WidgetInfo, pos2, vec2};
+use egui::{Id, Rect, Role, ScrollArea, Sense, Stroke, Ui, WidgetInfo, pos2, vec2};
 
+use super::record_tree::{self, Labels, RecordAction};
 use crate::theme::desktop::{
     CHEVRON, FOCUS_OFFSET, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, TREE_GAP, TREE_INDENT,
     TREE_PADDING_LEFT, TREE_RAIL_OFFSET,
@@ -9,11 +10,12 @@ use crate::theme::tokens::SPACE_2;
 use crate::widgets::button::focus_ring;
 use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
-use crate::{Browser, FolderId, Model, Text, Texts, TreeRow};
+use crate::{Browser, FolderId, Model, PreviewTab, RecordTree, Text, Texts, TreeRow};
 
 enum Action {
     Select(FolderId),
     Toggle(FolderId),
+    Record(RecordAction),
 }
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
@@ -22,26 +24,54 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     };
     let texts = model.texts();
     let rows = browser.tree_rows();
+    let records = browser.records();
+    let record_rows = records.map_or(&[][..], RecordTree::rows);
+    let labels = records.map(|tree| Labels::get(ui, tree, texts));
     let mut action = None;
     ui.spacing_mut().scroll.bar_width = SCROLLBAR_THIN;
     ui.spacing_mut().item_spacing.y = 0.0;
     ScrollArea::vertical().auto_shrink(false).show_rows(
         ui,
         ROW_HEIGHT,
-        rows.len(),
+        rows.len() + record_rows.len(),
         |ui, visible| {
-            for row in rows.get(visible).unwrap_or_default() {
-                if let Some(clicked) = show_row(ui, texts, browser, *row) {
-                    action = Some(clicked);
+            for index in visible {
+                let clicked = if let Some(row) = rows.get(index) {
+                    show_row(ui, texts, browser, *row)
+                } else if let (Some(tree), Some(labels), Some(row)) = (
+                    records,
+                    labels.as_ref(),
+                    record_rows.get(index - rows.len()),
+                ) {
+                    record_tree::show_row(ui, (texts, tree, labels), *row).map(Action::Record)
+                } else {
+                    None
+                };
+                if clicked.is_some() {
+                    action = clicked;
                 }
             }
         },
     );
-    if let (Some(action), Some(browser)) = (action, model.browser_mut()) {
-        match action {
-            Action::Select(folder) => browser.select_folder(folder),
-            Action::Toggle(folder) => browser.toggle_expanded(folder),
-        }
+    if let Some(action) = action {
+        apply(ui, model, &action);
+    }
+}
+
+fn apply(ui: &Ui, model: &mut Model, action: &Action) {
+    let ctx = ui.ctx().clone();
+    let wake = move || ctx.request_repaint();
+    if matches!(action, Action::Record(RecordAction::Select(_))) {
+        model.set_preview_tab(PreviewTab::DataForge);
+    }
+    let Some(browser) = model.browser_mut() else {
+        return;
+    };
+    match *action {
+        Action::Select(folder) => browser.select_folder(folder),
+        Action::Toggle(folder) => browser.toggle_expanded(folder),
+        Action::Record(RecordAction::Select(node)) => browser.select_record_node(node, wake),
+        Action::Record(RecordAction::Toggle(node)) => browser.toggle_record_node(node, wake),
     }
 }
 
@@ -61,27 +91,17 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
     };
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
-    let active = !browser.shows_search() && browser.selected_folder() == row.folder;
+    let active = !browser.shows_search()
+        && browser.selected_folder() == row.folder
+        && browser.records().and_then(RecordTree::selected).is_none();
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
     let state = RowState::of(active, false, response.hovered());
     paint_row(ui.painter(), rect, state);
-    let depth = depth(row.depth);
-    for level in 0..u16::try_from(row.depth).unwrap_or(u16::MAX) {
-        let x = f32::from(level).mul_add(
-            TREE_INDENT,
-            rect.left() + TREE_PADDING_LEFT + TREE_RAIL_OFFSET,
-        );
-        ui.painter()
-            .vline(x, rect.y_range(), Stroke::new(1.0, palette::GRAY_3));
-    }
-    let chevron_left = depth.mul_add(TREE_INDENT, rect.left() + TREE_PADDING_LEFT);
-    let chevron_rect = Rect::from_min_size(
-        pos2(chevron_left, rect.top()),
-        vec2(CHEVRON + TREE_GAP, ROW_HEIGHT),
-    );
+    let chevron_rect = rails(ui, rect, row.depth);
     let expanded = browser.is_expanded(row.folder);
+    let toggle_id = ui.scope_id().with(("toggle", row.folder));
     let mut action = (!folder.children().is_empty()
-        && toggle(ui, texts, (row.folder, chevron_rect), expanded, name))
+        && toggle(ui, texts, (toggle_id, chevron_rect), expanded, name))
     .then_some(Action::Toggle(row.folder));
     let (_, colour) = state.colours();
     let weight = row_weight(active);
@@ -106,10 +126,30 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
     action
 }
 
-fn toggle(
+/// Paints the depth rails of a tree row at `rect` and returns the cell of its chevron.
+pub(super) fn rails(ui: &Ui, rect: Rect, depth: usize) -> Rect {
+    let levels = u16::try_from(depth).unwrap_or(u16::MAX);
+    for level in 0..levels {
+        let x = f32::from(level).mul_add(
+            TREE_INDENT,
+            rect.left() + TREE_PADDING_LEFT + TREE_RAIL_OFFSET,
+        );
+        ui.painter()
+            .vline(x, rect.y_range(), Stroke::new(1.0, palette::GRAY_3));
+    }
+    let chevron_left = f32::from(levels).mul_add(TREE_INDENT, rect.left() + TREE_PADDING_LEFT);
+    Rect::from_min_size(
+        pos2(chevron_left, rect.top()),
+        vec2(CHEVRON + TREE_GAP, ROW_HEIGHT),
+    )
+}
+
+/// Shows the chevron that expands or collapses the node called `name`; returns whether it was
+/// clicked.
+pub(super) fn toggle(
     ui: &Ui,
     texts: &Texts,
-    (folder, rect): (FolderId, Rect),
+    (id, rect): (Id, Rect),
     expanded: bool,
     name: &str,
 ) -> bool {
@@ -118,7 +158,7 @@ fn toggle(
     } else {
         Text::ExpandFolder
     };
-    let response = ui.interact(rect, ui.scope_id().with(("toggle", folder)), Sense::click());
+    let response = ui.interact(rect, id, Sense::click());
     response.widget_info(|| {
         let label = texts.format(text, &[("name", name.to_owned().into())]);
         WidgetInfo::labeled(Role::Button, true, &label)
@@ -130,8 +170,4 @@ fn toggle(
         focus_ring(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
     }
     response.clicked()
-}
-
-fn depth(depth: usize) -> f32 {
-    f32::from(u16::try_from(depth).unwrap_or(u16::MAX))
 }

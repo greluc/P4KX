@@ -20,10 +20,18 @@ fails while its section is missing.
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
   decoders and write it as an 8-bit PNG; the largest mip by default, another with `--mip`.
+- Cubemaps and alpha tails: `p4kx texture merge` merges split cubemaps and texture arrays face by
+  face, `p4kx texture png` writes a cubemap as six face files or with `--cross` as one cross, an
+  alpha or smoothness tail `.dds.a` is merged into the alpha channel of the PNG, and
+  `p4kx texture info` reports it.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
+  removed, moved or changed, with each changed scalar field and its old and new value, in the
+  summary counts and the JSON report; a Record that cannot be read is listed as unreadable with
+  the reason. Without `--entries` or `--records` both levels run.
 - `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
   unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
@@ -38,6 +46,12 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+- DataForge in the window: a DataForge node below the folders of the path tree shows the Records
+  as folders by record path, with record folders where several Records share one. It loads in the
+  background the first time it is opened, with a loading indicator, and is kept until the Archive
+  is reloaded or changes on disk; an unsupported version or a load error is named on the node. The
+  new DataForge tab of the preview shows the version, the numbers of Records, structs and enums and
+  the first Records.
 
 - Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
   shortcuts working anywhere in the window.

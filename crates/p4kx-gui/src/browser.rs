@@ -1,3 +1,5 @@
+mod records;
+
 use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::Arc;
@@ -5,7 +7,9 @@ use std::sync::Arc;
 use p4kx_extraction::Filter;
 
 use crate::search::{self, Matches, Outcome, Pending, Started};
-use crate::{EntryIndex, ExtractionScope, FolderId, Preview, Sort, SortColumn, SortDirection};
+use crate::{
+    EntryIndex, ExtractionScope, FolderId, Preview, RecordTree, Sort, SortColumn, SortDirection,
+};
 
 /// One visible row of the path tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +37,7 @@ pub struct Browser {
     checked_count: usize,
     shown_checked_count: usize,
     preview: Option<Preview>,
+    records: Option<RecordTree>,
 }
 
 impl Browser {
@@ -41,6 +46,9 @@ impl Browser {
     pub fn new(index: EntryIndex) -> Self {
         let root = index.root();
         let checked = vec![false; index.len()];
+        let records = index
+            .dataforge_entry()
+            .map(|entry| RecordTree::new(entry.path().to_owned()));
         let mut browser = Self {
             index: Arc::new(index),
             search_text: String::new(),
@@ -55,6 +63,7 @@ impl Browser {
             checked_count: 0,
             shown_checked_count: 0,
             preview: None,
+            records,
         };
         browser.refresh_tree();
         browser.refresh_shown();
@@ -103,6 +112,9 @@ impl Browser {
     /// Shows the Entries of `folder` and below, ending the search, and expands it.
     pub fn select_folder(&mut self, folder: FolderId) {
         self.folder = folder;
+        if let Some(records) = &mut self.records {
+            records.clear_selection();
+        }
         self.search_text.clear();
         self.pending = None;
         self.matches = None;
@@ -237,6 +249,9 @@ impl Browser {
     pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
         text.clone_into(&mut self.search_text);
         self.pending = None;
+        if let Some(records) = self.records.as_mut().filter(|_| !text.is_empty()) {
+            records.clear_selection();
+        }
         if text.is_empty() {
             self.matches = None;
             self.refresh_shown();
@@ -272,7 +287,8 @@ impl Browser {
     /// finished.
     pub fn poll(&mut self) -> bool {
         let previewed = self.preview.as_mut().is_some_and(Preview::poll);
-        self.poll_search() || previewed
+        let loaded = self.records.as_mut().is_some_and(RecordTree::poll);
+        self.poll_search() || previewed || loaded
     }
 
     fn poll_search(&mut self) -> bool {

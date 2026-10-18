@@ -2,10 +2,14 @@ use thiserror::Error;
 
 /// Why a Comparison did not produce a result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum ComparisonError {
     /// No level was selected.
     #[error("no Comparison level is selected")]
     NoLevel,
+    /// The Record level was selected without the DataForges of both Archives.
+    #[error("the Record level needs the DataForges of both Archives")]
+    NoDataForge,
     /// The Comparison was cancelled through its [`CancelToken`](crate::CancelToken).
     #[error("the Comparison was cancelled")]
     Cancelled,

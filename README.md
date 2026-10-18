@@ -81,21 +81,32 @@ Early development (milestone M1). Available today:
   --out <file>` merges the header Entry and its mip parts `<entry>.1` … `<entry>.N` into one
   standard DDS file that common tools open. Both also take a header file on disk instead of an
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
-  truncated or oversized part is named in the error and nothing is written. Split cubemaps and
-  texture arrays are not merged yet.
+  truncated or oversized part is named in the error and nothing is written. A split cubemap or
+  texture array, whose parts hold one mip of every face, merges face by face into a valid
+  cubemap or array. `info` also names the alpha or smoothness tail `<entry>.a` with its parts
+  `<entry>.1a` … `<entry>.Na`; `merge <archive> <entry>.a` merges the tail on its own.
 - `p4kx texture png <archive> <entry> --out <file>` decodes the largest mip of a texture and
   writes it as an 8-bit RGBA PNG; `--mip <level>` picks a smaller one, 0 being the largest. It
   takes a header file on disk like `info` and `merge`. BC1, BC2, BC3 and the uncompressed
   formats in use decode with pure-Rust decoders; any other format fails with a message naming it
-  and exit code 1. Cubemaps, texture arrays and volumes are not decoded yet.
-- `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
-  Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
-  (ignoring case and separator kind) and lists Entries as added, removed, or changed when their
-  size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. It prints both
-  sides (Channel and Build) and the counts per change kind and per top-level directory.
-  `--filter` selects Entries with the rules of `search`; `--report` writes the full Comparison as
-  JSON (see [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is
-  compared when none is given. The exit code is 0 without and 1 with differences.
+  and exit code 1. An alpha or smoothness tail is decoded and merged into the alpha channel. A
+  cubemap is written as six face files `<stem>_posx.png` … `<stem>_negz.png` next to `<file>`,
+  or with `--cross` as one horizontal cross in `<file>`. Texture arrays and volumes are not
+  decoded yet.
+- `p4kx compare <old> <new> [--entries] [--records] [--filter <filter>] [--report <file>]`
+  compares two Archives, e.g. LIVE against PTU. The Entry level joins both central directories
+  by path (ignoring case and separator kind) and lists Entries as added, removed, or changed when
+  their size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. The Record
+  level joins the Records of both DataForges by GUID and lists them as added, removed, moved (same
+  GUID at another record path) or changed, with every changed scalar field and its old and new
+  value; enum fields show the option names, and a value that cannot be read is a change with the
+  reason. A Record that cannot be read at all is listed as unreadable with the reason, and the
+  other Records are still compared. It prints both sides (Channel and Build) and the counts per
+  change kind, for Entries also per top-level directory. `--filter` selects Entries by path and Records by record path
+  with the rules of `search`; `--report` writes the full Comparison as JSON (see
+  [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is compared when
+  none is given; the Record level needs a DataForge in both Archives (exit code 5 otherwise). The
+  exit code is 0 without and 1 with differences.
 - `p4kx compare <old> <new> --diff <entry>` prints the line diff of one Entry between both Archives
   as a unified diff: CryXml is converted to XML first, UTF-16 with a byte order mark is decoded,
   other text and text XML are compared byte for byte, and an Entry on one side only is diffed

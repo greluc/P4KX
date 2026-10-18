@@ -205,3 +205,38 @@ dataforge-enums = Enums
 dataforge-first-records = First Records
 column-type = Type
 column-record-path = Record path
+record-change-progress = { $done } of { $total } Records, { $percent } %
+record-change-moved = Moved
+record-change-unreadable = Unreadable
+record-change-column-path = Record path
+record-change-column-type = Type
+record-change-moved-path = { $old } › { $new }
+record-change-no-differences = No Record differs between the DataForges.
+record-change-head-field = Field
+record-change-field-count =
+    { $count ->
+        [one] { $number } change
+       *[other] { $number } changes
+    }
+record-change-loading = Comparing the fields of { $path }…
+record-change-failed = Cannot compare the fields of { $path }: { $reason }
+record-change-stopped = Comparing the fields of { $path } stopped without a result.
+record-change-only-new = The Record exists only in the new Archive.
+record-change-only-old = The Record exists only in the old Archive.
+record-change-only-path = Only the record path changed; the fields are equal.
+record-change-no-field-changes = No field differs.
+record-change-unreadable-old = The old Record cannot be read: { $reason }
+record-change-unreadable-new = The new Record cannot be read: { $reason }
+record-change-record-name = Record name
+record-change-record-type = Record type
+record-change-value-missing = –
+record-change-value-null = null
+record-change-value-struct = { $type } (struct)
+record-change-value-array =
+    { $count ->
+        [one] { $number } element
+       *[other] { $number } elements
+    }
+record-change-value-reference-at = { $path } · { $at }
+record-change-value-error = Error: { $reason }
+record-change-field-row = { $field }: { $old } › { $new }

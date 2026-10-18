@@ -292,6 +292,8 @@ pub const CHIP_SUCCESS_FILL: Color32 = Color32::from_rgba_unmultiplied_const(35,
 pub const CHIP_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 38);
 /// The fill of a warning chip, `rgba(255,210,63,0.12)`.
 pub const CHIP_WARNING_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 210, 63, 31);
+/// The fill of an info chip, `rgba(53,93,220,0.15)`.
+pub const CHIP_INFO_FILL: Color32 = Color32::from_rgba_unmultiplied_const(53, 93, 220, 38);
 
 /// The width of the change column.
 pub const CHANGE_COLUMN: f32 = 130.0;
@@ -299,6 +301,8 @@ pub const CHANGE_COLUMN: f32 = 130.0;
 pub const CHANGE_SIZE_COLUMN: f32 = 150.0;
 /// The width of a count column of the directory table.
 pub const COUNT_COLUMN: f32 = 110.0;
+/// The width of the type column of the Record list.
+pub const RECORD_TYPE_COLUMN: f32 = 260.0;
 
 /// The height of a line and a hunk head of the line diff, the hex row height.
 pub const DIFF_ROW_HEIGHT: f32 = HEX_ROW_HEIGHT;

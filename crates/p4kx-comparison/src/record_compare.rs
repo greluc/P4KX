@@ -8,7 +8,7 @@ use crate::field_diff::diff_fields;
 use crate::path_key::cmp_normalised;
 use crate::{
     CompareOptions, ComparisonError, ComparisonProgress, DataForge, DataForgeError, DataForges,
-    Record, RecordChange, RecordChangeKind, RecordError, RecordSide, RecordState,
+    Record, RecordChange, RecordChangeKind, RecordError, RecordKey, RecordSide, RecordState,
 };
 
 const PROGRESS_STEP: usize = 1 << 12;
@@ -69,6 +69,27 @@ pub(crate) fn compare_records<'a>(
     });
     report(total);
     Ok(changes)
+}
+
+/// Compares the Records at the positions of `key` again, as [`compare_records`] does; `None`
+/// when they do not differ or neither position holds a Record.
+pub(crate) fn compare_record<'a>(
+    forges: DataForges<'a>,
+    key: RecordKey,
+) -> Option<RecordChange<'a>> {
+    let side = |forge: &'a DataForge<'a>, position: Option<u32>| {
+        position.map_or(Some(None), |index| forge.record(index).map(Some))
+    };
+    let pair = match (
+        side(forges.old, key.old_position())?,
+        side(forges.new, key.new_position())?,
+    ) {
+        (Some(old), Some(new)) => Joined::Both(old, new),
+        (Some(old), None) => Joined::Removed(old),
+        (None, Some(new)) => Joined::Added(new),
+        (None, None) => return None,
+    };
+    diff(pair, &CompareOptions::default())
 }
 
 fn by_guid<'a>(forge: &'a DataForge<'a>) -> Vec<Record<'a>> {
@@ -135,6 +156,10 @@ fn diff<'a>(pair: Joined<'a>, options: &CompareOptions<'_>) -> Option<RecordChan
         .zip(new_path)
         .and_then(|(record, path)| read(state(record, path), RecordSide::New, &mut errors));
     let mut change = RecordChange {
+        key: RecordKey::new(
+            old.map(|record| record.index()),
+            new.map(|record| record.index()),
+        ),
         guid: new.or(old).map(|record| record.guid()).unwrap_or_default(),
         old: old_state,
         new: new_state,

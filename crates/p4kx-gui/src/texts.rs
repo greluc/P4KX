@@ -5,12 +5,14 @@ mod comparison_text;
 mod dataforge_text;
 mod diff_text;
 mod extraction_text;
+mod record_change_text;
 mod text_ids;
 
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
+pub use record_change_text::RecordChangeText;
 
 use crate::Language;
 
@@ -149,6 +151,8 @@ pub enum Text {
     DataForge(DataForgeText),
     /// A text of the line diff of the Comparison tab.
     Diff(DiffText),
+    /// A text of the Record list of the Comparison tab.
+    RecordChange(RecordChangeText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

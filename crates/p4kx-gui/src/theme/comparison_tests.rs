@@ -95,10 +95,33 @@ fn the_change_chips_take_the_fills_of_the_design_system() {
         ("added", d::CHIP_SUCCESS_FILL),
         ("removed", d::CHIP_DANGER_FILL),
         ("changed", d::CHIP_WARNING_FILL),
+        ("moved", d::CHIP_INFO_FILL),
     ] {
         let expected = json["changeChip"][kind]["fill"].as_str().and_then(rgba);
         assert_eq!(expected, Some(fill), "{kind} fill");
     }
+    assert_eq!(
+        json["changeChip"]["unreadable"]["fill"].as_str(),
+        Some("transparent"),
+        "the muted chip has no fill"
+    );
+}
+
+#[test]
+fn the_record_list_columns_match_the_desktop_spec() {
+    let json = spec();
+    let columns = &json["recordTable"]["columns"];
+
+    assert_eq!(
+        columns["change"].as_f64(),
+        Some(f64::from(d::CHANGE_COLUMN)),
+        "change"
+    );
+    assert_eq!(
+        columns["type"].as_f64(),
+        Some(f64::from(d::RECORD_TYPE_COLUMN)),
+        "type"
+    );
 }
 
 #[test]

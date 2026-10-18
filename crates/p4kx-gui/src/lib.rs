@@ -31,9 +31,11 @@ pub use app::App;
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
 pub use comparison::{
-    ChangeColumn, ChangeSort, ComparisonLevels, ComparisonSide, ComparisonStage, ComparisonStatus,
-    ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffStatus,
-    DirectorySummary, EntryDiff, ReportStatus, Summary,
+    ChangeColumn, ChangeSort, ComparisonLevels, ComparisonList, ComparisonSide, ComparisonStage,
+    ComparisonStatus, ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow,
+    DiffStatus, DirectorySummary, EntryDiff, FieldName, FieldRow, FieldValue, RecordChangeColumn,
+    RecordChangeList, RecordChangeRow, RecordChangeSort, RecordChangeView, RecordDetail,
+    RecordDetailStatus, RecordFields, ReportStatus, SideError, Summary,
 };
 pub use entry_index::EntryIndex;
 pub use extraction::{
@@ -53,5 +55,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ComparisonText, DataForgeText, DiffText, ExtractionText, RecordSearchText, Text, Texts,
+    ComparisonText, DataForgeText, DiffText, ExtractionText, RecordChangeText, RecordSearchText,
+    Text, Texts,
 };

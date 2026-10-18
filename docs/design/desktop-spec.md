@@ -71,8 +71,10 @@ sind keine neuen Farben.
 | Archiv-Auswahl | `select` + `.krt-combobox__listbox` | 44 | links 12, rechts 32; min. 260 breit | Beschriftung darüber (Eyebrow); Chevron 10,4 vom rechten Rand | 16 / 400; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Chevron `color-primary` 12; leere Liste `.krt-combobox__notice` kursiv | 1 `control-border`; Fokus und offen `color-primary` | Fokus und offen `glow-primary` | Rahmen + Glow |
 | Faktenleiste | `.facts-bar` | ~32 | x 16, y 8 | 16; Schlüssel→Wert 5 | Schlüssel 9,92 / 700 / 0,08 em; Wert 12,48 / 700 | Schlüssel ja | bg `color-surface-input`, Schlüssel `color-gray-2-text`, Wert `color-white`; Richtungs-Chevron `color-primary` | unten 1 `color-gray-3` | – | – |
 | Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
-| Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
+| Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)`; Verschoben: `color-info`, `color-info-text`, `rgba(53,93,220,0.15)`; Unlesbar: `color-gray-3`, `color-gray-2-text`, transparent | 1 im Farbton, Radius 0 | – | – |
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
+| Record-Liste | Tab-Leiste + Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Record-Pfad Rest, Typ 260 | wie Tabelle | Kopf ja | wie Tabelle; verschoben „alt › neu" | wie Tabelle | – | innen −2 |
+| Feldänderungen | Vorschau-Panel + Tabellenkopf + Tabellenzeile | 36 | Zelle x 12,8 | drei gleiche Spalten Feld, Alt, Neu | wie Tabelle | Kopf ja | Text `color-gray-1`; fehlend „–" `color-gray-2-text`; Fehlerwert `color-danger-text`; Anzahl `color-gray-2-text` | unten 1 `color-gray-3` | – | – |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 
 ## Entscheidungen
@@ -156,6 +158,25 @@ angesprungene Hunk trägt den aktiven Balken links (3 `color-primary`) wie die a
 Lange Zeilen werden je Seite abgeschnitten und laufen mit einer gemeinsamen horizontalen
 Scrollleiste. Binäre und zu große Einträge zeigen statt des Vergleichs den Hinweis im Panel-Körper.
 
+**D.13 Record-Änderungen als zweite Liste mit Feldänderungen im Vorschau-Panel.** Wurde die
+Record-Ebene verglichen, steht zwischen Zähler-Kacheln und Listenfläche eine `.tab-nav` mit
+„Einträge" und „Records"; nur mit der Record-Ebene beginnt sie bei „Records". Suchfeld, Anzahl und
+„Bericht speichern …" bleiben in der Toolbar, der Filter wirkt auf beide Listen und trifft einen
+Record über den Record-Pfad einer der beiden Seiten. Die Record-Liste hat die Spalten Änderung
+(130), Record-Pfad (Rest) und Typ (260), sortierbar wie die Änderungsliste. Verschoben ist
+`.chip--info` (Text `color-info-text`), Unlesbar `.chip--muted`: es ist kein Fehler des Patches,
+sondern ein Record, der nicht verglichen werden konnte, und Danger bleibt Entfernt (D.11). Ein
+verschobener Record zeigt „alt › neu" in der Pfadzelle; „›" statt „→", weil Lato keinen Pfeil hat.
+Ein gewählter Record öffnet darunter das Panel aus D.12: Pfadzeile mit Chip, rechts die Zahl der
+Änderungen in `color-gray-2-text`, darunter der Tabellenkopf „Feld" | „Alt" | „Neu" in drei
+gleich breiten Spalten und die Feldänderungen als 36-px-Tabellenzeilen ohne Auswahl, voller Text
+im Tooltip. Referenzen stehen als Record-Pfad des Ziels, ein schwacher Zeiger als „Pfad · Stelle";
+ein fehlender Wert ist „–" in `color-gray-2-text`, ein unlesbarer Wert „Fehler: Grund" in
+`color-danger-text`. Ein geänderter Name oder Typ des Records steht als eigene Zeile vor den
+Feldern. Hinzugefügte, entfernte und nur verschobene Records zeigen statt der Zeilen einen Satz im
+Panel-Körper, unlesbare den Grund je Seite in `color-danger-text`. Die Feldänderungen werden erst
+für den gewählten Record im Hintergrund erneut verglichen, die Liste hält nur Pfade und Typen.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -174,7 +195,7 @@ Scrollleiste. Binäre und zu große Einträge zeigen statt des Vergleichs den Hi
 | Zeilenvergleich in Lato statt Monospace, Tabs als vier Leerzeichen | einzige Schrift Lato; beide Seiten richten sich an den Zeilen aus, nicht an Spalten |
 | Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
-| DataForge-Übersicht und Record-Suche: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
+| DataForge-Übersicht, Record-Suche und Feldänderungen des Vergleichs: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

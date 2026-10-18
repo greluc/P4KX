@@ -3,9 +3,11 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use crate::compare::{Joined, check_levels, join};
+use crate::record_compare::{compare_record, compare_records};
 use crate::{
-    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, DataForgeEntry,
-    DataForgeError, DataForges, EntryChange, Filter, Levels, Side, compare,
+    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress,
+    DataForgeEntry, DataForgeError, DataForges, EntryChange, Filter, Levels, RecordChange,
+    RecordKey, Side, compare,
 };
 
 /// The DataForge Entries of the old and the new Archive, owned.
@@ -174,6 +176,65 @@ impl OwnedComparison {
         let both = forges.as_ref().map(|(old, new)| DataForges { old, new });
         let comparison = compare(&self.old, &self.new, both, &options)?;
         Ok(use_it(&comparison))
+    }
+
+    /// Compares the Records of both DataForges, narrowed to `filter`, and hands the changes to
+    /// `use_it`; they are those [`compare`] gives on the Record level, in the same order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RecompareError::Comparison`] with [`ComparisonError::NoDataForge`] when the
+    /// Record level was not compared and with [`ComparisonError::Cancelled`] once `cancel` is
+    /// set, and [`RecompareError::DataForge`] when a DataForge cannot be opened.
+    pub fn record_changes<R>(
+        &self,
+        filter: Option<&Filter>,
+        cancel: Option<&CancelToken>,
+        progress: Option<&(dyn Fn(ComparisonProgress) + Sync)>,
+        use_it: impl FnOnce(&[RecordChange<'_>]) -> R,
+    ) -> Result<R, RecompareError> {
+        let entries = self
+            .dataforges
+            .as_ref()
+            .ok_or(ComparisonError::NoDataForge)?;
+        let (old, new) = (entries.old.open()?, entries.new.open()?);
+        let options = CompareOptions {
+            levels: Levels::RECORDS,
+            filter,
+            cancel,
+            progress,
+        };
+        let forges = DataForges {
+            old: &old,
+            new: &new,
+        };
+        let changes = compare_records(forges, &options, ComparisonProgress::default())?;
+        Ok(use_it(&changes))
+    }
+
+    /// Compares the Records at `key` again and hands their change to `use_it`, `None` when they
+    /// do not differ or `key` matches no Record.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RecompareError::Comparison`] with [`ComparisonError::NoDataForge`] when the
+    /// Record level was not compared and [`RecompareError::DataForge`] when a DataForge cannot be
+    /// opened.
+    pub fn record_change<R>(
+        &self,
+        key: RecordKey,
+        use_it: impl FnOnce(Option<&RecordChange<'_>>) -> R,
+    ) -> Result<R, RecompareError> {
+        let entries = self
+            .dataforges
+            .as_ref()
+            .ok_or(ComparisonError::NoDataForge)?;
+        let (old, new) = (entries.old.open()?, entries.new.open()?);
+        let forges = DataForges {
+            old: &old,
+            new: &new,
+        };
+        Ok(use_it(compare_record(forges, key).as_ref()))
     }
 
     fn without_changes(&self) -> Comparison<'_> {

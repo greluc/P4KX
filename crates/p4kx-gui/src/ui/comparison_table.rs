@@ -3,6 +3,7 @@ use std::sync::Arc;
 use egui::{Align, Frame, Galley, Id, Layout, Margin, Ui, vec2};
 
 use super::comparison_list::{self, ListAction};
+use super::comparison_lists;
 use super::search::{eyebrow, field};
 use super::{Dialog, Requests};
 use crate::theme::desktop::TOOLBAR_PADDING;
@@ -16,6 +17,14 @@ use crate::{ComparisonText, ComparisonView, Model, ReportStatus, Text, Texts, fo
 /// Shows the list panel of the changes: the Filter, the report and the sortable list.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     toolbar(ui, model, requests);
+    if model
+        .comparison()
+        .view()
+        .is_some_and(comparison_lists::records_shown)
+    {
+        comparison_lists::records(ui, model);
+        return;
+    }
     let reveal = model
         .comparison_mut()
         .view_mut()
@@ -56,7 +65,7 @@ impl ToolbarCache {
         let key = Id::unique((
             texts.language(),
             view.generation(),
-            view.shown().len(),
+            view.shown_len(),
             view.report_status(),
         ));
         if cache.key != Some(key) {
@@ -132,7 +141,7 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
 
 fn shown_note(texts: &Texts, view: &ComparisonView) -> String {
     let number = format::number(
-        u64::try_from(view.shown().len()).unwrap_or(u64::MAX),
+        u64::try_from(view.shown_len()).unwrap_or(u64::MAX),
         texts.language(),
     );
     texts.format(ComparisonText::Shown, &[("number", number.into())])

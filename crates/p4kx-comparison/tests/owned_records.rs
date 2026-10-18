@@ -3,12 +3,12 @@
 mod forge_pair;
 
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use forge_pair::ForgePair;
 use p4kx_comparison::{
-    Archive, CompareOptions, ComparisonError, DataForgeEntry, Levels, OwnedComparison,
-    OwnedDataForges,
+    Archive, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry, Filter, Levels,
+    OwnedComparison, OwnedDataForges, RecordChange, RecordChangeKind, RecordKey,
 };
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
@@ -73,6 +73,130 @@ fn the_recomparison_holds_the_record_level_like_compare() -> TestResult {
         1,
         "the tuned Record changed"
     );
+    Ok(())
+}
+
+fn twins(paths: &[&str]) -> DataForgeBuilder {
+    paths.iter().zip(1..).fold(
+        DataForgeBuilder::new().structure(TestStruct::new("Ship").field("speed", TestType::Int32)),
+        |builder, (path, speed)| {
+            builder.record(
+                TestRecord::new(7, "Ship", "Ship.Twin", *path)
+                    .value("speed", TestValue::Int32(speed)),
+            )
+        },
+    )
+}
+
+type Summary = (RecordChangeKind, String, Vec<String>);
+
+fn summary(change: &RecordChange<'_>) -> Summary {
+    (
+        change.kind(),
+        change.path().to_owned(),
+        change
+            .fields()
+            .iter()
+            .map(|field| field.path().as_str().to_owned())
+            .collect(),
+    )
+}
+
+#[test]
+fn the_record_changes_are_those_of_compare_and_report_their_progress() -> TestResult {
+    let pair = ForgePair::new(&database(4), &database(40))?;
+    let expected = pair.compare_records(|comparison| {
+        comparison
+            .record_changes()
+            .iter()
+            .map(summary)
+            .collect::<Vec<_>>()
+    })?;
+    let owned = owned(&pair, Levels::ALL, true)?;
+    let seen = Mutex::new(Vec::new());
+    let progress = |progress: ComparisonProgress| {
+        if let Ok(mut seen) = seen.lock() {
+            seen.push((progress.records_done, progress.records_total));
+        }
+    };
+
+    let changes = owned.record_changes(None, None, Some(&progress), |changes| {
+        changes.iter().map(summary).collect::<Vec<_>>()
+    })?;
+
+    assert_eq!(changes, expected, "the same Record changes");
+    let seen = seen.into_inner()?;
+    assert_eq!(seen.last(), Some(&(1, 1)), "the end is reported: {seen:?}");
+    Ok(())
+}
+
+#[test]
+fn the_record_changes_narrow_to_the_filter() -> TestResult {
+    let pair = ForgePair::new(&database(4), &database(40))?;
+    let owned = owned(&pair, Levels::RECORDS, true)?;
+
+    let count = owned.record_changes(
+        Some(&Filter::new("libs/weapons/*")),
+        None,
+        None,
+        |changes| changes.len(),
+    )?;
+
+    assert_eq!(count, 0, "no Record below that path");
+    Ok(())
+}
+
+#[test]
+fn one_record_change_is_compared_again_by_its_key() -> TestResult {
+    let pair = ForgePair::new(
+        &twins(&["libs/ships/first.xml", "libs/ships/second.xml"]),
+        &twins(&["libs/ships/first.xml", "libs/ships/moved.xml"]),
+    )?;
+    let owned = owned(&pair, Levels::RECORDS, true)?;
+    let listed = owned.record_changes(None, None, None, |changes| {
+        changes
+            .iter()
+            .map(|change| (change.key(), summary(change)))
+            .collect::<Vec<_>>()
+    })?;
+
+    let mut again = Vec::new();
+    for (key, _) in &listed {
+        again.push((
+            *key,
+            owned.record_change(*key, |change| change.map(summary))?,
+        ));
+    }
+
+    assert_eq!(listed.len(), 1, "only the second twin moved: {listed:?}");
+    for ((key, expected), (_, found)) in listed.iter().zip(&again) {
+        assert_eq!(
+            found.as_ref(),
+            Some(expected),
+            "the same change for {key:?}"
+        );
+    }
+    assert_eq!(
+        listed
+            .first()
+            .map(|(key, _)| (key.old_position(), key.new_position())),
+        Some((Some(1), Some(1))),
+        "the positions of the second twin on both sides"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_key_outside_both_dataforges_has_no_change() -> TestResult {
+    let pair = ForgePair::new(&database(4), &database(40))?;
+    let owned = owned(&pair, Levels::RECORDS, true)?;
+
+    let missing =
+        owned.record_change(RecordKey::new(Some(9), Some(9)), |change| change.is_some())?;
+    let neither = owned.record_change(RecordKey::new(None, None), |change| change.is_some())?;
+
+    assert!(!missing, "no Record at position 9");
+    assert!(!neither, "no side at all");
     Ok(())
 }
 

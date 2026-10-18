@@ -107,9 +107,38 @@ impl<'a> FieldChange<'a> {
     }
 }
 
+/// Where the Records of one Record change lie in both DataForges: their positions in
+/// definition order.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct RecordKey {
+    old: Option<u32>,
+    new: Option<u32>,
+}
+
+impl RecordKey {
+    /// Returns the key of the Records at `old` in the old and at `new` in the new DataForge.
+    #[must_use]
+    pub const fn new(old: Option<u32>, new: Option<u32>) -> Self {
+        Self { old, new }
+    }
+
+    /// Returns the position in the old DataForge, `None` for an added Record.
+    #[must_use]
+    pub const fn old_position(self) -> Option<u32> {
+        self.old
+    }
+
+    /// Returns the position in the new DataForge, `None` for a removed Record.
+    #[must_use]
+    pub const fn new_position(self) -> Option<u32> {
+        self.new
+    }
+}
+
 /// One Record that was added, removed, moved or changed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RecordChange<'a> {
+    pub(crate) key: RecordKey,
     pub(crate) guid: Guid,
     pub(crate) old: Option<RecordState<'a>>,
     pub(crate) new: Option<RecordState<'a>>,
@@ -140,6 +169,12 @@ impl<'a> RecordChange<'a> {
     #[must_use]
     pub const fn guid(&self) -> Guid {
         self.guid
+    }
+
+    /// Returns where both Records lie, for comparing this one Record again.
+    #[must_use]
+    pub const fn key(&self) -> RecordKey {
+        self.key
     }
 
     /// Returns the record path of the new side, or of the old side when the new side has none;

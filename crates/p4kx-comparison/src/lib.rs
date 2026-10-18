@@ -39,7 +39,8 @@ pub use p4kx_dataforge::{
 };
 pub use p4kx_extraction::{CancelToken, DataForgeEntry, DataForgeLoadError, Filter};
 pub use record_change::{
-    FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordError, RecordSide, RecordState,
+    FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordError, RecordKey, RecordSide,
+    RecordState,
 };
 pub use report::{REPORT_FORMAT_VERSION, Report, report_schema};
 pub use text_diff::{DEFAULT_CONTEXT, DiffLine, Hunk, LineKind, TextDiff};

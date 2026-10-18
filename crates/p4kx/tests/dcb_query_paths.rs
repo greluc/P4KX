@@ -96,13 +96,17 @@ fn database() -> Vec<u8> {
 }
 
 fn query(text: &str, code: i32) -> Result<(String, String), Box<dyn Error>> {
+    query_as(text, "table", code)
+}
+
+fn query_as(text: &str, format: &str, code: i32) -> Result<(String, String), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = dir.path().join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database()).encrypted())
         .write_to(&archive)?;
     let output = Command::cargo_bin("p4kx")?
-        .args(["dcb", "query"])
+        .args(["dcb", "query", "--format", format])
         .arg(&archive)
         .arg(text)
         .output()?;
@@ -123,6 +127,16 @@ fn error(text: &str) -> Result<String, Box<dyn Error>> {
     let (stdout, stderr) = query(text, 2)?;
     assert!(stdout.is_empty(), "nothing is printed: {stdout}");
     Ok(stderr)
+}
+
+#[test]
+fn lists_are_bracketed_text_in_csv_and_arrays_in_json() -> TestResult {
+    let text = "from Ship select tags[*], Components[*].name, Components[Shield].hp, tags[0]";
+    let (csv, _) = query_as(text, "csv", 0)?;
+    let (json, _) = query_as(text, "json", 0)?;
+
+    insta::assert_snapshot!(format!("{csv}\n{json}"));
+    Ok(())
 }
 
 #[test]

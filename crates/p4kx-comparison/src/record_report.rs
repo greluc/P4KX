@@ -1,12 +1,10 @@
-use std::borrow::Cow;
-use std::fmt;
+use schemars::JsonSchema;
+use serde::Serialize;
 
-use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
-use serde::{Serialize, Serializer};
-
+use crate::value_report::{GuidSchema, ValueReport, display};
 use crate::{
     Comparison, FieldChange, Guid, RecordChange, RecordChangeKind, RecordCounts, RecordError,
-    RecordSide, RecordState, Value, ValueError,
+    RecordSide, RecordState,
 };
 
 /// The Records added, removed, moved, changed and unreadable.
@@ -34,8 +32,9 @@ struct RecordChangeReport<'a> {
     /// The Record on the new side, absent when it was removed or cannot be read.
     #[serde(skip_serializing_if = "Option::is_none")]
     new: Option<RecordStateReport<'a>>,
-    /// The changed fields in field order of the new side, the fields only the old side has
-    /// last; empty for an added, removed or unreadable Record.
+    /// The changed fields and array elements, nested ones included, depth first in field order
+    /// of the new side with the fields only the old side has last in each struct; empty for an
+    /// added, removed or unreadable Record.
     fields: Vec<FieldChangeReport<'a>>,
     /// Why the Record cannot be read, one entry per side; absent unless it is unreadable.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -72,175 +71,18 @@ struct RecordStateReport<'a> {
     type_name: &'a str,
 }
 
-/// One field whose value differs, or that only one side has.
+/// One field or array element whose value differs, or that only one side has.
 #[derive(Debug, Serialize, JsonSchema)]
 struct FieldChangeReport<'a> {
-    /// The path of the field in the Record: its name for a field of the Record itself.
+    /// Where the value lies in the Record: the field names separated by `.`, with `[index]`
+    /// after an array field, e.g. `hull.plates[1].armor`.
     path: &'a str,
-    /// The old value, absent when the old side has no such field.
+    /// The old value, absent when the old side has no such field or element.
     #[serde(skip_serializing_if = "Option::is_none")]
     old: Option<ValueReport<'a>>,
-    /// The new value, absent when the new side has no such field.
+    /// The new value, absent when the new side has no such field or element.
     #[serde(skip_serializing_if = "Option::is_none")]
     new: Option<ValueReport<'a>>,
-}
-
-/// A scalar value with its type.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
-enum ValueReport<'a> {
-    /// A boolean.
-    Bool(bool),
-    /// A signed 8-bit integer.
-    Int8(i8),
-    /// A signed 16-bit integer.
-    Int16(i16),
-    /// A signed 32-bit integer.
-    Int32(i32),
-    /// A signed 64-bit integer.
-    Int64(i64),
-    /// An unsigned 8-bit integer.
-    #[serde(rename = "uint8")]
-    UInt8(u8),
-    /// An unsigned 16-bit integer.
-    #[serde(rename = "uint16")]
-    UInt16(u16),
-    /// An unsigned 32-bit integer.
-    #[serde(rename = "uint32")]
-    UInt32(u32),
-    /// An unsigned 64-bit integer.
-    #[serde(rename = "uint64")]
-    UInt64(u64),
-    /// A 32-bit float; `NaN`, `INF` and `-INF` as strings.
-    Single(
-        #[serde(serialize_with = "single")]
-        #[schemars(with = "FloatSchema")]
-        f32,
-    ),
-    /// A 64-bit float; `NaN`, `INF` and `-INF` as strings.
-    Double(
-        #[serde(serialize_with = "double")]
-        #[schemars(with = "FloatSchema")]
-        f64,
-    ),
-    /// A string.
-    String(&'a str),
-    /// A localisation key, e.g. `@item_Name`.
-    Locale(&'a str),
-    /// A GUID.
-    Guid(
-        #[serde(serialize_with = "display")]
-        #[schemars(with = "GuidSchema")]
-        Guid,
-    ),
-    /// The name of an enum option.
-    Enum(&'a str),
-    /// A value that cannot be read, as the reason.
-    Error(
-        #[serde(serialize_with = "display")]
-        #[schemars(with = "String")]
-        ValueError,
-    ),
-}
-
-impl<'a> ValueReport<'a> {
-    const fn of(value: &Value<'a>) -> Option<Self> {
-        Some(match *value {
-            Value::Bool(value) => Self::Bool(value),
-            Value::Int8(value) => Self::Int8(value),
-            Value::Int16(value) => Self::Int16(value),
-            Value::Int32(value) => Self::Int32(value),
-            Value::Int64(value) => Self::Int64(value),
-            Value::UInt8(value) => Self::UInt8(value),
-            Value::UInt16(value) => Self::UInt16(value),
-            Value::UInt32(value) => Self::UInt32(value),
-            Value::UInt64(value) => Self::UInt64(value),
-            Value::Single(value) => Self::Single(value),
-            Value::Double(value) => Self::Double(value),
-            Value::String(value) => Self::String(value),
-            Value::Locale(value) => Self::Locale(value),
-            Value::Guid(value) => Self::Guid(value),
-            Value::Enum(value) => Self::Enum(value),
-            Value::Error(error) => Self::Error(error),
-            _ => return None,
-        })
-    }
-}
-
-/// The schema of a GUID in text.
-struct GuidSchema;
-
-impl JsonSchema for GuidSchema {
-    fn schema_name() -> Cow<'static, str> {
-        "Guid".into()
-    }
-
-    fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        json_schema!({
-            "description": "A GUID of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
-            "type": "string",
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-        })
-    }
-}
-
-/// The schema of a float: a number, or `NaN`, `INF` or `-INF`.
-struct FloatSchema;
-
-impl JsonSchema for FloatSchema {
-    fn schema_name() -> Cow<'static, str> {
-        "Float".into()
-    }
-
-    fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        json_schema!({
-            "description": "A float: a number, or NaN, INF or -INF.",
-            "oneOf": [
-                { "type": "number" },
-                { "type": "string", "enum": ["NaN", "INF", "-INF"] }
-            ]
-        })
-    }
-}
-
-fn display<T: fmt::Display, S: Serializer>(value: &T, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.collect_str(value)
-}
-
-#[expect(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "serde passes the field by reference"
-)]
-fn single<S: Serializer>(value: &f32, serializer: S) -> Result<S::Ok, S::Error> {
-    match non_finite(f64::from(*value)) {
-        Some(text) => serializer.serialize_str(text),
-        None => serializer.serialize_f32(*value),
-    }
-}
-
-#[expect(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "serde passes the field by reference"
-)]
-fn double<S: Serializer>(value: &f64, serializer: S) -> Result<S::Ok, S::Error> {
-    match non_finite(*value) {
-        Some(text) => serializer.serialize_str(text),
-        None => serializer.serialize_f64(*value),
-    }
-}
-
-const fn non_finite(value: f64) -> Option<&'static str> {
-    if value.is_nan() {
-        Some("NaN")
-    } else if value.is_infinite() {
-        Some(if value.is_sign_negative() {
-            "-INF"
-        } else {
-            "INF"
-        })
-    } else {
-        None
-    }
 }
 
 impl<'a> From<RecordState<'a>> for RecordStateReport<'a> {
@@ -253,18 +95,18 @@ impl<'a> From<RecordState<'a>> for RecordStateReport<'a> {
     }
 }
 
-impl<'a> From<&FieldChange<'a>> for FieldChangeReport<'a> {
-    fn from(change: &FieldChange<'a>) -> Self {
+impl<'a> From<&'a FieldChange<'_>> for FieldChangeReport<'a> {
+    fn from(change: &'a FieldChange<'_>) -> Self {
         Self {
-            path: change.path(),
+            path: change.path().as_str(),
             old: change.old_value().and_then(ValueReport::of),
             new: change.new_value().and_then(ValueReport::of),
         }
     }
 }
 
-impl<'a> From<&RecordChange<'a>> for RecordChangeReport<'a> {
-    fn from(change: &RecordChange<'a>) -> Self {
+impl<'a> From<&'a RecordChange<'_>> for RecordChangeReport<'a> {
+    fn from(change: &'a RecordChange<'_>) -> Self {
         Self {
             guid: change.guid(),
             change: change.kind(),

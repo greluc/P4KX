@@ -31,8 +31,10 @@ The opt-in tests against a real Archive run these examples.
 
 ## Result
 
-The result is a table. Its first column is always the record path; then follows one column per
-path of `select`, in the order written, headed by the path as the canonical form prints it.
+The result is a table of rows and columns, written as a table, CSV or JSON (see
+[Output formats](#output-formats)). Its first column is always the record path, headed
+`record path`; then follows one column per path of `select`, in the order written, headed by the
+path as the canonical form prints it.
 
 There is one row per selected Record, ordered by record path (ignoring ASCII case, `\` and `/`
 alike) and then by the Record's position in the DataForge. Records share record paths, so a
@@ -46,6 +48,79 @@ declares the fields of the named type. A value that cannot be read shows its rea
 `error: …`. A Record whose layout cannot be read gives no row and is
 reported as failed; with `where`, so is a Record whose values cannot be read to decide the
 filter.
+
+## Output formats
+
+`p4kx dcb query <archive> "<query>" [--format table|csv|json] [--out <file>]` writes the result
+in one of three formats; the default is `table`, or `json` with `--json`. All three have the
+same columns and rows in the same order. No heading of a `select` path is `record path`,
+because a name with a space is written in backticks.
+
+The result is written page by page: the rows of one page are built in parallel and written
+before the next page is built, so the result is never held in memory as a whole. With `--out`
+it goes to a temporary file next to the target, which is renamed to the target once complete
+and replaces an existing file; stdout then gets one summary line such as
+`3 Records written to result.csv`, or a JSON summary with `--json` (see
+[cli-json.md](cli-json.md)). A Record whose layout cannot be read gives no row in any format;
+it is reported on stderr and the exit code is 1. An `--out` that is the Archive itself is
+rejected with exit code 2, and so is `--json` with another format and without `--out`. A run
+that is killed, e.g. by Ctrl+C, can leave the temporary file `<file>.p4kx-<process id>.part`
+behind; the target itself is never half written.
+
+### Table
+
+Columns separated by two spaces and padded to the widest text of the column over all rows, a
+line of `-` under the headings, and on stdout a last line with the number of Records. Line
+breaks and tabs in a value are shown as `\n`, `\r` and `\t`, other control characters as
+U+FFFD. The widths are measured in a first pass over the pages, so the Records are read twice.
+The table is for reading; scripts use CSV or JSON.
+
+### CSV
+
+CSV after [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180):
+
+- UTF-8 without byte order mark; every row, the header row included, ends with CRLF.
+- The header row holds `record path` and then each `select` path in canonical form.
+- One row per Record with exactly one field per column.
+- A field holding `,`, `"`, CR or LF is enclosed in `"`, and each `"` in it is doubled; every
+  other field is written as it is. A line break inside a value stays inside the quoted field.
+- A value is written in its Record XML text ([record-xml.md](record-xml.md#values)): `true`,
+  `25000.5`, `NaN`, the enum option, the GUID in lower case. A value that cannot be read is
+  `error: <reason>`. An empty cell (a Record without the field) is an empty field, as is an
+  empty string. A list ([Several values](#several-values)) is its values in brackets separated
+  by `, `, e.g. `"[250.5, 1200]"`.
+- Values are written unchanged: a text starting with `=`, `+`, `-` or `@` stays as it is, so a
+  spreadsheet may read it as a formula.
+
+```text
+record path,name,crew,mass
+libs/items/box,Box,,-0.25
+libs/ships/avenger,"Avenger, ""Titan""",2,25000.5
+```
+
+### JSON
+
+One line of compact JSON ending in a line feed: an array with one object per row, in row
+order. Each object has the key `record path` and one key per `select` path, in column order; a
+path selected twice appears once, as its values are the same. The values are typed:
+
+| Field type | JSON |
+|------------|------|
+| bool | `true` or `false` |
+| int8 … int64, uint8 … uint64 | A number with every digit; a parser that reads numbers as doubles, such as JavaScript, rounds beyond 2^53 |
+| float, double | A number in its Record XML text (`25000.5`, `1e21`, `-0`); `NaN`, `INF` and `-INF` as strings |
+| string, localisation key, enum | A string: the text, the key as stored, the option name |
+| GUID | A string, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| a value that cannot be read | An object `{"error": "<reason>"}` |
+| a list of a path through `[*]` or `[TypeName]` | An array of the values, each typed by this table, `null` for a null; `[]` when there is none |
+| an empty cell | `null` |
+
+Strings escape `"` and `\`, line feed, carriage return and tab as `\n`, `\r` and `\t`, and the
+other control characters below U+0020 as `\u00XX`; every other character is written as UTF-8.
+
+```json
+[{"record path":"libs/items/box","name":"Box","crew":null,"mass":-0.25},{"record path":"libs/ships/avenger","name":"Avenger, \"Titan\"","crew":2,"mass":25000.5}]
+```
 
 ## Grammar
 
@@ -226,7 +301,7 @@ The type that counts is the one of the scalar the path ends at, e.g. `Double` fo
 an error only when the path resolves in no type to a scalar that can be compared with the value;
 a Record whose type resolves it otherwise, or not at all, has no value for it.
 
-### Several values
+### Comparing several values
 
 A comparison over a path through `[*]` or `[TypeName]` holds when **any** of the values the path
 reaches holds: `Components[Weapon].damage > 1000` keeps a ship with at least one weapon above

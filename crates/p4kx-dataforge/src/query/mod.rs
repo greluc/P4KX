@@ -11,6 +11,7 @@ mod expected;
 mod lexer;
 mod matching;
 mod operand;
+mod output;
 mod parser;
 mod path_plan;
 mod predicate;
@@ -27,6 +28,7 @@ pub use condition::{Comparison, Condition, Literal, LiteralValue, MAX_CONDITION_
 pub use error::{Marked, QueryError, QueryErrorKind};
 pub use expected::{Expected, Found, LiteralKind};
 pub use lexer::Keyword;
+pub use output::{RECORD_PATH_COLUMN, ResultFormat, ResultWriter};
 pub use run::{Pages, QueryRun, Row};
 pub use span::Span;
 pub use syntax::{Glob, Name, Path, Query, Segment};

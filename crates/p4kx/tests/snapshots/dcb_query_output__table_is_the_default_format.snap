@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_query_output.rs
+expression: table
+---
+record path         name              crew  mass     size                                                              docked
+------------------  ----------------  ----  -------  ----------------------------------------------------------------  ------
+libs/items/box      Box                     -0.25    Small
+libs/items/note     two\nlines              NaN      error: offset 4294967295 in the text table is not a valid string
+libs/ships/avenger  Avenger, "Titan"  2     25000.5  Large                                                             false
+3 Records

@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "table(\"from Ship select name, escorts[*]->name, escorts[0]->maker->name, \\\n         escorts[*]->escorts[*]->name\")?"
+---
+record path       name   escorts[*]->name    escorts[0]->maker->name  escorts[*]->escorts[*]->name
+----------------  -----  ------------------  -----------------------  ----------------------------
+libs/ships/alpha  Alpha  [Beta, null, null]  null                     [Alpha, null, null]
+libs/ships/beta   Beta   [Alpha]             Aegis                    [Beta, null, null]
+libs/ships/gamma  Gamma  []                  null                     []
+3 Records, 5 unresolved References

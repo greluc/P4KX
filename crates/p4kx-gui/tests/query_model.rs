@@ -11,7 +11,7 @@ use model::{column, finished, opened, run, settled};
 use p4kx_gui::{
     Language, Model, QUERY_PAGE_ROWS, QueryStage, QueryStatus, ResultColumn, SortDirection,
 };
-use querying::{TestResult, archive, database, listed, numbered};
+use querying::{REFERENCING, TestResult, archive, database, listed, numbered, referencing};
 #[test]
 fn a_query_lists_one_row_per_record_with_one_column_per_selected_path() -> TestResult {
     let dir = tempfile::tempdir()?;
@@ -280,6 +280,28 @@ fn list_columns_show_the_short_list_and_sort_by_first_value() -> TestResult {
         column(result, 1),
         ["[]", "[1, 2]", "[3, 4, 5, 6, 7, 8, 9, 10, … 2 more]"],
         "by first value"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_arrow_shows_values_of_referenced_records_and_counts_the_unresolved() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &referencing())?)?;
+
+    run(&mut model, REFERENCING)?;
+
+    let result = finished(&model)?;
+    assert_eq!(column(result, 2), ["Aegis", "null"], "maker->name");
+    assert_eq!(
+        column(result, 3),
+        ["[Beta, null]", "[]"],
+        "escorts[*]->name"
+    );
+    assert_eq!(
+        result.unresolved_references(),
+        2,
+        "a dangling and a null Reference"
     );
     Ok(())
 }

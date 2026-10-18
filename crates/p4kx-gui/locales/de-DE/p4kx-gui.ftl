@@ -212,6 +212,11 @@ query-rows-failed =
         [one] { $number } Record, { $failed } fehlgeschlagen
        *[other] { $number } Records, { $failed } fehlgeschlagen
     }
+query-unresolved =
+    { $count ->
+        [one] , { $number } nicht aufgelöste Referenz
+       *[other] , { $number } nicht aufgelöste Referenzen
+    }
 query-export-csv = CSV exportieren …
 query-export-json = JSON exportieren …
 query-filter-csv = CSV-Datei

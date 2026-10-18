@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
+  character files as JSON and back. The new `p4kx-character` crate checks magic, size and
+  CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
+  item ports and material choices; an unchanged JSON gives back the original file byte for byte,
+  an edited one a new file with a correct CRC-32C. Unknown versions and CRC-32C mismatches are
+  errors that name them.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a

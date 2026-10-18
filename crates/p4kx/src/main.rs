@@ -34,6 +34,7 @@ mod query_table;
 mod texture;
 mod texture_image;
 mod ui;
+mod ui_extract;
 mod ui_json;
 
 use std::io::{self, Write};

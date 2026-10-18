@@ -12,7 +12,6 @@ publish = false
 
 [workspace.dependencies]
 p4kx-foundation = { path = "crates/p4kx-foundation" }
-p4kx-gfx = { path = "crates/p4kx-gfx" }
 p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
@@ -23,6 +22,7 @@ p4kx-comparison = { path = "crates/p4kx-comparison" }
 p4kx-cryxml = { path = "crates/p4kx-cryxml" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-export = { path = "crates/p4kx-export" }
+p4kx-gfx = { path = "crates/p4kx-gfx" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
 p4kx-texture = { path = "crates/p4kx-texture" }
@@ -69,9 +69,9 @@ tokio = "1.53.3"
 toml = "1.1.8"
 unic-langid = "0.9.6"
 ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 zune-core = "0.5.0"
 zune-jpeg = "0.5.15"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 
 [workspace.lints.rust]
 missing_docs = "deny"

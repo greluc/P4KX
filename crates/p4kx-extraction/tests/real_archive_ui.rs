@@ -3,8 +3,8 @@
 
 use std::error::Error;
 
-use p4kx_extraction::gfx::{BitmapSource, EmbeddedFormat};
-use p4kx_extraction::{Archive, Entry, UiMovie};
+use p4kx_extraction::gfx::{BitmapSource, EmbeddedFormat, MAX_BITMAP_PIXELS};
+use p4kx_extraction::{Archive, Entry, Texture, UiMovie};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
@@ -18,6 +18,7 @@ struct Tally {
     tag_failures: usize,
     embedded: usize,
     decoded: usize,
+    largest: u64,
 }
 
 impl Tally {
@@ -29,6 +30,11 @@ impl Tally {
             tag_failures: self.tag_failures + other.tag_failures,
             embedded: self.embedded + other.embedded,
             decoded: self.decoded + other.decoded,
+            largest: if self.largest > other.largest {
+                self.largest
+            } else {
+                other.largest
+            },
         }
     }
 }
@@ -45,6 +51,12 @@ fn read(archive: &Archive, entry: &Entry) -> Result<(Tally, Vec<String>), String
             BitmapSource::External(_) | BitmapSource::SubImage(_) => false,
         })
         .collect();
+    let largest = embedded
+        .iter()
+        .filter_map(|bitmap| assets.bitmap_size(bitmap).ok())
+        .map(|(width, height)| u64::from(width) * u64::from(height))
+        .max()
+        .unwrap_or(0);
     let decoded = embedded
         .iter()
         .filter(|bitmap| assets.decode_bitmap(bitmap).is_ok())
@@ -73,6 +85,7 @@ fn read(archive: &Archive, entry: &Entry) -> Result<(Tally, Vec<String>), String
         tag_failures: assets.failures.len(),
         embedded: embedded.len(),
         decoded,
+        largest,
     };
     Ok((tally, failures))
 }
@@ -120,6 +133,10 @@ fn every_real_ui_movie_is_read_without_failures() -> TestResult {
         tally.decoded, tally.embedded,
         "undecodable bitmaps: {tally:?}"
     );
+    assert!(
+        tally.largest <= MAX_BITMAP_PIXELS,
+        "the largest embedded bitmap fits the limit: {tally:?}"
+    );
     Ok(())
 }
 
@@ -143,6 +160,42 @@ fn a_real_menu_extracts_its_dds_backed_images() -> TestResult {
         "written: {}, failed: {:?}",
         extraction.written.len(),
         extraction.failures
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn every_real_ui_texture_fits_the_bitmap_limit() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let textures: Vec<&Entry> = archive
+        .entries()
+        .iter()
+        .filter(|entry| {
+            let path = entry.path();
+            path.get(..8)
+                .is_some_and(|start| start.eq_ignore_ascii_case("Data\\UI\\"))
+                && path
+                    .rsplit_once('.')
+                    .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("dds"))
+        })
+        .collect();
+    let largest = textures
+        .par_iter()
+        .filter_map(|entry| Texture::from_archive(&archive, entry.path()).ok())
+        .map(|texture| {
+            let header = texture.header();
+            (
+                u64::from(header.width()) * u64::from(header.height()),
+                texture.name().to_owned(),
+            )
+        })
+        .max()
+        .unwrap_or_default();
+    assert!(textures.len() > 100, "UI textures: {}", textures.len());
+    assert!(
+        largest.0 <= MAX_BITMAP_PIXELS,
+        "the largest UI texture fits the limit: {largest:?}"
     );
     Ok(())
 }

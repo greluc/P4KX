@@ -95,17 +95,24 @@ fn a_compressed_movie_declaring_more_than_the_limit_is_refused() {
 }
 
 #[test]
-fn a_zlib_stream_inflating_beyond_the_declared_length_is_cut_there() {
-    let movie = TestMovie::new(TestSignature::Cws).tag(1, &[]).tag(1, &[]);
-    let mut bytes = movie.bytes();
-    let declared = u32::from_le_bytes(bytes[4..8].try_into().expect("four bytes"));
-    bytes[4..8].copy_from_slice(&(declared - 4).to_le_bytes());
-    let movie = Movie::parse(bytes).expect("cut movie");
-    assert_eq!(
-        movie.len(),
-        declared as usize - 4,
-        "cut at the declared length"
-    );
+fn a_stream_decompressing_beyond_the_declared_length_is_cut_there() {
+    for signature in [TestSignature::Cws, TestSignature::Zws, TestSignature::Cfx] {
+        let movie = TestMovie::new(signature).tag(1, &[]).tag(1, &[]);
+        let mut bytes = movie.bytes();
+        let declared = u32::from_le_bytes(bytes[4..8].try_into().expect("four bytes"));
+        bytes[4..8].copy_from_slice(&(declared - 4).to_le_bytes());
+        let movie = Movie::parse(bytes).expect("cut movie");
+        assert_eq!(
+            movie.len(),
+            declared as usize - 4,
+            "{signature:?}: cut at the declared length"
+        );
+        assert_eq!(
+            movie.assets().timeline.frames,
+            1,
+            "{signature:?}: the second frame is cut off"
+        );
+    }
 }
 
 #[test]

@@ -54,6 +54,6 @@ pub use real_archive::{
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
-pub use test_jpeg::gray_jpeg;
+pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};
 pub use vorbis::{TestCodebook, TestVorbis};
 pub use wem::{TestCodec, TestWem, test_signal};

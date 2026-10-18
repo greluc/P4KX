@@ -12,8 +12,9 @@ fails while its section is missing.
   <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
   movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
   twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
-  counted, a broken tag is reported without failing the movie, and GFx external images are
-  decoded from the DDS textures next to the movie. Also for movie files on disk.
+  counted, a broken tag is reported without failing the movie (exit code 1), and GFx external
+  images are decoded from the DDS textures next to the movie, on disk only inside the movie's
+  `Data` folder. Also for movie files on disk.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a

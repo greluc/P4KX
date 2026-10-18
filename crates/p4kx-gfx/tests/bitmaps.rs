@@ -1,10 +1,12 @@
 //! Bitmaps: lossless and JPEG-family images decode to RGBA, GFx external images and sub-images
 //! are read as references.
 
-use p4kx_gfx::{Assets, BitmapSource, EmbeddedFormat, GfxError, ImageFileFormat, Movie};
+use p4kx_gfx::{
+    Assets, BitmapSource, EmbeddedFormat, GfxError, ImageFileFormat, MAX_BITMAP_PIXELS, Movie,
+};
 use p4kx_testkit::{
     TestMovie, TestSignature, color_mapped_body, external_image_body, gray_jpeg, jpeg_body,
-    lossless_body, sub_image_body, zlib,
+    lossless_body, progressive_gray_jpeg, sampled_jpeg, sub_image_body, zlib,
 };
 
 const PIXELS: [[u8; 4]; 4] = [
@@ -252,4 +254,68 @@ fn a_decoded_bitmap_writes_as_png() {
     let mut pixels = vec![0; reader.output_buffer_size().expect("size")];
     reader.next_frame(&mut pixels).expect("frame");
     assert_eq!(pixels, image.pixels(), "round trip");
+}
+
+#[test]
+fn a_progressive_jpeg_decodes() {
+    let movie = movie(&[(21, jpeg_body(1, &progressive_gray_jpeg(24, 16, 170), None))]);
+    let assets = movie.assets();
+    assert_eq!(
+        assets.bitmap_size(&assets.bitmaps[0]).expect("headers"),
+        (24, 16),
+        "size from the headers"
+    );
+    let pixels = decoded(&assets, 0).expect("progressive");
+    assert!(
+        pixels.chunks(4).all(|pixel| pixel == [170, 170, 170, 255]),
+        "grey"
+    );
+}
+
+#[test]
+fn a_jpeg_above_the_pixel_limit_is_refused_after_its_headers() {
+    let movie = movie(&[(21, jpeg_body(1, &gray_jpeg(8200, 4100, 10), None))]);
+    let assets = movie.assets();
+    assert_eq!(
+        assets.bitmap_size(&assets.bitmaps[0]).expect("headers"),
+        (8200, 4100),
+        "size from the headers"
+    );
+    assert!(
+        matches!(
+            decoded(&assets, 0),
+            Err(GfxError::BitmapTooLarge {
+                width: 8200,
+                height: 4100,
+                ..
+            })
+        ),
+        "above {MAX_BITMAP_PIXELS} pixels"
+    );
+}
+
+#[test]
+fn a_jpeg_that_makes_the_decoder_panic_is_an_error() {
+    let crafted = sampled_jpeg(1, 1, [(1, 1), (2, 2), (1, 1)], true);
+    let movie = movie(&[
+        (21, jpeg_body(1, &crafted, None)),
+        (
+            21,
+            jpeg_body(
+                2,
+                &sampled_jpeg(16, 8, [(2, 1), (1, 1), (1, 1)], false),
+                None,
+            ),
+        ),
+    ]);
+    let assets = movie.assets();
+    assert!(
+        matches!(
+            decoded(&assets, 0),
+            Err(GfxError::Jpeg { message }) if message == "the JPEG decoder panicked"
+        ),
+        "zune-jpeg 0.5.15 asserts on chroma sampled finer than luma"
+    );
+    let ordinary = decoded(&assets, 1).expect("a 4:2:2 JPEG");
+    assert_eq!(ordinary.len(), 16 * 8 * 4, "decodes");
 }

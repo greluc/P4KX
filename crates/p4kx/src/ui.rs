@@ -1,39 +1,15 @@
 use std::io::{self, BufWriter, Write};
-use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, UiExtraction, UiMovie};
-use serde::Serialize;
+use p4kx_extraction::{Archive, UiMovie};
 
 use crate::cli::{UiAction, UiArgs};
+use crate::ui_extract::extract;
 use crate::ui_json::{AssetsJson, describe};
 use crate::{exit, json};
 
 const NONE: &str = "-";
-
-#[derive(Serialize)]
-struct ExtractJson<'a> {
-    movie: &'a str,
-    target: String,
-    extracted: Vec<WrittenJson>,
-    failed: Vec<FailedJson>,
-}
-
-#[derive(Serialize)]
-struct WrittenJson {
-    kind: &'static str,
-    id: u16,
-    file: String,
-    size: u64,
-}
-
-#[derive(Serialize)]
-struct FailedJson {
-    kind: &'static str,
-    id: u16,
-    error: String,
-}
 
 /// Runs `p4kx ui assets` or `p4kx ui extract`.
 pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
@@ -57,7 +33,11 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             } else {
                 print_assets(&described)?;
             }
-            Ok(ExitCode::from(exit::SUCCESS))
+            Ok(ExitCode::from(if assets.failures.is_empty() {
+                exit::SUCCESS
+            } else {
+                exit::PARTIAL_FAILURE
+            }))
         }
         UiAction::Extract { out, .. } => extract(&movie, out, as_json),
     }
@@ -209,61 +189,6 @@ fn pixels(twips: i64) -> String {
 fn section(out: &mut impl Write, title: &str, count: usize) -> io::Result<()> {
     writeln!(out)?;
     writeln!(out, "{title}: {count}")
-}
-
-fn extract(movie: &UiMovie<'_>, out: &Path, as_json: bool) -> Result<ExitCode> {
-    let extraction = movie.extract_assets(out)?;
-    if as_json {
-        json::print(&extract_json(movie, out, &extraction))?;
-    } else {
-        let mut stderr = io::stderr().lock();
-        for failure in &extraction.failures {
-            writeln!(stderr, "error: {}", chain(&failure.error))?;
-        }
-        writeln!(
-            io::stdout().lock(),
-            "extracted {} of {} definitions from {} into {}",
-            extraction.written.len(),
-            extraction.written.len() + extraction.failures.len(),
-            movie.name(),
-            out.display()
-        )?;
-    }
-    Ok(ExitCode::from(if extraction.failures.is_empty() {
-        exit::SUCCESS
-    } else {
-        exit::PARTIAL_FAILURE
-    }))
-}
-
-fn extract_json<'a>(
-    movie: &'a UiMovie<'_>,
-    out: &Path,
-    extraction: &UiExtraction,
-) -> ExtractJson<'a> {
-    ExtractJson {
-        movie: movie.name(),
-        target: json::path(out),
-        extracted: extraction
-            .written
-            .iter()
-            .map(|written| WrittenJson {
-                kind: written.kind.name(),
-                id: written.id,
-                file: json::path(&written.path),
-                size: written.size,
-            })
-            .collect(),
-        failed: extraction
-            .failures
-            .iter()
-            .map(|failure| FailedJson {
-                kind: failure.kind.name(),
-                id: failure.id,
-                error: chain(&failure.error),
-            })
-            .collect(),
-    }
 }
 
 /// Returns an error and its causes joined by `: `.

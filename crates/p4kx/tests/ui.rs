@@ -127,7 +127,11 @@ fn assets_of_an_entry_lists_every_definition_with_its_id() -> TestResult {
         .arg("data/ui/screens/swf/PANEL.gfx")
         .output()?;
 
-    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "an unreadable tag: {output:?}"
+    );
     insta::assert_snapshot!(String::from_utf8(output.stdout)?);
     Ok(())
 }
@@ -147,7 +151,7 @@ fn assets_as_json() -> TestResult {
         ],
     )?;
 
-    assert_eq!(code, Some(0), "success");
+    assert_eq!(code, Some(1), "an unreadable tag");
     insta::assert_snapshot!(json);
     Ok(())
 }
@@ -162,7 +166,7 @@ fn assets_of_a_file_on_disk_lists_the_same_definitions() -> TestResult {
         .args(["ui", "assets"])
         .arg(&file)
         .assert()
-        .code(0)
+        .code(1)
         .stdout(predicate::str::contains("Bitmaps: 5"))
         .stdout(predicate::str::contains("Sprites: 1"))
         .stdout(predicate::str::contains("PanelButton"));
@@ -184,6 +188,8 @@ fn extract_writes_png_and_json_and_fails_partly_on_a_missing_texture() -> TestRe
         .assert()
         .code(1)
         .stdout(predicate::str::contains("extracted 6 of 7 definitions"))
+        .stdout(predicate::str::contains("1 tags unreadable"))
+        .stderr(predicate::str::contains("unreadable tag 2 at offset"))
         .stderr(predicate::str::contains(
             "../Textures/gone.dds, which does not exist",
         ));
@@ -225,7 +231,7 @@ fn extract_as_json() -> TestResult {
 }
 
 #[test]
-fn a_missing_entry_or_file_is_invalid_input_and_a_corrupt_movie_a_failure() -> TestResult {
+fn a_missing_entry_or_file_is_invalid_input_and_a_corrupt_movie_unreadable() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     p4kx()?
@@ -245,7 +251,51 @@ fn a_missing_entry_or_file_is_invalid_input_and_a_corrupt_movie_a_failure() -> T
         .args(["ui", "assets"])
         .arg(&corrupt)
         .assert()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("cannot decompress the movie"));
+    Ok(())
+}
+
+#[test]
+fn a_truncated_bitmap_tag_fails_the_extraction_with_its_code_and_offset() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("Broken.gfx");
+    let lossless = lossless_body(1, 2, 1, &[[1, 2, 3, 255], [4, 5, 6, 255]], false);
+    let movie = TestMovie::new(TestSignature::Gfx)
+        .tag(20, &lossless)
+        .tag(20, lossless.get(..4).unwrap_or_default())
+        .bytes();
+    fs::write(&file, movie)?;
+    let out = dir.path().join("out");
+
+    p4kx()?
+        .args(["ui", "extract"])
+        .arg(&file)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("extracted 1 of 1 definitions"))
+        .stderr(predicate::str::contains("unreadable tag 20 at offset"));
+    let (code, json) = json(
+        dir.path(),
+        &[
+            "ui".as_ref(),
+            "extract".as_ref(),
+            file.as_os_str(),
+            "--out".as_ref(),
+            out.as_os_str(),
+        ],
+    )?;
+    assert_eq!(code, Some(1), "partial failure");
+    let value: Value = serde_json::from_str(&json)?;
+    let failed = value.pointer("/failed/0").ok_or("one failure")?;
+    assert_eq!(failed.get("kind"), Some(&Value::from("tag")), "{json}");
+    assert_eq!(failed.get("code"), Some(&Value::from(20)), "{json}");
+    assert!(failed.get("offset").is_some_and(Value::is_u64), "{json}");
+    assert!(
+        out.join("bitmap_1.png").is_file(),
+        "the good bitmap is written"
+    );
     Ok(())
 }

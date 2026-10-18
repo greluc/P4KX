@@ -1,13 +1,16 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use p4kx_gfx::{Assets, Bitmap, BitmapSource, GfxError, MorphShape, RgbaImage, Shape};
+use p4kx_gfx::{Assets, Bitmap, BitmapSource, GfxError, MAX_BITMAP_PIXELS, TagFailure};
 use rayon::prelude::*;
 
-use crate::output_file::{write_error, write_replacing};
-use crate::ui_external::external_image;
+use crate::output_file::write_error;
+use crate::pixel_budget::PixelBudget;
+use crate::ui_jobs::{Job, Outcome, jobs};
 use crate::{ConversionError, UiMovie};
+
+/// The pixels the parallel bitmap jobs of one extraction may hold decoded at the same time.
+const PIXEL_BUDGET: u64 = 2 * MAX_BITMAP_PIXELS;
 
 /// The kind of a definition [`UiMovie::extract_assets`] writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -31,7 +34,7 @@ impl UiAssetKind {
         }
     }
 
-    const fn extension(self) -> &'static str {
+    pub(crate) const fn extension(self) -> &'static str {
         match self {
             Self::Bitmap => "png",
             Self::Shape | Self::MorphShape => "json",
@@ -70,29 +73,15 @@ pub struct UiExtraction {
     pub written: Vec<WrittenUiAsset>,
     /// The definitions that failed.
     pub failures: Vec<UiAssetFailure>,
+    /// The tags of the movie that could not be read, whose definitions are therefore missing.
+    pub tag_failures: Vec<TagFailure>,
 }
 
-enum Job<'b, 'c> {
-    Bitmap(&'b Bitmap<'c>),
-    Shape(&'b Shape),
-    MorphShape(&'b MorphShape),
-}
-
-impl Job<'_, '_> {
-    const fn kind(&self) -> UiAssetKind {
-        match self {
-            Self::Bitmap(_) => UiAssetKind::Bitmap,
-            Self::Shape(_) => UiAssetKind::Shape,
-            Self::MorphShape(_) => UiAssetKind::MorphShape,
-        }
-    }
-
-    const fn id(&self) -> u16 {
-        match self {
-            Self::Bitmap(bitmap) => bitmap.id,
-            Self::Shape(shape) => shape.id,
-            Self::MorphShape(morph) => morph.id,
-        }
+impl UiExtraction {
+    /// Returns whether every tag was read and every definition written.
+    #[must_use]
+    pub const fn is_complete(&self) -> bool {
+        self.failures.is_empty() && self.tag_failures.is_empty()
     }
 }
 
@@ -104,71 +93,36 @@ impl UiMovie<'_> {
     ///
     /// Embedded and lossless bitmaps are decoded from the movie; an external image is decoded
     /// from the DDS texture its file name names, relative to the movie, with the extension `.dds`
-    /// tried as well; a sub-image is cut from the bitmap it refers to.
+    /// tried as well; each bitmap that sub-images cut is decoded once for itself and its cuts.
+    /// The bitmaps decoded at the same time hold at most twice [`MAX_BITMAP_PIXELS`] together.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::Write`] when `folder` cannot be created.
     pub fn extract_assets(&self, folder: &Path) -> Result<UiExtraction, ConversionError> {
         fs::create_dir_all(folder).map_err(|source| write_error(folder, source))?;
-        let assets = self.movie().assets();
-        let mut seen = HashSet::new();
-        let jobs: Vec<Job<'_, '_>> = assets
-            .bitmaps
-            .iter()
-            .map(Job::Bitmap)
-            .chain(assets.shapes.iter().map(Job::Shape))
-            .chain(assets.morph_shapes.iter().map(Job::MorphShape))
-            .filter(|job| seen.insert((job.kind(), job.id())))
-            .collect();
-        let outcomes: Vec<(UiAssetKind, u16, Result<WrittenUiAsset, ConversionError>)> = jobs
-            .par_iter()
-            .map(|job| (job.kind(), job.id(), self.write_job(&assets, job, folder)))
-            .collect();
+        let mut assets = self.movie().assets();
+        let budget = PixelBudget::new(PIXEL_BUDGET);
+        let mut outcomes: Vec<Outcome> = {
+            let jobs = jobs(&assets);
+            jobs.par_iter()
+                .flat_map_iter(|job| self.run_job(&assets, job, folder, &budget))
+                .collect()
+        };
+        outcomes.sort_by_key(|outcome| outcome.order);
         let mut extraction = UiExtraction::default();
-        for (kind, id, outcome) in outcomes {
-            match outcome {
+        for outcome in outcomes {
+            match outcome.result {
                 Ok(written) => extraction.written.push(written),
-                Err(error) => extraction.failures.push(UiAssetFailure { kind, id, error }),
+                Err(error) => extraction.failures.push(UiAssetFailure {
+                    kind: outcome.kind,
+                    id: outcome.id,
+                    error,
+                }),
             }
         }
+        extraction.tag_failures = std::mem::take(&mut assets.failures);
         Ok(extraction)
-    }
-
-    fn write_job(
-        &self,
-        assets: &Assets<'_>,
-        job: &Job<'_, '_>,
-        folder: &Path,
-    ) -> Result<WrittenUiAsset, ConversionError> {
-        let kind = job.kind();
-        let id = job.id();
-        let path = folder.join(format!("{}_{id}.{}", kind.name(), kind.extension()));
-        let image = match job {
-            Job::Bitmap(bitmap) => Some(self.bitmap_image(assets, bitmap)?),
-            Job::Shape(_) | Job::MorphShape(_) => None,
-        };
-        let gfx_error = |source| match source {
-            GfxError::Write(source) => write_error(&path, source),
-            source => self.asset_error(id, source),
-        };
-        write_replacing(&path, |writer| {
-            match job {
-                Job::Bitmap(_) => image.map_or(Ok(()), |image| image.write_png(writer)),
-                Job::Shape(shape) => shape.write_json(writer),
-                Job::MorphShape(morph) => morph.write_json(writer),
-            }
-            .map_err(gfx_error)
-        })?;
-        let size = fs::metadata(&path)
-            .map_err(|source| write_error(&path, source))?
-            .len();
-        Ok(WrittenUiAsset {
-            kind,
-            id,
-            path,
-            size,
-        })
     }
 
     pub(crate) fn asset_error(&self, id: u16, source: GfxError) -> ConversionError {
@@ -179,36 +133,44 @@ impl UiMovie<'_> {
         }
     }
 
-    fn bitmap_image(
+    fn run_job(
         &self,
         assets: &Assets<'_>,
-        bitmap: &Bitmap<'_>,
-    ) -> Result<RgbaImage, ConversionError> {
-        match &bitmap.source {
-            BitmapSource::External(image) => external_image(self, bitmap.id, image),
-            BitmapSource::SubImage(sub) => {
-                let missing = || ConversionError::UiSubImage {
-                    movie: self.name().to_owned(),
-                    id: bitmap.id,
-                    image_id: sub.image_id,
-                };
-                let base = assets
-                    .bitmaps
-                    .iter()
-                    .find(|base| {
-                        base.id == sub.image_id && !matches!(base.source, BitmapSource::SubImage(_))
-                    })
-                    .ok_or_else(missing)?;
-                self.bitmap_image(assets, base)?
-                    .crop(
-                        (u32::from(sub.x1), u32::from(sub.y1)),
-                        (u32::from(sub.x2), u32::from(sub.y2)),
-                    )
-                    .ok_or_else(missing)
+        job: &Job<'_, '_>,
+        folder: &Path,
+        budget: &PixelBudget,
+    ) -> Vec<Outcome> {
+        match job {
+            Job::Shape(order, shape) => {
+                vec![
+                    self.write_file(*order, folder, UiAssetKind::Shape, shape.id, |out| {
+                        shape.write_json(out)
+                    }),
+                ]
             }
-            BitmapSource::Lossless(_) | BitmapSource::Jpeg(_) => assets
-                .decode_bitmap(bitmap)
-                .map_err(|source| self.asset_error(bitmap.id, source)),
+            Job::MorphShape(order, morph) => {
+                vec![
+                    self.write_file(*order, folder, UiAssetKind::MorphShape, morph.id, |out| {
+                        morph.write_json(out)
+                    }),
+                ]
+            }
+            Job::MissingBase(order, sub) => {
+                vec![Outcome::bitmap(*order, sub.id, Err(self.cut_error(sub)))]
+            }
+            Job::Bitmaps { base, cuts } => self.write_bitmaps(assets, *base, cuts, folder, budget),
+        }
+    }
+
+    pub(crate) fn cut_error(&self, sub: &Bitmap<'_>) -> ConversionError {
+        let image_id = match &sub.source {
+            BitmapSource::SubImage(cut) => cut.image_id,
+            _ => sub.id,
+        };
+        ConversionError::UiSubImage {
+            movie: self.name().to_owned(),
+            id: sub.id,
+            image_id,
         }
     }
 }

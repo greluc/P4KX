@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
 use p4kx_audio::{AudioError, BankError};
-use p4kx_gfx::GfxError;
 use p4kx_chunks::ChunkError;
+use p4kx_gfx::GfxError;
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
@@ -151,8 +151,10 @@ pub enum ConversionError {
         #[source]
         source: GfxError,
     },
-    /// A sub-image cuts a bitmap the movie does not define, or a rectangle outside it.
-    #[error("{movie} definition {id} cuts bitmap {image_id}, which is missing or smaller")]
+    /// A sub-image cuts a bitmap that is missing or cannot be decoded, or a rectangle outside it.
+    #[error(
+        "{movie} definition {id} cuts bitmap {image_id}, which is missing, cannot be decoded or is smaller"
+    )]
     UiSubImage {
         /// The Entry path or file of the movie.
         movie: String,
@@ -172,6 +174,19 @@ pub enum ConversionError {
         file: String,
         /// The Entry paths or files looked for.
         tried: Vec<String>,
+    },
+    /// The file an external image of a UI movie on disk refers to lies outside the folder it must
+    /// stay in: the nearest ancestor folder named `Data`, or else the movie's folder.
+    #[error("{movie} definition {id} refers to {file}, which lies outside {}; it is not read", root.display())]
+    ExternalImageOutside {
+        /// The file of the movie.
+        movie: String,
+        /// The ID of the external image.
+        id: u16,
+        /// The file name the movie gives.
+        file: String,
+        /// The folder the file must stay in.
+        root: PathBuf,
     },
     /// The chunk file is larger than the limit for reading it into memory.
     #[error("{file} is larger than {limit} bytes")]

@@ -393,8 +393,8 @@ embedded image and the GFx file format (`dds`, `tiff`, `tga`, …) of an externa
 `height` are `null` where the movie does not state them. A font's `format` names its tag; `glyphs`
 is its glyph count and `outlines` whether glyph shapes are stored. A sprite lists its frame
 `labels` and the IDs it `placed`, ascending. `failures` lists the tags that could not be read;
-they leave out their definition, the rest of the movie is still read, and the exit code stays 0.
-A file that is no movie prints no JSON; it fails with exit code 1.
+they leave out their definition and the rest of the movie is still read, but the exit code is 1.
+A file that is no movie, or one larger than 64 MiB, prints no JSON; it fails with exit code 3.
 
 ## `p4kx ui extract <archive> <entry> --out <folder> --json`
 
@@ -406,15 +406,19 @@ Also `p4kx ui extract <file> --out <folder> --json` for a GFx or SWF file on dis
                {"kind": "shape", "id": 4, "file": "…\\assets\\shape_4.json", "size": 1081},
                {"kind": "morph_shape", "id": 6, "file": "…\\assets\\morph_shape_6.json",
                 "size": 1038}],
- "failed": [{"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
+ "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
+            {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
              refers to ../Textures/gone.dds, which does not exist; tried
              Data\\UI\\Screens\\Textures\\gone.dds"}]}
 ```
 
 `extracted` lists the files written, `<kind>_<id>.png` for bitmaps (8-bit RGBA, straight alpha)
-and `<kind>_<id>.json` for shapes and morph shapes; `failed` the definitions that were not, with
-the reason and its causes joined by `: `. Both list bitmaps, then shapes, then morph shapes, each
-in file order. A shape file holds the shape as the movie stores it, in twips: `id`, `version`,
+and `<kind>_<id>.json` for shapes and morph shapes. `failed` lists first the tags that could not
+be read, as `tag` with their `code` and the `offset` of their body in the uncompressed movie, then
+the definitions that could not be written, with their `id`; each with the reason and its causes
+joined by `: `. Written and failed definitions list bitmaps, then shapes, then morph shapes, each
+in file order. An external image of a movie on disk is read only as DDS from inside the nearest
+ancestor folder named `Data`, or else the movie's folder; a path leaving it fails. A shape file holds the shape as the movie stores it, in twips: `id`, `version`,
 `bounds`, `edge_bounds`, the `fill_styles` and `line_styles` numbered from 1 by the records, and
 the `records` in drawing order, each a `style_change` (a `move_to` position and new style
 numbers), a `straight_edge` with its `delta`, or a `curved_edge` with its `control` and `anchor`

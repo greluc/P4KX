@@ -2,7 +2,7 @@ use crate::GfxError;
 use crate::bitmap::{Bitmap, BitmapSource};
 use crate::font::Font;
 use crate::image::RgbaImage;
-use crate::jpeg::decode_jpeg;
+use crate::jpeg::{decode_jpeg, jpeg_size};
 use crate::lossless::decode_lossless;
 use crate::morph::MorphShape;
 use crate::shape::Shape;
@@ -88,6 +88,22 @@ impl Assets<'_> {
             .iter()
             .find(|export| export.id == id)
             .map(|export| export.name.as_str())
+    }
+
+    /// Returns the width and height of a lossless or embedded bitmap, read from its headers only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GfxError::NotEmbedded`] for an external image or a sub-image, [`GfxError::Gif`]
+    /// for a GIF, and another [`GfxError`] when the headers are corrupt.
+    pub fn bitmap_size(&self, bitmap: &Bitmap<'_>) -> Result<(u32, u32), GfxError> {
+        match &bitmap.source {
+            BitmapSource::Lossless(lossless) => {
+                Ok((u32::from(lossless.width), u32::from(lossless.height)))
+            }
+            BitmapSource::Jpeg(jpeg) => jpeg_size(jpeg, self.jpeg_tables),
+            BitmapSource::External(_) | BitmapSource::SubImage(_) => Err(GfxError::NotEmbedded),
+        }
     }
 
     /// Decodes a lossless or embedded bitmap to straight-alpha RGBA.

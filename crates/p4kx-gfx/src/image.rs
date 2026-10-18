@@ -5,8 +5,9 @@ use png::{BitDepth, ColorType, Compression, Encoder, EncodingError};
 
 use crate::GfxError;
 
-/// The most pixels a decoded bitmap may have, far above the largest bitmap of a real Archive.
-pub const MAX_BITMAP_PIXELS: u64 = 1 << 26;
+/// The most pixels a decoded bitmap may have, above the largest UI texture of a real Archive with
+/// 22.3 million pixels.
+pub const MAX_BITMAP_PIXELS: u64 = 1 << 25;
 
 /// A decoded bitmap: 8-bit RGBA pixels with straight alpha, row by row from the top.
 #[derive(Debug, Clone, PartialEq, Eq)]

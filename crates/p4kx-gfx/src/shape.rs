@@ -217,3 +217,46 @@ fn read_edge(reader: &mut TagReader<'_>) -> Result<ShapeRecord, GfxError> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{RecordBudget, read_records};
+    use crate::GfxError;
+    use crate::reader::TagReader;
+    use crate::style::ShapeVersion;
+
+    fn bytes(bits: &str) -> Vec<u8> {
+        let bits: Vec<u8> = bits
+            .bytes()
+            .filter(|bit| *bit != b' ')
+            .map(|bit| bit - b'0')
+            .collect();
+        bits.chunks(8)
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .enumerate()
+                    .fold(0, |byte, (index, bit)| byte | (bit << (7 - index)))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn records_beyond_the_movie_budget_are_refused() {
+        let edge = "11 0000 0 0 01 ";
+        let data = bytes(&format!("0000 0000 {edge}{edge}{edge}000000"));
+        let mut reader = TagReader::new(&data, 0);
+        let mut budget = RecordBudget(3);
+        assert!(
+            matches!(
+                read_records(&mut reader, ShapeVersion(1), &mut budget),
+                Err(GfxError::TooManyRecords { .. })
+            ),
+            "three edges and the end record need four records"
+        );
+        let mut reader = TagReader::new(&data, 0);
+        let mut budget = RecordBudget(4);
+        let records = read_records(&mut reader, ShapeVersion(1), &mut budget);
+        assert_eq!(records.map(|records| records.len()).ok(), Some(3), "fits");
+    }
+}

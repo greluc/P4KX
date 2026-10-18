@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::GfxError;
 use crate::assets::{Assets, TagCount, TagFailure, UnknownTag};
@@ -37,13 +37,23 @@ impl<'a> Walker<'a> {
     }
 
     fn finish(mut self) -> Assets<'a> {
+        let mut fonts: HashMap<u16, usize> = HashMap::with_capacity(self.assets.fonts.len());
+        for (index, font) in self.assets.fonts.iter().enumerate() {
+            fonts.entry(font.id).or_insert(index);
+        }
         for info in self.font_infos {
-            if let Some(font) = self.assets.fonts.iter_mut().find(|font| font.id == info.id) {
+            if let Some(font) = fonts
+                .get(&info.id)
+                .and_then(|&index| self.assets.fonts.get_mut(index))
+            {
                 info.apply(font);
             }
         }
         for (id, name) in self.font_names {
-            if let Some(font) = self.assets.fonts.iter_mut().find(|font| font.id == id) {
+            if let Some(font) = fonts
+                .get(&id)
+                .and_then(|&index| self.assets.fonts.get_mut(index))
+            {
                 font.full_name = Some(name);
             }
         }

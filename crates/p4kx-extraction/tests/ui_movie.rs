@@ -53,7 +53,12 @@ fn movie() -> Vec<u8> {
 
 fn write_archive(folder: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
     let path = folder.join("Data.p4k");
-    let mut builder = ArchiveBuilder::new().entry(TestEntry::zstd(MOVIE, movie()));
+    let mut builder = ArchiveBuilder::new()
+        .entry(TestEntry::zstd(MOVIE, movie()))
+        .entry(TestEntry::stored(
+            TEXTURE.replace(".dds", ".tif"),
+            b"II*\0 not a DDS".to_vec(),
+        ));
     for entry in texture().entries(TEXTURE) {
         builder = builder.entry(entry);
     }
@@ -138,8 +143,8 @@ fn a_movie_entry_writes_its_bitmaps_external_images_and_shapes() -> TestResult {
 #[test]
 fn a_movie_file_finds_its_external_images_on_disk() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let swf = dir.path().join("assets").join("SWF");
-    let textures = dir.path().join("assets").join("Textures");
+    let swf = dir.path().join("Data").join("assets").join("SWF");
+    let textures = dir.path().join("Data").join("assets").join("Textures");
     fs::create_dir_all(&swf)?;
     fs::create_dir_all(&textures)?;
     fs::write(swf.join("Panel.gfx"), movie())?;
@@ -169,5 +174,38 @@ fn missing_and_invalid_movies_are_errors() -> TestResult {
         UiMovie::from_file(&text),
         Err(ConversionError::UiMovie { .. })
     ));
+    Ok(())
+}
+
+#[test]
+fn an_external_image_on_disk_outside_the_data_folder_is_refused() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let swf = dir.path().join("screens").join("SWF");
+    fs::create_dir_all(&swf)?;
+    fs::write(swf.join("Panel.gfx"), movie())?;
+    let textures = dir.path().join("screens").join("Textures");
+    fs::create_dir_all(&textures)?;
+    texture().write_files(&textures, "panel_bg.dds")?;
+    let movie = UiMovie::from_file(&swf.join("Panel.gfx"))?;
+    let extraction = movie.extract_assets(&dir.path().join("out"))?;
+    let refused: Vec<u16> = extraction
+        .failures
+        .iter()
+        .filter(|failure| matches!(failure.error, ConversionError::ExternalImageOutside { .. }))
+        .map(|failure| failure.id)
+        .collect();
+    assert_eq!(
+        refused,
+        [2, 5],
+        "both external images leave the movie folder"
+    );
+    let cut = extraction.failures.iter().find(|failure| failure.id == 3);
+    assert!(
+        cut.is_some_and(|failure| matches!(
+            failure.error,
+            ConversionError::UiSubImage { image_id: 2, .. }
+        )),
+        "the sub-image of the refused image fails too"
+    );
     Ok(())
 }

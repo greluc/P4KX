@@ -10,6 +10,7 @@
 
 mod assets;
 mod bitmap;
+mod embedded_png;
 mod error;
 mod font;
 mod font_info;

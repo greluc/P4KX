@@ -1,3 +1,4 @@
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -8,7 +9,7 @@ use p4kx_comparison::{Filter, OwnedComparison};
 use crate::model::describe;
 
 /// Where saving the JSON report stands.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReportStatus {
     /// The report is being written to the path.
     Saving(PathBuf),
@@ -76,7 +77,12 @@ pub(crate) fn start(
             let comparison = thread_comparison.comparison();
             let saved = filter.as_ref().map_or_else(
                 || comparison.save_report(&thread_path),
-                |filter| comparison.filtered(filter).save_report(&thread_path),
+                |filter| {
+                    comparison.filtered(filter).map_or_else(
+                        || Err(io::Error::from(io::ErrorKind::InvalidInput)),
+                        |filtered| filtered.save_report(&thread_path),
+                    )
+                },
             );
             if sender.send(saved.map_err(|error| describe(&error))).is_ok() {
                 wake();

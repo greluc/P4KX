@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_comparison::{Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
+use p4kx_comparison::{CancelToken, Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
 
 use super::filter_job::{self, FilterJob, Matched, Polled, Started};
 use super::orders::{ChangeColumn, ChangeOrders, ChangeSort};
@@ -64,10 +64,13 @@ pub struct ComparisonView {
 }
 
 impl ComparisonView {
-    /// Prepares `comparison` for display; this sorts every change several times and belongs on
-    /// a background thread.
-    pub(crate) fn new(comparison: Arc<OwnedComparison>) -> Self {
+    /// Prepares `comparison` for display, or returns `None` once `cancel` is set; this sorts
+    /// every change several times and belongs on a background thread.
+    pub(crate) fn new(comparison: Arc<OwnedComparison>, cancel: &CancelToken) -> Option<Self> {
         let orders = ChangeOrders::build(&comparison);
+        if cancel.is_cancelled() {
+            return None;
+        }
         let totals = Summary::of(&comparison.comparison());
         let mut view = Self {
             generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
@@ -84,7 +87,7 @@ impl ComparisonView {
             report: None,
         };
         view.refresh_shown();
-        view
+        Some(view)
     }
 
     /// Returns a number no other view of this process carries.

@@ -115,9 +115,15 @@ impl<'a> Comparison<'a> {
 
     /// Returns the Comparison of only the Entries whose path matches `filter`, the same as
     /// comparing with that Filter in the first place.
+    ///
+    /// A report names one Filter, so a Comparison that was already compared or narrowed with a
+    /// Filter yields `None`.
     #[must_use]
-    pub fn filtered(&self, filter: &Filter) -> Self {
-        Self {
+    pub fn filtered(&self, filter: &Filter) -> Option<Self> {
+        if self.filter.is_some() {
+            return None;
+        }
+        Some(Self {
             old: self.old.clone(),
             new: self.new.clone(),
             levels: self.levels,
@@ -128,7 +134,7 @@ impl<'a> Comparison<'a> {
                 .filter(|change| filter.matches(change.path()))
                 .copied()
                 .collect(),
-        }
+        })
     }
 
     /// Writes the JSON report to the file at `path` as pretty JSON with a final newline and

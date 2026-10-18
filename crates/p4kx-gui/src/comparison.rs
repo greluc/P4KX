@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::Weak;
 
 mod filter_job;
 mod orders;
@@ -89,6 +90,7 @@ pub struct ComparisonTab {
     new: Option<PathBuf>,
     levels: ComparisonLevels,
     state: State,
+    stopping: Option<Weak<()>>,
 }
 
 impl ComparisonTab {
@@ -152,9 +154,18 @@ impl ComparisonTab {
     /// Stops the running Comparison; the tab shows it as cancelled at once.
     pub fn cancel(&mut self) {
         if let State::Running(run) = &self.state {
-            run.cancel();
+            self.stopping = Some(run.cancel());
             self.state = State::Cancelled;
         }
+    }
+
+    /// Returns whether the thread of a cancelled Comparison still winds down; its Archives are
+    /// released once it ended.
+    #[must_use]
+    pub fn is_stopping(&self) -> bool {
+        self.stopping
+            .as_ref()
+            .is_some_and(|alive| alive.strong_count() > 0)
     }
 
     /// Takes the outcome of a Comparison that ended and of the view's background work; returns

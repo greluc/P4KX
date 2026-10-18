@@ -5,8 +5,16 @@ use super::desktop as d;
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
 
-const METRICS: [(&str, &str, f32); 19] = [
+const METRICS: [(&str, &str, f32); 23] = [
     ("archivePicker", "height", d::BUTTON_HEIGHT),
+    ("archivePicker", "paddingRight", d::PICKER_PADDING_RIGHT),
+    ("archivePicker", "fontSize", super::tokens::FS_BODY),
+    (
+        "comparisonProgress",
+        "maxWidth",
+        d::COMPARISON_PROGRESS_WIDTH,
+    ),
+    ("archivePicker", "chevron", d::CHEVRON),
     ("archivePicker", "paddingX", d::PICKER_PADDING_X),
     ("archivePicker", "minWidth", d::PICKER_MIN_WIDTH),
     ("factsBar", "paddingX", d::FACTS_PADDING_X),
@@ -39,7 +47,10 @@ fn spec() -> Value {
 }
 
 fn number(value: &Value) -> Option<f64> {
-    value.as_f64().or_else(|| value["width"].as_f64())
+    value
+        .as_f64()
+        .or_else(|| value["width"].as_f64())
+        .or_else(|| value["size"].as_f64())
 }
 
 fn rgba(text: &str) -> Option<Color32> {

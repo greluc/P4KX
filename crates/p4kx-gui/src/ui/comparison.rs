@@ -5,7 +5,8 @@ use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
 use super::{Dialog, Requests, comparison_summary, comparison_table};
 use crate::theme::desktop::{
-    EMPTY_ICON, EMPTY_PADDING, SPINNER, TITLE_SIZE, TITLE_TRACKING, TOOLBAR_PADDING,
+    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, SPINNER, TITLE_SIZE, TITLE_TRACKING,
+    TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, SPACE_3, Weight};
@@ -134,9 +135,7 @@ fn progress(ui: &mut Ui, model: &Model) {
         if model.comparison().is_running() {
             match fraction {
                 Some(fraction) => {
-                    let width = ui
-                        .available_width()
-                        .min(crate::theme::desktop::PICKER_MIN_WIDTH);
+                    let width = ui.available_width().min(COMPARISON_PROGRESS_WIDTH);
                     indicator::progress(ui, fraction, false, width);
                 }
                 None => indicator::spinner(ui, SPINNER),

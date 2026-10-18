@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError, Weak};
 use std::thread;
 
 use p4kx_comparison::{
@@ -23,6 +23,7 @@ pub(crate) enum Outcome {
 #[derive(Debug)]
 pub(crate) struct Run {
     cancel: CancelToken,
+    alive: Weak<()>,
     stage: Arc<Mutex<ComparisonStage>>,
     result: Receiver<Outcome>,
 }
@@ -33,9 +34,11 @@ impl Run {
         *self.stage.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Asks the thread to stop at its next check.
-    pub(crate) fn cancel(&self) {
+    /// Asks the thread to stop at its next check; returns a handle that lives as long as the
+    /// thread.
+    pub(crate) fn cancel(&self) -> Weak<()> {
         self.cancel.cancel();
+        Weak::clone(&self.alive)
     }
 
     /// Takes the outcome once the thread ended.
@@ -60,6 +63,8 @@ pub(crate) fn start(
     let (sender, result) = mpsc::channel();
     let thread_cancel = cancel.clone();
     let thread_stage = Arc::clone(&stage);
+    let alive = Arc::new(());
+    let thread_alive = Arc::clone(&alive);
     thread::Builder::new()
         .name("comparison".to_owned())
         .spawn(move || {
@@ -67,10 +72,12 @@ pub(crate) fn start(
             if sender.send(outcome).is_ok() {
                 wake();
             }
+            drop(thread_alive);
         })
         .map_err(|error| describe(&error))?;
     Ok(Run {
         cancel,
+        alive: Arc::downgrade(&alive),
         stage,
         result,
     })
@@ -122,5 +129,6 @@ fn run(
         return Outcome::Cancelled;
     }
     set(ComparisonStage::Preparing);
-    Outcome::Finished(Box::new(ComparisonView::new(Arc::new(comparison))))
+    ComparisonView::new(Arc::new(comparison), cancel)
+        .map_or(Outcome::Cancelled, |view| Outcome::Finished(Box::new(view)))
 }

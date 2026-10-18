@@ -73,7 +73,9 @@ fn a_filtered_comparison_reports_like_a_comparison_with_that_filter() -> TestRes
         ..CompareOptions::default()
     };
 
-    let filtered = compare(&old, &new, &CompareOptions::default())?.filtered(&filter);
+    let filtered = compare(&old, &new, &CompareOptions::default())?
+        .filtered(&filter)
+        .ok_or("an unfiltered Comparison narrows")?;
     let compared = compare(&old, &new, &with_filter)?;
 
     assert_eq!(
@@ -82,6 +84,10 @@ fn a_filtered_comparison_reports_like_a_comparison_with_that_filter() -> TestRes
         "the same report"
     );
     assert_eq!(filtered.entry_counts().total(), 3, "the three Data changes");
+    assert!(
+        compared.filtered(&Filter::new("libs")).is_none(),
+        "a filtered Comparison names its Filter already"
+    );
     Ok(())
 }
 
@@ -96,5 +102,22 @@ fn the_saved_report_is_the_pretty_json_with_a_final_newline() -> TestResult {
     let written = std::fs::read_to_string(&path)?;
     let expected = format!("{}\n", serde_json::to_string_pretty(&owned.comparison())?);
     assert_eq!(written, expected, "pretty JSON and a newline");
+    Ok(())
+}
+
+#[test]
+fn a_selection_counts_only_the_selected_changes() -> TestResult {
+    let (_dir, old, new) = pair()?;
+    let owned = OwnedComparison::compare(Arc::new(old), Arc::new(new), &CompareOptions::default())?;
+
+    let selected = owned.comparison_of(&[true, false, true]);
+
+    let counts = selected.entry_counts();
+    assert_eq!(counts.total(), 2, "the first and third change");
+    assert_eq!(
+        owned.comparison_of(&[]).entry_counts().total(),
+        0,
+        "nothing selected"
+    );
     Ok(())
 }

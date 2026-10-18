@@ -89,7 +89,7 @@ fn matching(
     filter: &Filter,
     cancelled: &AtomicBool,
 ) -> Option<Matched> {
-    let mask = (0..comparison.len())
+    let mask: Vec<bool> = (0..comparison.len())
         .into_par_iter()
         .map(|id| {
             !cancelled.load(Ordering::Relaxed)
@@ -101,6 +101,6 @@ fn matching(
     if cancelled.load(Ordering::Relaxed) {
         return None;
     }
-    let summary = Summary::of(&comparison.comparison().filtered(filter));
+    let summary = Summary::of(&comparison.comparison_of(&mask));
     (!cancelled.load(Ordering::Relaxed)).then_some(Matched { mask, summary })
 }

@@ -84,15 +84,38 @@ impl OwnedComparison {
     #[must_use]
     pub fn comparison(&self) -> Comparison<'_> {
         Comparison {
-            old: self.old_side(),
-            new: self.new_side(),
-            levels: self.levels,
-            filter: self.filter.clone(),
             entries: self
                 .changes
                 .iter()
                 .filter_map(|joined| joined.resolve(&self.old, &self.new))
                 .collect(),
+            ..self.comparison_without_changes()
+        }
+    }
+
+    /// Returns the Comparison of only the changes whose position is set in `selected`, for the
+    /// counts of a selection already made; positions past its end are left out.
+    #[must_use]
+    pub fn comparison_of(&self, selected: &[bool]) -> Comparison<'_> {
+        Comparison {
+            entries: self
+                .changes
+                .iter()
+                .zip(selected)
+                .filter(|(_, keep)| **keep)
+                .filter_map(|(joined, _)| joined.resolve(&self.old, &self.new))
+                .collect(),
+            ..self.comparison_without_changes()
+        }
+    }
+
+    fn comparison_without_changes(&self) -> Comparison<'_> {
+        Comparison {
+            old: self.old_side(),
+            new: self.new_side(),
+            levels: self.levels,
+            filter: self.filter.clone(),
+            entries: Vec::new(),
         }
     }
 }

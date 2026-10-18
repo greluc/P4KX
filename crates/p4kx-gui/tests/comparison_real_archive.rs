@@ -91,6 +91,11 @@ fn a_real_comparison_cancels_promptly() -> TestResult {
         matches!(tab.status(), ComparisonStatus::Cancelled),
         "cancelled"
     );
+    let deadline = Instant::now() + RUN_BUDGET;
+    while tab.is_stopping() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(!tab.is_stopping(), "the background thread ended");
     Ok(())
 }
 

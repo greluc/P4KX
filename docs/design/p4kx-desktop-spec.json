@@ -549,27 +549,32 @@
     "metrics": "tabBar"
   },
   "archivePicker": {
-    "dsClass": "select (control) + krt-combobox__listbox",
+    "dsClass": "select + krt-combobox__listbox",
     "height": 44,
     "paddingX": 12,
+    "paddingRight": 32,
     "minWidth": 260,
-    "background": "control-bg",
+    "background": "color-surface-input",
     "border": {"width": 1, "color": "control-border"},
-    "hoverBorder": "color-primary",
-    "openBorder": "color-primary",
-    "nameFontSize": 12.8,
-    "nameFontWeight": "fw-bold",
-    "nameLetterSpacingEm": 0.05,
-    "nameColor": "color-gray-1",
-    "detailFontSize": 12.8,
-    "detailColor": "color-gray-2-text",
+    "focusBorder": "color-primary",
+    "focusGlow": "glow-primary",
+    "openLikeFocus": true,
+    "fontSize": 16,
+    "fontWeight": "fw-regular",
+    "color": "color-gray-1",
+    "value": "Channel · Build for a detected Channel, otherwise the Archive path",
     "placeholderColor": "color-gray-2-text",
-    "chevron": {"size": 12, "strokeWidth": 3, "color": "color-primary"},
+    "placeholderItalic": true,
+    "chevron": {"size": 12, "strokeWidth": 3, "color": "color-primary", "insetRight": 10.4},
     "label": "page-head__eyebrow, 11.2 / fw-bold / 0.15 em, color-gray-2-text",
     "list": "dropdown + dropdownItem: Channels with Build, Recent Archives, then Choose file",
-    "focusRingOffset": 2
+    "notice": "krt-combobox__notice: color-gray-2-text, italic"
   },
-  "factsBar": {
+  "comparisonProgress": {
+    "dsClass": "attendance-meter",
+    "maxWidth": 320,
+    "metrics": "progressBar"
+  },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
     "paddingY": 8,

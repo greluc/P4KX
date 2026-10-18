@@ -230,8 +230,15 @@ pub const SCRIM: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 204);
 
 /// The horizontal padding of an Archive picker.
 pub const PICKER_PADDING_X: f32 = SPACE_3;
+/// The right padding of an Archive picker, room for its chevron.
+pub const PICKER_PADDING_RIGHT: f32 = 2.0 * REM;
+/// The inset of the chevron from the right edge of an Archive picker.
+pub const PICKER_CHEVRON_INSET: f32 = 0.65 * REM;
 /// The narrowest an Archive picker gets.
 pub const PICKER_MIN_WIDTH: f32 = SEARCH_WIDTH;
+
+/// The widest the progress bar of a Comparison gets.
+pub const COMPARISON_PROGRESS_WIDTH: f32 = 320.0;
 
 /// The horizontal padding of the facts bar.
 pub const FACTS_PADDING_X: f32 = SPACE_4;

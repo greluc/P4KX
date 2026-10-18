@@ -1,0 +1,27 @@
+---
+source: crates/p4kx/tests/texture_cubemap.rs
+expression: snapshot
+---
+posx: 2 x 2
+19120b20 352e273c
+514a4358 6d665f74
+
+negx: 2 x 2
+7e777085 9a938ca1
+b6afa8bd d2cbc4d9
+
+posy: 2 x 2
+e3dcd5ea fff8f106
+1b140d22 3730293e
+
+negy: 2 x 2
+48413a4f 645d566b
+80797287 9c958ea3
+
+posz: 2 x 2
+ada69fb4 c9c2bbd0
+e5ded7ec 01faf308
+
+negz: 2 x 2
+120b0419 2e272035
+4a433c51 665f586d

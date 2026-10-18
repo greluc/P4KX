@@ -9,8 +9,11 @@ event ID the soundbanks whose `HIRC` section holds an Event object with it, both
 An event name is matched to an ID by Wwise's short ID, the 32-bit FNV-1 hash of the name in ASCII
 lower case; in the live data more than 95 % of the ships' triggers reach a soundbank this way.
 When two definitions name the same trigger, the first by Entry path wins. The trigger references
-of an Entity are read from its Record when it is asked for, not indexed for every Entity. Entries
-that cannot be read are kept as issues; the rest of the index still builds.
+of an Entity are read from its Record when it is asked for, not indexed for every Entity; only
+the Entity's own Record tree is searched, References to other Records are not followed. Each
+Entry is read whole below a cap of 256 MiB and dropped once parsed, so the build holds at most
+one Entry per rayon thread. Entries that cannot be read are kept as issues; the rest of the
+index still builds.
 
 ## Considered Options
 

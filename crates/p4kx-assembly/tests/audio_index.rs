@@ -175,7 +175,7 @@ fn atl_definitions_in_cryxml_and_text_map_triggers_to_wwise_events() -> TestResu
         );
         assert_eq!(
             index.definition_path(engine),
-            "Data\\Libs\\GameAudio\\SC_Ship.xml",
+            Some("Data\\Libs\\GameAudio\\SC_Ship.xml"),
             "the first definition by path wins over SC_Wraith"
         );
         let voice = index.trigger("Play_Voice").ok_or("Play_Voice")?;

@@ -12,7 +12,7 @@ pub struct IndexedSoundbank {
     path: Box<str>,
     id: u32,
     language_id: u32,
-    events: u32,
+    event_count: u32,
 }
 
 impl IndexedSoundbank {
@@ -53,7 +53,7 @@ impl IndexedSoundbank {
     /// Returns how many Event objects its `HIRC` section holds.
     #[must_use]
     pub const fn event_count(&self) -> u32 {
-        self.events
+        self.event_count
     }
 }
 
@@ -75,7 +75,7 @@ pub(crate) fn read(
             path: path.into(),
             id: header.id,
             language_id: header.language_id,
-            events: u32::try_from(events.len()).unwrap_or(u32::MAX),
+            event_count: u32::try_from(events.len()).unwrap_or(u32::MAX),
         },
         events,
     ))

@@ -5,7 +5,7 @@ expression: run.stdout
 TEST_Ship  0079c5d5-1678-4f8c-85ba-18ca8f642af6  libs/foundry/records/entities/spaceships/test_ship
   Play_Engine: Play_Engine_Loop in Ship.bnk; Play_Engine_Tail in Ship.bnk
   Play_Undefined: unmatched: no ATL definition has the trigger
-  Play_Nowhere: Play_In_No_Bank (unmatched: no soundbank holds the Wwise event)
+  Play_Nowhere: Play_In_No_Bank in no soundbank (unmatched: no soundbank holds the Wwise event)
   Play_Voice: Play_DX_Hello in Voice.bnk (English(US))
   Play_Shield: Play_Shield_Up in Shared.bnk, Ship.bnk
 5 triggers: 3 matched, 2 unmatched

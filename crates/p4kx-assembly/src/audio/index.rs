@@ -74,34 +74,32 @@ impl AudioIndex {
     ) {
         self.atl_files = entries.iter().map(|entry| entry.path().into()).collect();
         for (entry, definition) in entries.iter().zip(definitions) {
-            let triggers = match definition {
-                Ok(triggers)
-                    if self.triggers.len().saturating_add(triggers.len()) > MAX_AUDIO_TRIGGERS =>
-                {
-                    Err(AudioFileError::TooManyTriggers)
-                }
-                other => other,
+            let error = match definition {
+                Ok(triggers) => self.add_triggers(triggers).err(),
+                Err(error) => Some(error),
             };
-            match triggers {
-                Ok(triggers) => {
-                    for trigger in triggers {
-                        let position = self.triggers.len();
-                        if let Slot::Vacant(slot) =
-                            self.by_name.entry(trigger.name.to_ascii_lowercase().into())
-                        {
-                            slot.insert(position);
-                            self.triggers.push(trigger);
-                        }
-                    }
-                }
-                Err(error) => self.issues.push(AudioIssue {
+            if let Some(error) = error {
+                self.issues.push(AudioIssue {
                     path: entry.path().into(),
                     error,
-                }),
+                });
             }
         }
     }
 
+    fn add_triggers(&mut self, triggers: Vec<AtlTrigger>) -> Result<(), AudioFileError> {
+        for trigger in triggers {
+            if let Slot::Vacant(slot) = self.by_name.entry(trigger.name.to_ascii_lowercase().into())
+            {
+                if self.triggers.len() >= MAX_AUDIO_TRIGGERS {
+                    return Err(AudioFileError::TooManyTriggers);
+                }
+                slot.insert(self.triggers.len());
+                self.triggers.push(trigger);
+            }
+        }
+        Ok(())
+    }
     fn add_soundbanks(&mut self, entries: &[&Entry], soundbanks: Vec<BankRead>) {
         let mut events: HashMap<u32, Vec<u32>> = HashMap::new();
         for (entry, soundbank) in entries.iter().zip(soundbanks) {
@@ -143,19 +141,11 @@ impl AudioIndex {
         &self.triggers
     }
 
-    /// Returns the path of the ATL definition Entry that defines `trigger`.
+    /// Returns the path of the ATL definition Entry that defines `trigger`, or `None` for a trigger of another index.
     #[must_use]
-    pub fn definition_path(&self, trigger: &AtlTrigger) -> &str {
-        usize::try_from(trigger.file)
-            .ok()
-            .and_then(|file| self.atl_files.get(file))
-            .map_or("", |path| path)
-    }
-
-    /// Returns the paths of the ATL definition Entries that were read or tried, in path order.
-    #[must_use]
-    pub fn definition_paths(&self) -> &[Box<str>] {
-        &self.atl_files
+    pub fn definition_path(&self, trigger: &AtlTrigger) -> Option<&str> {
+        let file = usize::try_from(trigger.file).ok()?;
+        self.atl_files.get(file).map(|path| &**path)
     }
 
     /// Returns every soundbank that was parsed, in path order.
@@ -166,7 +156,14 @@ impl AudioIndex {
 
     /// Returns the soundbanks whose `HIRC` section holds the Event object `id`, in path order.
     pub fn event_soundbanks(&self, id: u32) -> impl Iterator<Item = &IndexedSoundbank> {
-        self.event_holders(id)
+        self.soundbanks_at(self.event_holders(id))
+    }
+
+    pub(crate) fn soundbanks_at<'i>(
+        &'i self,
+        holders: &'i [u32],
+    ) -> impl Iterator<Item = &'i IndexedSoundbank> + use<'i> {
+        holders
             .iter()
             .filter_map(|&position| self.soundbanks.get(usize::try_from(position).ok()?))
     }

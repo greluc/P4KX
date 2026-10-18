@@ -220,7 +220,7 @@ fn trigger_line(trigger: &EntityTrigger<'_>) -> String {
 fn event_text(event: &EventMatch<'_>) -> String {
     let banks: Vec<String> = event.soundbanks().map(bank_text).collect();
     if banks.is_empty() {
-        event.event().name().to_owned()
+        format!("{} in no soundbank", event.event().name())
     } else {
         format!("{} in {}", event.event().name(), banks.join(", "))
     }

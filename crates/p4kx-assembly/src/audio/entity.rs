@@ -49,10 +49,7 @@ impl<'i> EventMatch<'i> {
 
     /// Returns the soundbanks whose `HIRC` section holds the event, in path order.
     pub fn soundbanks(&self) -> impl Iterator<Item = &'i IndexedSoundbank> + use<'i> {
-        let soundbanks = self.index.soundbanks();
-        self.holders
-            .iter()
-            .filter_map(move |&position| soundbanks.get(usize::try_from(position).ok()?))
+        self.index.soundbanks_at(self.holders)
     }
 
     /// Returns whether a soundbank holds the event.
@@ -93,7 +90,7 @@ impl<'i> EntityTrigger<'i> {
     #[must_use]
     pub fn definition_path(&self) -> Option<&'i str> {
         self.definition
-            .map(|definition| self.index.definition_path(definition))
+            .and_then(|definition| self.index.definition_path(definition))
     }
 
     /// Returns the Wwise events the trigger posts, each with the soundbanks that hold it.

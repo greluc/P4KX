@@ -85,6 +85,74 @@ order. `error_values` counts the values written as errors (see
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty.
 
+## `p4kx entity loadout <archive> <entity> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb", "entity": Node, "ports": 100, "attached": 71,
+ "empty": 29, "unresolved": 0}
+```
+
+`<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
+`EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
+`/` or `\`; case does not matter. An Entity that nothing or several Records match exits with code
+2, a root Record that cannot be read with code 5. `ports` counts every port in the tree, and
+`attached`, `empty` and `unresolved` count them by what they hold. Ports that cannot be resolved
+do not change the exit code.
+
+A **Node** is one Entity:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `guid` | string | GUID of the Entity's Record |
+| `record_path` | string | Record path without `.xml` |
+| `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
+| `class_name` | string | The Record name after `EntityClassDefinition.` |
+| `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, or the port limit |
+| `ports` | array | One Port per port, see below for the order |
+
+A **Port**:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `name` | string | The port name as the Loadout or the port definition spells it |
+| `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition) or `unset` (a defined port that nothing names) |
+| `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
+| `entity` | Node or `null` | The attached Entity |
+| `error` | Error or `null` | Why the attachment cannot be resolved |
+
+`entity` and `error` are both `null` for an empty port. A **definition** has `display_name` (a
+localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or `null`), `types`
+(each with `type` and `sub_types`) and `transform`: `null` without an attachment helper,
+otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the helper in the
+parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rotation`
+(`[x, y, z]` in degrees as stored).
+
+An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
+target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
+
+- at a port: `dangling_reference`, `invalid_reference`, `unknown_class`, `not_an_entity`,
+  `unreadable_record`, `cycle` (the Entity is already attached further up the branch) and
+  `too_deep` (more than 32 attached Entities below the root);
+- among the `issues` of an Entity: `too_many_ports` (the tree reached 65,536 ports, so this
+  Entity's further ports are left out; the tree never holds more), `ambiguous_class` (several
+  Entities have the class name the entry names; the first in definition order is attached and
+  the reason lists every candidate), `no_loadout_files` and `xml_loadout` (an XML Loadout or one
+  it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
+  could be read is still listed).
+
+New kinds may be added in later versions; a script should treat an unknown `kind` as an error it
+cannot interpret rather than fail.
+
+The tree is resolved from the Records ([ADR-0012](adr/0012-per-port-loadout-override.md)): an
+Entity's ports are the entries of its default Loadout
+(`SEntityComponentDefaultLoadoutParams`: a manual Loadout's entries, or an XML Loadout read from
+the Archive with the Loadouts it includes) in Loadout order, each replaced in place by the entry
+of the same port, ignoring case, in the Loadout given by the entry that attached the Entity, with
+that Loadout's other entries appended; then the ports its `SItemPortContainerComponentParams`
+defines and no Loadout names, in definition order. An entry names its Entity by Reference, or by
+class name when it has none; of several Entities with one class name, the first in definition
+order is attached. The same Archive always gives the same document.
+
 ## `p4kx dcb query <archive> <query> --json`
 
 Without `--out`, the line is the Query result itself in its JSON format, as `--format json`
@@ -202,6 +270,22 @@ Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
 `sample_count` is the number of frames written and `size` the size of the written WAV file. A
 codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
+## `p4kx audio ogg <archive> <entry> --out <file> --json`
+
+Also `p4kx audio ogg <file> --out <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "channels": 2,
+ "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0, "codebooks": "aotuv",
+ "size": 9876}
+```
+
+`sample_count` is the number of frames of the Ogg Vorbis stream, the granule position of its last
+page, and `duration_seconds` its playing time. `codebooks` names the codebooks the setup header was
+rebuilt with: `default`, `aotuv` or `inline`. `size` is the size of the written Ogg file. A codec
+other than Wwise Vorbis, or a Vorbis WEM that no codebooks fit, prints no JSON; it fails with exit
+code 1 and an error giving the reason.
+
 ## `p4kx bnk list <archive> <entry> --json`
 
 Also `p4kx bnk list <file> --json` for a soundbank file on disk.
@@ -221,7 +305,7 @@ whole file is the loose WEM of the same ID; its codec is then not read. `error` 
 cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
-## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav] --json`
+## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
 
 Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on disk.
 
@@ -231,7 +315,7 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem` or `wav`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with

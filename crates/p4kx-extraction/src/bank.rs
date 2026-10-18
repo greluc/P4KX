@@ -21,6 +21,9 @@ pub enum WemFormat {
     Wem,
     /// A 16-bit PCM WAV, as `<id>.wav`; codecs without a decoder and prefetched starts fail per WEM.
     Wav,
+    /// An Ogg Vorbis file rebuilt from a Wwise Vorbis WEM, as `<id>.ogg`; other codecs and
+    /// prefetched starts fail per WEM.
+    Ogg,
 }
 
 impl WemFormat {
@@ -30,6 +33,7 @@ impl WemFormat {
         match self {
             Self::Wem => "wem",
             Self::Wav => "wav",
+            Self::Ogg => "ogg",
         }
     }
 }
@@ -184,13 +188,20 @@ impl Bank {
         folder: &Path,
         format: WemFormat,
     ) -> Result<WrittenWem, ConversionError> {
-        if format == WemFormat::Wav && wem.is_prefetch() {
+        if format != WemFormat::Wem && wem.is_prefetch() {
             return Err(ConversionError::PrefetchedWem {
                 bank: self.name.clone(),
                 id: wem.id(),
             });
         }
         let path = folder.join(format!("{}.{}", wem.id(), format.extension()));
+        let audio_error = |source| match source {
+            AudioError::Write(source) => write_error(&path, source),
+            source => ConversionError::Audio {
+                sound: format!("{} WEM {}", self.name, wem.id()),
+                source,
+            },
+        };
         let size = write_replacing(&path, |writer| match format {
             WemFormat::Wem => {
                 writer
@@ -202,13 +213,12 @@ impl Bank {
                 .parse()
                 .and_then(|parsed| parsed.write_wav(writer))
                 .map(|report| report.size)
-                .map_err(|source| match source {
-                    AudioError::Write(source) => write_error(&path, source),
-                    source => ConversionError::Audio {
-                        sound: format!("{} WEM {}", self.name, wem.id()),
-                        source,
-                    },
-                }),
+                .map_err(audio_error),
+            WemFormat::Ogg => wem
+                .parse()
+                .and_then(|parsed| parsed.write_ogg(writer))
+                .map(|report| report.size)
+                .map_err(audio_error),
         })?;
         Ok(WrittenWem {
             id: wem.id(),

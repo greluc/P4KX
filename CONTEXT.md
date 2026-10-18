@@ -107,6 +107,32 @@ _Avoid_: object, actor
 The tree of Entities attached to an Entity's ports, e.g. a ship's components and weapons.
 _Avoid_: fitting, equipment
 
+**Class name**:
+The name an Entity is named by in Loadouts, its Record name after `EntityClassDefinition.`, e.g.
+`AEGS_Avenger_Titan`; matched ignoring case.
+_Avoid_: item name, entity name
+
+**Port**:
+A named place on an Entity where another Entity attaches, e.g. `hardpoint_weapon_nose`. Its
+**port definition** in the Entity's Record gives the sizes and types it takes and a default
+item; its **port transform** is the helper in the Entity's geometry it sits at, with an offset.
+_Avoid_: hardpoint (fine as part of a name), slot, socket
+
+**Loadout entry**:
+One port of a Loadout as a Record or XML Loadout states it: the port name, the Entity to attach
+by Reference or Class name, and optionally a Loadout for that Entity.
+_Avoid_: loadout item, fitting
+
+**Override**:
+The Loadout a Loadout entry gives the Entity it attaches, which replaces the Entity's own entries
+port by port (ADR-0012).
+_Avoid_: patch, customisation
+
+**XML Loadout**:
+A Loadout stored as an XML or CryXml Entry, e.g. `Scripts/Loadouts/…`, that a Record names by
+path instead of listing its entries; it may include further XML Loadouts.
+_Avoid_: loadout file, script loadout
+
 **Assembly**:
 An Entity combined with its Loadout, geometry, materials and textures into one exportable model.
 _Avoid_: scene, build (a Build is a game version)
@@ -119,6 +145,11 @@ _Avoid_: room, level
 A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
+
+**Codebook library**:
+The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
+(libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.
+_Avoid_: codebook file, packed codebooks
 
 **Soundbank**:
 A Wwise BNK file holding sections such as `BKHD`, `HIRC` (sounds, events and actions) and `DIDX`

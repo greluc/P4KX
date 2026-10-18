@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/entity_loadout.rs
+expression: run.stdout
+---
+Door  00000000-0000-0000-0000-000000000001  entities/door
+  hardpoint_decal: Decal
+1 ports: 1 attached, 0 empty, 0 unresolved

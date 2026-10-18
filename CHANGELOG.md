@@ -12,6 +12,11 @@ fails while its section is missing.
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
+- `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
+  by class name, GUID or record path, resolved recursively through nested and overriding
+  Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
+  without Entity or with a dangling Reference, an unknown class name or a cycle is listed with the
+  reason instead of failing the tree.
 - `p4kx dcb query <archive> "<query>"`: Queries over the Records of the DataForge, defined in
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem
@@ -59,13 +64,18 @@ fails while its section is missing.
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
   and write PCM WEMs as WAV files; every Wwise codec is detected.
+- `p4kx audio ogg`: rebuild a Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding,
+  from an Archive or from disk. The headers are rebuilt with the default codebooks and checked
+  with a Vorbis decoder, falling back to the aoTuV codebooks; the file plays for the sound's exact
+  duration. The codebook libraries come from ww2ogg under the BSD 3-Clause licence, whose notice
+  ships as `THIRD-PARTY-NOTICES` in the ZIP and the MSI.
 - `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
   mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
   per channel, as Wwise writes them, instead of 65.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
-  from disk embeds, with ID, codec and duration, and write them as `<id>.wem` or converted to WAV;
-  the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a corrupt soundbank fails
-  with an error naming the section.
+  from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
+  rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a
+  corrupt soundbank fails with an error naming the section.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

@@ -1,24 +1,12 @@
+mod header;
+
 use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::TestEntry;
-use crate::bytes::put_u32;
 
-const MAGIC: &[u8; 4] = b"DDS ";
-const HEADER_SIZE: u32 = 124;
-const PIXEL_FORMAT_SIZE: u32 = 32;
-const FLAGS: u32 = 0x0002_1007;
-const PF_FOURCC: u32 = 0x4;
-const PF_RGB: u32 = 0x40;
-const PF_ALPHA_PIXELS: u32 = 0x1;
-const PF_LUMINANCE: u32 = 0x2_0000;
-const CAPS_TEXTURE: u32 = 0x1000;
-const CAPS_COMPLEX_MIPMAP: u32 = 0x0040_0008;
-const CAPS2_CUBEMAP_ALL_FACES: u32 = 0xFE00;
-const CAPS2_VOLUME: u32 = 0x0020_0000;
-const DIMENSION_TEXTURE2D: u32 = 3;
-const DIMENSION_TEXTURE3D: u32 = 4;
-const MISC_TEXTURECUBE: u32 = 0x4;
+const CUBE_FACES: u32 = 6;
+const ALPHA_SEED: u32 = 0x55;
 
 /// The pixel format of a synthetic DDS texture and how its header encodes it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,6 +44,12 @@ impl TestTextureFormat {
         block_bytes: 16,
     };
 
+    /// 8-bit single-channel `R8_UNORM` in a DX10 header.
+    pub const R8: Self = Self::Dx10Pixel {
+        dxgi_format: 61,
+        pixel_bytes: 1,
+    };
+
     const fn is_dx10(self) -> bool {
         matches!(self, Self::Dx10Block { .. } | Self::Dx10Pixel { .. })
     }
@@ -82,8 +76,13 @@ impl TestTextureFormat {
 /// header and the smallest mips, and one sibling `.dds.N` per larger mip, `.dds.1` holding the
 /// smallest split mip.
 ///
-/// Every mip is filled with a pattern unique to its level, so a merged file shows where each mip
-/// landed.
+/// A texture with several images per mip, a cubemap's faces or an array's elements, keeps each
+/// image's smallest mips together in the header Entry, while a part holds one mip of every image,
+/// one after the other. An alpha tail is a second split texture of the same size: its header Entry
+/// `.dds.a` has no `DDS ` magic and its parts are `.dds.1a` … `.dds.Na`.
+///
+/// Every mip of every image is filled with a pattern unique to its image and level, so a merged
+/// file shows where each one landed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SplitDds {
     format: TestTextureFormat,
@@ -94,6 +93,9 @@ pub struct SplitDds {
     split_mips: u32,
     array_size: u32,
     cubemap: bool,
+    magic: bool,
+    seed: u32,
+    alpha: Option<TestTextureFormat>,
 }
 
 impl SplitDds {
@@ -110,6 +112,9 @@ impl SplitDds {
             split_mips: 0,
             array_size: 1,
             cubemap: false,
+            magic: true,
+            seed: 0,
+            alpha: None,
         }
     }
 
@@ -148,41 +153,83 @@ impl SplitDds {
         self
     }
 
+    /// Adds an alpha tail in `format` with the texture's size, mips and split.
+    #[must_use]
+    pub const fn alpha(mut self, format: TestTextureFormat) -> Self {
+        self.alpha = Some(format);
+        self
+    }
+
+    /// Returns the alpha tail as a split texture of its own, or `None` when there is none.
+    #[must_use]
+    pub fn alpha_tail(&self) -> Option<Self> {
+        self.alpha.map(|format| Self {
+            format,
+            magic: false,
+            seed: ALPHA_SEED,
+            alpha: None,
+            ..self.clone()
+        })
+    }
+
     /// Returns the number of sibling parts.
     #[must_use]
     pub const fn part_count(&self) -> u32 {
         self.split_mips
     }
 
-    /// Returns the length of the DDS header including the magic and any DX10 extension.
+    /// Returns the number of images per mip: cubemap faces times array elements.
     #[must_use]
-    pub const fn header_len(&self) -> usize {
-        if self.format.is_dx10() { 148 } else { 128 }
+    pub const fn surfaces(&self) -> u32 {
+        (if self.cubemap { CUBE_FACES } else { 1 }) * self.array_size
     }
 
-    /// Returns the data of mip `level`, all faces and slices.
+    /// Returns the length of the DDS header including any magic and DX10 extension.
     #[must_use]
-    pub fn mip(&self, level: u32) -> Vec<u8> {
+    pub const fn header_len(&self) -> usize {
+        let magic = if self.magic { 4 } else { 0 };
+        magic + if self.format.is_dx10() { 144 } else { 124 }
+    }
+
+    /// Returns the data of mip `level` of image `surface`, all slices.
+    #[must_use]
+    pub fn surface_mip(&self, surface: u32, level: u32) -> Vec<u8> {
         let width = (self.width >> level).max(1);
         let height = (self.height >> level).max(1);
         let depth = (self.depth >> level).max(1);
-        let faces = (if self.cubemap { 6 } else { 1 }) * self.array_size;
-        let len = self.format.mip_len(width, height) * (depth * faces) as usize;
-        let seed = level.wrapping_mul(37).wrapping_add(11);
+        let len = self.format.mip_len(width, height) * depth as usize;
+        let seed = level
+            .wrapping_mul(37)
+            .wrapping_add(11)
+            .wrapping_add(surface.wrapping_mul(101))
+            .wrapping_add(self.seed);
         std::iter::successors(Some(seed), |value| Some(value.wrapping_add(7)))
             .map(|value| u8::try_from(value & 0xFF).unwrap_or_default())
             .take(len)
             .collect()
     }
 
-    /// Returns the header Entry: the DDS header followed by the mips that are not split.
+    /// Returns the data of mip `level` of every image, one image after the other, as a part
+    /// holds it.
+    #[must_use]
+    pub fn mip(&self, level: u32) -> Vec<u8> {
+        (0..self.surfaces())
+            .flat_map(|surface| self.surface_mip(surface, level))
+            .collect()
+    }
+
+    /// Returns the header Entry: the DDS header followed, image by image, by the mips that are
+    /// not split.
     #[must_use]
     pub fn header_bytes(&self) -> Vec<u8> {
-        let mut out = self.dds_header();
-        for level in self.split_mips..self.mip_count {
-            out.extend_from_slice(&self.mip(level));
-        }
-        out
+        self.with_mips(self.split_mips)
+    }
+
+    /// Returns the texture as one standard DDS file: the header followed, image by image, by
+    /// every mip from the largest to the smallest.
+    #[must_use]
+    pub fn merged_bytes(&self) -> Vec<u8> {
+        self.with_mips(0)
     }
 
     /// Returns the data of sibling part `index`, counted from 1 for the smallest split mip.
@@ -191,7 +238,7 @@ impl SplitDds {
         self.mip(self.split_mips.saturating_sub(index))
     }
 
-    /// Returns the header and its parts as Entries below `header_path`.
+    /// Returns the header, its parts and any alpha tail as Entries below `header_path`.
     #[must_use]
     pub fn entries(&self, header_path: &str) -> Vec<TestEntry> {
         let mut entries = vec![TestEntry::stored(header_path, self.header_bytes())];
@@ -199,10 +246,20 @@ impl SplitDds {
             (1..=self.split_mips)
                 .map(|index| TestEntry::zstd(format!("{header_path}.{index}"), self.part(index))),
         );
+        if let Some(alpha) = self.alpha_tail() {
+            entries.push(TestEntry::stored(
+                format!("{header_path}.a"),
+                alpha.header_bytes(),
+            ));
+            entries.extend((1..=alpha.split_mips).map(|index| {
+                TestEntry::zstd(format!("{header_path}.{index}a"), alpha.part(index))
+            }));
+        }
         entries
     }
 
-    /// Writes the header file and its parts into `folder`, returning the header's path.
+    /// Writes the header file, its parts and any alpha tail into `folder`, returning the header's
+    /// path.
     ///
     /// # Errors
     ///
@@ -213,83 +270,22 @@ impl SplitDds {
         for index in 1..=self.split_mips {
             std::fs::write(folder.join(format!("{name}.{index}")), self.part(index))?;
         }
+        if let Some(alpha) = self.alpha_tail() {
+            std::fs::write(folder.join(format!("{name}.a")), alpha.header_bytes())?;
+            for index in 1..=alpha.split_mips {
+                std::fs::write(folder.join(format!("{name}.{index}a")), alpha.part(index))?;
+            }
+        }
         Ok(header)
     }
 
-    fn dds_header(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.header_len());
-        out.extend_from_slice(MAGIC);
-        for value in [
-            HEADER_SIZE,
-            FLAGS,
-            self.height,
-            self.width,
-            0,
-            if self.depth > 1 { self.depth } else { 0 },
-            self.mip_count,
-        ] {
-            put_u32(&mut out, value);
-        }
-        out.extend_from_slice(&[0; 44]);
-        self.put_pixel_format(&mut out);
-        let caps2 = if self.cubemap && !self.format.is_dx10() {
-            CAPS2_CUBEMAP_ALL_FACES
-        } else if self.depth > 1 {
-            CAPS2_VOLUME
-        } else {
-            0
-        };
-        for value in [CAPS_TEXTURE | CAPS_COMPLEX_MIPMAP, caps2, 0, 0, 0] {
-            put_u32(&mut out, value);
-        }
-        if let TestTextureFormat::Dx10Block { dxgi_format, .. }
-        | TestTextureFormat::Dx10Pixel { dxgi_format, .. } = self.format
-        {
-            let dimension = if self.depth > 1 {
-                DIMENSION_TEXTURE3D
-            } else {
-                DIMENSION_TEXTURE2D
-            };
-            let misc = if self.cubemap { MISC_TEXTURECUBE } else { 0 };
-            for value in [dxgi_format, dimension, misc, self.array_size, 0] {
-                put_u32(&mut out, value);
+    fn with_mips(&self, first: u32) -> Vec<u8> {
+        let mut out = self.dds_header();
+        for surface in 0..self.surfaces() {
+            for level in first..self.mip_count {
+                out.extend_from_slice(&self.surface_mip(surface, level));
             }
         }
         out
-    }
-
-    fn put_pixel_format(&self, out: &mut Vec<u8>) {
-        put_u32(out, PIXEL_FORMAT_SIZE);
-        let (flags, four_cc, bits, masks) = match self.format {
-            TestTextureFormat::LegacyDxt1 => (PF_FOURCC, *b"DXT1", 0, [0; 4]),
-            TestTextureFormat::LegacyDxt5 => (PF_FOURCC, *b"DXT5", 0, [0; 4]),
-            TestTextureFormat::LegacyBgra8 => (
-                PF_RGB | PF_ALPHA_PIXELS,
-                [0; 4],
-                32,
-                [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0xFF00_0000],
-            ),
-            TestTextureFormat::LegacyBgr8 => (
-                PF_RGB,
-                [0; 4],
-                24,
-                [0x00FF_0000, 0x0000_FF00, 0x0000_00FF, 0],
-            ),
-            TestTextureFormat::LegacyL8A8 => (
-                PF_LUMINANCE | PF_ALPHA_PIXELS,
-                [0; 4],
-                16,
-                [0x0000_00FF, 0, 0, 0x0000_FF00],
-            ),
-            TestTextureFormat::Dx10Block { .. } | TestTextureFormat::Dx10Pixel { .. } => {
-                (PF_FOURCC, *b"DX10", 0, [0; 4])
-            }
-        };
-        put_u32(out, flags);
-        out.extend_from_slice(&four_cc);
-        put_u32(out, bits);
-        for mask in masks {
-            put_u32(out, mask);
-        }
     }
 }

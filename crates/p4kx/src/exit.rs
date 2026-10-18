@@ -31,8 +31,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// one of its inputs, has an invalid Query or a Query output that does not fit --json, or gives
 /// CHF JSON that is invalid or cannot be written as CHF.
 pub(crate) const INVALID_INPUT: u8 = 2;
-/// The Archive, an Entry's data or the input file cannot be opened or read, is no valid chunk or
-/// CHF file, or is too large to read into memory.
+/// The Archive, a container in it, an Entry's data or the input file cannot be opened or read, is
+/// no valid chunk or CHF file, or is too large to read into memory.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
@@ -63,9 +63,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file, corrupt, with a CHF CRC-32C mismatch or unknown CHF version, a sound,
      soundbank or chunk file too large to read into memory, or with unreadable Entry data,
-     also a --diff Entry that cannot be read or holds corrupt CryXml, or a global.ini of the
-     catalog that is corrupt or cannot be read; a missing texture, sound, soundbank or chunk
-     file is 2
+     also a socpak container that cannot be opened, a --diff Entry that cannot be read or
+     holds corrupt CryXml, or a global.ini of the catalog that is corrupt or cannot be read; a
+     missing texture, sound, soundbank or chunk file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

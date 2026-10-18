@@ -8,6 +8,11 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
+  socpak containers, also nested ones, are read from the Archive without extracting them first,
+  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
+  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
+  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
 - `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
   character files as JSON and back. The new `p4kx-character` crate checks magic, size and
   CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,

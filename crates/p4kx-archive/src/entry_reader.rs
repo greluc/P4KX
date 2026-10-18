@@ -75,8 +75,9 @@ impl Read for RawReader<'_> {
     }
 }
 
-/// Opens the data of `entry` after checking its local header, if its layout has one.
-pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
+/// Returns where the stored data of `entry` begins after checking its local header, if its layout
+/// has one, and that the data lies inside `source`.
+pub(crate) fn data_offset(source: &Source, entry: &Entry) -> Result<u64, FormatError> {
     let (offset, data_offset) = match entry.data {
         DataStart::LocalHeader(offset) => (offset, read_local_header(source, offset)?),
         DataStart::Direct(offset) => (offset, offset),
@@ -87,7 +88,14 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
             "Entry data lies outside the file",
         ));
     }
+    Ok(data_offset)
+}
+
+/// Opens the data of `entry` after checking its local header, if its layout has one.
+pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
+    let data_offset = data_offset(source, entry)?;
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
+        let offset = entry.data.offset();
         return Err(FormatError::corrupt(
             offset,
             "encrypted Entry data is not a whole number of AES blocks",

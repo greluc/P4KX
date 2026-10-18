@@ -4,6 +4,7 @@ use egui::{Frame, Galley, Id, Margin, Ui, vec2};
 
 use super::comparison_extraction;
 use super::comparison_list::{self, ListAction};
+use super::comparison_lists;
 use super::search::{eyebrow, field};
 use super::{Dialog, Requests};
 use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
@@ -20,6 +21,14 @@ use crate::{
 /// Shows the list panel of the changes: the Filter, the report and the sortable list.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     toolbar(ui, model, requests);
+    if model
+        .comparison()
+        .view()
+        .is_some_and(comparison_lists::records_shown)
+    {
+        comparison_lists::records(ui, model);
+        return;
+    }
     let reveal = model
         .comparison_mut()
         .view_mut()
@@ -61,10 +70,11 @@ impl ToolbarCache {
         let key = Id::unique((
             texts.language(),
             view.generation(),
-            view.shown().len(),
+            view.shown_len(),
             view.report_status(),
             view.revision(),
             view.is_filtering(),
+            view.list(),
         ));
         if cache.key != Some(key) {
             cache.key = Some(key);
@@ -137,7 +147,15 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
 fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> Pressed {
     ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
     let gap = TOOLBAR_PADDING;
-    let actions = comparison_extraction::width(ui, &cache.extract);
+    let entries = model
+        .comparison()
+        .view()
+        .is_none_or(|view| !comparison_lists::records_shown(view));
+    let actions = if entries {
+        comparison_extraction::width(ui, &cache.extract)
+    } else {
+        0.0
+    };
     let shown = cache
         .shown
         .as_ref()
@@ -155,7 +173,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         ui.allocate_ui(vec2(width, TOUCH_TARGET), |ui| {
             pressed.filter_changed = field(ui, &mut cache.filter, &cache.hint, label);
         });
-        if inline {
+        if inline && entries {
             pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);
         }
         if let Some(shown) = cache.shown.clone() {
@@ -164,7 +182,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         pressed.save =
             button::button(ui, Kind::Ghost, Size::Normal, &cache.save, !saving).clicked();
     });
-    if !inline {
+    if !inline && entries {
         ui.horizontal(|ui| {
             ui.add_space((ui.available_width() - actions - gap).max(0.0));
             pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);
@@ -178,7 +196,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
 
 fn shown_note(texts: &Texts, view: &ComparisonView) -> String {
     let number = format::number(
-        u64::try_from(view.shown().len()).unwrap_or(u64::MAX),
+        u64::try_from(view.shown_len()).unwrap_or(u64::MAX),
         texts.language(),
     );
     texts.format(ComparisonText::Shown, &[("number", number.into())])

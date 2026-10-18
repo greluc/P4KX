@@ -27,6 +27,10 @@ fails while its section is missing.
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
+- The Record changes of a Comparison in the window: a Records tab lists every added, removed,
+  moved, changed and unreadable Record with its record path and type, sorted and filtered like the
+  Entries, and a selected Record shows its field changes with old and new value, links by the
+  record path of their target and unreadable values with their reason.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

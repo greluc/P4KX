@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use p4kx_extraction::{Archive, ArchiveWatch, Entry, Filter};
+use p4kx_extraction::{Archive, ArchiveWatch, DataForgeEntry, Entry, Filter};
 use rayon::prelude::*;
 
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
@@ -17,6 +17,7 @@ pub struct EntryIndex {
     by_path: Vec<u32>,
     folders: Vec<Folder>,
     orders: SortOrders,
+    dataforge: Option<usize>,
 }
 
 impl EntryIndex {
@@ -38,13 +39,24 @@ impl EntryIndex {
             || folder_tree::build(sorted.iter().map(|entry| entry.path())),
             || SortOrders::build(&sorted),
         );
+        let dataforge = DataForgeEntry::locate(&archive)
+            .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
         Self {
             watch: ArchiveWatch::new(&archive),
             archive,
             by_path,
             folders,
             orders,
+            dataforge,
         }
+    }
+
+    /// Returns the Entry DataForge is read from, `Data\Game2.dcb` or `Data\Game.dcb`, or `None`
+    /// when the Archive holds neither.
+    #[must_use]
+    pub fn dataforge_entry(&self) -> Option<&Entry> {
+        self.dataforge
+            .and_then(|position| self.archive.entries().get(position))
     }
 
     /// Returns the Archive.

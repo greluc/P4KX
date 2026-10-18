@@ -34,6 +34,12 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+- DataForge in the window: a DataForge node below the folders of the path tree shows the Records
+  as folders by record path, with record folders where several Records share one. It loads in the
+  background the first time it is opened, with a loading indicator, and is kept until the Archive
+  is reloaded or changes on disk; an unsupported version or a load error is named on the node. The
+  new DataForge tab of the preview shows the version, the numbers of Records, structs and enums and
+  the first Records.
 
 - Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
   shortcuts working anywhere in the window.

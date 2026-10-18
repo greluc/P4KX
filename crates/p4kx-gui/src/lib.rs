@@ -39,7 +39,7 @@ pub use comparison::{
 pub use entry_index::EntryIndex;
 pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
-    ExtractionSummary, FailedEntry, TargetKind,
+    ExtractionSummary, FailedEntry, RecordCounts, TargetKind,
 };
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;

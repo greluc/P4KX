@@ -3,7 +3,8 @@ mod condition;
 use crate::query::lexer::{Keyword, Lexer, Symbol, Token};
 use crate::query::syntax::{Glob, Name, Path, Query, Segment};
 use crate::query::{
-    Expected, Found, MAX_PATH_SEGMENTS, MAX_QUERY_LEN, QueryError, QueryErrorKind, Span,
+    Expected, Found, MAX_PATH_REFERENCES, MAX_PATH_SEGMENTS, MAX_QUERY_LEN, QueryError,
+    QueryErrorKind, Span,
 };
 
 impl Query {
@@ -157,6 +158,7 @@ impl<'q> Parser<'q> {
         let head = self.field()?;
         let start = head.span();
         let mut tail = Vec::new();
+        let mut arrows = 0_usize;
         loop {
             let segment = match self.token {
                 Token::Dot => {
@@ -164,6 +166,22 @@ impl<'q> Parser<'q> {
                     Segment::Field(self.field()?)
                 }
                 Token::Symbol(Symbol::OpenBracket) => self.bracket()?,
+                Token::Symbol(Symbol::Arrow) => {
+                    let (_, arrow) = self.advance()?;
+                    if arrows == MAX_PATH_REFERENCES {
+                        return Err(QueryError::new(
+                            QueryErrorKind::TooManyReferences {
+                                limit: MAX_PATH_REFERENCES,
+                            },
+                            arrow,
+                        ));
+                    }
+                    arrows = arrows.saturating_add(1);
+                    Segment::Follow {
+                        arrow,
+                        name: self.field()?,
+                    }
+                }
                 _ => break,
             };
             if tail.len() == MAX_PATH_SEGMENTS {

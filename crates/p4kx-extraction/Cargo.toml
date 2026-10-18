@@ -19,6 +19,7 @@ p4kx-foundation.workspace = true
 p4kx-gfx.workspace = true
 p4kx-dataforge.workspace = true
 p4kx-cryxml.workspace = true
+p4kx-localization.workspace = true
 p4kx-texture.workspace = true
 crc32c.workspace = true
 crc32fast.workspace = true

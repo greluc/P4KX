@@ -2,8 +2,11 @@ use std::process::ExitCode;
 
 use p4kx_assembly::{EntityLookupError, LoadoutError};
 use p4kx_comparison::LineDiffError;
+use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
-use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
+use p4kx_extraction::{
+    ArchiveError, DataForgeError, DataForgeLoadError, LocalizationLoadError, UnknownEntries,
+};
 
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
@@ -62,9 +65,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, with a CHF CRC-32C mismatch or unknown CHF
      version, a sound, soundbank, chunk file or UI movie too large to read into memory, or with
-     unreadable Entry data, also a socpak container that cannot be opened or a --diff Entry
-     that cannot be read or holds corrupt CryXml; a missing texture, sound, soundbank, chunk
-     file or UI movie file is 2  4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
+     unreadable Entry data, also a socpak container that cannot be opened, a --diff Entry that
+     cannot be read or holds corrupt CryXml, or a global.ini of the catalog that is corrupt or
+     cannot be read; a missing texture, sound, soundbank, chunk file or UI movie file is 2
+  4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
      is corrupt, or the Record of the Entity whose Loadout is shown cannot be read
@@ -98,6 +102,11 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableInput>().is_some()
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
+        || error.downcast_ref::<LocalizationLoadError>().is_some()
+        || matches!(
+            error.downcast_ref::<CatalogError>(),
+            Some(CatalogError::Texts { .. })
+        )
         || matches!(
             dataforge,
             Some(DataForgeLoadError::Archive(_) | DataForgeLoadError::Read { .. })

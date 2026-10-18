@@ -201,7 +201,7 @@ fn count(texts: &Texts, result: &QueryResult) -> String {
         FluentValue::from(u64::try_from(rows).unwrap_or(u64::MAX)),
     );
     let shown = ("number", number(texts, rows));
-    if result.failed() == 0 {
+    let mut text = if result.failed() == 0 {
         texts.format(QueryText::Rows, &[count, shown])
     } else {
         let failed = format::number(result.failed(), texts.language());
@@ -209,7 +209,19 @@ fn count(texts: &Texts, result: &QueryResult) -> String {
             QueryText::RowsFailed,
             &[count, shown, ("failed", failed.into())],
         )
+    };
+    let unresolved = result.unresolved_references();
+    if unresolved > 0 {
+        let shown = format::number(unresolved, texts.language());
+        text.push_str(&texts.format(
+            QueryText::Unresolved,
+            &[
+                ("count", FluentValue::from(unresolved)),
+                ("number", shown.into()),
+            ],
+        ));
     }
+    text
 }
 
 fn export_note(texts: &Texts, export: &QueryExportStatus) -> (String, Color32) {

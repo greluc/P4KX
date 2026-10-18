@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "format!(\"{csv}\\n{json}\")"
+---
+record path,maker->name,escorts[*]->mass
+libs/ships/alpha,Aegis,"[50,null,null]"
+libs/ships/beta,null,[100]
+libs/ships/gamma,null,[]
+
+[{"record path":"libs/ships/alpha","maker->name":"Aegis","escorts[*]->mass":[50,null,null]},{"record path":"libs/ships/beta","maker->name":null,"escorts[*]->mass":[100]},{"record path":"libs/ships/gamma","maker->name":null,"escorts[*]->mass":[]}]

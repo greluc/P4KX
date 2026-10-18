@@ -61,11 +61,22 @@ fails while its section is missing.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
   list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
   values holds.
+- `->` in Query paths follows a Reference to the Record it links to, or a weak pointer to its
+  instance, in `select` and `where`, chained and behind array elements, e.g.
+  `AttachDef.Manufacturer->Code` or `escorts[*]->name`. A null or dangling Reference gives null
+  and is counted as unresolved in the result summary; `->` where no Reference stands is marked
+  as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
   the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
+- English and German names and descriptions in the Basetool catalog, resolved from the Archive's
+  `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or
+  language the Archive lacks or an empty text leaves that text `null`, the placeholder keys
+  `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` give no text, and `p4kx catalog`
+  counts resolved, unresolved and placeholder texts per language. A corrupt `global.ini` ends
+  `p4kx catalog` with exit code 3.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust

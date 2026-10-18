@@ -23,6 +23,7 @@ mod entity_schema;
 mod gfx;
 mod gfx_shape;
 mod gfx_tags;
+mod global_ini;
 mod layout_v1;
 mod layout_v2;
 mod real_archive;
@@ -52,6 +53,7 @@ pub use gfx_tags::{
     font_name_body, font3_body, jpeg_body, lossless_body, place_object2_body, sprite_body,
     sub_image_body,
 };
+pub use global_ini::GlobalIniBuilder;
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

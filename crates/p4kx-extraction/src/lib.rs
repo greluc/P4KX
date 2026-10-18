@@ -1,8 +1,9 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture and audio APIs
-//! front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio and chunk
+//! file APIs front-ends use.
 
 mod bank;
 mod buffers;
+mod chunk_source;
 mod conversion_error;
 mod convert;
 mod dataforge;
@@ -37,6 +38,7 @@ mod watch;
 mod write;
 
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
+pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
@@ -50,6 +52,7 @@ pub use p4kx_audio::{
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, VorbisError, WavReport, Wem,
 };
+pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{

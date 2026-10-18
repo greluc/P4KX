@@ -5,11 +5,13 @@ mod bnk;
 mod catalog;
 mod channels;
 mod chf;
+mod chunks;
 mod cli;
 mod cli_audio;
 mod cli_bnk;
 mod cli_catalog;
 mod cli_chf;
+mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
 mod compare;
@@ -64,6 +66,7 @@ fn main() -> ExitCode {
         Command::Audio(args) => audio::run(&args, json).map(success),
         Command::Bnk(args) => bnk::run(&args, json),
         Command::Chf(args) => chf::run(&args, json).map(success),
+        Command::Chunks(args) => chunks::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

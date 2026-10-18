@@ -93,12 +93,15 @@ Early development (milestone M1). Available today:
   `<entry>.1a` … `<entry>.Na`; `merge <archive> <entry>.a` merges the tail on its own.
 - `p4kx texture png <archive> <entry> --out <file>` decodes the largest mip of a texture and
   writes it as an 8-bit RGBA PNG; `--mip <level>` picks a smaller one, 0 being the largest. It
-  takes a header file on disk like `info` and `merge`. BC1, BC2, BC3 and the uncompressed
-  formats in use decode with pure-Rust decoders; any other format fails with a message naming it
-  and exit code 1. An alpha or smoothness tail is decoded and merged into the alpha channel. A
-  cubemap is written as six face files `<stem>_posx.png` … `<stem>_negz.png` next to `<file>`,
-  or with `--cross` as one horizontal cross in `<file>`. Texture arrays and volumes are not
-  decoded yet.
+  takes a header file on disk like `info` and `merge`. BC1 to BC7 and the uncompressed formats in
+  use decode with pure-Rust decoders; any other format fails with a message naming it and exit
+  code 1. An alpha or smoothness tail is decoded and merged into the alpha channel. A cubemap is
+  written as six face files `<stem>_posx.png` … `<stem>_negz.png` next to `<file>`, or with
+  `--cross` as one horizontal cross in `<file>`. A high-range BC6H texture is written as OpenEXR
+  with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
+  `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
+  message names both the requested and the written files, and `--tone-map` on any other texture
+  only prints a note. Texture arrays and volumes are not decoded yet.
 - `p4kx compare <old> <new> [--entries] [--records] [--filter <filter>] [--report <file>]`
   compares two Archives, e.g. LIVE against PTU. The Entry level joins both central directories
   by path (ignoring case and separator kind) and lists Entries as added, removed, or changed when

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -97,35 +98,6 @@ pub(crate) struct AudioSource {
     pub(crate) path: PathBuf,
     /// Path of the WEM Entry in the Archive, with `\` or `/` as separator, ignoring case.
     pub(crate) entry: Option<String>,
-}
-
-/// Arguments of `p4kx catalog`.
-#[derive(Debug, Args)]
-pub(crate) struct CatalogArgs {
-    /// Prints the schema instead of writing a catalog.
-    #[command(subcommand)]
-    pub(crate) command: Option<CatalogCommand>,
-    /// Path of the Data.p4k Archive.
-    #[arg(required = true)]
-    pub(crate) archive: Option<PathBuf>,
-    /// The catalog file to write; an existing file is replaced.
-    #[arg(long, value_name = "FILE", required = true)]
-    pub(crate) out: Option<PathBuf>,
-    /// Selects only the Records whose record path matches, with the rules of `p4kx search`; every
-    /// kind is then marked partial with this Filter.
-    #[arg(long, value_name = "FILTER")]
-    pub(crate) filter: Option<String>,
-    /// The export time the catalog states, in seconds since 1970-01-01 UTC; defaults to the
-    /// current time.
-    #[arg(long, env = "SOURCE_DATE_EPOCH", value_name = "SECONDS")]
-    pub(crate) exported_at: Option<u64>,
-}
-
-/// The subcommands of `p4kx catalog`.
-#[derive(Debug, Subcommand)]
-pub(crate) enum CatalogCommand {
-    /// Prints the JSON Schema (draft 2020-12) of the Basetool catalog.
-    Schema,
 }
 
 /// Arguments of `p4kx dcb`.
@@ -234,12 +206,14 @@ pub(crate) enum TextureAction {
     },
     /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
     /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
         #[command(flatten)]
         source: TextureSource,
-        /// The PNG file to write; an existing file is replaced.
+        /// The PNG file to write; an existing file is replaced. A high-range texture goes to FILE
+        /// with the extension .exr instead, unless --tone-map is given.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// The mip level to export, 0 being the largest.
@@ -248,6 +222,10 @@ pub(crate) enum TextureAction {
         /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
         #[arg(long)]
         cross: bool,
+        /// Writes a high-range texture as an 8-bit PNG to FILE too, tone-mapped: Reinhard per
+        /// channel, then sRGB. Other textures are 8-bit already; for them it only prints a note.
+        #[arg(long)]
+        tone_map: bool,
     },
 }
 

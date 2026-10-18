@@ -27,6 +27,7 @@ thiserror.workspace = true
 [dev-dependencies]
 p4kx-testkit.workspace = true
 assert_cmd.workspace = true
+exr.workspace = true
 insta.workspace = true
 jsonschema.workspace = true
 png.workspace = true

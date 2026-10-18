@@ -6,6 +6,7 @@ mod catalog;
 mod channels;
 mod cli;
 mod cli_bnk;
+mod cli_catalog;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -20,6 +21,7 @@ mod json;
 mod list;
 mod progress;
 mod texture;
+mod texture_image;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

@@ -13,11 +13,15 @@ layer = "format"
 
 [dependencies]
 p4kx-foundation.workspace = true
+flate2.workspace = true
 png.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+bcdec_rs.workspace = true
+exr.workspace = true
+half.workspace = true
 p4kx-testkit.workspace = true
 
 [lints]

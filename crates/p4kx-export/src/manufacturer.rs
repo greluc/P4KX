@@ -1,4 +1,4 @@
-use p4kx_extraction::{RecordTree, StructValue, Value};
+use p4kx_extraction::{Field, RecordTree, StructValue, Value};
 
 use crate::contract::{LocalisedText, Manufacturer};
 use crate::guid_text::CatalogGuid;
@@ -36,7 +36,7 @@ fn field<'t, 'f>(tree: &'t RecordTree<'f>, name: &str) -> Option<&'t Value<'f>> 
     tree.fields()
         .iter()
         .find(|field| field.name() == name)
-        .map(|field| field.value())
+        .map(Field::value)
 }
 
 /// Returns the text whose localisation key the field `name` of `localization` holds; an empty

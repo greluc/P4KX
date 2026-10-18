@@ -16,6 +16,35 @@ pub struct RgbaImage {
 }
 
 impl RgbaImage {
+    /// Creates an image of `width` × `height` pixels from four bytes R, G, B, A per pixel, row by
+    /// row from the top.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TextureError::MipLength`] when `pixels` does not hold exactly that many pixels.
+    pub fn new(width: u32, height: u32, pixels: Vec<u8>) -> Result<Self, TextureError> {
+        let expected = u64::from(width)
+            .checked_mul(u64::from(height))
+            .and_then(|count| count.checked_mul(RGBA as u64))
+            .ok_or_else(overflow)?;
+        if pixels.len() as u64 != expected {
+            return Err(TextureError::MipLength {
+                expected,
+                actual: pixels.len() as u64,
+            });
+        }
+        Ok(Self {
+            width,
+            height,
+            pixels,
+        })
+    }
+
+    /// Returns the pixels for changing them in place.
+    pub(crate) fn pixels_mut(&mut self) -> &mut [u8] {
+        &mut self.pixels
+    }
+
     /// Returns the width in pixels.
     #[must_use]
     pub const fn width(&self) -> u32 {

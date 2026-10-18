@@ -12,6 +12,10 @@ fails while its section is missing.
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
   decoders and write it as an 8-bit PNG; the largest mip by default, another with `--mip`.
+- Cubemaps and alpha tails: `p4kx texture merge` merges split cubemaps and texture arrays face by
+  face, `p4kx texture png` writes a cubemap as six face files or with `--cross` as one cross, an
+  alpha or smoothness tail `.dds.a` is merged into the alpha channel of the PNG, and
+  `p4kx texture info` reports it.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the

@@ -13,6 +13,7 @@ mod selection;
 mod target;
 mod texture;
 mod texture_parts;
+mod texture_png;
 mod tracker;
 mod watch;
 mod write;
@@ -34,5 +35,6 @@ pub use p4kx_texture::{
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use target::{create_default_target, default_target_name};
-pub use texture::{PngReport, Texture};
+pub use texture::Texture;
+pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

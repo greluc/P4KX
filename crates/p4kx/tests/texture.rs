@@ -71,7 +71,31 @@ fn info_of_an_entry_prints_format_size_mips_faces_and_parts() -> TestResult {
         .stdout(predicate::str::is_match(r"(?m)^Mips: +7$")?)
         .stdout(predicate::str::is_match(r"(?m)^Array size: +1$")?)
         .stdout(predicate::str::is_match(r"(?m)^Faces: +1$")?)
-        .stdout(predicate::str::is_match(r"(?m)^Parts: +4$")?);
+        .stdout(predicate::str::is_match(r"(?m)^Parts: +4$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Alpha tail: +none$")?);
+    Ok(())
+}
+
+#[test]
+fn info_of_a_split_cubemap_reports_its_faces_and_its_alpha_tail() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 32, 32)
+        .cubemap()
+        .split(3)
+        .alpha(TestTextureFormat::R8);
+    let archive = write_archive(dir.path(), &dds)?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&archive)
+        .arg(HEADER)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"(?m)^Faces: +6$")?)
+        .stdout(predicate::str::is_match(r"(?m)^Parts: +3$")?)
+        .stdout(predicate::str::is_match(
+            r"(?m)^Alpha tail: +R8_UNORM, 3 parts$",
+        )?);
     Ok(())
 }
 
@@ -80,6 +104,8 @@ fn info_of_a_file_prints_json() -> TestResult {
     let dir = tempfile::tempdir()?;
     let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 32, 32)
         .cubemap()
+        .split(2)
+        .alpha(TestTextureFormat::R8)
         .write_files(dir.path(), "sky_cm.dds")?;
 
     let output = p4kx()?
@@ -101,7 +127,8 @@ fn info_of_a_file_prints_json() -> TestResult {
             "array_size": 1,
             "faces": 6,
             "cubemap": true,
-            "parts": 0,
+            "parts": 2,
+            "alpha_tail": {"format": "R8_UNORM", "parts": 2},
         }),
         "the JSON shape"
     );

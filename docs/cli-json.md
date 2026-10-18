@@ -89,7 +89,7 @@ Also `p4kx texture info <file> --json` for a header file on disk.
 ```json
 {"texture": "Data\\Textures\\hull_ddna.dds", "format": "BC7_UNORM_SRGB", "width": 64,
  "height": 32, "depth": 1, "mip_count": 7, "array_size": 1, "faces": 1, "cubemap": false,
- "parts": 4}
+ "parts": 4, "alpha_tail": {"format": "BC4_UNORM", "parts": 4}}
 ```
 
 `texture` is the Entry path, or the path of the file on disk. `format` is the DXGI name of the
@@ -97,6 +97,8 @@ pixel format; legacy headers report their DXGI equivalent (`DXT1` is `BC1_UNORM`
 this version does not know is described by its DXGI code, `FourCC` or bit masks. `depth` is 1
 unless the texture is a volume, `faces` is 6 for a cubemap and 1 otherwise. `parts` is the number
 of mip parts `.1` … `.N` the header needs, or `null` when the format's size is unknown.
+`alpha_tail` is `null` without an alpha or smoothness tail `.a`; otherwise it gives the tail's
+`format` and its number of `parts` `.1a` … `.Na`.
 
 ## `p4kx texture merge <archive> <entry> --out <file> --json`
 
@@ -109,17 +111,21 @@ Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
 
 `parts` is the number of mip parts merged and `size` the size of the written DDS file.
 
-## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] --json`
+## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] [--cross] --json`
 
-Also `p4kx texture png <file> --out <file> [--mip <level>] --json` for a header file on disk.
+Also `p4kx texture png <file> --out <file> [--mip <level>] [--cross] --json` for a header file on
+disk.
 
 ```json
-{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "mip": 1, "width": 32,
- "height": 16}
+{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "files": ["…\\hull_diff.png"],
+ "mip": 1, "width": 32, "height": 16, "alpha_tail": false}
 ```
 
-`mip` is the exported level, 0 being the largest and the default; `width` and `height` are the
-size of the written 8-bit RGBA PNG. A format without a decoder fails with exit code 1 and a
+`output` is the `--out` path and `files` the PNG files written: `output` itself, or for a cubemap
+the six faces `<stem>_posx.png`, `_negx`, `_posy`, `_negy`, `_posz` and `_negz` next to it, or
+with `--cross` `output` holding one horizontal cross. `mip` is the exported level, 0 being the
+largest and the default; `width` and `height` are the size of each written 8-bit RGBA PNG.
+`alpha_tail` says whether an alpha or smoothness tail was merged into the alpha channel. A format without a decoder fails with exit code 1 and a
 message naming the format; a level the texture does not have fails with exit code 2.
 
 ## `p4kx extract … --json`

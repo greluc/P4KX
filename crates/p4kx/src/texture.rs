@@ -2,13 +2,14 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, Texture, TextureError};
+use p4kx_extraction::{Archive, ConversionError, CubemapLayout, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
 use crate::json;
 
 const UNKNOWN: &str = "unknown";
+const NONE: &str = "none";
 
 #[derive(Serialize)]
 struct InfoJson<'a> {
@@ -21,6 +22,13 @@ struct InfoJson<'a> {
     array_size: u32,
     faces: u32,
     cubemap: bool,
+    parts: Option<u32>,
+    alpha_tail: Option<AlphaTailJson>,
+}
+
+#[derive(Serialize)]
+struct AlphaTailJson {
+    format: String,
     parts: Option<u32>,
 }
 
@@ -36,9 +44,11 @@ struct MergeJson<'a> {
 struct PngJson<'a> {
     texture: &'a str,
     output: String,
+    files: Vec<String>,
     mip: u32,
     width: u32,
     height: u32,
+    alpha_tail: bool,
 }
 
 /// Runs `p4kx texture info`, `merge` or `png`.
@@ -48,8 +58,18 @@ pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
         TextureAction::Merge { source, out } => {
             with_texture(source, |texture| merge(texture, out, as_json))
         }
-        TextureAction::Png { source, out, mip } => {
-            with_texture(source, |texture| png(texture, out, *mip, as_json))
+        TextureAction::Png {
+            source,
+            out,
+            mip,
+            cross,
+        } => {
+            let layout = if *cross {
+                CubemapLayout::Cross
+            } else {
+                CubemapLayout::Faces
+            };
+            with_texture(source, |texture| png(texture, out, *mip, layout, as_json))
         }
     }
 }
@@ -80,6 +100,10 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         faces: header.faces(),
         cubemap: header.is_cubemap(),
         parts: texture.part_count().ok(),
+        alpha_tail: texture.alpha_tail().map(|tail| AlphaTailJson {
+            format: tail.header().format().to_string(),
+            parts: tail.part_count().ok(),
+        }),
     };
     if as_json {
         json::print(&info)?;
@@ -93,10 +117,13 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         ("Mips", info.mip_count.to_string()),
         ("Array size", info.array_size.to_string()),
         ("Faces", info.faces.to_string()),
+        ("Parts", count(info.parts)),
         (
-            "Parts",
-            info.parts
-                .map_or_else(|| UNKNOWN.to_owned(), |parts| parts.to_string()),
+            "Alpha tail",
+            info.alpha_tail.map_or_else(
+                || NONE.to_owned(),
+                |tail| format!("{}, {} parts", tail.format, count(tail.parts)),
+            ),
         ),
     ];
     let mut out = io::stdout().lock();
@@ -128,28 +155,50 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn png(texture: &Texture<'_>, out: &Path, mip: u32, as_json: bool) -> Result<()> {
-    let report = texture.png_to_file(out, mip)?;
+fn png(
+    texture: &Texture<'_>,
+    out: &Path,
+    mip: u32,
+    layout: CubemapLayout,
+    as_json: bool,
+) -> Result<()> {
+    let report = texture.png_to_file_as(out, mip, layout)?;
     if as_json {
         json::print(&PngJson {
             texture: texture.name(),
             output: json::path(out),
+            files: report.files.iter().map(|file| json::path(file)).collect(),
             mip: report.level,
             width: report.width,
             height: report.height,
+            alpha_tail: report.alpha_tail,
         })?;
     } else {
+        let files: Vec<String> = report
+            .files
+            .iter()
+            .map(|file| file.display().to_string())
+            .collect();
         writeln!(
             io::stdout().lock(),
-            "wrote mip {} of {}, {} x {}, to {}",
+            "wrote mip {} of {}{}, {} x {}, to {}",
             report.level,
             texture.name(),
+            if report.alpha_tail {
+                " with its alpha tail"
+            } else {
+                ""
+            },
             report.width,
             report.height,
-            out.display()
+            files.join(", ")
         )?;
     }
     Ok(())
+}
+
+fn count(parts: Option<u32>) -> String {
+    parts.map_or_else(|| UNKNOWN.to_owned(), |parts| parts.to_string())
 }
 
 /// Returns whether `error` is a texture failure caused by the command line: an Entry or file that

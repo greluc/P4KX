@@ -72,7 +72,10 @@ fn extract_writes_every_wem_named_by_its_id() -> TestResult {
         .arg(&out)
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("extracted 4 of 4 WEMs"));
+        .stdout(predicate::str::contains("extracted 4 of 4 WEMs"))
+        .stdout(predicate::str::contains(
+            "1 of them only the prefetched start of a streamed WEM",
+        ));
 
     assert_eq!(fs::read(out.join("100.wem"))?, pcm_wem(), "WEM 100");
     assert_eq!(fs::read(out.join("300.wem"))?, vorbis_wem(), "WEM 300");

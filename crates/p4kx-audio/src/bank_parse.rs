@@ -141,16 +141,20 @@ fn media(index: &[u8], data: Range<usize>) -> Result<Vec<MediaRange>, BankError>
         let id = reader.u32()?;
         let offset = u64::from(reader.u32()?);
         let end = offset + u64::from(reader.u32()?);
-        if end > data_len {
+        let in_data = |at: u64| {
+            usize::try_from(at)
+                .ok()
+                .and_then(|at| data.start.checked_add(at))
+                .filter(|&at| at <= data.end)
+        };
+        let (Some(start), Some(stop)) = (in_data(offset), in_data(end)) else {
             return Err(BankError::MediaOutsideData {
                 id,
                 offset,
                 end,
                 data_len,
             });
-        }
-        let start = data.start + usize::try_from(offset).unwrap_or(usize::MAX);
-        let stop = data.start + usize::try_from(end).unwrap_or(usize::MAX);
+        };
         media.push(MediaRange {
             id,
             offset,

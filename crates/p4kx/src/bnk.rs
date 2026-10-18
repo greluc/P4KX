@@ -47,6 +47,7 @@ struct WrittenJson {
     id: u32,
     file: String,
     size: u64,
+    prefetch: bool,
 }
 
 #[derive(Serialize)]
@@ -162,13 +163,26 @@ fn extract(bank: &Bank, out: &Path, format: BnkFormat, as_json: bool) -> Result<
         for failure in &extraction.failures {
             writeln!(stderr, "error: {}", chain(&failure.error))?;
         }
-        writeln!(
-            io::stdout().lock(),
+        let prefetched = extraction
+            .written
+            .iter()
+            .filter(|written| written.prefetch)
+            .count();
+        let mut stdout = io::stdout().lock();
+        write!(
+            stdout,
             "extracted {} of {total} WEMs from {} into {}",
             extraction.written.len(),
             bank.name(),
             out.display()
         )?;
+        if prefetched > 0 {
+            write!(
+                stdout,
+                "; {prefetched} of them only the prefetched start of a streamed WEM"
+            )?;
+        }
+        writeln!(stdout)?;
     }
     Ok(ExitCode::from(if extraction.failures.is_empty() {
         exit::SUCCESS
@@ -194,6 +208,7 @@ fn extract_json<'a>(
                 id: written.id,
                 file: json::path(&written.path),
                 size: written.size,
+                prefetch: written.prefetch,
             })
             .collect(),
         failed: extraction

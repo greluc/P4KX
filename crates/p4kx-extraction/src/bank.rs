@@ -43,6 +43,8 @@ pub struct WrittenWem {
     pub path: PathBuf,
     /// Its size in bytes.
     pub size: u64,
+    /// Whether it is only the prefetched start of a streamed WEM, written as the bank holds it.
+    pub prefetch: bool,
 }
 
 /// One embedded WEM [`Bank::extract_wems`] could not write.
@@ -212,6 +214,7 @@ impl Bank {
             id: wem.id(),
             path,
             size,
+            prefetch: wem.is_prefetch(),
         })
     }
 }

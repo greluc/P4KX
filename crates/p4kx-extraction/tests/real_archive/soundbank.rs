@@ -1,6 +1,6 @@
 //! Every real soundbank parses, its embedded WEMs read like loose ones and its `HIRC` objects decode.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{Read, Write};
 
 use p4kx_extraction::{
@@ -21,8 +21,8 @@ struct Tally {
     prefetch: usize,
     codecs: BTreeMap<String, usize>,
     kinds: BTreeMap<String, usize>,
-    media: Vec<u32>,
-    sources: Vec<(MediaStorage, u32)>,
+    media: Vec<(u32, u64)>,
+    sources: Vec<(MediaStorage, u32, u32)>,
     failures: Vec<String>,
 }
 
@@ -148,11 +148,15 @@ fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
             }
         }
     }
-    tally.media.extend(bank.wems().map(|wem| wem.id()));
+    tally
+        .media
+        .extend(bank.wems().map(|wem| (wem.id(), wem.bytes().len() as u64)));
     for object in bank.objects() {
         *tally.kinds.entry(kind_name(object.kind)).or_default() += 1;
         if let HircValue::Sound(source) = &object.value {
-            tally.sources.push((source.storage, source.source_id));
+            tally
+                .sources
+                .push((source.storage, source.source_id, source.in_memory_size));
         }
     }
     tally
@@ -163,7 +167,7 @@ fn kind_name(kind: HircKind) -> String {
 }
 
 fn sources_found(archive: &Archive, tally: &Tally) -> BTreeMap<String, (usize, usize)> {
-    let in_banks: HashSet<u32> = tally.media.iter().copied().collect();
+    let in_banks: HashMap<u32, u64> = tally.media.iter().copied().collect();
     let loose: HashSet<u32> = archive
         .entries()
         .iter()
@@ -173,14 +177,20 @@ fn sources_found(archive: &Archive, tally: &Tally) -> BTreeMap<String, (usize, u
         })
         .collect();
     let mut found: BTreeMap<String, (usize, usize)> = BTreeMap::new();
-    for (storage, id) in &tally.sources {
+    let mut sizes = (0, 0);
+    for (storage, id, in_memory_size) in &tally.sources {
+        if let Some(len) = in_banks.get(id) {
+            sizes.0 += usize::from(*len == u64::from(*in_memory_size));
+            sizes.1 += 1;
+        }
         let present = match storage {
-            MediaStorage::Embedded => in_banks.contains(id) || loose.contains(id),
+            MediaStorage::Embedded => in_banks.contains_key(id) || loose.contains(id),
             _ => loose.contains(id),
         };
         let counts = found.entry(format!("{storage:?}")).or_default();
         counts.0 += usize::from(present);
         counts.1 += 1;
     }
+    found.insert("in-memory size equals the bank's media".to_owned(), sizes);
     found
 }

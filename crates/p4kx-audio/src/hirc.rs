@@ -162,7 +162,7 @@ pub struct HircObject {
     pub(crate) body: Range<usize>,
 }
 
-/// Parses the `HIRC` section at `base` in the bank, a body of `version`.
+/// Parses the body of the `HIRC` section, found at `base` in a bank of `version`.
 pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircObject>, BankError> {
     let mut reader = SectionReader::new(SectionId::HIRC, body);
     let count = reader.u32()?;

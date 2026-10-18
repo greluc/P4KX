@@ -192,14 +192,15 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
 
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "target": "…\\out", "format": "wav",
- "extracted": [{"id": 100, "file": "…\\out\\100.wav", "size": 9644}],
+ "extracted": [{"id": 100, "file": "…\\out\\100.wav", "size": 9644, "prefetch": false}],
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
 `format` is `wem` or `wav`, the extension of the files. `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
-fail; with `--format wem` a prefetched start is written as the bank holds it. With `--json`
+fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
+`"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx extract … --json`

@@ -34,12 +34,18 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("limit", "256.0 MiB".into()),
         ("shown", "1,048,576".into()),
         ("total", "2,000,000".into()),
+        ("done", "1".into()),
+        ("percent", "50".into()),
+        ("extracted", "2".into()),
+        ("skipped", "1".into()),
+        ("failed", "0".into()),
+        ("cancelled", "0".into()),
     ]
 }
 
 #[test]
 fn both_files_define_exactly_the_texts_of_the_interface() {
-    let expected: BTreeSet<String> = Text::ALL.iter().map(|text| text.id().to_owned()).collect();
+    let expected: BTreeSet<String> = Text::all().map(|text| text.id().to_owned()).collect();
 
     assert_eq!(message_ids(GERMAN), expected, "de-DE");
     assert_eq!(message_ids(BRITISH_ENGLISH), expected, "en-GB");
@@ -54,7 +60,7 @@ fn every_text_formats_without_errors_in_every_language() {
         for (name, value) in sample_args() {
             args.set(name, value);
         }
-        for text in Text::ALL {
+        for text in Text::all() {
             let pattern = bundle
                 .get_message(text.id())
                 .and_then(|message| message.value())

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use p4kx_extraction::Filter;
 
 use crate::search::{self, Matches, Outcome, Pending, Started};
-use crate::{EntryIndex, FolderId, Preview, Sort, SortColumn, SortDirection};
+use crate::{EntryIndex, ExtractionScope, FolderId, Preview, Sort, SortColumn, SortDirection};
 
 /// One visible row of the path tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +65,33 @@ impl Browser {
     #[must_use]
     pub fn index(&self) -> &EntryIndex {
         &self.index
+    }
+
+    pub(crate) const fn shared_index(&self) -> &Arc<EntryIndex> {
+        &self.index
+    }
+
+    /// Returns the number of Entries `scope` covers; none are shown while a search runs.
+    #[must_use]
+    pub fn scope_len(&self, scope: ExtractionScope) -> usize {
+        match scope {
+            ExtractionScope::Selected => self.checked_count,
+            ExtractionScope::Shown if self.pending.is_some() => 0,
+            ExtractionScope::Shown => self.shown.len(),
+            ExtractionScope::All => self.index.len(),
+        }
+    }
+
+    /// Returns the ids of the Entries `scope` covers; none are shown while a search runs.
+    #[must_use]
+    pub fn scope_entries(&self, scope: ExtractionScope) -> Vec<u32> {
+        let ids = (0..self.index.len()).filter_map(|id| u32::try_from(id).ok());
+        match scope {
+            ExtractionScope::Selected => ids.filter(|&id| self.is_checked(id)).collect(),
+            ExtractionScope::Shown if self.pending.is_some() => Vec::new(),
+            ExtractionScope::Shown => self.shown.clone(),
+            ExtractionScope::All => ids.collect(),
+        }
     }
 
     /// Returns the folder whose Entries are shown.

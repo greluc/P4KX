@@ -54,3 +54,45 @@ preview-too-large = { $path } ist { $size } groß. Einträge über { $limit } we
 preview-truncated = Gekürzt: angezeigt werden die ersten { $shown } von { $total } Bytes.
 preview-failed = { $path } kann nicht gelesen werden: { $reason }
 preview-stopped = Das Lesen von { $path } brach ohne Ergebnis ab.
+extract-selected = Ausgewählte extrahieren …
+extract-shown = Angezeigte extrahieren …
+extract-all = Alle extrahieren …
+extraction-setup-title = Einträge extrahieren
+extraction-scope-heading = Einträge
+extraction-scope-selected = Ausgewählte ({ $number })
+extraction-scope-shown = Angezeigte ({ $number })
+extraction-scope-all = Ganzes Archiv ({ $number })
+extraction-target-heading = Ziel
+extraction-target-new = Neuer Ordner in
+extraction-target-existing = Vorhandener Ordner
+extraction-target-new-name = Legt { $name } an
+extraction-folder-none = Kein Ordner gewählt
+extraction-choose-folder = Ordner wählen …
+extraction-policy-heading = Bereits vorhandene Dateien
+extraction-policy-skip = Überspringen
+extraction-policy-overwrite = Überschreiben
+extraction-policy-if-changed = Nur bei Änderung überschreiben
+extraction-start = Extrahieren
+extraction-close = Schließen
+extraction-confirm-all =
+    { $count ->
+        [one] Das ganze Archiv extrahieren, { $number } Eintrag mit { $size }?
+       *[other] Das ganze Archiv extrahieren, { $number } Einträge mit { $size }?
+    }
+extraction-confirm-all-action = Ganzes Archiv extrahieren
+extraction-back = Zurück
+extraction-running-title = Extrahiere
+extraction-progress = { $done } von { $total } Einträgen, { $percent } %
+extraction-cancelling = Breche ab …
+extraction-cancel = Abbrechen
+extraction-summary-title = Extraktion abgeschlossen
+extraction-summary-cancelled-title = Extraktion abgebrochen
+extraction-summary-counts = Extrahiert { $extracted }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
+extraction-summary-target = Ziel: { $path }
+extraction-summary-failed = Fehlgeschlagen ({ $number })
+extraction-summary-skipped = Übersprungen ({ $number })
+extraction-summary-cancelled = Abgebrochen ({ $number })
+extraction-summary-failure = { $path }: { $reason }
+extraction-failed = Das Ziel in { $path } lässt sich nicht anlegen: { $reason }
+extraction-stopped = Die Extraktion nach { $path } brach ohne Ergebnis ab.
+extraction-failed-title = Extraktion fehlgeschlagen

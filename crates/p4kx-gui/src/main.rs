@@ -21,6 +21,7 @@ fn main() -> Result<()> {
         settings.channels.clone(),
     ));
     model.set_recent(settings.recent.clone());
+    model.set_extraction_folder(settings.extraction_folder.clone());
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),

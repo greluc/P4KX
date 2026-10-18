@@ -6,7 +6,11 @@ use std::thread;
 use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::RecentArchives;
 
-use crate::{Browser, ChannelList, EntryIndex, Language, PreviewTab, Texts};
+mod extraction_control;
+
+use crate::{
+    Browser, ChannelList, EntryIndex, Extraction, ExtractionSetup, Language, PreviewTab, Texts,
+};
 
 /// Why an Archive could not be opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +37,9 @@ pub struct Model {
     failure: Option<Failure>,
     licence_shown: bool,
     preview_tab: PreviewTab,
+    extraction_folder: Option<PathBuf>,
+    extraction_setup: Option<ExtractionSetup>,
+    extraction: Option<Extraction>,
 }
 
 impl std::fmt::Debug for Model {
@@ -46,6 +53,9 @@ impl std::fmt::Debug for Model {
             .field("failure", &self.failure)
             .field("licence_shown", &self.licence_shown)
             .field("preview_tab", &self.preview_tab)
+            .field("extraction_folder", &self.extraction_folder)
+            .field("extraction_setup", &self.extraction_setup)
+            .field("extraction", &self.extraction)
             .finish()
     }
 }
@@ -63,6 +73,9 @@ impl Model {
             failure: None,
             licence_shown: false,
             preview_tab: PreviewTab::Text,
+            extraction_folder: None,
+            extraction_setup: None,
+            extraction: None,
         }
     }
 

@@ -11,7 +11,7 @@ fails while its section is missing.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
-  the 64 MiB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
+  the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.

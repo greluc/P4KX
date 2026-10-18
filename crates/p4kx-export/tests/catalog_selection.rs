@@ -275,7 +275,7 @@ fn the_source_names_channel_build_archive_tool_and_export_time() -> TestResult {
     assert_eq!(source["exportedAt"], "2026-10-14T17:46:40Z", "export time");
     assert_eq!(
         built.summary().size(),
-        built.json().len() as u64,
+        u64::try_from(built.json().len())?,
         "the summary gives the size"
     );
     Ok(())
@@ -343,12 +343,12 @@ fn an_archive_without_dataforge_is_an_error() -> TestResult {
 }
 
 #[test]
-fn the_size_warning_comes_before_the_64_mib_upload_limit() {
-    let limit = 64 * 1024 * 1024;
+fn the_size_warning_comes_before_the_64_mb_upload_limit() {
+    let limit = 64_000_000;
     assert_eq!(SizeWarning::for_size(1_000_000), None, "small");
-    assert_eq!(SizeWarning::for_size(60_000_000), None, "below 90 %");
+    assert_eq!(SizeWarning::for_size(57_599_999), None, "below 90 %");
     assert_eq!(
-        SizeWarning::for_size(61_000_000),
+        SizeWarning::for_size(57_600_000),
         Some(SizeWarning::NearLimit),
         "from 90 %"
     );

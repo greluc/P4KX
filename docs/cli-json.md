@@ -88,7 +88,7 @@ empty.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 67108864,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}], "skipped": 2}
 ```

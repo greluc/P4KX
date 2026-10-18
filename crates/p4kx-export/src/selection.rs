@@ -16,9 +16,6 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 1] = [Self::Manufacturers];
-
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
     #[must_use]
     pub const fn name(self) -> &'static str {

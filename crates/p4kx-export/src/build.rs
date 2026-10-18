@@ -70,7 +70,7 @@ pub fn build_catalog(
         kind: Kind::Manufacturers,
         count: manufacturers.len(),
         skipped,
-        complete: options.filter.is_none(),
+        complete: matches!(completeness, KindCompleteness::Complete),
     }];
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
@@ -85,7 +85,7 @@ pub fn build_catalog(
     Ok(BuiltCatalog {
         summary: CatalogSummary {
             kinds: summary,
-            size: json.len() as u64,
+            size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
         json,
     })

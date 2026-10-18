@@ -65,5 +65,5 @@ Equal Archives and an equal export time give byte-identical catalogs. The export
 current time unless `--exported-at` or the `SOURCE_DATE_EPOCH` environment variable gives it in
 seconds since 1970-01-01 UTC.
 
-The basetool accepts uploads up to 64 MiB. `p4kx catalog` warns on stderr when a catalog reaches
+The basetool accepts uploads up to 64 MB. `p4kx catalog` warns on stderr when a catalog reaches
 90 % of that limit and when it exceeds it; the file is written either way.

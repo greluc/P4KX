@@ -103,7 +103,7 @@ pub(crate) struct Manufacturer<'a> {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LocalisedText<'a> {
-    /// The localisation key, e.g. `@manufacturer_NameACAS`, `null` when the Record has none.
+    /// The localisation key, e.g. `@manufacturer_NameACAS`, `null` when it is unknown.
     pub(crate) key: Option<&'a str>,
     /// The English text, `null` when the key is not resolved.
     pub(crate) en: Option<&'a str>,

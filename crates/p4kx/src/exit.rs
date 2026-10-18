@@ -5,6 +5,7 @@ use p4kx_comparison::LineDiffError;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
 
+use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::NoRecordMatch;
@@ -108,6 +109,8 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<EntityLookupError>().is_some()
+        || error.downcast_ref::<InvalidExportTime>().is_some()
+        || error.downcast_ref::<MissingCatalogArgs>().is_some()
     {
         INVALID_INPUT
     } else {

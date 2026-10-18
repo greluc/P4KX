@@ -5,7 +5,7 @@ use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
 use p4kx_settings::ExtractionTextures;
 
-use super::{Dialog, Requests};
+use super::{Dialog, Requests, comparison_extraction};
 use crate::extraction::target_naming;
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
@@ -110,11 +110,15 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
     let texts = model.texts();
     let mut action = None;
     group_label(ui, &texts.get(T::ScopeHeading));
-    for (scope, text) in SCOPES {
-        let len = model.scope_len(scope);
-        let label = texts.format(text, &[("number", number(texts, len))]);
-        if toggle::radio(ui, setup.scope() == scope, &label, len > 0).clicked() {
-            setup.set_scope(scope);
+    if let ExtractionScope::Changes(side) = setup.scope() {
+        comparison_extraction::scope(ui, model, side);
+    } else {
+        for (scope, text) in SCOPES {
+            let len = model.scope_len(scope);
+            let label = texts.format(text, &[("number", number(texts, len))]);
+            if toggle::radio(ui, setup.scope() == scope, &label, len > 0).clicked() {
+                setup.set_scope(scope);
+            }
         }
     }
     ui.add_space(MODAL_GROUP_GAP);
@@ -153,7 +157,7 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
 fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
     let texts = model.texts();
     if setup.kind() == TargetKind::NewFolder {
-        let name = new_folder_name(model);
+        let name = new_folder_name(model, setup.scope());
         let hint = texts.format(T::TargetNewName, &[("name", name.into())]);
         ui.label(plain(hint, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
     } else {
@@ -262,11 +266,12 @@ pub(super) fn foot(ui: &mut Ui, texts: &Texts, primary: (T, bool), secondary: T)
     pressed
 }
 
-fn new_folder_name(model: &Model) -> String {
-    let (channel, build) = model
-        .browser()
-        .map(|browser| target_naming(browser.index().archive()))
-        .unwrap_or_default();
+fn new_folder_name(model: &Model, scope: ExtractionScope) -> String {
+    let archive = match scope {
+        ExtractionScope::Changes(side) => comparison_extraction::archive(model, side),
+        _ => model.browser().map(|browser| browser.index().archive()),
+    };
+    let (channel, build) = archive.map(target_naming).unwrap_or_default();
     default_target_name(channel.as_deref(), build, SystemTime::now())
 }
 

@@ -65,9 +65,12 @@ Early development (milestone M1). Available today:
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
-- `p4kx dcb export <archive> [--format xml] [--combined] [--filter <filter>] [--out <folder>] [--conflict …]`
-  writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
-  `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
+- `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
+  `[--out <folder>] [--conflict …]` writes Records as Record XML
+  ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
+  ([docs/record-json.md](docs/record-json.md)), one file per Record: `<record path>.xml`, or
+  `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
+  `--format ndjson` writes one `records.ndjson` with one Record per line in record-path order.
   `--filter` selects Records by record path with the rules of `search`; `--out` and `--conflict`
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives

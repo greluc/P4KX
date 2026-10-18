@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "error(\"from Ship select Components[Shield].damage\")?"
+---
+error: unknown field `damage` of `Shield`
+  from Ship select Components[Shield].damage
+                                      ^^^^^^

@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use p4kx_dataforge::query::{
-    Condition, Glob, MAX_QUERY_LEN, Name, Query, QueryError, QueryErrorKind,
+    Condition, Glob, MAX_QUERY_LEN, Name, Path, Query, QueryError, QueryErrorKind, Segment,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -82,6 +82,35 @@ fn name(random: &mut Random) -> String {
     }
 }
 
+/// Writes a random path of up to four segments: dotted fields, indices, `[*]` and types, with
+/// random whitespace around the brackets and dots.
+fn path(random: &mut Random) -> String {
+    let mut text = name(random);
+    for _ in 0..random.below(5) {
+        let gap = if random.chance(20) {
+            random.pick(&SPACES)
+        } else {
+            ""
+        };
+        text.push_str(gap);
+        let inner = match random.below(4) {
+            0 => {
+                text.push('.');
+                text.push_str(gap);
+                text.push_str(&name(random));
+                continue;
+            }
+            1 => random.pick(&["0", "7", "007", "4294967295"]).to_owned(),
+            2 => "*".to_owned(),
+            _ => name(random),
+        };
+        for part in ["[", gap, &inner, gap, "]"] {
+            text.push_str(part);
+        }
+    }
+    text
+}
+
 /// Writes a random valid Query with random keyword case and whitespace.
 fn random_query(random: &mut Random) -> String {
     let mut text = String::new();
@@ -103,17 +132,13 @@ fn random_query(random: &mut Random) -> String {
     if random.chance(70) {
         text.push_str(random.pick(&SPACES));
         text.push_str(&keyword(random, "select"));
-        for path in 0..=random.below(3) {
-            if path > 0 {
+        for column in 0..=random.below(3) {
+            if column > 0 {
                 text.push_str(random.pick(&SPACES));
                 text.push(',');
             }
             text.push_str(random.pick(&SPACES));
-            text.push_str(&name(random));
-            for _ in 0..random.below(3) {
-                text.push('.');
-                text.push_str(&name(random));
-            }
+            text.push_str(&path(random));
         }
     }
     if random.chance(60) {
@@ -147,7 +172,7 @@ fn random_condition(random: &mut Random, depth: usize) -> String {
             text.push(')');
             continue;
         }
-        text += &name(random);
+        text += &path(random);
         let operator = random.pick(&[
             "=",
             "!=",
@@ -173,6 +198,19 @@ fn random_condition(random: &mut Random, depth: usize) -> String {
     text
 }
 
+/// Writes the segments of a path by kind and value, without spans.
+fn segments(path: &Path) -> String {
+    let mut parts = vec![path.head().as_str().to_owned()];
+    parts.extend(path.tail().iter().map(|segment| match segment {
+        Segment::Field(name) => format!("field {}", name.as_str()),
+        Segment::Index { index, .. } => format!("index {index}"),
+        Segment::All(_) => "all".to_owned(),
+        Segment::Type { name, .. } => format!("type {}", name.as_str()),
+        _ => "?".to_owned(),
+    }));
+    parts.join(" ")
+}
+
 /// Writes the structure of a condition with every group in parentheses.
 fn shape(condition: &Condition) -> String {
     let joined = |parts: &[Condition], joint: &str| {
@@ -182,7 +220,7 @@ fn shape(condition: &Condition) -> String {
     match condition {
         Condition::Compare(comparison) => format!(
             "[{} {:?} {:?}]",
-            comparison.path(),
+            segments(comparison.path()),
             comparison.operator(),
             comparison.literal().value()
         ),
@@ -203,7 +241,11 @@ fn printing_and_reparsing_a_parsed_query_is_stable() -> TestResult {
         let reparsed = Query::parse(&printed).map_err(|error| format!("{printed:?}: {error}"))?;
 
         assert_eq!(reparsed.to_string(), printed, "stable for {text:?}");
-        assert_eq!(reparsed.select().len(), parsed.select().len(), "{text:?}");
+        assert_eq!(
+            reparsed.select().iter().map(segments).collect::<Vec<_>>(),
+            parsed.select().iter().map(segments).collect::<Vec<_>>(),
+            "{text:?}"
+        );
         assert_eq!(
             reparsed.from().map(Name::as_str),
             parsed.from().map(Name::as_str),
@@ -254,22 +296,24 @@ fn spans_point_at_names_and_paths() -> TestResult {
     Ok(())
 }
 
+/// Pieces random text for the parser is made of.
+const PIECES: [&str; 49] = [
+    "from", "at", "select", "where", "`", "\"", ".", ",", " ", "\n", "mass", "*", "ö", "\u{0}",
+    "->", "[", "]", "😀", "\r\n", "\t", "x", "=", "!", "!=", "<", "<=", ">=", "(", ")", "-",
+    "-1.5e3", "1e", "1.", "and", "or", "not", "contains", "starts", "with", "like", "true", "\"\"",
+    "0", "[*]", "[0]", "[Item]", "[-1]", "[`a`]", ".x[",
+];
+
 #[test]
 fn random_text_never_panics_and_errors_stay_inside_the_query() {
     let mut random = Random(0x2545_f491_4f6c_dd1d);
-    let pieces = [
-        "from", "at", "select", "where", "`", "\"", ".", ",", " ", "\n", "mass", "*", "ö", "\u{0}",
-        "->", "[", "]", "😀", "\r\n", "\t", "x", "=", "!", "!=", "<", "<=", ">=", "(", ")", "-",
-        "-1.5e3", "1e", "1.", "and", "or", "not", "contains", "starts", "with", "like", "true",
-        "\"\"", "0",
-    ];
     for _ in 0..20_000 {
         let mut text = String::new();
         for _ in 0..random.below(12) {
-            text.push_str(random.pick(&pieces));
+            text.push_str(random.pick(&PIECES));
         }
         if random.chance(30) {
-            text = random_query(&mut random).replacen(' ', random.pick(&pieces), 1);
+            text = random_query(&mut random).replacen(' ', random.pick(&PIECES), 1);
         }
         if let Err(error) = Query::parse(&text) {
             let span = error.span();

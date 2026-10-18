@@ -11,7 +11,7 @@ use super::view::Summary;
 /// The changes a Filter matched, indexed by change id, and their counts.
 #[derive(Debug)]
 pub(crate) struct Matched {
-    pub(crate) mask: Vec<bool>,
+    pub(crate) mask: Arc<[bool]>,
     pub(crate) summary: Summary,
 }
 
@@ -77,7 +77,7 @@ pub(crate) fn start(
         Ok(_handle) => Started::Running(FilterJob { cancelled, result }),
         Err(_ignored) => Started::Finished(
             matching(comparison, filter, &AtomicBool::new(false)).unwrap_or_else(|| Matched {
-                mask: Vec::new(),
+                mask: Arc::from([]),
                 summary: Summary::default(),
             }),
         ),
@@ -102,5 +102,8 @@ fn matching(
         return None;
     }
     let summary = Summary::of(&comparison.comparison_of(&mask));
-    (!cancelled.load(Ordering::Relaxed)).then_some(Matched { mask, summary })
+    (!cancelled.load(Ordering::Relaxed)).then(|| Matched {
+        mask: mask.into(),
+        summary,
+    })
 }

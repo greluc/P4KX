@@ -73,6 +73,9 @@ pub(crate) enum Symbol {
     GreaterOrEqual,
     Open,
     Close,
+    OpenBracket,
+    CloseBracket,
+    Star,
 }
 
 impl Symbol {
@@ -86,6 +89,9 @@ impl Symbol {
             Self::GreaterOrEqual => ">=",
             Self::Open => "(",
             Self::Close => ")",
+            Self::OpenBracket => "[",
+            Self::CloseBracket => "]",
+            Self::Star => "*",
         }
     }
 }
@@ -127,6 +133,9 @@ impl<'q> Lexer<'q> {
             '.' => self.single(c, Token::Dot),
             '(' => self.single(c, Token::Symbol(Symbol::Open)),
             ')' => self.single(c, Token::Symbol(Symbol::Close)),
+            '[' => self.single(c, Token::Symbol(Symbol::OpenBracket)),
+            ']' => self.single(c, Token::Symbol(Symbol::CloseBracket)),
+            '*' => self.single(c, Token::Symbol(Symbol::Star)),
             '=' => self.single(c, Token::Symbol(Symbol::Equal)),
             '<' => self.with_equal(c, Symbol::Less, Symbol::LessOrEqual),
             '>' => self.with_equal(c, Symbol::Greater, Symbol::GreaterOrEqual),

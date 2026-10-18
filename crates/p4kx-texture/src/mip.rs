@@ -2,7 +2,7 @@ use std::io::{self, Read};
 
 use crate::header::MAX_HEADER_LEN;
 use crate::merge::{checked_part_len, read_prefix};
-use crate::{DdsHeader, RgbaImage, SiblingReader, TextureError, decode};
+use crate::{DdsHeader, HdrImage, RgbaImage, SiblingReader, TextureError, decode, decode_hdr};
 
 const INITIAL_CAPACITY: u64 = 16 * 1024 * 1024;
 
@@ -58,8 +58,20 @@ impl Mip {
             &self.data,
         )
     }
+    /// Decodes the mip of a high-range texture to floating-point RGB without clipping.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`decode_hdr`].
+    pub fn decode_hdr(&self) -> Result<HdrImage, TextureError> {
+        decode_hdr(
+            self.header.format(),
+            self.width(),
+            self.height(),
+            &self.data,
+        )
+    }
 }
-
 const fn side(full: u32, level: u32) -> u32 {
     match full.checked_shr(level) {
         Some(side) if side > 0 => side,

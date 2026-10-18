@@ -603,6 +603,12 @@
     "dsClass": "attendance-meter",
     "maxWidth": 320,
     "metrics": "progressBar"
+  },
+  "changeExtraction": {
+    "dsClass": "btn btn-ghost",
+    "position": "list-panel toolbar, left of the shown count and Save report; wraps onto its own right-aligned toolbar row when the search field would get less than 260",
+    "metrics": "buttonGhost",
+    "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
@@ -654,6 +660,51 @@
     "columns": {"change": 130, "path": "fill", "oldSize": 150, "newSize": 150},
     "directoryColumns": {"directory": "fill", "count": 110},
     "missingSize": "– in color-gray-2-text"
+  },
+  "lineDiff": {
+    "panel": "previewPanel below the change list once a change is selected, opening at half the remaining height (at least previewPanel minHeight), with resizeHandle; the selected row scrolls back into view",
+    "pathLine": "previewPanel pathLine with the changeChip after the path",
+    "navigation": "buttonCompact + buttonGhost, previous and next hunk, right in the path line",
+    "positionColor": "color-gray-2-text",
+    "header": "tableHeader with one cell per side, old left",
+    "rowHeight": 20,
+    "fontSize": 12.8,
+    "fontWeight": "fw-regular",
+    "tabular": true,
+    "textColor": "color-gray-1",
+    "lineNumberColor": "color-gray-2-text",
+    "gutterPaddingX": 12.8,
+    "markerGap": 8,
+    "divider": {"width": 1, "color": "color-gray-3"},
+    "added": {"fill": "rgba(35,158,51,0.12)", "marker": "+", "markerColor": "color-success-text"},
+    "removed": {"fill": "rgba(163,0,10,0.15)", "marker": "−", "markerColor": "color-danger-text"},
+    "missingLine": "no fill",
+    "hunkHeader": {
+      "height": 20,
+      "fill": "color-surface-input",
+      "color": "color-gray-2-text",
+      "current": {"borderLeft": 3, "borderColor": "color-primary", "color": "color-white"}
+    },
+    "longLines": "clipped per side, one horizontal scroll for both sides",
+    "messages": "previewPanel body: binary and too large color-gray-1, failure color-danger-text"
+  },
+  "imagePreview": {
+    "dsClass": "previewPanel + facts-bar + krt-segmented krt-segmented--sm",
+    "paddingX": 16,
+    "paddingY": 8,
+    "labelGap": 12,
+    "selectorGap": 8,
+    "labelFontSize": 11.2,
+    "labelFontWeight": "fw-bold",
+    "labelLetterSpacingEm": 0.15,
+    "labelUppercase": true,
+    "labelColor": "color-gray-2-text",
+    "background": "surface-panel",
+    "image": "one texel per device pixel, centred, larger mips scroll",
+    "facts": "factsBar without direction: format, size, mips, cubemap faces",
+    "selector": "quickFilter, one item per mip labelled with its longer side",
+    "focusRingOffset": -3,
+    "messages": "unsupported format, unshowable and failure color-danger-text"
   },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},

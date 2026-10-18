@@ -299,3 +299,27 @@ pub const CHANGE_COLUMN: f32 = 130.0;
 pub const CHANGE_SIZE_COLUMN: f32 = 150.0;
 /// The width of a count column of the directory table.
 pub const COUNT_COLUMN: f32 = 110.0;
+
+/// The height of a line and a hunk head of the line diff, the hex row height.
+pub const DIFF_ROW_HEIGHT: f32 = HEX_ROW_HEIGHT;
+/// The font size of the line diff.
+pub const DIFF_FONT: f32 = FS_XS;
+/// The horizontal padding around the line numbers of the line diff, the cell padding.
+pub const DIFF_GUTTER_PADDING_X: f32 = CELL_PADDING_X;
+/// The gap between the marker and the text of a line of the line diff.
+pub const DIFF_MARKER_GAP: f32 = SPACE_2;
+/// The fill of an added line, the success chip fill.
+pub const DIFF_ADDED_FILL: Color32 = CHIP_SUCCESS_FILL;
+/// The fill of a removed line, the danger chip fill.
+pub const DIFF_REMOVED_FILL: Color32 = CHIP_DANGER_FILL;
+
+/// The horizontal padding of the image preview's body.
+pub const IMAGE_PADDING_X: f32 = PREVIEW_PADDING_X;
+/// The vertical padding of the image preview's body.
+pub const IMAGE_PADDING_Y: f32 = SPACE_2;
+/// The gap between the mip label and the mip selector.
+pub const IMAGE_LABEL_GAP: f32 = SPACE_3;
+/// The gap between the mip selector and the image.
+pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
+/// The offset of the focus ring of a segment, inside it.
+pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;

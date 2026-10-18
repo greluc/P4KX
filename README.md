@@ -39,6 +39,10 @@ Early development (milestone M1). Available today:
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
   existing file with the converted XML. The summary then also counts the converted Entries.
+  `--convert` also writes the DataForge Entry (`Data\Game2.dcb`, falling back to
+  `Data\Game.dcb`) as one Record XML file per Record below its folder instead of the `.dcb`,
+  e.g. `Data/libs/foundry/records/…`, each file under `--conflict`; Records with error values are
+  still written, and the summary counts the Records with their error values.
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
   high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
@@ -61,13 +65,17 @@ Early development (milestone M1). Available today:
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
-- `p4kx dcb export <archive> [--format xml] [--filter <filter>] [--out <folder>] [--conflict …]`
-  writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
-  `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
+- `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
+  `[--out <folder>] [--conflict …]` writes Records as Record XML
+  ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
+  ([docs/record-json.md](docs/record-json.md)), one file per Record: `<record path>.xml`, or
+  `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
+  `--format ndjson` writes one `records.ndjson` with one Record per line in record-path order.
   `--filter` selects Records by record path with the rules of `search`; `--out` and `--conflict`
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
-  the same bytes.
+  the same bytes. `--combined` writes every selected Record into one file in record-path order,
+  named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.
@@ -82,6 +90,12 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
+  Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
+  schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
+  with test, template and dummy Records left out and counted as skipped. `--filter` marks the
+  catalog partial. It prints the counts per kind and warns when the catalog nears or exceeds the
+  64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -141,12 +155,13 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
-  PTADPCM WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
-  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
-  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
-  the console codecs are detected; a conversion the codec does not support yet fails with an
-  error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
+  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
+  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
@@ -176,6 +191,53 @@ Early development (milestone M1). Available today:
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
+
+## MCP server
+
+`p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
+stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
+(`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
+write a file:
+
+| Tool | Result |
+|------|--------|
+| `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
+| `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
+
+Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
+or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+`:` after the drive (an alternate data stream) and a path that resolves to a network drive or
+device are refused. Without it the tools use the Archive given with `--archive` when the server
+was started. Opened Archives stay open between calls and are opened again when their file
+changes. Listings page: `limit` sets the page size (100 by default, at most 1000), and a result
+with `next_cursor` has a next page that `cursor` asks for; a cursor only continues the listing
+that returned it, on the same version of the Archive. `--config-dir`, `--launcher-dir` and
+`--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
+for `p4kx channels`.
+
+The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
+`%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
+client with its full path. Claude Code:
+
+```powershell
+claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4K-Extractor\p4kx-mcp.exe" --archive LIVE
+```
+
+Claude Desktop and other clients that read an `mcpServers` file, with `<user>` your Windows user
+name:
+
+```json
+{
+  "mcpServers": {
+    "p4kx": {
+      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4K-Extractor\\p4kx-mcp.exe",
+      "args": ["--archive", "LIVE"]
+    }
+  }
+}
+```
 
 ## Build
 

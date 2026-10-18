@@ -32,4 +32,8 @@ jobs:
       - run: cargo test --workspace --locked
       - name: Comparison report schema is current
         run: cargo test --locked -p p4kx-comparison --test report_schema
+      - name: Record JSON schema matches the export
+        run: cargo test --locked -p p4kx-export --test record_json_schema
+      - name: Basetool catalog schema is current
+        run: cargo test --locked -p p4kx-export --test catalog_schema
       - run: cargo xtask

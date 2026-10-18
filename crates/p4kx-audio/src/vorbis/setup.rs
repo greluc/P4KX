@@ -4,6 +4,7 @@ use super::{HEADER_SETUP, VorbisError};
 
 const FLOOR_TYPE_1: u32 = 1;
 const MAX_RESIDUE_TYPE: u32 = 2;
+const MAX_LOOKUP_VALUES: u64 = 1 << 20;
 
 /// What decoding the audio packets needs from a rebuilt setup header.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +70,17 @@ fn read_codebooks(
             None => codebook::rebuild(input, out)?,
         };
         shapes.push(shape);
+    }
+    let lookup_values = shapes
+        .iter()
+        .filter(|shape| shape.has_lookup)
+        .try_fold(0_u64, |total, shape| {
+            total.checked_add(u64::from(shape.entries) * u64::from(shape.dimensions))
+        });
+    if lookup_values.is_none_or(|total| total > MAX_LOOKUP_VALUES) {
+        return Err(VorbisError::InvalidSetup(
+            "the codebooks expand to more than 2^20 lookup values",
+        ));
     }
     Ok(shapes)
 }

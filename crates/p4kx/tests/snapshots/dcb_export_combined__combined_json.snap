@@ -1,0 +1,18 @@
+---
+source: crates/p4kx/tests/dcb_export_combined.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "[DIR]/Data.p4k",
+  "cancelled": 0,
+  "entry": "Data/Game2.dcb",
+  "error": null,
+  "error_values": 1,
+  "exported": 4,
+  "failed": [],
+  "file": "Game2.xml",
+  "format": "xml",
+  "records_with_errors": 1,
+  "skipped": [],
+  "target": "[DIR]/out"
+}

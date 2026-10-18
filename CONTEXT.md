@@ -50,8 +50,8 @@ or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`
 _Avoid_: format version, Archive version
 
 **Preview**:
-The start of one Entry shown in the window as text or as hexadecimal bytes, read without an
-Extraction.
+The start of one Entry shown in the window as text or as hexadecimal bytes, or a texture shown as
+an image one mip at a time, read without an Extraction.
 _Avoid_: viewer, inspector
 
 ### Game data
@@ -68,6 +68,12 @@ _Avoid_: dcb entry, item (an item is one kind of Record)
 The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/entities/spaceships/aegs_avenger`;
 several Records may share one, so only the GUID is unique.
 _Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
+
+**Record order**:
+The one order of Records in every listing and streamed output: by record path ignoring ASCII case
+with `/` and `\` alike, then by Record name ignoring ASCII case, then by definition order in
+DataForge.
+_Avoid_: path order, sort order
 
 **Record folder**:
 A record path that several Records share, shown in the Record tree as a folder holding those Records.
@@ -92,6 +98,11 @@ _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entrie
 The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
 a Record has to meet to be selected.
 _Avoid_: filter (a Filter selects Entries)
+
+**Component selector**:
+The `[TypeName]` segment of a Query path: it selects the elements of a struct array whose struct
+is that type or derives from it, e.g. `Components[VehicleComponentParams]`.
+_Avoid_: type filter, cast
 
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
@@ -221,6 +232,11 @@ _Avoid_: updater, auto-update
 The JSON Export of manufacturers, items, ships, commodities and blueprints that the basetool's P4K
 import consumes.
 _Avoid_: p4k-catalog, basetool export
+
+**Kind**:
+One group of entities in the Basetool catalog, e.g. manufacturers or items, selected by record-path
+prefix and type and complete or partial on its own.
+_Avoid_: category, entity type
 
 **Export**:
 A structured file derived from DataForge for another tool, as opposed to an Extraction of Entries.

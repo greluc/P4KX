@@ -6,14 +6,17 @@ mod buffers;
 mod conversion_error;
 mod convert;
 mod dataforge;
+mod dataforge_convert;
 mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
 mod options;
 mod output_file;
+mod record_combined;
 mod record_export;
 mod record_files;
+mod record_format;
 mod record_report;
 mod report;
 mod selection;
@@ -27,6 +30,7 @@ mod texture_job;
 mod texture_outputs;
 mod texture_parts;
 mod texture_png;
+mod texture_preview;
 mod texture_siblings;
 mod tracker;
 mod ui_external;
@@ -52,23 +56,26 @@ pub use p4kx_audio::{
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, MAX_NESTING_DEPTH,
-    MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Reference,
-    Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
+    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, JsonLayout,
+    MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordJson,
+    RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
+    ValueKind,
 };
 pub use p4kx_gfx as gfx;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
-pub use record_export::export_records;
+pub use record_combined::export_combined;
+pub use record_export::{export_record_files, export_records};
+pub use record_format::RecordFileFormat;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
-pub use target::{create_default_target, default_target_name};
+pub use target::{create_default_target, default_target_name, utc_rfc3339};
 pub use texture::Texture;
 pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};

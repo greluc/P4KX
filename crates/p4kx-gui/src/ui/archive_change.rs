@@ -42,7 +42,15 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                         .map(|browser| browser.index().archive().path().display().to_string())
                         .unwrap_or_default();
                     let texts = model.texts();
-                    let notice = texts.format(Text::ArchiveChanged, &[("path", path.into())]);
+                    let stopped = if model.change_stopped_extraction() {
+                        "yes"
+                    } else {
+                        "no"
+                    };
+                    let notice = texts.format(
+                        Text::ArchiveChanged,
+                        &[("path", path.into()), ("stopped", stopped.into())],
+                    );
                     let label = texts.get(Text::ActionReload);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         reload = button::button(ui, Kind::Outline, Size::Compact, &label, !running)

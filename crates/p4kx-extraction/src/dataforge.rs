@@ -29,7 +29,7 @@ impl DataForgeEntry {
     /// [`DataForgeLoadError::TooLarge`] when its size exceeds [`MAX_DATAFORGE_SIZE`], and another
     /// [`DataForgeLoadError`] when the Entry cannot be read.
     pub fn read(archive: &Archive) -> Result<Self, DataForgeLoadError> {
-        let entry = find_entry(archive).ok_or(DataForgeLoadError::Missing)?;
+        let entry = Self::locate(archive).ok_or(DataForgeLoadError::Missing)?;
         let path = entry.path().to_owned();
         let size = entry.uncompressed_size();
         if size > MAX_DATAFORGE_SIZE {
@@ -60,6 +60,18 @@ impl DataForgeEntry {
                 })
             });
         read.map(|_| Self { path, bytes })
+    }
+
+    /// Returns the Entry [`DataForgeEntry::read`] reads, or `None` when the Archive holds no
+    /// DataForge; case and separator kind of the path do not matter.
+    #[must_use]
+    pub fn locate(archive: &Archive) -> Option<&Entry> {
+        DATAFORGE_ENTRIES.iter().find_map(|wanted| {
+            archive
+                .entries()
+                .iter()
+                .find(|entry| same_path(entry.path(), wanted))
+        })
     }
 
     /// Returns the path of the Entry the DataForge was read from.
@@ -107,15 +119,6 @@ pub enum DataForgeLoadError {
         #[source]
         source: io::Error,
     },
-}
-
-fn find_entry(archive: &Archive) -> Option<&Entry> {
-    DATAFORGE_ENTRIES.iter().find_map(|wanted| {
-        archive
-            .entries()
-            .iter()
-            .find(|entry| same_path(entry.path(), wanted))
-    })
 }
 
 fn same_path(left: &str, right: &str) -> bool {

@@ -520,3 +520,38 @@ side holds at most 128 MiB of text and about 9 bytes of bookkeeping per line.
 `format` is the signature, `CryXmlB`, `CryXml` or `CRY3SDK`, or `text` for text XML written
 unchanged; `byte_order` is `little`, `big`, or `null` for text XML. `--json` needs `--out`,
 because the XML would otherwise share stdout with the JSON; without it the exit code is 2.
+
+## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
+
+```json
+{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934}
+```
+
+`versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
+JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
+the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
+
+### The CHF JSON
+
+`to-json` writes, and `from-json` reads, one indented object. `from-json` of an unchanged
+`to-json` output gives back the original file byte for byte (ADR-0014); any other value gives a
+new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
+code 2; a JSON file larger than 1 MiB is not read (exit code 3).
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `character.versions` | object | `female` (supported: 2) and `male` (supported: 7, 8); from 8 on the body ends with a zero `u32` |
+| `character.body_type`, `character.voice` | string | GUIDs in the form DataForge prints them; the voice is all zeros when none is chosen |
+| `character.dna` | object or `null` | `null` in a CHF that holds only materials, as the game's presets do; otherwise `gender_hash`, `variant_hash`, `blends_per_part`, `header_unknown`, `max_head_id` and `face_parts`: one object per face part in stored order, `part` naming it (`eyebrow_left`, `eyebrow_right`, `eye_left`, `eye_right`, `nose`, `ear_left`, `ear_right`, `cheek_left`, `cheek_right`, `mouth`, `jaw`, `crown`, `neck`, then `part_<n>`) and `blends` with exactly `blends_per_part` objects `{value, head_id}` |
+| `character.item_ports` | object or `null` | `null` when the CHF holds no ports; otherwise the root port: `port` (name hash), `item` (GUID), `tail_count` (a count the layout keeps, as read) and `children`, the same objects, omitted when empty; at most 32 levels |
+| `character.item_port_tail` | number | The `u32` the layout keeps behind the port count, in a CHF without ports the number of materials; omitted when 0 |
+| `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
+| `container.flags` | number | The two header bytes behind the magic |
+| `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+
+Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
+hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is
+written back with exactly the bits it was read with. `container` and each of its fields may be
+left out; without `frame` the body is always compressed anew.
+

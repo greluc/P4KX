@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum DataForgeError {
     /// The header names a version this reader does not know.
     #[error(
-        "DataForge version {version} is not supported; this version of P4K-Extractor reads version 6"
+        "DataForge version {version} is not supported; this version of P4K-Extractor reads versions 6 and 8"
     )]
     UnsupportedVersion {
         /// The version in the header.

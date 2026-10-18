@@ -69,6 +69,11 @@ The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/enti
 several Records may share one, so only the GUID is unique.
 _Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
 
+**Record tag**:
+A label DataForge version 8 stores with every Record, e.g. `SystemsDesign` or `Unknown`; version 6
+Records have none.
+_Avoid_: category, kind
+
 **Reference**:
 A link from one Record to another by GUID; it is never expanded into the referring Record.
 _Avoid_: weak pointer, pointer (alone)

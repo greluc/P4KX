@@ -18,6 +18,9 @@ fails while its section is missing.
   Archives differ.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
+- `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
+  (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
+  every current Channel, and any other version is reported as not supported.
 
 ## [0.1.0]
 

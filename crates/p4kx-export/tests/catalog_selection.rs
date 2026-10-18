@@ -10,8 +10,8 @@ use p4kx_export::{
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
-    write_build_manifest,
+    ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
+    TestValue, write_build_manifest,
 };
 use serde_json::Value;
 
@@ -106,9 +106,25 @@ fn database() -> DataForgeBuilder {
                     format!("SCItemManufacturer.{class}"),
                     format!("libs/foundry/records/{path}.xml"),
                 )
-                .value("Code", TestValue::text(code)),
+                .value("Code", TestValue::text(code))
+                .value("Localization", localization(class, code)),
             )
         })
+}
+
+fn localization(class: &str, code: &str) -> TestValue {
+    let key = |kind: &str| {
+        if code.is_empty() {
+            TestValue::text("")
+        } else {
+            TestValue::text(format!("@manufacturer_{kind}{class}"))
+        }
+    };
+    TestValue::Struct(
+        TestInstance::new("SCItemLocalization")
+            .value("Name", key("Name"))
+            .value("Description", key("Desc")),
+    )
 }
 
 fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
@@ -172,8 +188,8 @@ fn a_manufacturer_carries_guid_class_name_record_path_code_name_and_description(
             "className": "ACAS",
             "recordPath": "libs/foundry/records/scitemmanufacturer/acas",
             "code": "ACAS",
-            "name": {"key": null, "en": null, "de": null},
-            "description": {"key": null, "en": null, "de": null},
+            "name": {"key": "@manufacturer_NameACAS", "en": null, "de": null},
+            "description": {"key": "@manufacturer_DescACAS", "en": null, "de": null},
         }),
         "the manufacturer fields"
     );
@@ -362,4 +378,16 @@ fn the_size_warning_comes_before_the_64_mb_upload_limit() {
         Some(SizeWarning::OverLimit),
         "over the limit"
     );
+}
+
+#[test]
+fn an_empty_localisation_key_is_null() -> TestResult {
+    let (_, catalog) = catalog_with(&options())?;
+    let paint = catalog["manufacturers"]
+        .as_array()
+        .and_then(|list| list.iter().find(|m| m["className"] == "Paint_Logo"))
+        .ok_or("Paint_Logo")?;
+    assert_eq!(paint["name"]["key"], Value::Null, "no key");
+    assert_eq!(paint["description"]["key"], Value::Null, "no key");
+    Ok(())
 }

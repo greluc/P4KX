@@ -46,6 +46,13 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
     let codes: Vec<&str> = list.iter().filter_map(|m| m["code"].as_str()).collect();
     for code in ["RSI", "ANVL", "DRAK", "ACAS"] {
         assert!(codes.contains(&code), "manufacturer {code} is present");
+        let named = list.iter().any(|m| {
+            m["code"] == code
+                && m["name"]["key"]
+                    .as_str()
+                    .is_some_and(|key| key.starts_with('@'))
+        });
+        assert!(named, "manufacturer {code} has a localisation key");
     }
     assert!(
         list.iter()

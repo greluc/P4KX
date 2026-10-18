@@ -7,8 +7,8 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
-    write_build_manifest,
+    ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
+    TestValue, write_build_manifest,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -24,6 +24,17 @@ fn manufacturer(guid: u128, class: &str, path: &str, code: &str) -> TestRecord {
         format!("libs/foundry/records/scitemmanufacturer/{path}.xml"),
     )
     .value("Code", TestValue::text(code))
+    .value(
+        "Localization",
+        TestValue::Struct(
+            TestInstance::new("SCItemLocalization")
+                .value(
+                    "Name",
+                    TestValue::text(format!("@manufacturer_Name{class}")),
+                )
+                .value("Description", TestValue::text("")),
+        ),
+    )
 }
 
 fn database() -> DataForgeBuilder {

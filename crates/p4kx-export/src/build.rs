@@ -2,7 +2,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
-use p4kx_extraction::{Archive, CancelToken, DataForgeEntry, DataForgeError, Record, utc_rfc3339};
+use p4kx_extraction::{
+    Archive, CancelToken, DataForgeEntry, DataForgeError, Record, TreeBuilder, utc_rfc3339,
+};
 use rayon::prelude::*;
 
 use crate::contract::{
@@ -47,7 +49,8 @@ pub fn build_catalog(
     };
     let picked: Vec<Picked<'_>> = records
         .par_iter()
-        .filter_map(|record| scan.check(record).transpose())
+        .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
+        .filter_map(Result::transpose)
         .collect::<Result<_, _>>()?;
     if cancelled() {
         return Err(CatalogError::Cancelled);
@@ -121,7 +124,11 @@ struct Scan<'o, 'a> {
 }
 
 impl Scan<'_, '_> {
-    fn check<'f>(&self, record: &Record<'f>) -> Result<Option<Picked<'f>>, CatalogError> {
+    fn check<'f>(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+    ) -> Result<Option<Picked<'f>>, CatalogError> {
         if self.options.cancel.is_some_and(CancelToken::is_cancelled) {
             return Err(CatalogError::Cancelled);
         }
@@ -144,7 +151,7 @@ impl Scan<'_, '_> {
         if is_leftover(path, record.name().map_err(failed)?) {
             return Ok(Some(Picked::Skipped));
         }
-        let tree = record.tree().map_err(failed)?;
+        let tree = trees.build(record).map_err(failed)?;
         Ok(Some(Picked::Manufacturer(manufacturer(&tree))))
     }
 

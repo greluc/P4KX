@@ -1,17 +1,24 @@
-use p4kx_extraction::{RecordTree, Value};
+use p4kx_extraction::{RecordTree, StructValue, Value};
 
 use crate::contract::{LocalisedText, Manufacturer};
 use crate::guid_text::CatalogGuid;
 
 /// Returns the manufacturer the Record tree `tree` describes.
 pub(crate) fn manufacturer<'f>(tree: &RecordTree<'f>) -> Manufacturer<'f> {
+    let localization = match field(tree, "Localization") {
+        Some(Value::Struct(localization)) => Some(localization),
+        _ => None,
+    };
     Manufacturer {
         guid: CatalogGuid(tree.guid()),
         class_name: class_name(tree),
         record_path: tree.record_path(),
-        code: string_field(tree, "Code"),
-        name: LocalisedText::default(),
-        description: LocalisedText::default(),
+        code: match field(tree, "Code") {
+            Some(Value::String(code)) => Some(*code),
+            _ => None,
+        },
+        name: localised(localization, "Name"),
+        description: localised(localization, "Description"),
     }
 }
 
@@ -25,12 +32,24 @@ pub(crate) fn class_name<'f>(tree: &RecordTree<'f>) -> &'f str {
         .unwrap_or(name)
 }
 
-fn string_field<'f>(tree: &RecordTree<'f>, name: &str) -> Option<&'f str> {
+fn field<'t, 'f>(tree: &'t RecordTree<'f>, name: &str) -> Option<&'t Value<'f>> {
     tree.fields()
         .iter()
         .find(|field| field.name() == name)
-        .and_then(|field| match field.value() {
-            Value::String(text) => Some(*text),
+        .map(|field| field.value())
+}
+
+/// Returns the text whose localisation key the field `name` of `localization` holds; an empty
+/// key is none.
+fn localised<'f>(localization: Option<&StructValue<'f>>, name: &str) -> LocalisedText<'f> {
+    let key = localization
+        .and_then(|localization| localization.field(name))
+        .and_then(|value| match value {
+            Value::Locale(key) if !key.is_empty() => Some(*key),
             _ => None,
-        })
+        });
+    LocalisedText {
+        key,
+        ..LocalisedText::default()
+    }
 }

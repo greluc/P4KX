@@ -55,13 +55,18 @@ fails while its section is missing.
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
   and write PCM WEMs as WAV files; every Wwise codec is detected.
+- `p4kx audio ogg`: rebuild a Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding,
+  from an Archive or from disk. The headers are rebuilt with the default codebooks and checked
+  with a Vorbis decoder, falling back to the aoTuV codebooks; the file plays for the sound's exact
+  duration. The codebook libraries come from ww2ogg under the BSD 3-Clause licence, whose notice
+  ships as `THIRD-PARTY-NOTICES` in the ZIP and the MSI.
 - `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
   mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
   per channel, as Wwise writes them, instead of 65.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
-  from disk embeds, with ID, codec and duration, and write them as `<id>.wem` or converted to WAV;
-  the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a corrupt soundbank fails
-  with an error naming the section.
+  from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
+  rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a
+  corrupt soundbank fails with an error naming the section.
 - `p4kx chunks list` and `p4kx chunks dump`: list the chunks of a CryEngine chunk file (`.cgf`,
   `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) from an Archive or from disk,
   in the `#ivo` (`0x900`) or the `CrCh` (`0x746`) container, with type, type ID, version, chunk

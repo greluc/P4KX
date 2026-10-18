@@ -5,6 +5,7 @@ mod bnk;
 mod channels;
 mod chunks;
 mod cli;
+mod cli_audio;
 mod cli_bnk;
 mod cli_chunks;
 mod compare;

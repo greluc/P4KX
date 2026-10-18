@@ -153,6 +153,7 @@ fn extract(bank: &Bank, out: &Path, format: BnkFormat, as_json: bool) -> Result<
     let format = match format {
         BnkFormat::Wem => WemFormat::Wem,
         BnkFormat::Wav => WemFormat::Wav,
+        BnkFormat::Ogg => WemFormat::Ogg,
     };
     let extraction = bank.extract_wems(out, format)?;
     let total = extraction.written.len() + extraction.failures.len();

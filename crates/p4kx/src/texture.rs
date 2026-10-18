@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
 use crate::json;
+use crate::texture_image::{ImageOptions, export_image};
 
 const UNKNOWN: &str = "unknown";
 const NONE: &str = "none";
@@ -77,17 +78,6 @@ struct MergeJson<'a> {
     size: u64,
 }
 
-#[derive(Serialize)]
-struct PngJson<'a> {
-    texture: &'a str,
-    output: String,
-    files: Vec<String>,
-    mip: u32,
-    width: u32,
-    height: u32,
-    alpha_tail: bool,
-}
-
 /// Runs `p4kx texture info`, `merge` or `png`.
 pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
     match &args.action {
@@ -100,13 +90,20 @@ pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
             out,
             mip,
             cross,
+            tone_map,
         } => {
-            let layout = if *cross {
-                CubemapLayout::Cross
-            } else {
-                CubemapLayout::Faces
+            let options = ImageOptions {
+                mip: *mip,
+                layout: if *cross {
+                    CubemapLayout::Cross
+                } else {
+                    CubemapLayout::Faces
+                },
+                tone_map: *tone_map,
             };
-            with_texture(source, |texture| png(texture, out, *mip, layout, as_json))
+            with_texture(source, |texture| {
+                export_image(texture, out, options, as_json)
+            })
         }
     }
 }
@@ -183,48 +180,6 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
             report.parts,
             out.display(),
             report.size
-        )?;
-    }
-    Ok(())
-}
-
-fn png(
-    texture: &Texture<'_>,
-    out: &Path,
-    mip: u32,
-    layout: CubemapLayout,
-    as_json: bool,
-) -> Result<()> {
-    let report = texture.png_to_file_as(out, mip, layout)?;
-    if as_json {
-        json::print(&PngJson {
-            texture: texture.name(),
-            output: json::path(out),
-            files: report.files.iter().map(|file| json::path(file)).collect(),
-            mip: report.level,
-            width: report.width,
-            height: report.height,
-            alpha_tail: report.alpha_tail,
-        })?;
-    } else {
-        let files: Vec<String> = report
-            .files
-            .iter()
-            .map(|file| file.display().to_string())
-            .collect();
-        writeln!(
-            io::stdout().lock(),
-            "wrote mip {} of {}{}, {} x {}, to {}",
-            report.level,
-            texture.name(),
-            if report.alpha_tail {
-                " with its alpha tail"
-            } else {
-                ""
-            },
-            report.width,
-            report.height,
-            files.join(", ")
         )?;
     }
     Ok(())

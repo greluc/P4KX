@@ -307,12 +307,44 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
-    /// Converts CryXml Entries to UTF-8 XML; text XML and every other Entry are written unchanged.
+    /// Converts CryXml Entries to UTF-8 XML and DDS textures as --textures says; text XML and
+    /// every other Entry are written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,
+    /// What --convert writes for a texture <name>.dds, its parts <name>.dds.1 … .N and any alpha
+    /// tail <name>.dds.a: `merge` one standard DDS under the header's path (and, without `png`,
+    /// the tail merged under its own path), `png` the mip --mip as <name>.png with the tail as
+    /// alpha, a high-range texture as OpenEXR <name>.exr and a cubemap as six face files, `raw`
+    /// the Entries unchanged (with `merge`, only the parts); a texture that cannot be converted
+    /// is reported and written raw.
+    #[arg(
+        long,
+        value_enum,
+        value_delimiter = ',',
+        num_args = 1..,
+        default_values_t = [TextureOutput::Merge, TextureOutput::Png],
+        requires = "convert",
+        value_name = "OUTPUTS"
+    )]
+    pub(crate) textures: Vec<TextureOutput>,
+    /// The mip level --convert exports as PNG or OpenEXR, 0 being the largest; a texture with
+    /// fewer levels exports its smallest.
+    #[arg(long, default_value_t = 0, requires = "convert", value_name = "LEVEL")]
+    pub(crate) mip: u32,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,
+}
+
+/// The values of `p4kx extract --textures`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TextureOutput {
+    /// Merge the header and its parts into one standard DDS file.
+    Merge,
+    /// Export one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR.
+    Png,
+    /// Write the Entries unchanged as well.
+    Raw,
 }
 
 /// The values of `p4kx extract --conflict`.

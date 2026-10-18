@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_extraction::{Archive, ArchiveError};
-use p4kx_settings::RecentArchives;
+use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod extraction_control;
@@ -46,6 +46,7 @@ pub struct Model {
     preview_tab: PreviewTab,
     extraction_folder: Option<PathBuf>,
     extraction_conversion: bool,
+    extraction_textures: ExtractionTextures,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
     update: UpdateState,
@@ -66,6 +67,7 @@ impl std::fmt::Debug for Model {
             .field("preview_tab", &self.preview_tab)
             .field("extraction_folder", &self.extraction_folder)
             .field("extraction_conversion", &self.extraction_conversion)
+            .field("extraction_textures", &self.extraction_textures)
             .field("extraction_setup", &self.extraction_setup)
             .field("extraction", &self.extraction)
             .field("update", &self.update)
@@ -90,6 +92,7 @@ impl Model {
             preview_tab: PreviewTab::Text,
             extraction_folder: None,
             extraction_conversion: false,
+            extraction_textures: ExtractionTextures::default(),
             extraction_setup: None,
             extraction: None,
             update: UpdateState::default(),

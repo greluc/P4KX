@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::Entry;
+use p4kx_settings::ExtractionTextures;
 
 use super::Model;
 use crate::extraction::{Confirmation, start};
@@ -30,6 +31,17 @@ impl Model {
         self.extraction_conversion = convert;
     }
 
+    /// Returns what the last Extraction wrote for a texture, the choice a new setup starts with.
+    #[must_use]
+    pub const fn extraction_textures(&self) -> ExtractionTextures {
+        self.extraction_textures
+    }
+
+    /// Replaces the texture outputs an Extraction setup starts with.
+    pub const fn set_extraction_textures(&mut self, textures: ExtractionTextures) {
+        self.extraction_textures = textures;
+    }
+
     /// Opens the Extraction setup for `scope`, unless no Archive is open, it changed on disk or
     /// an Extraction runs; a finished Extraction is dismissed.
     pub fn begin_extraction(&mut self, scope: ExtractionScope) {
@@ -44,6 +56,7 @@ impl Model {
             scope,
             self.extraction_folder.clone(),
             self.extraction_conversion,
+            self.extraction_textures,
         ));
     }
 
@@ -109,6 +122,7 @@ impl Model {
         };
         self.extraction_folder = Some(request.folder.clone());
         self.extraction_conversion = request.convert;
+        self.extraction_textures = request.textures;
         self.extraction = Some(start(browser.shared_index(), request, wake));
         self.extraction_setup = None;
         true

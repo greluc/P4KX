@@ -16,6 +16,7 @@ mod records;
 mod sound;
 mod soundbank;
 mod texture;
+mod texture_conversion;
 mod texture_hdr;
 mod texture_hdr_cube;
 

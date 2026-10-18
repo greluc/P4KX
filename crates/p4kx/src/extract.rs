@@ -9,12 +9,13 @@ use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
     Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, Entry, EntryFailure, ExtractOptions,
-    ExtractionReport, Filter, Progress, create_default_target, extract, select_entries,
+    ExtractionReport, Filter, Progress, TextureConversion, create_default_target, extract,
+    select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::{Conflict, ExtractArgs};
+use crate::cli::{Conflict, ExtractArgs, TextureOutput};
 use crate::exit;
 use crate::json;
 use crate::progress::ProgressLine;
@@ -32,6 +33,8 @@ struct ReportJson<'a> {
     converted: Option<usize>,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unconverted: Option<Vec<FailureJson<'a>>>,
     cancelled: &'a [String],
     archive_changed: bool,
 }
@@ -66,6 +69,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let options = ExtractOptions {
         policy: policy(args.conflict),
         convert: args.convert,
+        textures: textures(args),
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),
@@ -114,6 +118,17 @@ const fn exit_code(report: &ExtractionReport) -> u8 {
     }
 }
 
+fn textures(args: &ExtractArgs) -> TextureConversion {
+    TextureConversion {
+        merge: args.textures.contains(&TextureOutput::Merge),
+        png: args
+            .textures
+            .contains(&TextureOutput::Png)
+            .then_some(args.mip),
+        keep_raw: args.textures.contains(&TextureOutput::Raw),
+    }
+}
+
 pub(crate) const fn policy(conflict: Conflict) -> ConflictPolicy {
     match conflict {
         Conflict::Skip => ConflictPolicy::Skip,
@@ -153,17 +168,23 @@ fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a
         extracted: report.extracted(),
         converted: report.converted(),
         skipped: report.skipped(),
-        failed: report
-            .failures()
-            .iter()
-            .map(|failure| FailureJson {
-                path: failure.path(),
-                error: reason(failure),
-            })
-            .collect(),
+        failed: failures_json(report.failures()),
+        unconverted: report
+            .converted()
+            .map(|_| failures_json(report.unconverted())),
         cancelled: report.cancelled(),
         archive_changed: report.archive_changed(),
     }
+}
+
+fn failures_json(failures: &[EntryFailure]) -> Vec<FailureJson<'_>> {
+    failures
+        .iter()
+        .map(|failure| FailureJson {
+            path: failure.path(),
+            error: reason(failure),
+        })
+        .collect()
 }
 
 fn reason(failure: &EntryFailure) -> String {
@@ -182,6 +203,9 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
     for failure in report.failures() {
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
+    for texture in report.unconverted() {
+        writeln!(err, "not converted {}: {}", texture.path(), reason(texture))?;
+    }
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {
         "unchanged"
@@ -194,9 +218,11 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
     for path in report.cancelled() {
         writeln!(out, "cancelled {path}")?;
     }
-    let converted = report
-        .converted()
-        .map_or_else(String::new, |count| format!(" ({count} converted)"));
+    let converted = match (report.converted(), report.unconverted().len()) {
+        (None, _) => String::new(),
+        (Some(count), 0) => format!(" ({count} converted)"),
+        (Some(count), unconverted) => format!(" ({count} converted, {unconverted} not converted)"),
+    };
     writeln!(
         out,
         "extracted {}{converted}, skipped {}, failed {}, cancelled {} into {}",

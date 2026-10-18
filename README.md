@@ -48,6 +48,13 @@ Early development (milestone M1). Available today:
   elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
   `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
   files and the launcher's settings store are never opened.
+- `p4kx cryxml <file> [--out <file>]` converts a CryXml file on disk, e.g. an Entry extracted
+  earlier, to UTF-8 XML on stdout or in `--out`. All three signatures (`CryXmlB`, `CryXml`,
+  `CRY3SDK`) and both byte orders are read; the XML is indented by two spaces with LF line
+  endings, and the same input always gives the same bytes. The output is always well-formed:
+  characters a name cannot hold, `:` included, become `_`, a repeated attribute name gets the
+  first free suffix `_2`, `_3`, …, and bytes that are not UTF-8 read as `?`. A file that already
+  is text XML is written unchanged. A truncated or corrupt file is an error and writes nothing.
 - `p4kx texture info <archive> <entry>` prints the format, size, depth, mip count, array size,
   cubemap faces and number of mip parts of a DDS texture; `p4kx texture merge <archive> <entry>
   --out <file>` merges the header Entry and its mip parts `<entry>.1` … `<entry>.N` into one
@@ -68,9 +75,9 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed |
-| 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, or a Channel path that does not exist or was never added |
-| 3 | The Archive cannot be read: missing, not an Archive or corrupt |
+| 1 | Partial failure: some Entries failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
+| 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 

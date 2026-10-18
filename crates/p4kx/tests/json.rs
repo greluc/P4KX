@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, SplitDds, TestCodec, TestEntry, TestTextureFormat, TestWem, test_signal,
-    write_build_manifest,
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, SplitDds, TestCodec, TestElement, TestEntry,
+    TestTextureFormat, TestWem, test_signal, write_build_manifest,
 };
 use serde_json::Value;
 
@@ -259,6 +259,31 @@ fn extract_with_a_filter() -> TestResult {
             .args(["--filter", "*.xml", "--out"])
             .arg(fixture.dir().join("out")),
         1,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn cryxml() -> TestResult {
+    let fixture = Fixture::new()?;
+    let input = fixture.dir().join("vehicle.xml");
+    std::fs::write(
+        &input,
+        TestElement::new("Vehicle")
+            .attribute("name", "AEGS_Gladius")
+            .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little),
+    )?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .arg("cryxml")
+            .arg(&input)
+            .arg("--out")
+            .arg(fixture.dir().join("converted.xml")),
+        0,
     )?;
 
     insta::assert_snapshot!(json);

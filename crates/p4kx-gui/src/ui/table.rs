@@ -66,7 +66,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             for (column, text) in COLUMNS {
                 header.col(|ui| {
                     head_fill(ui, ui.max_rect().left());
-                    if sort_header(ui, browser, column, &texts.get(text)) {
+                    let sort = browser.sort();
+                    let sorted = (sort.column == column).then_some(sort.direction);
+                    if sort_header(ui, sorted, &texts.get(text)) {
                         action = Some(Action::Sort(column));
                     }
                 });
@@ -122,7 +124,8 @@ const fn select_all(browser: &Browser) -> Check {
     }
 }
 
-fn head_fill(ui: &Ui, left: f32) {
+/// Paints the fill and the orange rule of a head cell from `left` to the cell's right edge.
+pub(super) fn head_fill(ui: &Ui, left: f32) {
     let rect = ui.max_rect().with_min_x(left);
     ui.painter()
         .rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
@@ -211,12 +214,12 @@ fn cell_text(ui: &mut Ui, text: &str, colour: egui::Color32, weight: Weight) {
     );
 }
 
-fn sort_header(ui: &Ui, browser: &Browser, column: SortColumn, label: &str) -> bool {
+/// Shows the sortable head cell `label`, `sorted` in that direction when it is the sort
+/// column; returns whether it was clicked.
+pub(super) fn sort_header(ui: &Ui, sorted: Option<SortDirection>, label: &str) -> bool {
     let rect = ui.max_rect();
     let response = ui.interact(rect, ui.scope_id().with(label), Sense::click());
     response.widget_info(|| WidgetInfo::labeled(Role::Button, true, label));
-    let sort = browser.sort();
-    let sorted = sort.column == column;
     if response.hovered() {
         ui.painter().rect_filled(
             rect.with_max_y(rect.bottom() - 2.0),
@@ -228,7 +231,7 @@ fn sort_header(ui: &Ui, browser: &Browser, column: SortColumn, label: &str) -> b
     let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));
     let galley = line(ui, text, inner.width() - CHEVRON - SORT_GAP);
     let text_width = galley.size().x;
-    let colour = if sorted {
+    let colour = if sorted.is_some() {
         palette::WHITE
     } else {
         palette::GRAY_1
@@ -238,8 +241,8 @@ fn sort_header(ui: &Ui, browser: &Browser, column: SortColumn, label: &str) -> b
         inner.left() + text_width + SORT_GAP + CHEVRON / 2.0,
         inner.center().y,
     );
-    if sorted {
-        let up = sort.direction == SortDirection::Ascending;
+    if let Some(direction) = sorted {
+        let up = direction == SortDirection::Ascending;
         sort_chevron(ui.painter(), centre, CHEVRON, up, palette::PRIMARY);
     } else if response.hovered() {
         sort_chevron(ui.painter(), centre, CHEVRON, true, palette::GRAY_2_TEXT);

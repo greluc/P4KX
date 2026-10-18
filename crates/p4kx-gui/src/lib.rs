@@ -6,6 +6,7 @@
 mod app;
 mod browser;
 mod channel_list;
+mod comparison;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_index;
@@ -26,6 +27,10 @@ pub mod window;
 pub use app::App;
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
+pub use comparison::{
+    ChangeColumn, ChangeSort, ComparisonLevels, ComparisonSide, ComparisonStage, ComparisonStatus,
+    ComparisonTab, ComparisonView, DirectorySummary, ReportStatus, Summary,
+};
 pub use entry_index::EntryIndex;
 pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
@@ -33,10 +38,10 @@ pub use extraction::{
 };
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
-pub use model::{Failure, Model};
+pub use model::{Failure, Model, WorkTab};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
 };
 pub use sort::{Sort, SortColumn, SortDirection};
-pub use texts::{ExtractionText, Text, Texts};
+pub use texts::{ComparisonText, ExtractionText, Text, Texts};

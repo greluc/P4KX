@@ -227,3 +227,50 @@ pub const DROP_TARGET_FILL: Color32 = Color32::from_rgba_unmultiplied_const(231,
 pub const SPINNER_TRACK: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 64);
 /// The flat scrim behind a modal, `rgba(0,0,0,0.8)`.
 pub const SCRIM: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 204);
+
+/// The horizontal padding of an Archive picker.
+pub const PICKER_PADDING_X: f32 = SPACE_3;
+/// The narrowest an Archive picker gets.
+pub const PICKER_MIN_WIDTH: f32 = SEARCH_WIDTH;
+
+/// The horizontal padding of the facts bar.
+pub const FACTS_PADDING_X: f32 = SPACE_4;
+/// The vertical padding of the facts bar.
+pub const FACTS_PADDING_Y: f32 = SPACE_2;
+/// The gap between the facts of the facts bar.
+pub const FACTS_GAP: f32 = SPACE_4;
+/// The font size of a fact's key.
+pub const FACT_KEY_SIZE: f32 = 0.62 * REM;
+/// The tracking of a fact's key in em.
+pub const FACT_KEY_TRACKING: f32 = 0.08;
+/// The gap between a fact's key and its value.
+pub const FACT_KEY_GAP: f32 = 5.0;
+/// The font size of a fact's value.
+pub const FACT_VALUE_SIZE: f32 = 0.78 * REM;
+
+/// The horizontal padding of a KPI tile.
+pub const KPI_PADDING_X: f32 = 14.0;
+/// The vertical padding of a KPI tile.
+pub const KPI_PADDING_Y: f32 = 10.0;
+/// The font size of a KPI tile's value.
+pub const KPI_VALUE_SIZE: f32 = 1.2 * REM;
+
+/// The horizontal padding of a chip.
+pub const CHIP_PADDING_X: f32 = SPACE_2;
+/// The vertical padding of a chip.
+pub const CHIP_PADDING_Y: f32 = 0.15 * REM;
+/// The tracking of a chip label in em.
+pub const CHIP_TRACKING: f32 = 0.06;
+/// The fill of a success chip, `rgba(35,158,51,0.12)`.
+pub const CHIP_SUCCESS_FILL: Color32 = Color32::from_rgba_unmultiplied_const(35, 158, 51, 31);
+/// The fill of a danger chip, `rgba(163,0,10,0.15)`.
+pub const CHIP_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 38);
+/// The fill of a warning chip, `rgba(255,210,63,0.12)`.
+pub const CHIP_WARNING_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 210, 63, 31);
+
+/// The width of the change column.
+pub const CHANGE_COLUMN: f32 = 130.0;
+/// The width of a size column of the change list.
+pub const CHANGE_SIZE_COLUMN: f32 = 150.0;
+/// The width of a count column of the directory table.
+pub const COUNT_COLUMN: f32 = 110.0;

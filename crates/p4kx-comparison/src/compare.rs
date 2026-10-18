@@ -10,6 +10,34 @@ use crate::{
 
 const PROGRESS_STEP: usize = 1 << 16;
 
+/// One changed Entry as positions in the Entry lists of both Archives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Joined {
+    pub(crate) old: Option<usize>,
+    pub(crate) new: Option<usize>,
+}
+
+impl Joined {
+    /// Returns the change of the Entries at these positions, `None` when a position is out of
+    /// range or both are missing.
+    pub(crate) fn resolve<'a>(self, old: &'a Archive, new: &'a Archive) -> Option<EntryChange<'a>> {
+        let before = match self.old {
+            Some(position) => Some(old.entries().get(position)?),
+            None => None,
+        };
+        let after = match self.new {
+            Some(position) => Some(new.entries().get(position)?),
+            None => None,
+        };
+        match (before, after) {
+            (Some(before), Some(after)) => Some(EntryChange::changed(before, after)),
+            (Some(before), None) => Some(EntryChange::removed(before)),
+            (None, Some(after)) => Some(EntryChange::added(after)),
+            (None, None) => None,
+        }
+    }
+}
+
 /// Compares the `old` with the `new` Archive on the selected levels.
 ///
 /// Entries are joined by their path with ASCII case folded and `/` read as `\`; an Entry is
@@ -24,29 +52,56 @@ pub fn compare<'a>(
     new: &'a Archive,
     options: &CompareOptions<'_>,
 ) -> Result<Comparison<'a>, ComparisonError> {
-    if options.levels.is_empty() {
-        return Err(ComparisonError::NoLevel);
-    }
-    check_cancel(options)?;
-    let entries = if options.levels.entries {
-        compare_entries(old, new, options)?
-    } else {
-        Vec::new()
-    };
+    let joined = join(old, new, options)?;
     Ok(Comparison {
         old: Side::of(old),
         new: Side::of(new),
         levels: options.levels,
         filter: options.filter.map(|filter| filter.as_str().to_owned()),
-        entries,
+        entries: joined
+            .iter()
+            .filter_map(|joined| joined.resolve(old, new))
+            .collect(),
     })
 }
 
-fn compare_entries<'a>(
-    old: &'a Archive,
-    new: &'a Archive,
+/// Joins the Entries of both Archives on the selected levels into the positions of the changed
+/// ones, ordered by normalised path.
+pub(crate) fn join(
+    old: &Archive,
+    new: &Archive,
     options: &CompareOptions<'_>,
-) -> Result<Vec<EntryChange<'a>>, ComparisonError> {
+) -> Result<Vec<Joined>, ComparisonError> {
+    if options.levels.is_empty() {
+        return Err(ComparisonError::NoLevel);
+    }
+    check_cancel(options)?;
+    if options.levels.entries {
+        join_entries(old, new, options)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+const fn removed(position: usize) -> Joined {
+    Joined {
+        old: Some(position),
+        new: None,
+    }
+}
+
+const fn added(position: usize) -> Joined {
+    Joined {
+        old: None,
+        new: Some(position),
+    }
+}
+
+fn join_entries(
+    old: &Archive,
+    new: &Archive,
+    options: &CompareOptions<'_>,
+) -> Result<Vec<Joined>, ComparisonError> {
     let (old, new) = rayon::join(
         || sorted_selection(old, options),
         || sorted_selection(new, options),
@@ -68,29 +123,34 @@ fn compare_entries<'a>(
     loop {
         let change = match (old.get(i), new.get(j)) {
             (None, None) => break,
-            (Some(&before), None) => {
+            (Some(&(before, _)), None) => {
                 i += 1;
-                Some(EntryChange::removed(before))
+                Some(removed(before))
             }
-            (None, Some(&after)) => {
+            (None, Some(&(after, _))) => {
                 j += 1;
-                Some(EntryChange::added(after))
+                Some(added(after))
             }
-            (Some(&before), Some(&after)) => match cmp_normalised(before.path(), after.path()) {
-                Ordering::Less => {
-                    i += 1;
-                    Some(EntryChange::removed(before))
+            (Some(&(before, old_entry)), Some(&(after, new_entry))) => {
+                match cmp_normalised(old_entry.path(), new_entry.path()) {
+                    Ordering::Less => {
+                        i += 1;
+                        Some(removed(before))
+                    }
+                    Ordering::Greater => {
+                        j += 1;
+                        Some(added(after))
+                    }
+                    Ordering::Equal => {
+                        i += 1;
+                        j += 1;
+                        differs(old_entry, new_entry).then_some(Joined {
+                            old: Some(before),
+                            new: Some(after),
+                        })
+                    }
                 }
-                Ordering::Greater => {
-                    j += 1;
-                    Some(EntryChange::added(after))
-                }
-                Ordering::Equal => {
-                    i += 1;
-                    j += 1;
-                    differs(before, after).then(|| EntryChange::changed(before, after))
-                }
-            },
+            }
         };
         changes.extend(change);
         if i + j >= next_report {
@@ -103,18 +163,22 @@ fn compare_entries<'a>(
     Ok(changes)
 }
 
-fn sorted_selection<'a>(archive: &'a Archive, options: &CompareOptions<'_>) -> Vec<&'a Entry> {
-    let mut entries: Vec<&Entry> = options.filter.map_or_else(
-        || archive.entries().iter().collect(),
+fn sorted_selection<'a>(
+    archive: &'a Archive,
+    options: &CompareOptions<'_>,
+) -> Vec<(usize, &'a Entry)> {
+    let mut entries: Vec<(usize, &Entry)> = options.filter.map_or_else(
+        || archive.entries().iter().enumerate().collect(),
         |filter| {
             archive
                 .entries()
                 .par_iter()
-                .filter(|entry| filter.matches(entry.path()))
+                .enumerate()
+                .filter(|(_, entry)| filter.matches(entry.path()))
                 .collect()
         },
     );
-    entries.par_sort_by(|a, b| {
+    entries.par_sort_by(|(_, a), (_, b)| {
         cmp_normalised(a.path(), b.path()).then_with(|| a.path().cmp(b.path()))
     });
     entries

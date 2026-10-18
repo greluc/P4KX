@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -37,10 +36,12 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
     };
     let comparison = compare(&old, &new, &options)?;
     if let Some(path) = &args.report {
-        write_report(path, &comparison).map_err(|source| ReportNotWritten {
-            path: path.clone(),
-            source,
-        })?;
+        comparison
+            .save_report(path)
+            .map_err(|source| ReportNotWritten {
+                path: path.clone(),
+                source,
+            })?;
     }
     let printed = if as_json {
         json::print(&comparison)
@@ -76,15 +77,6 @@ fn open_both(old: &Path, new: &Path) -> Result<(Archive, Archive), ArchiveError>
             .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
         Ok((old?, new?))
     })
-}
-
-fn write_report(path: &Path, comparison: &Comparison<'_>) -> io::Result<()> {
-    let mut out = BufWriter::new(File::create(path)?);
-    serde_json::to_writer_pretty(&mut out, comparison)?;
-    writeln!(out)?;
-    out.into_inner()
-        .map_err(io::IntoInnerError::into_error)?
-        .sync_all()
 }
 
 fn print_summary(comparison: &Comparison<'_>) -> io::Result<()> {

@@ -16,6 +16,11 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- The Comparison tab of the window: pick an old and a new Archive from the detected Channels, the
+  Recent Archives or any file, compare their Entries off the UI thread with progress and cancel,
+  and see both Builds, the counts per change kind and per top-level directory, and the sortable
+  list of added, removed and changed Entries, filtered with the rules of the search. **Save
+  report…** writes the same JSON as `p4kx compare --report` with the current Filter.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

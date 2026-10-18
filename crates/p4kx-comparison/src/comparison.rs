@@ -1,10 +1,13 @@
+use std::fs::File;
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use serde::{Serialize, Serializer};
 
 use crate::entry_change::{count, count_by_directory};
 use crate::{
-    Archive, Build, DirectoryCounts, EntryChange, EntryCounts, Levels, Report, report::to_report,
+    Archive, Build, DirectoryCounts, EntryChange, EntryCounts, Filter, Levels, Report,
+    report::to_report,
 };
 
 /// One of the two Archives of a Comparison.
@@ -108,6 +111,39 @@ impl<'a> Comparison<'a> {
     #[must_use]
     pub fn report(&self) -> Report<'_> {
         to_report(self)
+    }
+
+    /// Returns the Comparison of only the Entries whose path matches `filter`, the same as
+    /// comparing with that Filter in the first place.
+    #[must_use]
+    pub fn filtered(&self, filter: &Filter) -> Self {
+        Self {
+            old: self.old.clone(),
+            new: self.new.clone(),
+            levels: self.levels,
+            filter: Some(filter.as_str().to_owned()),
+            entries: self
+                .entries
+                .iter()
+                .filter(|change| filter.matches(change.path()))
+                .copied()
+                .collect(),
+        }
+    }
+
+    /// Writes the JSON report to the file at `path` as pretty JSON with a final newline and
+    /// flushes it to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of creating, writing or syncing the file.
+    pub fn save_report(&self, path: &Path) -> io::Result<()> {
+        let mut out = BufWriter::new(File::create(path)?);
+        serde_json::to_writer_pretty(&mut out, self)?;
+        writeln!(out)?;
+        out.into_inner()
+            .map_err(io::IntoInnerError::into_error)?
+            .sync_all()
     }
 }
 

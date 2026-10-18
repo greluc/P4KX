@@ -2869,6 +2869,7 @@ dependencies = [
  "fluent-bundle",
  "fluent-syntax",
  "p4kx-channels",
+ "p4kx-comparison",
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",

@@ -77,11 +77,11 @@ fn link(text: &str) -> egui::RichText {
 }
 
 /// Returns a `.krt-combobox__option` label: 14.4 points Regular, as written.
-fn entry(text: &str) -> egui::RichText {
+pub(super) fn entry(text: &str) -> egui::RichText {
     egui::RichText::new(text).font(font(FS_SM, Weight::Regular))
 }
 
-fn dropdown(ui: &mut Ui) {
+pub(super) fn dropdown(ui: &mut Ui) {
     ui.set_min_width(DROPDOWN_MIN_WIDTH);
     ui.spacing_mut().button_padding.x = DROPDOWN_ITEM_PADDING_X;
 }

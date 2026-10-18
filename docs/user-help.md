@@ -24,6 +24,28 @@ the window stays responsive while it loads.
 
 The limits are fixed.
 
+## Comparing two Archives
+
+The **Comparison** tab next to **Browse** compares two Archives, for example LIVE against PTU.
+
+1. Pick the **Old Archive** and the **New Archive**. Each picker lists the detected Channels with
+   their Build, the Recent Archives, and **Choose file…** for any other `Data.p4k`.
+2. Keep **Entries** switched on. The Record level follows in a later version and cannot be
+   switched on yet.
+3. Press **Compare**. Both Archives are opened and their central directories joined in the
+   background, without decompressing anything; a progress bar shows the Entries joined, and
+   **Cancel** stops at once.
+
+The result shows both sides with Channel and Build, old first, so the direction of every change
+is clear. An Entry is added when only the new Archive has it, removed when only the old one has
+it, and changed when its size or CRC-32C differs; paths match ignoring case and separator kind.
+The tiles count each kind, and **By directory** counts them per top-level directory.
+
+The list below can be filtered with the rules of the search (a glob with `*` or `?`, otherwise
+any part of the path) and sorted by any column; the counts follow the Filter. **Save report…**
+writes the JSON report of what is shown, the same file `p4kx compare --report` writes with that
+Filter (see [cli-json.md](cli-json.md)).
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

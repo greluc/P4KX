@@ -243,7 +243,7 @@ fn reads_the_tables_behind_filled_value_pools() -> TestResult {
 
 #[test]
 fn an_unknown_version_is_an_error() {
-    for version in [0, 5, 7, 8, u32::MAX] {
+    for version in [0, 1, 5, 7, 9, 10, u32::MAX] {
         let bytes = sample().version(version).build();
 
         let result = DataForge::open(&bytes);

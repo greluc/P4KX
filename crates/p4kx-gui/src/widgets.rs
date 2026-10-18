@@ -4,6 +4,7 @@
 pub(crate) mod button;
 pub(crate) mod frames;
 pub(crate) mod indicator;
+pub(crate) mod number;
 pub(crate) mod rows;
 pub(crate) mod tab;
 pub(crate) mod text;

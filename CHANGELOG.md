@@ -37,7 +37,7 @@ fails while its section is missing.
   `--json` count the converted Entries.
 - Texture Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch,
   each texture is merged into one DDS file and its largest mip exported as PNG once, not once per
-  part; `--textures merge,png,raw` and `--mip <level>`, and the same choices in the Extraction
+  part, with its alpha tail in the PNG's alpha channel and a cubemap as six face PNGs; `--textures merge,png,raw` and `--mip <level>`, and the same choices in the Extraction
   window, pick the outputs and keep the raw parts. A texture that cannot be converted is listed
   with its reason, its raw Entries are written and the Extraction continues. The choices are
   remembered with the other Extraction settings.

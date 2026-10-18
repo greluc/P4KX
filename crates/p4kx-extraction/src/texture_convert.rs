@@ -1,15 +1,12 @@
-use std::ffi::OsString;
-use std::io::Read;
-
 use p4kx_archive::Entry;
-use p4kx_texture::{DdsHeader, MAX_HEADER_LEN, TextureError};
+use p4kx_texture::TextureError;
 
 use crate::buffers::Buffers;
 use crate::extract::Ended;
 use crate::texture_job::TextureJob;
 use crate::texture_parts::Parts;
-use crate::write::{Destination, EntryWriter, Outcome};
-use crate::{ConversionError, EntryFailure, ExtractionError};
+use crate::write::{EntryWriter, Outcome};
+use crate::{ConversionError, EntryFailure, ExtractionError, Texture};
 
 /// How one output of a texture ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,18 +44,16 @@ impl Done {
     }
 }
 
-/// The texture being converted: its parsed header and where its outputs go.
+/// The texture being converted, with its alpha tail, its header Entry and its number of parts.
 pub(crate) struct Source<'j> {
-    pub(crate) name: &'j str,
+    pub(crate) texture: Texture<'j>,
     pub(crate) header: &'j Entry,
-    pub(crate) parts: Parts<'j>,
-    pub(crate) dds: DdsHeader,
     pub(crate) part_count: u32,
 }
 
 impl Source<'_> {
     pub(crate) fn texture_error(&self, error: TextureError) -> ExtractionError {
-        ExtractionError::Texture(ConversionError::of_texture(self.name, error))
+        ExtractionError::Texture(ConversionError::of_texture(self.texture.name(), error))
     }
 }
 
@@ -78,7 +73,7 @@ impl EntryWriter<'_> {
         };
         let raw = self.textures.keep_raw || failure.is_some();
         let failure = failure.filter(|error| !matches!(error, ExtractionError::UnsafePath));
-        let mut entries = Vec::with_capacity(job.requested_parts.len() + 1);
+        let mut entries = Vec::with_capacity(job.requested.len() + 1);
         for (position, (index, entry)) in job.entries().enumerate() {
             let is_header = position == 0;
             let outcome = if done.cancelled() {
@@ -120,12 +115,13 @@ impl EntryWriter<'_> {
         let (_, header) = job.header;
         let destination = self.destination(header)?;
         let source = self.open_source(job)?;
+        let dds = source.texture.header();
         let level = self
             .textures
             .png
-            .map(|level| level.min(source.dds.mip_count().saturating_sub(1)));
+            .map(|level| level.min(dds.mip_count().saturating_sub(1)));
         let capture = level
-            .filter(|&level| level < source.part_count && source.dds.format().is_decodable())
+            .filter(|&level| level < source.part_count && dds.format().is_decodable())
             .map(|level| source.part_count - level);
         buffers.data.clear();
         if self.textures.merge {
@@ -138,58 +134,30 @@ impl EntryWriter<'_> {
         let Some(level) = level else {
             return Ok(());
         };
-        let png = Destination::new(destination.folder.clone(), &png_name(&destination))?;
-        done.png = Some(self.write_png(&source, &png, level, buffers)?);
+        done.png = Some(self.write_pngs(&source, &destination, level, buffers)?);
         Ok(())
     }
 
     fn open_source<'j>(&'j self, job: &'j TextureJob<'_>) -> Result<Source<'j>, ExtractionError> {
         let (_, header) = job.header;
-        let name = header.path();
-        let texture_error =
-            |error| ExtractionError::Texture(ConversionError::of_texture(name, error));
-        let mut reader = self.archive.open_entry(header)?;
-        let mut prefix = [0; MAX_HEADER_LEN];
-        let len = read_full(&mut reader, &mut prefix)
-            .map_err(|source| texture_error(TextureError::ReadHeader(source)))?;
-        let dds = DdsHeader::parse(prefix.get(..len).unwrap_or_default()).map_err(texture_error)?;
-        let part_count = dds
-            .part_count(header.uncompressed_size())
-            .map_err(texture_error)?;
-        Ok(Source {
-            name,
+        let colour = Parts::Archive {
+            archive: self.archive,
             header,
-            parts: Parts::Archive {
-                archive: self.archive,
-                header,
-                parts: job.parts.clone(),
-            },
-            dds,
+            parts: job.parts.clone(),
+        };
+        let alpha = job.alpha_header.map(|alpha_header| Parts::Archive {
+            archive: self.archive,
+            header: alpha_header,
+            parts: job.alpha_parts.clone(),
+        });
+        let texture = Texture::from_parts(colour, alpha).map_err(ExtractionError::Texture)?;
+        let part_count = texture.part_count().map_err(|error| {
+            ExtractionError::Texture(ConversionError::of_texture(texture.name(), error))
+        })?;
+        Ok(Source {
+            texture,
+            header,
             part_count,
         })
     }
-}
-
-/// Returns the name of the PNG next to the header: its name with `.png` for `.dds`.
-fn png_name(destination: &Destination) -> OsString {
-    let mut name = destination
-        .file
-        .file_stem()
-        .map(OsString::from)
-        .unwrap_or_default();
-    name.push(".png");
-    name
-}
-
-fn read_full(reader: &mut impl Read, buffer: &mut [u8]) -> std::io::Result<usize> {
-    let mut filled = 0;
-    while let Some(free) = buffer.get_mut(filled..).filter(|free| !free.is_empty()) {
-        match reader.read(free) {
-            Ok(0) => break,
-            Ok(count) => filled += count,
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
-            Err(error) => return Err(error),
-        }
-    }
-    Ok(filled)
 }

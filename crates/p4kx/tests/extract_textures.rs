@@ -224,3 +224,55 @@ fn without_convert_textures_are_written_raw() -> TestResult {
     assert_eq!(files(&fixture.out)?.len(), 5, "the raw Entries");
     Ok(())
 }
+
+#[test]
+fn convert_merges_an_alpha_tail_into_the_png_and_writes_cubemap_faces() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    let tailed = SplitDds::new(TestTextureFormat::LegacyBgra8, 8, 8)
+        .split(1)
+        .alpha(TestTextureFormat::R8);
+    let cube = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4)
+        .cubemap()
+        .split(1);
+    tailed
+        .entries("Data\\glass.dds")
+        .into_iter()
+        .chain(cube.entries("Data\\sky.dds"))
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&archive)?;
+    let out = dir.path().join("out");
+
+    Command::cargo_bin("p4kx")?
+        .arg("extract")
+        .arg(&archive)
+        .args(["--filter", "Data\\", "--convert", "--out"])
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("extracted 6 (6 converted)"));
+
+    let mut expected = vec![
+        "Data/glass.dds".to_owned(),
+        "Data/glass.png".to_owned(),
+        "Data/sky.dds".to_owned(),
+    ];
+    expected.extend(
+        ["posx", "negx", "posy", "negy", "posz", "negz"]
+            .iter()
+            .map(|face| format!("Data/sky_{face}.png")),
+    );
+    expected.sort();
+    assert_eq!(files(&out)?, expected, "no tail Entries, six cubemap faces");
+    let alpha = png_alpha(&out.join("Data/glass.png"))?;
+    let tail = tailed.alpha_tail().ok_or("a tail")?;
+    assert_eq!(alpha, tail.mip(0), "the PNG's alpha is the tail");
+    Ok(())
+}
+
+fn png_alpha(path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut reader = png::Decoder::new(std::io::BufReader::new(File::open(path)?)).read_info()?;
+    let mut pixels = vec![0; reader.output_buffer_size().unwrap_or_default()];
+    reader.next_frame(&mut pixels)?;
+    Ok(pixels.iter().skip(3).step_by(4).copied().collect())
+}

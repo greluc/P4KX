@@ -15,6 +15,7 @@ mod cubemap_alpha;
 mod records;
 mod sound;
 mod texture;
+mod texture_conversion;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;

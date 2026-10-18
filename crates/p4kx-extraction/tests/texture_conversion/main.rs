@@ -4,3 +4,4 @@ mod failures;
 mod fixture;
 mod outputs;
 mod run_control;
+mod tails_and_cubes;

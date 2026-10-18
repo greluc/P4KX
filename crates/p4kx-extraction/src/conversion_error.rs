@@ -120,9 +120,19 @@ pub enum ConversionError {
 }
 
 impl ConversionError {
-    /// Names the part of a [`TextureError`] about one part, or wraps it with the texture's name.
+    /// Names the part of a [`TextureError`] about one part, `<texture>.N` or for an alpha tail
+    /// `<texture>.a` its part `<texture>.Na`, or wraps it with the texture's name.
     pub(crate) fn of_texture(texture: &str, error: TextureError) -> Self {
-        let part = |index: u32| format!("{texture}.{index}");
+        let part = |index: u32| match texture
+            .len()
+            .checked_sub(2)
+            .and_then(|at| texture.split_at_checked(at))
+        {
+            Some((base, suffix @ (".a" | ".A"))) => {
+                format!("{base}.{index}{}", suffix.trim_start_matches('.'))
+            }
+            _ => format!("{texture}.{index}"),
+        };
         match error {
             TextureError::MissingPart { index } => Self::MissingPart { part: part(index) },
             TextureError::TruncatedPart {

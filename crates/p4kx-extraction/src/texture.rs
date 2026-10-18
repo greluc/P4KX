@@ -42,7 +42,11 @@ impl<'a> Texture<'a> {
         Self::from_parts(found.colour, found.alpha)
     }
 
-    fn from_parts(parts: Parts<'a>, alpha: Option<Parts<'a>>) -> Result<Self, ConversionError> {
+    /// Opens the texture of parts with the alpha tail of lpha, parsing its header.
+    pub(crate) fn from_parts(
+        parts: Parts<'a>,
+        alpha: Option<Parts<'a>>,
+    ) -> Result<Self, ConversionError> {
         let (name, header_size, header) = match &parts {
             Parts::Archive {
                 archive, header, ..
@@ -192,6 +196,31 @@ impl<'a> Texture<'a> {
     /// and the errors of [`Texture::read_mip`]. A tail that cannot be used is an error, never
     /// silently dropped.
     pub fn decode_surfaces(&self, level: u32) -> Result<Vec<RgbaImage>, ConversionError> {
+        let alpha = self.checked_alpha_tail(level)?;
+        let images = self.decode_mip_data(&self.read_mip(level)?)?;
+        Self::with_alpha_tail(alpha, level, images)
+    }
+
+    /// Returns the size of the header in bytes.
+    pub(crate) const fn header_size(&self) -> u64 {
+        self.header_size
+    }
+
+    /// Returns where the header and the parts are stored.
+    pub(crate) const fn parts(&self) -> &Parts<'a> {
+        &self.parts
+    }
+
+    /// Decodes every image of `mip`, read from this texture, to 8-bit RGBA without the alpha
+    /// tail.
+    pub(crate) fn decode_mip_data(&self, mip: &Mip) -> Result<Vec<RgbaImage>, ConversionError> {
+        mip.decode_surfaces()
+            .map_err(|error| ConversionError::of_texture(&self.name, error))
+    }
+
+    /// Checks that the texture and its alpha tail decode at `level` before any mip is read, and
+    /// opens the tail.
+    pub(crate) fn checked_alpha_tail(&self, level: u32) -> Result<Option<Self>, ConversionError> {
         self.check_decodable()?;
         let alpha = self.alpha_tail().transpose()?;
         if let Some(alpha) = &alpha {
@@ -206,10 +235,15 @@ impl<'a> Texture<'a> {
                 ));
             }
         }
-        let mut images = self
-            .read_mip(level)?
-            .decode_surfaces()
-            .map_err(|error| ConversionError::of_texture(&self.name, error))?;
+        Ok(alpha)
+    }
+
+    /// Merges mip `level` of the alpha tail `alpha` into the alpha channel of `images`.
+    pub(crate) fn with_alpha_tail(
+        alpha: Option<Self>,
+        level: u32,
+        mut images: Vec<RgbaImage>,
+    ) -> Result<Vec<RgbaImage>, ConversionError> {
         let Some(alpha) = alpha else {
             return Ok(images);
         };
@@ -250,7 +284,8 @@ impl<'a> Texture<'a> {
         Ok(())
     }
 
-    fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
+    /// Opens the header's data from its start.
+    pub(crate) fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
         match &self.parts {
             Parts::Archive {
                 archive, header, ..

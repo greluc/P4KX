@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use egui::{Align, Align2, DragValue, Layout, Margin, TextEdit, Ui, vec2};
+use egui::{Align, Align2, Layout, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
 use p4kx_settings::ExtractionTextures;
@@ -13,7 +13,7 @@ use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight,
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
-use crate::widgets::toggle;
+use crate::widgets::{number, toggle};
 use crate::{
     Extraction, ExtractionScope, ExtractionSetup, ExtractionText as T, Model, TargetKind, Texts,
     format,
@@ -195,10 +195,7 @@ fn texture_choices(ui: &mut Ui, texts: &Texts, textures: &mut ExtractionTextures
                 textures.mip = 1;
             }
             let mut level = textures.mip.max(1);
-            ui.add_enabled(
-                png && textures.mip > 0,
-                DragValue::new(&mut level).range(1..=MAX_MIP_LEVEL),
-            );
+            number::number_field(ui, &mut level, 1..=MAX_MIP_LEVEL, png && textures.mip > 0);
             if textures.mip > 0 {
                 textures.mip = level;
             }

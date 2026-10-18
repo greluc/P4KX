@@ -3,6 +3,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
+use crate::CUBE_FACE_NAMES;
+
 /// An Entry of the run with its position in the requested order.
 pub(crate) type Indexed<'a> = (usize, &'a Entry);
 
@@ -14,18 +16,44 @@ pub(crate) enum Item<'a> {
     Texture(TextureJob<'a>),
 }
 
-/// A texture of the run: its header Entry, the parts that were requested with it and every part
-/// the Archive holds for it.
+/// A texture of the run: its header Entry, the Entries of the texture that were requested with
+/// it, and every part and alpha tail Entry the Archive holds for it.
 pub(crate) struct TextureJob<'a> {
     pub(crate) header: Indexed<'a>,
-    pub(crate) requested_parts: Vec<Indexed<'a>>,
+    pub(crate) requested: Vec<Indexed<'a>>,
     pub(crate) parts: BTreeMap<u32, &'a Entry>,
+    pub(crate) alpha_header: Option<&'a Entry>,
+    pub(crate) alpha_parts: BTreeMap<u32, &'a Entry>,
 }
 
 impl<'a> TextureJob<'a> {
+    const fn new(header: Indexed<'a>) -> Self {
+        Self {
+            header,
+            requested: Vec::new(),
+            parts: BTreeMap::new(),
+            alpha_header: None,
+            alpha_parts: BTreeMap::new(),
+        }
+    }
+
     /// Returns every Entry of the run that belongs to the texture, the header first.
     pub(crate) fn entries(&self) -> impl Iterator<Item = Indexed<'a>> + '_ {
-        std::iter::once(self.header).chain(self.requested_parts.iter().copied())
+        std::iter::once(self.header).chain(self.requested.iter().copied())
+    }
+
+    fn add(&mut self, member: Member, entry: &'a Entry) {
+        match member {
+            Member::Part(number) => {
+                self.parts.entry(number).or_insert(entry);
+            }
+            Member::AlphaHeader => {
+                self.alpha_header.get_or_insert(entry);
+            }
+            Member::AlphaPart(number) => {
+                self.alpha_parts.entry(number).or_insert(entry);
+            }
+        }
     }
 }
 
@@ -48,17 +76,21 @@ impl Item<'_> {
                     .get(..header.len().saturating_sub(4))
                     .unwrap_or_default();
                 visit(&format!("{stem}.png"));
+                for face in CUBE_FACE_NAMES {
+                    visit(&format!("{stem}_{face}.png"));
+                }
                 visit(header);
-                for (_, part) in &job.requested_parts {
-                    visit(part.path());
+                for (_, entry) in &job.requested {
+                    visit(entry.path());
                 }
             }
         }
     }
 }
 
-/// Splits `entries` into items: each requested `.dds` header with its requested parts and the
-/// Archive's parts becomes one texture, every other Entry stays on its own.
+/// Splits `entries` into items: each requested `.dds` header with its requested parts and alpha
+/// tail Entries and those the Archive holds becomes one texture, every other Entry stays on its
+/// own.
 pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) -> Vec<Item<'a>> {
     let mut headers = Headers::default();
     for (index, entry) in entries.iter().enumerate() {
@@ -77,34 +109,24 @@ pub(crate) fn group_textures<'a>(archive: &'a Archive, entries: &[&'a Entry]) ->
     let mut jobs: HashMap<usize, TextureJob<'a>> = headers
         .by_key
         .values()
-        .filter_map(|&index| {
-            let header = *entries.get(index)?;
-            Some((
-                index,
-                TextureJob {
-                    header: (index, header),
-                    requested_parts: Vec::new(),
-                    parts: BTreeMap::new(),
-                },
-            ))
-        })
+        .filter_map(|&index| Some((index, TextureJob::new((index, *entries.get(index)?)))))
         .collect();
-    for (header, number, entry) in archive_parts(archive, &headers) {
+    for (header, member, entry) in archive_members(archive, &headers) {
         if let Some(job) = jobs.get_mut(&header) {
-            job.parts.entry(number).or_insert(entry);
+            job.add(member, entry);
         }
     }
     let mut items = Vec::with_capacity(entries.len());
     for (index, entry) in entries.iter().copied().enumerate() {
-        let owner = match role(entry.path()) {
-            Some(Role::Part(header_path, _)) => headers.find(header_path),
-            _ => None,
-        };
         if jobs.contains_key(&index) {
             continue;
         }
+        let owner = match role(entry.path()) {
+            Some(Role::Member(header_path, _)) => headers.find(header_path),
+            _ => None,
+        };
         match owner.and_then(|header| jobs.get_mut(&header)) {
-            Some(job) => job.requested_parts.push((index, entry)),
+            Some(job) => job.requested.push((index, entry)),
             None => items.push(Item::Entry((index, entry))),
         }
     }
@@ -139,17 +161,16 @@ impl Headers {
     }
 }
 
-/// Finds the parts of the `headers` in one parallel pass over the Archive.
-fn archive_parts<'a>(archive: &'a Archive, headers: &Headers) -> Vec<(usize, u32, &'a Entry)> {
+/// Finds the parts and alpha tail Entries of the `headers` in one parallel pass over the Archive.
+fn archive_members<'a>(archive: &'a Archive, headers: &Headers) -> Vec<(usize, Member, &'a Entry)> {
     archive
         .entries()
         .par_iter()
         .filter_map(|entry| {
-            let Some(Role::Part(header_path, number)) = role(entry.path()) else {
+            let Some(Role::Member(header_path, member)) = role(entry.path()) else {
                 return None;
             };
-            let header = headers.find(header_path)?;
-            Some((header, number, entry))
+            Some((headers.find(header_path)?, member, entry))
         })
         .collect()
 }
@@ -159,24 +180,49 @@ fn archive_parts<'a>(archive: &'a Archive, headers: &Headers) -> Vec<(usize, u32
 pub(crate) enum Role<'p> {
     /// A `.dds` header.
     Header,
-    /// Part `N` of the header at the given path.
-    Part(&'p str, u32),
+    /// An Entry belonging to the header at the given path.
+    Member(&'p str, Member),
 }
 
-/// Returns the role of the Entry at `path`, or `None` when it is no part of a texture.
+/// What an Entry other than the header is to its texture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Member {
+    /// Part `N`, `.dds.N`.
+    Part(u32),
+    /// The alpha tail's header, `.dds.a`.
+    AlphaHeader,
+    /// Part `N` of the alpha tail, `.dds.Na`.
+    AlphaPart(u32),
+}
+
+/// Returns the role of the Entry at `path`, or `None` when it belongs to no texture.
 pub(crate) fn role(path: &str) -> Option<Role<'_>> {
     if has_dds_extension(path) {
         return Some(Role::Header);
     }
-    let (header, digits) = path.rsplit_once('.')?;
+    let (header, suffix) = path.rsplit_once('.')?;
+    if !has_dds_extension(header) {
+        return None;
+    }
+    if suffix.eq_ignore_ascii_case("a") {
+        return Some(Role::Member(header, Member::AlphaHeader));
+    }
+    let (digits, alpha) = suffix
+        .strip_suffix(['a', 'A'])
+        .map_or((suffix, false), |digits| (digits, true));
     if digits.is_empty()
         || digits.starts_with('0')
         || !digits.bytes().all(|byte| byte.is_ascii_digit())
-        || !has_dds_extension(header)
     {
         return None;
     }
-    digits.parse().ok().map(|number| Role::Part(header, number))
+    let number = digits.parse().ok()?;
+    let member = if alpha {
+        Member::AlphaPart(number)
+    } else {
+        Member::Part(number)
+    };
+    Some(Role::Member(header, member))
 }
 
 fn has_dds_extension(path: &str) -> bool {
@@ -187,28 +233,34 @@ fn has_dds_extension(path: &str) -> bool {
 }
 
 /// Returns the path in lower case with `\` separators, the key two paths collide on.
-pub(crate) fn key(path: &str) -> String {
+fn key(path: &str) -> String {
     path.replace('/', "\\").to_lowercase()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Role, role};
+    use super::{Member, Role, role};
 
     #[test]
-    fn headers_and_numbered_parts_are_recognised() {
-        assert_eq!(role("Data\\a.dds"), Some(Role::Header), "header");
-        assert_eq!(role("Data/A.DDS"), Some(Role::Header), "any case");
-        assert_eq!(
-            role("Data\\a.dds.12"),
-            Some(Role::Part("Data\\a.dds", 12)),
-            "part 12"
-        );
+    fn headers_parts_and_alpha_tails_are_recognised() {
+        let member = |member| Some(Role::Member("Data\\a.dds", member));
+        for (path, expected) in [
+            ("Data\\a.dds", Some(Role::Header)),
+            ("Data/A.DDS", Some(Role::Header)),
+            ("Data\\a.dds.12", member(Member::Part(12))),
+            ("Data\\a.dds.a", member(Member::AlphaHeader)),
+            ("Data\\a.dds.A", member(Member::AlphaHeader)),
+            ("Data\\a.dds.3a", member(Member::AlphaPart(3))),
+            ("Data\\a.dds.7A", member(Member::AlphaPart(7))),
+        ] {
+            assert_eq!(role(path), expected, "{path}");
+        }
         for other in [
-            "Data\\a.dds.a",
-            "Data\\a.dds.1a",
             "Data\\a.dds.0",
+            "Data\\a.dds.0a",
             "Data\\a.dds.01",
+            "Data\\a.dds.aa",
+            "Data\\a.dds.1b",
             "Data\\a.dds.",
             "Data\\a.ddsx",
             "Data\\a.png.1",

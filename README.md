@@ -39,7 +39,9 @@ Early development (milestone M1). Available today:
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
   existing file with the converted XML. The summary then also counts the converted Entries.
-  `--convert` also converts each texture (`<name>.dds` and its parts `<name>.dds.1` … `.N`) once:
+  `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
+  tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, and a
+  cubemap is exported as six faces `<name>_posx.png` … `<name>_negz.png`:
   `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
   the header's path, `png` the mip `--mip <level>` (0, the largest, by default; a texture with
   fewer levels gives its smallest) as `<name>.png`, and `raw` the Entries unchanged as well, with

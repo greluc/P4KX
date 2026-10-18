@@ -24,6 +24,8 @@ mod texture_job;
 mod texture_outputs;
 mod texture_parts;
 mod texture_png;
+mod texture_png_files;
+mod texture_siblings;
 mod tracker;
 mod watch;
 mod write;

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
@@ -10,6 +11,8 @@ use rayon::prelude::*;
 use super::TextureInfo;
 use crate::EntryIndex;
 use crate::model::describe;
+
+static SERIAL: AtomicU64 = AtomicU64::new(0);
 
 /// Where the image preview of a texture stands.
 #[derive(Debug, Clone, Copy)]
@@ -88,6 +91,7 @@ enum State {
 /// thread, one requested level at a time.
 #[derive(Debug)]
 pub struct ImagePreview {
+    serial: u64,
     requests: Sender<u32>,
     events: Receiver<Event>,
     state: State,
@@ -112,10 +116,17 @@ impl ImagePreview {
             Err(_ignored) => State::Failed(None),
         };
         Self {
+            serial: SERIAL.fetch_add(1, Ordering::Relaxed),
             requests,
             events,
             state,
         }
+    }
+
+    /// Returns a number no other image preview of this process has.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
     }
 
     /// Returns where the preview stands.
@@ -152,13 +163,20 @@ impl ImagePreview {
 
     /// Decodes mip `level` on the background thread unless it is shown or being decoded
     /// already; does nothing before the header was read, for a format the preview cannot
-    /// decode, and for a level the texture does not have.
-    pub fn request(&mut self, level: u32) {
+    /// decode, and for a level the texture does not have or whose image has a side longer than
+    /// `max_side` pixels.
+    pub fn request(&mut self, level: u32, max_side: u32) {
         let State::Opened(info, mip) = &mut self.state else {
             return;
         };
-        let current = matches!(mip, Mip::Decoding(shown) | Mip::Decoded { level: shown, .. } if *shown == level);
-        if current || !info.is_decodable() || level >= info.mip_count() {
+        let current = matches!(
+            mip,
+            Mip::Decoding(shown) | Mip::Decoded { level: shown, .. } if *shown == level
+        );
+        let showable = info
+            .image_size(level)
+            .is_some_and(|size| size.iter().all(|&side| side <= max_side));
+        if current || !showable || !info.is_decodable() {
             return;
         }
         *mip = match self.requests.send(level) {

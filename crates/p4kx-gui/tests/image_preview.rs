@@ -286,7 +286,7 @@ fn decoding_runs_off_the_window_thread() -> TestResult {
         browser.poll();
     }
     let image = browser.image_mut().ok_or("no image preview")?;
-    image.request(0);
+    image.request(0, 2048);
     let decoding = matches!(
         image.status(),
         ImageStatus::Opened(_, MipStatus::Decoding(0))

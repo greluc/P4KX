@@ -37,16 +37,11 @@ fn mip_selector(ui: &mut Ui, texts: &Texts, info: &TextureInfo, level: Option<u3
 
 /// Shows the Image tab of the texture at `path`: its facts, the mip selector and the shown mip.
 /// Returns the level clicked, or the one that fits the view when no mip was chosen yet.
-pub(super) fn show(
-    ui: &mut Ui,
-    texts: &Texts,
-    (entry, path): (u32, &str),
-    image: &ImagePreview,
-) -> Option<u32> {
+pub(super) fn show(ui: &mut Ui, texts: &Texts, path: &str, image: &ImagePreview) -> Option<u32> {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let status = image.status();
     if let ImageStatus::Opened(info, _) = status {
-        facts(ui, texts, entry, info).show(ui);
+        facts(ui, texts, image.serial(), info).show(ui);
     }
     frames::preview_body()
         .show(ui, |ui| match status {
@@ -85,6 +80,12 @@ fn mip_body(
     mip: MipStatus<'_>,
 ) -> Option<u32> {
     match mip {
+        MipStatus::Unchosen if info.first_showable_level(max_side(ui)).is_none() => {
+            let path = ("path", FluentValue::from(path.to_owned()));
+            let text = texts.format(ImageText::Unshowable, &[path]);
+            ui.colored_label(palette::DANGER_TEXT, text);
+            None
+        }
         MipStatus::Unchosen => {
             let view = settled_view(ui)?;
             info.fitting_level([pixels(view.x), pixels(view.y)], max_side(ui))
@@ -138,7 +139,7 @@ fn picture(
 }
 
 /// Claims the space left for the image and returns its size in pixels once it is the same in
-/// two frames in a row, so a panel that still grows to its size does not pick a mip too small.
+/// two frames in a row.
 fn settled_view(ui: &mut Ui) -> Option<Vec2> {
     let view = ui.available_size() * ui.ctx().pixels_per_point();
     let id = ui.scope_id().with("p4kx-image-view");
@@ -151,9 +152,12 @@ fn settled_view(ui: &mut Ui) -> Option<Vec2> {
         .id_salt("preview-image")
         .auto_shrink(false)
         .show(ui, |_| {});
-    ui.ctx().request_repaint();
+    if previous != Some(view) {
+        ui.ctx().request_repaint();
+    }
     previous.filter(|&previous| previous == view)
 }
+
 fn loading(ui: &mut Ui, text: &str) {
     ui.horizontal(|ui| {
         spinner(ui, SPINNER_INLINE);
@@ -174,16 +178,16 @@ fn failure(texts: &Texts, path: &str, reason: Option<&str>) -> String {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Key {
-    entry: u32,
+    serial: u64,
     language: Language,
     pixels_per_point: f32,
 }
 
-/// Returns the facts of `info`, laid out once per Entry, language and scale.
-fn facts(ui: &Ui, texts: &Texts, entry: u32, info: &TextureInfo) -> Arc<FactsStrip> {
+/// Returns the facts of `info`, laid out once per image preview, language and scale.
+fn facts(ui: &Ui, texts: &Texts, serial: u64, info: &TextureInfo) -> Arc<FactsStrip> {
     let id = Id::unique("p4kx-image-facts");
     let key = Key {
-        entry,
+        serial,
         language: texts.language(),
         pixels_per_point: ui.ctx().pixels_per_point(),
     };
@@ -221,7 +225,8 @@ fn facts(ui: &Ui, texts: &Texts, entry: u32, info: &TextureInfo) -> Arc<FactsStr
     strip
 }
 
-fn max_side(ui: &Ui) -> u32 {
+/// Returns the longest side, in pixels, of a texture the window can show.
+pub(super) fn max_side(ui: &Ui) -> u32 {
     let side = ui.ctx().input(|input| input.max_texture_side);
     u32::try_from(side).unwrap_or(u32::MAX)
 }

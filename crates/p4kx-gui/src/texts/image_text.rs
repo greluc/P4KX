@@ -26,11 +26,13 @@ pub enum ImageText {
     Unsupported,
     /// Shown when the texture or a mip cannot be decoded; takes `path` and `reason`.
     Failed,
+    /// Shown when every mip is larger than the window can show; takes `path`.
+    Unshowable,
 }
 
 impl ImageText {
     /// Every text of the image preview.
-    pub(crate) const ALL: [Self; 12] = [
+    pub(crate) const ALL: [Self; 13] = [
         Self::Tab,
         Self::Mip,
         Self::Format,
@@ -43,6 +45,7 @@ impl ImageText {
         Self::Decoding,
         Self::Unsupported,
         Self::Failed,
+        Self::Unshowable,
     ];
 
     /// Returns the Fluent message id.
@@ -61,6 +64,7 @@ impl ImageText {
             Self::Decoding => "image-decoding",
             Self::Unsupported => "image-unsupported",
             Self::Failed => "image-failed",
+            Self::Unshowable => "image-unshowable",
         }
     }
 }

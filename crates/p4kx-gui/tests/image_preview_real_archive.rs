@@ -72,7 +72,7 @@ fn a_texture_of_every_format_in_a_real_archive_previews_without_a_crash() -> Tes
         let format = info.format().to_owned();
         let level = info.fitting_level(VIEW, MAX_SIDE);
         if let (Some(level), Some(preview)) = (level, browser.image_mut()) {
-            preview.request(level);
+            preview.request(level, MAX_SIDE);
         }
         wait(&mut browser, |image| !image.is_busy())?;
         let decoded = match image(&browser).map(ImagePreview::status) {
@@ -156,7 +156,7 @@ fn frames_stay_short_while_a_large_real_texture_decodes() -> TestResult {
     browser.select_entry(id, || {});
     wait(browser, |image| !image.is_busy())?;
     if let Some(image) = browser.image_mut() {
-        image.request(0);
+        image.request(0, WINDOW_MAX_SIDE);
     }
     harness.state_mut().set_preview_tab(PreviewTab::Image);
 

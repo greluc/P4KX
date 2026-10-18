@@ -86,14 +86,6 @@ impl TextureInfo {
         self.decodable
     }
 
-    /// Returns the label of mip `level` in the mip selector: its longer side in pixels.
-    #[must_use]
-    pub fn mip_label(&self, level: u32) -> &str {
-        self.mip_labels
-            .get(level as usize)
-            .map_or_else(Default::default, String::as_str)
-    }
-
     /// Returns the labels of every mip, the largest first.
     #[must_use]
     pub fn mip_labels(&self) -> &[String] {
@@ -196,9 +188,7 @@ mod tests {
     fn mips_are_labelled_by_their_longer_side() {
         let info = texture([8, 2], 4, None);
 
-        let labels: Vec<&str> = (0..5).map(|level| info.mip_label(level)).collect();
-
-        assert_eq!(labels, ["8", "4", "2", "1", ""], "labels");
+        assert_eq!(info.mip_labels(), ["8", "4", "2", "1"], "labels");
         assert_eq!(info.image_size(3), Some([1, 1]), "never below one pixel");
         assert_eq!(info.image_size(4), None, "no such level");
     }

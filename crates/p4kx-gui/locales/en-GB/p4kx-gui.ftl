@@ -199,3 +199,4 @@ image-shown = Mip { $level }: { $width } × { $height } pixels
 image-decoding = Decoding mip { $level } of { $path }…
 image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
 image-failed = Cannot decode { $path }: { $reason }
+image-unshowable = Every mip of { $path } is larger than this graphics driver can show.

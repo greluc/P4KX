@@ -66,7 +66,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if let Some(level) = level
         && let Some(image) = model.browser_mut().and_then(Browser::image_mut)
     {
-        image.request(level);
+        image.request(level, image_preview::max_side(ui));
     }
     if tab == PreviewTab::DataForge
         && let Some(browser) = model.browser_mut()
@@ -159,7 +159,7 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Optio
     let size = entry.map_or(0, Entry::uncompressed_size);
     path_line(ui, path, &format::size(size, texts.language()));
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
-        return image_preview::show(ui, texts, (preview.entry(), path), image);
+        return image_preview::show(ui, texts, path, image);
     }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();

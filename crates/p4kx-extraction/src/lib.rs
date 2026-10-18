@@ -1,4 +1,4 @@
-//! Extraction service of P4K-Extractor and the Archive API front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml` and texture APIs front-ends use.
 
 mod conversion_error;
 mod entry_path;
@@ -19,6 +19,7 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_cryxml as cryxml;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, MergeReport, TextureError, TextureFormat,
 };

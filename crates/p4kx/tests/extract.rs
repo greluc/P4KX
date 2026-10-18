@@ -384,6 +384,8 @@ fn extract_help_documents_the_exit_codes() -> TestResult {
         .code(0)
         .stdout(predicate::str::contains("Exit codes:"))
         .stdout(predicate::str::contains("2  invalid input"))
-        .stdout(predicate::str::contains("3  the Archive cannot be read"));
+        .stdout(predicate::str::contains(
+            "3  the Archive or the input file cannot be read",
+        ));
     Ok(())
 }

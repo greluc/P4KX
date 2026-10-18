@@ -1,9 +1,12 @@
-//! Extraction from a real Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one.
+//! Extraction, `CryXml` and texture Conversion on a real Archive; runs with `--ignored` when
+//! `P4KX_DATA_P4K` names one.
 
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
+use p4kx_extraction::cryxml::{self, Format};
 use p4kx_extraction::{
     Archive, ConflictPolicy, ConversionError, Entry, ExtractOptions, Texture, TextureError, extract,
 };
@@ -11,10 +14,84 @@ use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
+type SendError = Box<dyn Error + Send + Sync>;
 
 const PER_KIND: usize = 10;
 const MAX_SIZE: u64 = 4 << 20;
+const CRYXML_EXTENSIONS: [&str; 2] = [".xml", ".mtl"];
+const MAX_CRYXML_SIZE: u64 = 64 << 20;
 const TEXTURE_SAMPLE: usize = 400;
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn converts_every_cryxml_entry_of_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let candidates: Vec<&Entry> = archive
+        .entries()
+        .iter()
+        .filter(|entry| entry.uncompressed_size() <= MAX_CRYXML_SIZE)
+        .filter(|entry| {
+            let path = entry.path().to_ascii_lowercase();
+            CRYXML_EXTENSIONS
+                .iter()
+                .any(|extension| path.ends_with(extension))
+        })
+        .collect();
+    let binary = AtomicUsize::new(0);
+    let text = AtomicUsize::new(0);
+
+    let failures: Vec<String> = candidates
+        .par_iter()
+        .filter_map(|entry| match convert(&archive, entry) {
+            Ok(Some(Format::CryXml(_))) => {
+                binary.fetch_add(1, Ordering::Relaxed);
+                None
+            }
+            Ok(Some(Format::Text)) => {
+                text.fetch_add(1, Ordering::Relaxed);
+                None
+            }
+            Ok(None) => None,
+            Err(error) => Some(format!("{}: {error}", entry.path())),
+        })
+        .collect();
+
+    assert!(
+        failures.is_empty(),
+        "{} of {} Entries fail, e.g. {:?}",
+        failures.len(),
+        candidates.len(),
+        failures.iter().take(10).collect::<Vec<_>>()
+    );
+    let (binary, text) = (binary.into_inner(), text.into_inner());
+    assert!(
+        binary > 1000,
+        "converted {binary} CryXml and passed {text} text Entries through"
+    );
+    Ok(())
+}
+
+fn convert(archive: &Archive, entry: &Entry) -> Result<Option<Format>, SendError> {
+    let mut bytes = Vec::with_capacity(usize::try_from(entry.uncompressed_size())?);
+    archive.open_entry(entry)?.read_to_end(&mut bytes)?;
+    let Some(format) = cryxml::detect(&bytes) else {
+        return Ok(None);
+    };
+    let mut out = Vec::with_capacity(bytes.len() * 2);
+    cryxml::read(&bytes)?.write_to(&mut out)?;
+    if format == Format::Text {
+        if out != bytes {
+            return Err("text XML changed".into());
+        }
+    } else {
+        let xml = std::str::from_utf8(&out)?;
+        if xml.contains('\r') {
+            return Err("XML has a CR".into());
+        }
+        roxmltree::Document::parse(xml)?;
+    }
+    Ok(Some(format))
+}
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]

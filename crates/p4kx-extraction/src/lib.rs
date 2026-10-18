@@ -7,6 +7,7 @@ mod entry_path;
 mod extract;
 mod filter;
 mod options;
+mod output_file;
 mod report;
 mod selection;
 mod target;
@@ -28,10 +29,10 @@ pub use p4kx_dataforge::{
     ValueKind,
 };
 pub use p4kx_texture::{
-    BlockLayout, DdsHeader, DxgiFormat, MergeReport, TextureError, TextureFormat,
+    BlockLayout, DdsHeader, DxgiFormat, MergeReport, Mip, RgbaImage, TextureError, TextureFormat,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use target::{create_default_target, default_target_name};
-pub use texture::Texture;
+pub use texture::{PngReport, Texture};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

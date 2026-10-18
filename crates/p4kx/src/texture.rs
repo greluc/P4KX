@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, Texture};
+use p4kx_extraction::{Archive, ConversionError, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
@@ -32,12 +32,24 @@ struct MergeJson<'a> {
     size: u64,
 }
 
-/// Runs `p4kx texture info` or `p4kx texture merge`.
+#[derive(Serialize)]
+struct PngJson<'a> {
+    texture: &'a str,
+    output: String,
+    mip: u32,
+    width: u32,
+    height: u32,
+}
+
+/// Runs `p4kx texture info`, `merge` or `png`.
 pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
     match &args.action {
         TextureAction::Info(source) => with_texture(source, |texture| info(texture, as_json)),
         TextureAction::Merge { source, out } => {
             with_texture(source, |texture| merge(texture, out, as_json))
+        }
+        TextureAction::Png { source, out, mip } => {
+            with_texture(source, |texture| png(texture, out, *mip, as_json))
         }
     }
 }
@@ -116,8 +128,32 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
+fn png(texture: &Texture<'_>, out: &Path, mip: u32, as_json: bool) -> Result<()> {
+    let report = texture.png_to_file(out, mip)?;
+    if as_json {
+        json::print(&PngJson {
+            texture: texture.name(),
+            output: json::path(out),
+            mip: report.level,
+            width: report.width,
+            height: report.height,
+        })?;
+    } else {
+        writeln!(
+            io::stdout().lock(),
+            "wrote mip {} of {}, {} x {}, to {}",
+            report.level,
+            texture.name(),
+            report.width,
+            report.height,
+            out.display()
+        )?;
+    }
+    Ok(())
+}
+
 /// Returns whether `error` is a texture failure caused by the command line: an Entry or file that
-/// does not exist, or an output that is one of the inputs.
+/// does not exist, a mip level the texture does not have, or an output that is one of the inputs.
 pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
@@ -125,6 +161,10 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
             ConversionError::UnknownEntry(_)
                 | ConversionError::NoSuchFile { .. }
                 | ConversionError::OutputIsInput { .. }
+                | ConversionError::Texture {
+                    source: TextureError::NoSuchMip { .. },
+                    ..
+                }
         )
     )
 }

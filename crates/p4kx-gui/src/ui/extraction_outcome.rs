@@ -12,7 +12,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, Weight, font};
-use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
@@ -116,10 +116,7 @@ fn outcome_window(
 
 fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
     frames::foot_rule(ui);
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        button::button(ui, Kind::Cta, Size::Normal, &texts.get(T::Close), true).clicked()
-    })
-    .inner
+    frames::foot_action(ui, &texts.get(T::Close), Kind::Cta)
 }
 
 fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> bool {
@@ -148,10 +145,7 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
         });
         false
     } else {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            button::button(ui, Kind::Ghost, Size::Normal, &texts.get(T::Cancel), true).clicked()
-        })
-        .inner
+        frames::foot_action(ui, &texts.get(T::Cancel), Kind::Ghost)
     }
 }
 

@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use egui::{Align, Id, Layout, ScrollArea, Ui};
+use egui::{Id, ScrollArea, Ui};
 use fluent_bundle::FluentValue;
 
 use super::extraction::number;
@@ -12,7 +12,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{SPACE_2, SPACE_3};
-use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::rows::section_header;
@@ -99,7 +99,7 @@ fn outcome_window(
             let closed = frames::head(ui, (&title, tone), false, Some(&close_dialog));
             body(ui);
             frames::foot_rule(ui);
-            let pressed = foot_button(ui, &texts.get(ExtractionText::Close), Kind::Cta);
+            let pressed = frames::foot_action(ui, &texts.get(ExtractionText::Close), Kind::Cta);
             close = pressed || closed;
         });
     decorate(ui, shown, tone);
@@ -148,19 +148,8 @@ fn running(ui: &mut Ui, texts: &Texts, progress: RecordExportProgress, cancellin
         });
         false
     } else {
-        foot_button(ui, &texts.get(ExtractionText::Cancel), Kind::Ghost)
+        frames::foot_action(ui, &texts.get(ExtractionText::Cancel), Kind::Ghost)
     }
-}
-
-/// Shows the one action of a window foot at its right end; returns whether it was clicked.
-fn foot_button(ui: &mut Ui, label: &str, kind: Kind) -> bool {
-    ui.horizontal(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            button::button(ui, kind, Size::Normal, label, true).clicked()
-        })
-        .inner
-    })
-    .inner
 }
 
 /// The texts of one summary, formatted once per summary and language.

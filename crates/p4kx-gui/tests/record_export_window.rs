@@ -93,7 +93,12 @@ fn the_tree_selection_is_exported_and_summarised() -> TestResult {
     harness.get_by_label("Start export").click();
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label("Record export finished");
+    let window = harness.get_by_label("Record export finished").rect();
+    let close = harness.get_by_label("Close").rect();
+    assert!(
+        window.max.y - close.max.y < 40.0,
+        "no empty space under the foot"
+    );
     harness.get_by_label("Records written 2, skipped 0, failed 0, cancelled 0");
     harness.get_by_label("Records with error values: 1, error values: 1");
     let file = out.join("records.ndjson");

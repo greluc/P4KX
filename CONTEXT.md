@@ -180,7 +180,7 @@ _Avoid_: Flash file, SWF (alone), GFx asset
 **Definition**:
 A shape, morph shape, bitmap, font or sprite a UI movie defines under a numeric ID, which
 placements and other definitions refer to; an export name may name it.
-_Avoid_: character (a Character is a human body), symbol, asset
+_Avoid_: character (a Character is a human body), symbol
 
 **External image**:
 A bitmap of a GFx UI movie stored outside it, as a texture file named relative to the movie; the

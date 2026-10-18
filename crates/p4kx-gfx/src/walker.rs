@@ -4,7 +4,7 @@ use crate::GfxError;
 use crate::assets::{Assets, TagCount, TagFailure, UnknownTag};
 use crate::bitmap::{read_external, read_jpeg, read_lossless, read_sub_image};
 use crate::font::{FontFormat, read_compacted_font, read_font1, read_font2};
-use crate::font_info::{FontInfo, read_font_info, read_font_name};
+use crate::font_info::{FontInfo, read_font_info, read_font_name, read_font4};
 use crate::morph::read_morph_shape;
 use crate::shape::{RecordBudget, read_shape};
 use crate::tag::{Tag, TagStream, tag_name};
@@ -129,6 +129,7 @@ impl<'a> Walker<'a> {
                 .fonts
                 .push(read_font2(tag, FontFormat::DefineFont3, &mut self.budget)?),
             1005 => assets.fonts.push(read_compacted_font(tag)?),
+            91 => assets.fonts.push(read_font4(tag)?),
             13 | 62 => self.font_infos.push(read_font_info(tag)?),
             88 => self.font_names.push(read_font_name(tag)?),
             56 => assets.exports.extend(read_exports(tag)?),

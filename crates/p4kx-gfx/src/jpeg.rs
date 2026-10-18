@@ -23,12 +23,8 @@ pub(crate) fn decode_jpeg(jpeg: &Jpeg<'_>, tables: Option<&[u8]>) -> Result<Rgba
         EmbeddedFormat::Gif => Err(GfxError::Gif),
         EmbeddedFormat::Png => decode_png(jpeg.data),
         EmbeddedFormat::Jpeg => {
-            let data = tables
-                .filter(|_| jpeg.version == 1)
-                .map_or(Cow::Borrowed(jpeg.data), |tables| {
-                    Cow::Owned([tables, jpeg.data].concat())
-                });
-            let mut image = decode_jpeg_data(&without_end_then_start(&data))?;
+            let tables = tables.filter(|_| jpeg.version == 1).unwrap_or_default();
+            let mut image = decode_jpeg_data(&without_end_then_start(tables, jpeg.data))?;
             if let Some(alpha) = jpeg.alpha {
                 apply_alpha(&mut image, alpha)?;
             }
@@ -37,18 +33,21 @@ pub(crate) fn decode_jpeg(jpeg: &Jpeg<'_>, tables: Option<&[u8]>) -> Result<Rgba
     }
 }
 
-/// Returns the JPEG data without the end-and-start marker pairs `FF D9 FF D8` that SWF files put
-/// before an image and between the JPEG tables and an image.
-fn without_end_then_start(data: &[u8]) -> Cow<'_, [u8]> {
-    let Some(first) = data
+/// Returns `tables` followed by `data` without the end-and-start marker pairs `FF D9 FF D8` that
+/// SWF files put before an image and between the JPEG tables and an image.
+fn without_end_then_start<'d>(tables: &[u8], data: &'d [u8]) -> Cow<'d, [u8]> {
+    let found = data
         .windows(END_THEN_START.len())
-        .position(|window| window == END_THEN_START)
-    else {
-        return Cow::Borrowed(data);
+        .position(|window| window == END_THEN_START);
+    let start = match (tables.is_empty(), found) {
+        (true, None) => return Cow::Borrowed(data),
+        (true, Some(found)) => found,
+        (false, _) => 0,
     };
-    let mut cleaned = Vec::with_capacity(data.len());
-    cleaned.extend_from_slice(data.get(..first).unwrap_or_default());
-    for &byte in data.get(first..).unwrap_or_default() {
+    let (head, rest) = data.split_at_checked(start).unwrap_or((&[], data));
+    let mut cleaned = Vec::with_capacity(tables.len() + data.len());
+    cleaned.extend_from_slice(head);
+    for &byte in tables.iter().chain(rest) {
         cleaned.push(byte);
         if cleaned.ends_with(&END_THEN_START) {
             cleaned.truncate(cleaned.len() - END_THEN_START.len());

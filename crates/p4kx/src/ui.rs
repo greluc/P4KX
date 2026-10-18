@@ -74,7 +74,8 @@ fn print_assets(assets: &AssetsJson<'_>) -> io::Result<()> {
         match assets.compression {
             "none" => "not compressed",
             "zlib" => "zlib-compressed",
-            _ => "LZMA-compressed",
+            "lzma" => "LZMA-compressed",
+            other => other,
         },
         assets.length
     )?;

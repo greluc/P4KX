@@ -1,11 +1,11 @@
 use crate::GfxError;
-use crate::font::Font;
+use crate::font::{Font, FontFormat};
 use crate::tag::Tag;
 
-const SMALL_TEXT: u8 = 0x20;
-const ITALIC: u8 = 0x04;
-const BOLD: u8 = 0x02;
-const WIDE_CODES: u8 = 0x01;
+const INFO_SMALL_TEXT: u8 = 0x20;
+const INFO_ITALIC: u8 = 0x04;
+const INFO_BOLD: u8 = 0x02;
+const INFO_WIDE_CODES: u8 = 0x01;
 const FONT_INFO2: u16 = 62;
 
 /// The name, style and codes a `DefineFontInfo` or `DefineFontInfo2` tag gives a `DefineFont` font.
@@ -21,9 +21,9 @@ impl FontInfo {
     /// Gives `font` the name, style and glyph codes.
     pub(crate) fn apply(self, font: &mut Font) {
         font.name = self.name;
-        font.bold = self.flags & BOLD != 0;
-        font.italic = self.flags & ITALIC != 0;
-        font.small_text = self.flags & SMALL_TEXT != 0;
+        font.bold = self.flags & INFO_BOLD != 0;
+        font.italic = self.flags & INFO_ITALIC != 0;
+        font.small_text = self.flags & INFO_SMALL_TEXT != 0;
         for (glyph, code) in font.glyphs.iter_mut().zip(self.codes) {
             glyph.code = Some(code);
         }
@@ -40,7 +40,7 @@ pub(crate) fn read_font_info(tag: &Tag<'_>) -> Result<FontInfo, GfxError> {
         reader.u8()?;
     }
     let codes = reader.rest();
-    let codes = if flags & WIDE_CODES != 0 || tag.code == FONT_INFO2 {
+    let codes = if flags & INFO_WIDE_CODES != 0 || tag.code == FONT_INFO2 {
         codes
             .as_chunks::<2>()
             .0
@@ -63,4 +63,23 @@ pub(crate) fn read_font_name(tag: &Tag<'_>) -> Result<(u16, String), GfxError> {
     let mut reader = tag.reader();
     let id = reader.u16()?;
     Ok((id, reader.c_string()?.into_owned()))
+}
+
+/// Reads the ID, style and name of `DefineFont4`; its CFF data is not read.
+pub(crate) fn read_font4(tag: &Tag<'_>) -> Result<Font, GfxError> {
+    let mut reader = tag.reader();
+    let id = reader.u16()?;
+    let flags = reader.u8()?;
+    Ok(Font {
+        id,
+        format: FontFormat::DefineFont4,
+        name: reader.c_string()?.into_owned(),
+        full_name: None,
+        bold: flags & 0x01 != 0,
+        italic: flags & 0x02 != 0,
+        small_text: false,
+        glyph_count: 0,
+        glyphs: Vec::new(),
+        layout: None,
+    })
 }

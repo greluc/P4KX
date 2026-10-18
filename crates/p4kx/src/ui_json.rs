@@ -257,6 +257,7 @@ fn font_json<'a>(assets: &'a Assets<'_>, font: &'a Font) -> FontJson<'a> {
             FontFormat::DefineFont2 => "DefineFont2",
             FontFormat::DefineFont3 => "DefineFont3",
             FontFormat::Compacted => "DefineCompactedFont",
+            FontFormat::DefineFont4 => "DefineFont4",
         },
         name: &font.name,
         full_name: font.full_name.as_deref(),

@@ -24,6 +24,8 @@ pub enum FontFormat {
     DefineFont3,
     /// GFx `DefineCompactedFont`, whose glyph shapes are not read.
     Compacted,
+    /// `DefineFont4`, an embedded CFF font whose glyphs are not read.
+    DefineFont4,
 }
 
 /// A font a movie defines under an ID.

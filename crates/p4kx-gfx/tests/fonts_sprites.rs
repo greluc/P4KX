@@ -99,6 +99,19 @@ fn a_font_whose_glyph_shapes_were_stripped_keeps_its_codes_and_layout() {
 }
 
 #[test]
+fn a_define_font4_reads_its_name_and_style() {
+    let mut body = 12_u16.to_le_bytes().to_vec();
+    body.push(0x06);
+    body.extend_from_slice(b"Lato\0CFF");
+    let movie = parse(&TestMovie::new(TestSignature::Fws).tag(91, &body));
+    let assets = movie.assets();
+    let font = &assets.fonts[0];
+    assert_eq!(font.format, FontFormat::DefineFont4, "format");
+    assert_eq!((font.id, font.name.as_str()), (12, "Lato"), "id and name");
+    assert!(font.italic && !font.bold, "italic");
+}
+
+#[test]
 fn a_compacted_font_reads_its_name_and_metrics() {
     let mut body = 9_u16.to_le_bytes().to_vec();
     body.extend_from_slice(b"Orbitron\0");

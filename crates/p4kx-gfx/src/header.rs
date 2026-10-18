@@ -176,8 +176,7 @@ fn decompress(
     data.extend_from_slice(bytes.get(..FILE_HEADER_LEN).unwrap_or_default());
     let compressed = bytes.get(FILE_HEADER_LEN..).unwrap_or_default();
     match compression {
-        Compression::None => data.extend_from_slice(compressed),
-        Compression::Zlib => {
+        Compression::None | Compression::Zlib => {
             ZlibDecoder::new(compressed)
                 .take(body_len as u64)
                 .read_to_end(&mut data)

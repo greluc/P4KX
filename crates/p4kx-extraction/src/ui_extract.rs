@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -98,7 +99,8 @@ impl Job<'_, '_> {
 impl UiMovie<'_> {
     /// Writes every bitmap of the movie as an 8-bit RGBA PNG and every shape and morph shape as
     /// JSON in twips into `folder`, in parallel, replacing existing files; a definition that fails
-    /// leaves no file and does not stop the others.
+    /// leaves no file and does not stop the others. Of several definitions of one kind with the
+    /// same ID only the first is written.
     ///
     /// Embedded and lossless bitmaps are decoded from the movie; an external image is decoded
     /// from the DDS texture its file name names, relative to the movie, with the extension `.dds`
@@ -110,12 +112,14 @@ impl UiMovie<'_> {
     pub fn extract_assets(&self, folder: &Path) -> Result<UiExtraction, ConversionError> {
         fs::create_dir_all(folder).map_err(|source| write_error(folder, source))?;
         let assets = self.movie().assets();
+        let mut seen = HashSet::new();
         let jobs: Vec<Job<'_, '_>> = assets
             .bitmaps
             .iter()
             .map(Job::Bitmap)
             .chain(assets.shapes.iter().map(Job::Shape))
             .chain(assets.morph_shapes.iter().map(Job::MorphShape))
+            .filter(|job| seen.insert((job.kind(), job.id())))
             .collect();
         let outcomes: Vec<(UiAssetKind, u16, Result<WrittenUiAsset, ConversionError>)> = jobs
             .par_iter()

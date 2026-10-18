@@ -125,9 +125,11 @@ pub(crate) fn checked_pixels(width: u64, height: u64) -> Result<usize, GfxError>
         })
 }
 
+const MAX_DEFLATE_RATIO: usize = 1032;
+
 /// Inflates the zlib stream `data`, which must hold at least `expected` bytes; more are ignored.
 pub(crate) fn inflate_exact(data: &[u8], expected: usize) -> Result<Vec<u8>, GfxError> {
-    let mut bytes = Vec::with_capacity(expected);
+    let mut bytes = Vec::with_capacity(expected.min(data.len().saturating_mul(MAX_DEFLATE_RATIO)));
     ZlibDecoder::new(data)
         .take(expected as u64)
         .read_to_end(&mut bytes)

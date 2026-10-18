@@ -116,6 +116,27 @@ when the Archive changed on disk after it was opened: the Extraction then stops,
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
 `failed` or `cancelled` is not empty.
 
+## `p4kx compare <old> <new> --json`
+
+The Comparison report, the same document `--report <file>` writes (there pretty-printed). Its
+JSON Schema (draft 2020-12) is generated from the report types and checked in as
+[`schemas/comparison-report.schema.json`](../schemas/comparison-report.schema.json); a test fails
+when the two drift apart, and `P4KX_BLESS=1 cargo test -p p4kx-comparison --test report_schema`
+regenerates it. The output is deterministic: Entries are ordered by path ignoring case and
+separator kind. The exit code is 0 without and 1 with differences.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `format_version` | number | Version of the report shape, now `1` |
+| `source.old`, `source.new` | object | `archive` (path), `channel` (string or `null`) and `build` (a [Build](#build) or `null`) of each side |
+| `levels` | array | The levels compared, e.g. `["entries"]` |
+| `filter` | string or `null` | The Filter that selected the Entries on both sides |
+| `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
+| `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
+| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
+
+`entries` is absent when the Entry level was not compared.
+
 ## `p4kx cryxml <file> --out <file> --json`
 
 ```json

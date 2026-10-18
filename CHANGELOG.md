@@ -10,6 +10,10 @@ fails while its section is missing.
 
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
+- `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
+  and changed between two Archives, from their central directories without decompressing, with
+  counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
+  Archives differ.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 

@@ -2,6 +2,7 @@
 
 mod channels;
 mod cli;
+mod compare;
 mod cryxml;
 mod exit;
 mod extract;
@@ -28,6 +29,12 @@ fn main() -> ExitCode {
         Command::Extract(args) => extract::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
+        Command::Compare(args) => {
+            return compare::run(&args, json).unwrap_or_else(|error| {
+                report(&error);
+                exit::for_compare_error(&error)
+            });
+        }
         Command::CryXml(args) => cryxml::run(&args, json).map(success),
         Command::Texture(args) => texture::run(&args, json).map(success),
     };
@@ -35,10 +42,14 @@ fn main() -> ExitCode {
         Ok(code) => code,
         Err(error) if is_broken_pipe(&error) => ExitCode::from(exit::SUCCESS),
         Err(error) => {
-            let _ignored = writeln!(io::stderr().lock(), "error: {error:#}");
+            report(&error);
             exit::for_error(&error)
         }
     }
+}
+
+fn report(error: &anyhow::Error) {
+    let _ignored = writeln!(io::stderr().lock(), "error: {error:#}");
 }
 
 fn is_broken_pipe(error: &anyhow::Error) -> bool {

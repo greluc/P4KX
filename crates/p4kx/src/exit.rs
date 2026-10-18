@@ -8,11 +8,13 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::extract::NoMatch;
 use crate::texture;
 
-/// Every requested Entry was extracted or already existed.
+/// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries failed or were cancelled, the target folder could not be created, or a texture
 /// cannot be read, merged or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
+/// A Comparison found differences.
+pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain or a file that does
 /// not exist, or has a Filter that matches no Entry.
 pub(crate) const INVALID_INPUT: u8 = 2;
@@ -20,14 +22,17 @@ pub(crate) const INVALID_INPUT: u8 = 2;
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
+/// A Comparison ran, but its report or its output cannot be written.
+pub(crate) const COMPARISON_FAILED: u8 = 6;
 /// A second Ctrl+C ended an Extraction without waiting for it to stop.
 pub(crate) const INTERRUPTED: u8 = 130;
 
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
-  0  success: every requested Entry was extracted or already existed
+  0  success: every requested Entry was extracted or already existed; compare: no differences
   1  partial failure: some Entries failed or were cancelled, the target or the settings
-     cannot be written, or a texture cannot be read, merged or written
+     cannot be written, or a texture cannot be read, merged or written;
+     compare: the Archives differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that
      matches no Entry, a Channel path that does not exist or was never added, a texture file
      that does not exist, a merge output that is one of its inputs, or --json without --out
@@ -36,24 +41,37 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      corrupt; a missing texture file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
+  6  compare: the report or the output cannot be written
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 
 /// Returns the exit code for an error that ended a command.
 pub(crate) fn for_error(error: &anyhow::Error) -> ExitCode {
+    ExitCode::from(code_for(error))
+}
+
+/// Returns the exit code for an error that ended `p4kx compare`, whose code 1 means differences.
+pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
+    match code_for(error) {
+        PARTIAL_FAILURE => ExitCode::from(COMPARISON_FAILED),
+        code => ExitCode::from(code),
+    }
+}
+
+fn code_for(error: &anyhow::Error) -> u8 {
     if error.downcast_ref::<ArchiveError>().is_some()
         || texture::is_archive_error(error)
         || error.downcast_ref::<CryXmlError>().is_some()
         || error.downcast_ref::<UnreadableInput>().is_some()
     {
-        ExitCode::from(ARCHIVE_ERROR)
+        ARCHIVE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()
         || error.downcast_ref::<NoMatch>().is_some()
         || texture::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
     {
-        ExitCode::from(INVALID_INPUT)
+        INVALID_INPUT
     } else {
-        ExitCode::from(PARTIAL_FAILURE)
+        PARTIAL_FAILURE
     }
 }

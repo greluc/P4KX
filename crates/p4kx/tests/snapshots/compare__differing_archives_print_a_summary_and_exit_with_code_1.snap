@@ -1,0 +1,18 @@
+---
+source: crates/p4kx/tests/compare.rs
+expression: summary
+---
+Old:             LIVE/Data.p4k
+Old Channel:     LIVE
+Old Build:       unknown
+New:             PTU/Data.p4k
+New Channel:     PTU
+New Build:       4.11.42.1234 (sc-alpha-4.11.0, change 12999999)
+Filter:          none
+Added:           2
+Removed:         1
+Changed:         2
+
+DIRECTORY                    ADDED   REMOVED   CHANGED
+(root)                           1         0         0
+Data                             1         1         2

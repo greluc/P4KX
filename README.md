@@ -43,6 +43,10 @@ Early development (milestone M1). Available today:
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
+- `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
+  `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
+  structs and enums. DataForge version 6 is read; any other version is reported as not supported,
+  and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -66,6 +70,14 @@ Early development (milestone M1). Available today:
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
   truncated or oversized part is named in the error and nothing is written. Split cubemaps and
   texture arrays are not merged yet.
+- `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
+  Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
+  (ignoring case and separator kind) and lists Entries as added, removed, or changed when their
+  size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. It prints both
+  sides (Channel and Build) and the counts per change kind and per top-level directory.
+  `--filter` selects Entries with the rules of `search`; `--report` writes the full Comparison as
+  JSON (see [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is
+  compared when none is given. The exit code is 0 without and 1 with differences.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -73,11 +85,13 @@ Early development (milestone M1). Available today:
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success: every requested Entry was extracted or already existed |
-| 1 | Partial failure: some Entries failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written |
+| 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
+| 1 | Partial failure: some Entries failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives differ |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
 | 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
+| 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
+| 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 
 ## Build
@@ -109,13 +123,15 @@ Tests use synthetic Archives from `p4kx-testkit`; no game files are needed or co
 A second suite checks a real `Data.p4k`: opening and listing it within 10 seconds, its Build,
 reading Entries of every compression method and encryption state present (size and CRC-32C),
 extracting a small subset, and sorting and scrolling every Entry in the window within one 60 Hz
-frame. Its tests are ignored by default, so `cargo test` and CI report them as
-`ignored`. Point `P4KX_DATA_P4K` to an Archive and pass `--ignored`; without the variable the
-suite fails and says so.
+frame, and comparing the Entries of two Archives within 5 seconds. Its tests are ignored by
+default, so `cargo test` and CI report them as `ignored`. Point `P4KX_DATA_P4K` to an Archive,
+and `P4KX_DATA_P4K_B` to a second one for the Comparison, and pass `--ignored`; without the
+variables the suite fails and says so.
 
 ```powershell
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
-cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-gui --test real_archive -- --ignored
+$env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
+cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-comparison -p p4kx-gui --test real_archive -- --ignored
 ```
 
 The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is

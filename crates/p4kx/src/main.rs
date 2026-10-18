@@ -19,6 +19,7 @@ mod json;
 mod list;
 mod progress;
 mod texture;
+mod texture_image;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

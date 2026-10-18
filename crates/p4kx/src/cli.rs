@@ -198,12 +198,14 @@ pub(crate) enum TextureAction {
     },
     /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
     /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
         #[command(flatten)]
         source: TextureSource,
-        /// The PNG file to write; an existing file is replaced.
+        /// The PNG file to write; an existing file is replaced. A high-range texture goes to FILE
+        /// with the extension .exr instead, unless --tone-map is given.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// The mip level to export, 0 being the largest.
@@ -212,6 +214,10 @@ pub(crate) enum TextureAction {
         /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
         #[arg(long)]
         cross: bool,
+        /// Writes a high-range texture as an 8-bit PNG to FILE too, tone-mapped: Reinhard per
+        /// channel, then sRGB. Other textures are 8-bit already; for them it only prints a note.
+        #[arg(long)]
+        tone_map: bool,
     },
 }
 
@@ -305,10 +311,12 @@ pub(crate) struct ExtractArgs {
     /// every other Entry are written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,
-    /// What --convert writes for a texture <name>.dds and its parts <name>.dds.1 … .N: `merge`
-    /// one standard DDS under the header's path, `png` the mip --mip as <name>.png, `raw` the
-    /// Entries unchanged (with `merge`, only the parts); a texture that cannot be converted is
-    /// reported and written raw.
+    /// What --convert writes for a texture <name>.dds, its parts <name>.dds.1 … .N and any alpha
+    /// tail <name>.dds.a: `merge` one standard DDS under the header's path (and, without `png`,
+    /// the tail merged under its own path), `png` the mip --mip as <name>.png with the tail as
+    /// alpha, a high-range texture as OpenEXR <name>.exr and a cubemap as six face files, `raw`
+    /// the Entries unchanged (with `merge`, only the parts); a texture that cannot be converted
+    /// is reported and written raw.
     #[arg(
         long,
         value_enum,
@@ -319,8 +327,8 @@ pub(crate) struct ExtractArgs {
         value_name = "OUTPUTS"
     )]
     pub(crate) textures: Vec<TextureOutput>,
-    /// The mip level --convert exports as PNG, 0 being the largest; a texture with fewer levels
-    /// exports its smallest.
+    /// The mip level --convert exports as PNG or OpenEXR, 0 being the largest; a texture with
+    /// fewer levels exports its smallest.
     #[arg(long, default_value_t = 0, requires = "convert", value_name = "LEVEL")]
     pub(crate) mip: u32,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
@@ -333,7 +341,7 @@ pub(crate) struct ExtractArgs {
 pub(crate) enum TextureOutput {
     /// Merge the header and its parts into one standard DDS file.
     Merge,
-    /// Export one mip as an 8-bit RGBA PNG.
+    /// Export one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR.
     Png,
     /// Write the Entries unchanged as well.
     Raw,

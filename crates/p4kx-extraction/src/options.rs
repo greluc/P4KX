@@ -96,8 +96,9 @@ impl fmt::Debug for ExtractOptions<'_> {
 pub struct TextureConversion {
     /// Writes the header and its parts merged into one standard DDS file.
     pub merge: bool,
-    /// Writes one mip as an 8-bit RGBA PNG: the given level, 0 being the largest, or the smallest
-    /// mip when the texture has fewer levels; `None` writes no PNG.
+    /// Writes one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR: the given level, 0
+    /// being the largest, or the smallest mip when the texture has fewer levels; `None` writes
+    /// no image.
     pub png: Option<u32>,
     /// Also writes the Entries unchanged; with the merge, the merged DDS replaces the raw header.
     pub keep_raw: bool,

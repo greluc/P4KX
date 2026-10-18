@@ -4,6 +4,7 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::CUBE_FACE_NAMES;
+use crate::texture_images::IMAGE_EXTENSIONS;
 
 /// An Entry of the run with its position in the requested order.
 pub(crate) type Indexed<'a> = (usize, &'a Entry);
@@ -75,10 +76,13 @@ impl Item<'_> {
                 let stem = header
                     .get(..header.len().saturating_sub(4))
                     .unwrap_or_default();
-                visit(&format!("{stem}.png"));
-                for face in CUBE_FACE_NAMES {
-                    visit(&format!("{stem}_{face}.png"));
+                for extension in IMAGE_EXTENSIONS {
+                    visit(&format!("{stem}.{extension}"));
+                    for face in CUBE_FACE_NAMES {
+                        visit(&format!("{stem}_{face}.{extension}"));
+                    }
                 }
+                visit(&format!("{header}.a"));
                 visit(header);
                 for (_, entry) in &job.requested {
                     visit(entry.path());

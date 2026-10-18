@@ -17,7 +17,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const PANEL: &str = "Data\\Textures\\panel_diff.dds";
 const BROKEN: &str = "Data\\Textures\\broken_ddna.dds";
 const MERGE: &str = "Merge split textures into one DDS";
-const PNG: &str = "Export textures as PNG";
+const PNG: &str = "Export textures as PNG (high-range as OpenEXR)";
 const RAW: &str = "Keep the raw texture parts";
 
 fn panel() -> SplitDds {

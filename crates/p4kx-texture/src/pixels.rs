@@ -187,7 +187,8 @@ pub(crate) const fn float_unorm(value: f32) -> u8 {
     value.clamp(0.0, 1.0).mul_add(255.0, 0.5) as u8
 }
 
-fn half_to_f32(bits: u16) -> f32 {
+/// Converts the bits of a half float to a single float, exactly.
+pub(crate) fn half_to_f32(bits: u16) -> f32 {
     let sign = if bits & 0x8000 == 0 { 1.0 } else { -1.0 };
     let exponent = i32::from((bits >> 10) & 0x1F);
     let mantissa = bits & 0x3FF;

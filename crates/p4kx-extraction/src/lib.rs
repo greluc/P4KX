@@ -21,11 +21,12 @@ mod sound;
 mod target;
 mod texture;
 mod texture_convert;
+mod texture_exr;
+mod texture_images;
 mod texture_job;
 mod texture_outputs;
 mod texture_parts;
 mod texture_png;
-mod texture_png_files;
 mod texture_siblings;
 mod tracker;
 mod watch;
@@ -51,7 +52,8 @@ pub use p4kx_dataforge::{
     Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
 };
 pub use p4kx_texture::{
-    BlockLayout, DdsHeader, DxgiFormat, MergeReport, Mip, RgbaImage, TextureError, TextureFormat,
+    BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
+    TextureFormat,
 };
 pub use record_export::export_records;
 pub use record_report::{
@@ -62,5 +64,6 @@ pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name};
 pub use texture::Texture;
+pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

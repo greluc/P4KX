@@ -45,9 +45,15 @@ fn convert(archive: &Archive, sample: &[&Entry], target: &Path) -> ExtractionRep
     extract(archive, sample, target, &options)
 }
 
-fn has_png(target: &Path, header: &str) -> bool {
-    output(target, header, Some("png"))
-        || output(target, &header.replace(".dds", "_posx.dds"), Some("png"))
+fn has_image(target: &Path, header: &str) -> bool {
+    ["png", "exr"].into_iter().any(|extension| {
+        output(target, header, Some(extension))
+            || output(
+                target,
+                &header.replace(".dds", "_posx.dds"),
+                Some(extension),
+            )
+    })
 }
 
 /// Checks that no Entry failed and most `headers` converted; returns those that did.
@@ -121,8 +127,8 @@ fn converts_a_sample_of_real_textures_once_each() -> TestResult {
     assert_eq!(report.extracted(), headers.len(), "every header is written");
     for header in converted(&report, &headers) {
         assert!(
-            has_png(target.path(), header.path()),
-            "{} has a PNG",
+            has_image(target.path(), header.path()),
+            "{} has a PNG or OpenEXR",
             header.path()
         );
     }
@@ -163,8 +169,8 @@ fn converts_real_textures_with_alpha_tails_without_writing_the_tails() -> TestRe
             "{tail} is not written raw"
         );
         assert!(
-            has_png(target.path(), header.path()),
-            "{} has a PNG",
+            has_image(target.path(), header.path()),
+            "{} has a PNG or OpenEXR",
             header.path()
         );
     }

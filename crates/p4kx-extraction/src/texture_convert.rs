@@ -167,7 +167,10 @@ impl EntryWriter<'_> {
             .png
             .map(|level| level.min(dds.mip_count().saturating_sub(1)));
         let capture = level
-            .filter(|&level| level < source.part_count && dds.format().is_decodable())
+            .filter(|&level| {
+                level < source.part_count
+                    && (dds.format().is_decodable() || dds.format().is_high_range())
+            })
             .map(|level| source.part_count - level);
         buffers.data.clear();
         if self.textures.merge {
@@ -181,7 +184,7 @@ impl EntryWriter<'_> {
         let Some(level) = level else {
             return self.write_merged_tail(job, &source, buffers, done);
         };
-        done.png = Some(self.write_pngs(&source, &destination, level, buffers)?);
+        done.png = Some(self.write_images(&source, &destination, level, buffers)?);
         Ok(())
     }
 

@@ -20,6 +20,10 @@ fails while its section is missing.
   face, `p4kx texture png` writes a cubemap as six face files or with `--cross` as one cross, an
   alpha or smoothness tail `.dds.a` is merged into the alpha channel of the PNG, and
   `p4kx texture info` reports it.
+- High-range BC6H textures, signed and unsigned: `p4kx texture png` decodes them with a pure-Rust
+  decoder to floating-point RGB and writes OpenEXR (`.exr`, 32-bit float RGB) instead of a PNG, so
+  their range is not clipped, cubemaps as six faces or a cross; `--tone-map` writes a Reinhard
+  tone-mapped 8-bit PNG instead.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
@@ -45,7 +49,8 @@ fails while its section is missing.
   `--json` count the converted Entries.
 - Texture Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch,
   each texture is merged into one DDS file and its largest mip exported as PNG once, not once per
-  part, with its alpha tail in the PNG's alpha channel and a cubemap as six face PNGs; `--textures merge,png,raw` and `--mip <level>`, and the same choices in the Extraction
+  part, with its alpha tail in the PNG's alpha channel, a high-range texture as OpenEXR and a
+  cubemap as six face files; `--textures merge,png,raw` and `--mip <level>`, and the same choices in the Extraction
   window, pick the outputs and keep the raw parts. A texture that cannot be converted is listed
   with its reason, its raw Entries are written and the Extraction continues. The choices are
   remembered with the other Extraction settings.

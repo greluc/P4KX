@@ -100,8 +100,7 @@ impl ExtractionReport {
 
     /// Returns the number of Entries written converted, `CryXml` as XML, the Entries of a
     /// converted texture and the DataForge Entry as Records, or `None` when the run did not
-    /// convert; they count among the
-    /// [`extracted`](Self::extracted) Entries.
+    /// convert; they count among the [`extracted`](Self::extracted) Entries.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
         self.converted

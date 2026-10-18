@@ -74,7 +74,7 @@ fn cell_text(value: &Value<'_>) -> String {
 }
 
 /// Returns `text` on one line: line breaks and tabs escaped, other control characters replaced.
-fn one_line(text: &str) -> String {
+pub(crate) fn one_line(text: &str) -> String {
     let mut line = String::with_capacity(text.len());
     for c in text.chars() {
         match c {

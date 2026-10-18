@@ -17,8 +17,9 @@ impl EntryWriter<'_> {
     /// of its path, and reports its end to the tracker.
     ///
     /// Each Record file is handled by the Conflict policy on its own. The Entry's size is counted
-    /// as progress, half while it is read and the rest in equal parts as the Records end. Once the run is to stop, the Records not yet
-    /// written are cancelled and so is the Entry; Records written before stay.
+    /// as progress, half while it is read and the rest in equal parts as the Records end. Once
+    /// the run is to stop, the Records not yet written are cancelled and so is the Entry; Records
+    /// written before stay.
     pub(crate) fn write_dataforge(
         &self,
         entry: &Entry,

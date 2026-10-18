@@ -1,0 +1,208 @@
+---
+source: crates/p4kx/tests/entity_loadout.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "attached": 6,
+  "empty": 2,
+  "entity": {
+    "class_name": "TEST_Ship",
+    "guid": "0079c5d5-1678-4f8c-85ba-18ca8f642af6",
+    "issues": [],
+    "name": "EntityClassDefinition.TEST_Ship",
+    "ports": [
+      {
+        "definition": null,
+        "entity": null,
+        "error": null,
+        "name": "hardpoint_paint",
+        "source": "loadout"
+      },
+      {
+        "definition": null,
+        "entity": {
+          "class_name": "TEST_Seat",
+          "guid": "95b8cab3-5230-46f9-92e6-8e021978f543",
+          "issues": [],
+          "name": "EntityClassDefinition.TEST_Seat",
+          "ports": [],
+          "record_path": "libs/foundry/records/entities/scitem/ships/test_seat"
+        },
+        "error": null,
+        "name": "hardpoint_seat_pilot",
+        "source": "loadout"
+      },
+      {
+        "definition": null,
+        "entity": {
+          "class_name": "TEST_Dashboard",
+          "guid": "5f12dd31-4ff9-41a5-b5e2-916270351ba9",
+          "issues": [],
+          "name": "EntityClassDefinition.TEST_Dashboard",
+          "ports": [
+            {
+              "definition": null,
+              "entity": {
+                "class_name": "TEST_Screen",
+                "guid": "6374bb62-de4e-410a-96a3-a1156dce4802",
+                "issues": [],
+                "name": "EntityClassDefinition.TEST_Screen",
+                "ports": [],
+                "record_path": "libs/foundry/records/entities/scitem/ships/test_screen"
+              },
+              "error": null,
+              "name": "Display_HUD",
+              "source": "loadout"
+            },
+            {
+              "definition": null,
+              "entity": {
+                "class_name": "TEST_Radar_Screen",
+                "guid": "503443c0-b6d1-4539-b493-688117334ff1",
+                "issues": [],
+                "name": "EntityClassDefinition.TEST_Radar_Screen",
+                "ports": [],
+                "record_path": "libs/foundry/records/entities/scitem/ships/test_radar_screen"
+              },
+              "error": null,
+              "name": "Radar",
+              "source": "override"
+            }
+          ],
+          "record_path": "libs/foundry/records/entities/scitem/ships/test_dashboard"
+        },
+        "error": null,
+        "name": "hardpoint_dashboard",
+        "source": "loadout"
+      },
+      {
+        "definition": {
+          "display_name": "@LOC_EMPTY",
+          "flags": "",
+          "max_size": 3,
+          "min_size": 2,
+          "transform": {
+            "attachment": "Bone",
+            "helper": "hp_nose",
+            "offset_helper": "",
+            "position": [
+              0.0,
+              4.5,
+              -0.25
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              90.0
+            ]
+          },
+          "types": [
+            {
+              "sub_types": [
+                "Gun"
+              ],
+              "type": "WeaponGun"
+            }
+          ]
+        },
+        "entity": {
+          "class_name": "TEST_Mount_Gimbal_S3",
+          "guid": "ea49d194-0c0b-43e1-82fb-d72f35c1af05",
+          "issues": [],
+          "name": "EntityClassDefinition.TEST_Mount_Gimbal_S3",
+          "ports": [
+            {
+              "definition": {
+                "display_name": "@LOC_EMPTY",
+                "flags": "",
+                "max_size": 3,
+                "min_size": 3,
+                "transform": {
+                  "attachment": "Bone",
+                  "helper": "hardpoint_class_2",
+                  "offset_helper": "",
+                  "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                },
+                "types": [
+                  {
+                    "sub_types": [
+                      "Gun"
+                    ],
+                    "type": "WeaponGun"
+                  }
+                ]
+              },
+              "entity": {
+                "class_name": "TEST_Gun_S3",
+                "guid": "df89e9ca-8a11-477c-8abd-f4837a277dbe",
+                "issues": [],
+                "name": "EntityClassDefinition.TEST_Gun_S3",
+                "ports": [],
+                "record_path": "libs/foundry/records/entities/scitem/ships/weapons/test_gun_s3"
+              },
+              "error": null,
+              "name": "hardpoint_class_2",
+              "source": "override"
+            }
+          ],
+          "record_path": "libs/foundry/records/entities/scitem/ships/weapon_mounts/test_mount_gimbal_s3"
+        },
+        "error": null,
+        "name": "hardpoint_weapon_nose",
+        "source": "loadout"
+      },
+      {
+        "definition": null,
+        "entity": null,
+        "error": {
+          "class_name": null,
+          "kind": "dangling_reference",
+          "reason": "the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist",
+          "reference": "00000001-0002-0003-0004-000000000005"
+        },
+        "name": "hardpoint_cargo",
+        "source": "loadout"
+      },
+      {
+        "definition": null,
+        "entity": null,
+        "error": {
+          "class_name": "TEST_No_Such_Door",
+          "kind": "unknown_class",
+          "reason": "no Entity has the class name TEST_No_Such_Door",
+          "reference": null
+        },
+        "name": "hardpoint_door",
+        "source": "loadout"
+      },
+      {
+        "definition": {
+          "display_name": "@LOC_EMPTY",
+          "flags": "",
+          "max_size": 1,
+          "min_size": 0,
+          "transform": null,
+          "types": []
+        },
+        "entity": null,
+        "error": null,
+        "name": "hardpoint_relay",
+        "source": "unset"
+      }
+    ],
+    "record_path": "libs/foundry/records/entities/spaceships/test_ship"
+  },
+  "entry": "Data\\Game2.dcb",
+  "ports": 10,
+  "unresolved": 2
+}

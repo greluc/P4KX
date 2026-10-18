@@ -10,3 +10,43 @@ pub enum ComparisonError {
     #[error("the Comparison was cancelled")]
     Cancelled,
 }
+
+/// Why the line diff of an Entry pair could not be produced.
+#[derive(Debug, Error)]
+pub enum LineDiffError {
+    /// Neither Archive has an Entry with the path.
+    #[error("no Entry named {path} in either Archive")]
+    UnknownEntry {
+        /// The requested path.
+        path: String,
+    },
+    /// The data of an Entry cannot be opened.
+    #[error(transparent)]
+    Archive(#[from] crate::ArchiveError),
+    /// The data of an Entry cannot be read or decompressed.
+    #[error("cannot read the Entry {path}")]
+    Read {
+        /// The Entry path.
+        path: String,
+        /// What failed.
+        #[source]
+        source: std::io::Error,
+    },
+    /// The data of an Entry is longer or shorter than its central-directory size.
+    #[error("the Entry {path} does not hold the {declared} bytes its central directory states")]
+    SizeMismatch {
+        /// The Entry path.
+        path: String,
+        /// The uncompressed size the central directory states.
+        declared: u64,
+    },
+    /// The `CryXml` of an Entry is truncated or corrupt.
+    #[error("cannot convert the CryXml Entry {path}")]
+    CryXml {
+        /// The Entry path.
+        path: String,
+        /// What is wrong with it.
+        #[source]
+        source: p4kx_cryxml::CryXmlError,
+    },
+}

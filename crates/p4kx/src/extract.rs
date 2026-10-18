@@ -50,16 +50,9 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
     let watch = ArchiveWatch::new(&archive);
     let entries = requested_entries(args, &archive)?;
-    let target = prepare_target(args, &archive)?;
-    let cancel = CancelToken::new();
-    let on_interrupt = cancel.clone();
-    ctrlc::set_handler(move || {
-        if on_interrupt.is_cancelled() {
-            process::exit(exit::INTERRUPTED.into());
-        }
-        on_interrupt.cancel();
-    })
-    .context("cannot install the Ctrl+C handler")?;
+    let target = prepare_target(args.out.as_deref(), &archive)?;
+    let cancel = cancel_on_interrupt()?;
+
     let line = ProgressLine::new();
     let on_progress = |progress: Progress| {
         if args
@@ -97,6 +90,20 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     Ok(ExitCode::from(exit_code(&report)))
 }
 
+/// Returns a token that the first Ctrl+C cancels; a second Ctrl+C ends the process at once.
+pub(crate) fn cancel_on_interrupt() -> Result<CancelToken> {
+    let cancel = CancelToken::new();
+    let on_interrupt = cancel.clone();
+    ctrlc::set_handler(move || {
+        if on_interrupt.is_cancelled() {
+            process::exit(exit::INTERRUPTED.into());
+        }
+        on_interrupt.cancel();
+    })
+    .context("cannot install the Ctrl+C handler")?;
+    Ok(cancel)
+}
+
 const fn exit_code(report: &ExtractionReport) -> u8 {
     if report.archive_changed() {
         exit::ARCHIVE_CHANGED
@@ -107,7 +114,7 @@ const fn exit_code(report: &ExtractionReport) -> u8 {
     }
 }
 
-const fn policy(conflict: Conflict) -> ConflictPolicy {
+pub(crate) const fn policy(conflict: Conflict) -> ConflictPolicy {
     match conflict {
         Conflict::Skip => ConflictPolicy::Skip,
         Conflict::Overwrite => ConflictPolicy::Overwrite,
@@ -126,11 +133,12 @@ fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec
     Ok(entries)
 }
 
-fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
-    if let Some(out) = &args.out {
+/// Creates the target folder `out`, or a new default target folder in the current directory.
+pub(crate) fn prepare_target(out: Option<&Path>, archive: &Archive) -> Result<PathBuf> {
+    if let Some(out) = out {
         fs::create_dir_all(out)
             .with_context(|| format!("cannot create the target folder {}", out.display()))?;
-        return Ok(out.clone());
+        return Ok(out.to_path_buf());
     }
     let parent = std::env::current_dir().context("cannot read the current directory")?;
     let channel = channel_name(archive.path());

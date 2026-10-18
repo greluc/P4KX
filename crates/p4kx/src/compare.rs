@@ -4,13 +4,13 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_comparison::{
-    Archive, ArchiveError, CompareOptions, Comparison, DirectoryCounts, Filter, Levels, Side,
-    compare,
+    Archive, ArchiveError, CompareOptions, Comparison, DEFAULT_CONTEXT, DirectoryCounts, Filter,
+    Levels, Side, compare, line_diff,
 };
 use thiserror::Error;
 
 use crate::cli::CompareArgs;
-use crate::{exit, json};
+use crate::{diff, exit, json};
 
 const UNKNOWN: &str = "unknown";
 const ROOT: &str = "(root)";
@@ -24,10 +24,18 @@ pub(crate) struct ReportNotWritten {
     source: io::Error,
 }
 
-/// Compares both Archives, writes the report when asked, prints the summary or the report as
-/// JSON, and returns 0 without differences and 1 with differences, also when stdout was closed.
+/// Compares both Archives, or prints the line diff of one Entry with `--diff`; writes the report
+/// when asked, prints the summary or the report as JSON, and returns 0 without differences and 1
+/// with differences, also when stdout was closed.
 pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
     let (old, new) = open_both(&args.old, &args.new)?;
+    if let Some(path) = &args.diff {
+        let diff = line_diff(&old, &new, path, DEFAULT_CONTEXT)?;
+        return finish(
+            diff::print(&diff, &old, &new, as_json),
+            diff.has_differences(),
+        );
+    }
     let filter = args.filter.as_deref().map(Filter::new);
     let options = CompareOptions {
         levels: levels(args),
@@ -48,12 +56,17 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
     } else {
         print_summary(&comparison)
     };
+    finish(printed, comparison.has_differences())
+}
+
+/// Returns the exit code for a printed result, ignoring a closed stdout.
+fn finish(printed: io::Result<()>, differs: bool) -> Result<ExitCode> {
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
     {
         return Err(error.into());
     }
-    Ok(ExitCode::from(if comparison.has_differences() {
+    Ok(ExitCode::from(if differs {
         exit::DIFFERENCES
     } else {
         exit::SUCCESS

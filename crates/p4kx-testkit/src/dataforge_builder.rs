@@ -18,9 +18,9 @@ const CONVERSION_SIMPLE_ARRAY: u16 = 2;
 #[derive(Debug, Clone)]
 pub struct DataForgeBuilder {
     version: u32,
-    structs: Vec<TestStruct>,
+    pub(crate) structs: Vec<TestStruct>,
     enums: Vec<(String, Vec<String>)>,
-    records: Vec<TestRecord>,
+    pub(crate) records: Vec<TestRecord>,
     extra_values: [u32; TestPool::COUNT],
 }
 
@@ -98,13 +98,13 @@ impl DataForgeBuilder {
 }
 
 #[derive(Default)]
-struct Strings {
+pub(crate) struct Strings {
     bytes: Vec<u8>,
     offsets: HashMap<String, u32>,
 }
 
 impl Strings {
-    fn offset(&mut self, text: &str) -> u32 {
+    pub(crate) fn offset(&mut self, text: &str) -> u32 {
         if let Some(offset) = self.offsets.get(text) {
             return *offset;
         }
@@ -116,12 +116,12 @@ impl Strings {
     }
 }
 
-struct Writer<'a> {
-    spec: &'a DataForgeBuilder,
-    struct_index: HashMap<&'a str, u32>,
+pub(crate) struct Writer<'a> {
+    pub(crate) spec: &'a DataForgeBuilder,
+    pub(crate) struct_index: HashMap<&'a str, u32>,
     enum_index: HashMap<&'a str, u32>,
-    sizes: Vec<u32>,
-    text: Strings,
+    pub(crate) sizes: Vec<u32>,
+    pub(crate) text: Strings,
     blob: Strings,
 }
 
@@ -138,12 +138,17 @@ impl<'a> Writer<'a> {
             blob: Strings::default(),
         };
         writer.sizes = (0..spec.structs.len())
-            .map(|index| writer.struct_size(index, spec.structs.len()))
+            .map(|index| {
+                spec.structs
+                    .get(index)
+                    .and_then(|structure| structure.declared_size)
+                    .unwrap_or_else(|| writer.struct_size(index, spec.structs.len()))
+            })
             .collect();
         writer
     }
 
-    fn struct_size(&self, index: usize, depth: usize) -> u32 {
+    pub(crate) fn struct_size(&self, index: usize, depth: usize) -> u32 {
         let Some(structure) = self.spec.structs.get(index) else {
             return 0;
         };
@@ -163,7 +168,7 @@ impl<'a> Writer<'a> {
             })
     }
 
-    fn property_size(&self, property: &TestProperty, depth: usize) -> u32 {
+    pub(crate) fn property_size(&self, property: &TestProperty, depth: usize) -> u32 {
         if property.array {
             return ARRAY_LEN;
         }
@@ -198,7 +203,7 @@ impl<'a> Writer<'a> {
             }
             _ => None,
         };
-        target.map_or(0, |index| u16::try_from(*index).unwrap_or(u16::MAX))
+        target.map_or(u16::MAX, |index| u16::try_from(*index).unwrap_or(u16::MAX))
     }
 
     fn finish(mut self) -> Vec<u8> {
@@ -206,7 +211,8 @@ impl<'a> Writer<'a> {
         let (structs, properties, property_count) = self.struct_tables();
         let (enums, options) = self.enum_tables();
         let (records, instance_counts) = self.records();
-        let (mappings, instances) = self.mappings(&instance_counts);
+        let mappings = Self::mappings(&instance_counts);
+        let instances = self.instances(&instance_counts);
         let option_count = to_u32(options.len() / 4);
         let mut out = Vec::new();
         for word in [0, spec.version, 0, 0] {
@@ -245,7 +251,7 @@ impl<'a> Writer<'a> {
         }
         out.extend_from_slice(&self.text.bytes);
         out.extend_from_slice(&self.blob.bytes);
-        out.resize(out.len() + instances, 0);
+        out.extend_from_slice(&instances);
         out
     }
 
@@ -293,16 +299,15 @@ impl<'a> Writer<'a> {
         (enums, options)
     }
 
-    fn mappings(&self, instance_counts: &[u32]) -> (Vec<u8>, usize) {
+    fn mappings(instance_counts: &[u32]) -> Vec<u8> {
         let mut mappings = Vec::new();
-        let mut instances = 0_usize;
-        for (index, (count, size)) in instance_counts.iter().zip(&self.sizes).enumerate() {
+        for (index, count) in instance_counts.iter().enumerate() {
             put_u32(&mut mappings, *count);
             put_u32(&mut mappings, to_u32(index));
-            instances += *count as usize * *size as usize;
         }
-        (mappings, instances)
+        mappings
     }
+
     fn records(&mut self) -> (Vec<u8>, Vec<u32>) {
         let mut instance_counts = vec![0_u32; self.spec.structs.len()];
         let mut rows = Vec::new();
@@ -354,7 +359,7 @@ impl<'a> Writer<'a> {
 }
 
 /// Returns the 16 stored bytes of a GUID written in text as the hexadecimal number `guid`.
-fn guid_bytes(guid: u128) -> [u8; 16] {
+pub(crate) fn guid_bytes(guid: u128) -> [u8; 16] {
     let text = guid.to_be_bytes();
     let mut stored = [0; 16];
     for (position, byte) in text.iter().enumerate() {

@@ -180,7 +180,7 @@ fn unorm16(low: u8, high: u8) -> u8 {
     clippy::cast_sign_loss,
     reason = "the value is clamped to 0.5..=255.5 before the cast"
 )]
-const fn float_unorm(value: f32) -> u8 {
+pub(crate) const fn float_unorm(value: f32) -> u8 {
     if value.is_nan() {
         return 0;
     }

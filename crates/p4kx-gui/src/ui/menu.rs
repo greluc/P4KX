@@ -1,17 +1,18 @@
 use std::path::PathBuf;
 
-use egui::{MenuBar, Response, Role, Ui, WidgetInfo};
+use egui::{Button, MenuBar, Response, Role, Ui, WidgetInfo};
 
-use super::{Dialog, Requests};
+use super::{Dialog, Requests, shortcuts};
 use crate::theme::desktop::{
     BRAND_PADDING_RIGHT, DROPDOWN_ITEM_PADDING_X, DROPDOWN_MIN_WIDTH, MENU_LINK_PADDING_X,
     MENU_LINK_SIZE,
 };
-use crate::theme::tokens::{FS_SM, TOUCH_TARGET, TRACKING_DISPLAY, Weight, font};
+use crate::theme::palette;
+use crate::theme::tokens::{FS_SM, FS_XS, TOUCH_TARGET, TRACKING_DISPLAY, Weight, font};
 use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
-use crate::{Language, Model, Text, Texts};
+use crate::{ExtractionScope, ExtractionText, Language, Model, Text, Texts};
 
 /// Shows the header: the brand and the menus.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -26,14 +27,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let mut chosen = None;
     let mut show_licence = false;
     let mut enabled = model.update_check();
-    let mut reopen = None;
+    let mut pick = None;
     ui.horizontal_centered(|ui| {
         brand(ui, &app);
         ui.add_space(BRAND_PADDING_RIGHT);
         ui.spacing_mut().interact_size.y = TOUCH_TARGET;
         MenuBar::new().ui(ui, |ui| {
             ui.spacing_mut().button_padding.x = MENU_LINK_PADDING_X;
-            reopen = archive_menu(ui, model, requests);
+            pick = archive_menu(ui, model, requests);
             let response = ui.menu_button(link(&language_menu), |ui| {
                 dropdown(ui);
                 for (language, name) in &names {
@@ -60,8 +61,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         model.switch_update_check(enabled, move || ctx.request_repaint());
         requests.settings_changed = true;
     }
-    if let Some(path) = reopen {
-        super::open(ui, model, path);
+    if let Some(pick) = pick {
+        apply(ui, model, pick);
     }
     if show_licence {
         model.set_licence_shown(true);
@@ -81,6 +82,14 @@ pub(super) fn entry(text: &str) -> egui::RichText {
     egui::RichText::new(text).font(font(FS_SM, Weight::Regular))
 }
 
+/// Returns a dropdown entry with its shortcut hint right-aligned in the muted tint.
+fn shortcut_entry(texts: &Texts, text: Text, hint: Text) -> Button<'static> {
+    let hint = egui::RichText::new(texts.get(hint))
+        .font(font(FS_XS, Weight::Regular))
+        .color(palette::GRAY_2_TEXT);
+    Button::new(entry(&texts.get(text))).shortcut_text(hint)
+}
+
 pub(super) fn dropdown(ui: &mut Ui) {
     ui.set_min_width(DROPDOWN_MIN_WIDTH);
     ui.spacing_mut().button_padding.x = DROPDOWN_ITEM_PADDING_X;
@@ -98,9 +107,27 @@ fn label(response: &Response, text: &str) {
     response.widget_info(|| WidgetInfo::labeled(Role::Button, true, text));
 }
 
-fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<PathBuf> {
+/// What the user picked in the Archive menu besides a dialog.
+enum Pick {
+    Reopen(PathBuf),
+    Reload,
+    ExtractSelected,
+}
+
+fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
+    match pick {
+        Pick::Reopen(path) => super::open(ui, model, path),
+        Pick::Reload => {
+            let ctx = ui.ctx().clone();
+            model.reload(move || ctx.request_repaint());
+        }
+        Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
+    }
+}
+
+fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<Pick> {
     let texts = model.texts();
-    let mut reopen = None;
+    let mut pick = None;
     let title = texts.get(Text::MenuArchive);
     let response = ui.menu_button(link(&title), |ui| {
         dropdown(ui);
@@ -113,19 +140,39 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
                 requests.dialog = Some(dialog);
             }
         }
-        ui.separator();
         ui.menu_button(entry(&texts.get(Text::MenuRecent)), |ui| {
             dropdown(ui);
-            reopen = recent_menu(ui, texts, model);
+            if let Some(path) = recent_menu(ui, texts, model) {
+                pick = Some(Pick::Reopen(path));
+            }
         });
+        ui.separator();
+        let reload = shortcut_entry(texts, Text::ActionReload, Text::ShortcutReload);
+        if ui
+            .add_enabled(shortcuts::reload_enabled(model), reload)
+            .clicked()
+        {
+            pick = Some(Pick::Reload);
+        }
+        let extract = shortcut_entry(
+            texts,
+            ExtractionText::ActionSelected.into(),
+            Text::ShortcutExtractSelected,
+        );
+        if ui
+            .add_enabled(shortcuts::extract_selected_enabled(model), extract)
+            .clicked()
+        {
+            pick = Some(Pick::ExtractSelected);
+        }
     });
     label(&response.response, &title);
-    reopen
+    pick
 }
 
 fn recent_menu(ui: &mut Ui, texts: &Texts, model: &Model) -> Option<PathBuf> {
     if model.recent().is_empty() {
-        ui.label(entry(&texts.get(Text::RecentNone)).color(crate::theme::palette::GRAY_2_TEXT));
+        ui.label(entry(&texts.get(Text::RecentNone)).color(palette::GRAY_2_TEXT));
     }
     let mut reopen = None;
     for path in model.recent() {

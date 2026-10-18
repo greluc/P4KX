@@ -1,6 +1,8 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
 mod channels;
+mod extraction;
+mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
@@ -24,6 +26,8 @@ pub enum Dialog {
     AddFolder,
     /// Picks an Archive to add as a manual entry.
     AddArchive,
+    /// Picks the folder of an Extraction.
+    ExtractionFolder,
 }
 
 /// What the window asks of its host after a frame.
@@ -46,6 +50,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     if let Some(browser) = model.browser_mut() {
         browser.poll();
     }
+    model.poll_extraction();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -68,6 +73,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             ui.centered_and_justified(|ui| ui.label(model.texts().get(Text::DropHint)));
         } else {
             search::show(ui, model);
+            extraction::actions(ui, model);
             Panel::bottom("preview")
                 .resizable(true)
                 .default_size(300.0)
@@ -75,6 +81,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             table::show(ui, model);
         }
     });
+    extraction::setup(ui, model, &mut requests);
+    extraction_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }

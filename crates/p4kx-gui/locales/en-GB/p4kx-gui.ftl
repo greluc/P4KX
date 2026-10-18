@@ -54,3 +54,45 @@ preview-too-large = { $path } is { $size }. Entries larger than { $limit } are n
 preview-truncated = Truncated: showing the first { $shown } of { $total } bytes.
 preview-failed = Cannot read { $path }: { $reason }
 preview-stopped = Reading { $path } stopped without a result.
+extract-selected = Extract selected…
+extract-shown = Extract shown…
+extract-all = Extract all…
+extraction-setup-title = Extract Entries
+extraction-scope-heading = Entries
+extraction-scope-selected = Selected ({ $number })
+extraction-scope-shown = Shown ({ $number })
+extraction-scope-all = Whole Archive ({ $number })
+extraction-target-heading = Target
+extraction-target-new = New folder inside
+extraction-target-existing = Existing folder
+extraction-target-new-name = Creates { $name }
+extraction-folder-none = No folder chosen
+extraction-choose-folder = Choose folder…
+extraction-policy-heading = Files that already exist
+extraction-policy-skip = Skip
+extraction-policy-overwrite = Overwrite
+extraction-policy-if-changed = Overwrite only if changed
+extraction-start = Extract
+extraction-close = Close
+extraction-confirm-all =
+    { $count ->
+        [one] Extract the whole Archive, { $number } Entry of { $size }?
+       *[other] Extract the whole Archive, { $number } Entries of { $size }?
+    }
+extraction-confirm-all-action = Extract whole Archive
+extraction-back = Back
+extraction-running-title = Extracting
+extraction-progress = { $done } of { $total } Entries, { $percent } %
+extraction-cancelling = Cancelling…
+extraction-cancel = Cancel
+extraction-summary-title = Extraction finished
+extraction-summary-cancelled-title = Extraction cancelled
+extraction-summary-counts = Extracted { $extracted }, skipped { $skipped }, failed { $failed }, cancelled { $cancelled }
+extraction-summary-target = Target: { $path }
+extraction-summary-failed = Failed ({ $number })
+extraction-summary-skipped = Skipped ({ $number })
+extraction-summary-cancelled = Cancelled ({ $number })
+extraction-summary-failure = { $path }: { $reason }
+extraction-failed = Cannot prepare the target in { $path }: { $reason }
+extraction-stopped = The Extraction into { $path } stopped without a result.
+extraction-failed-title = Extraction failed

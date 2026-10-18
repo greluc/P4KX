@@ -1,6 +1,10 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod extraction_text;
+
+pub use extraction_text::ExtractionText;
+
 use crate::Language;
 
 /// A text of the interface, looked up in the Fluent file of the current language.
@@ -108,11 +112,13 @@ pub enum Text {
     PreviewFailed,
     /// Shown when reading stopped without a result; takes `path`.
     PreviewStopped,
+    /// A text of the Extraction windows.
+    Extraction(ExtractionText),
 }
 
 impl Text {
-    /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 52] = [
+    /// Every text outside the Extraction windows.
+    const BASE: [Self; 52] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -166,6 +172,13 @@ impl Text {
         Self::PreviewFailed,
         Self::PreviewStopped,
     ];
+
+    /// Returns every text, for checks of the Fluent files.
+    pub fn all() -> impl Iterator<Item = Self> {
+        Self::BASE
+            .into_iter()
+            .chain(ExtractionText::ALL.map(Self::Extraction))
+    }
 
     /// Returns the Fluent message id.
     #[must_use]
@@ -223,7 +236,14 @@ impl Text {
             Self::PreviewTruncated => "preview-truncated",
             Self::PreviewFailed => "preview-failed",
             Self::PreviewStopped => "preview-stopped",
+            Self::Extraction(text) => text.id(),
         }
+    }
+}
+
+impl From<ExtractionText> for Text {
+    fn from(text: ExtractionText) -> Self {
+        Self::Extraction(text)
     }
 }
 
@@ -269,14 +289,15 @@ impl Texts {
 
     /// Returns `text` without arguments in the current language.
     #[must_use]
-    pub fn get(&self, text: Text) -> String {
+    pub fn get(&self, text: impl Into<Text>) -> String {
         self.format(text, &[])
     }
 
     /// Returns `text` in the current language with the named `args`; a missing message yields
     /// its id.
     #[must_use]
-    pub fn format(&self, text: Text, args: &[(&str, FluentValue<'_>)]) -> String {
+    pub fn format(&self, text: impl Into<Text>, args: &[(&str, FluentValue<'_>)]) -> String {
+        let text = text.into();
         format_in(self.bundle(self.language), text, args).unwrap_or_else(|| text.id().to_owned())
     }
 

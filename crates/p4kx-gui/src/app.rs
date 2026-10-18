@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
@@ -54,7 +54,7 @@ impl App {
             .spawn(move || {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
-                    Dialog::AddFolder => picker.pick_folder(),
+                    Dialog::AddFolder | Dialog::ExtractionFolder => picker.pick_folder(),
                     Dialog::OpenArchive | Dialog::AddArchive => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
@@ -110,6 +110,11 @@ impl eframe::App for App {
             Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
                 settings_changed = self.model.add_manual(path);
             }
+            Some((Dialog::ExtractionFolder, path)) => {
+                if let Some(setup) = self.model.extraction_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
             None => {}
         }
         let requests = ui::show(ui, &mut self.model);
@@ -126,6 +131,7 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self) {
+        self.model.stop_extraction();
         self.save_settings();
     }
 }
@@ -139,6 +145,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     }
     settings.window = window;
     settings.recent = model.recent().clone();
+    settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
     settings.channels.merge(model.channels().added());
 }
 
@@ -185,6 +192,21 @@ mod tests {
             "both folders are kept"
         );
         Ok(())
+    }
+
+    #[test]
+    fn the_extraction_folder_is_stored() {
+        let mut model = Model::new(Language::German);
+        model.set_extraction_folder(Some(PathBuf::from(r"D:\Exports")));
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(
+            settings.extraction_folder,
+            Some(PathBuf::from(r"D:\Exports")),
+            "the folder chosen last"
+        );
     }
 
     #[test]

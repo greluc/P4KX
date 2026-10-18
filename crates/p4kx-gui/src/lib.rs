@@ -9,6 +9,7 @@ mod channel_list;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_index;
+mod extraction;
 mod folder_tree;
 mod format;
 mod language;
@@ -25,6 +26,10 @@ pub use app::App;
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
 pub use entry_index::EntryIndex;
+pub use extraction::{
+    Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
+    ExtractionSummary, FailedEntry, TargetKind,
+};
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
 pub use model::{Failure, Model};
@@ -32,4 +37,4 @@ pub use preview::{
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
 };
 pub use sort::{Sort, SortColumn, SortDirection};
-pub use texts::{Text, Texts};
+pub use texts::{ExtractionText, Text, Texts};

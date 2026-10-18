@@ -164,6 +164,45 @@ defines and no Loadout names, in definition order. An entry names its Entity by 
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
+## `p4kx entity audio <archive> <entity> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb",
+ "entity": {"guid": "…", "record_path": "…", "name": "EntityClassDefinition.ORIG_890Jump",
+            "class_name": "ORIG_890Jump"},
+ "triggers": [Trigger, …], "counts": {"triggers": 47, "matched": 47, "unmatched": 0},
+ "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. The command reads
+every ATL definition below `Data\Libs\GameAudio\` (text XML or CryXml) and every `.bnk`
+soundbank of the Archive once. `triggers` lists the audio triggers the Entity's Record names
+through `GlobalResourceAudio.audioTrigger` fields, each once (names ignoring ASCII case) in the
+order the Record first names them. `matched` counts the triggers one of whose Wwise events a
+soundbank holds; triggers that reach no soundbank do not change the exit code.
+
+A **Trigger**:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `name` | string | The trigger name as the Record first writes it |
+| `location` | string | The first field naming it, e.g. `Components[3].triggers[0].audioTrigger` |
+| `references` | number | How many fields of the Record name it |
+| `definition` | string or `null` | Path of the ATL definition Entry; `null` when no definition has the trigger |
+| `events` | array | One Event per `WwiseEvent` of the definition, in order |
+| `unmatched` | object or `null` | Why the trigger reaches no soundbank: `kind` and `message` |
+
+An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
+case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
+definition's `wwise_localised`) and `soundbanks`, each with `path` and `language` (the language
+folder below `Sounds\wwise\`, e.g. `English(US)`, or `null`), in path order.
+
+The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
+definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
+**Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
+(`too_large`, `unreadable`, `atl`, `soundbank` or `too_many_triggers`) and `message`; without
+`--json` each issue is a warning on stderr. New kinds may be added in later versions.
+
 ## `p4kx dcb query <archive> <query> --json`
 
 Without `--out`, the line is the Query result itself in its JSON format, as `--format json`

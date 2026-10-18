@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
+  the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
+  matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or
+  in no soundbank are listed with the reason; ATL definitions and soundbanks that cannot be read
+  are warned about. The audio index reads every ATL definition and soundbank of the Archive once,
+  in parallel.
 - `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
   character files as JSON and back. The new `p4kx-character` crate checks magic, size and
   CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,

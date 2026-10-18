@@ -168,6 +168,26 @@ with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be emb
 prefetched start.
 _Avoid_: sound package, audio archive
 
+**Audio trigger**:
+A named sound action an Entity's Record refers to, e.g. `Play_QDrive_Spool`; its ATL definition
+maps it to Wwise events.
+_Avoid_: sound, audio event
+
+**ATL definition**:
+An `ATLConfig` Entry below `Data\Libs\GameAudio\`, text XML or CryXml, that defines audio triggers
+with the Wwise events each posts and the soundbanks it preloads.
+_Avoid_: audio XML, game audio file
+
+**Wwise event**:
+An event object in a Soundbank's `HIRC` section that leads through actions to sounds, identified
+by its Wwise short ID, the 32-bit FNV-1 hash of its name in lower case.
+_Avoid_: trigger (an Audio trigger is the game's name for it)
+
+**Audio index**:
+The Audio triggers of every ATL definition and the Wwise events of every Soundbank of one
+Archive, read once while the Archive is open and joined by Wwise short ID.
+_Avoid_: sound database, audio cache
+
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model

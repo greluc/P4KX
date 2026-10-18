@@ -8,13 +8,14 @@ use p4kx_extraction::{Archive, DataForgeEntry};
 
 use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
-use crate::json;
 use crate::query_table::one_line;
+use crate::{entity_audio, json};
 
 /// Runs a `p4kx entity` subcommand.
 pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<()> {
     match &args.action {
         EntityAction::Loadout(args) => loadout(args, as_json),
+        EntityAction::Audio(args) => entity_audio::run(args, as_json),
     }
 }
 

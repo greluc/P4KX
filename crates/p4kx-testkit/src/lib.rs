@@ -6,6 +6,7 @@
 
 mod adpcm;
 mod archive_builder;
+mod audio;
 mod bnk;
 mod build_manifest;
 mod bytes;
@@ -28,6 +29,7 @@ mod vorbis;
 mod wem;
 
 pub use archive_builder::ArchiveBuilder;
+pub use audio::{TestAtl, audio_schema, wwise_short_id};
 pub use bnk::{TestBank, TestHircObject};
 pub use build_manifest::write_build_manifest;
 pub use chf::{TestChf, TestItemPort, TestMaterial, TestSubMaterial};

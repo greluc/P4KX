@@ -1,0 +1,145 @@
+use p4kx_cryxml::{Element, Xml};
+
+use super::{AudioFileError, MAX_TRIGGER_EVENTS, wwise_id};
+
+/// A Wwise event an ATL trigger posts: its name and its short ID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WwiseEvent {
+    name: Box<str>,
+    id: u32,
+    localised: bool,
+}
+
+impl WwiseEvent {
+    /// Returns the event name as the ATL definition writes it.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the event's Wwise short ID, the [`wwise_id`] of its name.
+    #[must_use]
+    pub const fn id(&self) -> u32 {
+        self.id
+    }
+
+    /// Returns whether the definition marks the event as localised (`wwise_localised`).
+    #[must_use]
+    pub const fn is_localised(&self) -> bool {
+        self.localised
+    }
+}
+
+/// An audio trigger of an ATL definition: its name, the Wwise events it posts and the Entry that
+/// defines it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtlTrigger {
+    pub(crate) name: Box<str>,
+    pub(crate) events: Box<[WwiseEvent]>,
+    pub(crate) file: u32,
+}
+
+impl AtlTrigger {
+    /// Returns the trigger name (`atl_name`).
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the Wwise events the trigger posts, in definition order.
+    #[must_use]
+    pub fn events(&self) -> &[WwiseEvent] {
+        &self.events
+    }
+}
+
+/// An element of text XML or `CryXml`, read alike and without copying.
+trait AtlNode<'a>: Copy {
+    fn name(self) -> &'a str;
+    fn attribute(self, name: &str) -> Option<&'a str>;
+    fn elements(self) -> impl Iterator<Item = Self>;
+}
+
+impl<'a> AtlNode<'a> for Element<'a> {
+    fn name(self) -> &'a str {
+        Element::name(self)
+    }
+
+    fn attribute(self, name: &str) -> Option<&'a str> {
+        Element::attribute(self, name)
+    }
+
+    fn elements(self) -> impl Iterator<Item = Self> {
+        self.children()
+    }
+}
+
+impl<'a, 'input: 'a> AtlNode<'a> for roxmltree::Node<'a, 'input> {
+    fn name(self) -> &'a str {
+        self.tag_name().name()
+    }
+
+    fn attribute(self, name: &str) -> Option<&'a str> {
+        roxmltree::Node::attribute(&self, name)
+    }
+
+    fn elements(self) -> impl Iterator<Item = Self> {
+        self.children().filter(roxmltree::Node::is_element)
+    }
+}
+
+/// Reads the audio triggers of an ATL definition in text XML or `CryXml`, marking each with the
+/// position `file` of its Entry; a document whose root is no `ATLConfig` holds none.
+pub(crate) fn parse(bytes: &[u8], file: u32) -> Result<Vec<AtlTrigger>, AudioFileError> {
+    let failed = |reason: String| AudioFileError::Atl { reason };
+    match p4kx_cryxml::read(bytes).map_err(|error| failed(error.to_string()))? {
+        Xml::CryXml(document) => Ok(triggers(document.root(), file)),
+        Xml::Text(text) => {
+            let text = std::str::from_utf8(text).map_err(|error| failed(error.to_string()))?;
+            let document = roxmltree::Document::parse(text.trim_start_matches('\u{feff}'))
+                .map_err(|error| failed(error.to_string()))?;
+            Ok(triggers(document.root_element(), file))
+        }
+    }
+}
+
+fn triggers<'a, N: AtlNode<'a>>(root: N, file: u32) -> Vec<AtlTrigger> {
+    if root.name() != "ATLConfig" {
+        return Vec::new();
+    }
+    root.elements()
+        .filter(|list| list.name() == "AudioTriggers")
+        .flat_map(AtlNode::elements)
+        .filter(|trigger| trigger.name() == "ATLTrigger")
+        .filter_map(|trigger| {
+            let name = trigger
+                .attribute("atl_name")
+                .filter(|name| !name.is_empty())?;
+            Some(AtlTrigger {
+                name: name.into(),
+                events: events(trigger),
+                file,
+            })
+        })
+        .collect()
+}
+
+fn events<'a, N: AtlNode<'a>>(trigger: N) -> Box<[WwiseEvent]> {
+    trigger
+        .elements()
+        .filter(|event| event.name() == "WwiseEvent")
+        .filter_map(|event| {
+            let name = event
+                .attribute("wwise_name")
+                .filter(|name| !name.is_empty())?;
+            Some(WwiseEvent {
+                name: name.into(),
+                id: wwise_id(name),
+                localised: event
+                    .attribute("wwise_localised")
+                    .is_some_and(|value| value.eq_ignore_ascii_case("true")),
+            })
+        })
+        .take(MAX_TRIGGER_EVENTS)
+        .collect()
+}

@@ -8,7 +8,7 @@ use p4kx_settings::ExtractionTextures;
 
 pub use job::{Extraction, ExtractionStatus};
 pub(crate) use job::{Request, start, target_naming};
-pub use summary::{ExtractionSummary, FailedEntry};
+pub use summary::{ExtractionSummary, FailedEntry, RecordCounts};
 
 /// Which Entries an Extraction writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

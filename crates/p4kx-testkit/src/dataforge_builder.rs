@@ -4,12 +4,13 @@ use crate::bytes::{put_u16, put_u32};
 use crate::dataforge_schema::{TestPool, TestProperty, TestRecord, TestStruct, TestType};
 
 const NONE: u32 = u32::MAX;
+const TAGGED_VERSION: u32 = 8;
 const ARRAY_LEN: u32 = 8;
 const CONVERSION_ATTRIBUTE: u16 = 0;
 const CONVERSION_COMPLEX_ARRAY: u16 = 1;
 const CONVERSION_SIMPLE_ARRAY: u16 = 2;
 
-/// Builds a synthetic DataForge database in the byte layout of version 6 from a declarative
+/// Builds a synthetic DataForge database in the byte layout of version 6 or 8 from a declarative
 /// description of its structs, enums and Records.
 ///
 /// Every Record gets one zero-filled instance of its struct; struct and enum names refer to
@@ -42,7 +43,8 @@ impl DataForgeBuilder {
         }
     }
 
-    /// Writes `version` into the header, keeping the version 6 layout.
+    /// Writes `version` into the header; version 8 uses its Record layout with the tag, every
+    /// other version the layout of version 6.
     #[must_use]
     pub const fn version(mut self, version: u32) -> Self {
         self.version = version;
@@ -314,6 +316,9 @@ impl<'a> Writer<'a> {
             let size = self.sizes.get(struct_index as usize).copied().unwrap_or(0);
             put_u32(&mut rows, self.blob.offset(&record.name));
             put_u32(&mut rows, self.text.offset(&record.file_name));
+            if self.spec.version == TAGGED_VERSION {
+                put_u32(&mut rows, self.blob.offset(&record.tag));
+            }
             put_u32(&mut rows, struct_index);
             rows.extend_from_slice(&guid_bytes(record.guid));
             put_u16(&mut rows, to_u16(instance as usize));

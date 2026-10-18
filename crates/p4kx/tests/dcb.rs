@@ -1,10 +1,14 @@
-//! `p4kx dcb info` end to end, over synthetic DataForge databases.
+//! `p4kx dcb info` end to end, over synthetic DataForge databases of versions 6 and 8 and, with
+//! `--ignored`, over the real Archive `P4KX_DATA_P4K` names.
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType};
+use p4kx_testkit::{
+    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType,
+    real_archive_path,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -96,6 +100,27 @@ fn dcb_info_prints_one_line_of_json() -> TestResult {
 }
 
 #[test]
+fn dcb_info_reads_version_8() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(
+        dir.path(),
+        vec![TestEntry::zstd("Data\\Game2.dcb", database().version(8).build()).encrypted()],
+    )?;
+
+    let (stdout, stderr) = run(&archive, false, 0)?;
+    let (json, _) = run(&archive, true, 0)?;
+
+    insta::assert_snapshot!(stdout);
+    assert!(stderr.is_empty(), "no warnings: {stderr}");
+    let value: serde_json::Value = serde_json::from_str(&json)?;
+    assert_eq!(value["version"], 8, "JSON version: {json}");
+    assert_eq!(value["record_count"], 2, "JSON Records: {json}");
+    assert_eq!(value["struct_count"], 3, "JSON structs: {json}");
+    assert_eq!(value["enum_count"], 2, "JSON enums: {json}");
+    Ok(())
+}
+
+#[test]
 fn dcb_info_falls_back_to_game_dcb() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(
@@ -176,5 +201,29 @@ fn dcb_info_of_a_corrupt_entry_exits_with_code_3() -> TestResult {
         stderr.contains("cannot read the DataForge Entry Data\\Game2.dcb"),
         "the Entry is named: {stderr}"
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn dcb_info_reads_the_dataforge_of_a_real_archive() -> TestResult {
+    let archive = real_archive_path()?;
+
+    let output = Command::cargo_bin("p4kx")?
+        .arg("--json")
+        .arg("dcb")
+        .arg("info")
+        .arg(&archive)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(value["version"], 8, "every current Channel ships version 8");
+    for count in ["record_count", "struct_count", "enum_count"] {
+        assert!(
+            value[count].as_u64().is_some_and(|count| count > 0),
+            "{count} is positive: {value}"
+        );
+    }
     Ok(())
 }

@@ -87,26 +87,14 @@ impl Row for DataMapping {
     }
 }
 
-/// One row of the version 6 Record definition table.
+/// One row of the Record definition table, decoded in the layout of its version.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RecordDef {
     pub(crate) name: u32,
     pub(crate) file_name: u32,
+    pub(crate) tag: Option<u32>,
     pub(crate) struct_index: u32,
     pub(crate) guid: [u8; 16],
-}
-
-impl Row for RecordDef {
-    const SIZE: usize = 32;
-
-    fn decode(fields: &mut Fields<'_>) -> Self {
-        Self {
-            name: fields.u32(),
-            file_name: fields.u32(),
-            struct_index: fields.u32(),
-            guid: fields.bytes16(),
-        }
-    }
 }
 
 /// One element of the enum option pool: the blob offset of an option name.

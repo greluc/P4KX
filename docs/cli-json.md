@@ -62,7 +62,7 @@ when nothing matches.
 ## `p4kx dcb info <archive> --json`
 
 ```json
-{"archive": "…", "entry": "Data\\Game2.dcb", "version": 6, "record_count": 117709,
+{"archive": "…", "entry": "Data\\Game2.dcb", "version": 8, "record_count": 117709,
  "struct_count": 6696, "enum_count": 774}
 ```
 

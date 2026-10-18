@@ -2,9 +2,9 @@
 
 Record XML is the XML form of one Record of DataForge, written by `p4kx dcb export --format xml`
 and by the `RecordXml` writer of `p4kx-dataforge`. It serialises the canonical Record tree, the
-same tree JSON and the Comparison use; References are links and never embedded
-([ADR-0004](adr/0004-own-record-xml-with-references.md)). It is not compatible with the XML of
-unp4k.
+same tree JSON and the Comparison use: owned children are nested, References are links and never
+embedded ([ADR-0004](adr/0004-own-record-xml-with-references.md)). It is not compatible with the
+XML of unp4k.
 
 The same Record always gives the same bytes, so two exports can be compared with ordinary diff
 tools.
@@ -13,10 +13,30 @@ tools.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Ship xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/ships/avenger" mass="25000.5" size="Large" label="@vehicle_NameAEGS_Avenger" crew="2">
+<Vehicle xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5" label="@vehicle_Cart">
+  <maker>
+    <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
+  </maker>
+  <wheels>
+    <Wheel size="16"/>
+    <Wheel size="17"/>
+  </wheels>
+  <spare>
+    <Wheel size="15"/>
+  </spare>
+  <trailer>
+    <p4kx:null/>
+  </trailer>
+  <front>
+    <p4kx:reference guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" type="Wheel" at="wheels[0]"/>
+  </front>
+  <tags>
+    <p4kx:value value="wood"/>
+    <p4kx:value value="old"/>
+  </tags>
   <p4kx:field name="path" value="hangar"/>
   <p4kx:error field="name" reason="offset 4294967295 in the text table is not a valid string"/>
-</Ship>
+</Vehicle>
 ```
 
 ## Document
@@ -25,13 +45,14 @@ tools.
 - The first line is `<?xml version="1.0" encoding="UTF-8"?>`.
 - One root element per Record, named after the Record's type (its struct), e.g.
   `EntityClassDefinition`.
-- Child elements are indented by two spaces. A root without child elements is self-closing.
+- Every element is on its own line, indented by two spaces per level below the root. An element
+  without child elements is self-closing.
 
 ## Root attributes
 
 In this order:
 
-1. `xmlns:p4kx`, only when the document uses a `p4kx:` element, with the value
+1. `xmlns:p4kx`, only when the root has child elements or is a `p4kx:record`, with the value
    `https://github.com/krt-profit/p4k-extractor/record-xml`.
 2. `type`, only on a `p4kx:record` root (see [Names](#names)).
 3. `guid`: the Record's GUID, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
@@ -60,27 +81,59 @@ carriage return, U+FFFE and U+FFFF) are written as U+FFFD.
 
 ## Child elements
 
-After the attributes, in declaration order:
+After the attributes, one child element per field that is no attribute, in declaration order:
 
 - `<p4kx:field name="…" value="…"/>` for a scalar field whose name cannot be an attribute (see
   [Names](#names)).
-- `<p4kx:error field="…" reason="…"/>` for a value that cannot be read, such as a string offset
-  outside the text table, an enum field naming an enum that does not exist, or a bool byte other
-  than 0 and 1. The Record is still written; the reason is English text for people, not a stable
-  code.
+- `<p4kx:error field="…" reason="…"/>` for a value that cannot be read (see [Errors](#errors)).
+- A field element for a nested struct, an array, a Reference or a null: named after the field,
+  or `<p4kx:field name="…">` when the name cannot be an element name. It holds the field's value
+  element; for an array, one value element per element in stored order, and an empty array is a
+  self-closing field element.
 
-Nested structs, arrays and References are added by later versions; until then such a field is a
-`p4kx:error` whose reason says that its kind is not read yet.
+Value elements:
+
+- **Struct**: an inline class or the struct a strong pointer owns, named after its type, e.g.
+  `<Wheel size="16"/>`, with the attributes and child elements of its fields under the same rules
+  as the root. A strong pointer may own a struct derived from the declared type; the element
+  carries the actual type. When the type name cannot be an element name, the element is
+  `<p4kx:struct type="…">`.
+- **Reference**: `<p4kx:reference guid="…" path="…" type="…"/>` with the GUID, record path and type
+  of the target Record. The target's content is never written.
+- **Weak pointer**: a Reference into the Record that holds it, with the same `guid` and `path`, the
+  type of the target and its location in `at`. The location names the fields from the Record down
+  to the target, separated by `.`, with `[index]` after an array field, e.g.
+  `at="Components[23].AnimationJointControls.variables[0]"`. A weak pointer to the Record's own
+  instance has no `at`; one to the instance of another Record is a Reference to that Record. In
+  the game data every weak pointer points inside its own Record.
+- **Null**: `<p4kx:null/>` for a null strong or weak pointer and a null Reference.
+- **Scalar** in an array: `<p4kx:value value="…"/>`.
+- **Error** in an array: `<p4kx:error reason="…"/>`.
+
+## Errors
+
+A value that cannot be read becomes an error at its place and the rest of the Record is still
+written. Errors are a string offset outside the text table, an enum or struct that does not
+exist, a bool byte other than 0 and 1, a pointer to a struct or instance that does not exist, an
+array outside the values stored for its type, a Reference to a Record that does not exist, a weak
+pointer outside the Record, an array with more elements than a Record may hold, an instance owned
+twice in one Record (which also cuts a cycle of strong pointers) and structs nested deeper than 64
+levels. The reason is English text for people, not a stable code.
+
+A Record whose struct layouts cannot be read, or whose tree would hold more than 1,048,576 values,
+is not written at all. The largest Record of the game data holds fewer than 80,000.
 
 ## Names
 
-A field is written as an attribute only when its name is an XML name without `:` that does not
-start with `xml` in any case, is not `guid`, `path` or `type`, and no earlier field written as an
-attribute has the same name. Any other scalar field is a `p4kx:field` element, so no value is lost or
-mistaken for another.
+A field is written as an attribute only when its value is a scalar and its name is an XML name
+without `:` that does not start with `xml` in any case, is not `guid`, `path` or `type`, and no
+earlier field written as an attribute has the same name. Any other scalar field is a `p4kx:field`
+element, so no value is lost or mistaken for another. A field element is named after its field
+when the name is an XML name without `:` that does not start with `xml` in any case; otherwise it
+is a `p4kx:field` element with the name in `name`.
 
 When the type name is no such name, the root element is `p4kx:record` and the type is its `type`
-attribute.
+attribute; a nested struct is then a `p4kx:struct`.
 
 ## Files
 

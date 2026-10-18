@@ -6,7 +6,7 @@ use std::error::Error;
 
 use forge_pair::ForgePair;
 use p4kx_comparison::{RecordChange, Value, ValueError};
-use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
+use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -329,5 +329,43 @@ fn values_this_level_does_not_read_are_left_out_when_one_side_has_them() -> Test
     let changes = field_changes(&old, &new)?;
 
     assert!(changes.is_empty(), "nothing compared yet: {changes:?}");
+    Ok(())
+}
+
+#[test]
+fn nested_values_that_differ_are_left_to_the_nested_level() -> TestResult {
+    let hull = || TestStruct::new("Hull").field("armor", TestType::Int32);
+    let item = || {
+        TestStruct::new("Item")
+            .field("speed", TestType::Int32)
+            .array("sizes", TestType::Int32)
+            .field("hull", TestType::Class("Hull".to_owned()))
+            .field("target", TestType::Reference)
+    };
+    let side = |speed: i32, size: i32, armor: i32, target: u128| {
+        DataForgeBuilder::new()
+            .structure(hull())
+            .structure(item())
+            .record(
+                TestRecord::new(GUID, "Item", "Item.Sample", "libs/items/sample.xml")
+                    .value("speed", TestValue::Int32(speed))
+                    .value("sizes", TestValue::Array(vec![TestValue::Int32(size)]))
+                    .value(
+                        "hull",
+                        TestValue::Struct(
+                            TestInstance::new("Hull").value("armor", TestValue::Int32(armor)),
+                        ),
+                    )
+                    .value("target", TestValue::Reference(target)),
+            )
+    };
+
+    let changes = field_changes(&side(1, 2, 3, GUID), &side(4, 5, 6, 0))?;
+
+    assert_eq!(
+        changes,
+        [change("speed", Some("Int32(1)"), Some("Int32(4)"))],
+        "only the scalar field: {changes:?}"
+    );
     Ok(())
 }

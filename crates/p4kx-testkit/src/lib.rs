@@ -26,7 +26,7 @@ pub use build_manifest::write_build_manifest;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
-pub use dataforge_value::TestValue;
+pub use dataforge_value::{TestInstance, TestValue};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

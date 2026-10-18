@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
+    ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
+    TestValue,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -66,9 +67,13 @@ fn database() -> DataForgeBuilder {
 }
 
 fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    write_archive_of(dir, &database())
+}
+
+fn write_archive_of(dir: &Path, database: &DataForgeBuilder) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
-        .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted())
+        .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()).encrypted())
         .write_to(&path)?;
     Ok(path)
 }
@@ -245,5 +250,79 @@ fn dcb_export_prints_one_line_of_json() -> TestResult {
     assert_eq!(run.stdout.lines().count(), 1, "one line: {}", run.stdout);
     let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
     insta::assert_snapshot!(serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+fn nested_database() -> DataForgeBuilder {
+    let wheel = |size: i32| {
+        TestValue::Struct(TestInstance::new("Wheel").value("size", TestValue::Int32(size)))
+    };
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Wheel").field("size", TestType::Int32))
+        .structure(TestStruct::new("Manufacturer").field("code", TestType::String))
+        .structure(
+            TestStruct::new("Vehicle")
+                .field("maker", TestType::Reference)
+                .array("wheels", TestType::Class("Wheel".to_owned()))
+                .field("spare", TestType::StrongPointer("Wheel".to_owned()))
+                .field("trailer", TestType::StrongPointer("Wheel".to_owned()))
+                .field("front", TestType::WeakPointer("Wheel".to_owned()))
+                .array("tags", TestType::String)
+                .array("parts", TestType::Reference),
+        )
+        .instance(
+            "spare",
+            TestInstance::new("Wheel").value("size", TestValue::Int32(15)),
+        )
+        .record(
+            TestRecord::new(
+                0xcbee_34fd_6441_4000_b99f_924f_7f26_e19f,
+                "Vehicle",
+                "Vehicle.Cart",
+                "libs/foundry/records/vehicles/cart.xml",
+            )
+            .value(
+                "maker",
+                TestValue::Reference(0x50e8_a9f6_f956_4000_8ace_7c0c_a9a9_1f5d),
+            )
+            .value("wheels", TestValue::Array(vec![wheel(16), wheel(17)]))
+            .value("spare", TestValue::pointer("spare"))
+            .value("front", TestValue::pointer("spare"))
+            .value(
+                "tags",
+                TestValue::Array(vec![TestValue::text("wood"), TestValue::text("old")]),
+            )
+            .value(
+                "parts",
+                TestValue::Array(vec![
+                    TestValue::Reference(0x0000_0001_0002_0003_0004_0000_0000_0005),
+                    TestValue::Null,
+                ]),
+            ),
+        )
+        .record(
+            TestRecord::new(
+                0x50e8_a9f6_f956_4000_8ace_7c0c_a9a9_1f5d,
+                "Manufacturer",
+                "Manufacturer.Woodworks",
+                "libs/foundry/records/makers/woodworks.xml",
+            )
+            .value("code", TestValue::text("WOOD")),
+        )
+}
+
+#[test]
+fn dcb_export_writes_nested_values_as_elements_in_declaration_order() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive_of(dir.path(), &nested_database())?;
+    let first = dir.path().join("first");
+    let second = dir.path().join("second");
+
+    let run = export(&archive, &first, &[], 0)?;
+    export(&archive, &second, &[], 0)?;
+
+    insta::assert_snapshot!("export_nested", tree(&first)?);
+    insta::assert_snapshot!("export_nested_stdout", run.stdout);
+    assert_eq!(tree(&first)?, tree(&second)?, "byte-identical across runs");
     Ok(())
 }

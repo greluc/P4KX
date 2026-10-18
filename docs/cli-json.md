@@ -418,12 +418,13 @@ be read, as `tag` with their `code` and the `offset` of their body in the uncomp
 the definitions that could not be written, with their `id`; each with the reason and its causes
 joined by `: `. Written and failed definitions list bitmaps, then shapes, then morph shapes, each
 in file order. An external image of a movie on disk is read only as DDS from inside the nearest
-ancestor folder named `Data`, or else the movie's folder; a path leaving it fails. A shape file holds the shape as the movie stores it, in twips: `id`, `version`,
-`bounds`, `edge_bounds`, the `fill_styles` and `line_styles` numbered from 1 by the records, and
-the `records` in drawing order, each a `style_change` (a `move_to` position and new style
-numbers), a `straight_edge` with its `delta`, or a `curved_edge` with its `control` and `anchor`
-deltas. With `--json` failures are not repeated on stderr. The exit code is 1 when `failed` is not
-empty.
+ancestor folder named `Data`, or else the movie's folder; a path leaving it fails. A shape file
+holds the shape as the movie stores it, in twips: `id`, `version`, `bounds`, `edge_bounds`, the
+`fill_styles` and `line_styles` numbered from 1 by the records, and the `records` in drawing order,
+each a `style_change` (a `move_to` position and new style numbers), a `straight_edge` with its
+`delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
+not repeated on stderr. The exit code is 1 when `failed` is not empty.
+
 ## `p4kx socpak list <archive> <container…> --json`
 
 ```json

@@ -11,8 +11,8 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityLoadoutArgs};
-pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
+pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.

@@ -2,7 +2,7 @@ use rayon::slice::ParallelSliceMut;
 
 use crate::dataforge::out_of_range;
 use crate::rows::RecordDef;
-use crate::strings::{compare_paths, strip_xml};
+use crate::strings::{compare_ignoring_case, compare_paths, strip_xml};
 use crate::{
     DataForge, DataForgeError, Guid, RecordTree, Reference, Struct, TreeBuilder, Value, ValueError,
 };
@@ -166,10 +166,9 @@ impl<'a> DataForge<'a> {
         let start = index.partition_point(|record| compare_paths(path_of(record), path).is_lt());
         let tail = index.get(start..).unwrap_or_default();
         let len = tail.partition_point(|record| compare_paths(path_of(record), path).is_eq());
-        tail.get(..len)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|record| self.record(*record))
+        let mut found = tail.get(..len).unwrap_or_default().to_vec();
+        found.sort_unstable();
+        found.into_iter().filter_map(|record| self.record(record))
     }
 
     /// Returns the Record at `index` in definition order, the one [`Record::index`] gives, or
@@ -193,9 +192,11 @@ impl<'a> DataForge<'a> {
         self.text.get(def.file_name).ok().map(strip_xml)
     }
 
-    /// Returns the indices of the Records with a readable record path, ordered by record path
-    /// and then by definition order.
-    pub(crate) fn path_order(&self) -> &[u32] {
+    /// Returns the indices of the Records with a readable record path in Record order: by record
+    /// path ignoring ASCII case with `/` and `\` alike, then by Record name ignoring ASCII case,
+    /// then by definition order.
+    #[must_use]
+    pub fn path_order(&self) -> &[u32] {
         self.path_index.get_or_init(|| self.build_path_index())
     }
 
@@ -210,17 +211,20 @@ impl<'a> DataForge<'a> {
     }
 
     fn build_path_index(&self) -> Box<[u32]> {
-        let mut keyed: Vec<(&str, u32)> = self
+        let mut keyed: Vec<(&str, &str, u32)> = self
             .records
             .iter_indexed()
             .filter_map(|(index, def)| {
                 let path = self.text.get(def.file_name).ok()?;
-                Some((strip_xml(path), index))
+                let name = self.blob.get(def.name).unwrap_or_default();
+                Some((strip_xml(path), name, index))
             })
             .collect();
         keyed.par_sort_unstable_by(|left, right| {
-            compare_paths(left.0, right.0).then(left.1.cmp(&right.1))
+            compare_paths(left.0, right.0)
+                .then_with(|| compare_ignoring_case(left.1, right.1))
+                .then(left.2.cmp(&right.2))
         });
-        keyed.into_iter().map(|(_, index)| index).collect()
+        keyed.into_iter().map(|(_, _, index)| index).collect()
     }
 }

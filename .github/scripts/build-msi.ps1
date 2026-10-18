@@ -12,7 +12,7 @@ The installer version, three numbers such as 0.1.0.
 The MSI to write.
 
 .PARAMETER BinaryFolder
-The folder holding p4kx-gui.exe and p4kx.exe.
+The folder holding p4kx-gui.exe, p4kx.exe and p4kx-mcp.exe.
 #>
 param(
     [Parameter(Mandatory)] [string] $Wix,

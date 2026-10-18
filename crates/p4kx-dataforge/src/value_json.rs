@@ -9,7 +9,8 @@ use crate::xml_text::{Float, FloatText};
 ///
 /// Integers are exact decimal numbers; floats are numbers in their Record XML text, `NaN`,
 /// `INF` and `-INF` are strings; strings, localisation keys, GUIDs and enum options are strings.
-/// A null pointer is `null`; a struct, an array or a Reference is the string of its summary.
+/// A null pointer is `null`; an array, such as the list of a multi-valued Query path, is an array
+/// of its elements; a struct or a Reference is the string of its summary.
 pub(crate) fn write_json_value(out: &mut impl Write, value: &Value<'_>) -> io::Result<()> {
     match value {
         Value::Bool(value) => write!(out, "{value}"),
@@ -28,9 +29,17 @@ pub(crate) fn write_json_value(out: &mut impl Write, value: &Value<'_>) -> io::R
         }
         Value::Guid(guid) => write!(out, "\"{guid}\""),
         Value::Null => out.write_all(b"null"),
-        Value::Struct(_) | Value::Array(_) | Value::Reference(_) => {
-            write_json_string(out, &value.to_string())
+        Value::Array(items) => {
+            out.write_all(b"[")?;
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    out.write_all(b",")?;
+                }
+                write_json_value(out, item)?;
+            }
+            out.write_all(b"]")
         }
+        Value::Struct(_) | Value::Reference(_) => write_json_string(out, &value.to_string()),
         Value::Error(error) => {
             out.write_all(b"{\"error\":")?;
             write_json_string(out, &error.to_string())?;

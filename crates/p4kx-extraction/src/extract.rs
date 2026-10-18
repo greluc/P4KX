@@ -8,7 +8,7 @@ use crate::dependent::Collisions;
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
-use crate::{EntryFailure, ExtractOptions, ExtractionReport};
+use crate::{DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport};
 
 /// The outcome of one Entry of an Extraction: its position, its path and how it ended.
 pub(crate) type EntryEnded = (usize, String, Outcome);
@@ -36,7 +36,10 @@ pub(crate) enum Ended {
 /// With Conversion on, each requested `.dds` header and its requested parts are converted once
 /// as one texture as [`TextureConversion`](crate::TextureConversion) says, its parts read from
 /// the Archive whether requested or not. A texture that cannot be converted is reported among
-/// the [`unconverted`](ExtractionReport::unconverted) ones and its raw Entries are written.
+/// the [`unconverted`](ExtractionReport::unconverted) ones and its raw Entries are written. The
+/// DataForge Entry, the one [`DataForgeEntry::locate`] finds, is written as one Record XML file
+/// per Record below its folder after the other Entries, each file under the Conflict policy; its
+/// Records are reported in [`records`](ExtractionReport::records).
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -68,7 +71,11 @@ pub fn extract(
         textures: options.textures,
         tracker: &tracker,
     };
-    let items = if options.convert && options.textures.converts() {
+    let dataforge = options
+        .convert
+        .then(|| dataforge_position(archive, entries))
+        .flatten();
+    let mut items = if options.convert && options.textures.converts() {
         group_textures(archive, entries)
     } else {
         entries
@@ -78,6 +85,7 @@ pub fn extract(
             .map(Item::Entry)
             .collect()
     };
+    items.retain(|item| !matches!(item, Item::Entry((index, _)) if Some(*index) == dataforge));
     let (independent, dependent) = split_dependent(items);
     let run = |buffers: &mut Buffers, item: Item<'_>| match item {
         Item::Entry((index, entry)) => {
@@ -91,9 +99,25 @@ pub fn extract(
         .collect();
     let mut buffers = Buffers::new();
     ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let records = dataforge
+        .and_then(|index| entries.get(index).map(|entry| (index, entry)))
+        .and_then(|(index, entry)| {
+            let (outcome, records) = writer.write_dataforge(entry, &mut buffers);
+            ended.push(Ended::Entry((index, entry.path().to_owned(), outcome)));
+            records
+        });
     let mut report = report(ended, options.convert);
+    report.records = records;
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
+}
+
+/// Returns the position in `entries` of the DataForge Entry of `archive`, if it is requested.
+fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
+    let located = DataForgeEntry::locate(archive)?;
+    entries
+        .iter()
+        .position(|entry| entry.path() == located.path())
 }
 
 fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {

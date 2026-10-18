@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "table(\"from Ship select Components[Weapon].damage where Components[Weapon].damage > 1000 \\\n         or tags[*] = \\\"slow\\\"\")?"
+---
+record path         Components[Weapon].damage
+------------------  -------------------------
+libs/ships/aurora   []
+libs/ships/avenger  [250.5, 1200]
+2 Records

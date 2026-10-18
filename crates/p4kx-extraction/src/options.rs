@@ -59,8 +59,8 @@ pub struct Progress {
 pub struct ExtractOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
-    /// Converts `CryXml` Entries to UTF-8 XML and split DDS textures as `textures` says; text
-    /// XML and every other Entry stay unchanged.
+    /// Converts `CryXml` Entries to UTF-8 XML, split DDS textures as `textures` says and the
+    /// DataForge Entry to Record XML files; text XML and every other Entry stay unchanged.
     pub convert: bool,
     /// What a Conversion writes for a DDS texture; ignored while `convert` is off.
     pub textures: TextureConversion,

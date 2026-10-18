@@ -41,9 +41,14 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("skipped", "1".into()),
         ("failed", "0".into()),
         ("cancelled", "0".into()),
+        ("written", "3".into()),
+        ("errors", "1".into()),
+        ("erroneous", "1".into()),
         ("version", "0.2.0".into()),
         ("channel", "LIVE".into()),
         ("change", "Added".into()),
+        ("filter", "*.xml".into()),
+        ("stopped", "yes".into()),
         ("current", "1".into()),
         ("first", "10".into()),
         ("last", "16".into()),
@@ -55,6 +60,10 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("type", "Hull".into()),
         ("at", "nodes[0]".into()),
         ("field", "hull.armor".into()),
+        ("level", "2".into()),
+        ("width", "512".into()),
+        ("height", "256".into()),
+        ("format", "BC7_UNORM".into()),
     ]
 }
 

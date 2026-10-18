@@ -121,9 +121,20 @@ impl<W: Write> ResultWriter<W> {
             if let Some(Some(value)) = cells.get(index) {
                 let mut text = std::mem::take(&mut self.text);
                 text.clear();
-                let written = write!(text, "{value}")
-                    .map_err(|_| io::Error::other("a value cannot be formatted"))
-                    .and_then(|()| self.csv_field(&text));
+                let formatted = if matches!(value, Value::Array(_)) {
+                    let mut json = Vec::new();
+                    write_json_value(&mut json, value).and_then(|()| {
+                        text.push_str(
+                            std::str::from_utf8(&json)
+                                .map_err(|_| io::Error::other("the JSON of a list is not UTF-8"))?,
+                        );
+                        Ok(())
+                    })
+                } else {
+                    write!(text, "{value}")
+                        .map_err(|_| io::Error::other("a value cannot be formatted"))
+                };
+                let written = formatted.and_then(|()| self.csv_field(&text));
                 self.text = text;
                 written?;
             }

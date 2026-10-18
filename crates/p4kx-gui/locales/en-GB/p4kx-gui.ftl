@@ -63,7 +63,11 @@ preview-truncated = Truncated: showing the first { $shown } of { $total } bytes.
 preview-failed = Cannot read { $path }: { $reason }
 preview-stopped = Reading { $path } stopped without a result.
 preview-archive-changed = The Archive changed on disk. Reload it to preview Entries.
-archive-changed = { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
+archive-changed =
+    { $stopped ->
+        [yes] { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
+       *[no] { $path } changed on disk, probably updated by the RSI Launcher. Reload the Archive to extract or preview Entries again.
+    }
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…
@@ -83,7 +87,7 @@ extraction-policy-heading = Files that already exist
 extraction-policy-skip = Skip
 extraction-policy-overwrite = Overwrite
 extraction-policy-if-changed = Overwrite only if changed
-extraction-conversion = Convert CryXml to XML and textures
+extraction-conversion = Convert CryXml and DataForge to XML and textures
 extraction-texture-merge = Merge split textures into one DDS
 extraction-texture-png = Export textures as PNG (high-range as OpenEXR)
 extraction-texture-mip-largest = Largest mip
@@ -108,6 +112,7 @@ extraction-summary-changed-title = Extraction stopped: the Archive changed
 extraction-summary-changed = The Archive changed on disk during the Extraction. Files written before may be stale; reload the Archive and extract again.
 extraction-summary-counts = Extracted { $extracted }, skipped { $skipped }, failed { $failed }, cancelled { $cancelled }
 extraction-summary-counts-converted = Extracted { $extracted } ({ $converted } converted), skipped { $skipped }, failed { $failed }, cancelled { $cancelled }
+extraction-summary-records = Records written { $written }, skipped { $skipped }, failed { $failed }, cancelled { $cancelled }; { $errors } error values in { $erroneous } Records
 extraction-summary-target = Target: { $path }
 extraction-summary-failed = Failed ({ $number })
 extraction-summary-skipped = Skipped ({ $number })
@@ -238,3 +243,23 @@ record-change-value-array =
 record-change-value-reference-at = { $path } · { $at }
 record-change-value-error = Error: { $reason }
 record-change-field-row = { $field }: { $old } › { $new }
+change-extraction-action-old = Extract old ({ $number })…
+change-extraction-action-new = Extract new ({ $number })…
+change-extraction-scope-old = Changed Entries of the old Archive, in their old version ({ $number })
+change-extraction-scope-new = Added and changed Entries of the new Archive ({ $number })
+change-extraction-scope-filtered = Only the changes matching the Filter { $filter }
+change-extraction-summary-changed = The Archive changed on disk during the Extraction. Files written before may be stale; compare the Archives again and extract the changes again.
+
+preview-tab-image = Image
+image-mip = Mip
+image-format = Format
+image-size = Size
+image-mips = Mips
+image-faces = Cubemap faces
+image-dimensions = { $width } × { $height }
+image-none = –
+image-shown = Mip { $level }: { $width } × { $height } pixels
+image-decoding = Decoding mip { $level } of { $path }…
+image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
+image-failed = Cannot decode { $path }: { $reason }
+image-unshowable = Every mip of { $path } is larger than the preview can show.

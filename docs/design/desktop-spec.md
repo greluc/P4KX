@@ -76,6 +76,7 @@ sind keine neuen Farben.
 | Record-Liste | Tab-Leiste + Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Record-Pfad Rest, Typ 260 | wie Tabelle | Kopf ja | wie Tabelle; verschoben „alt › neu" | wie Tabelle | – | innen −2 |
 | Feldänderungen | Vorschau-Panel + Tabellenkopf + Tabellenzeile | 36 | Zelle x 12,8 | drei gleiche Spalten Feld, Alt, Neu | wie Tabelle | Kopf ja | Text `color-gray-1`; fehlend „–" `color-gray-2-text`; Fehlerwert `color-danger-text`; Anzahl `color-gray-2-text` | unten 1 `color-gray-3` | – | – |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
+| Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
 
 ## Entscheidungen
 
@@ -158,7 +159,30 @@ angesprungene Hunk trägt den aktiven Balken links (3 `color-primary`) wie die a
 Lange Zeilen werden je Seite abgeschnitten und laufen mit einer gemeinsamen horizontalen
 Scrollleiste. Binäre und zu große Einträge zeigen statt des Vergleichs den Hinweis im Panel-Körper.
 
-**D.13 Record-Änderungen als zweite Liste mit Feldänderungen im Vorschau-Panel.** Wurde die
+**D.13 Änderungen einer Seite extrahieren: zwei Ghost-Aktionen in der Listen-Toolbar.** „Alt
+extrahieren (n) …" und „Neu extrahieren (n) …" stehen links neben der Anzahl und „Bericht
+speichern …", als Ghost wie dieses, weil „Vergleichen" die eine CTA des Tabs bleibt (D.7, D.10).
+Die Zahl nennt, was extrahiert würde: für Neu die hinzugefügten und geänderten Einträge, für Alt
+die geänderten, beide nach dem aktuellen Filter; entfernte Einträge nie. Während ein Filter
+läuft, eine Extraktion läuft oder die Zahl 0 ist, sind sie gesperrt (D.3). Lassen sie dem
+Suchfeld weniger als seine Basisbreite 260, brechen sie in eine eigene, rechtsbündige Zeile der
+Toolbar um. Sie öffnen den vorhandenen Dialog „Einträge extrahieren"; statt der Bereichswahl steht
+dort der Bereich als Text, darunter in `color-gray-2-text` der Filter, der ihn einschränkt.
+Ziel, Konfliktregel, Umwandlung, Fortschritt, Abbrechen und Zusammenfassung sind die der
+normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Seite.
+
+**D.14 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
+Vorschau den Tab „Bild"; andere Einträge kehren zu „Text" zurück. Format, Größe, Mip-Anzahl und
+Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des Vergleichs. Die
+Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
+„1024" …): jede Stufe ist eindeutig, einen Klick entfernt und per Tastatur erreichbar. Gezeigt
+wird anfangs das größte Mip, das in die Vorschau passt, ein Texel je Gerätepixel ohne Skalierung;
+größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (mehr als
+8192 × 8192 Pixel oder über der größten Texturgröße des Renderers), werden nicht angeboten;
+hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
+Farben hat; Alpha wird auf `surface-panel` gemischt.
+
+**D.15 Record-Änderungen als zweite Liste mit Feldänderungen im Vorschau-Panel.** Wurde die
 Record-Ebene verglichen, steht zwischen Zähler-Kacheln und Listenfläche eine `.tab-nav` mit
 „Einträge" und „Records"; nur mit der Record-Ebene beginnt sie bei „Records". Suchfeld, Anzahl und
 „Bericht speichern …" bleiben in der Toolbar, der Filter wirkt auf beide Listen und trifft einen

@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
 use crate::record_files::{RecordFiles, fold};
+use crate::record_format::RecordFileFormat;
 use crate::write::{create_folders, create_temporary, read_existing_error, write_error};
 use crate::{
     ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions, RecordExportReport,
@@ -18,24 +19,61 @@ use crate::{
 const READ_BUFFER_LEN: usize = 64 << 10;
 
 /// Writes `records` of `forge` as Record XML, one file per Record, below the existing folder
-/// `target`.
-///
-/// A Record alone at its record path is written to `<record path>.xml`; Records that share one
-/// go into the folder `<record path>/` as `<name>.xml`, with the GUID added when names collide.
-/// Files that already exist are handled by the [`ConflictPolicy`] of `options`, where
-/// [`ConflictPolicy::IfChanged`] compares size and CRC-32C with the new XML. Records are built
-/// and written in parallel with the same files and report as a sequential run in the order of
-/// `records`. Record paths that could leave `target` are rejected and existing links below
-/// `target` are never followed; a failed or cancelled Record leaves no partial file. A Record of
-/// another DataForge than `forge` fails with [`RecordExportError::OtherDataForge`].
+/// `target`; [`export_record_files`] with [`RecordXml`].
 #[must_use]
-pub fn export_records<'f>(
+pub fn export_records(
     forge: &DataForge<'_>,
-    records: &[Record<'f>],
+    records: &[Record<'_>],
     target: &Path,
     options: &RecordExportOptions<'_>,
 ) -> RecordExportReport {
-    let plan = RecordFiles::plan(forge);
+    export_record_files::<RecordXml>(forge, records, target, options)
+}
+
+/// Writes `records` of `forge` in the format `F`, one file per Record, below the existing folder
+/// `target`.
+///
+/// A Record alone at its record path is written to `<record path><extension>`; Records that
+/// share one go into the folder `<record path>/` as `<name><extension>`, with the GUID added when
+/// names collide (ADR-0008). Files that already exist are handled by the [`ConflictPolicy`] of
+/// `options`, where [`ConflictPolicy::IfChanged`] compares size and CRC-32C with the new file.
+/// Records are built and written in parallel with the same files and report as a sequential run
+/// in the order of `records`. Record paths that could leave `target` are rejected and existing
+/// links below `target` are never followed; a failed or cancelled Record leaves no partial file.
+/// A Record of another DataForge than `forge` fails with [`RecordExportError::OtherDataForge`].
+#[must_use]
+pub fn export_record_files<F: RecordFileFormat>(
+    forge: &DataForge<'_>,
+    records: &[Record<'_>],
+    target: &Path,
+    options: &RecordExportOptions<'_>,
+) -> RecordExportReport {
+    let cancel = options.cancel;
+    let run = RecordRun {
+        policy: options.policy,
+        stop: &|| cancel.is_some_and(crate::CancelToken::is_cancelled),
+        ended: &|| {},
+    };
+    write_records::<F>(forge, records, target, &run)
+}
+
+/// How a run writes Record files: the Conflict policy, whether to stop before the next Record,
+/// and what to call once a Record ended.
+pub(crate) struct RecordRun<'a> {
+    pub(crate) policy: ConflictPolicy,
+    pub(crate) stop: &'a (dyn Fn() -> bool + Sync),
+    pub(crate) ended: &'a (dyn Fn() + Sync),
+}
+
+/// Writes `records` of `forge` in the format `F` like [`export_record_files`], under the control
+/// of `run`.
+pub(crate) fn write_records<'f, F: RecordFileFormat>(
+    forge: &DataForge<'_>,
+    records: &[Record<'f>],
+    target: &Path,
+    run: &RecordRun<'_>,
+) -> RecordExportReport {
+    let plan = RecordFiles::plan(forge, F::EXTENSION);
     let files = select_files(forge, &plan, records);
     let (independent, dependent) = split_dependent(files.iter().map(|file| match file {
         Selected::File(file) => *file,
@@ -43,10 +81,11 @@ pub fn export_records<'f>(
     }));
     let writer = Writer {
         target,
-        policy: options.policy,
-        cancel: options.cancel,
+        policy: run.policy,
+        stop: run.stop,
     };
-    let run = |scratch: &mut Scratch<'f>, index: usize| {
+    let ended = run.ended;
+    let run = |scratch: &mut Scratch<'f, F>, index: usize| {
         let outcome = match (records.get(index), files.get(index)) {
             (Some(record), _) if !record.is_from(forge) => {
                 RecordOutcome::Failed(RecordExportError::OtherDataForge)
@@ -59,6 +98,7 @@ pub fn export_records<'f>(
             }
             _ => RecordOutcome::Failed(ExtractionError::UnsafePath.into()),
         };
+        ended();
         (index, outcome)
     };
     let mut outcomes: Vec<_> = independent
@@ -140,10 +180,20 @@ enum RecordOutcome {
     Failed(RecordExportError),
 }
 
-#[derive(Default)]
-struct Scratch<'f> {
+impl<F: Default> Default for Scratch<'_, F> {
+    fn default() -> Self {
+        Self {
+            trees: TreeBuilder::default(),
+            format: F::default(),
+            bytes: Vec::new(),
+            read: Vec::new(),
+        }
+    }
+}
+
+struct Scratch<'f, F> {
     trees: TreeBuilder<'f>,
-    xml: RecordXml,
+    format: F,
     bytes: Vec<u8>,
     read: Vec<u8>,
 }
@@ -151,17 +201,17 @@ struct Scratch<'f> {
 struct Writer<'a> {
     target: &'a Path,
     policy: ConflictPolicy,
-    cancel: Option<&'a crate::CancelToken>,
+    stop: &'a (dyn Fn() -> bool + Sync),
 }
 
 impl Writer<'_> {
-    fn write<'f>(
+    fn write<'f, F: RecordFileFormat>(
         &self,
         record: &Record<'f>,
         file: &str,
-        scratch: &mut Scratch<'f>,
+        scratch: &mut Scratch<'f, F>,
     ) -> RecordOutcome {
-        if self.cancel.is_some_and(crate::CancelToken::is_cancelled) {
+        if (self.stop)() {
             return RecordOutcome::Cancelled;
         }
         match self.try_write(record, file, scratch) {
@@ -170,11 +220,11 @@ impl Writer<'_> {
         }
     }
 
-    fn try_write<'f>(
+    fn try_write<'f, F: RecordFileFormat>(
         &self,
         record: &Record<'f>,
         file: &str,
-        scratch: &mut Scratch<'f>,
+        scratch: &mut Scratch<'f, F>,
     ) -> Result<RecordOutcome, RecordExportError> {
         let relative = relative_path(file).ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
@@ -184,8 +234,8 @@ impl Writer<'_> {
         let destination = folder.join(name);
         scratch.bytes.clear();
         scratch
-            .xml
-            .write(&tree, &mut scratch.bytes)
+            .format
+            .write_file(&tree, &mut scratch.bytes)
             .map_err(|source| write_error(destination.clone(), source))?;
         if self.keep(&destination, scratch)? {
             return Ok(RecordOutcome::Kept {
@@ -209,7 +259,11 @@ impl Writer<'_> {
         Ok(RecordOutcome::Written { errors })
     }
 
-    fn keep(&self, destination: &Path, scratch: &mut Scratch<'_>) -> Result<bool, ExtractionError> {
+    fn keep<F>(
+        &self,
+        destination: &Path,
+        scratch: &mut Scratch<'_, F>,
+    ) -> Result<bool, ExtractionError> {
         let metadata = match fs::symlink_metadata(destination) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
@@ -233,7 +287,7 @@ impl Writer<'_> {
     }
 }
 
-fn file_crc(path: &Path, buffer: &mut Vec<u8>) -> Result<u32, ExtractionError> {
+pub(crate) fn file_crc(path: &Path, buffer: &mut Vec<u8>) -> Result<u32, ExtractionError> {
     buffer.resize(READ_BUFFER_LEN, 0);
     let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
     let mut crc = 0;

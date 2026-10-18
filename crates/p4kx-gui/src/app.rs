@@ -147,6 +147,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.recent = model.recent().clone();
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
     settings.extraction_conversion = model.extraction_conversion();
+    settings.extraction_textures = model.extraction_textures();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }
@@ -156,7 +157,7 @@ mod tests {
     use std::path::PathBuf;
 
     use p4kx_channels::SearchPaths;
-    use p4kx_settings::{ManualChannels, RecentArchives, Settings};
+    use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
 
     use super::remember;
     use crate::{ChannelList, Language, Model};
@@ -231,6 +232,23 @@ mod tests {
         remember(&mut settings, &model, false, None);
 
         assert!(settings.extraction_conversion, "switched on");
+    }
+
+    #[test]
+    fn the_texture_outputs_are_stored() {
+        let mut model = Model::new(Language::German);
+        let textures = ExtractionTextures {
+            merge: false,
+            png: true,
+            mip: 3,
+            keep_raw: true,
+        };
+        model.set_extraction_textures(textures);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(settings.extraction_textures, textures, "stored");
     }
 
     #[test]

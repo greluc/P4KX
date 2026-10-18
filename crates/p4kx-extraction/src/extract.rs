@@ -5,9 +5,24 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::buffers::Buffers;
+use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{EntryFailure, ExtractOptions, ExtractionReport};
+
+/// The outcome of one Entry of an Extraction: its position, its path and how it ended.
+pub(crate) type EntryEnded = (usize, String, Outcome);
+
+/// How one item of an Extraction ended.
+pub(crate) enum Ended {
+    /// An Entry written on its own.
+    Entry(EntryEnded),
+    /// The Entries of a texture, and its failure by position when it was not fully converted.
+    Texture {
+        entries: Vec<EntryEnded>,
+        unconverted: Option<(usize, EntryFailure)>,
+    },
+}
 
 /// Runs an Extraction of `entries` from `archive` into the existing folder `target`.
 ///
@@ -17,6 +32,11 @@ use crate::{EntryFailure, ExtractOptions, ExtractionReport};
 /// rejected, and existing links below `target` are never followed. A failed or cancelled Entry
 /// leaves no partial file and keeps an existing one; once the token of `options` is cancelled,
 /// the Entries not yet complete are reported as cancelled.
+///
+/// With Conversion on, each requested `.dds` header and its requested parts are converted once
+/// as one texture as [`TextureConversion`](crate::TextureConversion) says, its parts read from
+/// the Archive whether requested or not. A texture that cannot be converted is reported among
+/// the [`unconverted`](ExtractionReport::unconverted) ones and its raw Entries are written.
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -45,21 +65,60 @@ pub fn extract(
         target,
         policy: options.policy,
         convert: options.convert,
+        textures: options.textures,
         tracker: &tracker,
     };
-    let (independent, dependent) = split_dependent(entries);
-    let run = |buffers: &mut Buffers, (index, entry): (usize, &Entry)| {
-        (index, entry.path().to_owned(), writer.write(entry, buffers))
+    let items = if options.convert && options.textures.converts() {
+        group_textures(archive, entries)
+    } else {
+        entries
+            .iter()
+            .copied()
+            .enumerate()
+            .map(Item::Entry)
+            .collect()
     };
-    let mut outcomes: Vec<_> = independent
+    let (independent, dependent) = split_dependent(items);
+    let run = |buffers: &mut Buffers, item: Item<'_>| match item {
+        Item::Entry((index, entry)) => {
+            Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
+        }
+        Item::Texture(job) => writer.write_texture(&job, buffers),
+    };
+    let mut ended: Vec<_> = independent
         .into_par_iter()
         .map_init(Buffers::new, run)
         .collect();
     let mut buffers = Buffers::new();
-    outcomes.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let mut report = report(ended, options.convert);
+    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
+    report
+}
+
+fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
+    let mut outcomes = Vec::with_capacity(ended.len());
+    let mut unconverted = Vec::new();
+    for item in ended {
+        match item {
+            Ended::Entry(outcome) => outcomes.push(outcome),
+            Ended::Texture {
+                entries,
+                unconverted: failure,
+            } => {
+                outcomes.extend(entries);
+                unconverted.extend(failure);
+            }
+        }
+    }
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
+    unconverted.sort_unstable_by_key(|(index, _)| *index);
     let mut report = ExtractionReport {
-        converted: options.convert.then_some(0),
+        converted: convert.then_some(0),
+        unconverted: unconverted
+            .into_iter()
+            .map(|(_, failure)| failure)
+            .collect(),
         ..ExtractionReport::default()
     };
     for (_, path, outcome) in outcomes {
@@ -74,28 +133,27 @@ pub fn extract(
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
-    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }
 
-type Indexed<'a> = Vec<(usize, &'a Entry)>;
-
-/// Splits `entries` into those that may run in parallel and, in order, those whose path collides
-/// with an earlier one by name or as a file where a folder is needed.
-fn split_dependent<'a>(entries: &[&'a Entry]) -> (Indexed<'a>, Indexed<'a>) {
+/// Splits `items` into those that may run in parallel and, in order, those that write a path
+/// colliding with an earlier one by name or as a file where a folder is needed.
+fn split_dependent(items: Vec<Item<'_>>) -> (Vec<Item<'_>>, Vec<Item<'_>>) {
     let mut files = HashSet::new();
     let mut folders = HashSet::new();
-    entries.iter().copied().enumerate().partition(|(_, entry)| {
-        let key = entry.path().replace('/', "\\").to_lowercase();
-        let parents: Vec<&str> = key
-            .match_indices('\\')
-            .filter_map(|(at, _)| key.get(..at))
-            .collect();
-        let independent = !files.contains(key.as_str())
-            && !folders.contains(key.as_str())
-            && parents.iter().all(|parent| !files.contains(*parent));
-        folders.extend(parents.iter().map(|parent| (*parent).to_owned()));
-        files.insert(key);
+    items.into_iter().partition(|item| {
+        let mut independent = true;
+        item.output_keys(|key| {
+            let parents: Vec<&str> = key
+                .match_indices('\\')
+                .filter_map(|(at, _)| key.get(..at))
+                .collect();
+            independent &= !files.contains(key.as_str())
+                && !folders.contains(key.as_str())
+                && parents.iter().all(|parent| !files.contains(*parent));
+            folders.extend(parents.iter().map(|parent| (*parent).to_owned()));
+            files.insert(key);
+        });
         independent
     })
 }

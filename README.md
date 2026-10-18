@@ -20,7 +20,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>]]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -39,6 +39,14 @@ Early development (milestone M1). Available today:
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
   existing file with the converted XML. The summary then also counts the converted Entries.
+  `--convert` also converts each texture (`<name>.dds` and its parts `<name>.dds.1` … `.N`) once:
+  `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
+  the header's path, `png` the mip `--mip <level>` (0, the largest, by default; a texture with
+  fewer levels gives its smallest) as `<name>.png`, and `raw` the Entries unchanged as well, with
+  `merge` only the parts. A selected header takes its parts from the Archive even when they are
+  not selected. A texture that cannot be converted, e.g. a missing part or a format without a
+  decoder, is reported as not converted with the reason, its raw Entries are written, and the
+  Extraction continues with exit code 1.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its

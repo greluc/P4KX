@@ -5,6 +5,8 @@ use p4kx_archive::ArchiveError;
 use p4kx_cryxml::CryXmlError;
 use thiserror::Error;
 
+use crate::ConversionError;
+
 /// Why one Entry of an Extraction was not written.
 #[derive(Debug, Error)]
 pub enum ExtractionError {
@@ -37,6 +39,9 @@ pub enum ExtractionError {
         /// The largest size converted.
         limit: u64,
     },
+    /// The texture could not be converted.
+    #[error("cannot convert the texture")]
+    Texture(#[source] ConversionError),
     /// The file already in the target could not be read to compare it with the Entry.
     #[error("cannot read the existing file {path}")]
     ReadExisting {
@@ -76,6 +81,7 @@ pub struct ExtractionReport {
     pub(crate) converted: Option<usize>,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
+    pub(crate) unconverted: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
     pub(crate) archive_changed: bool,
 }
@@ -87,8 +93,9 @@ impl ExtractionReport {
         self.extracted
     }
 
-    /// Returns the number of `CryXml` Entries written as converted XML, or `None` when the run
-    /// did not convert; they count among the [`extracted`](Self::extracted) Entries.
+    /// Returns the number of Entries written converted, `CryXml` as XML and the Entries of a
+    /// converted texture, or `None` when the run did not convert; they count among the
+    /// [`extracted`](Self::extracted) Entries.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
         self.converted
@@ -106,6 +113,13 @@ impl ExtractionReport {
         &self.failures
     }
 
+    /// Returns the textures, by the path of their header Entry, that a Conversion could not
+    /// fully convert, with the reason; their raw Entries were written instead.
+    #[must_use]
+    pub fn unconverted(&self) -> &[EntryFailure] {
+        &self.unconverted
+    }
+
     /// Returns the paths of Entries not written because the run was cancelled.
     #[must_use]
     pub fn cancelled(&self) -> &[String] {
@@ -118,9 +132,13 @@ impl ExtractionReport {
         self.archive_changed
     }
 
-    /// Returns whether no Entry failed, the run was not cancelled and the Archive did not change.
+    /// Returns whether no Entry failed, every texture was converted, the run was not cancelled
+    /// and the Archive did not change.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty() && self.cancelled.is_empty() && !self.archive_changed
+        self.failures.is_empty()
+            && self.unconverted.is_empty()
+            && self.cancelled.is_empty()
+            && !self.archive_changed
     }
 }

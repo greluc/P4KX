@@ -1,8 +1,9 @@
 use std::time::SystemTime;
 
-use egui::{Button, Id, RadioButton, Ui, Window};
+use egui::{Button, DragValue, Id, RadioButton, Ui, Window};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
+use p4kx_settings::ExtractionTextures;
 
 use super::{Dialog, Requests};
 use crate::extraction::target_naming;
@@ -28,6 +29,8 @@ const POLICIES: [(ConflictPolicy, T); 3] = [
     (ConflictPolicy::Overwrite, T::PolicyOverwrite),
     (ConflictPolicy::IfChanged, T::PolicyIfChanged),
 ];
+
+const MAX_MIP_LEVEL: u32 = 15;
 
 enum Action {
     Submit,
@@ -167,6 +170,47 @@ fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
     {
         setup.set_convert(convert);
     }
+    let mut textures = setup.textures();
+    ui.add_enabled_ui(convert, |ui| {
+        ui.indent("extraction-textures", |ui| {
+            texture_choices(ui, texts, &mut textures);
+        });
+    });
+    setup.set_textures(textures);
+}
+
+/// Shows the texture outputs of a Conversion: merge, PNG with its mip level, raw parts.
+fn texture_choices(ui: &mut Ui, texts: &Texts, textures: &mut ExtractionTextures) {
+    ui.checkbox(&mut textures.merge, texts.get(T::TextureMerge));
+    ui.checkbox(&mut textures.png, texts.get(T::TexturePng));
+    ui.add_enabled_ui(textures.png, |ui| {
+        ui.indent("extraction-texture-mip", |ui| {
+            if ui
+                .radio(textures.mip == 0, texts.get(T::TextureMipLargest))
+                .clicked()
+            {
+                textures.mip = 0;
+            }
+            ui.horizontal(|ui| {
+                if ui
+                    .radio(textures.mip > 0, texts.get(T::TextureMipLevel))
+                    .clicked()
+                    && textures.mip == 0
+                {
+                    textures.mip = 1;
+                }
+                let mut level = textures.mip.max(1);
+                ui.add_enabled(
+                    textures.mip > 0,
+                    DragValue::new(&mut level).range(1..=MAX_MIP_LEVEL),
+                );
+                if textures.mip > 0 {
+                    textures.mip = level;
+                }
+            });
+        });
+    });
+    ui.checkbox(&mut textures.keep_raw, texts.get(T::TextureRaw));
 }
 
 fn confirm(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {

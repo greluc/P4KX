@@ -130,8 +130,12 @@ message naming the format; a level the texture does not have fails with exit cod
  "cancelled": ["Data\\large.bin"], "archive_changed": false}
 ```
 
-With `--convert` the report also holds `"converted": 1`, the number of CryXml Entries written as
-XML; they count among `extracted`. Without `--convert` the field is absent.
+With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
+(CryXml Entries as XML and the Entries of converted textures); they count among `extracted`. It
+also holds `"unconverted": [{"path": "Data\\Textures\\hull_ddna.dds", "error": "cannot convert
+the texture: …"}]`, the textures by their header Entry that could not be converted, whose raw
+Entries were written instead; the exit code is then 1. Without `--convert` both fields are
+absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

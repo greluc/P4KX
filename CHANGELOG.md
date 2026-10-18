@@ -22,6 +22,12 @@ fails while its section is missing.
   Extraction window write CryXml Entries as UTF-8 XML; text XML and every other Entry stay
   unchanged. The switch is remembered with the other Extraction settings, and the summaries and
   `--json` count the converted Entries.
+- Texture Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch,
+  each texture is merged into one DDS file and its largest mip exported as PNG once, not once per
+  part; `--textures merge,png,raw` and `--mip <level>`, and the same choices in the Extraction
+  window, pick the outputs and keep the raw parts. A texture that cannot be converted is listed
+  with its reason, its raw Entries are written and the Extraction continues. The choices are
+  remembered with the other Extraction settings.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.

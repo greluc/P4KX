@@ -6,7 +6,7 @@ use p4kx_extraction::Progress;
 
 use super::extraction::number;
 use super::row_height;
-use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, Model, Texts};
+use crate::{ExtractionStatus, ExtractionSummary, ExtractionText as T, FailedEntry, Model, Texts};
 
 const REFRESH: Duration = Duration::from_millis(100);
 const LIST_HEIGHT: f32 = 180.0;
@@ -134,8 +134,16 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     ui.label(texts.format(text, &counts));
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
-    let failures: Vec<String> = summary
-        .failures()
+    let failures = failure_lines(texts, summary.failures());
+    list(ui, texts, T::SummaryFailed, &failures, true);
+    let unconverted = failure_lines(texts, summary.unconverted());
+    list(ui, texts, T::SummaryUnconverted, &unconverted, true);
+    list(ui, texts, T::SummarySkipped, summary.skipped(), false);
+    list(ui, texts, T::SummaryCancelled, summary.cancelled(), false);
+}
+
+fn failure_lines(texts: &Texts, failures: &[FailedEntry]) -> Vec<String> {
+    failures
         .iter()
         .map(|failure| {
             texts.format(
@@ -146,10 +154,7 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
                 ],
             )
         })
-        .collect();
-    list(ui, texts, T::SummaryFailed, &failures, true);
-    list(ui, texts, T::SummarySkipped, summary.skipped(), false);
-    list(ui, texts, T::SummaryCancelled, summary.cancelled(), false);
+        .collect()
 }
 
 fn list(ui: &mut Ui, texts: &Texts, heading: T, lines: &[String], open: bool) {

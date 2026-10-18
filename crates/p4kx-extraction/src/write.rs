@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -10,7 +11,7 @@ use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::relative_path;
 use crate::tracker::Tracker;
-use crate::{ConflictPolicy, ExtractionError};
+use crate::{ConflictPolicy, ExtractionError, TextureConversion};
 
 const MAX_TEMPORARY_ATTEMPTS: u32 = 100;
 
@@ -39,12 +40,31 @@ pub(crate) struct Destination {
     pub(crate) existing: Option<Metadata>,
 }
 
+impl Destination {
+    /// Returns where the file `name` in the existing `folder` goes, with the metadata of a file
+    /// already there.
+    pub(crate) fn new(folder: PathBuf, name: &OsStr) -> Result<Self, ExtractionError> {
+        let file = folder.join(name);
+        let existing = match fs::symlink_metadata(&file) {
+            Ok(metadata) => Some(metadata),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+            Err(source) => return Err(read_existing_error(&file, source)),
+        };
+        Ok(Self {
+            folder,
+            file,
+            existing,
+        })
+    }
+}
+
 /// Writes Entries of one Archive below one target folder under one Conflict policy.
 pub(crate) struct EntryWriter<'a> {
     pub(crate) archive: &'a Archive,
     pub(crate) target: &'a Path,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
+    pub(crate) textures: TextureConversion,
     pub(crate) tracker: &'a Tracker<'a>,
 }
 
@@ -53,8 +73,17 @@ impl EntryWriter<'_> {
     ///
     /// An Entry that failed because the watched Archive changed counts as cancelled.
     pub(crate) fn write(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+        self.write_entry(entry, buffers, self.convert)
+    }
+
+    /// Writes `entry` unchanged, even with Conversion on, and reports its end to the tracker.
+    pub(crate) fn write_raw(&self, entry: &Entry, buffers: &mut Buffers) -> Outcome {
+        self.write_entry(entry, buffers, false)
+    }
+
+    fn write_entry(&self, entry: &Entry, buffers: &mut Buffers, convert: bool) -> Outcome {
         let mut written = 0;
-        let outcome = match self.try_write(entry, buffers, &mut written) {
+        let outcome = match self.try_write(entry, buffers, convert, &mut written) {
             Ok(outcome) => outcome,
             Err(_) if self.tracker.archive_file_changed() => Outcome::Cancelled,
             Err(error) => Outcome::Failed(error),
@@ -68,6 +97,7 @@ impl EntryWriter<'_> {
         &self,
         entry: &Entry,
         buffers: &mut Buffers,
+        convert: bool,
         written: &mut u64,
     ) -> Result<Outcome, ExtractionError> {
         if self.tracker.should_stop() {
@@ -79,7 +109,7 @@ impl EntryWriter<'_> {
         }
         let mut prefix = [0; PEEK_LEN];
         let mut peeked = 0;
-        let opened = if self.convert {
+        let opened = if convert {
             let mut reader = self.archive.open_entry(entry)?;
             let Some(count) = self.peek(&mut reader, &mut prefix, written)? else {
                 return Ok(Outcome::Cancelled);
@@ -118,21 +148,12 @@ impl EntryWriter<'_> {
         self.put_in_place(&temporary, &destination.file, copied, Outcome::Written)
     }
 
-    fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
+    /// Creates the folder of `entry` below the target and returns where its file goes.
+    pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
         let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
-        let file = folder.join(name);
-        let existing = match fs::symlink_metadata(&file) {
-            Ok(metadata) => Some(metadata),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-            Err(source) => return Err(read_existing_error(&file, source)),
-        };
-        Ok(Destination {
-            folder,
-            file,
-            existing,
-        })
+        Destination::new(folder, name)
     }
 
     /// Renames `temporary` to `destination` once `copied` reached the end of the data, or removes
@@ -184,7 +205,11 @@ impl EntryWriter<'_> {
         }
     }
 
-    fn file_crc(&self, path: &Path, buffer: &mut [u8]) -> Result<Option<u32>, ExtractionError> {
+    pub(crate) fn file_crc(
+        &self,
+        path: &Path,
+        buffer: &mut [u8],
+    ) -> Result<Option<u32>, ExtractionError> {
         let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
         let mut crc = 0;
         loop {

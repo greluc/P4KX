@@ -14,6 +14,9 @@ mod report;
 mod selection;
 mod target;
 mod texture;
+mod texture_convert;
+mod texture_job;
+mod texture_outputs;
 mod texture_parts;
 mod tracker;
 mod watch;
@@ -23,7 +26,7 @@ pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
-pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
+pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::{

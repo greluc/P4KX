@@ -43,14 +43,6 @@ pub enum ArchiveError {
         #[source]
         source: ParseError,
     },
-    /// The Entry is encrypted, which this version cannot read yet.
-    #[error("{path}: Entry {entry} is encrypted, which is not supported yet")]
-    Encrypted {
-        /// Path of the Archive.
-        path: PathBuf,
-        /// Path of the Entry inside the Archive.
-        entry: String,
-    },
     /// The Entry uses a compression method this version cannot read yet.
     #[error("{path}: Entry {entry} uses {compression} compression, which is not supported yet")]
     UnsupportedCompression {

@@ -15,10 +15,14 @@ p4kx-foundation = { path = "crates/p4kx-foundation" }
 p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
+aes = "0.9.3"
 anyhow = "1.0.104"
 assert_cmd = "2.2.2"
+cbc = "0.2.1"
 clap = { version = "4.6.7", features = ["derive"] }
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
 predicates = "3.1.4"
+ruzstd = "0.9.1"
 serde_json = "1.0.154"
 tempfile = "3.27.0"
 thiserror = "2.0.21"

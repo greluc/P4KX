@@ -1,7 +1,11 @@
-use std::io::{self, Read};
+use std::fmt;
+use std::io::{self, BufReader, Read};
 
+use flate2::read::DeflateDecoder;
 use p4kx_foundation::ByteReader;
 
+use crate::decode::{CorruptAs, ExactSize, ZstdOrPlain};
+use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
 use crate::format_error::FormatError;
 use crate::source::Source;
 use crate::{Compression, Entry};
@@ -10,16 +14,38 @@ const LOCAL_HEADER_SIGNATURE: u32 = 0x0403_4B50;
 const LOCAL_HEADER_CIG_SIGNATURE: u32 = 0x1403_4B50;
 const LOCAL_HEADER_LEN: usize = 30;
 const LOCAL_HEADER_FIXED_FIELDS_LEN: usize = 22;
+const DECODER_BUFFER_LEN: usize = 256 * 1024;
 
-/// Streams the data of one Entry from its Archive.
-#[derive(Debug)]
+type DataReader<'a> = Box<dyn Read + Send + 'a>;
+
+/// Streams the decrypted and decompressed data of one Entry from its Archive.
+///
+/// Decoding errors are reported as [`io::Error`]s of kind [`io::ErrorKind::InvalidData`] that
+/// carry a [`DataError`](crate::DataError).
 pub struct EntryReader<'a> {
+    inner: ExactSize<DataReader<'a>>,
+}
+
+impl fmt::Debug for EntryReader<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EntryReader").finish_non_exhaustive()
+    }
+}
+
+impl Read for EntryReader<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(buffer)
+    }
+}
+
+/// Reads the stored bytes of an Entry by positional reads.
+struct RawReader<'a> {
     source: &'a Source,
     offset: u64,
     remaining: u64,
 }
 
-impl Read for EntryReader<'_> {
+impl Read for RawReader<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         let count = usize::try_from(self.remaining)
             .unwrap_or(usize::MAX)
@@ -36,17 +62,6 @@ impl Read for EntryReader<'_> {
 
 /// Opens the data of `entry` after checking its local header.
 pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
-    if entry.encrypted {
-        return Err(FormatError::Encrypted {
-            entry: entry.path.clone(),
-        });
-    }
-    if entry.compression != Compression::Store {
-        return Err(FormatError::UnsupportedCompression {
-            entry: entry.path.clone(),
-            compression: entry.compression,
-        });
-    }
     let offset = entry.local_header_offset;
     let data_offset = read_local_header(source, offset)?;
     if !fits(source, data_offset, entry.compressed_size) {
@@ -55,10 +70,44 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
             "Entry data lies outside the file",
         ));
     }
-    Ok(EntryReader {
+    if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
+        return Err(FormatError::corrupt(
+            offset,
+            "encrypted Entry data is not a whole number of AES blocks",
+        ));
+    }
+    let raw = RawReader {
         source,
         offset: data_offset,
         remaining: entry.compressed_size,
+    };
+    let stored: DataReader<'a> = if entry.encrypted {
+        Box::new(Decrypting::new(raw, buffer_len(entry.compressed_size)))
+    } else {
+        Box::new(raw)
+    };
+    let decoded: DataReader<'a> = match entry.compression {
+        Compression::Store => stored,
+        Compression::Deflate => Box::new(CorruptAs::new(
+            DeflateDecoder::new_with_buf(stored, vec![0; buffer_len(entry.compressed_size)]),
+            entry.compression,
+        )),
+        Compression::Zstd => Box::new(CorruptAs::new(
+            ZstdOrPlain::new(
+                BufReader::with_capacity(buffer_len(entry.compressed_size), stored),
+                entry.uncompressed_size,
+            ),
+            entry.compression,
+        )),
+        Compression::Other(_) => {
+            return Err(FormatError::UnsupportedCompression {
+                entry: entry.path.clone(),
+                compression: entry.compression,
+            });
+        }
+    };
+    Ok(EntryReader {
+        inner: ExactSize::new(decoded, entry.uncompressed_size),
     })
 }
 
@@ -82,6 +131,12 @@ fn read_local_header(source: &Source, offset: u64) -> Result<u64, FormatError> {
     let name_len = u64::from(reader.read_u16()?);
     let extra_len = u64::from(reader.read_u16()?);
     Ok(offset + LOCAL_HEADER_LEN as u64 + name_len + extra_len)
+}
+
+fn buffer_len(compressed_size: u64) -> usize {
+    usize::try_from(compressed_size)
+        .unwrap_or(usize::MAX)
+        .clamp(1, DECODER_BUFFER_LEN)
 }
 
 fn fits(source: &Source, offset: u64, len: u64) -> bool {

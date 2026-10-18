@@ -12,7 +12,11 @@ publish.workspace = true
 layer = "format"
 
 [dependencies]
+aes.workspace = true
+cbc.workspace = true
+flate2.workspace = true
 p4kx-foundation.workspace = true
+ruzstd.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

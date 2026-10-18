@@ -11,6 +11,9 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let archive = dir.join("Data.p4k");
+    let zstd = TestEntry::zstd("Data\\broken-secret.xml", vec![b'x'; 4096]);
+    let mut broken_zstd = zstd.payload().get(..4).unwrap_or_default().to_vec();
+    broken_zstd.extend_from_slice(&[0xFF; 64]);
     ArchiveBuilder::new()
         .entry(TestEntry::stored(
             "Data\\Libs\\Config\\defaultProfile.xml",
@@ -19,7 +22,21 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::stored("Data\\readme.txt", b"hello".to_vec()))
         .entry(TestEntry::stored("..\\..\\escaped.txt", b"evil".to_vec()))
         .entry(TestEntry::stored("C:\\drive.txt", b"evil".to_vec()))
-        .entry(TestEntry::stored("Data\\secret.xml", b"<s/>".to_vec()).flagged_encrypted())
+        .entry(TestEntry::deflated(
+            "Data\\deflate.xml",
+            b"<deflate/>".to_vec(),
+        ))
+        .entry(TestEntry::zstd("Data\\zstd.xml", b"<zstd/>".to_vec()))
+        .entry(TestEntry::zstd_without_magic(
+            "Data\\plain.xml",
+            b"<plain/>".to_vec(),
+        ))
+        .entry(TestEntry::zstd("Data\\secret.xml", b"<secret/>".to_vec()).encrypted())
+        .entry(zstd.with_payload(broken_zstd).encrypted())
+        .entry(
+            TestEntry::deflated("Data\\broken.xml", b"<broken/>".to_vec())
+                .with_payload(vec![0xFF; 8]),
+        )
         .write_to(&archive)?;
     Ok(archive)
 }
@@ -139,19 +156,70 @@ fn extract_rejects_entry_paths_outside_the_target_with_exit_code_1() -> TestResu
 }
 
 #[test]
-fn extract_of_an_unsupported_entry_fails_it_with_exit_code_1() -> TestResult {
+fn extract_writes_compressed_and_encrypted_entries_with_their_original_bytes() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
+    let out = dir.path().join("out");
+    let expected: [(&str, &[u8]); 4] = [
+        ("Data/deflate.xml", b"<deflate/>"),
+        ("Data/zstd.xml", b"<zstd/>"),
+        ("Data/plain.xml", b"<plain/>"),
+        ("Data/secret.xml", b"<secret/>"),
+    ];
 
     Command::cargo_bin("p4kx")?
         .arg("extract")
         .arg(&archive)
-        .arg("Data\\secret.xml")
+        .args(expected.iter().map(|(path, _)| path))
         .arg("--out")
-        .arg(dir.path().join("out"))
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(
+            "extracted 4, skipped 0, failed 0, cancelled 0",
+        ));
+
+    for (path, data) in expected {
+        assert_eq!(std::fs::read(out.join(path))?, data, "content of {path}");
+    }
+    Ok(())
+}
+
+#[test]
+fn extract_of_corrupt_entries_fails_only_those_entries_with_exit_code_1() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("out");
+
+    Command::cargo_bin("p4kx")?
+        .arg("extract")
+        .arg(&archive)
+        .arg("Data\\broken.xml")
+        .arg("Data\\broken-secret.xml")
+        .arg("Data\\readme.txt")
+        .arg("--out")
+        .arg(&out)
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("is encrypted"));
+        .stdout(predicate::str::contains(
+            "extracted 1, skipped 0, failed 2, cancelled 0",
+        ))
+        .stderr(predicate::str::contains(
+            "failed Data\\broken.xml: cannot read the Entry data: deflate data is corrupt",
+        ))
+        .stderr(predicate::str::contains(
+            "failed Data\\broken-secret.xml: cannot read the Entry data: zstd data is corrupt",
+        ));
+
+    assert!(
+        !out.join("Data/broken.xml").exists() && !out.join("Data/broken-secret.xml").exists(),
+        "no file for the corrupt Entries"
+    );
+    assert_eq!(
+        std::fs::read(out.join("Data/readme.txt"))?,
+        b"hello",
+        "the other Entry is extracted"
+    );
     Ok(())
 }
 

@@ -19,7 +19,10 @@ fn sample() -> ArchiveBuilder {
     ArchiveBuilder::new()
         .entry(TestEntry::stored("Data\\Libs\\a.xml", b"<a/>".to_vec()))
         .entry(TestEntry::stored("Data\\b.txt", b"bee".to_vec()))
-        .entry(TestEntry::stored("Data\\secret.xml", b"<s/>".to_vec()).flagged_encrypted())
+        .entry(TestEntry::zstd("Data\\secret.xml", b"<s/>".to_vec()).encrypted())
+        .entry(
+            TestEntry::deflated("Data\\broken.xml", b"<b/>".to_vec()).with_payload(vec![0xFF; 8]),
+        )
 }
 
 #[test]
@@ -62,7 +65,7 @@ fn extracts_entries_and_reports_counts_and_failures() -> TestResult {
 
     let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
 
-    assert_eq!(report.extracted(), 2, "two stored Entries are extracted");
+    assert_eq!(report.extracted(), 3, "three Entries are extracted");
     assert_eq!(
         std::fs::read(target.join("Data").join("Libs").join("a.xml"))?,
         b"<a/>",
@@ -73,6 +76,11 @@ fn extracts_entries_and_reports_counts_and_failures() -> TestResult {
         b"bee",
         "Entry content"
     );
+    assert_eq!(
+        std::fs::read(target.join("Data").join("secret.xml"))?,
+        b"<s/>",
+        "encrypted Entry content"
+    );
     let failures: Vec<_> = report
         .failures()
         .iter()
@@ -80,11 +88,11 @@ fn extracts_entries_and_reports_counts_and_failures() -> TestResult {
         .collect();
     assert_eq!(
         failures,
-        vec!["Data\\secret.xml"],
-        "the encrypted Entry fails"
+        vec!["Data\\broken.xml"],
+        "the corrupt Entry fails"
     );
     assert!(
-        !target.join("Data").join("secret.xml").exists(),
+        !target.join("Data").join("broken.xml").exists(),
         "no file for the failed Entry"
     );
     assert!(!report.is_complete(), "a failure makes the run incomplete");
@@ -175,9 +183,58 @@ fn a_cancelled_run_counts_the_remaining_entries_as_cancelled() -> TestResult {
 
     let report = extract(&archive, &entries, &target, &AtomicBool::new(true));
 
-    assert_eq!(report.cancelled(), 3, "all Entries are cancelled");
+    assert_eq!(
+        report.cancelled(),
+        entries.len(),
+        "all Entries are cancelled"
+    );
     assert_eq!(report.extracted(), 0, "nothing is extracted");
     assert!(!report.is_complete(), "a cancelled run is incomplete");
+    Ok(())
+}
+
+#[test]
+fn extracts_every_compression_and_encryption_with_the_original_bytes() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let data: Vec<u8> = (0..200_000_u32).flat_map(u32::to_le_bytes).collect();
+    let cases = [
+        (
+            "Data\\deflate.bin",
+            TestEntry::deflated("Data\\deflate.bin", data.clone()),
+        ),
+        (
+            "Data\\zstd.bin",
+            TestEntry::zstd("Data\\zstd.bin", data.clone()),
+        ),
+        (
+            "Data\\plain.bin",
+            TestEntry::zstd_without_magic("Data\\plain.bin", data.clone()),
+        ),
+        (
+            "Data\\secret.bin",
+            TestEntry::zstd("Data\\secret.bin", data.clone()).encrypted(),
+        ),
+    ];
+    let builder = cases
+        .iter()
+        .fold(ArchiveBuilder::new(), |builder, (_, entry)| {
+            builder.entry(entry.clone())
+        });
+    let archive = open(dir.path(), &builder)?;
+    let target = dir.path().join("out");
+    std::fs::create_dir(&target)?;
+    let entries: Vec<_> = archive.entries().iter().collect();
+
+    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+
+    assert!(report.is_complete(), "every Entry is extracted: {report:?}");
+    for (path, _) in cases {
+        let file = target.join(path.replace('\\', "/"));
+        assert!(
+            std::fs::read(&file)? == data,
+            "{path} has the original bytes"
+        );
+    }
     Ok(())
 }
 

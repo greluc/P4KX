@@ -4,5 +4,7 @@
 //! tested without game files. This crate is a development dependency only.
 
 mod archive_builder;
+mod test_entry;
 
-pub use archive_builder::{ArchiveBuilder, TestEntry};
+pub use archive_builder::ArchiveBuilder;
+pub use test_entry::TestEntry;

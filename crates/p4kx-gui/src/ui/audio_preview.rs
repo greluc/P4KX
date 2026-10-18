@@ -18,8 +18,8 @@ use crate::widgets::slider::slider;
 use crate::widgets::summary::{Fact, FactsStrip};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::{
-    AudioPreview, AudioStatus, AudioText, Language, MAX_PREVIEW_PCM, PREVIEW_SIZE_LIMIT, Player,
-    SoundInfo, SoundStatus, Text, Texts, format,
+    AudioPreview, AudioStatus, AudioText, Language, MAX_PREVIEW_PCM, Model, PREVIEW_SIZE_LIMIT,
+    Player, SoundInfo, SoundStatus, Text, Texts, format,
 };
 
 const POSITION_REFRESH: Duration = Duration::from_millis(100);
@@ -32,6 +32,15 @@ pub(super) enum AudioAction {
     Toggle,
     Seek(f32),
     Volume(f32),
+}
+
+/// Applies `action` to the playback of the selected WEM.
+pub(super) fn apply(model: &mut Model, action: AudioAction) {
+    match action {
+        AudioAction::Toggle => model.toggle_playback(),
+        AudioAction::Seek(fraction) => model.seek_playback(fraction),
+        AudioAction::Volume(volume) => model.set_audio_volume(volume),
+    }
 }
 
 /// Shows the Audio tab of the WEM at `path` of `size` bytes: its facts, the playback controls

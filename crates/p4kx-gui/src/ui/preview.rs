@@ -40,9 +40,8 @@ enum Asked {
     Audio(AudioAction),
 }
 
-/// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, the
-/// Audio tab when it is a WEM, and leaves the Image, Audio and DataForge tabs for the Text tab
-/// otherwise.
+/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM, and
+/// leaves the Image, Audio and DataForge tabs for the Text tab after selecting another Entry.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
         .browser()
@@ -80,9 +79,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 image.request(level, image_preview::max_side(ui));
             }
         }
-        Some(Asked::Audio(AudioAction::Toggle)) => model.toggle_playback(),
-        Some(Asked::Audio(AudioAction::Seek(fraction))) => model.seek_playback(fraction),
-        Some(Asked::Audio(AudioAction::Volume(volume))) => model.set_audio_volume(volume),
+        Some(Asked::Audio(action)) => audio_preview::apply(model, action),
         None => {}
     }
     if tab == PreviewTab::DataForge
@@ -269,10 +266,8 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text | PreviewTab::Image | PreviewTab::Audio | PreviewTab::DataForge => {
-            text_rows(ui, contents);
-        }
         PreviewTab::Hex => hex_rows(ui, contents),
+        _ => text_rows(ui, contents),
     }
 }
 

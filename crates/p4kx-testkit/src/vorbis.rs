@@ -1,22 +1,31 @@
+use std::f64::consts::PI;
+
 use crate::{TestCodec, TestWem};
 
 const MODIFIED_PACKETS_SIGNAL: u32 = 0x0001_0000;
 const NATIVE_PACKETS_SIGNAL: u32 = 0x4A;
 const FIELDS_LEN: usize = 0x26;
+const VORBIS_FLOAT_ONE: u32 = 0x6280_0001;
+const TONE_FLOOR: u32 = 110;
+const TONE_BINS: u32 = 16;
 
 /// Where the single codebook of a synthetic Wwise Vorbis setup comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestCodebook {
     /// The codebook with this id of the codebook library the decoder picks.
     Library(u16),
-    /// A codebook stored in the setup packet: one dimension, two entries, a value lookup.
+    /// A codebook stored in the setup packet: one dimension, two one-bit entries, a value
+    /// lookup giving 0.0 and 1.0.
     Inline,
+    /// The most a setup can declare: 256 inline codebooks of 15 dimensions and 16383 ordered
+    /// entries, each with a value lookup.
+    InlineMaximal,
 }
 
-/// A synthetic Wwise Vorbis WEM of silent packets.
+/// A synthetic Wwise Vorbis WEM of silent packets, or of a steady tone.
 ///
 /// The stripped setup has one codebook, one floor, one residue, one mapping and a short and a
-/// long mode; every audio packet is one byte whose floors are all unused.
+/// long mode; every silent audio packet is one byte whose floors are all unused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestVorbis {
     channels: u16,
@@ -28,6 +37,7 @@ pub struct TestVorbis {
     big_endian: bool,
     vorb_chunk: bool,
     block_bits: (u8, u8),
+    tone: Option<u8>,
 }
 
 impl TestVorbis {
@@ -45,6 +55,7 @@ impl TestVorbis {
             big_endian: false,
             vorb_chunk: false,
             block_bits: (8, 11),
+            tone: None,
         }
     }
 
@@ -91,6 +102,42 @@ impl TestVorbis {
         self
     }
 
+    /// Makes every packet carry, with inline codebooks, the spectral line `bin + c` of channel
+    /// `c` at [`TestVorbis::tone_level`]: a steady tone of `(bin + c + 0.5) × sample rate /
+    /// block size` Hz per channel. Lines from 16 on are left out.
+    #[must_use]
+    pub const fn tone(mut self, bin: u8) -> Self {
+        self.tone = Some(bin);
+        self.codebook = TestCodebook::Inline;
+        self
+    }
+
+    /// Returns the floor value of the tone's spectral line, the Vorbis floor 1 table at index
+    /// 220.
+    #[must_use]
+    pub const fn tone_level() -> f64 {
+        0.110_399_93
+    }
+
+    /// Returns one hop of the steady tone a spec-conformant decoder gives for spectral `line`
+    /// at [`TestVorbis::tone_level`] in every short block: the overlap-add of the windowed
+    /// inverse MDCT of the line with itself, as full-scale fractions.
+    #[must_use]
+    pub fn tone_hop(&self, line: u8) -> Vec<f64> {
+        let size = 1_u32 << self.block_bits.0;
+        let n = f64::from(size);
+        let block: Vec<f64> = (0..size)
+            .map(|i| {
+                let i = f64::from(i);
+                let window = (PI / 2.0 * ((i + 0.5) / n * PI).sin().powi(2)).sin();
+                let phase = 2.0 * PI / n * (i + 0.5 + n / 4.0) * (f64::from(line) + 0.5);
+                window * Self::tone_level() * phase.cos()
+            })
+            .collect();
+        let (first, second) = block.split_at(block.len() / 2);
+        first.iter().zip(second).map(|(a, b)| a + b).collect()
+    }
+
     /// Returns the samples per channel the packets decode to.
     #[must_use]
     pub fn decoded_samples(&self) -> u32 {
@@ -115,18 +162,7 @@ impl TestVorbis {
     #[must_use]
     pub fn setup(&self) -> Vec<u8> {
         let mut bits = Bits::default();
-        bits.put(0, 8);
-        match self.codebook {
-            TestCodebook::Library(id) => bits.put(u32::from(id), 10),
-            TestCodebook::Inline => {
-                for (value, width) in [(1, 4), (2, 14), (0, 1), (1, 3), (0, 1), (0, 1), (0, 1)] {
-                    bits.put(value, width);
-                }
-                for (value, width) in [(1, 1), (0, 32), (0, 32), (0, 4), (0, 1), (0, 1), (1, 1)] {
-                    bits.put(value, width);
-                }
-            }
-        }
+        self.put_codebooks(&mut bits);
         let floor = [
             (0, 6),
             (1, 5),
@@ -138,11 +174,12 @@ impl TestVorbis {
             (7, 4),
             (64, 7),
         ];
+        let end = if self.tone.is_some() { TONE_BINS } else { 0 };
         let residue = [
             (0, 6),
             (1, 2),
             (0, 24),
-            (0, 24),
+            (end, 24),
             (15, 24),
             (0, 6),
             (0, 8),
@@ -163,6 +200,45 @@ impl TestVorbis {
         bits.bytes()
     }
 
+    fn put_codebooks(&self, bits: &mut Bits) {
+        match self.codebook {
+            TestCodebook::Library(id) => {
+                bits.put(0, 8);
+                bits.put(u32::from(id), 10);
+            }
+            TestCodebook::Inline => {
+                bits.put(0, 8);
+                for (value, width) in [(1, 4), (2, 14), (0, 1), (1, 3), (0, 1), (0, 1), (0, 1)] {
+                    bits.put(value, width);
+                }
+                for (value, width) in [
+                    (1, 1),
+                    (0, 32),
+                    (VORBIS_FLOAT_ONE, 32),
+                    (0, 4),
+                    (0, 1),
+                    (0, 1),
+                    (1, 1),
+                ] {
+                    bits.put(value, width);
+                }
+            }
+            TestCodebook::InlineMaximal => {
+                bits.put(255, 8);
+                for _ in 0..256 {
+                    for (value, width) in [(15, 4), (16_383, 14), (1, 1), (0, 5), (16_383, 14)] {
+                        bits.put(value, width);
+                    }
+                    for (value, width) in [(1, 1), (0, 32), (VORBIS_FLOAT_ONE, 32), (0, 4), (0, 1)]
+                    {
+                        bits.put(value, width);
+                    }
+                    bits.put(0, 1);
+                }
+            }
+        }
+    }
+
     /// Returns the audio packets as Wwise stores them.
     #[must_use]
     pub fn packets(&self) -> Vec<Vec<u8>> {
@@ -170,6 +246,9 @@ impl TestVorbis {
         (0..flags.len())
             .map(|index| {
                 let long = flags.get(index).copied().unwrap_or(false);
+                if let Some(bin) = self.tone {
+                    return self.tone_packet(index, bin);
+                }
                 if !self.native_packets {
                     return vec![u8::from(long)];
                 }
@@ -222,6 +301,39 @@ impl TestVorbis {
         } else {
             wem.vorbis_fields(fields)
         }
+    }
+
+    fn tone_packet(&self, index: usize, bin: u8) -> Vec<u8> {
+        let flag = |index: Option<usize>| {
+            index
+                .and_then(|index| self.long_packets.get(index))
+                .copied()
+                .unwrap_or(false)
+        };
+        let long = flag(Some(index));
+        let mut bits = Bits::default();
+        if self.native_packets {
+            bits.put(0, 1);
+        }
+        bits.put(u32::from(long), 1);
+        if self.native_packets && long {
+            bits.put(u32::from(flag(index.checked_sub(1))), 1);
+            bits.put(u32::from(flag(Some(index + 1))), 1);
+        }
+        for _ in 0..self.channels {
+            bits.put(1, 1);
+            bits.put(TONE_FLOOR, 7);
+            bits.put(TONE_FLOOR, 7);
+        }
+        for _ in 0..self.channels {
+            bits.put(0, 1);
+        }
+        for channel in 0..self.channels {
+            for line in 0..TONE_BINS {
+                bits.put(u32::from(line == u32::from(bin) + u32::from(channel)), 1);
+            }
+        }
+        bits.bytes()
     }
 
     fn fields(&self, audio_offset: u32) -> Vec<u8> {

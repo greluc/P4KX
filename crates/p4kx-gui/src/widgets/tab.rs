@@ -6,8 +6,8 @@ use egui::{
 use super::button::focus_ring;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
-    ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_HEIGHT, SEGMENT_PADDING_X, TAB_BAR_PADDING_LEFT,
-    TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
+    ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_FOCUS_OFFSET, SEGMENT_HEIGHT, SEGMENT_PADDING_X,
+    TAB_BAR_PADDING_LEFT, TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, TOUCH_TARGET, Weight};
@@ -75,13 +75,17 @@ pub(crate) fn tab_bar(ui: &mut Ui, labels: &[String], current: usize) -> Option<
 
 /// Shows the items of a `.krt-segmented--sm` group with their data kept as written; `active` is
 /// the pressed item. Returns the clicked index.
-pub(crate) fn segments(ui: &mut Ui, items: &[&str], active: Option<usize>) -> Option<usize> {
+pub(crate) fn segments<S: AsRef<str>>(
+    ui: &mut Ui,
+    items: &[S],
+    active: Option<usize>,
+) -> Option<usize> {
     let mut clicked = None;
     let spacing = std::mem::replace(&mut ui.spacing_mut().item_spacing.x, 0.0);
     let mut group = Rect::NOTHING;
     for (index, item) in items.iter().enumerate() {
         let pressed = active == Some(index);
-        let response = segment(ui, item, pressed, index > 0);
+        let response = segment(ui, item.as_ref(), pressed, index > 0);
         group = group.union(response.rect);
         if response.clicked() {
             clicked = Some(index);
@@ -141,7 +145,7 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, divided: bool) -> Response {
     }
     paint_left(ui, rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0)), galley, text);
     if response.has_focus() {
-        focus_ring(ui, rect, palette::PRIMARY, -3.0);
+        focus_ring(ui, rect, palette::PRIMARY, SEGMENT_FOCUS_OFFSET);
     }
     response
 }

@@ -16,6 +16,7 @@ mod diff_rows;
 mod empty;
 mod extraction;
 mod extraction_outcome;
+mod image_preview;
 mod licence;
 mod menu;
 mod preview;

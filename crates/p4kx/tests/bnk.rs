@@ -108,7 +108,7 @@ fn extract_as_wav_converts_and_names_the_codecs_it_cannot() -> TestResult {
         .code(1)
         .stdout(predicate::str::contains("extracted 1 of 4 WEMs"))
         .stderr(predicate::str::contains(
-            "WEM 300: converting Wwise Vorbis to WAV is not supported",
+            "WEM 300: the Wwise Vorbis data is invalid",
         ))
         .stderr(predicate::str::contains("WEM 200: not a sound"))
         .stderr(predicate::str::contains(
@@ -126,7 +126,10 @@ fn extract_as_wav_converts_and_names_the_codecs_it_cannot() -> TestResult {
         .map(i16::from_le_bytes)
         .collect();
     assert_eq!(samples, test_signal(FRAMES, 1), "the known signal");
-    assert!(!out.join("300.wav").exists(), "no WAV for Vorbis");
+    assert!(
+        !out.join("300.wav").exists(),
+        "no WAV for the invalid Vorbis WEM"
+    );
     assert_eq!(fs::read_dir(&out)?.count(), 1, "no partial files");
     Ok(())
 }

@@ -12,6 +12,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const PCM_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\100.wem";
 const VORBIS_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\200.wem";
+const OPUS_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\300.wem";
 const FRAMES: u32 = 24_000;
 
 fn pcm_wem() -> TestWem {
@@ -25,6 +26,10 @@ fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::stored(
             VORBIS_ENTRY,
             TestWem::encoded(TestCodec::Vorbis, 1, 48_000, 72_000).bytes(),
+        ))
+        .entry(TestEntry::stored(
+            OPUS_ENTRY,
+            TestWem::encoded(TestCodec::Tag(0x3041), 1, 48_000, 960).bytes(),
         ))
         .write_to(&path)?;
     Ok(path)
@@ -164,18 +169,18 @@ fn wav_of_a_big_endian_file_prints_json_and_holds_the_known_signal() -> TestResu
 fn wav_of_another_codec_names_it_and_fails() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
-    let out = dir.path().join("200.wav");
+    let out = dir.path().join("300.wav");
 
     p4kx()?
         .args(["audio", "wav"])
         .arg(&archive)
-        .arg(VORBIS_ENTRY)
+        .arg(OPUS_ENTRY)
         .arg("--out")
         .arg(&out)
         .assert()
         .code(1)
         .stderr(predicate::str::contains(
-            "converting Wwise Vorbis to WAV is not supported",
+            "converting Opus to WAV is not supported",
         ));
 
     assert!(!out.exists(), "no WAV is written");

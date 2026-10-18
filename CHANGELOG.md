@@ -8,6 +8,10 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
+  `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
+  absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
+  page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -84,6 +88,10 @@ fails while its section is missing.
 - `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
   mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
   per channel, as Wwise writes them, instead of 65.
+- `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise Vorbis WEMs to 16-bit WAV for
+  the sound's exact duration, with the codebooks the Ogg export picks; the channels keep the
+  order and speaker mask of the WEM. A sound that cannot be decoded fails with an error naming
+  the WEM and the reason.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a

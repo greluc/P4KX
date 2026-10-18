@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "table(\"from Tag select `select`\")?"
+---
+record path                       `select`
+--------------------------------  --------
+libs/foundry/records/tags/hidden  true
+1 Record

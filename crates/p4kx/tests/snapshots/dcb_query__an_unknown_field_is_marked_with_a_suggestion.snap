@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query.rs
+expression: "error(\"from Item select mass, sizes\")?"
+---
+error: unknown field `sizes` of `Item`; did you mean `size`?
+  from Item select mass, sizes
+                         ^^^^^

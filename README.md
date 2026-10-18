@@ -54,6 +54,12 @@ Early development (milestone M1). Available today:
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes.
+- `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
+  Records and prints a table: the record path first, then one column per path of `select`, one
+  row per Record in record-path order, e.g.
+  `p4kx dcb query Data.p4k 'from EntityClassDefinition at "*/spaceships/*"'`. `from <type>`
+  selects a type and every type deriving from it, `at "<glob>"` selects by record path with the
+  rules of `search`. An invalid Query exits with code 2 and marks its position.
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,

@@ -12,6 +12,7 @@ mod build_manifest;
 mod bytes;
 mod chf;
 mod chunk_file;
+mod container;
 mod cryxml;
 mod dataforge_builder;
 mod dataforge_instances;
@@ -20,6 +21,7 @@ mod dataforge_value;
 mod entity;
 mod entity_sample;
 mod entity_schema;
+mod global_ini;
 mod layout_v1;
 mod layout_v2;
 mod real_archive;
@@ -34,6 +36,7 @@ pub use bnk::{TestBank, TestHircObject};
 pub use build_manifest::write_build_manifest;
 pub use chf::{TestChf, TestItemPort, TestMaterial, TestSubMaterial};
 pub use chunk_file::TestChunkFile;
+pub use container::TestContainer;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
@@ -41,6 +44,7 @@ pub use dataforge_value::{TestInstance, TestValue};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;
+pub use global_ini::GlobalIniBuilder;
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

@@ -39,6 +39,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Container**:
+An Entry that is itself a plain ZIP archive, e.g. a `.socpak`, opened in place and read like an
+Archive; it may hold further containers.
+_Avoid_: nested archive, sub-archive, pak
+
 **Filter**:
 Text that selects Entries by path: a glob over the full path when it holds `*` or `?`, otherwise
 a substring anywhere in the path; case and separator kind do not matter.
@@ -107,6 +112,12 @@ _Avoid_: type filter, cast
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML
+
+**Localisation key**:
+The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
+resolves to one text per language in that language's `global.ini` Entry
+(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+_Avoid_: loc string, text id
 
 ### Assets
 
@@ -219,7 +230,8 @@ _Avoid_: unpack, export (an Export is something else)
 
 **Conflict policy**:
 What an Extraction does with a file already in the target folder: skip it, overwrite it, or
-overwrite it only if changed (size or CRC-32C differs from the Entry or the converted Record).
+overwrite it only if changed (its size or the Entry's checksum differs from the Entry, or its size or
+CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Conversion**:

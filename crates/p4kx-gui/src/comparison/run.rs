@@ -5,9 +5,10 @@ use std::thread;
 
 use p4kx_comparison::{
     Archive, CancelToken, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry,
-    Levels, OwnedComparison, OwnedDataForges,
+    Levels, OwnedComparison, OwnedDataForges, RecompareError,
 };
 
+use super::record_list::RecordChangeList;
 use super::{ComparisonStage, ComparisonView};
 use crate::model::describe;
 
@@ -149,10 +150,39 @@ fn run(
         Err(ComparisonError::Cancelled) => return Outcome::Cancelled,
         Err(error) => return Outcome::Failed(Some(describe(&error))),
     };
+    let records = match levels.records.then(|| records(&comparison, cancel, &set)) {
+        None => None,
+        Some(Ok(list)) => Some(list),
+        Some(Err(outcome)) => return outcome,
+    };
     if cancel.is_cancelled() {
         return Outcome::Cancelled;
     }
     set(ComparisonStage::Preparing);
-    ComparisonView::new(Arc::new(comparison), cancel)
+    ComparisonView::new(Arc::new(comparison), records, cancel)
         .map_or(Outcome::Cancelled, |view| Outcome::Finished(Box::new(view)))
+}
+
+/// Compares the Records of `comparison` field by field and lists the changes.
+fn records(
+    comparison: &OwnedComparison,
+    cancel: &CancelToken,
+    set: &(impl Fn(ComparisonStage) + Sync),
+) -> Result<RecordChangeList, Outcome> {
+    let on_progress = |progress: ComparisonProgress| {
+        set(ComparisonStage::ComparingRecords {
+            done: progress.records_done,
+            total: progress.records_total,
+        });
+    };
+    let listed = comparison.record_changes(None, Some(cancel), Some(&on_progress), |changes| {
+        RecordChangeList::build(changes, cancel)
+    });
+    match listed {
+        Ok(Some(list)) => Ok(list),
+        Ok(None) | Err(RecompareError::Comparison(ComparisonError::Cancelled)) => {
+            Err(Outcome::Cancelled)
+        }
+        Err(error) => Err(Outcome::Failed(Some(describe(&error)))),
+    }
 }

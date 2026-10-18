@@ -14,6 +14,7 @@ mod cli_chf;
 mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
+mod cli_socpak;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -33,6 +34,7 @@ mod progress;
 mod query_file;
 mod query_rows;
 mod query_table;
+mod socpak;
 mod texture;
 mod texture_image;
 
@@ -66,6 +68,7 @@ fn main() -> ExitCode {
         Command::Texture(args) => texture::run(&args, json).map(success),
         Command::Audio(args) => audio::run(&args, json).map(success),
         Command::Bnk(args) => bnk::run(&args, json),
+        Command::Socpak(args) => socpak::run(&args, json),
         Command::Chf(args) => chf::run(&args, json).map(success),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
     };

@@ -3,7 +3,9 @@
 use std::error::Error;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, Kind, UPLOAD_LIMIT, build_catalog, catalog_schema};
+use p4kx_export::{
+    CatalogOptions, CatalogSummary, Kind, Language, UPLOAD_LIMIT, build_catalog, catalog_schema,
+};
 use p4kx_extraction::Archive;
 use p4kx_testkit::real_archive_path;
 use serde_json::Value;
@@ -54,6 +56,7 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
         });
         assert!(named, "manufacturer {code} has a localisation key");
     }
+    check_texts(summary, list)?;
     assert!(
         list.iter()
             .filter_map(|m| m["recordPath"].as_str())
@@ -75,4 +78,30 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
 )]
 fn report_size(size: u64) {
     println!("catalog size: {size} bytes, upload limit {UPLOAD_LIMIT} bytes");
+}
+
+fn check_texts(summary: &CatalogSummary, list: &[Value]) -> TestResult {
+    for code in ["RSI", "ANVL", "DRAK", "ACAS"] {
+        let resolved = list.iter().any(|m| {
+            m["code"] == code
+                && ["/name/en", "/name/de"].into_iter().all(|text| {
+                    m.pointer(text)
+                        .and_then(Value::as_str)
+                        .is_some_and(|text| !text.is_empty())
+                })
+        });
+        assert!(
+            resolved,
+            "manufacturer {code} has an English and a German name"
+        );
+    }
+    for language in Language::ALL {
+        let texts = summary.text(language).ok_or("a text summary")?;
+        assert!(texts.available, "the Archive holds {language}");
+        assert!(
+            texts.resolved > texts.unresolved,
+            "most {language} texts resolve: {texts:?}"
+        );
+    }
+    Ok(())
 }

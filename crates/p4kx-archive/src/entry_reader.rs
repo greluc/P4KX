@@ -4,7 +4,7 @@ use std::io::{self, BufReader, Read};
 use flate2::read::DeflateDecoder;
 use p4kx_foundation::ByteReader;
 
-use crate::decode::{CorruptAs, ExactSize, ZstdOrPlain};
+use crate::decode::{CorruptAs, ExactSize, Overlong, ZstdOrPlain};
 use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
@@ -25,6 +25,20 @@ type DataReader<'a> = Box<dyn Read + Send + 'a>;
 /// carry a [`DataError`](crate::DataError).
 pub struct EntryReader<'a> {
     inner: ExactSize<DataReader<'a>>,
+    encrypted: bool,
+}
+
+impl EntryReader<'_> {
+    /// Makes data that goes on after the Entry's uncompressed size an error, a
+    /// [`DataError::TooLong`](crate::DataError::TooLong), instead of cutting it; the zero padding
+    /// of an encrypted Entry below one AES block is still allowed.
+    #[must_use]
+    pub fn reject_overlong(mut self) -> Self {
+        self.inner.set_overlong(Overlong::Reject {
+            padding: self.encrypted,
+        });
+        self
+    }
 }
 
 impl fmt::Debug for EntryReader<'_> {
@@ -61,8 +75,9 @@ impl Read for RawReader<'_> {
     }
 }
 
-/// Opens the data of `entry` after checking its local header, if its layout has one.
-pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
+/// Returns where the stored data of `entry` begins after checking its local header, if its layout
+/// has one, and that the data lies inside `source`.
+pub(crate) fn data_offset(source: &Source, entry: &Entry) -> Result<u64, FormatError> {
     let (offset, data_offset) = match entry.data {
         DataStart::LocalHeader(offset) => (offset, read_local_header(source, offset)?),
         DataStart::Direct(offset) => (offset, offset),
@@ -73,7 +88,14 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
             "Entry data lies outside the file",
         ));
     }
+    Ok(data_offset)
+}
+
+/// Opens the data of `entry` after checking its local header, if its layout has one.
+pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
+    let data_offset = data_offset(source, entry)?;
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
+        let offset = entry.data.offset();
         return Err(FormatError::corrupt(
             offset,
             "encrypted Entry data is not a whole number of AES blocks",
@@ -111,6 +133,7 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
     };
     Ok(EntryReader {
         inner: ExactSize::new(decoded, entry.uncompressed_size),
+        encrypted: entry.encrypted,
     })
 }
 

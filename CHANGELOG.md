@@ -14,6 +14,11 @@ fails while its section is missing.
   in no soundbank are listed with the reason; ATL definitions and soundbanks that cannot be read
   are warned about. The audio index reads every ATL definition and soundbank of the Archive once,
   in parallel.
+- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
+  socpak containers, also nested ones, are read from the Archive without extracting them first,
+  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
+  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
+  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
 - `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
   character files as JSON and back. The new `p4kx-character` crate checks magic, size and
   CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
@@ -28,6 +33,10 @@ fails while its section is missing.
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
+- The Record changes of a Comparison in the window: a Records tab lists every added, removed,
+  moved, changed and unreadable Record with its record path and type, sorted and filtered like the
+  Entries, and a selected Record shows its field changes with old and new value, links by the
+  record path of their target and unreadable values with their reason.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -56,6 +65,12 @@ fails while its section is missing.
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
   the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
+- English and German names and descriptions in the Basetool catalog, resolved from the Archive's
+  `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or
+  language the Archive lacks or an empty text leaves that text `null`, the placeholder keys
+  `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` give no text, and `p4kx catalog`
+  counts resolved, unresolved and placeholder texts per language. A corrupt `global.ini` ends
+  `p4kx catalog` with exit code 3.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust

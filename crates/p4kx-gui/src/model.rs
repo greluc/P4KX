@@ -9,11 +9,14 @@ use p4kx_settings::RecentArchives;
 mod archive_change;
 mod extraction_control;
 mod update;
+mod work_tab;
 
 use update::UpdateState;
+pub use work_tab::WorkTab;
 
 use crate::{
-    Browser, ChannelList, EntryIndex, Extraction, ExtractionSetup, Language, PreviewTab, Texts,
+    Browser, ChannelList, ComparisonTab, EntryIndex, Extraction, ExtractionSetup, Language,
+    PreviewTab, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -46,6 +49,8 @@ pub struct Model {
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
     update: UpdateState,
+    work_tab: WorkTab,
+    comparison: ComparisonTab,
 }
 
 impl std::fmt::Debug for Model {
@@ -64,6 +69,8 @@ impl std::fmt::Debug for Model {
             .field("extraction_setup", &self.extraction_setup)
             .field("extraction", &self.extraction)
             .field("update", &self.update)
+            .field("work_tab", &self.work_tab)
+            .field("comparison", &self.comparison)
             .finish()
     }
 }
@@ -86,6 +93,8 @@ impl Model {
             extraction_setup: None,
             extraction: None,
             update: UpdateState::default(),
+            work_tab: WorkTab::default(),
+            comparison: ComparisonTab::default(),
         }
     }
 

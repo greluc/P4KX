@@ -12,6 +12,10 @@ fails while its section is missing.
   `docs/query.md`: select Records by type (subtypes included) and record-path glob, and list
   scalar fields by dot path as columns of a table, the record path first. Errors name the problem
   and mark its position in the Query, with a suggestion for a mistyped type or field name.
+- `where` conditions in Queries: comparisons with `=`, `!=`, `<`, `<=`, `>`, `>=` on numbers,
+  strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
+  `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of
+  incompatible types is marked as an error, and a missing value never matches.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
@@ -20,10 +24,20 @@ fails while its section is missing.
   face, `p4kx texture png` writes a cubemap as six face files or with `--cross` as one cross, an
   alpha or smoothness tail `.dds.a` is merged into the alpha channel of the PNG, and
   `p4kx texture info` reports it.
+- High-range BC6H textures, signed and unsigned: `p4kx texture png` decodes them with a pure-Rust
+  decoder to floating-point RGB and writes OpenEXR (`.exr`, 32-bit float RGB) instead of a PNG, so
+  their range is not clipped, cubemaps as six faces or a cross; `--tone-map` writes a Reinhard
+  tone-mapped 8-bit PNG instead.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- The Comparison tab of the window: pick an old and a new Archive from the detected Channels, the
+  Recent Archives or any file, compare their Entries, their Records or both off the UI thread with
+  progress and cancel, and see both Builds, the counts per change kind and per top-level directory,
+  and the sortable list of added, removed and changed Entries, filtered with the rules of the
+  search. **Save report…** writes the same JSON as `p4kx compare --report` with the current
+  levels and Filter, the Record level included.
 - `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
   removed, moved or changed, with each changed scalar field and its old and new value, in the
   summary counts and the JSON report; a Record that cannot be read is listed as unreadable with

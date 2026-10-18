@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_query_condition.rs
+expression: "table(\"from Weapon select name, dps where dps != 980\")?"
+---
+record path                            name      dps
+-------------------------------------  --------  ------
+libs/foundry/records/weapons/arrow     Arrow     1250.5
+libs/foundry/records/weapons/cutter    Cutter    NaN
+libs/foundry/records/weapons/deadbolt  Deadbolt  2400
+3 Records

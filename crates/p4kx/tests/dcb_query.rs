@@ -252,6 +252,21 @@ fn the_documented_examples_select_records_of_a_real_archive() -> TestResult {
             Some("false"),
         ),
         ("at \"*/spaceships/*\" select Icon", Some(".")),
+        (
+            "from AmmoParams at \"*/vehicle/*\" select speed, lifetime \
+             where speed >= 1500 and lifetime <= 3",
+            Some("1500"),
+        ),
+        (
+            "from EntityClassDefinition at \"*/spaceships/*\" select Category, Invisible \
+             where Category = \"Default\" and not Invisible = true",
+            Some("Default"),
+        ),
+        (
+            "at \"*/spaceships/*\" select Icon, Category \
+             where Icon like \"default.*\" and (Category contains \"def\" or Invisible = true)",
+            Some("Default.bmp"),
+        ),
     ];
     for (text, value) in examples {
         let output = Command::cargo_bin("p4kx")?

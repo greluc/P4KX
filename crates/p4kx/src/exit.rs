@@ -7,7 +7,7 @@ use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownE
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::NoRecordMatch;
-use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive};
+use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
 use crate::texture;
 
@@ -91,7 +91,10 @@ fn code_for(error: &anyhow::Error) -> u8 {
         )
     {
         ARCHIVE_ERROR
-    } else if dataforge.is_some() || error.downcast_ref::<DataForgeError>().is_some() {
+    } else if dataforge.is_some()
+        || error.downcast_ref::<DataForgeError>().is_some()
+        || error.downcast_ref::<UnreadableSchema>().is_some()
+    {
         DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()

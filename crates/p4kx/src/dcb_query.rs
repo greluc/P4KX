@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use p4kx_extraction::query::{CompiledQuery, Query, QueryRun, ResultFormat, ResultWriter};
+use p4kx_extraction::query::{
+    CompiledQuery, Query, QueryError, QueryErrorKind, QueryRun, ResultFormat, ResultWriter,
+};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use serde::Serialize;
 use thiserror::Error;
@@ -17,6 +19,11 @@ use crate::{exit, json, query_file, query_table};
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub(crate) struct InvalidQuery(String);
+
+/// A Query naming a type whose layout the DataForge cannot give, with its marked position.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub(crate) struct UnreadableSchema(String);
 
 /// `--json` with a format other than JSON and without `--out`, so stdout would not hold JSON.
 #[derive(Debug, Error)]
@@ -66,7 +73,7 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     let forge = entry.open()?;
     let compiled = query
         .compile(&forge)
-        .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
+        .map_err(|error| compile_error(&error, &args.query))?;
     let run = compiled.run();
     let output = Output {
         compiled: &compiled,
@@ -115,6 +122,17 @@ impl Output<'_, '_, '_> {
             writer.write_row(row.record_path(), cells)
         })?;
         writer.finish().map(drop)
+    }
+}
+
+/// Returns the error for a Query that does not compile: a schema the DataForge cannot give is
+/// [`UnreadableSchema`], anything else [`InvalidQuery`].
+fn compile_error(error: &QueryError, query: &str) -> anyhow::Error {
+    let marked = error.marked(query).to_string();
+    if matches!(error.kind(), QueryErrorKind::DataForge(_)) {
+        UnreadableSchema(marked).into()
+    } else {
+        InvalidQuery(marked).into()
     }
 }
 

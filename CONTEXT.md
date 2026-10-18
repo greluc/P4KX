@@ -88,6 +88,11 @@ _Avoid_: pointer (alone); weak pointer for the link itself
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
 
+**Condition**:
+The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
+a Record has to meet to be selected.
+_Avoid_: filter (a Filter selects Entries)
+
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML

@@ -36,6 +36,10 @@ impl Counts {
 
 /// Calls `write` with each row's record path and values, page by page, and reports on stderr
 /// each Record whose values cannot be read; `counts` holds what was done also after an error.
+///
+/// # Errors
+///
+/// Returns the [`io::Error`] of `write`; a report that cannot be written to stderr is dropped.
 pub(crate) fn for_each_row(
     run: &QueryRun<'_, '_>,
     counts: &mut Counts,
@@ -50,12 +54,12 @@ pub(crate) fn for_each_row(
                 }
                 Err(error) => {
                     counts.failed = counts.failed.saturating_add(1);
-                    writeln!(
+                    let _unreported = writeln!(
                         io::stderr().lock(),
                         "failed {} ({}): {error}",
                         row.record_path(),
                         row.record().guid()
-                    )?;
+                    );
                 }
             }
         }

@@ -49,11 +49,17 @@ pub(crate) fn checkbox_cell(ui: &mut Ui, check: Check, label: &str) -> bool {
 
 /// Shows a checkbox with `text` beside it; returns whether the user toggled `checked`.
 pub(crate) fn checkbox(ui: &mut Ui, checked: &mut bool, text: &str) -> Response {
-    let (rect, box_rect, mut response) = allocate(ui, text, true);
-    response.widget_info(|| WidgetInfo::selected(Role::CheckBox, true, *checked, text));
+    checkbox_if(ui, checked, text, true)
+}
+
+/// Shows a checkbox with `text` beside it, dimmed and without a click when not `enabled`;
+/// returns whether the user toggled `checked`.
+pub(crate) fn checkbox_if(ui: &mut Ui, checked: &mut bool, text: &str, enabled: bool) -> Response {
+    let (rect, box_rect, mut response) = allocate(ui, text, enabled);
+    response.widget_info(|| WidgetInfo::selected(Role::CheckBox, enabled, *checked, text));
     let check = if *checked { Check::On } else { Check::Off };
-    paint_checkbox(ui, box_rect, check, response.hovered(), true);
-    label(ui, rect, text, true);
+    paint_checkbox(ui, box_rect, check, response.hovered(), enabled);
+    label(ui, rect, text, enabled);
     if response.has_focus() {
         focus_ring(ui, box_rect, palette::PRIMARY, FOCUS_OFFSET);
     }
@@ -123,6 +129,14 @@ fn label(ui: &Ui, rect: Rect, text: &str, enabled: bool) {
 
 fn paint_checkbox(ui: &Ui, rect: Rect, check: Check, hovered: bool, enabled: bool) {
     let (fill, border, mark) = colours(check != Check::Off, enabled && hovered);
+    let dim = |colour: Color32| {
+        if enabled {
+            colour
+        } else {
+            colour.gamma_multiply(DISABLED_OPACITY)
+        }
+    };
+    let (fill, border, mark) = (dim(fill), dim(border), dim(mark));
     let painter = ui.painter();
     painter.rect(
         rect,

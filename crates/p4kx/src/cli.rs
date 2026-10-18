@@ -229,12 +229,14 @@ pub(crate) enum TextureAction {
     },
     /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
     /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
         #[command(flatten)]
         source: TextureSource,
-        /// The PNG file to write; an existing file is replaced.
+        /// The PNG file to write; an existing file is replaced. A high-range texture goes to FILE
+        /// with the extension .exr instead, unless --tone-map is given.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// The mip level to export, 0 being the largest.
@@ -243,6 +245,10 @@ pub(crate) enum TextureAction {
         /// Writes a cubemap as one horizontal cross into FILE instead of six face files.
         #[arg(long)]
         cross: bool,
+        /// Writes a high-range texture as an 8-bit PNG to FILE too, tone-mapped: Reinhard per
+        /// channel, then sRGB. Other textures are 8-bit already; for them it only prints a note.
+        #[arg(long)]
+        tone_map: bool,
     },
 }
 

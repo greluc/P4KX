@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use serde::{Serialize, Serializer};
@@ -123,6 +125,21 @@ impl<'a> Comparison<'a> {
     #[must_use]
     pub fn report(&self) -> Report<'_> {
         to_report(self)
+    }
+
+    /// Writes the JSON report to the file at `path` as pretty JSON with a final newline and
+    /// flushes it to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of creating, writing or syncing the file.
+    pub fn save_report(&self, path: &Path) -> io::Result<()> {
+        let mut out = BufWriter::new(File::create(path)?);
+        serde_json::to_writer_pretty(&mut out, self)?;
+        writeln!(out)?;
+        out.into_inner()
+            .map_err(io::IntoInnerError::into_error)?
+            .sync_all()
     }
 }
 

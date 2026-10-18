@@ -22,6 +22,7 @@ mod query_file;
 mod query_rows;
 mod query_table;
 mod texture;
+mod texture_image;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

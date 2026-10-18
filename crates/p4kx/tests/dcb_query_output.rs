@@ -149,6 +149,30 @@ fn columns_follow_the_select_clause_and_rows_the_record_path() -> TestResult {
 }
 
 #[test]
+fn a_where_condition_filters_the_csv_and_json_rows() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database())?;
+    let text = "from Item select name, mass where mass > 0";
+
+    let csv = run(&archive, &["--format", "csv"], text)?;
+    let json = run(&archive, &["--format", "json"], text)?;
+
+    assert_eq!(csv.status.code(), Some(0), "csv: {csv:?}");
+    assert_eq!(json.status.code(), Some(0), "json: {json:?}");
+    assert_eq!(
+        String::from_utf8(csv.stdout)?,
+        "record path,name,mass\r\nlibs/ships/avenger,\"Avenger, \"\"Titan\"\"\",25000.5\r\n",
+        "only the Record that meets the condition"
+    );
+    assert_eq!(
+        String::from_utf8(json.stdout)?,
+        "[{\"record path\":\"libs/ships/avenger\",\"name\":\"Avenger, \\\"Titan\\\"\",\"mass\":25000.5}]\n",
+        "only the Record that meets the condition"
+    );
+    Ok(())
+}
+
+#[test]
 fn out_writes_the_result_to_a_file_and_a_summary_to_stdout() -> TestResult {
     for (format, expected) in [
         ("csv", stdout(&["--format", "csv"])?),

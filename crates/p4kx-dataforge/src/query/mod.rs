@@ -38,8 +38,7 @@ pub use syntax::{Glob, Name, Path, Query, Segment};
 /// and `->name`.
 pub const MAX_PATH_SEGMENTS: usize = 64;
 
-/// The most References and weak pointers one path follows with `->`; each `->` follows one, so
-/// no cycle in the data makes a path follow more.
+/// The most `->` in one path, each following one Reference or weak pointer.
 pub const MAX_PATH_REFERENCES: usize = 16;
 
 /// The most array elements the columns of one row reach together, and each comparison of a

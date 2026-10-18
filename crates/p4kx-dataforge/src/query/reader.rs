@@ -103,23 +103,27 @@ impl Reader {
     }
 
     /// Returns the cell of the path in the Record instance `bytes`: its value, or for a
-    /// multi-valued path every value it reaches as a [`Value::Array`]; `None` when the instance
-    /// is too short.
+    /// multi-valued path every value it reaches as a [`Value::Array`]; `None` when a fixed column
+    /// lies beyond the instance. Only a multi-valued path allocates, for its list.
     pub(crate) fn cell<'f>(&self, forge: &'f DataForge<'f>, bytes: &[u8]) -> Option<Value<'f>> {
         let walk = match self {
             Self::Column(column) => return column.read(forge, bytes),
             Self::Walk(walk) => walk,
         };
+        if !walk.multi {
+            let mut single = Value::Null;
+            let reached = walk.visit(forge, bytes, &mut |value| {
+                single = value;
+                ControlFlow::Break(())
+            });
+            return Some(reached.map_or_else(Value::Error, |()| single));
+        }
         let mut values = Vec::new();
         let reached = walk.visit(forge, bytes, &mut |value| {
             values.push(value);
             ControlFlow::Continue(())
         });
-        Some(match reached {
-            Err(error) => Value::Error(error),
-            Ok(()) if walk.multi => Value::Array(values.into_boxed_slice()),
-            Ok(()) => values.pop().unwrap_or(Value::Null),
-        })
+        Some(reached.map_or_else(Value::Error, |()| Value::Array(values.into_boxed_slice())))
     }
 
     /// Returns whether some value of the path holds `test`: `Some(true)` when one does, `None`
@@ -338,7 +342,7 @@ fn element_of<'f>(
                     if !derives(forge, struct_index, wanted) {
                         return None;
                     }
-                    deref(forge, bytes, wanted)
+                    deref(forge, bytes, declared)
                 }
             }
         }

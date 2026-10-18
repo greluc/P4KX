@@ -172,8 +172,9 @@ nested arrays flattened, e.g. `Components[*].name` of a ship with a null first c
 element by element. A path without `[*]` and `[TypeName]` always gives one value, never a list.
 
 In a table and in CSV a list is written as its values in their text form, separated by `, ` in
-brackets, e.g. `[250.5, 1200]` or `[]`. In JSON it is an array of the values, each typed as a
-single value would be.
+brackets, e.g. `[250.5, 1200]` or `[]`. The values are not quoted, so a string holding `, ` or
+`]` reads ambiguously there; scripts use JSON, where a list is an array of the values, each typed
+as a single value would be.
 
 A path reaches at most 65,536 array elements in one Record (`MAX_PATH_VALUES`), counted over all
 its brackets; `[n]` counts one element and `[*]` and `[TypeName]` every element of their array.

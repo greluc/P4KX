@@ -115,50 +115,53 @@ impl Resolver<'_, '_> {
         QueryError::new(kind(self.name.clone(), self.owner.clone()), span)
     }
 
-    fn field(&mut self, next: &Name) -> Result<(), QueryError> {
-        let index = match self.at {
-            At::Struct { index, .. } => index,
+    /// Returns the struct whose fields `.next` names, leaving a strong pointer on the way, or
+    /// the error for a value that has no fields.
+    fn struct_for(&mut self, next: &Name) -> Result<usize, QueryError> {
+        type NoFields = fn(String, Option<String>, DataType, String) -> QueryErrorKind;
+        let (data_type, kind): (DataType, NoFields) = match self.at {
+            At::Struct { index, .. } => return Ok(index),
             At::Pointer { target } => {
                 self.leave(Step::Pointer {
                     at: self.offset,
                     declared: Box::new([target]),
                 });
-                target
+                return Ok(target);
             }
-            At::Scalar { data_type, .. } => {
-                return Err(self.error(
-                    |name, owner| QueryErrorKind::ScalarHasNoFields {
-                        name,
-                        owner,
-                        data_type,
-                        next: next.as_str().to_owned(),
-                    },
-                    next.span,
-                ));
-            }
-            At::Array { data_type, .. } => {
-                return Err(self.error(
-                    |name, owner| QueryErrorKind::ArrayHasNoFields {
-                        name,
-                        owner,
-                        data_type,
-                        next: next.as_str().to_owned(),
-                    },
-                    next.span,
-                ));
-            }
-            At::Link(data_type) => {
-                return Err(self.error(
-                    |name, owner| QueryErrorKind::LinkHasNoFields {
-                        name,
-                        owner,
-                        data_type,
-                        next: next.as_str().to_owned(),
-                    },
-                    next.span,
-                ));
-            }
+            At::Scalar { data_type, .. } => (data_type, |name, owner, data_type, next| {
+                QueryErrorKind::ScalarHasNoFields {
+                    name,
+                    owner,
+                    data_type,
+                    next,
+                }
+            }),
+            At::Array { data_type, .. } => (data_type, |name, owner, data_type, next| {
+                QueryErrorKind::ArrayHasNoFields {
+                    name,
+                    owner,
+                    data_type,
+                    next,
+                }
+            }),
+            At::Link(data_type) => (data_type, |name, owner, data_type, next| {
+                QueryErrorKind::LinkHasNoFields {
+                    name,
+                    owner,
+                    data_type,
+                    next,
+                }
+            }),
         };
+        let next_name = next.as_str().to_owned();
+        Err(self.error(
+            |name, owner| kind(name, owner, data_type, next_name),
+            next.span,
+        ))
+    }
+
+    fn field(&mut self, next: &Name) -> Result<(), QueryError> {
+        let index = self.struct_for(next)?;
         let structs = self.structs;
         let owner = structs.name(index).map(str::to_owned);
         let Some(field) = structs.field(index, next.as_str()) else {
@@ -239,8 +242,7 @@ impl Resolver<'_, '_> {
             ));
         }
         let structs = self.structs;
-        let wanted: Box<[usize]> = structs.positions_of(type_name.as_str()).collect();
-        let Some(&first) = wanted.first() else {
+        if structs.position_of(type_name.as_str()).is_none() {
             return Err(QueryError::new(
                 QueryErrorKind::UnknownType {
                     name: type_name.as_str().to_owned(),
@@ -248,14 +250,14 @@ impl Resolver<'_, '_> {
                 },
                 type_name.span,
             ));
-        };
+        }
         let element = usize::from(target);
         let forge = structs.forge();
-        let related = wanted.iter().any(|&index| {
+        let related = structs.positions_of(type_name.as_str()).find(|&index| {
             ancestors_include(forge, index, &[element])
                 || ancestors_include(forge, element, &[index])
         });
-        if !related {
+        let Some(wanted) = related else {
             return Err(QueryError::new(
                 QueryErrorKind::UnrelatedType {
                     name: self.name.clone(),
@@ -264,7 +266,7 @@ impl Resolver<'_, '_> {
                 },
                 type_name.span,
             ));
-        }
+        };
         let elements = if data_type == DataType::Class {
             Elements::Instances(u32::from(target))
         } else {
@@ -273,10 +275,10 @@ impl Resolver<'_, '_> {
         self.leave(Step::Array {
             at: self.offset,
             elements,
-            select: Select::Type(wanted),
+            select: Select::Type(Box::new([wanted])),
         });
         self.at = At::Struct {
-            index: first,
+            index: wanted,
             holds: data_type,
         };
         Ok(())

@@ -185,6 +185,56 @@ diff-line-removed = Entfernte Zeile { $line }: { $text }
 diff-line-added = Hinzugefügte Zeile { $line }: { $text }
 diff-marker-removed = −
 diff-marker-added = +
+query-tab = Abfrage
+query-label = Abfrage
+query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
+query-run = Abfrage ausführen
+query-cancel = Abbrechen
+query-loading = DataForge wird gelesen …
+query-selecting = Records werden ausgewählt …
+query-progress = { $done } von { $total } Records, { $percent } %
+query-cancelled = Die Abfrage wurde abgebrochen.
+query-failed = Die Abfrage ist fehlgeschlagen: { $reason }
+query-stopped = Die Abfrage wurde ohne Ergebnis beendet.
+query-archive-changed = Das Archiv wurde auf der Festplatte geändert. Laden Sie es neu, um Abfragen auszuführen.
+query-invalid = Zeile { $line }, Spalte { $column }: { $reason }
+query-empty-title = Kein Archiv geöffnet
+query-empty-hint = Öffnen Sie ein Archiv, um Abfragen über sein DataForge auszuführen.
+query-prompt = Schreiben Sie eine Abfrage und führen Sie sie mit Strg+Enter aus, z. B. from AmmoParams select speed where speed >= 1500
+query-no-rows = Kein Record passt zur Abfrage.
+query-rows =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+query-rows-failed =
+    { $count ->
+        [one] { $number } Record, { $failed } fehlgeschlagen
+       *[other] { $number } Records, { $failed } fehlgeschlagen
+    }
+query-unresolved =
+    { $count ->
+        [one] , { $number } nicht aufgelöste Referenz
+       *[other] , { $number } nicht aufgelöste Referenzen
+    }
+query-export-csv = CSV exportieren …
+query-export-json = JSON exportieren …
+query-filter-csv = CSV-Datei
+query-filter-json = JSON-Datei
+query-exporting = Das Ergebnis wird nach { $path } exportiert …
+query-exported =
+    { $count ->
+        [one] { $number } Record nach { $path } exportiert
+       *[other] { $number } Records nach { $path } exportiert
+    }
+query-export-failed = Das Ergebnis kann nicht nach { $path } exportiert werden: { $reason }
+query-export-cancel = Export abbrechen
+query-export-cancelled = Der Export nach { $path } wurde abgebrochen.
+query-page = Seite { $page } von { $pages }
+query-page-first = Erste Seite
+query-page-previous = Vorherige Seite
+query-page-next = Nächste Seite
+query-page-last = Letzte Seite
 
 dataforge-node = DataForge
 dataforge-node-loading = Wird geladen …

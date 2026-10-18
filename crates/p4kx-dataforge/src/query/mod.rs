@@ -19,6 +19,7 @@ mod reader;
 mod resolve;
 mod run;
 mod schema;
+mod short_text;
 mod span;
 mod suggest;
 mod syntax;
@@ -31,6 +32,7 @@ pub use expected::{Expected, Found, LiteralKind};
 pub use lexer::Keyword;
 pub use output::{RECORD_PATH_COLUMN, ResultFormat, ResultWriter};
 pub use run::{Pages, QueryRun, Row};
+pub use short_text::{LIST_SHOWN, write_short_text};
 pub use span::Span;
 pub use syntax::{Glob, Name, Path, Query, Segment};
 

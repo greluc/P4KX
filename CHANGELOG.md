@@ -12,6 +12,10 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- The Query tab of the window: run Queries over the DataForge of the open Archive in the
+  background with progress and cancel, see an invalid Query explained with its line and column
+  and underlined in the editor, sort the result table by any column, page through large results,
+  and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -96,6 +100,10 @@ fails while its section is missing.
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a
   corrupt soundbank fails with an error naming the section.
+- `p4kx chunks list` and `p4kx chunks dump`: list the chunks of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) from an Archive or from disk,
+  in the `#ivo` (`0x900`) or the `CrCh` (`0x746`) container, with type, type ID, version, chunk
+  ID, byte order, offset and size, unknown types marked; and write one chunk's bytes to a file.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

@@ -1,14 +1,7 @@
 use std::io::{self, Write};
-use std::num::NonZeroUsize;
 
-use p4kx_extraction::Value;
 use p4kx_extraction::query::{QueryRun, Row};
-
-/// The number of rows built and written at a time.
-pub(crate) const PAGE_SIZE: NonZeroUsize = match NonZeroUsize::new(1024) {
-    Some(size) => size,
-    None => NonZeroUsize::MIN,
-};
+use p4kx_extraction::{QUERY_PAGE_SIZE, Value};
 
 /// The number of rows written, of Records whose row failed and of the unresolved References in
 /// the rows written.
@@ -53,27 +46,32 @@ pub(crate) fn for_each_row(
     counts: &mut Counts,
     mut write: impl FnMut(&Row<'_>, &[Option<Value<'_>>]) -> io::Result<()>,
 ) -> io::Result<()> {
-    for page in run.pages(PAGE_SIZE) {
+    for page in run.pages(QUERY_PAGE_SIZE) {
         for row in &page {
-            match row.cells() {
-                Ok(cells) => {
-                    write(row, cells)?;
-                    counts.records = counts.records.saturating_add(1);
-                    counts.unresolved = counts.unresolved.saturating_add(
-                        u64::try_from(row.unresolved_references()).unwrap_or(u64::MAX),
-                    );
-                }
-                Err(error) => {
-                    counts.failed = counts.failed.saturating_add(1);
-                    let _unreported = writeln!(
-                        io::stderr().lock(),
-                        "failed {} ({}): {error}",
-                        row.record_path(),
-                        row.record().guid()
-                    );
-                }
+            if let Ok(cells) = row.cells() {
+                write(row, cells)?;
+                counts.records = counts.records.saturating_add(1);
+                counts.unresolved = counts
+                    .unresolved
+                    .saturating_add(u64::try_from(row.unresolved_references()).unwrap_or(u64::MAX));
+            } else {
+                counts.failed = counts.failed.saturating_add(1);
+                report_failed(row);
             }
         }
     }
     Ok(())
+}
+
+/// Reports on stderr that the values of `row`'s Record cannot be read; a report that cannot be
+/// written is dropped.
+pub(crate) fn report_failed(row: &Row<'_>) {
+    if let Err(error) = row.cells() {
+        let _unreported = writeln!(
+            io::stderr().lock(),
+            "failed {} ({}): {error}",
+            row.record_path(),
+            row.record().guid()
+        );
+    }
 }

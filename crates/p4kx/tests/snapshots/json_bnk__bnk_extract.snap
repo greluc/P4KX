@@ -1,0 +1,27 @@
+---
+source: crates/p4kx/tests/json_bnk.rs
+expression: json
+---
+{
+  "extracted": [
+    {
+      "file": "[DIR]/out/100.wem",
+      "id": 100,
+      "size": 4852
+    },
+    {
+      "file": "[DIR]/out/300.wem",
+      "id": 300,
+      "size": 350
+    },
+    {
+      "file": "[DIR]/out/400.wem",
+      "id": 400,
+      "size": 12
+    }
+  ],
+  "failed": [],
+  "format": "wem",
+  "soundbank": "[DIR]/SSAM_Test.bnk",
+  "target": "[DIR]/out"
+}

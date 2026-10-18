@@ -1,0 +1,41 @@
+---
+source: crates/p4kx/tests/json_bnk.rs
+expression: json
+---
+{
+  "bank_id": 3512036681,
+  "soundbank": "[DIR]/SSAM_Test.bnk",
+  "version": 154,
+  "wems": [
+    {
+      "codec": "pcm",
+      "codec_name": "PCM",
+      "duration_seconds": 0.025,
+      "error": null,
+      "id": 100,
+      "prefetch": false,
+      "sample_count": 1200,
+      "size": 4852
+    },
+    {
+      "codec": "vorbis",
+      "codec_name": "Wwise Vorbis",
+      "duration_seconds": 2.0,
+      "error": null,
+      "id": 300,
+      "prefetch": false,
+      "sample_count": 88200,
+      "size": 350
+    },
+    {
+      "codec": null,
+      "codec_name": null,
+      "duration_seconds": null,
+      "error": "the WEM has no `fmt ` chunk",
+      "id": 400,
+      "prefetch": false,
+      "sample_count": null,
+      "size": 12
+    }
+  ]
+}

@@ -13,6 +13,7 @@ use rayon::prelude::*;
 
 mod records;
 mod sound;
+mod soundbank;
 mod texture;
 
 type TestResult = Result<(), Box<dyn Error>>;

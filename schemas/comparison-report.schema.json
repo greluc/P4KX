@@ -174,6 +174,62 @@
       ],
       "type": "object"
     },
+    "FieldChangeReport": {
+      "description": "One field whose value differs, or that only one side has.",
+      "properties": {
+        "new": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The new value, absent when the new side has no such field."
+        },
+        "old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The old value, absent when the old side has no such field."
+        },
+        "path": {
+          "description": "The path of the field in the Record: its name for a field of the Record itself.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "Float": {
+      "description": "A float: a number, or NaN, INF or -INF.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "NaN",
+            "INF",
+            "-INF"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Guid": {
+      "description": "A GUID of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
     "Level": {
       "description": "One level a Comparison works on.",
       "oneOf": [
@@ -181,8 +237,218 @@
           "const": "entries",
           "description": "Entries added, removed or changed, from the central directories.",
           "type": "string"
+        },
+        {
+          "const": "records",
+          "description": "Records added, removed, moved or changed, joined by GUID.",
+          "type": "string"
         }
       ]
+    },
+    "RecordChangeKind": {
+      "description": "How a Record differs between the two sides of a Comparison.",
+      "oneOf": [
+        {
+          "const": "added",
+          "description": "Only the new side has the GUID.",
+          "type": "string"
+        },
+        {
+          "const": "removed",
+          "description": "Only the old side has the GUID.",
+          "type": "string"
+        },
+        {
+          "const": "moved",
+          "description": "Both sides have the GUID at different record paths; fields may differ as well.",
+          "type": "string"
+        },
+        {
+          "const": "changed",
+          "description": "Both sides have the GUID at the same record path, with a different name, type or field.",
+          "type": "string"
+        },
+        {
+          "const": "unreadable",
+          "description": "The Record cannot be read on at least one side, so it was not compared.",
+          "type": "string"
+        }
+      ]
+    },
+    "RecordChangeReport": {
+      "description": "One added, removed, moved, changed or unreadable Record.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/RecordChangeKind",
+          "description": "How the Record differs."
+        },
+        "errors": {
+          "description": "Why the Record cannot be read, one entry per side; absent unless it is unreadable.",
+          "items": {
+            "$ref": "#/$defs/RecordErrorReport"
+          },
+          "type": "array"
+        },
+        "fields": {
+          "description": "The changed fields in field order of the new side, the fields only the old side has\nlast; empty for an added, removed or unreadable Record.",
+          "items": {
+            "$ref": "#/$defs/FieldChangeReport"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID that joins both sides."
+        },
+        "new": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordStateReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Record on the new side, absent when it was removed or cannot be read."
+        },
+        "old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordStateReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Record on the old side, absent when it was added or cannot be read."
+        }
+      },
+      "required": [
+        "guid",
+        "change",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "RecordCounts": {
+      "description": "The number of Records per change kind.",
+      "properties": {
+        "added": {
+          "description": "Records only the new side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "changed": {
+          "description": "Records at the same record path with a different name, type or field.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "moved": {
+          "description": "Records at another record path.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "removed": {
+          "description": "Records only the old side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unreadable": {
+          "description": "Records that cannot be read on at least one side.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "added",
+        "removed",
+        "moved",
+        "changed",
+        "unreadable"
+      ],
+      "type": "object"
+    },
+    "RecordErrorReport": {
+      "description": "Why a Record cannot be read on one side.",
+      "properties": {
+        "reason": {
+          "description": "What cannot be read.",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/RecordSide",
+          "description": "The side whose Record cannot be read."
+        }
+      },
+      "required": [
+        "side",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "RecordLevel": {
+      "description": "The Records added, removed, moved, changed and unreadable.",
+      "properties": {
+        "changes": {
+          "description": "Every added, removed, moved, changed or unreadable Record, ordered by record path ignoring\ncase and separator kind, then by GUID.",
+          "items": {
+            "$ref": "#/$defs/RecordChangeReport"
+          },
+          "type": "array"
+        },
+        "counts": {
+          "$ref": "#/$defs/RecordCounts",
+          "description": "The number of Records per change kind."
+        }
+      },
+      "required": [
+        "counts",
+        "changes"
+      ],
+      "type": "object"
+    },
+    "RecordSide": {
+      "description": "One side of a Comparison.",
+      "oneOf": [
+        {
+          "const": "old",
+          "description": "The old Archive.",
+          "type": "string"
+        },
+        {
+          "const": "new",
+          "description": "The new Archive.",
+          "type": "string"
+        }
+      ]
+    },
+    "RecordStateReport": {
+      "description": "What identifies a Record on one side.",
+      "properties": {
+        "name": {
+          "description": "The Record name, e.g. `EntityClassDefinition.AEGS_Avenger`.",
+          "type": "string"
+        },
+        "record_path": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The name of the Record's struct.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_path",
+        "name",
+        "type"
+      ],
+      "type": "object"
     },
     "SourceSide": {
       "description": "One Archive of a Comparison.",
@@ -248,6 +514,301 @@
         "new"
       ],
       "type": "object"
+    },
+    "ValueReport": {
+      "description": "A scalar value with its type.",
+      "oneOf": [
+        {
+          "description": "A boolean.",
+          "properties": {
+            "type": {
+              "const": "bool",
+              "type": "string"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A signed 8-bit integer.",
+          "properties": {
+            "type": {
+              "const": "int8",
+              "type": "string"
+            },
+            "value": {
+              "format": "int8",
+              "maximum": 127,
+              "minimum": -128,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A signed 16-bit integer.",
+          "properties": {
+            "type": {
+              "const": "int16",
+              "type": "string"
+            },
+            "value": {
+              "format": "int16",
+              "maximum": 32767,
+              "minimum": -32768,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A signed 32-bit integer.",
+          "properties": {
+            "type": {
+              "const": "int32",
+              "type": "string"
+            },
+            "value": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A signed 64-bit integer.",
+          "properties": {
+            "type": {
+              "const": "int64",
+              "type": "string"
+            },
+            "value": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An unsigned 8-bit integer.",
+          "properties": {
+            "type": {
+              "const": "uint8",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An unsigned 16-bit integer.",
+          "properties": {
+            "type": {
+              "const": "uint16",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An unsigned 32-bit integer.",
+          "properties": {
+            "type": {
+              "const": "uint32",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An unsigned 64-bit integer.",
+          "properties": {
+            "type": {
+              "const": "uint64",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A 32-bit float; `NaN`, `INF` and `-INF` as strings.",
+          "properties": {
+            "type": {
+              "const": "single",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Float"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A 64-bit float; `NaN`, `INF` and `-INF` as strings.",
+          "properties": {
+            "type": {
+              "const": "double",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Float"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A string.",
+          "properties": {
+            "type": {
+              "const": "string",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A localisation key, e.g. `@item_Name`.",
+          "properties": {
+            "type": {
+              "const": "locale",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A GUID.",
+          "properties": {
+            "type": {
+              "const": "guid",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/Guid"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The name of an enum option.",
+          "properties": {
+            "type": {
+              "const": "enum",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A value that cannot be read, as the reason.",
+          "properties": {
+            "type": {
+              "const": "error",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -265,7 +826,7 @@
       "description": "The Entry level, present when it was compared."
     },
     "filter": {
-      "description": "The Filter that selected the Entries on both sides, `null` when every Entry was compared.",
+      "description": "The Filter that selected the Entries by path and the Records by either record path on\nboth sides, `null` when everything was compared.",
       "type": "string"
     },
     "format_version": {
@@ -280,6 +841,17 @@
         "$ref": "#/$defs/Level"
       },
       "type": "array"
+    },
+    "records": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RecordLevel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The Record level, present when it was compared."
     },
     "source": {
       "$ref": "#/$defs/Sources",

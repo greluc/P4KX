@@ -2813,6 +2813,7 @@ dependencies = [
  "p4kx-archive",
  "p4kx-channels",
  "p4kx-cryxml",
+ "p4kx-dataforge",
  "p4kx-extraction",
  "p4kx-testkit",
  "rayon",
@@ -2840,6 +2841,7 @@ dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
  "rayon",
+ "roxmltree",
  "thiserror 2.0.21",
 ]
 

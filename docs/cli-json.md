@@ -175,6 +175,42 @@ Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
 `sample_count` is the number of frames written and `size` the size of the written WAV file. A
 codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
+## `p4kx bnk list <archive> <entry> --json`
+
+Also `p4kx bnk list <file> --json` for a soundbank file on disk.
+
+```json
+{"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
+ "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
+           "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
+           "duration_seconds": null, "prefetch": true, "error": null}]}
+```
+
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
+`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
+whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
+cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+prints no JSON; it fails with exit code 1 and an error naming the section.
+
+## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav] --json`
+
+Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on disk.
+
+```json
+{"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "target": "…\\out", "format": "wav",
+ "extracted": [{"id": 100, "file": "…\\out\\100.wav", "size": 9644, "prefetch": false}],
+ "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
+```
+
+`format` is `wem` or `wav`, the extension of the files. `extracted` lists the WEMs written as
+`<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
+both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
+fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
+`"prefetch": true`. With `--json`
+failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
+
 ## `p4kx extract … --json`
 
 ```json
@@ -204,20 +240,37 @@ The Comparison report, the same document `--report <file>` writes (there pretty-
 JSON Schema (draft 2020-12) is generated from the report types and checked in as
 [`schemas/comparison-report.schema.json`](../schemas/comparison-report.schema.json); a test fails
 when the two drift apart, and `P4KX_BLESS=1 cargo test -p p4kx-comparison --test report_schema`
-regenerates it. The output is deterministic: Entries are ordered by path ignoring case and
-separator kind. The exit code is 0 without and 1 with differences.
+regenerates it. The output is deterministic: Entries are ordered by path and Records by record
+path, both ignoring case and separator kind, Records with the same record path by GUID. The exit
+code is 0 without and 1 with differences on any compared level.
 
 | Field | Type | Meaning |
 |-------|------|---------|
 | `format_version` | number | Version of the report shape, now `1` |
 | `source.old`, `source.new` | object | `archive` (path), `channel` (string or `null`) and `build` (a [Build](#build) or `null`) of each side |
-| `levels` | array | The levels compared, e.g. `["entries"]` |
-| `filter` | string or `null` | The Filter that selected the Entries on both sides |
+| `levels` | array | The levels compared, e.g. `["entries", "records"]` |
+| `filter` | string or `null` | The Filter that selected the Entries by path and the Records by the record path of either side |
 | `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
+| `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
+| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
+| `records.changes[].fields` | array | One object per changed field: `path` (the field name), and `old` and `new` values for the sides that have the field; empty for an added, removed or unreadable Record |
+| `records.changes[].errors` | array | One object per side whose Record cannot be read: `side` (`old` or `new`) and `reason`; absent for every other Record |
 
-`entries` is absent when the Entry level was not compared.
+`entries` is absent when the Entry level was not compared, `records` when the Record level was
+not compared.
+
+Records are joined by GUID. A Record is `moved` when its record path differs, ignoring case and
+separator kind; its changed fields are listed as well. It is `changed` when its name, its type
+or a field differs. It is `unreadable` when its record path, name, type or fields cannot be read
+on a side; it is then not compared, and the Comparison goes on with the other Records. Fields are joined by name, so a field only one side has is listed with only
+`old` or only `new`. Each value is an object with `type` (`bool`, `int8` … `int64`, `uint8` …
+`uint64`, `single`, `double`, `string`, `locale`, `guid`, `enum` or `error`) and `value`: a
+number for integers and floats, `NaN`, `INF` or `-INF` as a string for a float that is not
+finite, the option name for an enum, and the reason for an `error`, a value that cannot be read.
+Floats compare by their bits, every `NaN` equal to every other, so `-0.0` differs from `0.0`.
+Arrays, inline structs, pointers and References are not compared yet.
 
 ## `p4kx compare <old> <new> --diff <entry> --json`
 

@@ -1,13 +1,10 @@
-use std::fmt;
+use crate::{Guid, Reference, StructValue, ValueError};
 
-use thiserror::Error;
-
-use crate::{DataType, Guid};
-
-/// The value of one field in the canonical Record tree.
+/// The value of one field or array element in the canonical Record tree.
 ///
-/// Text is borrowed from the DataForge. A value that cannot be read is an [`Value::Error`] at its
-/// field, so the rest of the Record still builds.
+/// Text is borrowed from the DataForge. Owned children are nested; other Records and weak
+/// pointers are [`Value::Reference`] links and never embedded. A value that cannot be read is an
+/// [`Value::Error`] at its place, so the rest of the Record still builds.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Value<'f> {
@@ -41,56 +38,41 @@ pub enum Value<'f> {
     Guid(Guid),
     /// The name of an enum option.
     Enum(&'f str),
+    /// An owned struct: an inline class or the target of a strong pointer.
+    Struct(StructValue<'f>),
+    /// The elements of an array field in stored order.
+    Array(Box<[Self]>),
+    /// A link to a Record, or to an instance inside the Record for a weak pointer.
+    Reference(Box<Reference<'f>>),
+    /// A null pointer or a null Reference.
+    Null,
     /// A value that cannot be read, with the reason.
     Error(ValueError),
 }
 
-/// Why the value of one field cannot be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[non_exhaustive]
-pub enum ValueError {
-    /// A string, localisation key or enum value is not a valid string offset.
-    #[error("offset {offset} in the {table} table is not a valid string")]
-    InvalidString {
-        /// The table the offset points into.
-        table: &'static str,
-        /// The offset.
-        offset: u32,
-    },
-    /// An enum field names an enum that does not exist.
-    #[error("the field refers to enum {index}, which does not exist")]
-    UnknownEnum {
-        /// The enum index the property gives.
-        index: u16,
-    },
-    /// A bool byte is neither 0 nor 1.
-    #[error("the bool byte {byte} is neither 0 nor 1")]
-    InvalidBool {
-        /// The stored byte.
-        byte: u8,
-    },
-    /// The field holds a kind of value this version does not read yet.
-    #[error("{} not read yet", NotReadKind { data_type: *data_type, array: *array })]
-    NotRead {
-        /// The data type of the field.
-        data_type: DataType,
-        /// Whether the field holds an array.
-        array: bool,
-    },
-}
-
-struct NotReadKind {
-    data_type: DataType,
-    array: bool,
-}
-
-impl fmt::Display for NotReadKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.array {
-            write!(f, "arrays of {} are", self.data_type)
-        } else {
-            write!(f, "{} values are", self.data_type)
-        }
+impl Value<'_> {
+    /// Returns whether the value is a scalar: a bool, number, string, localisation key, GUID or
+    /// enum option, but no struct, array, Reference, null or error.
+    #[must_use]
+    pub const fn is_scalar(&self) -> bool {
+        matches!(
+            self,
+            Self::Bool(_)
+                | Self::Int8(_)
+                | Self::Int16(_)
+                | Self::Int32(_)
+                | Self::Int64(_)
+                | Self::UInt8(_)
+                | Self::UInt16(_)
+                | Self::UInt32(_)
+                | Self::UInt64(_)
+                | Self::Single(_)
+                | Self::Double(_)
+                | Self::String(_)
+                | Self::Locale(_)
+                | Self::Guid(_)
+                | Self::Enum(_)
+        )
     }
 }
 

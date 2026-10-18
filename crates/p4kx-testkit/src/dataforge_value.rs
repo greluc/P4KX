@@ -29,6 +29,18 @@ pub enum TestValue {
     Guid(u128),
     /// Bytes written as they are at the start of the field, e.g. an invalid text offset.
     Raw(Vec<u8>),
+    /// A struct value: written inline in a class field, or as a new instance that a strong
+    /// pointer or a class array holds.
+    Struct(TestInstance),
+    /// A strong or weak pointer to the instance or Record of this name.
+    Pointer(String),
+    /// A null pointer or a null Reference.
+    Null,
+    /// A Reference to the Record with this GUID, written as in [`TestRecord::new`](crate::TestRecord::new).
+    Reference(u128),
+    /// The values of an array field, stored in the pool of its type or, for a class array, as
+    /// consecutive instances.
+    Array(Vec<Self>),
 }
 
 impl TestValue {
@@ -36,5 +48,47 @@ impl TestValue {
     #[must_use]
     pub fn text(text: impl Into<String>) -> Self {
         Self::Text(text.into())
+    }
+
+    /// Returns a pointer to the instance or Record named `name`.
+    #[must_use]
+    pub fn pointer(name: impl Into<String>) -> Self {
+        Self::Pointer(name.into())
+    }
+}
+
+/// The values of one struct instance of a synthetic DataForge; fields not set stay zero, and
+/// pointers not set are null.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TestInstance {
+    pub(crate) type_name: String,
+    pub(crate) name: Option<String>,
+    pub(crate) values: Vec<(String, TestValue)>,
+}
+
+impl TestInstance {
+    /// Creates an instance of the struct `type_name`.
+    #[must_use]
+    pub fn new(type_name: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            name: None,
+            values: Vec::new(),
+        }
+    }
+
+    /// Names the instance a struct value creates, so that a later
+    /// [`TestValue::Pointer`] in the order values are written can point to it.
+    #[must_use]
+    pub fn named(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    /// Sets the field `name` to `value`.
+    #[must_use]
+    pub fn value(mut self, name: impl Into<String>, value: TestValue) -> Self {
+        self.values.push((name.into(), value));
+        self
     }
 }

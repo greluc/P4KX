@@ -12,6 +12,13 @@ use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+fn entries_only() -> CompareOptions<'static> {
+    CompareOptions {
+        levels: Levels::ENTRIES,
+        ..CompareOptions::default()
+    }
+}
+
 fn write(dir: &Path, channel: &str, builder: &ArchiveBuilder) -> Result<PathBuf, Box<dyn Error>> {
     let folder = dir.join(channel);
     std::fs::create_dir_all(&folder)?;
@@ -47,7 +54,7 @@ fn pair() -> Result<(tempfile::TempDir, Archive, Archive), Box<dyn Error>> {
 fn entries_are_joined_by_normalised_path_and_changed_only_by_size_or_crc() -> TestResult {
     let (_dir, old, new) = pair()?;
 
-    let comparison = compare(&old, &new, &CompareOptions::default())?;
+    let comparison = compare(&old, &new, None, &entries_only())?;
 
     let changes: Vec<(ChangeKind, &str)> = comparison
         .entry_changes()
@@ -79,7 +86,7 @@ fn entries_are_joined_by_normalised_path_and_changed_only_by_size_or_crc() -> Te
 fn a_changed_entry_keeps_both_sides() -> TestResult {
     let (_dir, old, new) = pair()?;
 
-    let comparison = compare(&old, &new, &CompareOptions::default())?;
+    let comparison = compare(&old, &new, None, &entries_only())?;
 
     let size = comparison
         .entry_changes()
@@ -110,7 +117,7 @@ fn a_changed_entry_keeps_both_sides() -> TestResult {
 fn counts_are_given_per_top_level_directory() -> TestResult {
     let (_dir, old, new) = pair()?;
 
-    let comparison = compare(&old, &new, &CompareOptions::default())?;
+    let comparison = compare(&old, &new, None, &entries_only())?;
 
     let directories: Vec<(&str, usize, usize, usize)> = comparison
         .directory_counts()
@@ -140,9 +147,10 @@ fn the_filter_selects_entries_on_both_sides_with_the_browsing_rules() -> TestRes
     let comparison = compare(
         &old,
         &new,
+        None,
         &CompareOptions {
             filter: Some(&filter),
-            ..CompareOptions::default()
+            ..entries_only()
         },
     )?;
 
@@ -168,7 +176,7 @@ fn the_filter_selects_entries_on_both_sides_with_the_browsing_rules() -> TestRes
 fn identical_archives_have_no_differences() -> TestResult {
     let (_dir, old, _) = pair()?;
 
-    let comparison = compare(&old, &old, &CompareOptions::default())?;
+    let comparison = compare(&old, &old, None, &entries_only())?;
 
     assert!(comparison.entry_changes().is_empty(), "no Entry changed");
     assert!(!comparison.has_differences(), "no differences");
@@ -187,7 +195,7 @@ fn both_sides_carry_channel_and_build() -> TestResult {
     )?;
     let new = Archive::open(dir.path().join("PTU").join("Data.p4k"))?;
 
-    let comparison = compare(&old, &new, &CompareOptions::default())?;
+    let comparison = compare(&old, &new, None, &entries_only())?;
 
     assert_eq!(comparison.old_side().channel(), Some("LIVE"), "old Channel");
     assert!(comparison.old_side().build().is_none(), "old Build unknown");
@@ -213,9 +221,10 @@ fn progress_ends_with_every_selected_entry_done() -> TestResult {
     compare(
         &old,
         &new,
+        None,
         &CompareOptions {
             progress: Some(&record),
-            ..CompareOptions::default()
+            ..entries_only()
         },
     )?;
 
@@ -238,9 +247,10 @@ fn a_cancelled_comparison_returns_cancelled() -> TestResult {
     let result = compare(
         &old,
         &new,
+        None,
         &CompareOptions {
             cancel: Some(&cancel),
-            ..CompareOptions::default()
+            ..entries_only()
         },
     );
 
@@ -258,9 +268,10 @@ fn a_comparison_without_a_level_is_rejected() -> TestResult {
     let result = compare(
         &old,
         &new,
+        None,
         &CompareOptions {
-            levels: Levels { entries: false },
-            ..CompareOptions::default()
+            levels: Levels::NONE,
+            ..entries_only()
         },
     );
 

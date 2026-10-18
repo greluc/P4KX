@@ -5,6 +5,7 @@
 //! This crate is a development dependency only.
 
 mod archive_builder;
+mod bnk;
 mod build_manifest;
 mod bytes;
 mod cryxml;
@@ -20,11 +21,12 @@ mod test_entry;
 mod wem;
 
 pub use archive_builder::ArchiveBuilder;
+pub use bnk::{TestBank, TestHircObject};
 pub use build_manifest::write_build_manifest;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
-pub use dataforge_value::TestValue;
+pub use dataforge_value::{TestInstance, TestValue};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

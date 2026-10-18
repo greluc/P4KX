@@ -1,10 +1,10 @@
 use crate::dataforge::out_of_range;
 use crate::rows::PropertyDef;
+use crate::scalar::read_scalar;
 use crate::schema::CONVERSION_ATTRIBUTE;
-use crate::{DataForge, DataForgeError, DataType, Guid, Value, ValueError};
+use crate::{DataForge, DataForgeError, DataType, Value};
 
 const ARRAY_LEN: u64 = 8;
-const TEXT: &str = "text";
 
 /// One property of a struct as it is laid out in an instance: its type and whether it is an
 /// array.
@@ -85,63 +85,12 @@ impl Slot {
         })
     }
 
-    /// Reads the value from `bytes`, the field's bytes of exactly [`Slot::size`].
+    /// Reads the scalar value from `bytes`, the field's bytes of exactly [`Slot::size`]; a field
+    /// that holds no single scalar reads as null.
     pub(crate) fn read<'f>(&self, forge: &'f DataForge<'f>, bytes: &[u8]) -> Value<'f> {
-        let data_type = self.data_type;
         if self.array {
-            return Value::Error(ValueError::NotRead {
-                data_type,
-                array: true,
-            });
+            return Value::Null;
         }
-        match data_type {
-            DataType::Bool => match first_bytes::<1>(bytes) {
-                [0] => Value::Bool(false),
-                [1] => Value::Bool(true),
-                [byte] => Value::Error(ValueError::InvalidBool { byte }),
-            },
-            DataType::Int8 => Value::Int8(i8::from_le_bytes(first_bytes(bytes))),
-            DataType::Int16 => Value::Int16(i16::from_le_bytes(first_bytes(bytes))),
-            DataType::Int32 => Value::Int32(i32::from_le_bytes(first_bytes(bytes))),
-            DataType::Int64 => Value::Int64(i64::from_le_bytes(first_bytes(bytes))),
-            DataType::UInt8 => Value::UInt8(u8::from_le_bytes(first_bytes(bytes))),
-            DataType::UInt16 => Value::UInt16(u16::from_le_bytes(first_bytes(bytes))),
-            DataType::UInt32 => Value::UInt32(u32::from_le_bytes(first_bytes(bytes))),
-            DataType::UInt64 => Value::UInt64(u64::from_le_bytes(first_bytes(bytes))),
-            DataType::Single => Value::Single(f32::from_le_bytes(first_bytes(bytes))),
-            DataType::Double => Value::Double(f64::from_le_bytes(first_bytes(bytes))),
-            DataType::Guid => Value::Guid(Guid::from_stored(first_bytes(bytes))),
-            DataType::String => text(forge, bytes, Value::String),
-            DataType::Locale => text(forge, bytes, Value::Locale),
-            DataType::Enum if usize::from(self.def.target) >= forge.enums.len() => {
-                Value::Error(ValueError::UnknownEnum {
-                    index: self.def.target,
-                })
-            }
-            DataType::Enum => text(forge, bytes, Value::Enum),
-            DataType::Class
-            | DataType::StrongPointer
-            | DataType::WeakPointer
-            | DataType::Reference => Value::Error(ValueError::NotRead {
-                data_type,
-                array: false,
-            }),
-        }
+        read_scalar(forge, self.data_type, self.def.target, bytes).unwrap_or(Value::Null)
     }
-}
-
-fn text<'f>(forge: &'f DataForge<'f>, bytes: &[u8], wrap: fn(&'f str) -> Value<'f>) -> Value<'f> {
-    let offset = u32::from_le_bytes(first_bytes(bytes));
-    forge.text.get(offset).map_or(
-        Value::Error(ValueError::InvalidString {
-            table: TEXT,
-            offset,
-        }),
-        wrap,
-    )
-}
-
-/// Returns the first `N` bytes, zero-filled when fewer are given.
-fn first_bytes<const N: usize>(bytes: &[u8]) -> [u8; N] {
-    bytes.first_chunk::<N>().copied().unwrap_or([0; N])
 }

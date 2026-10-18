@@ -4,7 +4,8 @@ use serde::{Serialize, Serializer};
 
 use crate::entry_change::{count, count_by_directory};
 use crate::{
-    Archive, Build, DirectoryCounts, EntryChange, EntryCounts, Levels, Report, report::to_report,
+    Archive, Build, DirectoryCounts, EntryChange, EntryCounts, Levels, RecordChange, RecordCounts,
+    Report, report::to_report,
 };
 
 /// One of the two Archives of a Comparison.
@@ -44,13 +45,14 @@ impl<'a> Side<'a> {
 }
 
 /// The result of comparing an old with a new Archive.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Comparison<'a> {
     pub(crate) old: Side<'a>,
     pub(crate) new: Side<'a>,
     pub(crate) levels: Levels,
     pub(crate) filter: Option<String>,
     pub(crate) entries: Vec<EntryChange<'a>>,
+    pub(crate) records: Vec<RecordChange<'a>>,
 }
 
 impl<'a> Comparison<'a> {
@@ -72,8 +74,8 @@ impl<'a> Comparison<'a> {
         self.levels
     }
 
-    /// Returns the text of the Filter that selected the Entries, `None` when every Entry was
-    /// compared.
+    /// Returns the text of the Filter that selected the Entries and Records, `None` when
+    /// everything was compared.
     #[must_use]
     pub fn filter(&self) -> Option<&str> {
         self.filter.as_deref()
@@ -101,7 +103,20 @@ impl<'a> Comparison<'a> {
     /// Returns whether any compared level found a difference.
     #[must_use]
     pub const fn has_differences(&self) -> bool {
-        !self.entries.is_empty()
+        !self.entries.is_empty() || !self.records.is_empty()
+    }
+
+    /// Returns the added, removed, moved and changed Records, ordered by record path ignoring case
+    /// and separator kind, then by GUID.
+    #[must_use]
+    pub fn record_changes(&self) -> &[RecordChange<'a>] {
+        &self.records
+    }
+
+    /// Returns the number of changed Records per change kind.
+    #[must_use]
+    pub fn record_counts(&self) -> RecordCounts {
+        RecordCounts::of(&self.records)
     }
 
     /// Returns the JSON report of the Comparison.

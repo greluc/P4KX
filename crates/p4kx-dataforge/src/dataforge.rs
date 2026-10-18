@@ -30,6 +30,7 @@ pub struct DataForge<'a> {
     pub(crate) instances: &'a [u8],
     pub(crate) guid_index: OnceLock<Box<[u32]>>,
     pub(crate) path_index: OnceLock<Box<[u32]>>,
+    pub(crate) root_index: OnceLock<Box<[(u32, u32, u32)]>>,
 }
 
 impl<'a> DataForge<'a> {
@@ -83,6 +84,7 @@ impl<'a> DataForge<'a> {
             instances,
             guid_index: OnceLock::new(),
             path_index: OnceLock::new(),
+            root_index: OnceLock::new(),
         };
         forge.check_references()?;
         Ok(forge)

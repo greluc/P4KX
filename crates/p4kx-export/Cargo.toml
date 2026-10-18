@@ -1,0 +1,29 @@
+[package]
+name = "p4kx-export"
+description = "Export service of P4K-Extractor: the Basetool catalog."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "service"
+
+[dependencies]
+p4kx-channels.workspace = true
+p4kx-extraction.workspace = true
+rayon.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+jsonschema.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

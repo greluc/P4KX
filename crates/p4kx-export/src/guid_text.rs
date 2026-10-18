@@ -1,0 +1,62 @@
+use std::borrow::Cow;
+use std::fmt::{self, Write as _};
+
+use p4kx_extraction::Guid;
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
+use serde::{Serialize, Serializer};
+
+const TEXT_LEN: usize = 36;
+
+/// A GUID written as its canonical lower-case UUID text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CatalogGuid(pub(crate) Guid);
+
+impl CatalogGuid {
+    /// Returns the canonical text as bytes, whose order is the order of the catalog.
+    pub(crate) fn text(self) -> [u8; TEXT_LEN] {
+        let mut text = Text {
+            bytes: [0; TEXT_LEN],
+            len: 0,
+        };
+        let _complete = write!(text, "{}", self.0);
+        text.bytes
+    }
+}
+
+struct Text {
+    bytes: [u8; TEXT_LEN],
+    len: usize,
+}
+
+impl fmt::Write for Text {
+    fn write_str(&mut self, part: &str) -> fmt::Result {
+        let end = self.len.checked_add(part.len()).ok_or(fmt::Error)?;
+        self.bytes
+            .get_mut(self.len..end)
+            .ok_or(fmt::Error)?
+            .copy_from_slice(part.as_bytes());
+        self.len = end;
+        Ok(())
+    }
+}
+
+impl Serialize for CatalogGuid {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&self.0)
+    }
+}
+
+impl JsonSchema for CatalogGuid {
+    fn schema_name() -> Cow<'static, str> {
+        "Guid".into()
+    }
+
+    fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "description": "A GUID as canonical lower-case UUID text.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        })
+    }
+}

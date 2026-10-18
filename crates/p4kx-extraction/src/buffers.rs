@@ -5,7 +5,7 @@ const RETAINED_LEN: usize = 64 << 20;
 pub(crate) struct Buffers {
     /// Holds one chunk of Entry data or of an existing file.
     pub(crate) chunk: Vec<u8>,
-    /// Holds the whole data of a `CryXml` Entry.
+    /// Holds the whole data of a `CryXml` or DataForge Entry.
     pub(crate) data: Vec<u8>,
     /// Holds a converted file before it is written: the XML of a `CryXml` Entry or a PNG.
     pub(crate) output: Vec<u8>,

@@ -194,27 +194,32 @@ write a file:
 | `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
-or the absolute path of a `.p4k` file on a drive letter; UNC, device and relative paths and paths
-with `..` are refused.
-Without it the tools use the Archive given with `--archive` when the server was started. Opened
-Archives stay open between calls and are opened again when their file changes. Listings page:
-`limit` sets the page size (100 by default, at most 1000), and a result with `next_cursor` has a
-next page that `cursor` asks for; a cursor only continues the listing that returned it. `--config-dir`, `--launcher-dir` and `--default-library` (or
-`P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as for `p4kx channels`.
+or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+`:` after the drive (an alternate data stream) and a path that resolves to a network drive or
+device are refused. Without it the tools use the Archive given with `--archive` when the server
+was started. Opened Archives stay open between calls and are opened again when their file
+changes. Listings page: `limit` sets the page size (100 by default, at most 1000), and a result
+with `next_cursor` has a next page that `cursor` asks for; a cursor only continues the listing
+that returned it, on the same version of the Archive. `--config-dir`, `--launcher-dir` and
+`--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
+for `p4kx channels`.
 
-Build it with `cargo build --release -p p4kx-mcp`, then add it to the AI client. Claude Code:
+The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
+`%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
+client with its full path. Claude Code:
 
 ```powershell
-claude mcp add p4kx -- "D:\Tools\p4kx-mcp.exe" --archive LIVE
+claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4K-Extractor\p4kx-mcp.exe" --archive LIVE
 ```
 
-Claude Desktop and other clients that read an `mcpServers` file:
+Claude Desktop and other clients that read an `mcpServers` file, with `<user>` your Windows user
+name:
 
 ```json
 {
   "mcpServers": {
     "p4kx": {
-      "command": "D:\\Tools\\p4kx-mcp.exe",
+      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4K-Extractor\\p4kx-mcp.exe",
       "args": ["--archive", "LIVE"]
     }
   }

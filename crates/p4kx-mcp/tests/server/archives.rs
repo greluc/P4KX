@@ -148,8 +148,12 @@ fn unusable_archive_arguments_are_tool_errors() -> TestResult {
     std::fs::write(&not_p4k, "x")?;
     let not_archive = install.path().join("fake.p4k");
     std::fs::write(&not_archive, "not an archive")?;
+    let folder = install.path().join("folder.p4k");
+    std::fs::create_dir(&folder)?;
     let mut server = install.serve(&[])?;
     let cases = [
+        (text(&folder), "not a file"),
+        (format!("{}:stream", text(&install.archive())), "absolute"),
         ("PTU".to_owned(), "LIVE"),
         ("Data.p4k".to_owned(), "detected"),
         ("../LIVE/Data.p4k".to_owned(), "absolute"),

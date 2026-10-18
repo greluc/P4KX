@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -6,6 +7,7 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{Json, ServerHandler, tool, tool_handler, tool_router};
+use tokio::sync::Semaphore;
 
 use crate::archives::Archives;
 use crate::entries;
@@ -24,6 +26,7 @@ page: pass next_cursor back as cursor for the next page.";
 #[derive(Debug, Clone)]
 pub(crate) struct Server {
     state: Arc<State>,
+    workers: Arc<Semaphore>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -43,17 +46,30 @@ impl Server {
                 default_archive,
                 archives: Archives::default(),
             }),
+            workers: Arc::new(Semaphore::new(
+                std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
+            )),
             tool_router: Self::tool_router(),
         }
     }
 
+    /// Runs `work` on the blocking pool, at most one call per CPU at a time.
     async fn run<T, F>(&self, work: F) -> Result<Json<T>, String>
     where
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
     {
+        let Ok(permit) = Arc::clone(&self.workers).acquire_owned().await else {
+            return Err(ToolError::Stopped.message());
+        };
         let state = Arc::clone(&self.state);
-        match tokio::task::spawn_blocking(move || work(&state)).await {
+        let outcome = tokio::task::spawn_blocking(move || {
+            let result = work(&state);
+            drop(permit);
+            result
+        })
+        .await;
+        match outcome {
             Ok(Ok(value)) => Ok(Json(value)),
             Ok(Err(error)) => Err(error.message()),
             Err(_) => Err(ToolError::Stopped.message()),
@@ -145,7 +161,13 @@ impl Server {
                 MAX_PATH_LEN,
             )?;
             let archive = state.archive(params.archive.as_deref())?;
-            let listing = ("list_entries", archive.path(), folder);
+            let listing = (
+                "list_entries",
+                archive.path(),
+                archive.file_len(),
+                archive.file_modified(),
+                folder,
+            );
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             entries::list(&archive, folder, page)
         })
@@ -169,7 +191,13 @@ impl Server {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
             let archive = state.archive(params.archive.as_deref())?;
-            let listing = ("search_entries", archive.path(), filter);
+            let listing = (
+                "search_entries",
+                archive.path(),
+                archive.file_len(),
+                archive.file_modified(),
+                filter,
+            );
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             entries::search(&archive, filter, page)
         })

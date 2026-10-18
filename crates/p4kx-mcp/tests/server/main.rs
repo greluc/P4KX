@@ -5,5 +5,6 @@ mod archives;
 mod entries;
 mod read_only;
 mod real_archive;
+mod reopen;
 mod support;
 mod tool_list;

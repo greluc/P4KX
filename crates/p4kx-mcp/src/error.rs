@@ -25,6 +25,9 @@ pub(crate) enum ToolError {
     /// The path names no existing file.
     #[error("{} does not exist or is not a file", .0.display())]
     Missing(PathBuf),
+    /// The path resolves to a network drive, a device or a file that is no `.p4k`.
+    #[error("{} does not resolve to a `.p4k` file on a local drive", .0.display())]
+    NotLocal(PathBuf),
     /// An argument exceeds its size cap.
     #[error("`{name}` is longer than {max} bytes")]
     TooLong {

@@ -81,19 +81,39 @@ fn archive_path(text: &str) -> Result<PathBuf, ToolError> {
         && !text.contains('\0')
         && path.components().all(|component| match component {
             Component::Prefix(prefix) => matches!(prefix.kind(), Prefix::Disk(_)),
-            Component::RootDir | Component::Normal(_) => true,
+            Component::RootDir => true,
+            Component::Normal(name) => !name.as_encoded_bytes().contains(&b':'),
             Component::CurDir | Component::ParentDir => false,
         })
-        && path
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case(ARCHIVE_EXTENSION));
+        && has_archive_extension(path);
     if !local {
         return Err(ToolError::NotAnArchivePath(text.to_owned()));
     }
     if !path.is_file() {
         return Err(ToolError::Missing(path.to_path_buf()));
     }
+    if !resolves_locally(path) {
+        return Err(ToolError::NotLocal(path.to_path_buf()));
+    }
     Ok(path.to_path_buf())
+}
+
+fn has_archive_extension(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(ARCHIVE_EXTENSION))
+}
+
+/// Returns whether `path`, with every link followed, is a `.p4k` file on a local drive.
+fn resolves_locally(path: &Path) -> bool {
+    let Ok(canonical) = std::fs::canonicalize(path) else {
+        return false;
+    };
+    let on_local_drive = !cfg!(windows)
+        || matches!(
+            canonical.components().next(),
+            Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::VerbatimDisk(_))
+        );
+    on_local_drive && has_archive_extension(&canonical)
 }
 
 #[cfg(test)]
@@ -124,6 +144,9 @@ mod tests {
             "/games/Data.zip",
             r"C:\games\Data.zip",
             "/games/Data",
+            r"C:\games:stream\Data.p4k",
+            r"C:\games\Data.p4k:stream",
+            "/games:stream/Data.p4k",
         ];
         for text in rejected {
             assert!(

@@ -21,7 +21,7 @@ rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 
 [dev-dependencies]
 p4kx-testkit.workspace = true

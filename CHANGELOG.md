@@ -11,7 +11,7 @@ fails while its section is missing.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
-  page.
+  page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

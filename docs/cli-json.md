@@ -85,6 +85,20 @@ order. `error_values` counts the values written as errors (see
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty.
 
+## `p4kx catalog <archive> --out <file> --json`
+
+```json
+{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 67108864,
+ "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
+ "complete": true}], "skipped": 2}
+```
+
+The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
+in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
+`null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
+development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
+them.
+
 ## `p4kx channels --json`
 
 ```json

@@ -43,6 +43,6 @@ pub use record_report::{
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
-pub use target::{create_default_target, default_target_name};
+pub use target::{create_default_target, default_target_name, utc_rfc3339};
 pub use texture::{PngReport, Texture};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

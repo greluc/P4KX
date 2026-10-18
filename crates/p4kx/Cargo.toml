@@ -14,6 +14,7 @@ layer = "frontend"
 [dependencies]
 p4kx-channels.workspace = true
 p4kx-comparison.workspace = true
+p4kx-export.workspace = true
 p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
 anyhow.workspace = true
@@ -27,6 +28,7 @@ thiserror.workspace = true
 p4kx-testkit.workspace = true
 assert_cmd.workspace = true
 insta.workspace = true
+jsonschema.workspace = true
 png.workspace = true
 predicates.workspace = true
 tempfile.workspace = true

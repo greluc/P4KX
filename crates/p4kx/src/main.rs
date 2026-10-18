@@ -1,5 +1,6 @@
 //! `p4kx`, the command-line interface of P4K-Extractor.
 
+mod catalog;
 mod channels;
 mod cli;
 mod compare;
@@ -32,6 +33,7 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),
+        Command::Catalog(args) => catalog::run(&args, json).map(success),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {
                 report(&error);

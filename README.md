@@ -54,6 +54,12 @@ Early development (milestone M1). Available today:
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes.
+- `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
+  Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
+  schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
+  with test, template and dummy Records left out and counted as skipped. `--filter` marks the
+  catalog partial. It prints the counts per kind and warns when the catalog nears or exceeds the
+  64 MiB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

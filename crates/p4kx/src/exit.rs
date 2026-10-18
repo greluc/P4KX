@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
 
+use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::NoRecordMatch;
@@ -83,6 +84,8 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<NoRecordMatch>().is_some()
         || texture::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
+        || error.downcast_ref::<InvalidExportTime>().is_some()
+        || error.downcast_ref::<MissingCatalogArgs>().is_some()
     {
         INVALID_INPUT
     } else {

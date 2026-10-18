@@ -6,8 +6,8 @@ use crate::{Field, FieldChange, Value};
 /// has, in field order of `new` and then the fields only `old` has.
 ///
 /// Fields are joined by name; when a name occurs more than once, the occurrences are joined in
-/// order. Floats are equal only when their bits are, so `NaN` equals itself and `-0.0` differs
-/// from `0.0`.
+/// order. Floats compare by their bits, every `NaN` equal to every other, so `-0.0` differs from
+/// `0.0`.
 pub(crate) fn diff_fields<'a>(old: &[Field<'a>], new: &[Field<'a>]) -> Vec<FieldChange<'a>> {
     let same_layout =
         old.len() == new.len() && old.iter().zip(new).all(|(a, b)| a.name() == b.name());
@@ -82,8 +82,12 @@ fn change<'a>(path: &'a str, old: Option<&Value<'a>>, new: Option<&Value<'a>>) -
 fn same(old: &Value<'_>, new: &Value<'_>) -> bool {
     match (old, new) {
         _ if !is_scalar(old) || !is_scalar(new) => true,
-        (Value::Single(a), Value::Single(b)) => a.to_bits() == b.to_bits(),
-        (Value::Double(a), Value::Double(b)) => a.to_bits() == b.to_bits(),
+        (Value::Single(a), Value::Single(b)) => {
+            (a.is_nan() && b.is_nan()) || a.to_bits() == b.to_bits()
+        }
+        (Value::Double(a), Value::Double(b)) => {
+            (a.is_nan() && b.is_nan()) || a.to_bits() == b.to_bits()
+        }
         _ => old == new,
     }
 }

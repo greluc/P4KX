@@ -3,10 +3,11 @@
 mod channels;
 mod cli;
 mod compare;
-mod compare_records;
 mod cryxml;
+mod dataforges;
 mod dcb;
 mod dcb_export;
+mod diff;
 mod exit;
 mod extract;
 mod info;

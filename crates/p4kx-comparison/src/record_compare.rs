@@ -5,10 +5,10 @@ use rayon::prelude::*;
 
 use crate::compare::check_cancel;
 use crate::field_diff::diff_fields;
-use crate::path_key::{cmp_normalised, eq_normalised};
+use crate::path_key::cmp_normalised;
 use crate::{
     CompareOptions, ComparisonError, ComparisonProgress, DataForge, DataForgeError, DataForges,
-    Record, RecordChange, RecordState,
+    Record, RecordChange, RecordChangeKind, RecordState,
 };
 
 const PROGRESS_STEP: usize = 1 << 12;
@@ -28,7 +28,7 @@ enum Joined<'a> {
 pub(crate) fn compare_records<'a>(
     forges: DataForges<'a>,
     options: &CompareOptions<'_>,
-    entries: ComparisonProgress,
+    progress_so_far: ComparisonProgress,
 ) -> Result<Vec<RecordChange<'a>>, ComparisonError> {
     let (old, new) = rayon::join(|| by_guid(forges.old), || by_guid(forges.new));
     check_cancel(options)?;
@@ -44,7 +44,7 @@ pub(crate) fn compare_records<'a>(
             progress(ComparisonProgress {
                 records_done: done,
                 records_total: total,
-                ..entries
+                ..progress_so_far
             });
         }
     };
@@ -118,63 +118,68 @@ fn diff<'a>(
     pair: Joined<'a>,
     options: &CompareOptions<'_>,
 ) -> Result<Option<RecordChange<'a>>, ComparisonError> {
-    let selected = |paths: &[&str]| {
-        options
-            .filter
-            .is_none_or(|filter| paths.iter().any(|path| filter.matches(path)))
+    let (old, new) = match pair {
+        Joined::Removed(old) => (Some(old), None),
+        Joined::Added(new) => (None, Some(new)),
+        Joined::Both(old, new) => (Some(old), Some(new)),
     };
-    match pair {
-        Joined::Removed(old) => {
-            let state = state(old, OLD)?;
-            Ok(selected(&[state.record_path]).then(|| RecordChange {
-                guid: old.guid(),
-                old: Some(state),
-                new: None,
-                fields: Vec::new(),
-            }))
-        }
-        Joined::Added(new) => {
-            let state = state(new, NEW)?;
-            Ok(selected(&[state.record_path]).then(|| RecordChange {
-                guid: new.guid(),
-                old: None,
-                new: Some(state),
-                fields: Vec::new(),
-            }))
-        }
-        Joined::Both(old, new) => {
-            let (before, after) = (state(old, OLD)?, state(new, NEW)?);
-            if !selected(&[before.record_path, after.record_path]) {
-                return Ok(None);
-            }
-            let old_tree = old.tree().map_err(|source| unreadable(old, OLD, source))?;
-            let new_tree = new.tree().map_err(|source| unreadable(new, NEW, source))?;
-            let fields = diff_fields(old_tree.fields(), new_tree.fields());
-            let differs = !fields.is_empty()
-                || before.name != after.name
-                || before.type_name != after.type_name
-                || !eq_normalised(before.record_path, after.record_path);
-            Ok(differs.then(|| RecordChange {
-                guid: new.guid(),
-                old: Some(before),
-                new: Some(after),
-                fields,
-            }))
-        }
+    let old_path = old.map(|record| path(record, OLD)).transpose()?;
+    let new_path = new.map(|record| path(record, NEW)).transpose()?;
+    if let Some(filter) = options.filter
+        && !old_path
+            .into_iter()
+            .chain(new_path)
+            .any(|path| filter.matches(path))
+    {
+        return Ok(None);
     }
+    let guid = new.or(old).map(|record| record.guid()).unwrap_or_default();
+    let mut change = RecordChange {
+        guid,
+        old: old
+            .zip(old_path)
+            .map(|(record, path)| state(record, path, OLD))
+            .transpose()?,
+        new: new
+            .zip(new_path)
+            .map(|(record, path)| state(record, path, NEW))
+            .transpose()?,
+        fields: Vec::new(),
+    };
+    let (Some(old), Some(new), Some(before), Some(after)) = (old, new, change.old, change.new)
+    else {
+        return Ok(Some(change));
+    };
+    let old_tree = old.tree().map_err(|source| unreadable(old, OLD, source))?;
+    let new_tree = new.tree().map_err(|source| unreadable(new, NEW, source))?;
+    change.fields = diff_fields(old_tree.fields(), new_tree.fields());
+    let differs = !change.fields.is_empty()
+        || before.name != after.name
+        || before.type_name != after.type_name
+        || change.kind() == RecordChangeKind::Moved;
+    Ok(differs.then_some(change))
 }
 
-fn state<'a>(record: Record<'a>, side: &'static str) -> Result<RecordState<'a>, ComparisonError> {
+fn path<'a>(record: Record<'a>, side: &'static str) -> Result<&'a str, ComparisonError> {
+    record
+        .record_path()
+        .map_err(|source| unreadable(record, side, source))
+}
+
+fn state<'a>(
+    record: Record<'a>,
+    record_path: &'a str,
+    side: &'static str,
+) -> Result<RecordState<'a>, ComparisonError> {
     let read = || {
         Ok::<_, DataForgeError>(RecordState {
-            record_path: record.record_path()?,
+            record_path,
             name: record.name()?,
             type_name: record.type_name()?,
         })
     };
     read().map_err(|source| unreadable(record, side, source))
 }
-
 const fn unreadable(
     record: Record<'_>,
     side: &'static str,

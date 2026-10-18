@@ -19,6 +19,9 @@ fails while its section is missing.
 - `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
   removed, moved or changed, with each changed scalar field and its old and new value, in the
   summary counts and the JSON report; without `--entries` or `--records` both levels run.
+- `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
+  unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
+  removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the
@@ -28,6 +31,9 @@ fails while its section is missing.
 - `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
   (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
   every current Channel, and any other version is reported as not supported.
+
+- Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
+  shortcuts working anywhere in the window.
 
 ### Changed
 

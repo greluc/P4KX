@@ -3,6 +3,7 @@ use rayon::prelude::*;
 use crate::bc::{self, Texels};
 use crate::pixels::PixelFormat;
 use crate::{TextureError, TextureFormat};
+use crate::{bc7, rgtc};
 
 const BLOCK_SIDE: usize = 4;
 const RGBA: usize = 4;
@@ -41,29 +42,39 @@ impl RgbaImage {
     }
 }
 
-/// How one format is decoded.
+/// How one format is decoded: block by block for 8- or 16-byte blocks, or row by row.
 #[derive(Debug, Clone, Copy)]
 enum Decoder {
-    Bc1,
-    Bc2,
-    Bc3,
+    Block8(fn([u8; 8]) -> Texels),
+    Block16(fn([u8; 16]) -> Texels),
     Pixels(PixelFormat),
 }
 
 impl Decoder {
     const fn of(format: TextureFormat) -> Option<Self> {
-        if let TextureFormat::Dxgi(dxgi) = format {
-            match dxgi.0 {
-                70..=72 => return Some(Self::Bc1),
-                73..=75 => return Some(Self::Bc2),
-                76..=78 => return Some(Self::Bc3),
-                _ => {}
-            }
+        if let TextureFormat::Dxgi(dxgi) = format
+            && let Some(decoder) = Self::block(dxgi.0)
+        {
+            return Some(decoder);
         }
         match PixelFormat::of(format) {
             Some(pixels) => Some(Self::Pixels(pixels)),
             None => None,
         }
+    }
+
+    const fn block(dxgi: u32) -> Option<Self> {
+        Some(match dxgi {
+            70..=72 => Self::Block8(bc::bc1),
+            73..=75 => Self::Block16(bc::bc2),
+            76..=78 => Self::Block16(bc::bc3),
+            79 | 80 => Self::Block8(rgtc::bc4_unorm),
+            81 => Self::Block8(rgtc::bc4_snorm),
+            82 | 83 => Self::Block16(rgtc::bc5_unorm),
+            84 => Self::Block16(rgtc::bc5_snorm),
+            97..=99 => Self::Block16(bc7::bc7),
+            _ => return None,
+        })
     }
 }
 
@@ -79,7 +90,9 @@ impl TextureFormat {
 /// parallel.
 ///
 /// Single-channel formats become grey, alpha-only formats black with that alpha, two-channel
-/// formats red and green; floating-point values are clamped to 0..=1.
+/// formats red and green; floating-point values are clamped to 0..=1. BC5 is a normal map: X in
+/// red, Y in green and the reconstructed Z in blue. A reserved BC7 mode decodes to transparent
+/// black.
 ///
 /// # Errors
 ///
@@ -118,9 +131,8 @@ pub fn decode(
         .ok_or_else(overflow)?;
     let mut pixels = vec![0; len];
     match decoder {
-        Decoder::Bc1 => decode_blocks(data, row_len, out_row, &mut pixels, bc::bc1),
-        Decoder::Bc2 => decode_blocks(data, row_len, out_row, &mut pixels, bc::bc2),
-        Decoder::Bc3 => decode_blocks(data, row_len, out_row, &mut pixels, bc::bc3),
+        Decoder::Block8(block) => decode_blocks(data, row_len, out_row, &mut pixels, block),
+        Decoder::Block16(block) => decode_blocks(data, row_len, out_row, &mut pixels, block),
         Decoder::Pixels(format) => pixels
             .par_chunks_mut(out_row)
             .zip(data.par_chunks(row_len))

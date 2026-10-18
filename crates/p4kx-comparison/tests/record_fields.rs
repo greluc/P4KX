@@ -76,7 +76,7 @@ fn floats_are_compared_by_their_bits() -> TestResult {
     let new = database(
         floats(),
         &[
-            ("single", TestValue::Single(f32::NAN)),
+            ("single", TestValue::Single(f32::from_bits(0x7fc0_0001))),
             ("double", TestValue::Double(-0.0)),
         ],
     );
@@ -86,7 +86,7 @@ fn floats_are_compared_by_their_bits() -> TestResult {
     assert_eq!(
         changes,
         [change("double", Some("Double(0.0)"), Some("Double(-0.0)"))],
-        "NaN equals itself, -0.0 differs from 0.0"
+        "every NaN equals every NaN, -0.0 differs from 0.0"
     );
     Ok(())
 }

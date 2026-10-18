@@ -16,6 +16,7 @@ mod format;
 mod language;
 mod model;
 mod preview;
+mod query;
 mod record_index;
 mod record_search;
 mod record_tree;
@@ -48,6 +49,10 @@ pub use preview::{
     ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
     PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
 };
+pub use query::{
+    CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
+    QueryStage, QueryStatus, QueryTab, ResultColumn,
+};
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
 };
@@ -55,5 +60,5 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    RecordSearchText, Text, Texts,
+    QueryText, RecordSearchText, Text, Texts,
 };

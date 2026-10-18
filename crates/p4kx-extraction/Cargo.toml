@@ -13,12 +13,14 @@ layer = "service"
 
 [dependencies]
 p4kx-archive.workspace = true
+p4kx-texture.workspace = true
 crc32c.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
+rayon.workspace = true
 tempfile.workspace = true
 
 [lints]

@@ -72,7 +72,8 @@ pub(crate) fn compare_records<'a>(
 }
 
 /// Compares the Records at the positions of `key` again, as [`compare_records`] does; `None`
-/// when they do not differ or neither position holds a Record.
+/// when they do not differ, neither position holds a Record or the two Records have different
+/// GUIDs.
 pub(crate) fn compare_record<'a>(
     forges: DataForges<'a>,
     key: RecordKey,
@@ -84,10 +85,10 @@ pub(crate) fn compare_record<'a>(
         side(forges.old, key.old_position())?,
         side(forges.new, key.new_position())?,
     ) {
-        (Some(old), Some(new)) => Joined::Both(old, new),
+        (Some(old), Some(new)) if old.guid() == new.guid() => Joined::Both(old, new),
         (Some(old), None) => Joined::Removed(old),
         (None, Some(new)) => Joined::Added(new),
-        (None, None) => return None,
+        _ => return None,
     };
     diff(pair, &CompareOptions::default())
 }
@@ -201,4 +202,39 @@ fn read<T>(
     result
         .map_err(|error| errors.push(RecordError { side, error }))
         .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType};
+
+    use super::compare_record;
+    use crate::{DataForge, DataForges, RecordKey};
+
+    fn database(guid: u128) -> Vec<u8> {
+        DataForgeBuilder::new()
+            .structure(TestStruct::new("Ship").field("speed", TestType::Int32))
+            .record(TestRecord::new(
+                guid,
+                "Ship",
+                "Ship.One",
+                "libs/ships/one.xml",
+            ))
+            .build()
+    }
+
+    #[test]
+    fn a_key_over_records_of_different_guids_has_no_change() -> Result<(), crate::DataForgeError> {
+        let (old, new) = (database(1), database(2));
+        let (old, new) = (DataForge::open(&old)?, DataForge::open(&new)?);
+        let forges = DataForges {
+            old: &old,
+            new: &new,
+        };
+
+        let change = compare_record(forges, RecordKey::new(Some(0), Some(0)));
+
+        assert!(change.is_none(), "two unrelated Records: {change:?}");
+        Ok(())
+    }
 }

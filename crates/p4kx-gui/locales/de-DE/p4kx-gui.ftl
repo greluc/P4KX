@@ -258,7 +258,7 @@ column-record-path = Record-Pfad
 record-change-progress = { $done } von { $total } Records, { $percent } %
 record-change-moved = Verschoben
 record-change-unreadable = Unlesbar
-record-change-moved-path = { $old } › { $new }
+record-change-moved-path = { $old } zu { $new }
 record-change-no-differences = Kein Record unterscheidet sich zwischen den DataForges.
 record-change-head-field = Feld
 record-change-field-count =
@@ -287,7 +287,7 @@ record-change-value-array =
     }
 record-change-value-reference-at = { $path } · { $at }
 record-change-value-error = Fehler: { $reason }
-record-change-field-row = { $field }: { $old } › { $new }
+record-change-field-row = { $field }: { $old } zu { $new }
 change-extraction-action-old = Alt extrahieren ({ $number }) …
 change-extraction-action-new = Neu extrahieren ({ $number }) …
 change-extraction-scope-old = Geänderte Einträge des alten Archivs, in ihrer alten Fassung ({ $number })

@@ -19,6 +19,21 @@ pub struct OwnedDataForges {
     pub new: Arc<DataForgeEntry>,
 }
 
+/// Both DataForges of an [`OwnedComparison`], opened for comparing single Records again.
+#[derive(Debug, Clone, Copy)]
+pub struct RecordLookup<'a> {
+    forges: DataForges<'a>,
+}
+
+impl<'a> RecordLookup<'a> {
+    /// Compares the Records at `key` again, as the Record level did; `None` when they do not
+    /// differ, `key` matches no Record or its two Records have different GUIDs.
+    #[must_use]
+    pub fn change(&self, key: RecordKey) -> Option<RecordChange<'a>> {
+        compare_record(self.forges, key)
+    }
+}
+
 /// Why the full Comparison of an [`OwnedComparison`] could not be made.
 #[derive(Debug, Error)]
 pub enum RecompareError {
@@ -212,29 +227,30 @@ impl OwnedComparison {
         Ok(use_it(&changes))
     }
 
-    /// Compares the Records at `key` again and hands their change to `use_it`, `None` when they
-    /// do not differ or `key` matches no Record.
+    /// Opens both DataForges once and hands them to `use_it` for comparing single Records again
+    /// by their [`RecordKey`].
     ///
     /// # Errors
     ///
     /// Returns [`RecompareError::Comparison`] with [`ComparisonError::NoDataForge`] when the
     /// Record level was not compared and [`RecompareError::DataForge`] when a DataForge cannot be
     /// opened.
-    pub fn record_change<R>(
+    pub fn with_records<R>(
         &self,
-        key: RecordKey,
-        use_it: impl FnOnce(Option<&RecordChange<'_>>) -> R,
+        use_it: impl FnOnce(&RecordLookup<'_>) -> R,
     ) -> Result<R, RecompareError> {
         let entries = self
             .dataforges
             .as_ref()
             .ok_or(ComparisonError::NoDataForge)?;
         let (old, new) = (entries.old.open()?, entries.new.open()?);
-        let forges = DataForges {
-            old: &old,
-            new: &new,
+        let lookup = RecordLookup {
+            forges: DataForges {
+                old: &old,
+                new: &new,
+            },
         };
-        Ok(use_it(compare_record(forges, key).as_ref()))
+        Ok(use_it(&lookup))
     }
 
     fn without_changes(&self) -> Comparison<'_> {

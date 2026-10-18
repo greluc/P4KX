@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use egui::{Galley, Id, Ui};
+use egui::{Color32, Galley, Id, Rect, Ui};
 use p4kx_comparison::RecordChangeKind;
 
+use super::moved_path::MovedPath;
 use crate::comparison::kind_rank;
 use crate::theme::desktop::ROW_FONT;
 use crate::theme::tokens::Weight;
 use crate::widgets::chip::{self, Tone};
-use crate::widgets::text::{line, plain};
+use crate::widgets::text::{line, paint_left, plain};
 use crate::{ComparisonText, RecordChangeRow, RecordChangeText, RecordChangeView, Text, Texts};
 
 const MAX_ROWS: usize = 512;
@@ -33,7 +34,15 @@ pub(super) fn kind_look(kind: RecordChangeKind) -> (Text, Tone) {
     ))
 }
 
-/// Returns the record path of `row` as the list shows it: both paths for a moved Record.
+/// Returns the old and the new record path of a moved Record, `None` for another change.
+pub(super) fn moved(row: &RecordChangeRow) -> Option<(&str, &str)> {
+    match (row.kind(), row.old_path(), row.new_path()) {
+        (RecordChangeKind::Moved, Some(old), Some(new)) => Some((old, new)),
+        _ => None,
+    }
+}
+
+/// Returns the record path of `row` as words: both paths for a moved Record.
 pub(super) fn shown_path(texts: &Texts, row: &RecordChangeRow) -> String {
     match (row.kind(), row.old_path(), row.new_path()) {
         (RecordChangeKind::Moved, Some(old), Some(new)) => texts.format(
@@ -54,12 +63,37 @@ pub(super) enum Cell {
     Type,
 }
 
+/// The laid-out text of a cell: one line, or both record paths of a moved Record.
+#[derive(Clone)]
+pub(super) enum CellText {
+    Line(Arc<Galley>),
+    Moved(MovedPath),
+}
+
+impl CellText {
+    /// Returns the width it takes.
+    pub(super) fn width(&self) -> f32 {
+        match self {
+            Self::Line(galley) => galley.size().x,
+            Self::Moved(paths) => paths.width(),
+        }
+    }
+
+    /// Paints the text left-aligned and vertically centred in `rect` in `colour`.
+    pub(super) fn paint(&self, ui: &Ui, rect: Rect, colour: Color32) {
+        match self {
+            Self::Line(galley) => paint_left(ui, rect, Arc::clone(galley), colour),
+            Self::Moved(paths) => paths.paint(ui, rect.left_center(), colour),
+        }
+    }
+}
+
 /// The laid-out text of one cell.
 #[derive(Clone)]
 struct Laid {
     width: f32,
     weight: Weight,
-    galley: Arc<Galley>,
+    text: CellText,
 }
 
 /// The laid-out texts of the Record rows shown recently and of the chips, kept across frames
@@ -115,33 +149,38 @@ impl RecordRowCache {
     pub(super) fn cell(
         &mut self,
         ui: &Ui,
-        texts: &Texts,
         (id, row, cell): (u32, &RecordChangeRow, Cell),
         (width, weight): (f32, Weight),
-    ) -> Arc<Galley> {
+    ) -> CellText {
         if let Some(kept) = self.rows.get(&(id, cell))
             && (kept.width - width).abs() < 0.5
             && kept.weight == weight
         {
-            return Arc::clone(&kept.galley);
+            return kept.text.clone();
         }
         if self.rows.len() >= MAX_ROWS {
             self.rows.clear();
         }
-        let text = match cell {
-            Cell::Path => shown_path(texts, row),
-            Cell::Type => row.type_name().to_owned(),
+        let text = match (cell, moved(row)) {
+            (Cell::Path, Some(paths)) => {
+                CellText::Moved(MovedPath::lay_out(ui, paths, (ROW_FONT, weight), width))
+            }
+            (Cell::Path, None) => {
+                CellText::Line(line(ui, plain(row.path(), ROW_FONT, weight), width))
+            }
+            (Cell::Type, _) => {
+                CellText::Line(line(ui, plain(row.type_name(), ROW_FONT, weight), width))
+            }
         };
-        let galley = line(ui, plain(text, ROW_FONT, weight), width);
         self.rows.insert(
             (id, cell),
             Laid {
                 width,
                 weight,
-                galley: Arc::clone(&galley),
+                text: text.clone(),
             },
         );
-        galley
+        text
     }
 }
 

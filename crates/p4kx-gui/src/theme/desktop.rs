@@ -3,7 +3,9 @@
 
 use egui::Color32;
 
-use super::tokens::{FS_SM, FS_XS, REM, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET};
+use super::tokens::{
+    FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
+};
 
 /// The height of a data row in the table, the tree, the channel list and dropdowns.
 pub const ROW_HEIGHT: f32 = 36.0;
@@ -118,6 +120,8 @@ pub const TAB_PADDING_X: f32 = 14.0;
 pub const TAB_SIZE: f32 = 0.72 * REM;
 /// The tracking of a tab in em.
 pub const TAB_TRACKING: f32 = 0.06;
+/// The gap between a tab label and its `.tab-count`.
+pub const TAB_COUNT_GAP: f32 = SPACE_1;
 
 /// The default height of the preview.
 pub const PREVIEW_HEIGHT: f32 = 236.0;

@@ -2,17 +2,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use egui::{
-    Color32, CornerRadius, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo, pos2,
-    vec2,
+    Color32, CornerRadius, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, UiBuilder, Vec2,
+    WidgetInfo, pos2, vec2,
 };
+
+use super::table::head_fill;
 use fluent_bundle::FluentValue;
 
 use crate::theme::desktop::{
-    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING, ZEBRA,
 };
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
-use crate::widgets::rows::paint_divider;
+use crate::widgets::rows::{focus_inside, paint_divider};
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::{
     DiffText, FieldName, FieldRow, FieldValue, RecordChangeText, RecordFields, Text, Texts, format,
@@ -200,10 +202,8 @@ fn heads(ui: &mut Ui, cache: &FieldCache) {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
     response.widget_info(|| WidgetInfo::labeled(Role::RowHeader, true, &cache.head_names));
+    head_fill(&ui.new_child(UiBuilder::new().max_rect(rect)), rect.left());
     let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
-    let rule = Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.max);
-    painter.rect_filled(rule, CornerRadius::ZERO, palette::PRIMARY);
     let width = column_width(rect);
     for (index, head) in (0_u8..).zip(&cache.heads) {
         let left = f32::from(index).mul_add(width, rect.left());
@@ -214,7 +214,7 @@ fn heads(ui: &mut Ui, cache: &FieldCache) {
 
 fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (usize, &FieldRow)) {
     let (rect, response) =
-        ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
+        ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let width = column_width(rect);
     let laid = cache.row(
         ui,
@@ -222,6 +222,12 @@ fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (
         (index, row),
         2.0f32.mul_add(-CELL_PADDING_X, width),
     );
+    if response.hovered() {
+        ui.painter()
+            .rect_filled(rect, CornerRadius::ZERO, palette::GRAY_3);
+    } else if index % 2 == 1 {
+        ui.painter().rect_filled(rect, CornerRadius::ZERO, ZEBRA);
+    }
     paint_divider(ui.painter(), rect);
     for (column, (galley, colour)) in (0_u8..).zip(laid.cells) {
         let left = f32::from(column).mul_add(width, rect.left());
@@ -240,7 +246,59 @@ fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (
         )
     };
     response.widget_info(|| WidgetInfo::labeled(Role::Row, true, described()));
-    response.on_hover_ui(|ui| {
-        ui.label(described());
-    });
+    focus_inside(ui.painter(), rect, &response);
+    if response.has_focus() {
+        response.show_tooltip_ui(|ui| {
+            ui.label(described());
+        });
+    } else {
+        response.on_hover_ui(|ui| {
+            ui.label(described());
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::value_text;
+    use crate::theme::palette;
+    use crate::{FieldValue, Language, Texts};
+
+    #[test]
+    fn values_read_as_words_in_both_languages() {
+        let english = Texts::new(Language::BritishEnglish);
+        let german = Texts::new(Language::German);
+        let text = |texts: &Texts, value: Option<FieldValue>| value_text(texts, value.as_ref());
+
+        assert_eq!(
+            text(&english, Some(FieldValue::Struct("Hull".into()))),
+            ("Hull (struct)".to_owned(), palette::GRAY_1),
+            "struct"
+        );
+        assert_eq!(
+            text(&english, Some(FieldValue::Array(1))),
+            ("1 element".to_owned(), palette::GRAY_1),
+            "one element"
+        );
+        assert_eq!(
+            text(&german, Some(FieldValue::Array(3))),
+            ("3 Elemente".to_owned(), palette::GRAY_1),
+            "three elements in German"
+        );
+        assert_eq!(
+            text(&english, Some(FieldValue::Null)),
+            ("null".to_owned(), palette::GRAY_1),
+            "null"
+        );
+        assert_eq!(
+            text(&english, None),
+            ("–".to_owned(), palette::GRAY_2_TEXT),
+            "missing, muted"
+        );
+        assert_eq!(
+            text(&german, Some(FieldValue::Error("bad offset".into()))),
+            ("Fehler: bad offset".to_owned(), palette::DANGER_TEXT),
+            "error with its reason in the danger tint"
+        );
+    }
 }

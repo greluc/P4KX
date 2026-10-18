@@ -144,8 +144,9 @@ fn show_row(
     for cell in [Cell::Path, Cell::Type] {
         row.col(|ui| {
             let rect = ui.max_rect().shrink2(vec2(CELL_PADDING_X, 0.0));
-            let galley = cache.cell(ui, texts, (id, record, cell), (rect.width(), weight));
-            paint_left(ui, rect, galley, colour);
+            cache
+                .cell(ui, (id, record, cell), (rect.width(), weight))
+                .paint(ui, rect, colour);
         });
     }
     let response = row.response();

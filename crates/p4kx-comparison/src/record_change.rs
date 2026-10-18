@@ -118,7 +118,7 @@ pub struct RecordKey {
 impl RecordKey {
     /// Returns the key of the Records at `old` in the old and at `new` in the new DataForge.
     #[must_use]
-    pub const fn new(old: Option<u32>, new: Option<u32>) -> Self {
+    pub(crate) const fn new(old: Option<u32>, new: Option<u32>) -> Self {
         Self { old, new }
     }
 

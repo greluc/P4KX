@@ -30,7 +30,7 @@ pub use entry_change::{ChangeKind, DirectoryCounts, EntryChange, EntryCounts};
 pub use error::{ComparisonError, LineDiffError};
 pub use line_diff::{DiffBody, LineDiff, NotText, line_diff, line_diff_cancellable};
 pub use options::{CompareOptions, ComparisonProgress, DataForges, Level, Levels};
-pub use owned::{OwnedComparison, OwnedDataForges, RecompareError};
+pub use owned::{OwnedComparison, OwnedDataForges, RecompareError, RecordLookup};
 pub use p4kx_archive::{Archive, ArchiveError, Build, Entry};
 pub use p4kx_cryxml::Signature;
 pub use p4kx_dataforge::{

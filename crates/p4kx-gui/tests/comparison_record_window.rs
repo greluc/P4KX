@@ -100,7 +100,7 @@ fn the_records_tab_lists_every_change_with_its_chip_and_record_path() -> TestRes
     for row in [
         "Added: libs/ships/fresh",
         "Removed: libs/makers/gone",
-        "Moved: libs/ships/wanderer › libs/ships/moved/wanderer",
+        "Moved: libs/ships/wanderer to libs/ships/moved/wanderer",
         "Changed: libs/items/sample",
         "Changed: libs/ships/tuned",
         "Unreadable: libs/broken/one",
@@ -108,12 +108,31 @@ fn the_records_tab_lists_every_change_with_its_chip_and_record_path() -> TestRes
         assert!(harness.query_by_label(row).is_some(), "the row {row}");
     }
     assert!(
-        harness.query_by_label("6 shown").is_some(),
+        harness.query_by_label("8 shown").is_some(),
         "the Records are counted"
     );
     for head in ["Change", "Record path", "Type"] {
         assert!(harness.query_by_label(head).is_some(), "the head {head}");
     }
+    Ok(())
+}
+
+#[test]
+fn extracting_the_changes_of_a_side_belongs_to_the_entries_tab() -> TestResult {
+    let (_dir, old, new) = pair()?;
+    let mut harness = records_shown(
+        (&old, &new),
+        Language::BritishEnglish,
+        ("Compare", "Records"),
+    )?;
+
+    let on_records = harness.query_by_label_contains("Extract new").is_some();
+    harness.get_by_role_and_label(Role::Tab, "Entries").click();
+    harness.run();
+    let on_entries = harness.query_by_label_contains("Extract new").is_some();
+
+    assert!(!on_records, "no Extraction of Entries beside the Records");
+    assert!(on_entries, "the Entries keep their Extraction");
     Ok(())
 }
 
@@ -129,19 +148,19 @@ fn a_changed_record_opens_its_field_changes_below_the_list() -> TestResult {
     open_row(&mut harness, "Changed: libs/items/sample")?;
 
     for row in [
-        "maker: libs/makers/one › libs/makers/two",
-        "hull.armor: 1 › 2",
-        "focus: libs/items/sample · nodes[0] › libs/items/sample · nodes[1]",
+        "maker: libs/makers/one to libs/makers/two",
+        "hull.armor: 1 to 2",
+        "focus: libs/items/sample · nodes[0] to libs/items/sample · nodes[1]",
     ] {
         assert!(harness.query_by_label(row).is_some(), "the field row {row}");
     }
     let label = harness
-        .query_by_label_contains("hull.label: Hull › Error: ")
+        .query_by_label_contains("hull.label: Hull to Error: ")
         .map(|node| node.accesskit_node().label().unwrap_or_default());
     assert!(
         label
             .as_deref()
-            .is_some_and(|text| text.len() > "hull.label: Hull › Error: ".len()),
+            .is_some_and(|text| text.len() > "hull.label: Hull to Error: ".len()),
         "the error value with its reason: {label:?}"
     );
     assert!(
@@ -170,7 +189,7 @@ fn an_unreadable_moved_or_added_record_says_why_it_has_no_field_rows() -> TestRe
         .is_some();
     open_row(
         &mut harness,
-        "Moved: libs/ships/wanderer › libs/ships/moved/wanderer",
+        "Moved: libs/ships/wanderer to libs/ships/moved/wanderer",
     )?;
     let moved = harness
         .query_by_label("Only the record path changed; the fields are equal.")
@@ -192,7 +211,7 @@ fn the_record_list_and_its_fields_speak_german() -> TestResult {
     let mut harness = records_shown((&old, &new), Language::German, ("Vergleichen", "Records"))?;
 
     let moved = harness
-        .query_by_label("Verschoben: libs/ships/wanderer › libs/ships/moved/wanderer")
+        .query_by_label("Verschoben: libs/ships/wanderer zu libs/ships/moved/wanderer")
         .is_some();
     let unreadable = harness
         .query_by_label("Unlesbar: libs/broken/one")
@@ -202,7 +221,7 @@ fn the_record_list_and_its_fields_speak_german() -> TestResult {
     assert!(moved, "moved in German");
     assert!(unreadable, "unreadable in German");
     assert!(
-        harness.query_by_label("speed: 4 › 40").is_some(),
+        harness.query_by_label("speed: 4 zu 40").is_some(),
         "the field row"
     );
     assert!(

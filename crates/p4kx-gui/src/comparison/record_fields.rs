@@ -5,11 +5,11 @@ use p4kx_comparison::{ChangedValue, FieldChange, RecordChange, RecordSide, Refer
 pub enum FieldValue {
     /// A scalar in the text form of Record XML, e.g. `1.5`, `true` or an enum option.
     Scalar(Box<str>),
-    /// A link to a Record: the target's record path and, for a weak pointer, where inside it.
+    /// A Reference: the record path of its target and, for a Reference into a Record, where inside it.
     Reference {
         /// The record path of the target Record, without `.xml`.
         record_path: Box<str>,
-        /// For a weak pointer, where inside the target it points, e.g. `wheels[0]`.
+        /// Where inside the target Record it links to, e.g. `wheels[0]`.
         at: Option<Box<str>>,
     },
     /// A struct, by the name of its type.
@@ -32,7 +32,7 @@ impl FieldValue {
             ChangedValue::Value(Value::Null) => Self::Null,
             ChangedValue::Value(Value::Error(error)) => Self::Error(error.to_string().into()),
             ChangedValue::Value(scalar) => Self::Scalar(scalar.to_string().into()),
-            _ => Self::Null,
+            other => Self::Scalar(format!("{other:?}").into()),
         }
     }
 }
@@ -132,5 +132,41 @@ fn field_row(change: &FieldChange<'_>) -> FieldRow {
         name: FieldName::Field(change.path().as_str().into()),
         old: change.old_value().map(FieldValue::of),
         new: change.new_value().map(FieldValue::of),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_comparison::{ChangedValue, Value};
+
+    use super::FieldValue;
+
+    #[test]
+    fn structs_arrays_nulls_and_scalars_keep_what_the_list_shows_of_them() {
+        assert_eq!(
+            FieldValue::of(&ChangedValue::Struct("Hull")),
+            FieldValue::Struct("Hull".into()),
+            "struct by type"
+        );
+        assert_eq!(
+            FieldValue::of(&ChangedValue::Array(3)),
+            FieldValue::Array(3),
+            "array by length"
+        );
+        assert_eq!(
+            FieldValue::of(&ChangedValue::Value(Value::Null)),
+            FieldValue::Null,
+            "null"
+        );
+        assert_eq!(
+            FieldValue::of(&ChangedValue::Value(Value::Single(1.5))),
+            FieldValue::Scalar("1.5".into()),
+            "a float as Record XML writes it"
+        );
+        assert_eq!(
+            FieldValue::of(&ChangedValue::Value(Value::Bool(true))),
+            FieldValue::Scalar("true".into()),
+            "a boolean"
+        );
     }
 }

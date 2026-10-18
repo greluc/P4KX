@@ -21,6 +21,7 @@ mod field_rows;
 mod image_preview;
 mod licence;
 mod menu;
+mod moved_path;
 mod preview;
 mod query;
 mod query_editor;

@@ -7,8 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use forge_pair::ForgePair;
 use p4kx_comparison::{
-    Archive, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry, Filter, Levels,
-    OwnedComparison, OwnedDataForges, RecordChange, RecordChangeKind, RecordKey,
+    Archive, CancelToken, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry,
+    Filter, Levels, OwnedComparison, OwnedDataForges, RecompareError, RecordChange,
+    RecordChangeKind, RecordKey,
 };
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
@@ -164,7 +165,7 @@ fn one_record_change_is_compared_again_by_its_key() -> TestResult {
     for (key, _) in &listed {
         again.push((
             *key,
-            owned.record_change(*key, |change| change.map(summary))?,
+            owned.with_records(|lookup| lookup.change(*key).as_ref().map(summary))?,
         ));
     }
 
@@ -188,15 +189,46 @@ fn one_record_change_is_compared_again_by_its_key() -> TestResult {
 
 #[test]
 fn a_key_outside_both_dataforges_has_no_change() -> TestResult {
+    let twins_pair = ForgePair::new(
+        &twins(&["libs/ships/first.xml", "libs/ships/second.xml"]),
+        &twins(&["libs/ships/first.xml", "libs/ships/moved.xml"]),
+    )?;
+    let foreign =
+        owned(&twins_pair, Levels::RECORDS, true)?.record_changes(None, None, None, |changes| {
+            changes.first().map(RecordChange::key)
+        })?;
     let pair = ForgePair::new(&database(4), &database(40))?;
     let owned = owned(&pair, Levels::RECORDS, true)?;
 
-    let missing =
-        owned.record_change(RecordKey::new(Some(9), Some(9)), |change| change.is_some())?;
-    let neither = owned.record_change(RecordKey::new(None, None), |change| change.is_some())?;
+    let (missing, neither) = owned.with_records(|lookup| {
+        (
+            foreign.and_then(|key| lookup.change(key)).is_some(),
+            lookup.change(RecordKey::default()).is_some(),
+        )
+    })?;
 
-    assert!(!missing, "no Record at position 9");
+    assert!(foreign.is_some(), "a key of the other pair");
+    assert!(!missing, "no Record at the second position");
     assert!(!neither, "no side at all");
+    Ok(())
+}
+
+#[test]
+fn comparing_the_records_stops_once_cancelled() -> TestResult {
+    let pair = ForgePair::new(&database(4), &database(40))?;
+    let owned = owned(&pair, Levels::RECORDS, true)?;
+    let cancel = CancelToken::new();
+    cancel.cancel();
+
+    let result = owned.record_changes(None, Some(&cancel), None, |changes| changes.len());
+
+    assert!(
+        matches!(
+            result,
+            Err(RecompareError::Comparison(ComparisonError::Cancelled))
+        ),
+        "cancelled: {result:?}"
+    );
     Ok(())
 }
 

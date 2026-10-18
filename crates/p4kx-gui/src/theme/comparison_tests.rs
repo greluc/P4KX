@@ -122,6 +122,11 @@ fn the_record_list_columns_match_the_desktop_spec() {
         Some(f64::from(d::RECORD_TYPE_COLUMN)),
         "type"
     );
+    assert_eq!(
+        json["listTabs"]["tabCount"]["gap"].as_f64(),
+        Some(f64::from(d::TAB_COUNT_GAP)),
+        "tab count gap"
+    );
 }
 
 #[test]

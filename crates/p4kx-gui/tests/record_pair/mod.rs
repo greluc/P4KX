@@ -22,6 +22,8 @@ const GONE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0005;
 const FRESH: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0006;
 const WANDERER: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0007;
 const BROKEN: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0008;
+const RENAMED: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0009;
+const RETYPED: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000a;
 
 fn hull(label: TestValue, armor: i32) -> TestValue {
     TestValue::Struct(
@@ -121,7 +123,26 @@ fn database(new: bool) -> DataForgeBuilder {
             "Broken.One",
             "libs/broken/one.xml",
         ));
-    builder.record(only_one_side(new))
+    builder
+        .record(only_one_side(new))
+        .record(renamed(new))
+        .record(retyped(new))
+}
+
+fn renamed(new: bool) -> TestRecord {
+    let name = if new { "Ship.After" } else { "Ship.Before" };
+    TestRecord::new(RENAMED, "Ship", name, "libs/ships/renamed.xml")
+        .value("speed", TestValue::Int32(5))
+}
+
+fn retyped(new: bool) -> TestRecord {
+    if new {
+        TestRecord::new(RETYPED, "Maker", "Retyped.One", "libs/ships/retyped.xml")
+            .value("rank", TestValue::Int32(3))
+    } else {
+        TestRecord::new(RETYPED, "Ship", "Retyped.One", "libs/ships/retyped.xml")
+            .value("speed", TestValue::Int32(2))
+    }
 }
 
 fn only_one_side(new: bool) -> TestRecord {

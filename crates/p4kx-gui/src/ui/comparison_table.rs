@@ -74,6 +74,7 @@ impl ToolbarCache {
             view.report_status(),
             view.revision(),
             view.is_filtering(),
+            view.list(),
         ));
         if cache.key != Some(key) {
             cache.key = Some(key);
@@ -146,7 +147,15 @@ fn toolbar(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
 fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> Pressed {
     ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
     let gap = TOOLBAR_PADDING;
-    let actions = comparison_extraction::width(ui, &cache.extract);
+    let entries = model
+        .comparison()
+        .view()
+        .is_none_or(|view| !comparison_lists::records_shown(view));
+    let actions = if entries {
+        comparison_extraction::width(ui, &cache.extract)
+    } else {
+        0.0
+    };
     let shown = cache
         .shown
         .as_ref()
@@ -164,7 +173,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         ui.allocate_ui(vec2(width, TOUCH_TARGET), |ui| {
             pressed.filter_changed = field(ui, &mut cache.filter, &cache.hint, label);
         });
-        if inline {
+        if inline && entries {
             pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);
         }
         if let Some(shown) = cache.shown.clone() {
@@ -173,7 +182,7 @@ fn rows(ui: &mut Ui, model: &Model, cache: &mut ToolbarCache, saving: bool) -> P
         pressed.save =
             button::button(ui, Kind::Ghost, Size::Normal, &cache.save, !saving).clicked();
     });
-    if !inline {
+    if !inline && entries {
         ui.horizontal(|ui| {
             ui.add_space((ui.available_width() - actions - gap).max(0.0));
             pressed.extract = comparison_extraction::actions(ui, model, &cache.extract);

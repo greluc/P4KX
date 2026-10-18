@@ -3,8 +3,10 @@ use std::sync::Arc;
 use egui::{Id, Ui, UiBuilder};
 
 use super::record_list::{self, RecordAction};
-use crate::widgets::tab;
-use crate::{ComparisonList, ComparisonText, ComparisonView, Language, Model, RecordChangeView};
+use crate::widgets::tab::{self, TabLabel};
+use crate::{
+    ComparisonList, ComparisonText, ComparisonView, Model, RecordChangeView, Texts, format,
+};
 
 const LISTS: [ComparisonList; 2] = [ComparisonList::Entries, ComparisonList::Records];
 
@@ -17,33 +19,50 @@ pub(super) fn tabs(ui: &mut Ui, model: &mut Model) {
     if view.records().is_none() {
         return;
     }
-    let texts = model.texts();
-    let id = Id::unique("comparison-list-tabs");
-    let key = texts.language();
-    let labels = match ui.data(|data| data.get_temp::<(Language, Arc<[String; 2]>)>(id)) {
-        Some((known, labels)) if known == key => labels,
-        _ => {
-            let labels = Arc::new(
-                [ComparisonText::LevelEntries, ComparisonText::LevelRecords]
-                    .map(|text| texts.get(text)),
-            );
-            ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&labels))));
-            labels
-        }
-    };
+    let labels = labels(ui, model.texts(), view);
     let current = LISTS
         .iter()
         .position(|&list| list == view.list())
         .unwrap_or(0);
     let clicked = ui
         .scope_builder(UiBuilder::new().id_salt("comparison-lists"), |ui| {
-            tab::tab_bar(ui, labels.as_slice(), current)
+            tab::tabs(ui, labels.as_slice(), current)
         })
         .inner
         .and_then(|index| LISTS.get(index).copied());
     if let (Some(list), Some(view)) = (clicked, model.comparison_mut().view_mut()) {
         view.show_list(list);
     }
+}
+
+/// Returns both tabs with the number of shown Entries and Records, laid out again only when the
+/// language, the Comparison or a number changes.
+fn labels(ui: &Ui, texts: &Texts, view: &ComparisonView) -> Arc<[TabLabel; 2]> {
+    let records = view.records().map_or(0, |records| records.shown().len());
+    let key = Id::unique((
+        texts.language(),
+        view.generation(),
+        view.shown().len(),
+        records,
+        ui.ctx().pixels_per_point().to_bits(),
+    ));
+    let id = Id::unique("comparison-list-tabs");
+    if let Some((known, labels)) = ui.data(|data| data.get_temp::<(Id, Arc<[TabLabel; 2]>)>(id))
+        && known == key
+    {
+        return labels;
+    }
+    let number =
+        |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
+    let tab = |text: ComparisonText, count: usize| {
+        TabLabel::new(ui, &texts.get(text), Some(&number(count)))
+    };
+    let labels = Arc::new([
+        tab(ComparisonText::LevelEntries, view.shown().len()),
+        tab(ComparisonText::LevelRecords, records),
+    ]);
+    ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&labels))));
+    labels
 }
 
 /// Returns whether the Record list is shown.

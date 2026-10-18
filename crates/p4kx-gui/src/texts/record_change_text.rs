@@ -46,7 +46,7 @@ pub enum RecordChangeText {
     ValueStruct,
     /// An array; takes `count` and `number`.
     ValueArray,
-    /// A weak pointer into a Record; takes `path` and `at`.
+    /// A Reference to a place inside a Record; takes `path` and `at`.
     ValueReferenceAt,
     /// A value that cannot be read; takes `reason`.
     ValueError,

@@ -8,7 +8,8 @@ use fluent_bundle::FluentValue;
 use p4kx_comparison::{RecordChangeKind, RecordSide};
 
 use super::field_rows;
-use super::record_rows::{kind_look, shown_path};
+use super::moved_path::MovedPath;
+use super::record_rows::{CellText, kind_look, moved, shown_path};
 use crate::theme::desktop::{PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT, SPINNER_INLINE};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
@@ -24,7 +25,8 @@ use crate::{
 #[derive(Clone, Default)]
 struct PaneTexts {
     key: Option<Id>,
-    path: Option<Arc<Galley>>,
+    path: Option<CellText>,
+    path_name: String,
     chip: Option<(Arc<Galley>, chip::Tone)>,
     count: Option<Arc<Galley>>,
     messages: Vec<Arc<Galley>>,
@@ -93,15 +95,12 @@ fn path_line(ui: &mut Ui, cache: &PaneTexts) {
         ui.painter().galley(at, count, palette::GRAY_2_TEXT);
     }
     let left = inner.with_max_x((inner.right() - count_width).max(inner.left()));
-    let Some(path) = cache.path.clone() else {
+    let Some(path) = &cache.path else {
         return;
     };
-    response.widget_info(|| WidgetInfo::labeled(Role::Label, true, path.text()));
-    let at = pos2(left.left(), left.center().y - path.size().y / 2.0);
-    let end = (at.x + path.size().x).min(left.right());
-    ui.painter()
-        .with_clip_rect(left)
-        .galley(at, Arc::clone(&path), palette::GRAY_1);
+    response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &cache.path_name));
+    path.paint(ui, left, palette::GRAY_1);
+    let end = (left.left() + path.width()).min(left.right());
     if let Some((galley, tone)) = cache.chip.clone() {
         let room = left.with_min_x(end + SPACE_2);
         if room.width() > galley.size().x {
@@ -136,14 +135,21 @@ impl PaneTexts {
         cache =
             Self {
                 key: Some(key),
-                path: Some(line(
-                    ui,
-                    plain(path.clone(), FS_XS, Weight::Regular),
-                    f32::INFINITY,
+                path: Some(moved(row).map_or_else(
+                    || CellText::Line(line(ui, plain(row.path(), FS_XS, Weight::Regular), wrap)),
+                    |paths| {
+                        CellText::Moved(MovedPath::lay_out(
+                            ui,
+                            paths,
+                            (FS_XS, Weight::Regular),
+                            wrap,
+                        ))
+                    },
                 )),
+                path_name: path.clone(),
                 chip: Some((chip::galley(ui, &texts.get(kind)), tone)),
                 count: count(ui, texts, detail),
-                messages: messages(texts, detail, (row, &path))
+                messages: messages(texts, detail, (row.kind(), &path))
                     .into_iter()
                     .map(|(text, colour)| {
                         WidgetText::from(plain(text, FS_XS, Weight::Regular).color(colour))
@@ -195,7 +201,7 @@ fn count(ui: &Ui, texts: &Texts, detail: &RecordDetail) -> Option<Arc<Galley>> {
 fn messages(
     texts: &Texts,
     detail: &RecordDetail,
-    (row, path): (&RecordChangeRow, &str),
+    (kind, path): (RecordChangeKind, &str),
 ) -> Vec<(String, Color32)> {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     match detail.status() {
@@ -214,7 +220,7 @@ fn messages(
             texts.format(RecordChangeText::Stopped, &[path_arg()]),
             palette::DANGER_TEXT,
         )],
-        RecordDetailStatus::Ready(fields) => ready_messages(texts, fields, row.kind()),
+        RecordDetailStatus::Ready(fields) => ready_messages(texts, fields, kind),
     }
 }
 
@@ -249,4 +255,57 @@ fn ready_messages(
         _ => RecordChangeText::NoFieldChanges,
     };
     vec![(texts.get(text), palette::GRAY_1)]
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_comparison::RecordChangeKind;
+
+    use super::messages;
+    use crate::theme::palette;
+    use crate::{Language, RecordDetail, Texts};
+
+    #[test]
+    fn a_failed_and_a_stopped_detail_say_so_in_the_danger_tint() {
+        let texts = Texts::new(Language::BritishEnglish);
+        let failed = RecordDetail::failed(0, 1, Some("the DataForge is gone".to_owned()));
+        let stopped = RecordDetail::failed(0, 2, None);
+
+        let failed = messages(&texts, &failed, (RecordChangeKind::Changed, "libs/a"));
+        let stopped = messages(&texts, &stopped, (RecordChangeKind::Changed, "libs/a"));
+
+        assert_eq!(
+            failed,
+            [(
+                "Cannot compare the fields of libs/a: the DataForge is gone".to_owned(),
+                palette::DANGER_TEXT
+            )],
+            "failed with the reason"
+        );
+        assert_eq!(
+            stopped,
+            [(
+                "Comparing the fields of libs/a stopped without a result.".to_owned(),
+                palette::DANGER_TEXT
+            )],
+            "stopped"
+        );
+    }
+
+    #[test]
+    fn a_loading_detail_names_the_record() {
+        let texts = Texts::new(Language::German);
+        let loading = RecordDetail::loading(0, 3);
+
+        let shown = messages(&texts, &loading, (RecordChangeKind::Changed, "libs/a"));
+
+        assert_eq!(
+            shown,
+            [(
+                "Die Felder von libs/a werden verglichen …".to_owned(),
+                palette::GRAY_1
+            )],
+            "loading in German"
+        );
+    }
 }

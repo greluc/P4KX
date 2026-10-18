@@ -1,14 +1,11 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
-use p4kx_comparison::{OwnedComparison, RecordKey};
+use p4kx_comparison::{OwnedComparison, RecordKey, RecordLookup};
 
 use super::record_fields::RecordFields;
 use crate::model::describe;
-
-static GENERATIONS: AtomicU64 = AtomicU64::new(0);
 
 /// Where the field changes of the selected Record stand.
 #[derive(Debug, Clone, Copy)]
@@ -23,12 +20,12 @@ pub enum RecordDetailStatus<'a> {
 
 #[derive(Debug)]
 enum State {
-    Loading(Receiver<Result<RecordFields, String>>),
+    Loading,
     Ready(RecordFields),
     Failed(Option<String>),
 }
 
-/// The field changes of one Record of the list, compared again on a background thread.
+/// The field changes of one Record of the list.
 #[derive(Debug)]
 pub struct RecordDetail {
     row: u32,
@@ -37,33 +34,21 @@ pub struct RecordDetail {
 }
 
 impl RecordDetail {
-    /// Compares the Records at `key` of `comparison` again on a background thread for the row
-    /// `row`, calling `wake` from it once it ended.
-    pub(crate) fn start(
-        comparison: &Arc<OwnedComparison>,
-        (row, key): (u32, RecordKey),
-        wake: impl Fn() + Send + 'static,
-    ) -> Self {
-        let (sender, result) = mpsc::channel();
-        let thread_comparison = Arc::clone(comparison);
-        let spawned = thread::Builder::new()
-            .name("comparison-record".to_owned())
-            .spawn(move || {
-                let fields = thread_comparison
-                    .record_change(key, |change| {
-                        change.map(RecordFields::of).unwrap_or_default()
-                    })
-                    .map_err(|error| describe(&error));
-                let _gone = sender.send(fields);
-                wake();
-            });
+    /// Returns the detail of row `row` that the request `generation` is comparing.
+    pub(crate) const fn loading(row: u32, generation: u64) -> Self {
         Self {
             row,
-            generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
-            state: spawned.map_or_else(
-                |error| State::Failed(Some(describe(&error))),
-                |_handle| State::Loading(result),
-            ),
+            generation,
+            state: State::Loading,
+        }
+    }
+
+    /// Returns the detail of row `row` that failed for `reason`, or stopped without one.
+    pub(crate) const fn failed(row: u32, generation: u64, reason: Option<String>) -> Self {
+        Self {
+            row,
+            generation,
+            state: State::Failed(reason),
         }
     }
 
@@ -73,7 +58,8 @@ impl RecordDetail {
         self.row
     }
 
-    /// Returns a number no other detail of this process carries.
+    /// Returns the number of the request that compares it; no other detail of the view carries
+    /// it.
     #[must_use]
     pub const fn generation(&self) -> u64 {
         self.generation
@@ -83,23 +69,107 @@ impl RecordDetail {
     #[must_use]
     pub fn status(&self) -> RecordDetailStatus<'_> {
         match &self.state {
-            State::Loading(_) => RecordDetailStatus::Loading,
+            State::Loading => RecordDetailStatus::Loading,
             State::Ready(fields) => RecordDetailStatus::Ready(fields),
             State::Failed(reason) => RecordDetailStatus::Failed(reason.as_deref()),
         }
     }
 
-    /// Takes the result once the thread ended; returns whether it ended.
-    pub(crate) fn poll(&mut self) -> bool {
-        let State::Loading(result) = &self.state else {
-            return false;
+    /// Takes the result of comparing it.
+    pub(crate) fn finish(&mut self, result: Result<RecordFields, String>) {
+        self.state = match result {
+            Ok(fields) => State::Ready(fields),
+            Err(reason) => State::Failed(Some(reason)),
         };
-        self.state = match result.try_recv() {
-            Ok(Ok(fields)) => State::Ready(fields),
-            Ok(Err(reason)) => State::Failed(Some(reason)),
-            Err(TryRecvError::Empty) => return false,
-            Err(TryRecvError::Disconnected) => State::Failed(None),
-        };
-        true
+    }
+
+    /// Marks it as stopped without a result unless it has one.
+    pub(crate) fn stop(&mut self) {
+        if matches!(self.state, State::Loading) {
+            self.state = State::Failed(None);
+        }
+    }
+}
+
+type Answer = (u64, Result<RecordFields, String>);
+
+/// A thread that keeps both DataForges open and compares the Records asked for, only the newest
+/// of the requests waiting; it ends once this handle is dropped.
+#[derive(Debug)]
+pub(crate) struct RecordWorker {
+    requests: Sender<(u64, RecordKey)>,
+    answers: Receiver<Answer>,
+}
+
+/// What the worker answered since the last poll.
+pub(crate) enum Answered {
+    Nothing,
+    Answer(Answer),
+    Gone,
+}
+
+impl RecordWorker {
+    /// Starts the worker over the DataForges of `comparison`, calling `wake` from it after each
+    /// answer.
+    pub(crate) fn start(
+        comparison: &Arc<OwnedComparison>,
+        wake: impl Fn() + Send + 'static,
+    ) -> Result<Self, String> {
+        let (requests, waiting) = mpsc::channel();
+        let (answer, answers) = mpsc::channel();
+        let thread_comparison = Arc::clone(comparison);
+        thread::Builder::new()
+            .name("comparison-records".to_owned())
+            .spawn(move || {
+                let served = thread_comparison.with_records(|lookup| {
+                    serve(&waiting, &answer, &wake, |key| Ok(fields(lookup, key)));
+                });
+                if let Err(error) = served {
+                    let reason = describe(&error);
+                    serve(&waiting, &answer, &wake, |_| Err(reason.clone()));
+                }
+            })
+            .map_err(|error| describe(&error))?;
+        Ok(Self { requests, answers })
+    }
+
+    /// Asks for the field changes of the Records at `key` as request `generation`; returns
+    /// whether the worker still runs.
+    pub(crate) fn request(&self, generation: u64, key: RecordKey) -> bool {
+        self.requests.send((generation, key)).is_ok()
+    }
+
+    /// Takes the next answer.
+    pub(crate) fn poll(&self) -> Answered {
+        match self.answers.try_recv() {
+            Ok(answer) => Answered::Answer(answer),
+            Err(TryRecvError::Empty) => Answered::Nothing,
+            Err(TryRecvError::Disconnected) => Answered::Gone,
+        }
+    }
+}
+
+fn fields(lookup: &RecordLookup<'_>, key: RecordKey) -> RecordFields {
+    lookup
+        .change(key)
+        .map(|change| RecordFields::of(&change))
+        .unwrap_or_default()
+}
+
+fn serve(
+    waiting: &Receiver<(u64, RecordKey)>,
+    answer: &Sender<Answer>,
+    wake: &impl Fn(),
+    mut compare: impl FnMut(RecordKey) -> Result<RecordFields, String>,
+) {
+    while let Ok(mut request) = waiting.recv() {
+        while let Ok(newer) = waiting.try_recv() {
+            request = newer;
+        }
+        let (generation, key) = request;
+        if answer.send((generation, compare(key))).is_err() {
+            return;
+        }
+        wake();
     }
 }

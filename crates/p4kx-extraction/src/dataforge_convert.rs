@@ -7,6 +7,8 @@ use p4kx_dataforge::{DataForge, Record, RecordXml};
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
 use crate::record_export::{RecordRun, write_records};
+use crate::record_files::RecordFiles;
+use crate::record_format::RecordFileFormat;
 use crate::write::{Chunk, EntryWriter, Outcome, create_folders};
 use crate::{ExtractionError, MAX_DATAFORGE_SIZE, RecordExportReport};
 
@@ -76,7 +78,8 @@ impl EntryWriter<'_> {
                 self.tracker.wrote(share);
             },
         };
-        let report = write_records::<RecordXml>(&forge, &records, &folder, &run);
+        let plan = RecordFiles::plan(&forge, RecordXml::EXTENSION);
+        let report = write_records::<RecordXml>(&forge, &plan, &records, &folder, &run);
         let outcome = if report.cancelled() > 0 {
             Outcome::Cancelled
         } else {

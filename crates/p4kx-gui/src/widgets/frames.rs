@@ -198,6 +198,18 @@ pub(crate) fn foot_rule(ui: &mut Ui) {
     ui.add_space(SPACE_3);
 }
 
+/// Shows the one action of a modal or window foot at its right end, in a row as high as the
+/// button; returns whether it was clicked.
+pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -> bool {
+    ui.horizontal(|ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            super::button::button(ui, kind, super::button::Size::Normal, label, true).clicked()
+        })
+        .inner
+    })
+    .inner
+}
+
 /// Returns a `.krt-modal` on the flat scrim.
 pub(crate) fn modal(id: Id, tone: Tone) -> Modal {
     Modal::new(id)

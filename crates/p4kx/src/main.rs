@@ -6,6 +6,7 @@ mod compare;
 mod cryxml;
 mod dcb;
 mod dcb_export;
+mod diff;
 mod exit;
 mod extract;
 mod info;

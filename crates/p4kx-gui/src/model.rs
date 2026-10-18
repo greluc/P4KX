@@ -8,6 +8,9 @@ use p4kx_settings::RecentArchives;
 
 mod archive_change;
 mod extraction_control;
+mod update;
+
+use update::UpdateState;
 
 use crate::{
     Browser, ChannelList, EntryIndex, Extraction, ExtractionSetup, Language, PreviewTab, Texts,
@@ -41,6 +44,7 @@ pub struct Model {
     extraction_folder: Option<PathBuf>,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
+    update: UpdateState,
 }
 
 impl std::fmt::Debug for Model {
@@ -57,6 +61,7 @@ impl std::fmt::Debug for Model {
             .field("extraction_folder", &self.extraction_folder)
             .field("extraction_setup", &self.extraction_setup)
             .field("extraction", &self.extraction)
+            .field("update", &self.update)
             .finish()
     }
 }
@@ -77,6 +82,7 @@ impl Model {
             extraction_folder: None,
             extraction_setup: None,
             extraction: None,
+            update: UpdateState::default(),
         }
     }
 

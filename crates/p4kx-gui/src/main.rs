@@ -22,6 +22,7 @@ fn main() -> Result<()> {
     ));
     model.set_recent(settings.recent.clone());
     model.set_extraction_folder(settings.extraction_folder.clone());
+    model.set_update_check(settings.update_check);
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),
@@ -36,6 +37,8 @@ fn main() -> Result<()> {
             #[cfg(windows)]
             p4kx_gui::dwm::tint(creation);
             let mut model = model;
+            let ctx = creation.egui_ctx.clone();
+            model.check_for_update(move || ctx.request_repaint());
             if let Some(path) = archive {
                 let ctx = creation.egui_ctx.clone();
                 model.open(path, move || ctx.request_repaint());

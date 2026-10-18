@@ -12,8 +12,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let names = Language::ALL.map(|language| (language, texts.get(Text::LanguageName(language))));
     let help_menu = texts.get(Text::MenuHelp);
     let licence = texts.get(Text::FontLicence);
+    let update_check = texts.get(Text::UpdateCheck);
     let mut chosen = None;
     let mut show_licence = false;
+    let mut enabled = model.update_check();
     let mut reopen = None;
     MenuBar::new().ui(ui, |ui| {
         reopen = archive_menu(ui, model, requests);
@@ -26,8 +28,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         });
         ui.menu_button(help_menu, |ui| {
             show_licence = ui.button(licence).clicked();
+            ui.checkbox(&mut enabled, update_check);
         });
     });
+    if enabled != model.update_check() {
+        let ctx = ui.ctx().clone();
+        model.switch_update_check(enabled, move || ctx.request_repaint());
+        requests.settings_changed = true;
+    }
     if let Some(path) = reopen {
         super::open(ui, model, path);
     }

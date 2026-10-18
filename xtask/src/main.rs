@@ -1,13 +1,16 @@
 //! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
-//! `cargo xtask file-size`, or all of them with `cargo xtask`.
+//! `cargo xtask file-size`, `cargo xtask changelog`, or all of them with `cargo xtask`.
+//!
+//! `cargo xtask release-notes <tag> <file>` writes the `CHANGELOG.md` notes of a Release tag.
 
+mod changelog;
 mod file_size;
 mod layers;
 mod lints;
 mod metadata;
 
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
@@ -34,12 +37,24 @@ fn run() -> Result<Vec<String>> {
             let mut violations = layers::check(&root)?;
             violations.extend(lints::check(&root)?);
             violations.extend(file_size::check(&root)?);
+            violations.extend(changelog::check(&root)?);
             Ok(violations)
         }
         Some("layers") => layers::check(&root),
         Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
-        Some(other) => bail!("unknown check `{other}`; use `layers`, `lints` or `file-size`"),
+        Some("changelog") => changelog::check(&root),
+        Some("release-notes") => {
+            let mut args = std::env::args().skip(2);
+            let (Some(tag), Some(output)) = (args.next(), args.next()) else {
+                bail!("usage: cargo xtask release-notes <tag> <file>");
+            };
+            changelog::write_notes(&root, &tag, Path::new(&output))?;
+            Ok(Vec::new())
+        }
+        Some(other) => bail!(
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog` or `release-notes`"
+        ),
     }
 }
 

@@ -19,8 +19,9 @@ path = "src/main.rs"
 p4kx-channels.workspace = true
 p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
+p4kx-update.workspace = true
 anyhow.workspace = true
-eframe.workspace = true
+eframe = { workspace = true, features = ["links"] }
 egui.workspace = true
 egui_extras.workspace = true
 fluent-bundle.workspace = true

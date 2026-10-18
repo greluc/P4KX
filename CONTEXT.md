@@ -118,6 +118,16 @@ _Avoid_: decoding, transformation
 The set of Entries and Records that were added, removed or changed between two Archives.
 _Avoid_: diff (fine in code), delta
 
+**Release**:
+A published version of P4K-Extractor itself: a `v*` tag with its portable ZIP, its MSI and its
+notes from `CHANGELOG.md`.
+_Avoid_: build (a Build is a game version), update
+
+**Update check**:
+The optional, user-switched question to GitHub whether a newer Release than the running one exists;
+it only links to that Release, never downloads it.
+_Avoid_: updater, auto-update
+
 **Basetool catalog**:
 The JSON Export of manufacturers, items, ships, commodities and blueprints that the basetool's P4K
 import consumes.

@@ -1,4 +1,4 @@
-use egui::Ui;
+use egui::{Align, Layout, Ui};
 use fluent_bundle::FluentValue;
 
 use p4kx_extraction::Build;
@@ -35,6 +35,15 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                 ui.spinner();
                 ui.label(texts.get(Text::StatusSearching));
             }
+        }
+        if let Some(release) = model.newer_release() {
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let text = texts.format(
+                    Text::UpdateAvailable,
+                    &[("version", release.version.clone().into())],
+                );
+                ui.hyperlink_to(text, &release.page);
+            });
         }
     });
 }

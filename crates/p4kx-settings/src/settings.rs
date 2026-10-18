@@ -19,6 +19,8 @@ pub struct Settings {
     /// The folder last chosen for an Extraction, or `None` before the first one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extraction_folder: Option<PathBuf>,
+    /// Whether the GUI asks GitHub for a newer Release at start; off until the user switches it on.
+    pub update_check: bool,
     /// The recently opened Archives.
     #[serde(skip_serializing_if = "RecentArchives::is_empty")]
     pub recent: RecentArchives,

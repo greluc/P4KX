@@ -146,6 +146,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.window = window;
     settings.recent = model.recent().clone();
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
+    settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }
 
@@ -207,6 +208,17 @@ mod tests {
             Some(PathBuf::from(r"D:\Exports")),
             "the folder chosen last"
         );
+    }
+
+    #[test]
+    fn the_update_check_is_stored() {
+        let mut model = Model::new(Language::German);
+        model.set_update_check(true);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert!(settings.update_check, "switched on");
     }
 
     #[test]

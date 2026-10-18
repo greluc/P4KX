@@ -1,0 +1,178 @@
+//! Fonts with their glyphs, codes and layout, and sprites with their nested timelines.
+
+use p4kx_gfx::{FontFormat, GfxError, MAX_SPRITE_DEPTH, Movie, Point, ShapeRecord};
+use p4kx_testkit::{
+    TestGlyph, TestMovie, TestShape, TestShapeRecord, TestSignature, font_name_body, font3_body,
+    place_object2_body, sprite_body,
+};
+
+fn glyph(code: u16, advance: i16, width: i32) -> TestGlyph {
+    TestGlyph {
+        code,
+        advance,
+        records: vec![
+            TestShapeRecord::Move {
+                to: (0, 0),
+                fill0: 1,
+                fill1: 0,
+                line: 0,
+            },
+            TestShapeRecord::Line(width, 0),
+            TestShapeRecord::Line(0, -900),
+        ],
+    }
+}
+
+fn parse(movie: &TestMovie) -> Movie {
+    Movie::parse(movie.bytes()).unwrap_or_else(|error| unreachable!("invalid movie: {error}"))
+}
+
+#[test]
+fn a_define_font3_reads_glyphs_codes_layout_and_full_name() {
+    let glyphs = [
+        glyph(u16::from(b'A'), 1100, 1000),
+        glyph(0x00C4, 1200, 1100),
+    ];
+    let movie = parse(
+        &TestMovie::new(TestSignature::Gfx)
+            .tag(75, &font3_body(3, "Electrolize", &glyphs))
+            .tag(88, &font_name_body(3, "Electrolize Regular")),
+    );
+    let assets = movie.assets();
+    assert!(assets.failures.is_empty(), "{:?}", assets.failures);
+    let font = &assets.fonts[0];
+    assert_eq!(font.id, 3, "id");
+    assert_eq!(font.format, FontFormat::DefineFont3, "format");
+    assert_eq!(font.name, "Electrolize", "name");
+    assert_eq!(
+        font.full_name.as_deref(),
+        Some("Electrolize Regular"),
+        "full name"
+    );
+    assert!(font.bold && !font.italic, "bold");
+    assert_eq!(font.glyph_count, 2, "glyph count");
+    let codes: Vec<Option<u16>> = font.glyphs.iter().map(|glyph| glyph.code).collect();
+    assert_eq!(codes, [Some(65), Some(0xC4)], "codes");
+    assert_eq!(font.glyphs[1].advance, Some(1200), "advance");
+    assert_eq!(
+        font.glyphs[1].bounds.map(|bounds| bounds.y_min),
+        Some(-900),
+        "bounds"
+    );
+    assert_eq!(
+        font.glyphs[1].records[1],
+        ShapeRecord::StraightEdge {
+            delta: Point { x: 1100, y: 0 }
+        },
+        "outline"
+    );
+    let layout = font.layout.as_ref().expect("layout");
+    assert_eq!((layout.ascent, layout.descent), (900, 200), "metrics");
+    assert_eq!(layout.kerning.len(), 1, "one pair");
+    assert_eq!(layout.kerning[0].adjustment, -40, "kerning");
+}
+
+#[test]
+fn a_font_whose_glyph_shapes_were_stripped_keeps_its_codes_and_layout() {
+    let mut body = 1_u16.to_le_bytes().to_vec();
+    body.extend_from_slice(&[0x84, 1, 9]);
+    body.extend_from_slice(b"Orbitron\0");
+    body.extend_from_slice(&2_u16.to_le_bytes());
+    for value in [0_u16, 4, 0x20, 0x41, 900, 200, 0, 500, 600] {
+        body.extend_from_slice(&value.to_le_bytes());
+    }
+    body.extend_from_slice(&[0x08, 0x00, 0x08, 0x00]);
+    body.extend_from_slice(&0_u16.to_le_bytes());
+    let movie = parse(&TestMovie::new(TestSignature::Gfx).tag(75, &body));
+    let assets = movie.assets();
+    assert!(assets.failures.is_empty(), "{:?}", assets.failures);
+    let font = &assets.fonts[0];
+    assert_eq!(font.name, "Orbitron", "name without the NUL");
+    assert_eq!(font.glyph_count, 2, "glyph count");
+    let codes: Vec<Option<u16>> = font.glyphs.iter().map(|glyph| glyph.code).collect();
+    assert_eq!(codes, [Some(0x20), Some(0x41)], "codes");
+    assert!(
+        font.glyphs.iter().all(|glyph| glyph.records.is_empty()),
+        "no outlines"
+    );
+    assert_eq!(font.glyphs[1].advance, Some(600), "advance");
+}
+
+#[test]
+fn a_compacted_font_reads_its_name_and_metrics() {
+    let mut body = 9_u16.to_le_bytes().to_vec();
+    body.extend_from_slice(b"Orbitron\0");
+    for value in [0_u16, 1024, 800, 224, 0] {
+        body.extend_from_slice(&value.to_le_bytes());
+    }
+    body.extend_from_slice(&95_u32.to_le_bytes());
+    let movie = parse(&TestMovie::new(TestSignature::Gfx).tag(1005, &body));
+    let assets = movie.assets();
+    let font = &assets.fonts[0];
+    assert_eq!(font.format, FontFormat::Compacted, "format");
+    assert_eq!(font.name, "Orbitron", "name");
+    assert_eq!(font.glyph_count, 95, "glyph count");
+    assert!(font.glyphs.is_empty(), "glyph shapes not read");
+    assert_eq!(
+        font.layout.as_ref().map(|layout| layout.ascent),
+        Some(800),
+        "ascent"
+    );
+}
+
+#[test]
+fn a_sprite_reads_its_timeline_and_its_nested_definitions() {
+    let shape = TestShape::new(11, 1, [0, 20, 0, 20]);
+    let inner = sprite_body(21, 1, &[(26, place_object2_body(1, 11)), (1, Vec::new())]);
+    let outer = sprite_body(
+        20,
+        2,
+        &[
+            (shape.code(), shape.body()),
+            (39, inner),
+            (43, b"open\0".to_vec()),
+            (26, place_object2_body(1, 21)),
+            (1, Vec::new()),
+            (26, place_object2_body(2, 11)),
+            (1, Vec::new()),
+        ],
+    );
+    let movie = parse(&TestMovie::new(TestSignature::Fws).tag(39, &outer));
+    let assets = movie.assets();
+    assert!(assets.failures.is_empty(), "{:?}", assets.failures);
+    assert_eq!(
+        assets.shapes[0].id, 11,
+        "the shape inside the sprite is read"
+    );
+    let ids: Vec<u16> = assets.sprites.iter().map(|sprite| sprite.id).collect();
+    assert_eq!(ids, [20, 21], "parent first");
+    let outer = &assets.sprites[0];
+    assert_eq!(outer.frame_count, 2, "declared frames");
+    assert_eq!(outer.timeline.frames, 2, "frames");
+    assert_eq!(outer.timeline.labels, ["open"], "labels");
+    assert_eq!(outer.timeline.placed, [11, 21], "placed");
+    assert_eq!(outer.timeline.tag_count, 8, "tags with End");
+    assert_eq!(assets.sprites[1].timeline.placed, [11], "nested");
+}
+
+#[test]
+fn sprites_nested_deeper_than_the_limit_are_failures() {
+    let depth = usize::try_from(MAX_SPRITE_DEPTH).expect("small") + 2;
+    let mut body = sprite_body(1, 1, &[]);
+    for id in 2..=depth {
+        body = sprite_body(u16::try_from(id).expect("small"), 1, &[(39, body)]);
+    }
+    let movie = parse(&TestMovie::new(TestSignature::Gfx).tag(39, &body));
+    let assets = movie.assets();
+    assert_eq!(
+        assets.sprites.len(),
+        usize::try_from(MAX_SPRITE_DEPTH).expect("small"),
+        "read up to the limit"
+    );
+    assert_eq!(assets.failures.len(), 1, "one failure");
+    assert!(
+        matches!(assets.failures[0].error, GfxError::SpriteDepth { limit } if limit == MAX_SPRITE_DEPTH),
+        "{:?}",
+        assets.failures
+    );
+}

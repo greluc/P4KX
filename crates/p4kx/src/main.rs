@@ -8,6 +8,7 @@ mod cli_audio;
 mod cli_bnk;
 mod cli_dcb;
 mod cli_entity;
+mod cli_ui;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -28,6 +29,8 @@ mod query_rows;
 mod query_table;
 mod texture;
 mod texture_image;
+mod ui;
+mod ui_json;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
@@ -58,6 +61,7 @@ fn main() -> ExitCode {
         Command::Texture(args) => texture::run(&args, json).map(success),
         Command::Audio(args) => audio::run(&args, json).map(success),
         Command::Bnk(args) => bnk::run(&args, json),
+        Command::Ui(args) => ui::run(&args, json),
     };
     match result {
         Ok(code) => code,

@@ -12,6 +12,7 @@ publish = false
 
 [workspace.dependencies]
 p4kx-foundation = { path = "crates/p4kx-foundation" }
+p4kx-gfx = { path = "crates/p4kx-gfx" }
 p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
@@ -44,6 +45,7 @@ fluent-syntax = "0.12.0"
 half = "2.7.1"
 insta = "1.49.0"
 lewton = { version = "0.10.2", default-features = false }
+lzma-rs = "0.3.0"
 png = "0.18.1"
 predicates = "3.1.4"
 raw-window-handle = "0.6.2"
@@ -61,6 +63,8 @@ thiserror = "2.0.21"
 toml = "1.1.8"
 unic-langid = "0.9.6"
 ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
+zune-core = "0.5.0"
+zune-jpeg = "0.5.15"
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
 
 [workspace.lints.rust]

@@ -1,5 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture and audio APIs
-//! front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio and UI
+//! movie APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -29,6 +29,9 @@ mod texture_parts;
 mod texture_png;
 mod texture_siblings;
 mod tracker;
+mod ui_external;
+mod ui_extract;
+mod ui_movie;
 mod watch;
 mod write;
 
@@ -53,6 +56,7 @@ pub use p4kx_dataforge::{
     MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Reference,
     Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
 };
+pub use p4kx_gfx as gfx;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
@@ -68,4 +72,6 @@ pub use target::{create_default_target, default_target_name};
 pub use texture::Texture;
 pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
+pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

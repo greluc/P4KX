@@ -15,8 +15,9 @@ use crate::texture;
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries or Records failed or were cancelled, the target folder could not be created, a
-/// texture is invalid or cannot be merged, decoded or written, or a sound or soundbank is invalid or
-/// cannot be converted or written.
+/// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
+/// cannot be converted or written, or a UI movie is invalid or one of its definitions cannot be
+/// written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
@@ -42,18 +43,19 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      also for the --diff Entry
   1  partial failure: some Entries or Records failed or were cancelled, the target or the
      settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
-     e.g. because its format is not supported, or a sound or soundbank is invalid or cannot be
-     converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder; compare:
-     the Archives or the --diff Entry differ
+     e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
+     converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, or a UI movie
+     is invalid or one of its bitmaps or shapes cannot be written, e.g. a missing external
+     texture; compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
-     does not exist or was never added, a texture, sound or soundbank file that does not
-     exist, a mip level the texture does not have, an output that is one of its inputs,
+     does not exist or was never added, a texture, sound, soundbank or UI movie file that does
+     not exist, a mip level the texture does not have, an output that is one of its inputs,
      --json without --out for cryxml, an invalid Query, --json with another --format and
      without --out for dcb query, or an Entity that no Record or several Records match
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml,
      corrupt or with unreadable Entry data, also a --diff Entry that cannot be read or holds
-     corrupt CryXml; a missing texture, sound or soundbank file is 2
+     corrupt CryXml; a missing texture, sound, soundbank or UI movie file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

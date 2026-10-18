@@ -8,6 +8,7 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityLoadoutArgs};
+pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -62,6 +63,9 @@ pub(crate) enum Command {
     /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     Bnk(BnkArgs),
+    /// Lists or extracts the bitmaps, shapes, fonts and sprites of a GFx or SWF UI movie.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Ui(UiArgs),
 }
 
 /// Arguments of `p4kx cryxml`.

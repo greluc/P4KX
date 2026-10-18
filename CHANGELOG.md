@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
+  <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
+  movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
+  twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
+  counted, a broken tag is reported without failing the movie, and GFx external images are
+  decoded from the DDS textures next to the movie. Also for movie files on disk.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

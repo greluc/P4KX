@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
 use p4kx_cryxml::CryXmlError;
+use p4kx_dataforge::DataForgeError;
 use thiserror::Error;
+
+use crate::RecordExportReport;
 
 /// Why one Entry of an Extraction was not written.
 #[derive(Debug, Error)]
@@ -29,14 +32,17 @@ pub enum ExtractionError {
     /// The Entry is `CryXml` that could not be converted.
     #[error("cannot convert the CryXml")]
     Convert(#[source] CryXmlError),
-    /// The Entry is `CryXml` larger than a Conversion reads into memory.
-    #[error("cannot convert the CryXml: {size} bytes are more than the limit of {limit}")]
+    /// The Entry is `CryXml` or DataForge larger than a Conversion reads into memory.
+    #[error("cannot convert the Entry: {size} bytes are more than the limit of {limit}")]
     TooLargeToConvert {
         /// The size of the Entry.
         size: u64,
         /// The largest size converted.
         limit: u64,
     },
+    /// The Entry is DataForge that could not be opened to convert its Records.
+    #[error("cannot convert the DataForge")]
+    DataForge(#[source] DataForgeError),
     /// The file already in the target could not be read to compare it with the Entry.
     #[error("cannot read the existing file {path}")]
     ReadExisting {
@@ -78,6 +84,7 @@ pub struct ExtractionReport {
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
     pub(crate) archive_changed: bool,
+    pub(crate) records: Option<RecordExportReport>,
 }
 
 impl ExtractionReport {
@@ -87,8 +94,9 @@ impl ExtractionReport {
         self.extracted
     }
 
-    /// Returns the number of `CryXml` Entries written as converted XML, or `None` when the run
-    /// did not convert; they count among the [`extracted`](Self::extracted) Entries.
+    /// Returns the number of Entries written converted, `CryXml` as XML and the DataForge Entry as
+    /// Records, or `None` when the run did not convert; they count among the
+    /// [`extracted`](Self::extracted) Entries.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
         self.converted
@@ -118,9 +126,21 @@ impl ExtractionReport {
         self.archive_changed
     }
 
-    /// Returns whether no Entry failed, the run was not cancelled and the Archive did not change.
+    /// Returns the outcome of the Records a Conversion wrote for the DataForge Entry, or `None`
+    /// when no DataForge Entry was converted.
+    #[must_use]
+    pub const fn records(&self) -> Option<&RecordExportReport> {
+        self.records.as_ref()
+    }
+
+    /// Returns whether no Entry or Record failed, the run was not cancelled and the Archive did
+    /// not change.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty() && self.cancelled.is_empty() && !self.archive_changed
+        let records = match &self.records {
+            Some(records) => records.is_complete(),
+            None => true,
+        };
+        records && self.failures.is_empty() && self.cancelled.is_empty() && !self.archive_changed
     }
 }

@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 use p4kx_extraction::{
     Archive, DataForgeEntry, Filter, Record, RecordExportOptions, RecordExportReport,
-    RecordFailure, export_records,
+    RecordFailure, export_combined, export_records,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -27,6 +27,8 @@ struct ReportJson<'a> {
     entry: &'a str,
     format: &'static str,
     target: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file: Option<&'a str>,
     exported: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
@@ -36,7 +38,7 @@ struct ReportJson<'a> {
 }
 
 #[derive(Serialize)]
-struct FailureJson<'a> {
+pub(crate) struct FailureJson<'a> {
     guid: String,
     path: &'a str,
     error: String,
@@ -71,13 +73,18 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
         policy: policy(args.conflict),
         cancel: Some(&cancel),
     };
-    let report = export_records(&forge, &records, &target, &options);
+    let combined = args.combined.then(|| combined_name(entry.path()));
+    let report = match &combined {
+        Some(name) => export_combined(&forge, &records, &target.join(name), &options)?,
+        None => export_records(&forge, &records, &target, &options),
+    };
     let printed = if as_json {
         json::print(&ReportJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
             format: "xml",
             target: json::path(&target),
+            file: combined.as_deref(),
             exported: report.written(),
             skipped: report.skipped(),
             failed: report.failures().iter().map(failure_json).collect(),
@@ -86,7 +93,8 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
             records_with_errors: report.records_with_errors(),
         })
     } else {
-        print_report(&report, &target, args.conflict)
+        let into = combined.map_or_else(|| target.clone(), |name| target.join(name));
+        print_report(&report, &into, args.conflict)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -100,7 +108,15 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     }))
 }
 
-fn failure_json(failure: &RecordFailure) -> FailureJson<'_> {
+/// Returns the name of the combined file: the name of the DataForge Entry with `.xml` for its
+/// extension, e.g. `Game2.xml`.
+fn combined_name(entry: &str) -> String {
+    let name = entry.rsplit(['\\', '/']).next().unwrap_or(entry);
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+    format!("{stem}.xml")
+}
+
+pub(crate) fn failure_json(failure: &RecordFailure) -> FailureJson<'_> {
     FailureJson {
         guid: failure.guid().to_string(),
         path: failure.record_path(),
@@ -119,7 +135,12 @@ fn reason(failure: &RecordFailure) -> String {
     reason
 }
 
-fn print_report(report: &RecordExportReport, target: &Path, conflict: Conflict) -> io::Result<()> {
+/// Prints the failed Records to stderr and the kept files and a summary to stdout.
+pub(crate) fn print_report(
+    report: &RecordExportReport,
+    target: &Path,
+    conflict: Conflict,
+) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
         writeln!(

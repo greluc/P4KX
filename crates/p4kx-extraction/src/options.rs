@@ -59,7 +59,8 @@ pub struct Progress {
 pub struct ExtractOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
-    /// Converts `CryXml` Entries to UTF-8 XML; text XML and every other Entry stay unchanged.
+    /// Converts `CryXml` Entries to UTF-8 XML and writes the DataForge Entry as Record XML files;
+    /// text XML and every other Entry stay unchanged.
     pub convert: bool,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,

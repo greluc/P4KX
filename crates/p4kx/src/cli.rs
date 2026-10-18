@@ -106,8 +106,8 @@ pub(crate) enum DcbCommand {
     /// Prints the version of the DataForge and its number of Records, structs and enums.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(DcbInfoArgs),
-    /// Writes Records as Record XML, one file per Record under its record path, into a target
-    /// folder.
+    /// Writes Records as Record XML into a target folder, one file per Record under its record
+    /// path or, with --combined, all of them in one file.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
     /// Runs a Query over the Records and prints the result as a table, the record path first.
@@ -137,6 +137,10 @@ pub(crate) struct DcbExportArgs {
     /// glob with `*` or `?`, otherwise text anywhere in the path; ignores case, `\` and `/` alike.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
+    /// Writes every selected Record into one file in record-path order, named after the
+    /// DataForge Entry, e.g. Game2.xml, instead of one file per Record.
+    #[arg(long)]
+    pub(crate) combined: bool,
     /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
     /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]
@@ -301,7 +305,9 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
-    /// Converts CryXml Entries to UTF-8 XML; text XML and every other Entry are written unchanged.
+    /// Converts CryXml Entries to UTF-8 XML and writes the DataForge Entry as one Record XML file
+    /// per Record below its folder instead of the .dcb; text XML and every other Entry are
+    /// written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.

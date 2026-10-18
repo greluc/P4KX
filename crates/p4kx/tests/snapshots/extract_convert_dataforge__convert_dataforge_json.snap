@@ -1,0 +1,21 @@
+---
+source: crates/p4kx/tests/extract_convert_dataforge.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive_changed": false,
+  "cancelled": [],
+  "converted": 1,
+  "extracted": 2,
+  "failed": [],
+  "records": {
+    "cancelled": 0,
+    "error_values": 1,
+    "exported": 3,
+    "failed": [],
+    "records_with_errors": 1,
+    "skipped": []
+  },
+  "skipped": [],
+  "target": "[DIR]/out"
+}

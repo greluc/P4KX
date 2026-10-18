@@ -7,7 +7,7 @@ use crate::buffers::Buffers;
 use crate::dependent::split_dependent;
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
-use crate::{EntryFailure, ExtractOptions, ExtractionReport};
+use crate::{DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport, RecordExportReport};
 
 /// Runs an Extraction of `entries` from `archive` into the existing folder `target`.
 ///
@@ -17,6 +17,10 @@ use crate::{EntryFailure, ExtractOptions, ExtractionReport};
 /// rejected, and existing links below `target` are never followed. A failed or cancelled Entry
 /// leaves no partial file and keeps an existing one; once the token of `options` is cancelled,
 /// the Entries not yet complete are reported as cancelled.
+///
+/// With Conversion on, the DataForge Entry, the one [`DataForgeEntry::locate`] finds, is written as
+/// one Record XML file per Record below its folder after the other Entries, each file under the
+/// Conflict policy; its Records are reported in [`records`](ExtractionReport::records).
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -47,10 +51,15 @@ pub fn extract(
         convert: options.convert,
         tracker: &tracker,
     };
+    let dataforge = options
+        .convert
+        .then(|| dataforge_position(archive, entries))
+        .flatten();
     let (independent, dependent) = split_dependent(entries.iter().map(|entry| entry.path()));
     let indexed = |indices: Vec<usize>| -> Vec<(usize, &Entry)> {
         indices
             .into_iter()
+            .filter(|index| Some(*index) != dataforge)
             .filter_map(|index| entries.get(index).map(|entry| (index, *entry)))
             .collect()
     };
@@ -64,9 +73,35 @@ pub fn extract(
         .collect();
     let mut buffers = Buffers::new();
     outcomes.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let records = dataforge
+        .and_then(|index| entries.get(index).map(|entry| (index, entry)))
+        .and_then(|(index, entry)| {
+            let (outcome, records) = writer.write_dataforge(entry, &mut buffers);
+            outcomes.push((index, entry.path().to_owned(), outcome));
+            records
+        });
+    let mut report = summarise(outcomes, options.convert, records);
+    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
+    report
+}
+
+/// Returns the position in `entries` of the DataForge Entry of `archive`, if it is requested.
+fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
+    let located = DataForgeEntry::locate(archive)?;
+    entries
+        .iter()
+        .position(|entry| entry.path() == located.path())
+}
+
+fn summarise(
+    mut outcomes: Vec<(usize, String, Outcome)>,
+    convert: bool,
+    records: Option<RecordExportReport>,
+) -> ExtractionReport {
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
     let mut report = ExtractionReport {
-        converted: options.convert.then_some(0),
+        converted: convert.then_some(0),
+        records,
         ..ExtractionReport::default()
     };
     for (_, path, outcome) in outcomes {
@@ -81,6 +116,5 @@ pub fn extract(
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
-    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
 }

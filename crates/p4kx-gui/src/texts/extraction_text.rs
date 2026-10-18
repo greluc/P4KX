@@ -37,7 +37,7 @@ pub enum ExtractionText {
     PolicyOverwrite,
     /// Replaces existing files only when they differ.
     PolicyIfChanged,
-    /// The switch that converts `CryXml` Entries to XML.
+    /// The switch that converts `CryXml` Entries and DataForge to XML.
     Conversion,
     /// The action that starts the Extraction.
     Start,
@@ -70,6 +70,9 @@ pub enum ExtractionText {
     /// The counts of the summary with Conversion on; takes `extracted`, `converted`, `skipped`,
     /// `failed` and `cancelled`.
     SummaryCountsConverted,
+    /// The counts of the Records written for the DataForge Entry; takes `written`, `skipped`,
+    /// `failed`, `cancelled`, `errors` and `erroneous`.
+    SummaryRecords,
     /// The target folder; takes `path`.
     SummaryTarget,
     /// The heading of the failed Entries; takes `number`.
@@ -90,7 +93,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 42] = [
+    pub const ALL: [Self; 43] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -125,6 +128,7 @@ impl ExtractionText {
         Self::SummaryChanged,
         Self::SummaryCounts,
         Self::SummaryCountsConverted,
+        Self::SummaryRecords,
         Self::SummaryTarget,
         Self::SummaryFailed,
         Self::SummarySkipped,
@@ -173,6 +177,7 @@ impl ExtractionText {
             Self::SummaryChanged => "extraction-summary-changed",
             Self::SummaryCounts => "extraction-summary-counts",
             Self::SummaryCountsConverted => "extraction-summary-counts-converted",
+            Self::SummaryRecords => "extraction-summary-records",
             Self::SummaryTarget => "extraction-summary-target",
             Self::SummaryFailed => "extraction-summary-failed",
             Self::SummarySkipped => "extraction-summary-skipped",

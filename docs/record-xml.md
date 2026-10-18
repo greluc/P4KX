@@ -149,3 +149,34 @@ attribute; a nested struct is then a `p4kx:struct`.
 Which file a Record gets depends on the whole DataForge, never on what `--filter` selects; folders
 that differ only in case are one folder, spelt as the first Record in definition order needs it.
 Record paths and names that could leave the target folder are rejected.
+
+`p4kx extract --convert` and the Conversion switch of the Extraction window write the DataForge
+Entry the same way, one file per Record, below the folder of that Entry instead of the `.dcb`:
+the Records of `Data\Game2.dcb` go below `Data/`. Only the Entry the DataForge is read from is
+converted, `Game2.dcb` before `Game.dcb`; another `.dcb` is written unchanged.
+
+## Combined document
+
+`p4kx dcb export --combined` writes every selected Record into one file in the target folder,
+named after the DataForge Entry with `.xml`, e.g. `Game2.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<p4kx:records xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml">
+  <Manufacturer guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" code="WOOD"/>
+  <Vehicle guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5">
+    <maker>
+      <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
+    </maker>
+  </Vehicle>
+</p4kx:records>
+```
+
+- The rules of [Document](#document) apply to the whole file.
+- The root element `p4kx:records` declares `xmlns:p4kx` once; it is self-closing when no Record
+  is selected.
+- One child element per Record, written as the root of a single Record but indented by one level
+  and without its own `xmlns:p4kx`.
+- Records are ordered by record path, compared ignoring case with `/` and `\` alike, then by
+  their order in DataForge; a Record selected twice is written once.
+- A Record whose tree cannot be built is left out and reported as failed.

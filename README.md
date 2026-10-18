@@ -38,7 +38,11 @@ Early development (milestone M1). Available today:
   `--convert` writes CryXml Entries (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte order) as
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
-  existing file with the converted XML. The summary then also counts the converted Entries.
+  existing file with the converted XML. The DataForge Entry (`Data\Game2.dcb`, falling back to
+  `Data\Game.dcb`) is written as one Record XML file per Record below its folder instead of the
+  `.dcb`, e.g. `Data/libs/foundry/records/…`, each file under `--conflict`; Records with error
+  values are still written. The summary then also counts the converted Entries and the Records
+  with their error values.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
@@ -47,13 +51,14 @@ Early development (milestone M1). Available today:
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
-- `p4kx dcb export <archive> [--format xml] [--filter <filter>] [--out <folder>] [--conflict …]`
+- `p4kx dcb export <archive> [--format xml] [--combined] [--filter <filter>] [--out <folder>] [--conflict …]`
   writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
   `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
   `--filter` selects Records by record path with the rules of `search`; `--out` and `--conflict`
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
-  the same bytes.
+  the same bytes. `--combined` writes every selected Record into one file in record-path order,
+  named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.

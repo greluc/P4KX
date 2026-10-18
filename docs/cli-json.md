@@ -85,6 +85,11 @@ order. `error_values` counts the values written as errors (see
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty.
 
+With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
+`target`, and `exported` counts the Records written into it. When an existing file is kept under
+`--conflict`, `skipped` holds its name and `exported` is 0. A cancelled run writes no file and
+counts every Record not failed in `cancelled`. Without `--combined` the field is absent.
+
 ## `p4kx channels --json`
 
 ```json
@@ -220,7 +225,11 @@ failures are not repeated on stderr. The exit code is 1 when `failed` is not emp
 ```
 
 With `--convert` the report also holds `"converted": 1`, the number of CryXml Entries written as
-XML; they count among `extracted`. Without `--convert` the field is absent.
+XML and the DataForge Entry written as Records; they count among `extracted`. Without
+`--convert` the field is absent. When `--convert` converted the DataForge Entry, the report also
+holds `records` with the fields `exported`, `skipped`, `failed`, `cancelled`, `error_values` and
+`records_with_errors` of [`p4kx dcb export`](#p4kx-dcb-export-archive---json); `skipped` lists
+the Record files relative to the folder of the DataForge Entry. Otherwise the field is absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

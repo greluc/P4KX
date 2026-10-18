@@ -5,9 +5,9 @@ use egui::{
 
 use super::text::caps;
 use crate::theme::desktop::{
-    ACCENT_BAR, BRACKET, BRACKET_STROKE, BUTTON_XS_HEIGHT, HEADER_PADDING_X, MODAL_TOP_EDGE,
-    MODAL_WIDE_WIDTH, MODAL_WIDTH, NOTICE_PADDING_Y, PREVIEW_PADDING_X, SCRIM, TITLE_SIZE,
-    TITLE_TRACKING,
+    ACCENT_BAR, ALERT_DANGER_FILL, ALERT_WARNING_FILL, BRACKET, BRACKET_STROKE, BUTTON_XS_HEIGHT,
+    HEADER_PADDING_X, MODAL_TOP_EDGE, MODAL_WIDE_WIDTH, MODAL_WIDTH, NOTICE_PADDING_Y,
+    PREVIEW_PADDING_X, SCRIM, TITLE_SIZE, TITLE_TRACKING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{GLOW_DANGER_LG, GLOW_PRIMARY_LG, SPACE_3, SPACE_4, Weight};
@@ -96,8 +96,15 @@ pub(crate) fn preview_body() -> Frame {
 
 /// Shows an `.alert.alert-warning` with `body` inside.
 pub(crate) fn warning_alert<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
-    let fill = crate::theme::desktop::ALERT_WARNING_FILL;
-    let accent = palette::WARNING;
+    alert(ui, (ALERT_WARNING_FILL, palette::WARNING), body)
+}
+
+/// Shows an `.alert.alert-danger` with `body` inside.
+pub(crate) fn danger_alert<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    alert(ui, (ALERT_DANGER_FILL, palette::DANGER), body)
+}
+
+fn alert<R>(ui: &mut Ui, (fill, accent): (Color32, Color32), body: impl FnOnce(&mut Ui) -> R) -> R {
     let response = Frame::NONE
         .fill(fill)
         .stroke(Stroke::new(1.0, accent))

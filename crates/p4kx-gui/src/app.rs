@@ -5,7 +5,7 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
-use crate::{ComparisonText, Model, Text, ui, window};
+use crate::{ComparisonText, Model, QueryExportFormat, QueryText, Text, ui, window};
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
 /// settings file around it.
@@ -49,6 +49,11 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let filter = self.model.texts().get(Text::DialogArchiveFilter);
         let report_filter = self.model.texts().get(ComparisonText::ReportFilter);
+        let export_filter = match dialog {
+            Dialog::QueryExport(QueryExportFormat::Json) => QueryText::FilterJson,
+            _ => QueryText::FilterCsv,
+        };
+        let export_filter = self.model.texts().get(export_filter);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -65,6 +70,13 @@ impl App {
                         .add_filter(report_filter, &["json"])
                         .set_file_name("comparison.json")
                         .save_file(),
+                    Dialog::QueryExport(format) => {
+                        let extension = format.extension();
+                        picker
+                            .add_filter(export_filter, &[extension])
+                            .set_file_name(format!("query.{extension}"))
+                            .save_file()
+                    }
                 };
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
@@ -130,6 +142,12 @@ impl eframe::App for App {
             Some((Dialog::ComparisonArchive(side), path)) => {
                 self.model.comparison_mut().set_archive(side, path);
             }
+            Some((Dialog::QueryExport(format), path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .query_mut()
+                    .export(path, format, move || ctx.request_repaint());
+            }
             Some((Dialog::ComparisonReport, path)) => {
                 let ctx = ui.ctx().clone();
                 if let Some(view) = self.model.comparison_mut().view_mut() {
@@ -155,6 +173,7 @@ impl eframe::App for App {
         self.model.stop_extraction();
         self.model.stop_record_export();
         self.model.comparison_mut().cancel();
+        self.model.query_mut().cancel();
         self.save_settings();
     }
 }

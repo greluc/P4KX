@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
 use p4kx_audio::{AudioError, BankError};
+use p4kx_chunks::ChunkError;
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
@@ -120,6 +121,33 @@ pub enum ConversionError {
         bank: String,
         /// The WEM ID.
         id: u32,
+    },
+    /// The chunk file is larger than the limit for reading it into memory.
+    #[error("{file} is larger than {limit} bytes")]
+    ChunkFileTooLarge {
+        /// The Entry path or file of the chunk file.
+        file: String,
+        /// The limit in bytes.
+        limit: u64,
+    },
+    /// The chunk file is not valid.
+    #[error("{file}")]
+    ChunkFile {
+        /// The Entry path or file of the chunk file.
+        file: String,
+        /// What is wrong.
+        #[source]
+        source: ChunkError,
+    },
+    /// The chunk file has no chunk at the requested index.
+    #[error("{file} has no chunk {index}; its {count} chunks are numbered from 0")]
+    NoSuchChunk {
+        /// The Entry path or file of the chunk file.
+        file: String,
+        /// The requested index.
+        index: usize,
+        /// The number of chunks.
+        count: usize,
     },
     /// The output file is the header or one of its parts, or the sound file.
     #[error("{} is one of the inputs", path.display())]

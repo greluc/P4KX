@@ -1,6 +1,6 @@
 use super::{
     ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    RecordExportText, Text,
+    QueryText, RecordExportText, Text,
 };
 use crate::Language;
 
@@ -82,6 +82,7 @@ impl Text {
             .chain(ChangeExtractionText::ALL.map(Self::ChangeExtraction))
             .chain(DiffText::ALL.map(Self::Diff))
             .chain(ImageText::ALL.map(Self::Image))
+            .chain(QueryText::ALL.map(Self::Query))
             .chain(RecordExportText::ALL.map(Self::RecordExport))
     }
 
@@ -159,6 +160,7 @@ impl Text {
             Self::ChangeExtraction(text) => text.id(),
             Self::Diff(text) => text.id(),
             Self::Image(text) => text.id(),
+            Self::Query(text) => text.id(),
             Self::RecordExport(text) => text.id(),
         }
     }

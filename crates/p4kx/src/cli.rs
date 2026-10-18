@@ -5,12 +5,14 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
+pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -75,6 +77,12 @@ pub(crate) enum Command {
     /// Lists or extracts the bitmaps, shapes, fonts and sprites of a GFx or SWF UI movie.
     #[command(after_help = EXIT_CODES_HELP)]
     Ui(UiArgs),
+    /// Lists or extracts the Entries of a socpak container, also of one nested in another.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Socpak(SocpakArgs),
+    /// Converts a CHF character file to JSON and back, byte-exactly.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Chf(ChfArgs),
     /// Lists the chunks of a CryEngine chunk file, #ivo or CrCh, or writes the bytes of one.
     #[command(after_help = EXIT_CODES_HELP)]
     Chunks(ChunksArgs),

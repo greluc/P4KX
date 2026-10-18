@@ -1,48 +1,70 @@
-use std::fs::{File, OpenOptions};
 use std::io;
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::path::Path;
+use std::sync::Arc;
 use std::time::SystemTime;
 
-#[cfg(windows)]
-const FILE_SHARE_READ: u32 = 0x0000_0001;
-#[cfg(windows)]
-const FILE_SHARE_WRITE: u32 = 0x0000_0002;
+use crate::file_source::FileSource;
 
-/// Read-only access to the Archive file by offset, through a pool of file handles.
-///
-/// Every read is positional, so concurrent readers never share a file cursor. A handle is taken
-/// from the pool for one read and returned afterwards; the pool grows to the number of concurrent
-/// readers. Renaming and deleting the file is not shared, so every handle reads the same file.
 #[derive(Debug)]
+enum Backing {
+    File(FileSource),
+    Memory(Box<[u8]>),
+}
+
+/// Read-only positional access to a window of an Archive file or of decoded container bytes.
+///
+/// Cloning and slicing share the backing, so a stored container is read in place, without a copy.
+#[derive(Debug, Clone)]
 pub(crate) struct Source {
-    path: PathBuf,
+    backing: Arc<Backing>,
+    start: u64,
     len: u64,
-    modified: Option<SystemTime>,
-    handles: Mutex<Vec<File>>,
 }
 
 impl Source {
     /// Opens the file read-only; other processes may keep reading and writing it.
     pub(crate) fn open(path: &Path) -> io::Result<Self> {
-        let file = open_shared(path)?;
-        let metadata = file.metadata()?;
+        let file = FileSource::open(path)?;
+        let len = file.len();
         Ok(Self {
-            path: path.to_path_buf(),
-            len: metadata.len(),
-            modified: metadata.modified().ok(),
-            handles: Mutex::new(vec![file]),
+            backing: Arc::new(Backing::File(file)),
+            start: 0,
+            len,
         })
     }
 
-    /// Returns the file length.
+    /// Wraps decoded bytes.
+    pub(crate) fn memory(bytes: Vec<u8>) -> Self {
+        let len = bytes.len() as u64;
+        Self {
+            backing: Arc::new(Backing::Memory(bytes.into_boxed_slice())),
+            start: 0,
+            len,
+        }
+    }
+
+    /// Returns the window of `len` bytes at `offset`, or `None` when it does not fit.
+    pub(crate) fn slice(&self, offset: u64, len: u64) -> Option<Self> {
+        let end = offset.checked_add(len)?;
+        (end <= self.len).then(|| Self {
+            backing: Arc::clone(&self.backing),
+            start: self.start + offset,
+            len,
+        })
+    }
+
+    /// Returns the length of the window.
     pub(crate) const fn len(&self) -> u64 {
         self.len
     }
 
-    /// Returns the modification time when the file was opened, or `None` when the platform has none.
-    pub(crate) const fn modified(&self) -> Option<SystemTime> {
-        self.modified
+    /// Returns the modification time of the backing file when it was opened, or `None` for decoded
+    /// bytes and platforms that record none.
+    pub(crate) fn modified(&self) -> Option<SystemTime> {
+        match self.backing.as_ref() {
+            Backing::File(file) => file.modified(),
+            Backing::Memory(_) => None,
+        }
     }
 
     /// Reads `count` bytes starting at `offset`.
@@ -54,64 +76,23 @@ impl Source {
 
     /// Fills `buffer` with the bytes starting at `offset`.
     pub(crate) fn read_into(&self, offset: u64, buffer: &mut [u8]) -> io::Result<()> {
-        let file = self.take_handle()?;
-        let result = read_exact_at(&file, buffer, offset);
-        self.return_handle(file);
-        result
-    }
-
-    fn take_handle(&self) -> io::Result<File> {
-        let pooled = self.pool().pop();
-        if let Some(file) = pooled {
-            return Ok(file);
+        let inside = offset
+            .checked_add(buffer.len() as u64)
+            .is_some_and(|end| end <= self.len);
+        if !inside {
+            return Err(io::ErrorKind::UnexpectedEof.into());
         }
-        let file = open_shared(&self.path)?;
-        if file.metadata()?.len() != self.len {
-            return Err(io::Error::new(
-                io::ErrorKind::ResourceBusy,
-                "the Archive file changed while it was open",
-            ));
-        }
-        Ok(file)
-    }
-
-    fn return_handle(&self, file: File) {
-        self.pool().push(file);
-    }
-
-    fn pool(&self) -> MutexGuard<'_, Vec<File>> {
-        self.handles.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-}
-
-fn open_shared(path: &Path) -> io::Result<File> {
-    let mut options = OpenOptions::new();
-    options.read(true);
-    #[cfg(windows)]
-    std::os::windows::fs::OpenOptionsExt::share_mode(
-        &mut options,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-    );
-    options.open(path)
-}
-
-#[cfg(unix)]
-fn read_exact_at(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<()> {
-    std::os::unix::fs::FileExt::read_exact_at(file, buffer, offset)
-}
-
-#[cfg(windows)]
-fn read_exact_at(file: &File, mut buffer: &mut [u8], mut offset: u64) -> io::Result<()> {
-    while !buffer.is_empty() {
-        match std::os::windows::fs::FileExt::seek_read(file, buffer, offset) {
-            Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
-            Ok(count) => {
-                buffer = buffer.get_mut(count..).unwrap_or_default();
-                offset += count as u64;
+        let absolute = self.start + offset;
+        match self.backing.as_ref() {
+            Backing::File(file) => file.read_into(absolute, buffer),
+            Backing::Memory(bytes) => {
+                let bytes = usize::try_from(absolute)
+                    .ok()
+                    .and_then(|start| bytes.get(start..)?.get(..buffer.len()))
+                    .ok_or(io::ErrorKind::UnexpectedEof)?;
+                buffer.copy_from_slice(bytes);
+                Ok(())
             }
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-            Err(error) => return Err(error),
         }
     }
-    Ok(())
 }

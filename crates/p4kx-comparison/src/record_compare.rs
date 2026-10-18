@@ -8,7 +8,7 @@ use crate::field_diff::diff_fields;
 use crate::path_key::cmp_normalised;
 use crate::{
     CompareOptions, ComparisonError, ComparisonProgress, DataForge, DataForgeError, DataForges,
-    Record, RecordChange, RecordChangeKind, RecordError, RecordSide, RecordState,
+    Record, RecordChange, RecordChangeKind, RecordError, RecordKey, RecordSide, RecordState,
 };
 
 const PROGRESS_STEP: usize = 1 << 12;
@@ -69,6 +69,28 @@ pub(crate) fn compare_records<'a>(
     });
     report(total);
     Ok(changes)
+}
+
+/// Compares the Records at the positions of `key` again, as [`compare_records`] does; `None`
+/// when they do not differ, neither position holds a Record or the two Records have different
+/// GUIDs.
+pub(crate) fn compare_record<'a>(
+    forges: DataForges<'a>,
+    key: RecordKey,
+) -> Option<RecordChange<'a>> {
+    let side = |forge: &'a DataForge<'a>, position: Option<u32>| {
+        position.map_or(Some(None), |index| forge.record(index).map(Some))
+    };
+    let pair = match (
+        side(forges.old, key.old_position())?,
+        side(forges.new, key.new_position())?,
+    ) {
+        (Some(old), Some(new)) if old.guid() == new.guid() => Joined::Both(old, new),
+        (Some(old), None) => Joined::Removed(old),
+        (None, Some(new)) => Joined::Added(new),
+        _ => return None,
+    };
+    diff(pair, &CompareOptions::default())
 }
 
 fn by_guid<'a>(forge: &'a DataForge<'a>) -> Vec<Record<'a>> {
@@ -135,6 +157,10 @@ fn diff<'a>(pair: Joined<'a>, options: &CompareOptions<'_>) -> Option<RecordChan
         .zip(new_path)
         .and_then(|(record, path)| read(state(record, path), RecordSide::New, &mut errors));
     let mut change = RecordChange {
+        key: RecordKey::new(
+            old.map(|record| record.index()),
+            new.map(|record| record.index()),
+        ),
         guid: new.or(old).map(|record| record.guid()).unwrap_or_default(),
         old: old_state,
         new: new_state,
@@ -176,4 +202,39 @@ fn read<T>(
     result
         .map_err(|error| errors.push(RecordError { side, error }))
         .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType};
+
+    use super::compare_record;
+    use crate::{DataForge, DataForges, RecordKey};
+
+    fn database(guid: u128) -> Vec<u8> {
+        DataForgeBuilder::new()
+            .structure(TestStruct::new("Ship").field("speed", TestType::Int32))
+            .record(TestRecord::new(
+                guid,
+                "Ship",
+                "Ship.One",
+                "libs/ships/one.xml",
+            ))
+            .build()
+    }
+
+    #[test]
+    fn a_key_over_records_of_different_guids_has_no_change() -> Result<(), crate::DataForgeError> {
+        let (old, new) = (database(1), database(2));
+        let (old, new) = (DataForge::open(&old)?, DataForge::open(&new)?);
+        let forges = DataForges {
+            old: &old,
+            new: &new,
+        };
+
+        let change = compare_record(forges, RecordKey::new(Some(0), Some(0)));
+
+        assert!(change.is_none(), "two unrelated Records: {change:?}");
+        Ok(())
+    }
 }

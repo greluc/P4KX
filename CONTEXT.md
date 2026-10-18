@@ -39,6 +39,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Container**:
+An Entry that is itself a plain ZIP archive, e.g. a `.socpak`, opened in place and read like an
+Archive; it may hold further containers.
+_Avoid_: nested archive, sub-archive, pak
+
 **Filter**:
 Text that selects Entries by path: a glob over the full path when it holds `*` or `?`, otherwise
 a substring anywhere in the path; case and separator kind do not matter.
@@ -172,6 +177,15 @@ _Avoid_: sound package, audio archive
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
 
+**CHF**:
+A 4096-byte character file holding a Character's body type, face DNA, worn item ports and
+material choices, saved by the character customiser or shipped in the Archive.
+_Avoid_: character preset, head file
+
+**DNA**:
+The face of a Character in a CHF: for every face part, weighted blends of stock heads.
+_Avoid_: face data, morph values
+
 **Cubemap face**:
 One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as
 `posx` … `negz`.
@@ -206,7 +220,8 @@ _Avoid_: unpack, export (an Export is something else)
 
 **Conflict policy**:
 What an Extraction does with a file already in the target folder: skip it, overwrite it, or
-overwrite it only if changed (size or CRC-32C differs from the Entry or the converted Record).
+overwrite it only if changed (its size or the Entry's checksum differs from the Entry, or its size or
+CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Conversion**:

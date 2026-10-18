@@ -96,7 +96,7 @@ fn every_entry_carries_the_crc32c_of_its_uncompressed_data_in_both_layouts() -> 
         let crcs: Vec<_> = archive.entries().iter().map(Entry::crc32c).collect();
         assert_eq!(
             crcs,
-            vec![0xE306_9283, 0xE306_9283, 0],
+            vec![Some(0xE306_9283), Some(0xE306_9283), Some(0)],
             "{name}: the CRC-32C of the data after decoding"
         );
     }

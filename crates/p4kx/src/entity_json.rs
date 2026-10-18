@@ -1,0 +1,180 @@
+use p4kx_assembly::{
+    Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortTransform, Target,
+};
+use serde::Serialize;
+
+/// The counts of a Loadout tree's ports by what they hold.
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+pub(crate) struct Counts {
+    pub(crate) ports: usize,
+    pub(crate) attached: usize,
+    pub(crate) empty: usize,
+    pub(crate) unresolved: usize,
+}
+
+impl Counts {
+    pub(crate) fn of(node: &EntityNode) -> Self {
+        let mut counts = Self::default();
+        for (_, port) in node.walk() {
+            counts.ports += 1;
+            match port.attachment() {
+                Attachment::Empty => counts.empty += 1,
+                Attachment::Entity(_) => counts.attached += 1,
+                Attachment::Unresolved(_) => counts.unresolved += 1,
+            }
+        }
+        counts
+    }
+}
+
+/// The JSON shape of `p4kx entity loadout`.
+#[derive(Serialize)]
+pub(crate) struct LoadoutJson<'a> {
+    pub(crate) archive: String,
+    pub(crate) entry: &'a str,
+    pub(crate) entity: NodeJson<'a>,
+    #[serde(flatten)]
+    pub(crate) counts: Counts,
+}
+
+/// The JSON shape of an Entity in the tree.
+#[derive(Serialize)]
+pub(crate) struct NodeJson<'a> {
+    guid: String,
+    record_path: &'a str,
+    name: &'a str,
+    class_name: &'a str,
+    issues: Vec<ErrorJson<'a>>,
+    ports: Vec<PortJson<'a>>,
+}
+
+impl<'a> From<&'a EntityNode> for NodeJson<'a> {
+    fn from(node: &'a EntityNode) -> Self {
+        Self {
+            guid: node.guid().to_string(),
+            record_path: node.record_path(),
+            name: node.name(),
+            class_name: node.class_name(),
+            issues: node
+                .issues()
+                .iter()
+                .map(|error| ErrorJson::new(error, None))
+                .collect(),
+            ports: node.ports().iter().map(PortJson::from).collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct PortJson<'a> {
+    name: &'a str,
+    source: &'static str,
+    definition: Option<DefinitionJson<'a>>,
+    entity: Option<NodeJson<'a>>,
+    error: Option<ErrorJson<'a>>,
+}
+
+impl<'a> From<&'a PortNode> for PortJson<'a> {
+    fn from(port: &'a PortNode) -> Self {
+        let (entity, error) = match port.attachment() {
+            Attachment::Empty => (None, None),
+            Attachment::Entity(node) => (Some(NodeJson::from(node.as_ref())), None),
+            Attachment::Unresolved(unresolved) => (
+                None,
+                Some(ErrorJson::new(
+                    unresolved.error(),
+                    Some(unresolved.target()),
+                )),
+            ),
+        };
+        Self {
+            name: port.name(),
+            source: port.source().code(),
+            definition: port.definition().map(DefinitionJson::from),
+            entity,
+            error,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ErrorJson<'a> {
+    kind: &'static str,
+    reason: String,
+    reference: Option<String>,
+    class_name: Option<&'a str>,
+}
+
+impl<'a> ErrorJson<'a> {
+    fn new(error: &LoadoutError, target: Option<&'a Target>) -> Self {
+        let (reference, class_name) = match target {
+            Some(Target::Reference(guid)) => (Some(guid.to_string()), None),
+            Some(Target::ClassName(name)) => (None, Some(name.as_str())),
+            _ => (None, None),
+        };
+        Self {
+            kind: error.kind(),
+            reason: error.to_string(),
+            reference,
+            class_name,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct DefinitionJson<'a> {
+    display_name: &'a str,
+    flags: &'a str,
+    min_size: Option<u32>,
+    max_size: Option<u32>,
+    types: Vec<TypeJson<'a>>,
+    transform: Option<TransformJson<'a>>,
+}
+
+impl<'a> From<&'a PortDefinition> for DefinitionJson<'a> {
+    fn from(definition: &'a PortDefinition) -> Self {
+        Self {
+            display_name: definition.display_name(),
+            flags: definition.flags(),
+            min_size: definition.min_size(),
+            max_size: definition.max_size(),
+            types: definition
+                .types()
+                .iter()
+                .map(|item_type| TypeJson {
+                    name: item_type.name(),
+                    sub_types: item_type.sub_types(),
+                })
+                .collect(),
+            transform: definition.transform().map(TransformJson::from),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct TypeJson<'a> {
+    #[serde(rename = "type")]
+    name: &'a str,
+    sub_types: &'a [String],
+}
+
+#[derive(Serialize)]
+struct TransformJson<'a> {
+    attachment: &'a str,
+    helper: &'a str,
+    offset_helper: &'a str,
+    position: [f32; 3],
+    rotation: [f32; 3],
+}
+
+impl<'a> From<&'a PortTransform> for TransformJson<'a> {
+    fn from(transform: &'a PortTransform) -> Self {
+        Self {
+            attachment: transform.attachment(),
+            helper: transform.helper(),
+            offset_helper: transform.offset_helper(),
+            position: transform.position(),
+            rotation: transform.rotation(),
+        }
+    }
+}

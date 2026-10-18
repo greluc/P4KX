@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -38,6 +39,9 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
+    /// Shows the Loadout tree of an Entity: a ship, vehicle, weapon or item.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Entity(EntityArgs),
     /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]

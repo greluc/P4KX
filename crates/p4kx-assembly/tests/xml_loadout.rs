@@ -1,0 +1,216 @@
+//! XML Loadouts: files a Record names instead of entries, read through `LoadoutFiles`.
+
+use std::collections::HashMap;
+use std::error::Error;
+
+use p4kx_assembly::{
+    Attachment, EntityNode, LoadoutError, LoadoutFileError, LoadoutFiles, LoadoutResolver,
+    PortNode, PortSource,
+};
+use p4kx_dataforge::DataForge;
+use p4kx_testkit::{
+    CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntity, TestLoadout,
+    TestLoadoutEntry, entity_schema,
+};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+struct Files(HashMap<String, Vec<u8>>);
+
+impl LoadoutFiles for Files {
+    fn read(&self, path: &str) -> Result<Vec<u8>, LoadoutFileError> {
+        self.0
+            .get(&path.to_ascii_lowercase())
+            .cloned()
+            .ok_or(LoadoutFileError::NotFound)
+    }
+}
+
+fn files(entries: &[(&str, Vec<u8>)]) -> Files {
+    Files(
+        entries
+            .iter()
+            .map(|(path, bytes)| (path.to_ascii_lowercase(), bytes.clone()))
+            .collect(),
+    )
+}
+
+fn database(loadout: TestLoadout) -> DataForgeBuilder {
+    let entities = [
+        TestEntity::new(0x1, "Door", "entities/door.xml").loadout(loadout),
+        TestEntity::new(0x2, "Decal_Red", "entities/decal_red.xml"),
+        TestEntity::new(0x3, "Decal_Blue", "entities/decal_blue.xml"),
+        TestEntity::new(0x4, "Panel", "entities/panel.xml"),
+    ];
+    entities
+        .iter()
+        .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
+            builder.record(entity.record())
+        })
+}
+
+fn resolve(
+    builder: &DataForgeBuilder,
+    files: Option<&Files>,
+) -> Result<EntityNode, Box<dyn Error>> {
+    let bytes = builder.build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    if let Some(files) = files {
+        resolver = resolver.with_files(files);
+    }
+    let door = resolver.entities().find("Door")?;
+    Ok(resolver.resolve(&door)?)
+}
+
+fn item(port: &str, class_name: &str) -> TestElement {
+    TestElement::new("Item")
+        .attribute("portName", port)
+        .attribute("itemName", class_name)
+}
+
+fn cryxml(element: &TestElement) -> Vec<u8> {
+    element.to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
+}
+
+fn lines(node: &EntityNode) -> Vec<String> {
+    node.walk()
+        .into_iter()
+        .map(|(path, port)| match port.attachment() {
+            Attachment::Entity(child) => format!("{path} {}", child.class_name()),
+            Attachment::Empty => format!("{path} -"),
+            Attachment::Unresolved(unresolved) => format!("{path} ! {}", unresolved.error().kind()),
+        })
+        .collect()
+}
+
+#[test]
+fn a_cryxml_loadout_with_nested_items_is_read_from_the_files() -> TestResult {
+    let builder = database(TestLoadout::Xml("Scripts/Loadouts/Door.xml".to_owned()));
+    let door = TestElement::new("Loadout").child(
+        TestElement::new("Items").child(
+            item("hardpoint_decal", "decal_red")
+                .child(TestElement::new("Items").child(item("hardpoint_panel", "Panel"))),
+        ),
+    );
+    let files = files(&[("scripts/loadouts/door.xml", cryxml(&door))]);
+    let tree = resolve(&builder, Some(&files))?;
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    assert_eq!(
+        lines(&tree),
+        [
+            "hardpoint_decal Decal_Red",
+            "hardpoint_decal/hardpoint_panel Panel"
+        ],
+        "class names ignore case; nested items are the child's Loadout"
+    );
+    let decal = tree.ports().first().ok_or("no port")?;
+    assert_eq!(
+        decal.source(),
+        PortSource::Loadout,
+        "the Entity's own Loadout"
+    );
+    Ok(())
+}
+
+#[test]
+fn included_loadouts_are_overridden_per_port_by_the_including_one() -> TestResult {
+    let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
+    let base = b"\xef\xbb\xbf<Loadout><Items>\
+        <Item portName=\"left\" itemName=\"Decal_Red\"/>\
+        <Item portName=\"right\" itemName=\"Decal_Red\"/>\
+        </Items></Loadout>"
+        .to_vec();
+    let door = b"<Loadout>\
+        <Loadouts><Loadout loadout=\"Loadouts/Base.xml\"/></Loadouts>\
+        <Items><Item portName=\"right\" itemName=\"Decal_Blue\"/>\
+        <Item portName=\"top\" itemName=\"\"/></Items>\
+        </Loadout>"
+        .to_vec();
+    let files = files(&[("loadouts/base.xml", base), ("loadouts/door.xml", door)]);
+    let tree = resolve(&builder, Some(&files))?;
+    assert_eq!(
+        lines(&tree),
+        ["left Decal_Red", "right Decal_Blue", "top -"],
+        "text XML with a byte order mark, included first"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_xml_loadout_is_an_issue_of_its_entity() -> TestResult {
+    let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
+    let looping =
+        b"<Loadout><Loadouts><Loadout loadout=\"loadouts/door.xml\"/></Loadouts></Loadout>";
+    let cases: [(Option<Files>, &str); 4] = [
+        (
+            None,
+            "the XML Loadout Loadouts/Door.xml is not read without its Archive",
+        ),
+        (
+            Some(files(&[])),
+            "the XML Loadout Loadouts/Door.xml cannot be read: there is no such file",
+        ),
+        (
+            Some(files(&[("loadouts/door.xml", looping.to_vec())])),
+            "the XML Loadout loadouts/door.xml cannot be read: it includes itself",
+        ),
+        (
+            Some(files(&[("loadouts/door.xml", b"<Other/>".to_vec())])),
+            "the XML Loadout Loadouts/Door.xml cannot be read: its root element is Other, not Loadout",
+        ),
+    ];
+    for (files, expected) in cases {
+        let tree = resolve(&builder, files.as_ref())?;
+        let issues: Vec<String> = tree.issues().iter().map(ToString::to_string).collect();
+        assert_eq!(issues, [expected], "one issue");
+        assert!(tree.ports().is_empty(), "no ports: {:?}", tree.ports());
+    }
+    Ok(())
+}
+
+#[test]
+fn an_xml_loadout_of_an_entry_overrides_the_attached_entity_s_own() -> TestResult {
+    let builder = DataForgeBuilder::new();
+    let entities = [
+        TestEntity::new(0x1, "Door", "entities/door.xml").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("frame", "Panel")
+                .loadout(TestLoadout::Xml("Loadouts/Frame.xml".to_owned())),
+        ])),
+        TestEntity::new(0x4, "Panel", "entities/panel.xml").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("sticker", "Decal_Red"),
+        ])),
+        TestEntity::new(0x2, "Decal_Red", "entities/decal_red.xml"),
+        TestEntity::new(0x3, "Decal_Blue", "entities/decal_blue.xml"),
+    ];
+    let builder = entities
+        .iter()
+        .fold(entity_schema(builder), |builder, entity| {
+            builder.record(entity.record())
+        });
+    let frame = TestElement::new("Loadout")
+        .child(TestElement::new("Items").child(item("sticker", "Decal_Blue")));
+    let files = files(&[("loadouts/frame.xml", cryxml(&frame))]);
+    let tree = resolve(&builder, Some(&files))?;
+    assert_eq!(
+        lines(&tree),
+        ["frame Panel", "frame/sticker Decal_Blue"],
+        "the entry's XML Loadout wins"
+    );
+    let without = resolve(&builder, None)?;
+    let panel = match without.ports().first().map(PortNode::attachment) {
+        Some(Attachment::Entity(panel)) => panel.clone(),
+        other => return Err(format!("no panel: {other:?}").into()),
+    };
+    assert!(
+        matches!(panel.issues(), [LoadoutError::NoLoadoutFiles { .. }]),
+        "the override cannot be read: {:?}",
+        panel.issues()
+    );
+    assert_eq!(
+        lines(&panel),
+        ["sticker Decal_Red"],
+        "the own Loadout stays"
+    );
+    Ok(())
+}

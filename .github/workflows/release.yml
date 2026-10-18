@@ -27,7 +27,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -77,13 +77,13 @@ jobs:
           .github\scripts\build-msi.ps1 -Wix target\wix-tool\wix.exe -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
           $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Package.UpgradeCode
           .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: msiexec-logs
           path: target/wix-check/*.log
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release
           path: |
@@ -100,7 +100,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release
           path: release

@@ -53,11 +53,26 @@ and takes the path from `p4kx_testkit::real_archive_path`.
 - `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
   manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks
   that (ADR-0006).
-- The look follows the KRT design system strictly: dark only, Lato only (ADR-0006).
+- The look follows the KRT design system strictly: dark only, Lato only (ADR-0006). See
+  "GUI design" below.
 - Source files stay below about 400 lines; split by responsibility before that.
 - One canonical Record tree serialised to XML and JSON; References are links, never embedded
   (ADR-0004).
 - UI strings live in Fluent files for `de-DE` and `en-GB` (British spelling), never inline.
+
+## GUI design
+
+- **Binding source:** the current `main` of
+  [krt-profit/design-system](https://github.com/krt-profit/design-system) is the leading and
+  binding KRT design system for every GUI change. Read it fresh before GUI work, never from
+  memory: `README.md` and `SKILL.md` for the rules, `tokens.json` for every colour, type size,
+  weight, spacing, radius and glow, `krt-components.css` and `components/<Name>/preview.html`
+  for the component contracts.
+- `p4kx_gui::theme` mirrors those tokens 1:1 and draws the components after those contracts.
+  Never invent a colour, size, spacing or radius; when the design system changes, the theme
+  follows.
+- Deviate only where egui or the platform forces it, never in colour, form or type, and record
+  the deviation in an ADR.
 
 ## Rules
 

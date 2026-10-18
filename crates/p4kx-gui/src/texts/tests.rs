@@ -41,9 +41,18 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("skipped", "1".into()),
         ("failed", "0".into()),
         ("cancelled", "0".into()),
+        ("written", "3".into()),
+        ("errors", "1".into()),
+        ("erroneous", "1".into()),
         ("version", "0.2.0".into()),
         ("channel", "LIVE".into()),
         ("change", "Added".into()),
+        ("current", "1".into()),
+        ("first", "10".into()),
+        ("last", "16".into()),
+        ("line", "12".into()),
+        ("text", "<a/>".into()),
+        ("lines", "4,194,304".into()),
     ]
 }
 

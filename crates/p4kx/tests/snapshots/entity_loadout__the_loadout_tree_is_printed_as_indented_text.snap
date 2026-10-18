@@ -1,0 +1,16 @@
+---
+source: crates/p4kx/tests/entity_loadout.rs
+expression: run.stdout
+---
+TEST_Ship  0079c5d5-1678-4f8c-85ba-18ca8f642af6  libs/foundry/records/entities/spaceships/test_ship
+  hardpoint_paint: -
+  hardpoint_seat_pilot: TEST_Seat
+  hardpoint_dashboard: TEST_Dashboard
+    Display_HUD: TEST_Screen
+    Radar: TEST_Radar_Screen (override)
+  hardpoint_weapon_nose: TEST_Mount_Gimbal_S3 [size 2-3, helper hp_nose]
+    hardpoint_class_2: TEST_Gun_S3 (override) [size 3, helper hardpoint_class_2]
+  hardpoint_cargo: unresolved: the Reference refers to the Record 00000001-0002-0003-0004-000000000005, which does not exist
+  hardpoint_door: unresolved: no Entity has the class name TEST_No_Such_Door
+  hardpoint_relay: - (unset) [size 0-1]
+10 ports: 6 attached, 2 empty, 2 unresolved

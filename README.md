@@ -39,6 +39,10 @@ Early development (milestone M1). Available today:
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
   existing file with the converted XML. The summary then also counts the converted Entries.
+  `--convert` also writes the DataForge Entry (`Data\Game2.dcb`, falling back to
+  `Data\Game.dcb`) as one Record XML file per Record below its folder instead of the `.dcb`,
+  e.g. `Data/libs/foundry/records/…`, each file under `--conflict`; Records with error values are
+  still written, and the summary counts the Records with their error values.
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
   high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
@@ -61,13 +65,14 @@ Early development (milestone M1). Available today:
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
-- `p4kx dcb export <archive> [--format xml] [--filter <filter>] [--out <folder>] [--conflict …]`
+- `p4kx dcb export <archive> [--format xml] [--combined] [--filter <filter>] [--out <folder>] [--conflict …]`
   writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
   `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
   `--filter` selects Records by record path with the rules of `search`; `--out` and `--conflict`
   work as for `extract`. A value that cannot be read is written as an error at its field and the
   Record is still written; the summary counts these error values. The same Record always gives
-  the same bytes.
+  the same bytes. `--combined` writes every selected Record into one file in record-path order,
+  named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.
@@ -77,6 +82,17 @@ Early development (milestone M1). Available today:
   writes RFC 4180 CSV with a header row and `--format json` (or `--json`) one line of JSON, an
   array of objects keyed by column with typed values; `--out <file>` writes the result to a file
   instead of stdout and prints a summary.
+- `p4kx entity loadout <archive> <entity>` prints the default Loadout tree of an Entity named by
+  class name (`AEGS_Avenger_Titan`), GUID or record path: every port with the Entity attached to
+  it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
+  resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
+  the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
+  Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
+  schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
+  with test, template and dummy Records left out and counted as skipped. `--filter` marks the
+  catalog partial. It prints the counts per kind and warns when the catalog nears or exceeds the
+  64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

@@ -6,12 +6,14 @@ mod buffers;
 mod conversion_error;
 mod convert;
 mod dataforge;
+mod dataforge_convert;
 mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
 mod options;
 mod output_file;
+mod record_combined;
 mod record_export;
 mod record_files;
 mod record_report;
@@ -57,6 +59,7 @@ pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use record_combined::export_combined;
 pub use record_export::export_records;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
@@ -64,7 +67,7 @@ pub use record_report::{
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
-pub use target::{create_default_target, default_target_name};
+pub use target::{create_default_target, default_target_name, utc_rfc3339};
 pub use texture::Texture;
 pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};

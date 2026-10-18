@@ -69,6 +69,12 @@ The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/enti
 several Records may share one, so only the GUID is unique.
 _Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
 
+**Record order**:
+The one order of Records in every listing and streamed output: by record path ignoring ASCII case
+with `/` and `\` alike, then by Record name ignoring ASCII case, then by definition order in
+DataForge.
+_Avoid_: path order, sort order
+
 **Record folder**:
 A record path that several Records share, shown in the Record tree as a folder holding those Records.
 _Avoid_: record group, file node
@@ -106,6 +112,32 @@ _Avoid_: object, actor
 **Loadout**:
 The tree of Entities attached to an Entity's ports, e.g. a ship's components and weapons.
 _Avoid_: fitting, equipment
+
+**Class name**:
+The name an Entity is named by in Loadouts, its Record name after `EntityClassDefinition.`, e.g.
+`AEGS_Avenger_Titan`; matched ignoring case.
+_Avoid_: item name, entity name
+
+**Port**:
+A named place on an Entity where another Entity attaches, e.g. `hardpoint_weapon_nose`. Its
+**port definition** in the Entity's Record gives the sizes and types it takes and a default
+item; its **port transform** is the helper in the Entity's geometry it sits at, with an offset.
+_Avoid_: hardpoint (fine as part of a name), slot, socket
+
+**Loadout entry**:
+One port of a Loadout as a Record or XML Loadout states it: the port name, the Entity to attach
+by Reference or Class name, and optionally a Loadout for that Entity.
+_Avoid_: loadout item, fitting
+
+**Override**:
+The Loadout a Loadout entry gives the Entity it attaches, which replaces the Entity's own entries
+port by port (ADR-0012).
+_Avoid_: patch, customisation
+
+**XML Loadout**:
+A Loadout stored as an XML or CryXml Entry, e.g. `Scripts/Loadouts/…`, that a Record names by
+path instead of listing its entries; it may include further XML Loadouts.
+_Avoid_: loadout file, script loadout
 
 **Assembly**:
 An Entity combined with its Loadout, geometry, materials and textures into one exportable model.
@@ -179,6 +211,11 @@ _Avoid_: updater, auto-update
 The JSON Export of manufacturers, items, ships, commodities and blueprints that the basetool's P4K
 import consumes.
 _Avoid_: p4k-catalog, basetool export
+
+**Kind**:
+One group of entities in the Basetool catalog, e.g. manufacturers or items, selected by record-path
+prefix and type and complete or partial on its own.
+_Avoid_: category, entity type
 
 **Export**:
 A structured file derived from DataForge for another tool, as opposed to an Extraction of Entries.

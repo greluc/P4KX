@@ -4,6 +4,6 @@ expression: "table(\"at \\\"*/ITEMS/*\\\" select mass\")?"
 ---
 record path                       mass
 --------------------------------  ----
-libs/foundry/records/items/boxes  2.5
 libs/foundry/records/items/boxes  1
+libs/foundry/records/items/boxes  2.5
 2 Records

@@ -12,8 +12,10 @@ publish.workspace = true
 layer = "frontend"
 
 [dependencies]
+p4kx-assembly.workspace = true
 p4kx-channels.workspace = true
 p4kx-comparison.workspace = true
+p4kx-export.workspace = true
 p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
 anyhow.workspace = true
@@ -28,9 +30,11 @@ p4kx-testkit.workspace = true
 assert_cmd.workspace = true
 exr.workspace = true
 insta.workspace = true
+jsonschema.workspace = true
 lewton = { workspace = true, features = ["ogg"] }
 png.workspace = true
 predicates.workspace = true
+roxmltree.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 

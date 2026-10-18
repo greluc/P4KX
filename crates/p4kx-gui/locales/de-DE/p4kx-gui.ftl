@@ -216,3 +216,17 @@ change-extraction-scope-old = Geänderte Einträge des alten Archivs, in ihrer a
 change-extraction-scope-new = Hinzugefügte und geänderte Einträge des neuen Archivs ({ $number })
 change-extraction-scope-filtered = Nur die Änderungen, die zum Filter { $filter } passen
 change-extraction-summary-changed = Das Archiv hat sich während der Extraktion auf der Festplatte geändert. Bereits geschriebene Dateien können veraltet sein; vergleiche die Archive erneut und extrahiere die Änderungen noch einmal.
+
+preview-tab-image = Bild
+image-mip = Mip
+image-format = Format
+image-size = Größe
+image-mips = Mips
+image-faces = Cubemap-Seiten
+image-dimensions = { $width } × { $height }
+image-none = –
+image-shown = Mip { $level }: { $width } × { $height } Pixel
+image-decoding = Mip { $level } von { $path } wird dekodiert …
+image-unsupported = Die Vorschau kann Texturen im Format { $format } nicht dekodieren. Die Tabs Text und Hex zeigen die Daten von { $path } weiterhin.
+image-failed = { $path } kann nicht dekodiert werden: { $reason }
+image-unshowable = Jedes Mip von { $path } ist größer, als die Vorschau zeigen kann.

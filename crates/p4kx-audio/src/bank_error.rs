@@ -45,7 +45,7 @@ impl fmt::Debug for SectionId {
 }
 
 /// A failure to read a soundbank; every variant names the section at fault.
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Error, PartialEq, Eq, Hash)]
 pub enum BankError {
     /// The data does not start with a `BKHD` section.
     #[error("not a soundbank: the BKHD section is missing")]

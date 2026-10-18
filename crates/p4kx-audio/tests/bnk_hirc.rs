@@ -10,6 +10,34 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 const PLAY: u16 = 0x0403;
 
 #[test]
+fn objects_are_found_by_id_the_first_in_file_order_when_shared() -> TestResult {
+    let bytes = TestBank::new(1)
+        .object(TestHircObject::raw(8, 900, []))
+        .object(TestHircObject::action(30, PLAY, 900))
+        .object(TestHircObject::event(20, &[30]))
+        .object(TestHircObject::raw(7, 30, []))
+        .bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+
+    let event = bank.object(20).ok_or("event 20")?;
+    assert_eq!(event.value, HircValue::Event(vec![30]), "event 20");
+    assert_eq!(
+        bank.object(30).map(|object| object.kind),
+        Some(HircKind::Action),
+        "the first object with ID 30"
+    );
+    assert_eq!(
+        bank.object(900).map(|object| object.kind),
+        Some(HircKind::AudioBus),
+        "bus 900"
+    );
+    assert!(bank.object(31).is_none(), "no object 31");
+    assert!(bank.object(0).is_none(), "no object 0");
+    assert!(bank.object(u32::MAX).is_none(), "no object u32::MAX");
+    Ok(())
+}
+
+#[test]
 fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
     let bytes = TestBank::new(1)
         .object(TestHircObject::sound(0x07B2_3F35, 617_647_119, 0, 252_487))

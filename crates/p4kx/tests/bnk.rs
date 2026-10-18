@@ -5,7 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestBank, TestCodec, TestEntry, TestWem, test_signal};
+use p4kx_testkit::{
+    ArchiveBuilder, TestBank, TestCodec, TestEntry, TestHircObject, TestWem, test_signal,
+};
 use predicates::prelude::predicate;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -208,5 +210,36 @@ fn a_missing_entry_is_invalid_input_and_an_unreadable_archive_an_archive_error()
         .arg(BANK_ENTRY)
         .assert()
         .code(3);
+    Ok(())
+}
+
+#[test]
+fn a_malformed_hirc_object_does_not_stop_listing_or_extracting() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("odd.bnk");
+    let bytes = TestBank::new(1)
+        .wem(100, pcm_wem())
+        .object(TestHircObject::raw(2, 7, [1, 0]))
+        .bytes();
+    fs::write(&file, bytes)?;
+
+    p4kx()?
+        .args(["bnk", "list"])
+        .arg(&file)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"(?m)^ +100  PCM +0\.100 s$")?);
+    p4kx()?
+        .args(["bnk", "extract"])
+        .arg(&file)
+        .arg("--out")
+        .arg(dir.path().join("out"))
+        .assert()
+        .code(0);
+    assert_eq!(
+        fs::read(dir.path().join("out").join("100.wem"))?,
+        pcm_wem(),
+        "WEM 100"
+    );
     Ok(())
 }

@@ -1,6 +1,6 @@
 //! Corrupt soundbanks fail with a typed error naming the section, never a panic.
 
-use p4kx_audio::{BankError, SectionId, Soundbank};
+use p4kx_audio::{BankError, HircValue, SectionId, Soundbank};
 use p4kx_testkit::{TestBank, TestHircObject};
 
 fn bank_with_wem() -> Vec<u8> {
@@ -156,27 +156,54 @@ fn hirc_with_a_huge_count_or_a_short_object_names_hirc() {
 }
 
 #[test]
-fn a_truncated_sound_or_an_event_overstating_its_actions_names_hirc() {
+fn malformed_object_bodies_are_kept_raw_with_their_error_and_the_wems_stay_readable()
+-> Result<(), BankError> {
     let mut bytes = TestBank::new(1)
+        .wem(42, vec![0xAB; 32])
         .object(TestHircObject::event(1, &[2, 3]))
+        .object(TestHircObject::raw(2, 4, [1, 0, 4, 0, 0]))
+        .object(TestHircObject::raw(3, 5, [3, 4]))
+        .object(TestHircObject::action(6, 0x0403, 4))
         .bytes();
     let count = find(&bytes, *b"HIRC") + 8 + 4 + 5 + 4;
     if let Some(byte) = bytes.get_mut(count) {
         *byte = 0x7F;
     }
-    assert_eq!(
-        error(&bytes).section(),
-        Some(SectionId::HIRC),
-        "event count"
-    );
+    let bank = Soundbank::parse(bytes.as_slice())?;
 
-    let bytes = TestBank::new(1)
-        .object(TestHircObject::raw(2, 1, [1, 0, 4, 0, 0]))
-        .bytes();
-    assert!(
-        matches!(error(&bytes), BankError::Truncated { section, .. } if section == SectionId::HIRC),
-        "short sound"
+    let errors: Vec<Option<SectionId>> = bank
+        .objects()
+        .iter()
+        .map(|object| object.error().and_then(BankError::section))
+        .collect();
+    assert_eq!(
+        errors,
+        [
+            Some(SectionId::HIRC),
+            Some(SectionId::HIRC),
+            Some(SectionId::HIRC),
+            None
+        ],
+        "event count, short sound, short action, then a good action"
     );
+    assert!(
+        bank.objects()
+            .iter()
+            .take(3)
+            .all(|object| matches!(object.value, HircValue::Malformed(_))),
+        "malformed values"
+    );
+    assert_eq!(
+        bank.object(4).map(|object| bank.object_body(object).len()),
+        Some(9),
+        "the raw body of the short sound"
+    );
+    assert_eq!(
+        bank.wem(42).map(|wem| wem.bytes().len()),
+        Some(32),
+        "WEM 42"
+    );
+    Ok(())
 }
 
 #[test]

@@ -148,6 +148,8 @@ pub enum HircValue {
     Event(Vec<u32>),
     /// Any other object, or a Sound of an older bank version; its body is kept raw.
     Raw,
+    /// A Sound, Action or Event whose body does not hold its fields; its body is kept raw.
+    Malformed(BankError),
 }
 
 /// One object of the `HIRC` section, with its ID and its decoded value.
@@ -160,6 +162,17 @@ pub struct HircObject {
     /// What this reader decodes from the body.
     pub value: HircValue,
     pub(crate) body: Range<usize>,
+}
+
+impl HircObject {
+    /// Returns why the body could not be decoded, for a [`HircValue::Malformed`] object.
+    #[must_use]
+    pub const fn error(&self) -> Option<&BankError> {
+        match &self.value {
+            HircValue::Malformed(error) => Some(error),
+            _ => None,
+        }
+    }
 }
 
 /// Parses the body of the `HIRC` section, found at `base` in a bank of `version`.
@@ -183,7 +196,7 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
         let object = body.get(range.clone()).unwrap_or_default();
         let mut fields = SectionReader::new(SectionId::HIRC, object);
         let id = fields.u32()?;
-        let value = value(kind, version, &mut fields)?;
+        let value = value(kind, version, &mut fields).unwrap_or_else(HircValue::Malformed);
         objects.push(HircObject {
             kind,
             id,

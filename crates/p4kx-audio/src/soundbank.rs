@@ -89,6 +89,7 @@ pub struct Soundbank<B> {
     sections: Vec<SectionRange>,
     media: Vec<MediaRange>,
     objects: Vec<HircObject>,
+    object_index: Vec<(u32, usize)>,
     names: Vec<(u32, Range<usize>)>,
 }
 
@@ -101,7 +102,15 @@ impl<B: AsRef<[u8]>> Soundbank<B> {
     /// [`BankError`] naming the section when a section is truncated, repeated or invalid.
     pub fn parse(bytes: B) -> Result<Self, BankError> {
         let parsed = bank_parse::parse(bytes.as_ref())?;
+        let mut object_index: Vec<(u32, usize)> = parsed
+            .objects
+            .iter()
+            .enumerate()
+            .map(|(position, object)| (object.id, position))
+            .collect();
+        object_index.sort_unstable();
         Ok(Self {
+            object_index,
             header: parsed.header,
             sections: parsed.sections,
             media: parsed.media,
@@ -185,5 +194,15 @@ impl<B> Soundbank<B> {
     #[must_use]
     pub fn objects(&self) -> &[HircObject] {
         &self.objects
+    }
+
+    /// Returns the `HIRC` object `id`, the first in file order when several share it.
+    #[must_use]
+    pub fn object(&self, id: u32) -> Option<&HircObject> {
+        let first = self.object_index.partition_point(|&(key, _)| key < id);
+        match self.object_index.get(first) {
+            Some(&(key, position)) if key == id => self.objects.get(position),
+            _ => None,
+        }
     }
 }

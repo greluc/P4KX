@@ -153,6 +153,11 @@ fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
         .extend(bank.wems().map(|wem| (wem.id(), wem.bytes().len() as u64)));
     for object in bank.objects() {
         *tally.kinds.entry(kind_name(object.kind)).or_default() += 1;
+        if let Some(error) = object.error() {
+            tally
+                .failures
+                .push(format!("{} object {}: {error}", entry.path(), object.id));
+        }
         if let HircValue::Sound(source) = &object.value {
             tally
                 .sources

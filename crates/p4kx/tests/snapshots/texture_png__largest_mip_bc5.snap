@@ -1,0 +1,13 @@
+---
+source: crates/p4kx/tests/texture_png.rs
+expression: snapshot
+---
+8 x 8
+124aa5ff 0e4480ff 0b4a80ff 0b4780ff 82baf1ff 82b3f4ff 7cb6f3ff 7bb7f2ff
+0c4980ff 000080ff 12ff80ff 12449aff 82b7f2ff ffff80ff 81b6f3ff 7f0080ff
+000080ff 11479dff 0f4999ff 0c0080ff 000080ff 7eb4f4ff 00ff80ff 7c0080ff
+0e0080ff 0b4380ff ff4980ff 12469eff 7cb9f1ff 82baf1ff 7ebaf1ff 81ff80ff
+f22a80ff ff0080ff ee2380ff eb2780ff 629af9ff 6197f9ff 6294faff 5b97f7ff
+eb2680ff 000080ff f2ff80ff eb2a80ff ff9480ff 00ff80ff 6196f9ff 5e99f8ff
+000080ff f22380ff ef2980ff ec0080ff 000080ff ff0080ff 610080ff 5c0080ff
+f22780ff eb2380ff ff2980ff eb2480ff 5b96f8ff 629af9ff 5e9af8ff 5f0080ff

@@ -113,3 +113,34 @@ fn the_change_list_columns_match_the_desktop_spec() {
         assert_eq!(expected, Some(f64::from(width)), "{column}");
     }
 }
+
+#[test]
+fn the_line_diff_metrics_and_fills_match_the_desktop_spec() {
+    let json = spec();
+    let diff = &json["lineDiff"];
+
+    for (key, value) in [
+        ("rowHeight", d::DIFF_ROW_HEIGHT),
+        ("fontSize", d::DIFF_FONT),
+        ("gutterPaddingX", d::DIFF_GUTTER_PADDING_X),
+        ("markerGap", d::DIFF_MARKER_GAP),
+    ] {
+        let expected = number(&diff[key]);
+        assert!(
+            expected.is_some_and(|want| (want - f64::from(value)).abs() < 0.01),
+            "lineDiff.{key} is {expected:?}, the theme has {value}"
+        );
+    }
+    assert_eq!(
+        number(&diff["hunkHeader"]["height"]),
+        Some(f64::from(d::DIFF_ROW_HEIGHT)),
+        "hunk header height"
+    );
+    for (kind, fill) in [
+        ("added", d::DIFF_ADDED_FILL),
+        ("removed", d::DIFF_REMOVED_FILL),
+    ] {
+        let expected = diff[kind]["fill"].as_str().and_then(rgba);
+        assert_eq!(expected, Some(fill), "{kind} fill");
+    }
+}

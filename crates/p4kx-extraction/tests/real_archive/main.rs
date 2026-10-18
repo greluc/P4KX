@@ -12,6 +12,7 @@ use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
 mod adpcm;
+mod combined;
 mod cubemap_alpha;
 mod records;
 mod sound;

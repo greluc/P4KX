@@ -3166,6 +3166,7 @@ dependencies = [
  "p4kx-testkit",
  "png",
  "predicates",
+ "roxmltree",
  "serde",
  "serde_json",
  "tempfile",

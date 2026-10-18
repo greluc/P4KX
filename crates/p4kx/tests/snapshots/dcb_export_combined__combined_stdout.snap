@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_export_combined.rs
+expression: stdout
+---
+exported 4 Records, skipped 0, failed 0, cancelled 0 into [DIR]/out/Game2.xml; 1 error values in 1 Records

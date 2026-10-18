@@ -100,10 +100,11 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// Returns the playing time, when the sample count is known.
     #[must_use]
     pub fn duration(&self) -> Option<Duration> {
-        let frames = self.sample_count?;
-        let rate = u64::from(self.sample_rate);
-        let nanos = (frames % rate) * NANOS_PER_SECOND / rate;
-        Some(Duration::new(frames / rate, u32::try_from(nanos).ok()?))
+        playing_time(self.sample_count?, self.sample_rate)
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 
     /// Returns the bytes the WEM was parsed from.
@@ -230,4 +231,11 @@ fn sample_count(
         Codec::Opus => format.embedded_sample_count.map(u64::from),
         _ => None,
     })
+}
+
+/// Returns the playing time of `frames` frames at `sample_rate` Hz; `None` for a rate of 0.
+pub(crate) fn playing_time(frames: u64, sample_rate: u32) -> Option<Duration> {
+    let rate = u64::from(sample_rate);
+    let nanos = (frames.checked_rem(rate)?) * NANOS_PER_SECOND / rate;
+    Some(Duration::new(frames / rate, u32::try_from(nanos).ok()?))
 }

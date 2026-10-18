@@ -29,6 +29,17 @@ pub(crate) enum AudioAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
+    /// Rebuilds a Wwise Vorbis WEM as an Ogg Vorbis file without re-encoding; other codecs
+    /// fail with an error naming them.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Ogg {
+        /// The sound.
+        #[command(flatten)]
+        source: AudioSource,
+        /// The Ogg file to write; an existing file is replaced.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
 }
 
 /// Where a WEM sound is.

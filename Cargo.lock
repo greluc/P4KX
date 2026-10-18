@@ -2838,6 +2838,7 @@ version = "0.1.0"
 dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
+ "rayon",
  "thiserror 2.0.21",
 ]
 
@@ -2888,6 +2889,7 @@ dependencies = [
  "p4kx-testkit",
  "rayon",
  "roxmltree",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 

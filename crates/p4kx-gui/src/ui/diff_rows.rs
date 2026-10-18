@@ -8,6 +8,7 @@ use egui::{
 use fluent_bundle::FluentValue;
 use p4kx_comparison::LineKind;
 
+use super::diff_line::display;
 use crate::theme::desktop::{
     ACTIVE_BAR, DIFF_ADDED_FILL, DIFF_FONT, DIFF_GUTTER_PADDING_X, DIFF_MARKER_GAP,
     DIFF_REMOVED_FILL, DIFF_ROW_HEIGHT,
@@ -17,8 +18,6 @@ use crate::theme::tokens::{Weight, font};
 use crate::{ComparisonSide, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffText, Texts};
 
 const MAX_ROWS: usize = 512;
-const MAX_LINE_CHARS: usize = 4096;
-const TAB: &str = "    ";
 const SIDES: [ComparisonSide; 2] = [ComparisonSide::Old, ComparisonSide::New];
 
 /// The part of a row that names the hunk head for assistive technology; sides are 0 and 1.
@@ -283,27 +282,6 @@ fn hunk_text(rows: &Rows<'_>, hunk: u32, side: ComparisonSide) -> String {
     )
 }
 
-/// Returns `bytes` as one line for display: without its terminator, tabs as spaces and cut after
-/// [`MAX_LINE_CHARS`] characters.
-fn display(bytes: &[u8]) -> String {
-    let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
-    let bytes = bytes.strip_suffix(b"\r").unwrap_or(bytes);
-    let text = String::from_utf8_lossy(bytes);
-    let mut shown = String::with_capacity(text.len().min(MAX_LINE_CHARS));
-    for (count, character) in text.chars().enumerate() {
-        if count == MAX_LINE_CHARS {
-            shown.push('…');
-            break;
-        }
-        if character == '\t' {
-            shown.push_str(TAB);
-        } else {
-            shown.push(character);
-        }
-    }
-    shown
-}
-
 fn layout(ui: &Ui, text: String) -> Arc<Galley> {
     ui.fonts_mut(|fonts| {
         fonts.layout_no_wrap(text, font(DIFF_FONT, Weight::Regular), Color32::PLACEHOLDER)
@@ -388,23 +366,4 @@ fn split_id() -> Id {
 
 fn cache_id() -> Id {
     Id::unique("comparison-diff-row-cache")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::display;
-
-    #[test]
-    fn a_line_is_shown_without_its_terminator_and_with_tabs_as_spaces() {
-        assert_eq!(display(b"\ta=1\r\n"), "    a=1", "terminator and tab");
-        assert_eq!(display(b"\xFFx"), "\u{FFFD}x", "invalid UTF-8 replaced");
-    }
-
-    #[test]
-    fn a_very_long_line_is_cut_with_an_ellipsis() {
-        let shown = display(&[b'x'; 5000]);
-
-        assert_eq!(shown.chars().count(), 4097, "cut after 4096 characters");
-        assert!(shown.ends_with('…'), "ellipsis");
-    }
 }

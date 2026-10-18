@@ -155,8 +155,8 @@ fn adpcm_sample_counts_follow_from_the_block_size() -> TestResult {
 
     assert_eq!(
         Wem::parse(ima)?.sample_count(),
-        Some(3 * 65),
-        "IMA: 4 header bytes and 64 samples per channel and block"
+        Some(3 * 64),
+        "IMA: 4 header bytes, the header sample and 63 of 64 nibbles per channel and block"
     );
     assert_eq!(
         Wem::parse(ptadpcm)?.sample_count(),

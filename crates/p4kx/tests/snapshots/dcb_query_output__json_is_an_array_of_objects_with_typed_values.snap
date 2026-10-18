@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_query_output.rs
+expression: json
+---
+[{"record path":"libs/items/box","name":"Box","crew":null,"mass":-0.25,"size":"Small","docked":null},{"record path":"libs/items/note","name":"two\nlines","crew":null,"mass":"NaN","size":{"error":"offset 4294967295 in the text table is not a valid string"},"docked":null},{"record path":"libs/ships/avenger","name":"Avenger, \"Titan\"","crew":2,"mass":25000.5,"size":"Large","docked":false}]

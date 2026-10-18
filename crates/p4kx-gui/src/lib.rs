@@ -17,6 +17,7 @@ mod language;
 mod model;
 mod preview;
 mod record_index;
+mod record_search;
 mod record_tree;
 mod search;
 mod sort;
@@ -51,4 +52,6 @@ pub use record_index::{
 };
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
-pub use texts::{ComparisonText, DataForgeText, DiffText, ExtractionText, Text, Texts};
+pub use texts::{
+    ComparisonText, DataForgeText, DiffText, ExtractionText, RecordSearchText, Text, Texts,
+};

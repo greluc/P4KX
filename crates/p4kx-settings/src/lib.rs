@@ -5,5 +5,6 @@ mod settings;
 
 pub use recent::RecentArchives;
 pub use settings::{
-    ManualChannels, Settings, SettingsError, WindowGeometry, default_settings_file,
+    ExtractionTextures, ManualChannels, Settings, SettingsError, WindowGeometry,
+    default_settings_file,
 };

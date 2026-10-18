@@ -20,7 +20,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>]]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -39,6 +39,20 @@ Early development (milestone M1). Available today:
   UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
   Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
   existing file with the converted XML. The summary then also counts the converted Entries.
+  `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
+  tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
+  high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
+  cubemap as six faces `<name>_posx` … `<name>_negz`:
+  `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
+  the header's path, `png` the mip `--mip <level>` (0, the largest, by default; a texture with
+  fewer levels gives its smallest) as `<name>.png`, and `raw` the Entries unchanged as well, with
+  `merge` only the parts. With `merge` and no `png`, an alpha tail is merged like any split
+  texture under its own path `<name>.dds.a`, so it is not lost. A selected header takes its
+  parts from the Archive even when they are not selected. A texture that cannot be converted,
+  e.g. a missing part or a format without a decoder, is reported as not converted with the
+  reason, its raw Entries are written (the parts only when the merged DDS was written), and the
+  Extraction continues with exit code 1. A part selected without its header is written
+  unchanged.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
@@ -59,7 +73,10 @@ Early development (milestone M1). Available today:
   row per Record in record-path order, e.g.
   `p4kx dcb query Data.p4k 'from EntityClassDefinition at "*/spaceships/*"'`. `from <type>`
   selects a type and every type deriving from it, `at "<glob>"` selects by record path with the
-  rules of `search`. An invalid Query exits with code 2 and marks its position.
+  rules of `search`. An invalid Query exits with code 2 and marks its position. `--format csv`
+  writes RFC 4180 CSV with a header row and `--format json` (or `--json`) one line of JSON, an
+  array of objects keyed by column with typed values; `--out <file>` writes the result to a file
+  instead of stdout and prints a summary.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -119,10 +136,11 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file.
-  Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
-  Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
-  with an error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
+  PTADPCM WEM as a 16-bit WAV file. Both also take a WEM file on disk instead of an Archive and an
+  Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are detected;
+  converting any other codec fails with an error naming it, and a corrupt or truncated WEM fails
+  with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, or with `--format wav` converted to WAV. Both also take a soundbank file on disk. A

@@ -1,0 +1,18 @@
+//! Reads the `CryEngine` chunk container that models, skeletons and animations are stored in:
+//! the newer `#ivo` form (version `0x900`) and the older `CrCh` form (version `0x746`).
+//!
+//! [`ChunkFile::parse`] reads the chunk table; each [`Chunk`] carries its [`ChunkType`], version,
+//! offset, size and [`ByteOrder`], and [`ChunkFile::chunk_data`] returns its bytes. Interpreting
+//! the chunks is left to the model crate.
+
+mod chunk;
+mod container;
+mod error;
+mod file;
+mod known;
+
+pub use chunk::{Chunk, ChunkType};
+pub use container::{ByteOrder, Container};
+pub use error::ChunkError;
+pub use file::ChunkFile;
+pub use known::KnownChunkType;

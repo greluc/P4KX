@@ -3,8 +3,10 @@
 mod audio;
 mod bnk;
 mod channels;
+mod chunks;
 mod cli;
 mod cli_bnk;
+mod cli_chunks;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -52,6 +54,7 @@ fn main() -> ExitCode {
         Command::Texture(args) => texture::run(&args, json).map(success),
         Command::Audio(args) => audio::run(&args, json).map(success),
         Command::Bnk(args) => bnk::run(&args, json),
+        Command::Chunks(args) => chunks::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

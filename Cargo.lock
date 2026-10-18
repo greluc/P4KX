@@ -2854,6 +2854,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "p4kx-chunks"
+version = "0.1.0"
+dependencies = [
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "p4kx-comparison"
 version = "0.1.0"
 dependencies = [
@@ -2901,6 +2910,7 @@ dependencies = [
  "exr",
  "p4kx-archive",
  "p4kx-audio",
+ "p4kx-chunks",
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-foundation",

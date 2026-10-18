@@ -293,7 +293,7 @@ impl ComparisonView {
         self.records.as_ref()
     }
 
-    /// Returns the Record changes for changes, `None` when the Record level was not compared.
+    /// Returns the Record changes to change them, `None` when the Record level was not compared.
     pub const fn records_mut(&mut self) -> Option<&mut RecordChangeView> {
         self.records.as_mut()
     }

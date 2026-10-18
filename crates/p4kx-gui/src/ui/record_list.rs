@@ -10,8 +10,8 @@ use crate::widgets::chip;
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::{
-    ComparisonText, RecordChangeColumn, RecordChangeRow, RecordChangeText, RecordChangeView, Text,
-    Texts,
+    ComparisonText, DataForgeText, RecordChangeColumn, RecordChangeRow, RecordChangeText,
+    RecordChangeView, Text, Texts,
 };
 
 const COLUMNS: [(RecordChangeColumn, Text); 3] = [
@@ -21,11 +21,11 @@ const COLUMNS: [(RecordChangeColumn, Text); 3] = [
     ),
     (
         RecordChangeColumn::Path,
-        Text::RecordChange(RecordChangeText::ColumnPath),
+        Text::DataForge(DataForgeText::ColumnRecordPath),
     ),
     (
         RecordChangeColumn::Type,
-        Text::RecordChange(RecordChangeText::ColumnType),
+        Text::DataForge(DataForgeText::ColumnType),
     ),
 ];
 

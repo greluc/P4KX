@@ -259,23 +259,32 @@ fn a_changed_record_shows_its_field_changes_with_reference_paths_and_error_reaso
 
     let fields = fields_of(&mut model, "libs/items/sample")?;
 
-    let [maker, label, armor] = fields.rows() else {
-        return Err(format!("three field changes: {:?}", fields.rows()).into());
+    let [maker, focus, label, armor] = fields.rows() else {
+        return Err(format!("four field changes: {:?}", fields.rows()).into());
     };
-    let reference = |path: &str| {
+    let reference = |path: &str, at: Option<&str>| {
         Some(FieldValue::Reference {
             record_path: path.into(),
-            at: None,
+            at: at.map(Into::into),
         })
     };
     assert_eq!(
         *maker,
         field(
             "maker",
-            reference("libs/makers/one"),
-            reference("libs/makers/two")
+            reference("libs/makers/one", None),
+            reference("libs/makers/two", None)
         ),
         "the Reference by both target record paths"
+    );
+    assert_eq!(
+        *focus,
+        field(
+            "focus",
+            reference("libs/items/sample", Some("nodes[0]")),
+            reference("libs/items/sample", Some("nodes[1]"))
+        ),
+        "the weak pointer by record path and place"
     );
     assert_eq!(
         label.name,

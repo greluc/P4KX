@@ -8,10 +8,6 @@ pub enum RecordChangeText {
     Moved,
     /// The Records that cannot be read.
     Unreadable,
-    /// The record path column.
-    ColumnPath,
-    /// The type column.
-    ColumnType,
     /// The record paths of a moved Record; takes `old` and `new`.
     MovedPath,
     /// Shown in the list when no Record differs.
@@ -60,12 +56,10 @@ pub enum RecordChangeText {
 
 impl RecordChangeText {
     /// Every text of the Record list and its field changes.
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 25] = [
         Self::Progress,
         Self::Moved,
         Self::Unreadable,
-        Self::ColumnPath,
-        Self::ColumnType,
         Self::MovedPath,
         Self::NoDifferences,
         Self::HeadField,
@@ -97,8 +91,6 @@ impl RecordChangeText {
             Self::Progress => "record-change-progress",
             Self::Moved => "record-change-moved",
             Self::Unreadable => "record-change-unreadable",
-            Self::ColumnPath => "record-change-column-path",
-            Self::ColumnType => "record-change-column-type",
             Self::MovedPath => "record-change-moved-path",
             Self::NoDifferences => "record-change-no-differences",
             Self::HeadField => "record-change-head-field",

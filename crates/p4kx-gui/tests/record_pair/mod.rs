@@ -39,9 +39,12 @@ fn schema(new: bool) -> DataForgeBuilder {
                 .field("label", TestType::String)
                 .field("armor", TestType::Int32),
         )
+        .structure(TestStruct::new("Node").field("weight", TestType::Int32))
         .structure(
             TestStruct::new("Item")
                 .field("maker", TestType::Reference)
+                .array("nodes", TestType::Class("Node".to_owned()))
+                .field("focus", TestType::WeakPointer("Node".to_owned()))
                 .field("hull", TestType::Class("Hull".to_owned()))
                 .field("speed", TestType::Int32),
         )
@@ -51,6 +54,32 @@ fn schema(new: bool) -> DataForgeBuilder {
                 .field("armor", TestType::Int32)
                 .declared_size(if new { 8 } else { 4 }),
         )
+}
+
+fn item(new: bool) -> TestRecord {
+    let node = |name: &str| TestValue::Struct(TestInstance::new("Node").named(name));
+    TestRecord::new(ITEM, "Item", "Item.Sample", "libs/items/sample.xml")
+        .value(
+            "maker",
+            TestValue::Reference(if new { OTHER_MAKER } else { MAKER }),
+        )
+        .value(
+            "nodes",
+            TestValue::Array(vec![node("first"), node("second")]),
+        )
+        .value(
+            "focus",
+            TestValue::pointer(if new { "second" } else { "first" }),
+        )
+        .value(
+            "hull",
+            if new {
+                hull(TestValue::Raw(u32::MAX.to_le_bytes().to_vec()), 2)
+            } else {
+                hull(TestValue::text("Hull"), 1)
+            },
+        )
+        .value("speed", TestValue::Int32(1))
 }
 
 fn database(new: bool) -> DataForgeBuilder {
@@ -68,22 +97,7 @@ fn database(new: bool) -> DataForgeBuilder {
             "Maker.Two",
             "libs/makers/two.xml",
         ))
-        .record(
-            TestRecord::new(ITEM, "Item", "Item.Sample", "libs/items/sample.xml")
-                .value(
-                    "maker",
-                    TestValue::Reference(if new { OTHER_MAKER } else { MAKER }),
-                )
-                .value(
-                    "hull",
-                    if new {
-                        hull(TestValue::Raw(u32::MAX.to_le_bytes().to_vec()), 2)
-                    } else {
-                        hull(TestValue::text("Hull"), 1)
-                    },
-                )
-                .value("speed", TestValue::Int32(pick(1, 1))),
-        )
+        .record(item(new))
         .record(
             TestRecord::new(SHIP, "Ship", "Ship.Tuned", "libs/ships/tuned.xml")
                 .value("speed", TestValue::Int32(pick(4, 40))),

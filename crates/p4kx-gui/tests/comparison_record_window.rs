@@ -131,6 +131,7 @@ fn a_changed_record_opens_its_field_changes_below_the_list() -> TestResult {
     for row in [
         "maker: libs/makers/one › libs/makers/two",
         "hull.armor: 1 › 2",
+        "focus: libs/items/sample · nodes[0] › libs/items/sample · nodes[1]",
     ] {
         assert!(harness.query_by_label(row).is_some(), "the field row {row}");
     }

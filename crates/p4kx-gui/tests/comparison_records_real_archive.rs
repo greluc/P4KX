@@ -40,9 +40,7 @@ fn records(tab: &ComparisonTab) -> Option<&RecordChangeView> {
     tab.view().and_then(ComparisonView::records)
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn two_real_dataforges_list_their_record_changes_and_open_one() -> TestResult {
+fn compared_records() -> Result<Model, Box<dyn Error>> {
     let (old, new) = (real_archive_path()?, real_archive_b_path()?);
     let mut model = Model::new(Language::BritishEnglish);
     model.set_work_tab(WorkTab::Comparison);
@@ -53,30 +51,55 @@ fn two_real_dataforges_list_their_record_changes_and_open_one() -> TestResult {
         entries: false,
         records: true,
     });
-
-    assert!(tab.start(|| {}), "started");
+    if !tab.start(|| {}) {
+        return Err("not started".into());
+    }
     wait(tab, RUN_BUDGET, |tab| !tab.is_running())?;
+    Ok(model)
+}
+
+fn steady_frame(model: Model) -> Duration {
+    let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([1280.0, 900.0])
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            model,
+        );
+    harness.run();
+    let started = Instant::now();
+    harness.step();
+    started.elapsed()
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn two_real_dataforges_list_their_record_changes_and_open_one() -> TestResult {
+    let mut model = compared_records()?;
+    let tab = model.comparison_mut();
     assert!(
         matches!(tab.status(), ComparisonStatus::Finished(_)),
         "finished: {:?}",
         tab.status()
     );
     let view = tab.view_mut().ok_or("no result")?;
-    assert_eq!(view.list(), ComparisonList::Records, "the Record list first");
+    assert_eq!(
+        view.list(),
+        ComparisonList::Records,
+        "the Record list first"
+    );
     let list = view.records_mut().ok_or("no Record list")?;
     let total = list.shown().len();
     let sorted_at = Instant::now();
     list.sort_by(RecordChangeColumn::Type);
     list.sort_by(RecordChangeColumn::Change);
     let sorting = sorted_at.elapsed();
-    let changed = list
-        .shown()
-        .iter()
-        .copied()
-        .find(|&id| {
-            list.row(id)
-                .is_some_and(|row| row.kind() == RecordChangeKind::Changed)
-        });
+    let changed = list.shown().iter().copied().find(|&id| {
+        list.row(id)
+            .is_some_and(|row| row.kind() == RecordChangeKind::Changed)
+    });
     if let Some(id) = changed {
         list.select(id);
     }
@@ -101,20 +124,7 @@ fn two_real_dataforges_list_their_record_changes_and_open_one() -> TestResult {
         );
         assert!(opening < DETAIL_BUDGET, "opening took {opening:?}");
     }
-
-    let mut harness = Harness::builder()
-        .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1280.0, 900.0])
-        .build_ui_state(
-            |ui, model: &mut Model| {
-                ui::show(ui, model);
-            },
-            model,
-        );
-    harness.run();
-    let started = Instant::now();
-    harness.step();
-    let frame = started.elapsed();
+    let frame = steady_frame(model);
     assert!(frame < FRAME_LIMIT * 4, "a steady frame took {frame:?}");
     Ok(())
 }

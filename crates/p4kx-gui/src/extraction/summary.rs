@@ -18,6 +18,7 @@ pub struct FailedEntry {
 pub struct ExtractionSummary {
     target: PathBuf,
     extracted: usize,
+    converted: Option<usize>,
     skipped: Vec<String>,
     failures: Vec<FailedEntry>,
     cancelled: Vec<String>,
@@ -25,10 +26,11 @@ pub struct ExtractionSummary {
 }
 
 impl ExtractionSummary {
-    pub(crate) fn new(target: PathBuf, report: &ExtractionReport) -> Self {
+    pub(crate) fn new(target: PathBuf, report: &ExtractionReport, convert: bool) -> Self {
         Self {
             target,
             extracted: report.extracted(),
+            converted: convert.then(|| report.converted()),
             skipped: report.skipped().to_vec(),
             failures: report
                 .failures()
@@ -53,6 +55,12 @@ impl ExtractionSummary {
     #[must_use]
     pub const fn extracted(&self) -> usize {
         self.extracted
+    }
+
+    /// Returns the number of `CryXml` Entries written as XML, or `None` when Conversion was off.
+    #[must_use]
+    pub const fn converted(&self) -> Option<usize> {
+        self.converted
     }
 
     /// Returns the paths of Entries whose existing file was kept.

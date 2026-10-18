@@ -2,6 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use p4kx_archive::ArchiveError;
+use p4kx_cryxml::CryXmlError;
 use thiserror::Error;
 
 /// Why one Entry of an Extraction was not written.
@@ -24,6 +25,17 @@ pub enum ExtractionError {
         /// Underlying I/O error.
         #[source]
         source: io::Error,
+    },
+    /// The Entry is `CryXml` that could not be converted.
+    #[error("cannot convert the CryXml")]
+    Convert(#[source] CryXmlError),
+    /// The Entry is `CryXml` larger than a Conversion reads into memory.
+    #[error("cannot convert the CryXml: {size} bytes are more than the limit of {limit}")]
+    TooLargeToConvert {
+        /// The size of the Entry.
+        size: u64,
+        /// The largest size converted.
+        limit: u64,
     },
     /// The file already in the target could not be read to compare it with the Entry.
     #[error("cannot read the existing file {path}")]
@@ -61,6 +73,7 @@ impl EntryFailure {
 #[derive(Debug, Default)]
 pub struct ExtractionReport {
     pub(crate) extracted: usize,
+    pub(crate) converted: usize,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
@@ -72,6 +85,13 @@ impl ExtractionReport {
     #[must_use]
     pub const fn extracted(&self) -> usize {
         self.extracted
+    }
+
+    /// Returns the number of `CryXml` Entries written as converted XML; they count among the
+    /// [`extracted`](Self::extracted) Entries.
+    #[must_use]
+    pub const fn converted(&self) -> usize {
+        self.converted
     }
 
     /// Returns the paths of Entries whose existing file in the target was kept.

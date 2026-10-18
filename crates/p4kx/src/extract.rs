@@ -28,6 +28,8 @@ pub(crate) struct NoMatch(String);
 struct ReportJson<'a> {
     target: String,
     extracted: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    converted: Option<usize>,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
     cancelled: &'a [String],
@@ -70,6 +72,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     };
     let options = ExtractOptions {
         policy: policy(args.conflict),
+        convert: args.convert,
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),
@@ -77,9 +80,9 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let report = extract(&archive, &entries, &target, &options);
     line.finish();
     let printed = if as_json {
-        json::print(&report_json(&report, &target))
+        json::print(&report_json(&report, &target, args.convert))
     } else {
-        print_report(&report, &target, args.conflict)
+        print_report(&report, &target, args)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -136,10 +139,11 @@ fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 
-fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a> {
+fn report_json<'a>(report: &'a ExtractionReport, target: &Path, convert: bool) -> ReportJson<'a> {
     ReportJson {
         target: json::path(target),
         extracted: report.extracted(),
+        converted: convert.then(|| report.converted()),
         skipped: report.skipped(),
         failed: report
             .failures()
@@ -165,13 +169,13 @@ fn reason(failure: &EntryFailure) -> String {
     reason
 }
 
-fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) -> io::Result<()> {
+fn print_report(report: &ExtractionReport, target: &Path, args: &ExtractArgs) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
     let mut out = io::stdout().lock();
-    let kept = if conflict == Conflict::IfChanged {
+    let kept = if args.conflict == Conflict::IfChanged {
         "unchanged"
     } else {
         "already exists"
@@ -182,9 +186,14 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
     for path in report.cancelled() {
         writeln!(out, "cancelled {path}")?;
     }
+    let converted = if args.convert {
+        format!(" ({} converted)", report.converted())
+    } else {
+        String::new()
+    };
     writeln!(
         out,
-        "extracted {}, skipped {}, failed {}, cancelled {} into {}",
+        "extracted {}{converted}, skipped {}, failed {}, cancelled {} into {}",
         report.extracted(),
         report.skipped().len(),
         report.failures().len(),

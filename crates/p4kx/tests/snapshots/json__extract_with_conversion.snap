@@ -1,0 +1,18 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "archive_changed": false,
+  "cancelled": [],
+  "converted": 1,
+  "extracted": 2,
+  "failed": [
+    {
+      "error": "cannot convert the CryXml: truncated CryXml: the header declares 107 bytes, 20 are present",
+      "path": "Data\\broken.xml"
+    }
+  ],
+  "skipped": [],
+  "target": "[DIR]/out"
+}

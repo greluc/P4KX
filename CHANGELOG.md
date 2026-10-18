@@ -12,6 +12,10 @@ fails while its section is missing.
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
+- Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the
+  Extraction window write CryXml Entries as UTF-8 XML; text XML and every other Entry stay
+  unchanged. The switch is remembered with the other Extraction settings, and the summaries and
+  `--json` count the converted Entries.
 
 ## [0.1.0]
 

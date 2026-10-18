@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/extract_convert.rs
+expression: "String::from_utf8(read(&fixture, \"Data/Vehicles/gladius.xml\")?)?"
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<Vehicle name="AEGS_Gladius">
+  <Parts>
+    <Part name="Nose"/>
+  </Parts>
+</Vehicle>

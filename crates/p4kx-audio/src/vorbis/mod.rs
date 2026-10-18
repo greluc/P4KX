@@ -69,7 +69,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// # Errors
     ///
     /// Returns, before writing anything, [`AudioError::UnsupportedOggCodec`] for a codec other
-    /// than Wwise Vorbis, [`AudioError::InvalidVorbis`] for a malformed header or packet layout
+    /// than Wwise Vorbis, [`AudioError::InvalidVorbis`] for a malformed header, packet layout or audio packet
     /// and [`AudioError::CodebooksRejected`] when no codebooks give a decodable stream;
     /// [`AudioError::Write`] when `out` fails.
     pub fn write_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
@@ -79,6 +79,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
         header::comment_packet(&mut comment);
         let mut setup = Vec::new();
         let (codebooks, rebuilt) = stream.choose_codebooks(&ident, &comment, &mut setup)?;
+        stream.check_audio(&rebuilt)?;
         let headers = [ident.as_slice(), &comment, &setup];
         let (sample_count, size) = stream.write(headers, &rebuilt, out)?;
         Ok(OggReport {
@@ -193,6 +194,15 @@ impl Stream<'_> {
         let rebuilt = setup::rebuild(self.setup, channels, codebooks, out)?;
         let fit = validate::validate(ident, comment, out, self.audio(&rebuilt))?;
         Ok((rebuilt, fit))
+    }
+
+    fn check_audio(&self, setup: &Setup) -> Result<(), AudioError> {
+        let mut audio = self.audio(setup);
+        let mut packet = Vec::new();
+        while let Some(rebuilt) = audio.next_into(&mut packet) {
+            rebuilt.map_err(AudioError::InvalidVorbis)?;
+        }
+        Ok(())
     }
 
     fn write(

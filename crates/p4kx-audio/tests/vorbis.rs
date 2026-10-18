@@ -278,3 +278,26 @@ fn damaged_wems_never_panic() {
         }
     }
 }
+
+#[test]
+fn a_bad_late_packet_fails_before_anything_is_written() {
+    let mut flags = vec![false; 40];
+    flags[38] = true;
+    let mut wem = TestVorbis::new(2, 48_000, &flags)
+        .native_packets()
+        .wem()
+        .bytes();
+    *wem.last_mut().unwrap() |= 1;
+
+    let error = convert(wem).err();
+
+    assert!(
+        matches!(
+            error,
+            Some(AudioError::InvalidVorbis(
+                VorbisError::InvalidAudioPacket { .. }
+            ))
+        ),
+        "{error:?}"
+    );
+}

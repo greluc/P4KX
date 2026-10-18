@@ -3,14 +3,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::transport::{SoundSource, Transport};
-use super::{AudioOutput, Pcm};
+use super::{AudioOutput, Pcm, StreamGuard};
 
 /// The playback of one decoded sound: play, pause, seek and volume, played through an
 /// [`AudioOutput`] once it is started. Dropping it stops the sound and closes the output.
 pub struct Player {
     pcm: Arc<Pcm>,
     transport: Arc<Transport>,
-    stream: Option<Box<dyn Send>>,
+    stream: Option<StreamGuard>,
     failure: Option<String>,
 }
 
@@ -64,10 +64,12 @@ impl Player {
         self.transport.set_playing(false);
     }
 
-    /// Returns whether the sound plays.
+    /// Returns whether the sound plays: started, not paused, failed or at its end.
     #[must_use]
     pub fn is_playing(&self) -> bool {
-        self.failure.is_none() && self.transport.is_playing()
+        self.failure.is_none()
+            && self.transport.is_playing()
+            && self.transport.position() < self.pcm.frames()
     }
 
     /// Moves to `fraction` of the sound, clamped to `0.0..=1.0`.

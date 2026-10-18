@@ -13,6 +13,8 @@ pub const MAX_PREVIEW_PCM: u64 = 256 << 20;
 const RIFF_HEAD_LEN: usize = 12;
 const CHUNK_HEAD_LEN: usize = 8;
 const MAX_WAV_HEAD_LEN: usize = 1024;
+const FORMAT_PCM: u16 = 0x0001;
+const FORMAT_EXTENSIBLE: u16 = 0xFFFE;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// A sound decoded to interleaved 16-bit PCM.
@@ -136,6 +138,7 @@ enum Head {
 struct PcmSink<'a> {
     head: Vec<u8>,
     in_data: bool,
+    remaining: u64,
     pending: Option<u8>,
     samples: Vec<i16>,
     limit: u64,
@@ -148,6 +151,7 @@ impl<'a> PcmSink<'a> {
         Self {
             head: Vec::new(),
             in_data: false,
+            remaining: 0,
             pending: None,
             samples: Vec::new(),
             limit,
@@ -177,6 +181,7 @@ impl<'a> PcmSink<'a> {
                     let samples = u64::from(len / 2).min(self.limit);
                     self.samples
                         .reserve_exact(usize::try_from(samples).unwrap_or(0));
+                    self.remaining = u64::from(len);
                     self.in_data = true;
                 }
             }
@@ -209,6 +214,9 @@ impl Write for PcmSink<'_> {
             return Err(self.halt(Stop::Cancelled));
         }
         let data = self.take_head(bytes)?;
+        let kept = usize::try_from(self.remaining).map_or(data.len(), |left| left.min(data.len()));
+        let data = data.get(..kept).unwrap_or_default();
+        self.remaining -= kept as u64;
         let room = usize::try_from(self.limit)
             .unwrap_or(usize::MAX)
             .saturating_sub(self.samples.len());
@@ -225,7 +233,7 @@ impl Write for PcmSink<'_> {
 }
 
 /// Returns how far the WAV header in `head` reaches: the length it needs next, or the length of
-/// the `data` chunk once its header is complete.
+/// the `data` chunk once its header is complete and the `fmt ` chunk declared 16-bit PCM.
 fn head(head: &[u8]) -> io::Result<Head> {
     let invalid = || io::Error::other("the decoder wrote no 16-bit PCM WAV");
     let Some(riff) = head.get(..RIFF_HEAD_LEN) else {
@@ -235,21 +243,44 @@ fn head(head: &[u8]) -> io::Result<Head> {
         return Err(invalid());
     }
     let mut at = RIFF_HEAD_LEN;
+    let mut pcm = false;
     loop {
-        let Some(chunk) = head.get(at..at + CHUNK_HEAD_LEN) else {
-            return Ok(Head::Needs(at + CHUNK_HEAD_LEN));
+        let body_at = at.checked_add(CHUNK_HEAD_LEN).ok_or_else(invalid)?;
+        let Some(chunk) = head.get(at..body_at) else {
+            return Ok(Head::Needs(body_at));
         };
         let (id, len) = chunk.split_at(4);
         let len = <[u8; 4]>::try_from(len)
             .map(u32::from_le_bytes)
             .map_err(|_| invalid())?;
         if id == b"data" {
-            return Ok(Head::Data(len));
+            return if pcm {
+                Ok(Head::Data(len))
+            } else {
+                Err(invalid())
+            };
         }
         let body = usize::try_from(len).map_err(|_| invalid())?;
-        at = at
-            .checked_add(CHUNK_HEAD_LEN + body + body % 2)
-            .filter(|&next| next <= MAX_WAV_HEAD_LEN)
+        let end = body_at
+            .checked_add(body)
+            .filter(|&end| end <= MAX_WAV_HEAD_LEN)
             .ok_or_else(invalid)?;
+        if id == b"fmt " {
+            let Some(format) = head.get(body_at..end) else {
+                return Ok(Head::Needs(end));
+            };
+            pcm = is_16_bit_pcm(format);
+        }
+        at = end.checked_add(body % 2).ok_or_else(invalid)?;
     }
+}
+
+fn is_16_bit_pcm(format: &[u8]) -> bool {
+    let field = |offset: usize| {
+        format
+            .get(offset..offset + 2)
+            .and_then(|bytes| <[u8; 2]>::try_from(bytes).ok())
+            .map(u16::from_le_bytes)
+    };
+    matches!(field(0), Some(FORMAT_PCM | FORMAT_EXTENSIBLE)) && field(14) == Some(16)
 }

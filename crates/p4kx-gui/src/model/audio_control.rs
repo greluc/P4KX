@@ -28,12 +28,7 @@ impl Model {
     /// it plays; does nothing before it is decoded.
     pub fn toggle_playback(&mut self) {
         let volume = self.audio_volume;
-        let Some(player) = self
-            .browser
-            .as_mut()
-            .and_then(Browser::audio_mut)
-            .and_then(AudioPreview::player_mut)
-        else {
+        let Some(player) = player_of(&mut self.browser) else {
             return;
         };
         if player.is_playing() {
@@ -52,9 +47,13 @@ impl Model {
     }
 
     fn player_mut(&mut self) -> Option<&mut Player> {
-        self.browser
-            .as_mut()
-            .and_then(Browser::audio_mut)
-            .and_then(AudioPreview::player_mut)
+        player_of(&mut self.browser)
     }
+}
+
+fn player_of(browser: &mut Option<Browser>) -> Option<&mut Player> {
+    browser
+        .as_mut()
+        .and_then(Browser::audio_mut)
+        .and_then(AudioPreview::player_mut)
 }

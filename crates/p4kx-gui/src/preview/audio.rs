@@ -300,6 +300,10 @@ impl Worker {
             .map_err(|error| failed(&error))?;
         let capacity = usize::try_from(entry.uncompressed_size()).unwrap_or(0);
         let mut bytes = Vec::with_capacity(capacity);
+        let reader = Cancellable {
+            inner: reader,
+            dropped: &self.dropped,
+        };
         reader
             .take(PREVIEW_SIZE_LIMIT + 1)
             .read_to_end(&mut bytes)
@@ -311,5 +315,20 @@ impl Worker {
             return Err(Event::ArchiveChanged);
         }
         Wem::parse(bytes).map_err(|error| failed(&error))
+    }
+}
+
+/// A reader that fails once the preview it reads for was dropped.
+struct Cancellable<'a, R> {
+    inner: R,
+    dropped: &'a AtomicBool,
+}
+
+impl<R: Read> Read for Cancellable<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.dropped.load(Ordering::Acquire) {
+            return Err(std::io::Error::other("the preview was closed"));
+        }
+        self.inner.read(buf)
     }
 }

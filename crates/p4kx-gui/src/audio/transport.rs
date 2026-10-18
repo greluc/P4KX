@@ -14,6 +14,7 @@ pub(crate) struct Transport {
     position: AtomicU64,
     seek: AtomicU64,
     volume: AtomicU32,
+    stream: AtomicU64,
     failure: Mutex<Option<String>>,
 }
 
@@ -25,6 +26,7 @@ impl Transport {
             position: AtomicU64::new(0),
             seek: AtomicU64::new(NO_SEEK),
             volume: AtomicU32::new(volume.to_bits()),
+            stream: AtomicU64::new(0),
             failure: Mutex::new(None),
         }
     }
@@ -57,8 +59,16 @@ impl Transport {
         self.volume.store(volume.to_bits(), Ordering::Release);
     }
 
-    pub(crate) fn report(&self, reason: String) {
+    /// Starts counting a new output stream; reports of earlier streams are ignored from now on.
+    pub(crate) fn next_stream(&self) -> u64 {
+        self.stream.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    fn report(&self, stream: u64, reason: String) {
         let mut failure = self.failure.lock().unwrap_or_else(PoisonError::into_inner);
+        if self.stream.load(Ordering::Acquire) != stream {
+            return;
+        }
         if failure.is_none() {
             *failure = Some(reason);
         }
@@ -76,12 +86,16 @@ impl Transport {
 
 /// Reports why an audio output failed to the window, from any thread.
 #[derive(Debug, Clone)]
-pub struct FailureReporter(Arc<Transport>);
+pub struct FailureReporter {
+    transport: Arc<Transport>,
+    stream: u64,
+}
 
 impl FailureReporter {
-    /// Stops the playback and shows `reason`; only the first reason of a playback is kept.
+    /// Stops the playback and shows `reason`; only the first reason of a stream is kept, and
+    /// none once the window started another stream.
     pub fn report(&self, reason: impl Into<String>) {
-        self.0.report(reason.into());
+        self.transport.report(self.stream, reason.into());
     }
 }
 
@@ -91,6 +105,7 @@ impl FailureReporter {
 pub struct SoundSource {
     pcm: Arc<Pcm>,
     transport: Arc<Transport>,
+    stream: u64,
     frame: u64,
     channel: u16,
     playing: bool,
@@ -100,6 +115,7 @@ pub struct SoundSource {
 impl SoundSource {
     pub(crate) fn new(pcm: Arc<Pcm>, transport: Arc<Transport>) -> Self {
         Self {
+            stream: transport.next_stream(),
             frame: transport.position(),
             pcm,
             transport,
@@ -124,7 +140,10 @@ impl SoundSource {
     /// Returns a handle that reports a failure of the output to the window.
     #[must_use]
     pub fn reporter(&self) -> FailureReporter {
-        FailureReporter(Arc::clone(&self.transport))
+        FailureReporter {
+            transport: Arc::clone(&self.transport),
+            stream: self.stream,
+        }
     }
 
     /// Returns the next interleaved sample in `-1.0..1.0` with the volume applied, silence while
@@ -166,19 +185,16 @@ impl SoundSource {
             return false;
         }
         let frames = self.pcm.frames();
-        if transport.seek.load(Ordering::Acquire) != NO_SEEK {
-            let frame = transport.seek.swap(NO_SEEK, Ordering::AcqRel);
-            if frame != NO_SEEK {
-                self.frame = frame.min(frames);
-            }
+        let seek = transport.seek.load(Ordering::Acquire);
+        if seek != NO_SEEK {
+            self.frame = seek.min(frames);
+            transport.position.store(self.frame, Ordering::Release);
+            let _taken =
+                transport
+                    .seek
+                    .compare_exchange(seek, NO_SEEK, Ordering::AcqRel, Ordering::Acquire);
         }
-        self.playing = transport.is_playing();
-        if self.playing && self.frame >= frames {
-            self.playing = false;
-            if transport.seek.load(Ordering::Acquire) == NO_SEEK {
-                transport.set_playing(false);
-            }
-        }
+        self.playing = transport.is_playing() && self.frame < frames;
         self.volume = f32::from_bits(transport.volume.load(Ordering::Relaxed));
         transport.position.store(self.frame, Ordering::Release);
         true

@@ -32,6 +32,7 @@ pub mod window;
 pub use app::App;
 pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
+    StreamGuard,
 };
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;

@@ -12,7 +12,10 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
-- The Query tab of the window: run Queries over the DataForge of the open Archive in the
+- The Audio tab of the preview: select a WEM to see its codec, channels, sample rate and
+  duration, and play it without extracting, with play, pause, seek and volume. PCM, IMA ADPCM,
+  PTADPCM and Wwise Vorbis sounds play; another codec, a missing audio device or a sound too long
+  to hold is named instead.- The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.

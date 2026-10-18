@@ -121,32 +121,32 @@ fn controls(
     player: &Player,
     volume: f32,
 ) -> Option<AudioAction> {
-    let labels = labels(ui, texts, serial, player);
+    let labels = labels(ui, texts);
+    let time = time(ui, texts, serial, player);
     let mut action = None;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = AUDIO_CONTROL_GAP;
         let toggle = if player.is_playing() {
-            AudioText::Pause
+            &labels.pause
         } else {
-            AudioText::Play
+            &labels.play
         };
-        if button::button(ui, Kind::Outline, Size::Compact, &texts.get(toggle), true).clicked() {
+        if button::button(ui, Kind::Outline, Size::Compact, toggle, true).clicked() {
             action = Some(AudioAction::Toggle);
         }
-        galley(ui, &labels.time, palette::GRAY_1);
+        galley(ui, &time, palette::GRAY_1);
         let rest = 2.0f32.mul_add(
             AUDIO_CONTROL_GAP,
             labels.volume.size().x + AUDIO_VOLUME_WIDTH,
         );
         let width = (ui.available_width() - rest).max(AUDIO_POSITION_MIN_WIDTH);
         let step = step(player);
-        let position = texts.get(AudioText::Position);
-        if let Some(fraction) = slider(ui, &position, player.fraction(), step, width) {
+        if let Some(fraction) = slider(ui, &labels.position, player.fraction(), step, width) {
             action = Some(AudioAction::Seek(fraction));
         }
         galley(ui, &labels.volume, palette::GRAY_2_TEXT);
-        let name = texts.get(AudioText::Volume);
-        if let Some(chosen) = slider(ui, &name, volume, VOLUME_STEP, AUDIO_VOLUME_WIDTH) {
+        let name = &labels.volume_name;
+        if let Some(chosen) = slider(ui, name, volume, VOLUME_STEP, AUDIO_VOLUME_WIDTH) {
             action = Some(AudioAction::Volume(chosen));
         }
     });
@@ -220,19 +220,21 @@ struct Key {
     pixels_per_point: f32,
 }
 
-/// The laid-out texts of the controls that change with the position or the language.
+/// The texts of the controls in the current language, the volume label laid out.
 #[derive(Clone)]
 struct Labels {
-    time: Arc<Galley>,
+    play: Arc<str>,
+    pause: Arc<str>,
+    position: Arc<str>,
+    volume_name: Arc<str>,
     volume: Arc<Galley>,
 }
 
-fn labels(ui: &Ui, texts: &Texts, serial: u64, player: &Player) -> Labels {
+fn labels(ui: &Ui, texts: &Texts) -> Labels {
     let id = Id::unique("p4kx-audio-labels");
-    let position = player.position();
     let key = Key {
-        serial,
-        second: position.as_secs(),
+        serial: 0,
+        second: 0,
         language: texts.language(),
         pixels_per_point: ui.ctx().pixels_per_point(),
     };
@@ -241,6 +243,33 @@ fn labels(ui: &Ui, texts: &Texts, serial: u64, player: &Player) -> Labels {
     {
         return labels;
     }
+    let volume_name = texts.get(AudioText::Volume);
+    let labels = Labels {
+        play: texts.get(AudioText::Play).into(),
+        pause: texts.get(AudioText::Pause).into(),
+        position: texts.get(AudioText::Position).into(),
+        volume: line(ui, eyebrow(&volume_name), f32::INFINITY),
+        volume_name: volume_name.into(),
+    };
+    ui.data_mut(|data| data.insert_temp(id, (key, labels.clone())));
+    labels
+}
+
+/// Returns the position and length of the sound, laid out once per whole second shown.
+fn time(ui: &Ui, texts: &Texts, serial: u64, player: &Player) -> Arc<Galley> {
+    let id = Id::unique("p4kx-audio-time");
+    let position = player.position();
+    let key = Key {
+        serial,
+        second: position.as_secs(),
+        language: texts.language(),
+        pixels_per_point: ui.ctx().pixels_per_point(),
+    };
+    if let Some((cached, time)) = ui.data(|data| data.get_temp::<(Key, Arc<Galley>)>(id))
+        && cached == key
+    {
+        return time;
+    }
     let args = [
         ("position", FluentValue::from(clock(position, false))),
         (
@@ -248,15 +277,11 @@ fn labels(ui: &Ui, texts: &Texts, serial: u64, player: &Player) -> Labels {
             FluentValue::from(clock(player.duration(), false)),
         ),
     ];
-    let time = texts.format(AudioText::Time, &args);
-    let labels = Labels {
-        time: line(ui, plain(time, FS_XS, Weight::Regular), f32::INFINITY),
-        volume: line(ui, eyebrow(&texts.get(AudioText::Volume)), f32::INFINITY),
-    };
-    ui.data_mut(|data| data.insert_temp(id, (key, labels.clone())));
-    labels
+    let text = texts.format(AudioText::Time, &args);
+    let time = line(ui, plain(text, FS_XS, Weight::Regular), f32::INFINITY);
+    ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&time))));
+    time
 }
-
 /// Returns the facts of `info`, laid out once per audio preview, language and scale.
 fn facts(ui: &Ui, texts: &Texts, serial: u64, info: &SoundInfo) -> Arc<FactsStrip> {
     let id = Id::unique("p4kx-audio-facts");

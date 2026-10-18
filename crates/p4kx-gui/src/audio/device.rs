@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use rodio::{ChannelCount, DeviceSinkBuilder, SampleRate, Source};
 
-use super::{AudioOutput, FailureReporter, SoundSource};
+use super::{AudioOutput, FailureReporter, SoundSource, StreamGuard};
 use crate::model::describe;
 
 /// The default audio device of the system, opened through rodio on a thread of its own for
@@ -14,7 +14,7 @@ use crate::model::describe;
 pub struct DeviceOutput;
 
 impl AudioOutput for DeviceOutput {
-    fn start(&self, source: SoundSource) -> Box<dyn Send> {
+    fn start(&self, source: SoundSource) -> StreamGuard {
         let (guard, closed) = mpsc::channel::<()>();
         let reporter = source.reporter();
         let thread_reporter = reporter.clone();
@@ -24,7 +24,7 @@ impl AudioOutput for DeviceOutput {
         if let Err(error) = spawned {
             reporter.report(describe(&error));
         }
-        Box::new(guard)
+        StreamGuard::new(guard)
     }
 }
 

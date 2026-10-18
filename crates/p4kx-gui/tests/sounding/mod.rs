@@ -8,7 +8,8 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{
-    AudioOutput, AudioPreview, Browser, Language, Model, Player, Preview, SoundSource, ui,
+    AudioOutput, AudioPreview, Browser, Language, Model, Player, Preview, SoundSource, StreamGuard,
+    ui,
 };
 use p4kx_testkit::{ArchiveBuilder, TestCodec, TestEntry, TestVorbis, TestWem, test_signal};
 use tempfile::TempDir;
@@ -52,7 +53,7 @@ impl FakeOutput {
 }
 
 impl AudioOutput for FakeOutput {
-    fn start(&self, source: SoundSource) -> Box<dyn Send> {
+    fn start(&self, source: SoundSource) -> StreamGuard {
         if let Some(reason) = self.failure {
             source.reporter().report(reason);
         }
@@ -60,7 +61,7 @@ impl AudioOutput for FakeOutput {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(source);
-        Box::new(())
+        StreamGuard::new(())
     }
 }
 
@@ -76,11 +77,13 @@ pub(crate) fn vorbis() -> TestVorbis {
 pub(crate) fn sounds() -> Vec<TestEntry> {
     let pcm = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone()).bytes();
     let ima = TestWem::ima_adpcm(1, 48_000, &test_signal(640, 1)).bytes();
+    let ptadpcm = TestWem::ptadpcm(1, 48_000, 36, &test_signal(640, 1)).bytes();
     let opus = TestWem::encoded(TestCodec::Tag(0x3040), 1, 48_000, 960).bytes();
     let endless = TestWem::encoded(TestCodec::Vorbis, 2, 48_000, u32::MAX).bytes();
     vec![
         TestEntry::stored("Data\\Sounds\\tone.wem", pcm),
         TestEntry::zstd("Data\\Sounds\\ima.WEM", ima),
+        TestEntry::stored("Data\\Sounds\\platinum.wem", ptadpcm),
         TestEntry::stored("Data\\Sounds\\engine.wem", vorbis().wem().bytes()),
         TestEntry::stored("Data\\Sounds\\voice.wem", opus),
         TestEntry::stored("Data\\Sounds\\endless.wem", endless),

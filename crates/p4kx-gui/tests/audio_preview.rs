@@ -85,6 +85,36 @@ fn play_starts_the_output_and_pause_silences_it() -> TestResult {
 }
 
 #[test]
+fn playing_again_at_the_end_starts_over() -> TestResult {
+    let output = FakeOutput::default();
+    let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
+    select(&mut harness, "tone.wem")?;
+    press(&mut harness, "Play");
+
+    let _whole = output.pull(2 * 48_000 + 2).ok_or("no output started")?;
+    harness.step();
+    assert!(
+        harness.query_by_label("Play").is_some(),
+        "stopped at the end"
+    );
+    press(&mut harness, "Play");
+    let again = output.pull(8).ok_or("the stream ended")?;
+
+    let expected: Vec<f32> = (0..4)
+        .flat_map(|frame| [tone_sample(frame, 0), tone_sample(frame, 1)])
+        .collect();
+    assert!(
+        again
+            .iter()
+            .zip(&expected)
+            .all(|(&got, &want)| near(got, want))
+            && again.iter().any(|&sample| sample != 0.0),
+        "from the start: {again:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn clicking_the_position_bar_seeks() -> TestResult {
     let output = FakeOutput::default();
     let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
@@ -185,23 +215,29 @@ fn changing_the_selection_stops_the_sound() -> TestResult {
 }
 
 #[test]
-fn ima_adpcm_decodes_and_plays() -> TestResult {
-    let output = FakeOutput::default();
-    let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
+fn ima_adpcm_and_ptadpcm_decode_and_play() -> TestResult {
+    for (name, codec) in [("ima.WEM", "IMA ADPCM"), ("platinum.wem", "PTADPCM")] {
+        let output = FakeOutput::default();
+        let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
 
-    select(&mut harness, "ima.WEM")?;
-    press(&mut harness, "Play");
+        select(&mut harness, name)?;
+        press(&mut harness, "Play");
 
-    assert!(
-        harness
-            .query_by_label_contains("Codec IMA ADPCM Channels 1")
-            .is_some(),
-        "facts"
-    );
-    assert_eq!(output.started(), 1, "plays");
+        let facts = format!("Codec {codec} Channels 1 Sample rate 48,000 Hz");
+        assert!(
+            harness.query_by_label_contains(&facts).is_some(),
+            "facts of {name}"
+        );
+        assert_eq!(output.started(), 1, "{name} plays");
+        assert!(
+            output
+                .pull(256)
+                .is_some_and(|samples| samples.iter().any(|&s| s != 0.0)),
+            "{name} is not silent"
+        );
+    }
     Ok(())
 }
-
 #[test]
 fn wwise_vorbis_decodes_and_plays() -> TestResult {
     let output = FakeOutput::default();

@@ -1,0 +1,18 @@
+[package]
+name = "p4kx-extraction"
+description = "Extraction service of P4K-Extractor: opens Archives and writes their Entries to disk."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "service"
+
+[dependencies]
+p4kx-archive.workspace = true
+
+[lints]
+workspace = true

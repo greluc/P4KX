@@ -1,6 +1,4 @@
-use egui::{
-    Align, CornerRadius, Frame, Layout, Margin, Panel, Role, Ui, UiBuilder, WidgetInfo, vec2,
-};
+use egui::{Align, Layout, Margin, Panel, Ui, UiBuilder, vec2};
 use fluent_bundle::FluentValue;
 
 use super::archive_picker::{self, Picked};
@@ -10,15 +8,14 @@ use super::{
     comparison_table, record_fields,
 };
 use crate::theme::desktop::{
-    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, PREVIEW_MIN_HEIGHT, SPINNER, TITLE_SIZE,
-    TITLE_TRACKING, TOOLBAR_PADDING,
+    COMPARISON_PROGRESS_WIDTH, PREVIEW_MIN_HEIGHT, SPINNER, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_SM, FS_XS, SPACE_3, Weight};
+use crate::theme::tokens::{FS_SM, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
-use crate::widgets::text::{caps, hairline_below, plain};
+use crate::widgets::text::{hairline_below, plain};
 use crate::widgets::toggle;
 use crate::{
     ComparisonSide, ComparisonStage, ComparisonStatus, ComparisonText, Model, RecordChangeText,
@@ -225,26 +222,7 @@ fn counted(
 }
 
 fn empty(ui: &mut Ui, texts: &Texts) {
-    let rect = ui.available_rect_before_wrap();
-    ui.painter()
-        .rect_filled(rect, CornerRadius::ZERO, palette::BG_DARK_GRAY);
-    frames::dashed(ui, rect.shrink(0.5), palette::GRAY_3);
-    Frame::NONE
-        .inner_margin(Margin::same(px(EMPTY_PADDING)))
-        .show(ui, |ui| {
-            ui.set_min_size(rect.size() - vec2(2.0 * EMPTY_PADDING, 2.0 * EMPTY_PADDING));
-            ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                ui.add_space((rect.height() / 2.0 - EMPTY_ICON).max(0.0));
-                let title = texts.get(ComparisonText::EmptyTitle);
-                ui.label(
-                    caps(&title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(palette::GRAY_1),
-                )
-                .widget_info(|| WidgetInfo::labeled(Role::Label, true, &title));
-                ui.add_space(SPACE_3);
-                ui.label(
-                    plain(texts.get(ComparisonText::EmptyHint), FS_XS, Weight::Regular)
-                        .color(palette::GRAY_2_TEXT),
-                );
-            });
-        });
+    let title = texts.get(ComparisonText::EmptyTitle);
+    let hint = texts.get(ComparisonText::EmptyHint);
+    super::empty::notice(ui, &title, &hint);
 }

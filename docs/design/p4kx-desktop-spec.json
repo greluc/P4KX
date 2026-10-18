@@ -573,7 +573,7 @@
   },
   "workTabs": {
     "dsClass": "tab-nav / tab",
-    "tabs": ["archive", "comparison"],
+    "tabs": ["archive", "comparison", "query"],
     "position": "top of the work surface, above the list panel",
     "metrics": "tabBar"
   },
@@ -685,6 +685,74 @@
     "missingValue": "– in color-gray-2-text",
     "errorValue": "Error: reason in color-danger-text",
     "messages": "previewPanel body: added, removed, moved and equal in color-gray-1, unreadable sides and failures in color-danger-text"
+  },
+  "queryEditor": {
+    "dsClass": "textarea",
+    "rows": 4,
+    "maxRows": 12,
+    "paddingX": 12,
+    "paddingY": 8,
+    "fontSize": 16,
+    "fontWeight": "fw-regular",
+    "lineHeight": 1.5,
+    "background": "color-surface-input",
+    "color": "color-gray-1",
+    "border": {"width": 1, "color": "control-border"},
+    "focusBorder": "color-primary",
+    "focusGlow": "glow-primary",
+    "placeholderColor": "color-gray-2-text",
+    "placeholderItalic": true,
+    "errorMark": {"underline": 2, "color": "color-danger", "background": "rgba(163,0,10,0.2)"},
+    "label": "page-head__eyebrow, 11.2 / fw-bold / 0.15 em, color-gray-2-text",
+    "run": "buttonCta, Ctrl+Enter in the editor",
+    "cancel": "buttonGhost"
+  },
+  "errorAlert": {
+    "dsClass": "alert alert-danger",
+    "paddingX": 16,
+    "paddingY": 10,
+    "background": "rgba(163,0,10,0.2)",
+    "border": {"width": 1, "color": "color-danger"},
+    "borderLeft": {"width": 4, "color": "color-danger"},
+    "fontSize": 14.4,
+    "fontWeight": "fw-regular",
+    "color": "color-gray-1"
+  },
+  "pagination": {
+    "dsClass": "pagination / page-btn / page-status",
+    "gap": 6.4,
+    "buttonSize": 44,
+    "buttonPaddingX": 8,
+    "buttonBackground": "control-bg",
+    "buttonColor": "control-fg",
+    "buttonBorder": {"width": 1, "color": "control-border"},
+    "buttonHover": "border and chevron color-primary",
+    "disabledOpacity": 0.4,
+    "chevron": {"size": 17.6, "path": "M15 6l-6 6 6 6 on a 24 grid", "strokeWidth": "2 of 24", "doubleOverlap": 6},
+    "statusPaddingX": 12,
+    "statusFontSize": 12.8,
+    "statusColor": "color-gray-1",
+    "statusCurrent": "color-primary, fw-bold, tabular figures"
+  },
+  "queryTable": {
+    "rows": "tableRow",
+    "header": "tableHeader + sortIndicator; the record path head is a label in upper case, a select path stays as written",
+    "columnWidth": 200,
+    "columnMinWidth": 80,
+    "pageRows": 500,
+    "errorValue": "color-danger-text, also a list holding one",
+    "nullValue": "null in color-gray-2-text, sorted with missing values",
+    "numberColumns": "right-aligned",
+    "listCells": "the values in brackets, the first 8 and then the number of more",
+    "footer": "listFooter with the number of Records left and the pagination right"
+  },
+  "listFooter": {
+    "dsClass": "list-panel__footer",
+    "paddingX": 16,
+    "paddingY": 12,
+    "fontSize": 14.4,
+    "color": "color-gray-2-text",
+    "borderTop": {"width": 1, "color": "color-gray-3"}
   },
   "lineDiff": {
     "panel": "previewPanel below the change list once a change is selected, opening at half the remaining height (at least previewPanel minHeight), with resizeHandle; the selected row scrolls back into view",

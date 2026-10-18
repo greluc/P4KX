@@ -9,8 +9,8 @@ use crate::file_size::collect_rust_files;
 const UNSAFE_PACKAGE: &str = "p4kx-gui";
 const UNSAFE_MODULE: &str = "crates/p4kx-gui/src/dwm.rs";
 
-/// Returns one message per package whose lints are not the workspace lints and per source file
-/// outside the DWM module that names `unsafe_code`.
+/// Returns one message per package whose lints are not the workspace lints, per source file
+/// outside the DWM module that names `unsafe_code`, and per profile that aborts on panic.
 ///
 /// Only `p4kx-gui` has its own table: the workspace lints with `unsafe_code` lowered from
 /// `forbid` to `deny`, so its DWM module can expect it.
@@ -29,7 +29,27 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
         }
     }
     violations.extend(unsafe_sites(root)?);
+    violations.extend(aborting_profiles("Cargo.toml", &workspace));
+    let config = root.join(".cargo").join("config.toml");
+    if config.exists() {
+        violations.extend(aborting_profiles(".cargo/config.toml", &read(&config)?));
+    }
     Ok(violations)
+}
+
+/// Returns one message per profile of `table` with `panic = "abort"`; the Vorbis validation and
+/// decoding catch decoder panics, which needs unwinding (ADR-0011, ADR-0013).
+fn aborting_profiles(file: &str, table: &Table) -> Vec<String> {
+    table
+        .get("profile")
+        .and_then(Value::as_table)
+        .into_iter()
+        .flatten()
+        .filter(|(_, profile)| profile.get("panic").and_then(Value::as_str) == Some("abort"))
+        .map(|(name, _)| {
+            format!("lints: {file} sets panic = \"abort\" in profile {name}; keep unwinding")
+        })
+        .collect()
 }
 
 fn violation(name: &str, lints: Option<&Value>, workspace: &Table) -> Option<String> {
@@ -105,7 +125,7 @@ mod tests {
 
     use toml::{Table, Value};
 
-    use super::{names_unsafe_code, violation};
+    use super::{aborting_profiles, names_unsafe_code, violation};
 
     type TestResult = Result<(), toml::de::Error>;
 
@@ -175,6 +195,35 @@ mod tests {
         assert!(
             violation("p4kx-gui", Some(&lints("workspace = true")?), &workspace()?).is_some(),
             "forbid would reject the DWM module"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_profile_that_aborts_on_panic_fails() -> TestResult {
+        let unwinding: Table = r#"
+            [profile.release]
+            lto = "thin"
+            panic = "unwind"
+        "#
+        .parse()?;
+        let aborting: Table = r#"
+            [profile.release]
+            lto = "thin"
+            [profile.dist]
+            inherits = "release"
+            panic = "abort"
+        "#
+        .parse()?;
+
+        assert!(
+            aborting_profiles("Cargo.toml", &unwinding).is_empty(),
+            "unwinding profiles"
+        );
+        assert_eq!(
+            aborting_profiles("Cargo.toml", &aborting),
+            ["lints: Cargo.toml sets panic = \"abort\" in profile dist; keep unwinding"],
+            "the aborting profile"
         );
         Ok(())
     }

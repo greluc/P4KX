@@ -64,6 +64,9 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("width", "512".into()),
         ("height", "256".into()),
         ("format", "BC7_UNORM".into()),
+        ("column", "13".into()),
+        ("page", "1".into()),
+        ("pages", "3".into()),
     ]
 }
 

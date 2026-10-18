@@ -73,7 +73,7 @@ impl EntryFailure {
 #[derive(Debug, Default)]
 pub struct ExtractionReport {
     pub(crate) extracted: usize,
-    pub(crate) converted: usize,
+    pub(crate) converted: Option<usize>,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
     pub(crate) cancelled: Vec<String>,
@@ -87,10 +87,10 @@ impl ExtractionReport {
         self.extracted
     }
 
-    /// Returns the number of `CryXml` Entries written as converted XML; they count among the
-    /// [`extracted`](Self::extracted) Entries.
+    /// Returns the number of `CryXml` Entries written as converted XML, or `None` when the run
+    /// did not convert; they count among the [`extracted`](Self::extracted) Entries.
     #[must_use]
-    pub const fn converted(&self) -> usize {
+    pub const fn converted(&self) -> Option<usize> {
         self.converted
     }
 

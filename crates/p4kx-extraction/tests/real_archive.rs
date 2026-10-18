@@ -165,7 +165,7 @@ fn extracts_a_sample_of_real_xml_entries_with_conversion() -> TestResult {
         sample.len(),
         "the whole sample is written"
     );
-    assert!(report.converted() > 0, "some Entries are CryXml");
+    assert!(report.converted() > Some(0), "some Entries are CryXml");
     for entry in &sample {
         let written = std::fs::read(target.path().join(entry.path().replace('\\', "/")))?;
         let xml =

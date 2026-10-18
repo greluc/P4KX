@@ -80,9 +80,9 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let report = extract(&archive, &entries, &target, &options);
     line.finish();
     let printed = if as_json {
-        json::print(&report_json(&report, &target, args.convert))
+        json::print(&report_json(&report, &target))
     } else {
-        print_report(&report, &target, args)
+        print_report(&report, &target, args.conflict)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -139,11 +139,11 @@ fn prepare_target(args: &ExtractArgs, archive: &Archive) -> Result<PathBuf> {
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 
-fn report_json<'a>(report: &'a ExtractionReport, target: &Path, convert: bool) -> ReportJson<'a> {
+fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a> {
     ReportJson {
         target: json::path(target),
         extracted: report.extracted(),
-        converted: convert.then(|| report.converted()),
+        converted: report.converted(),
         skipped: report.skipped(),
         failed: report
             .failures()
@@ -169,13 +169,13 @@ fn reason(failure: &EntryFailure) -> String {
     reason
 }
 
-fn print_report(report: &ExtractionReport, target: &Path, args: &ExtractArgs) -> io::Result<()> {
+fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
     let mut out = io::stdout().lock();
-    let kept = if args.conflict == Conflict::IfChanged {
+    let kept = if conflict == Conflict::IfChanged {
         "unchanged"
     } else {
         "already exists"
@@ -186,11 +186,9 @@ fn print_report(report: &ExtractionReport, target: &Path, args: &ExtractArgs) ->
     for path in report.cancelled() {
         writeln!(out, "cancelled {path}")?;
     }
-    let converted = if args.convert {
-        format!(" ({} converted)", report.converted())
-    } else {
-        String::new()
-    };
+    let converted = report
+        .converted()
+        .map_or_else(String::new, |count| format!(" ({count} converted)"));
     writeln!(
         out,
         "extracted {}{converted}, skipped {}, failed {}, cancelled {} into {}",

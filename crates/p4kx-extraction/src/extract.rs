@@ -34,6 +34,7 @@ pub fn extract(
                 .iter()
                 .map(|entry| entry.path().to_owned())
                 .collect(),
+            converted: options.convert.then_some(0),
             archive_changed: true,
             ..ExtractionReport::default()
         };
@@ -57,13 +58,16 @@ pub fn extract(
     let mut buffers = Buffers::new();
     outcomes.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
-    let mut report = ExtractionReport::default();
+    let mut report = ExtractionReport {
+        converted: options.convert.then_some(0),
+        ..ExtractionReport::default()
+    };
     for (_, path, outcome) in outcomes {
         match outcome {
             Outcome::Written => report.extracted += 1,
             Outcome::Converted => {
                 report.extracted += 1;
-                report.converted += 1;
+                report.converted = report.converted.map(|count| count + 1);
             }
             Outcome::Kept => report.skipped.push(path),
             Outcome::Cancelled => report.cancelled.push(path),

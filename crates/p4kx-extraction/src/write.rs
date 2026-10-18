@@ -25,12 +25,6 @@ pub(crate) enum Outcome {
     Failed(ExtractionError),
 }
 
-pub(crate) enum Decision {
-    Write,
-    Keep,
-    Cancelled,
-}
-
 pub(crate) enum Chunk {
     Data(usize),
     End,
@@ -100,10 +94,8 @@ impl EntryWriter<'_> {
             None
         };
         let expected = || (entry.uncompressed_size(), entry.crc32c());
-        match self.decide(&destination, expected, &mut buffers.chunk)? {
-            Decision::Keep => return Ok(Outcome::Kept),
-            Decision::Cancelled => return Ok(Outcome::Cancelled),
-            Decision::Write => {}
+        if let Some(outcome) = self.decide(&destination, expected, &mut buffers.chunk)? {
+            return Ok(outcome);
         }
         let mut reader = match opened {
             Some(reader) => reader,
@@ -164,30 +156,31 @@ impl EntryWriter<'_> {
     }
 
     /// Decides whether the file of `destination` is written, comparing an existing file under
-    /// [`ConflictPolicy::IfChanged`] with the size and CRC-32C `expected` returns.
+    /// [`ConflictPolicy::IfChanged`] with the size and CRC-32C `expected` returns; returns the
+    /// outcome of an Entry that is not written, or `None` to write it.
     pub(crate) fn decide(
         &self,
         destination: &Destination,
         expected: impl FnOnce() -> (u64, u32),
         buffer: &mut [u8],
-    ) -> Result<Decision, ExtractionError> {
+    ) -> Result<Option<Outcome>, ExtractionError> {
         let Some(metadata) = &destination.existing else {
-            return Ok(Decision::Write);
+            return Ok(None);
         };
         match self.policy {
-            ConflictPolicy::Skip => Ok(Decision::Keep),
+            ConflictPolicy::Skip => Ok(Some(Outcome::Kept)),
             ConflictPolicy::IfChanged if metadata.is_file() => {
                 let (len, crc) = expected();
                 if metadata.len() != len {
-                    return Ok(Decision::Write);
+                    return Ok(None);
                 }
                 Ok(match self.file_crc(&destination.file, buffer)? {
-                    Some(existing) if existing == crc => Decision::Keep,
-                    Some(_) => Decision::Write,
-                    None => Decision::Cancelled,
+                    Some(existing) if existing == crc => Some(Outcome::Kept),
+                    Some(_) => None,
+                    None => Some(Outcome::Cancelled),
                 })
             }
-            ConflictPolicy::Overwrite | ConflictPolicy::IfChanged => Ok(Decision::Write),
+            ConflictPolicy::Overwrite | ConflictPolicy::IfChanged => Ok(None),
         }
     }
 

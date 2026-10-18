@@ -86,7 +86,7 @@ fn conversion_writes_cryxml_entries_of_every_signature_and_byte_order_as_xml() -
 
     assert!(report.is_complete(), "{report:?}");
     assert_eq!(report.extracted(), 4, "every Entry is written");
-    assert_eq!(report.converted(), 4, "every Entry is converted");
+    assert_eq!(report.converted(), Some(4), "every Entry is converted");
     for path in [
         "Data/b_little.xml",
         "Data/b_big.xml",
@@ -109,7 +109,7 @@ fn without_conversion_cryxml_entries_are_written_unchanged() -> TestResult {
     let report = run(&fixture, false, ConflictPolicy::Skip);
 
     assert_eq!(report.extracted(), 1, "written");
-    assert_eq!(report.converted(), 0, "nothing converted");
+    assert_eq!(report.converted(), None, "Conversion is off");
     assert_eq!(
         read(&fixture.target, "Data/ship.xml")?,
         little(),
@@ -132,7 +132,7 @@ fn conversion_leaves_text_xml_and_other_entries_byte_identical() -> TestResult {
 
     assert!(report.is_complete(), "{report:?}");
     assert_eq!(report.extracted(), 4, "every Entry is written");
-    assert_eq!(report.converted(), 0, "nothing is CryXml");
+    assert_eq!(report.converted(), Some(0), "nothing is CryXml");
     assert_eq!(
         read(&fixture.target, "Data/text.xml")?,
         TEXT_XML,
@@ -169,7 +169,7 @@ fn an_entry_that_fails_to_convert_is_reported_and_the_rest_continues() -> TestRe
     let report = run(&fixture, true, ConflictPolicy::Overwrite);
 
     assert_eq!(report.extracted(), 1, "the good Entry is written");
-    assert_eq!(report.converted(), 1, "and converted");
+    assert_eq!(report.converted(), Some(1), "and converted");
     let [failure] = report.failures() else {
         return Err(format!("one failure expected: {report:?}").into());
     };
@@ -210,7 +210,7 @@ fn skip_keeps_an_existing_file_of_a_cryxml_entry() -> TestResult {
     let report = run(&fixture, true, ConflictPolicy::Skip);
 
     assert_eq!(report.skipped(), ["Data\\ship.xml", "Data\\text.xml"]);
-    assert_eq!(report.converted(), 0, "nothing converted");
+    assert_eq!(report.converted(), Some(0), "nothing converted");
     assert_eq!(read(&fixture.target, "Data/ship.xml")?, b"old", "kept");
     Ok(())
 }
@@ -222,7 +222,7 @@ fn overwrite_replaces_an_existing_file_with_the_converted_xml() -> TestResult {
     let report = run(&fixture, true, ConflictPolicy::Overwrite);
 
     assert_eq!(report.extracted(), 2, "both replaced");
-    assert_eq!(report.converted(), 1, "one converted");
+    assert_eq!(report.converted(), Some(1), "one converted");
     assert_eq!(read(&fixture.target, "Data/ship.xml")?, SHIP_XML.as_bytes());
     Ok(())
 }
@@ -249,7 +249,7 @@ fn if_changed_replaces_an_existing_raw_cryxml_file_with_the_converted_xml() -> T
         ["Data\\text.xml"],
         "text XML is unchanged"
     );
-    assert_eq!(report.converted(), 1, "the raw file is converted");
+    assert_eq!(report.converted(), Some(1), "the raw file is converted");
     assert_eq!(read(&fixture.target, "Data/ship.xml")?, SHIP_XML.as_bytes());
     Ok(())
 }
@@ -261,7 +261,7 @@ fn if_changed_replaces_an_edited_converted_file() -> TestResult {
 
     let report = run(&fixture, true, ConflictPolicy::IfChanged);
 
-    assert_eq!(report.converted(), 1, "rewritten");
+    assert_eq!(report.converted(), Some(1), "rewritten");
     assert_eq!(read(&fixture.target, "Data/ship.xml")?, SHIP_XML.as_bytes());
     Ok(())
 }

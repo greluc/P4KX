@@ -26,11 +26,11 @@ pub struct ExtractionSummary {
 }
 
 impl ExtractionSummary {
-    pub(crate) fn new(target: PathBuf, report: &ExtractionReport, convert: bool) -> Self {
+    pub(crate) fn new(target: PathBuf, report: &ExtractionReport) -> Self {
         Self {
             target,
             extracted: report.extracted(),
-            converted: convert.then(|| report.converted()),
+            converted: report.converted(),
             skipped: report.skipped().to_vec(),
             failures: report
                 .failures()

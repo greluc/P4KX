@@ -190,7 +190,7 @@ fn run(
         watch: Some(index.watch()),
     };
     let report = extract(archive, &entries, &target, &options);
-    Ok(ExtractionSummary::new(target, &report, request.convert))
+    Ok(ExtractionSummary::new(target, &report))
 }
 
 fn prepare_target(archive: &Archive, request: &Request) -> io::Result<PathBuf> {

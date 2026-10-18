@@ -5,15 +5,14 @@ use p4kx_cryxml::{self as cryxml, Format};
 
 use crate::ExtractionError;
 use crate::buffers::Buffers;
-use crate::write::{
-    Chunk, Decision, Destination, EntryWriter, Outcome, create_temporary, write_error,
-};
+use crate::write::{Chunk, Destination, EntryWriter, Outcome, create_temporary, write_error};
 
 /// The number of bytes read from the start of an Entry to recognise `CryXml`.
 pub(crate) const PEEK_LEN: usize = 16;
 /// The largest `CryXml` Entry a Conversion reads into memory.
 pub(crate) const MAX_CONVERTED_LEN: u64 = 1 << 30;
 const READ_LEN: usize = 1 << 20;
+const RESERVED_LEN: usize = 16 << 20;
 
 /// Returns whether data starting with `start` is `CryXml`; text XML and other data are not.
 pub(crate) fn is_cryxml(start: &[u8]) -> bool {
@@ -69,7 +68,7 @@ impl EntryWriter<'_> {
             })?;
         let data = &mut buffers.data;
         data.clear();
-        data.reserve(len);
+        data.reserve(len.min(RESERVED_LEN));
         data.extend_from_slice(start);
         if matches!(
             self.read_rest(reader, data, len, written)?,
@@ -84,10 +83,8 @@ impl EntryWriter<'_> {
             .write_xml(&mut *xml)
             .map_err(|source| write_error(destination.file.clone(), source))?;
         let expected = || (xml.len() as u64, crc32c::crc32c(xml));
-        match self.decide(destination, expected, &mut buffers.chunk)? {
-            Decision::Keep => return Ok(Outcome::Kept),
-            Decision::Cancelled => return Ok(Outcome::Cancelled),
-            Decision::Write => {}
+        if let Some(outcome) = self.decide(destination, expected, &mut buffers.chunk)? {
+            return Ok(outcome);
         }
         if self.tracker.should_stop() {
             return Ok(Outcome::Cancelled);
@@ -112,22 +109,17 @@ impl EntryWriter<'_> {
     ) -> Result<Chunk, ExtractionError> {
         loop {
             let start = data.len();
-            if start > len {
-                return Err(ExtractionError::Read(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "the Entry holds more data than its size",
-                )));
-            }
             let want = (len - start).clamp(1, READ_LEN);
             data.resize(start + want, 0);
             let chunk = data.get_mut(start..).map_or(Ok(Chunk::End), |rest| {
                 self.read_chunk(reader, rest).map_err(ExtractionError::Read)
             });
             match chunk {
-                Ok(Chunk::Data(count)) => {
+                Ok(Chunk::Data(count)) if start + count <= len => {
                     data.truncate(start + count);
                     self.count(count, written);
                 }
+                Ok(Chunk::Data(_)) => return Err(longer_than_declared()),
                 other => {
                     data.truncate(start);
                     return other;
@@ -140,4 +132,11 @@ impl EntryWriter<'_> {
         *written += count as u64;
         self.tracker.wrote(count as u64);
     }
+}
+
+fn longer_than_declared() -> ExtractionError {
+    ExtractionError::Read(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "the Entry holds more data than its size",
+    ))
 }

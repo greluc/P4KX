@@ -65,7 +65,11 @@ fn a_texture_with_a_missing_part_is_reported_and_its_raw_entries_are_written() -
 
 #[test]
 fn a_format_without_a_decoder_keeps_the_merged_dds_and_writes_the_raw_parts() -> TestResult {
-    let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 16, 16).split(2);
+    let bc6h = TestTextureFormat::Dx10Block {
+        dxgi_format: 95,
+        block_bytes: 16,
+    };
+    let dds = SplitDds::new(bc6h, 16, 16).split(2);
     let fixture = Fixture::new(dds.entries(HULL))?;
 
     let report = run(&fixture, ConflictPolicy::Skip);
@@ -80,10 +84,7 @@ fn a_format_without_a_decoder_keeps_the_merged_dds_and_writes_the_raw_parts() ->
         .and_then(Error::source)
         .map(ToString::to_string)
         .unwrap_or_default();
-    assert!(
-        source.contains("BC7_UNORM_SRGB"),
-        "names the format: {source}"
-    );
+    assert!(source.contains("BC6H_UF16"), "names the format: {source}");
     assert_eq!(
         files(&fixture.target)?,
         [

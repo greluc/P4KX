@@ -5,6 +5,7 @@ mod bnk;
 mod channels;
 mod cli;
 mod cli_bnk;
+mod cli_dcb;
 mod compare;
 mod cryxml;
 mod dataforges;

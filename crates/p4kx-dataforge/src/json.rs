@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 
-use crate::json_text::{new_line, write_display_string, write_float, write_string};
+use crate::json_text::new_line;
+use crate::value_json::{write_json_string as write_string, write_json_value};
 use crate::xml::classify;
 use crate::{Field, RecordTree, Reference, Value};
 
@@ -157,10 +158,10 @@ impl RecordJson {
             Value::Error(error) => {
                 out.out.write_all(b"{")?;
                 out.key(true, depth + 1, "error")?;
-                write_display_string(out.out, error)?;
+                write_string(out.out, &error.to_string())?;
                 out.close(depth, b"}")
             }
-            scalar => write_scalar(out.out, scalar),
+            scalar => write_json_value(out.out, scalar),
         }
     }
 
@@ -234,27 +235,4 @@ fn write_reference<W: Write>(
         write_string(out.out, location.as_str())?;
     }
     out.close(depth, b"}")
-}
-
-fn write_scalar(out: &mut impl Write, value: &Value<'_>) -> io::Result<()> {
-    match value {
-        Value::Bool(value) => out.write_all(if *value { b"true" } else { b"false" }),
-        Value::Int8(value) => write!(out, "{value}"),
-        Value::Int16(value) => write!(out, "{value}"),
-        Value::Int32(value) => write!(out, "{value}"),
-        Value::Int64(value) => write!(out, "{value}"),
-        Value::UInt8(value) => write!(out, "{value}"),
-        Value::UInt16(value) => write!(out, "{value}"),
-        Value::UInt32(value) => write!(out, "{value}"),
-        Value::UInt64(value) => write!(out, "{value}"),
-        Value::Single(value) => write_float(out, *value),
-        Value::Double(value) => write_float(out, *value),
-        Value::String(text) | Value::Locale(text) | Value::Enum(text) => write_string(out, text),
-        Value::Guid(guid) => write!(out, "\"{guid}\""),
-        Value::Struct(_)
-        | Value::Array(_)
-        | Value::Reference(_)
-        | Value::Null
-        | Value::Error(_) => out.write_all(b"null"),
-    }
 }

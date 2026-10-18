@@ -39,12 +39,13 @@ impl Sound {
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         let name = entry.path().to_owned();
         let reader = archive.open_entry(entry)?;
-        let bytes = read_capped(reader, entry.uncompressed_size()).map_err(|source| {
-            ConversionError::ReadEntry {
-                entry: name.clone(),
-                source,
-            }
-        })?;
+        let bytes =
+            read_capped(reader, entry.uncompressed_size(), MAX_SOUND_LEN).map_err(|source| {
+                ConversionError::ReadEntry {
+                    entry: name.clone(),
+                    source,
+                }
+            })?;
         Self::parse(name, None, bytes)
     }
 
@@ -70,7 +71,8 @@ impl Sound {
             .map_err(|source| read_error(path, source))?
             .len();
         let name = path.display().to_string();
-        let bytes = read_capped(file, len).map_err(|source| read_error(path, source))?;
+        let bytes =
+            read_capped(file, len, MAX_SOUND_LEN).map_err(|source| read_error(path, source))?;
         Self::parse(name, Some(path.to_path_buf()), bytes)
     }
 
@@ -162,9 +164,14 @@ impl Sound {
     }
 }
 
-fn read_capped(reader: impl Read, declared_len: u64) -> io::Result<Option<Vec<u8>>> {
-    let capacity = usize::try_from(declared_len.min(MAX_SOUND_LEN)).unwrap_or(0);
+/// Reads all of `reader`, or `None` when it holds more than `limit` bytes.
+pub(crate) fn read_capped(
+    reader: impl Read,
+    declared_len: u64,
+    limit: u64,
+) -> io::Result<Option<Vec<u8>>> {
+    let capacity = usize::try_from(declared_len.min(limit)).unwrap_or(0);
     let mut bytes = Vec::with_capacity(capacity);
-    reader.take(MAX_SOUND_LEN + 1).read_to_end(&mut bytes)?;
-    Ok((bytes.len() as u64 <= MAX_SOUND_LEN).then_some(bytes))
+    reader.take(limit + 1).read_to_end(&mut bytes)?;
+    Ok((bytes.len() as u64 <= limit).then_some(bytes))
 }

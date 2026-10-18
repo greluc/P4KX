@@ -1,4 +1,5 @@
-//! `p4kx audio ogg` end to end, for Entries of an Archive and for files on disk.
+//! `p4kx audio ogg` end to end, for Entries of an Archive and for files on disk, and
+//! `p4kx bnk extract --format ogg`.
 
 use std::error::Error;
 use std::fs;
@@ -8,7 +9,7 @@ use std::path::{Path, PathBuf};
 use assert_cmd::Command;
 use lewton::inside_ogg::OggStreamReader;
 use p4kx_testkit::{
-    ArchiveBuilder, TestCodebook, TestCodec, TestEntry, TestVorbis, TestWem, test_signal,
+    ArchiveBuilder, TestBank, TestCodebook, TestCodec, TestEntry, TestVorbis, TestWem, test_signal,
 };
 use predicates::prelude::predicate;
 
@@ -164,5 +165,48 @@ fn a_vorbis_wem_without_usable_codebooks_fails_without_output() -> TestResult {
         .stderr(predicate::str::contains("fits no codebooks"));
 
     assert!(!out.exists(), "no Ogg is written");
+    Ok(())
+}
+
+#[test]
+fn bnk_extract_as_ogg_rebuilds_the_vorbis_wems_and_names_the_rest() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let vorbis = short_packets(376).sample_count(48_000).wem().bytes();
+    let bank = TestBank::new(0xD155_6D49)
+        .wem(7, vorbis.clone())
+        .wem(
+            8,
+            TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(100, 1)).bytes(),
+        )
+        .wem(9, vorbis.get(..120).unwrap_or_default().to_vec())
+        .bytes();
+    let file = dir.path().join("SSAM_Test.bnk");
+    fs::write(&file, bank)?;
+    let out = dir.path().join("ogg");
+
+    p4kx()?
+        .args(["bnk", "extract"])
+        .arg(&file)
+        .arg("--out")
+        .arg(&out)
+        .args(["--format", "ogg"])
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("extracted 1 of 3 WEMs"))
+        .stderr(predicate::str::contains(
+            "WEM 8: converting PCM to Ogg is not supported",
+        ))
+        .stderr(predicate::str::contains(
+            "WEM 9 is only the prefetched start",
+        ));
+
+    let ogg = fs::read(out.join("7.ogg"))?;
+    assert_eq!(last_granule(&ogg), Some(48_000), "one second at 48 kHz");
+    assert_eq!(
+        decode(ogg)?,
+        (2, 48_000, 48_000),
+        "a decoder plays one second"
+    );
+    assert_eq!(fs::read_dir(&out)?.count(), 1, "nothing else");
     Ok(())
 }

@@ -24,6 +24,10 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
+  removed, moved or changed, with each changed scalar field and its old and new value, in the
+  summary counts and the JSON report; a Record that cannot be read is listed as unreadable with
+  the reason. Without `--entries` or `--records` both levels run.
 - `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
   unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
@@ -34,6 +38,10 @@ fails while its section is missing.
   with a Vorbis decoder, falling back to the aoTuV codebooks; the file plays for the sound's exact
   duration. The codebook libraries come from ww2ogg under the BSD 3-Clause licence, whose notice
   ships as `THIRD-PARTY-NOTICES` in the ZIP and the MSI.
+- `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
+  from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
+  rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a
+  corrupt soundbank fails with an error naming the section.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

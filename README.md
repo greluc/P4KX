@@ -20,7 +20,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -35,14 +35,18 @@ Early development (milestone M1). Available today:
   run promptly, leaves no partial file and reports the Entries not written as cancelled; a second
   Ctrl+C quits at once. The
   run ends with a summary of extracted, skipped, failed and cancelled Entries.
+  `--convert` writes CryXml Entries (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte order) as
+  UTF-8 XML under their own path; text XML and every other Entry stay byte-identical. A CryXml
+  Entry that cannot be converted fails alone with the reason, and `if-changed` compares an
+  existing file with the converted XML. The summary then also counts the converted Entries.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge version 6 is read; any other version is reported as not supported,
-  and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
+  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

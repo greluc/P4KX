@@ -16,6 +16,12 @@ pub(crate) trait Row: Copy {
 /// Little-endian fields of one table row; a read past the row yields zeros.
 pub(crate) struct Fields<'a>(&'a [u8]);
 
+impl<'a> Fields<'a> {
+    pub(crate) const fn new(row: &'a [u8]) -> Self {
+        Self(row)
+    }
+}
+
 impl Fields<'_> {
     const fn take<const N: usize>(&mut self) -> [u8; N] {
         match self.0.split_first_chunk::<N>() {

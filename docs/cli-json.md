@@ -62,7 +62,7 @@ when nothing matches.
 ## `p4kx dcb info <archive> --json`
 
 ```json
-{"archive": "…", "entry": "Data\\Game2.dcb", "version": 6, "record_count": 117709,
+{"archive": "…", "entry": "Data\\Game2.dcb", "version": 8, "record_count": 117709,
  "struct_count": 6696, "enum_count": 774}
 ```
 
@@ -130,6 +130,8 @@ message naming the format; a level the texture does not have fails with exit cod
  "cancelled": ["Data\\large.bin"], "archive_changed": false}
 ```
 
+With `--convert` the report also holds `"converted": 1`, the number of CryXml Entries written as
+XML; they count among `extracted`. Without `--convert` the field is absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

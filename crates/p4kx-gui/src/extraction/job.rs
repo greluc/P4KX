@@ -23,6 +23,7 @@ pub(crate) struct Request {
     pub(crate) kind: TargetKind,
     pub(crate) folder: PathBuf,
     pub(crate) policy: ConflictPolicy,
+    pub(crate) convert: bool,
 }
 
 type RunResult = Result<ExtractionSummary, String>;
@@ -183,6 +184,7 @@ fn run(
     };
     let options = ExtractOptions {
         policy: request.policy,
+        convert: request.convert,
         cancel: Some(cancel),
         progress: Some(&on_progress),
         watch: Some(index.watch()),

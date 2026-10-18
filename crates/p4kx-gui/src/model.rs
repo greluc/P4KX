@@ -7,6 +7,7 @@ use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
+mod audio_control;
 mod extraction_control;
 mod update;
 mod work_tab;
@@ -15,8 +16,8 @@ use update::UpdateState;
 pub use work_tab::WorkTab;
 
 use crate::{
-    Browser, ChannelList, ComparisonTab, EntryIndex, Extraction, ExtractionSetup, Language,
-    PreviewTab, Texts,
+    AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
+    ExtractionSetup, Language, PreviewTab, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -53,6 +54,8 @@ pub struct Model {
     work_tab: WorkTab,
     comparison: ComparisonTab,
     stopped_by_change: bool,
+    audio_output: Box<dyn AudioOutput>,
+    audio_volume: f32,
 }
 
 impl std::fmt::Debug for Model {
@@ -75,7 +78,8 @@ impl std::fmt::Debug for Model {
             .field("work_tab", &self.work_tab)
             .field("comparison", &self.comparison)
             .field("stopped_by_change", &self.stopped_by_change)
-            .finish()
+            .field("audio_volume", &self.audio_volume)
+            .finish_non_exhaustive()
     }
 }
 
@@ -101,6 +105,8 @@ impl Model {
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
             stopped_by_change: false,
+            audio_output: Box::new(DeviceOutput),
+            audio_volume: 1.0,
         }
     }
 

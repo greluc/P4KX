@@ -7,6 +7,7 @@ use egui::{
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
+use super::audio_preview::{self, AudioAction};
 use super::{dataforge_summary, image_preview};
 use crate::preview::{HEX_ROW_LEN, printable};
 use crate::theme::desktop::{
@@ -20,30 +21,40 @@ use crate::widgets::frames;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents,
-    PreviewStatus, PreviewTab, Text, Texts, format,
+    AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
+    PreviewContents, PreviewStatus, PreviewTab, Text, Texts, format, is_sound_path,
 };
 
-const TABS: [(PreviewTab, Text); 4] = [
+const TABS: [(PreviewTab, Text); 5] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
+    (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
 ];
 const GROUP: u8 = 8;
 
-/// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, and
-/// leaves the Image and DataForge tabs for the Text tab otherwise.
+/// What the body of a tab asks for.
+enum Asked {
+    Mip(u32),
+    Audio(AudioAction),
+}
+
+/// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, the
+/// Audio tab when it is a WEM, and leaves the Image, Audio and DataForge tabs for the Text tab
+/// otherwise.
 pub(super) fn select(model: &mut Model, id: u32) {
-    let texture = model
+    let path = model
         .browser()
         .and_then(|browser| browser.index().entry(id))
-        .is_some_and(|entry| Texture::is_header_path(entry.path()));
-    if texture {
+        .map(Entry::path);
+    if path.is_some_and(Texture::is_header_path) {
         model.set_preview_tab(PreviewTab::Image);
+    } else if path.is_some_and(is_sound_path) {
+        model.set_preview_tab(PreviewTab::Audio);
     } else if matches!(
         model.preview_tab(),
-        PreviewTab::Image | PreviewTab::DataForge
+        PreviewTab::Image | PreviewTab::Audio | PreviewTab::DataForge
     ) {
         model.set_preview_tab(PreviewTab::Text);
     }
@@ -58,15 +69,21 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     };
     let texts = model.texts();
     let (tab, copy) = tab_bar(ui, texts, browser, model.preview_tab());
-    let level = tab_body(ui, texts, browser, tab);
+    let asked = tab_body(ui, texts, browser, tab, model.audio_volume());
     if let Some(text) = copy {
         ui.ctx().copy_text(text);
     }
     model.set_preview_tab(tab);
-    if let Some(level) = level
-        && let Some(image) = model.browser_mut().and_then(Browser::image_mut)
-    {
-        image.request(level, image_preview::max_side(ui));
+    match asked {
+        Some(Asked::Mip(level)) => {
+            if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
+                image.request(level, image_preview::max_side(ui));
+            }
+        }
+        Some(Asked::Audio(AudioAction::Toggle)) => model.toggle_playback(),
+        Some(Asked::Audio(AudioAction::Seek(fraction))) => model.seek_playback(fraction),
+        Some(Asked::Audio(AudioAction::Volume(volume))) => model.set_audio_volume(volume),
+        None => {}
     }
     if tab == PreviewTab::DataForge
         && let Some(browser) = model.browser_mut()
@@ -85,9 +102,11 @@ fn tab_bar(
     mut tab: PreviewTab,
 ) -> (PreviewTab, Option<String>) {
     let image = browser.preview().and_then(Preview::image);
+    let audio = browser.preview().and_then(Preview::audio);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
         PreviewTab::Image => image.is_some(),
+        PreviewTab::Audio => audio.is_some(),
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Text | PreviewTab::Hex => true,
     };
@@ -128,8 +147,15 @@ fn tab_bar(
     );
     (tab, copy)
 }
-/// Shows the body of `tab`; returns the mip level the Image tab asks for.
-fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Option<u32> {
+/// Shows the body of `tab`, the Audio tab at `volume`; returns what the Image or Audio tab asks
+/// for.
+fn tab_body(
+    ui: &mut Ui,
+    texts: &Texts,
+    browser: &Browser,
+    tab: PreviewTab,
+    volume: f32,
+) -> Option<Asked> {
     match browser.records().filter(|_| tab == PreviewTab::DataForge) {
         Some(tree) => {
             let size = browser
@@ -140,11 +166,17 @@ fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> O
             dataforge_summary::show(ui, texts, tree);
             None
         }
-        None => body(ui, texts, browser, tab),
+        None => body(ui, texts, browser, tab, volume),
     }
 }
 
-fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Option<u32> {
+fn body(
+    ui: &mut Ui,
+    texts: &Texts,
+    browser: &Browser,
+    tab: PreviewTab,
+    volume: f32,
+) -> Option<Asked> {
     let Some(preview) = browser.preview() else {
         frames::preview_body().show(ui, |ui| {
             ui.label(
@@ -159,7 +191,10 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Optio
     let size = entry.map_or(0, Entry::uncompressed_size);
     path_line(ui, path, &format::size(size, texts.language()));
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
-        return image_preview::show(ui, texts, path, image);
+        return image_preview::show(ui, texts, path, image).map(Asked::Mip);
+    }
+    if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
+        return audio_preview::show(ui, texts, (path, size), audio, volume).map(Asked::Audio);
     }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
@@ -234,7 +269,9 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text | PreviewTab::Image | PreviewTab::DataForge => text_rows(ui, contents),
+        PreviewTab::Text | PreviewTab::Image | PreviewTab::Audio | PreviewTab::DataForge => {
+            text_rows(ui, contents);
+        }
         PreviewTab::Hex => hex_rows(ui, contents),
     }
 }

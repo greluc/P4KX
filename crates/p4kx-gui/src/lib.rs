@@ -4,6 +4,7 @@
 //! tests can drive it headless.
 
 mod app;
+mod audio;
 mod browser;
 mod channel_list;
 mod comparison;
@@ -28,6 +29,9 @@ mod widgets;
 pub mod window;
 
 pub use app::App;
+pub use audio::{
+    AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
+};
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
 pub use comparison::{
@@ -45,8 +49,9 @@ pub use language::Language;
 pub use model::{Failure, Model, WorkTab};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
-    PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
+    AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
+    PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
+    SoundInfo, SoundStatus, TextureInfo, is_sound_path,
 };
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
@@ -54,6 +59,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    RecordSearchText, Text, Texts,
+    AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
+    ImageText, RecordSearchText, Text, Texts,
 };

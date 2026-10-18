@@ -1,3 +1,4 @@
+mod audio;
 mod contents;
 mod image;
 mod texture_info;
@@ -9,6 +10,7 @@ use std::thread;
 
 use p4kx_extraction::{Entry, Texture};
 
+pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_sound_path};
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
@@ -35,6 +37,8 @@ pub enum PreviewTab {
     Image,
     /// The summary of the Archive's DataForge instead of the selected Entry.
     DataForge,
+    /// A WEM sound with its facts and playback controls.
+    Audio,
 }
 
 /// Where the preview of an Entry stands.
@@ -75,12 +79,14 @@ pub struct Preview {
     entry: u32,
     state: State,
     image: Option<ImagePreview>,
+    audio: Option<AudioPreview>,
 }
 
 impl Preview {
     /// Starts reading the Entry `id` of `index` on a background thread, calling `wake` from it
     /// once the data is ready; reads on the calling thread when no thread can be started. A
-    /// texture's header also starts its [`ImagePreview`] on a thread of its own.
+    /// texture's header also starts its [`ImagePreview`] and a WEM its [`AudioPreview`] on a
+    /// thread of its own.
     ///
     /// Nothing is read from an Archive that changed on disk, and data read while it changed is
     /// dropped.
@@ -94,6 +100,7 @@ impl Preview {
                 entry: id,
                 state: State::ArchiveChanged,
                 image: None,
+                audio: None,
             };
         }
         let wake = Arc::new(wake);
@@ -104,6 +111,13 @@ impl Preview {
                 let wake = Arc::clone(&wake);
                 ImagePreview::start(index, id, move || wake())
             });
+        let audio = index
+            .entry(id)
+            .filter(|entry| is_sound_path(entry.path()))
+            .map(|_| {
+                let wake = Arc::clone(&wake);
+                AudioPreview::start(index, id, move || wake())
+            });
         let state = match index.entry(id) {
             None => State::Failed(None),
             Some(entry) if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT => State::TooLarge,
@@ -113,7 +127,19 @@ impl Preview {
             entry: id,
             state,
             image,
+            audio,
         }
+    }
+
+    /// Returns the audio preview when the Entry is a WEM.
+    #[must_use]
+    pub const fn audio(&self) -> Option<&AudioPreview> {
+        self.audio.as_ref()
+    }
+
+    /// Returns the audio preview for controlling its playback, when the Entry is a WEM.
+    pub const fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
+        self.audio.as_mut()
     }
 
     /// Returns the image preview when the Entry is the header of a texture.
@@ -160,11 +186,12 @@ impl Preview {
         }
     }
 
-    /// Takes the data once it was read and the results of the image preview; returns whether
-    /// one arrived.
+    /// Takes the data once it was read and the results of the image and audio previews;
+    /// returns whether one arrived.
     pub(crate) fn poll(&mut self) -> bool {
         let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
-        self.poll_data() || imaged
+        let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll);
+        self.poll_data() || imaged || sounded
     }
 
     fn poll_data(&mut self) -> bool {

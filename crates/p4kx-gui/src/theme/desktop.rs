@@ -323,3 +323,12 @@ pub const IMAGE_LABEL_GAP: f32 = SPACE_3;
 pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
 /// The offset of the focus ring of a segment, inside it.
 pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;
+
+/// The height of the row a slider takes, the compact button height, with the bar centred.
+pub const SLIDER_HIT_HEIGHT: f32 = BUTTON_XS_HEIGHT;
+/// The gap between the controls of the audio preview.
+pub const AUDIO_CONTROL_GAP: f32 = SPACE_3;
+/// The width of the volume bar of the audio preview.
+pub const AUDIO_VOLUME_WIDTH: f32 = 10.0 * REM;
+/// The narrowest the position bar of the audio preview gets.
+pub const AUDIO_POSITION_MIN_WIDTH: f32 = 10.0 * REM;

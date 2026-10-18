@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod audio_text;
 mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
@@ -9,6 +10,7 @@ mod extraction_text;
 mod image_text;
 mod text_ids;
 
+pub use audio_text::AudioText;
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
@@ -158,6 +160,8 @@ pub enum Text {
     Diff(DiffText),
     /// A text of the image preview.
     Image(ImageText),
+    /// A text of the audio preview.
+    Audio(AudioText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

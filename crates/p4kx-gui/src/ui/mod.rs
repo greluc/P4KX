@@ -2,6 +2,7 @@
 
 mod archive_change;
 mod archive_picker;
+mod audio_preview;
 mod channels;
 mod comparison;
 mod comparison_diff;

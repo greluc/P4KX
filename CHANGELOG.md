@@ -13,6 +13,9 @@ fails while its section is missing.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 
+- Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
+  shortcuts working anywhere in the window.
+
 ### Changed
 
 - The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,

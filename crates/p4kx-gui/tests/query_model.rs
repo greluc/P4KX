@@ -341,3 +341,26 @@ fn an_export_that_cannot_be_written_reports_why() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &database())?)?;
+    run(&mut model, "from Item select mass")?;
+    let other = tempfile::tempdir()?;
+    let path = archive(other.path(), &numbered(2))?;
+
+    model.open(path, || {});
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while model.opening_path().is_some() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+        model.poll();
+    }
+    let idle = matches!(model.query().status(), QueryStatus::Idle);
+    run(&mut model, "from Item select mass")?;
+
+    assert!(idle, "the old result is gone");
+    assert_eq!(model.query().text(), "from Item select mass", "kept");
+    assert_eq!(finished(&model)?.len(), 2, "the new Archive's Records");
+    Ok(())
+}

@@ -1,14 +1,7 @@
 use std::io::{self, Write};
-use std::num::NonZeroUsize;
 
-use p4kx_extraction::Value;
 use p4kx_extraction::query::{QueryRun, Row};
-
-/// The number of rows built and written at a time.
-pub(crate) const PAGE_SIZE: NonZeroUsize = match NonZeroUsize::new(1024) {
-    Some(size) => size,
-    None => NonZeroUsize::MIN,
-};
+use p4kx_extraction::{QUERY_PAGE_SIZE, Value};
 
 /// The number of rows written and of Records whose row failed.
 #[derive(Debug, Clone, Copy, Default)]
@@ -45,7 +38,7 @@ pub(crate) fn for_each_row(
     counts: &mut Counts,
     mut write: impl FnMut(&Row<'_>, &[Option<Value<'_>>]) -> io::Result<()>,
 ) -> io::Result<()> {
-    for page in run.pages(PAGE_SIZE) {
+    for page in run.pages(QUERY_PAGE_SIZE) {
         for row in &page {
             match row.cells() {
                 Ok(cells) => {

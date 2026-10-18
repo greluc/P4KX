@@ -188,6 +188,7 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
+                self.query.archive_opened();
             }
             Err(error) => self.fail(opening.path, &error),
         }

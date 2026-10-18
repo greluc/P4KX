@@ -201,6 +201,14 @@ impl QueryTab {
         true
     }
 
+    /// Forgets the result, the running Query, its export and the DataForge read for it,
+    /// keeping the Query text, because another Archive was opened.
+    pub(crate) fn archive_opened(&mut self) {
+        self.state = State::Idle;
+        self.forge = None;
+        self.export = None;
+    }
+
     /// Stops the running Query; the tab shows it as cancelled at once.
     pub fn cancel(&mut self) {
         if self.is_running() {

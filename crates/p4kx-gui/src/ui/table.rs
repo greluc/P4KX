@@ -1,4 +1,8 @@
-use egui::{Align, CornerRadius, Label, Layout, Rect, Role, Sense, Ui, WidgetInfo, pos2, vec2};
+use std::sync::Arc;
+
+use egui::{
+    Align, CornerRadius, Galley, Label, Layout, Rect, Role, Sense, Ui, WidgetInfo, pos2, vec2,
+};
 use egui_extras::{Column, TableBuilder, TableRow};
 use p4kx_extraction::{Compression, Entry};
 
@@ -11,7 +15,7 @@ use crate::theme::tokens::Weight;
 use crate::widgets::rows::{
     RowState, focus_inside, paint_divider, paint_row, row_weight, sort_chevron,
 };
-use crate::widgets::text::{caps, line, paint_left, plain};
+use crate::widgets::text::{caps, line, plain};
 use crate::widgets::toggle::{Check, checkbox_cell};
 use crate::{Browser, Model, PreviewTab, SortColumn, SortDirection, Text, Texts, format};
 
@@ -220,28 +224,46 @@ fn cell_text(ui: &mut Ui, text: &str, colour: egui::Color32, weight: Weight) {
 /// Shows the sortable head cell `label`, `sorted` in that direction when it is the sort
 /// column; returns whether it was clicked.
 pub(super) fn sort_header(ui: &Ui, sorted: Option<SortDirection>, label: &str) -> bool {
-    let rect = ui.max_rect();
-    let response = ui.interact(rect, ui.scope_id().with(label), Sense::click());
-    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, label));
-    if response.hovered() {
-        ui.painter().rect_filled(
-            rect.with_max_y(rect.bottom() - 2.0),
-            CornerRadius::ZERO,
-            palette::GRAY_3,
-        );
-    }
     let text = caps(label, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING);
+    let room = 2.0f32.mul_add(-CELL_PADDING_X, ui.max_rect().width()) - CHEVRON - SORT_GAP;
+    let galley = line(ui, text, room);
+    sort_head(ui, sorted, label, &galley)
+}
+
+/// Shows a sortable head cell named `name` with its laid-out `galley`, clipped before the
+/// chevron, `sorted` in that direction when it is the sort column; returns whether it was
+/// clicked.
+pub(super) fn sort_head(
+    ui: &Ui,
+    sorted: Option<SortDirection>,
+    name: &str,
+    galley: &Arc<Galley>,
+) -> bool {
+    let rect = ui.max_rect();
+    let response = ui.interact(rect, ui.scope_id().with(name), Sense::click());
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, name));
+    let above_rule = rect.with_max_y(rect.bottom() - 2.0);
+    if response.hovered() {
+        ui.painter()
+            .rect_filled(above_rule, CornerRadius::ZERO, palette::GRAY_3);
+    }
     let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));
-    let galley = line(ui, text, inner.width() - CHEVRON - SORT_GAP);
-    let text_width = galley.size().x;
+    let room = (inner.width() - CHEVRON - SORT_GAP).max(0.0);
     let colour = if sorted.is_some() {
         palette::WHITE
     } else {
         palette::GRAY_1
     };
-    paint_left(ui, inner, galley, colour);
+    let text = Rect::from_min_size(inner.min, vec2(room, inner.height()));
+    ui.painter()
+        .with_clip_rect(text.intersect(ui.clip_rect()))
+        .galley(
+            pos2(text.left(), text.center().y - galley.size().y / 2.0),
+            Arc::clone(galley),
+            colour,
+        );
     let centre = pos2(
-        inner.left() + text_width + SORT_GAP + CHEVRON / 2.0,
+        inner.left() + galley.size().x.min(room) + SORT_GAP + CHEVRON / 2.0,
         inner.center().y,
     );
     if let Some(direction) = sorted {
@@ -250,14 +272,9 @@ pub(super) fn sort_header(ui: &Ui, sorted: Option<SortDirection>, label: &str) -
     } else if response.hovered() {
         sort_chevron(ui.painter(), centre, CHEVRON, true, palette::GRAY_2_TEXT);
     }
-    focus_inside(
-        ui.painter(),
-        rect.with_max_y(rect.bottom() - 2.0),
-        &response,
-    );
+    focus_inside(ui.painter(), above_rule, &response);
     response.clicked()
 }
-
 fn encryption(texts: &Texts, entry: &Entry) -> String {
     texts.get(if entry.is_encrypted() {
         Text::EncryptedYes

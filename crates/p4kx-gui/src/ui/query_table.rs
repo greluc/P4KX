@@ -1,22 +1,19 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use egui::{
-    Align, CornerRadius, Galley, Id, Layout, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2,
-    vec2,
-};
+use egui::{Align, Galley, Id, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use egui_extras::{Column, TableBuilder, TableRow};
 
-use super::table::head_fill;
+use super::table::{head_fill, sort_head};
 use crate::theme::desktop::{
-    CELL_PADDING_X, CHEVRON, QUERY_COLUMN_MIN_WIDTH, QUERY_COLUMN_WIDTH, ROW_FONT, ROW_HEIGHT,
-    SORT_GAP, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+    CELL_PADDING_X, QUERY_COLUMN_MIN_WIDTH, QUERY_COLUMN_WIDTH, ROW_FONT, ROW_HEIGHT,
+    TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, sort_chevron};
+use crate::widgets::rows::{RowState, paint_divider, paint_row};
 use crate::widgets::text::{caps, line, paint_left, plain};
-use crate::{DataForgeText, Language, QueryResult, SortDirection, Texts};
+use crate::{DataForgeText, Language, QueryResult, Texts};
 
 const MAX_CACHED: usize = 8192;
 
@@ -196,7 +193,7 @@ fn head_cell(ui: &Ui, (result, laid): (&QueryResult, &Laid), column: usize, left
         .filter(|&(by, _)| by == column)
         .map(|(_, direction)| direction);
     laid.head(column)
-        .is_some_and(|head| sort_head(ui, sorted, &head))
+        .is_some_and(|(name, galley)| sort_head(ui, sorted, &name, &galley))
 }
 fn show_row(
     mut row: TableRow<'_, '_>,
@@ -231,54 +228,4 @@ fn show_row(
         });
     }
     row.response().hovered()
-}
-
-/// Shows the sortable head cell `head`, `sorted` in that direction when it is the sort column;
-/// returns whether it was clicked.
-fn sort_head(ui: &Ui, sorted: Option<SortDirection>, (name, galley): &Labelled) -> bool {
-    let rect = ui.max_rect();
-    let response = ui.interact(
-        rect,
-        ui.scope_id().with(("query-head", name)),
-        Sense::click(),
-    );
-    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, &**name));
-    if response.hovered() {
-        ui.painter().rect_filled(
-            rect.with_max_y(rect.bottom() - 2.0),
-            CornerRadius::ZERO,
-            palette::GRAY_3,
-        );
-    }
-    let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));
-    let room = inner.width() - CHEVRON - SORT_GAP;
-    let colour = if sorted.is_some() {
-        palette::WHITE
-    } else {
-        palette::GRAY_1
-    };
-    let text = Rect::from_min_size(inner.min, vec2(room.max(0.0), inner.height()));
-    ui.painter()
-        .with_clip_rect(text.intersect(ui.clip_rect()))
-        .galley(
-            pos2(text.left(), text.center().y - galley.size().y / 2.0),
-            Arc::clone(galley),
-            colour,
-        );
-    let centre = pos2(
-        inner.left() + galley.size().x.min(room.max(0.0)) + SORT_GAP + CHEVRON / 2.0,
-        inner.center().y,
-    );
-    if let Some(direction) = sorted {
-        let up = direction == SortDirection::Ascending;
-        sort_chevron(ui.painter(), centre, CHEVRON, up, palette::PRIMARY);
-    } else if response.hovered() {
-        sort_chevron(ui.painter(), centre, CHEVRON, true, palette::GRAY_2_TEXT);
-    }
-    focus_inside(
-        ui.painter(),
-        rect.with_max_y(rect.bottom() - 2.0),
-        &response,
-    );
-    response.clicked()
 }

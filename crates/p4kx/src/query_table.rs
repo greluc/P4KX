@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use p4kx_extraction::Value;
 use p4kx_extraction::query::{QueryRun, RECORD_PATH_COLUMN};
 
-use crate::query_rows::{Counts, PAGE_SIZE, for_each_row};
+use crate::query_rows::{Counts, for_each_row};
 
 /// The gap between two columns of the table.
 const GAP: &str = "  ";
@@ -45,7 +45,7 @@ pub(crate) fn write(
 fn measure(run: &QueryRun<'_, '_>, header: &[String]) -> Vec<usize> {
     let mut widths: Vec<usize> = header.iter().map(|text| text.chars().count()).collect();
     let mut text = String::new();
-    for page in run.pages(PAGE_SIZE) {
+    for page in run.pages(p4kx_extraction::QUERY_PAGE_SIZE) {
         for row in &page {
             let Ok(cells) = row.cells() else {
                 continue;

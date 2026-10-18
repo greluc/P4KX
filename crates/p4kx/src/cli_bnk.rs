@@ -18,7 +18,7 @@ pub(crate) enum BnkAction {
     /// Prints the ID, codec and duration of every WEM a soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     List(BnkSource),
-    /// Writes every WEM a soundbank embeds into a folder as <ID>.wem, or converted as <ID>.wav.
+    /// Writes every WEM a soundbank embeds into a folder as <ID>.wem, or converted as <ID>.wav or <ID>.ogg.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract {
         /// The soundbank.
@@ -50,4 +50,6 @@ pub(crate) enum BnkFormat {
     Wem,
     /// A 16-bit PCM WAV.
     Wav,
+    /// An Ogg Vorbis file rebuilt from a Wwise Vorbis WEM without re-encoding.
+    Ogg,
 }

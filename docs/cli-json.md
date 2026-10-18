@@ -207,6 +207,22 @@ Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
 `sample_count` is the number of frames written and `size` the size of the written WAV file. A
 codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
+## `p4kx audio ogg <archive> <entry> --out <file> --json`
+
+Also `p4kx audio ogg <file> --out <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "channels": 2,
+ "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0, "codebooks": "aotuv",
+ "size": 9876}
+```
+
+`sample_count` is the number of frames of the Ogg Vorbis stream, the granule position of its last
+page, and `duration_seconds` its playing time. `codebooks` names the codebooks the setup header was
+rebuilt with: `default`, `aotuv` or `inline`. `size` is the size of the written Ogg file. A codec
+other than Wwise Vorbis, or a Vorbis WEM that no codebooks fit, prints no JSON; it fails with exit
+code 1 and an error giving the reason.
+
 ## `p4kx bnk list <archive> <entry> --json`
 
 Also `p4kx bnk list <file> --json` for a soundbank file on disk.
@@ -226,7 +242,7 @@ whole file is the loose WEM of the same ID; its codec is then not read. `error` 
 cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
-## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav] --json`
+## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
 
 Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on disk.
 
@@ -236,7 +252,7 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem` or `wav`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with

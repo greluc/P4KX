@@ -45,7 +45,9 @@ pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, EmbeddedWem, HircKind, HircObject, HircValue,
     MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
-pub use p4kx_audio::{AudioError, ByteOrder, Codec, WavReport, Wem};
+pub use p4kx_audio::{
+    AudioError, ByteOrder, Codebooks, Codec, OggReport, VorbisError, WavReport, Wem,
+};
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{

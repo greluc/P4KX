@@ -28,6 +28,7 @@ p4kx-testkit.workspace = true
 assert_cmd.workspace = true
 exr.workspace = true
 insta.workspace = true
+lewton = { workspace = true, features = ["ogg"] }
 png.workspace = true
 predicates.workspace = true
 roxmltree.workspace = true

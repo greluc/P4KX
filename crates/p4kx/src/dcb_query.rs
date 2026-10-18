@@ -3,7 +3,7 @@ use std::num::NonZeroUsize;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::query::{Query, Row};
+use p4kx_extraction::query::{Query, QueryError, QueryErrorKind, Row};
 use p4kx_extraction::{Archive, DataForgeEntry, Value};
 use thiserror::Error;
 
@@ -24,6 +24,11 @@ const GAP: &str = "  ";
 #[error("{0}")]
 pub(crate) struct InvalidQuery(String);
 
+/// A Query naming a type whose layout the DataForge cannot give, with its marked position.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub(crate) struct UnreadableSchema(String);
+
 /// `--json` given to `p4kx dcb query`, which prints a table only.
 #[derive(Debug, Error)]
 #[error("p4kx dcb query prints a table; --json is not supported")]
@@ -41,7 +46,7 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     let forge = entry.open()?;
     let compiled = query
         .compile(&forge)
-        .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
+        .map_err(|error| compile_error(&error, &args.query))?;
     let run = compiled.run();
     let mut table = Table::new(compiled.columns());
     table.widen_first(run.record_paths().map(line_width));
@@ -88,6 +93,17 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     } else {
         exit::PARTIAL_FAILURE
     }))
+}
+
+/// Returns the error for a Query that does not compile: a schema the DataForge cannot give is
+/// [`UnreadableSchema`], anything else [`InvalidQuery`].
+fn compile_error(error: &QueryError, query: &str) -> anyhow::Error {
+    let marked = error.marked(query).to_string();
+    if matches!(error.kind(), QueryErrorKind::DataForge(_)) {
+        UnreadableSchema(marked).into()
+    } else {
+        InvalidQuery(marked).into()
+    }
 }
 
 /// Returns the texts of a row's columns, the record path first, or why its Record cannot be read.

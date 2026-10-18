@@ -132,21 +132,25 @@ Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
 
 `parts` is the number of mip parts merged and `size` the size of the written DDS file.
 
-## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] [--cross] --json`
+## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] [--cross] [--tone-map] --json`
 
-Also `p4kx texture png <file> --out <file> [--mip <level>] [--cross] --json` for a header file on
-disk.
+Also `p4kx texture png <file> --out <file> [--mip <level>] [--cross] [--tone-map] --json` for a
+header file on disk.
 
 ```json
-{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "files": ["…\\hull_diff.png"],
- "mip": 1, "width": 32, "height": 16, "alpha_tail": false}
+{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "format": "png",
+ "files": ["…\\hull_diff.png"], "mip": 1, "width": 32, "height": 16, "alpha_tail": false}
 ```
 
-`output` is the `--out` path and `files` the PNG files written: `output` itself, or for a cubemap
+`output` is the `--out` path and `files` the files written: `output` itself, or for a cubemap
 the six faces `<stem>_posx.png`, `_negx`, `_posy`, `_negy`, `_posz` and `_negz` next to it, or
-with `--cross` `output` holding one horizontal cross. `mip` is the exported level, 0 being the
-largest and the default; `width` and `height` are the size of each written 8-bit RGBA PNG.
-`alpha_tail` says whether an alpha or smoothness tail was merged into the alpha channel. A format without a decoder fails with exit code 1 and a
+with `--cross` `output` holding one horizontal cross. `format` is `png` for 8-bit RGBA PNG and
+`exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+`--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
+exported level, 0 being the largest and the default; `width` and `height` are the size of each
+written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha
+channel. `--tone-map` on a texture that is not high-range writes the PNG as usual and prints a
+note on stderr. A format without a decoder fails with exit code 1 and a
 message naming the format; a level the texture does not have fails with exit code 2.
 ## `p4kx audio info <archive> <entry> --json`
 
@@ -221,8 +225,13 @@ failures are not repeated on stderr. The exit code is 1 when `failed` is not emp
  "cancelled": ["Data\\large.bin"], "archive_changed": false}
 ```
 
-With `--convert` the report also holds `"converted": 1`, the number of CryXml Entries written as
-XML; they count among `extracted`. Without `--convert` the field is absent.
+With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
+(CryXml Entries as XML and the Entries of converted textures); they count among `extracted`. It
+also holds `"unconverted": [{"path": "Data\\Textures\\hull_ddna.dds", "error": "cannot convert
+the texture: …"}]`, the textures by their header Entry that could not be converted, whose raw
+Entries were written instead (except a header whose path the merged DDS already took); the exit
+code is then 1. Without `--convert` both fields are
+absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

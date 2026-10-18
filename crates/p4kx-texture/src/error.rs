@@ -74,6 +74,9 @@ pub enum TextureError {
     /// The pixel format has no decoder.
     #[error("decoding the texture format {0} is not supported")]
     UnsupportedDecode(TextureFormat),
+    /// The pixel format holds no values beyond 0..=1, so it has no high-range decoder.
+    #[error("the texture format {0} is not a high-range format")]
+    NotHighRange(TextureFormat),
     /// The requested mip level does not exist.
     #[error("mip {level} does not exist: the texture has {mip_count} mips, 0 being the largest")]
     NoSuchMip {

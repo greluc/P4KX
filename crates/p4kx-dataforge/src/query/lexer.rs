@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt;
 
 use crate::query::{QueryError, QueryErrorKind, Span};
@@ -12,13 +13,13 @@ pub enum Keyword {
     At,
     /// `select`, the columns.
     Select,
-    /// `where`, reserved for filters.
+    /// `where`, the condition a Record has to meet.
     Where,
-    /// `and`, reserved for filters.
+    /// `and`, both conditions hold.
     And,
-    /// `or`, reserved for filters.
+    /// `or`, one of the conditions holds.
     Or,
-    /// `not`, reserved for filters.
+    /// `not`, the condition does not hold.
     Not,
 }
 
@@ -61,12 +62,43 @@ impl fmt::Display for Keyword {
     }
 }
 
+/// A token of one or two punctuation characters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Symbol {
+    Equal,
+    NotEqual,
+    Less,
+    LessOrEqual,
+    Greater,
+    GreaterOrEqual,
+    Open,
+    Close,
+}
+
+impl Symbol {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Equal => "=",
+            Self::NotEqual => "!=",
+            Self::Less => "<",
+            Self::LessOrEqual => "<=",
+            Self::Greater => ">",
+            Self::GreaterOrEqual => ">=",
+            Self::Open => "(",
+            Self::Close => ")",
+        }
+    }
+}
+
 /// What a token of a Query is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Token<'q> {
     Keyword(Keyword),
     Name(&'q str),
-    Text(&'q str),
+    Quoted(&'q str),
+    Text(Cow<'q, str>),
+    Number(&'q str),
+    Symbol(Symbol),
     Comma,
     Dot,
     End,
@@ -91,65 +123,140 @@ impl<'q> Lexer<'q> {
             return Ok((Token::End, Span::new(start, start)));
         };
         let token = match c {
-            ',' => {
+            ',' => self.single(c, Token::Comma),
+            '.' => self.single(c, Token::Dot),
+            '(' => self.single(c, Token::Symbol(Symbol::Open)),
+            ')' => self.single(c, Token::Symbol(Symbol::Close)),
+            '=' => self.single(c, Token::Symbol(Symbol::Equal)),
+            '<' => self.with_equal(c, Symbol::Less, Symbol::LessOrEqual),
+            '>' => self.with_equal(c, Symbol::Greater, Symbol::GreaterOrEqual),
+            '!' if self.peek_second() == Some('=') => {
                 self.bump(c);
-                Token::Comma
+                self.single('=', Token::Symbol(Symbol::NotEqual))
             }
-            '.' => {
-                self.bump(c);
-                Token::Dot
-            }
-            '"' => Token::Text(self.delimited('"', QueryErrorKind::UnterminatedString)?),
+            '"' => Token::Text(self.string()?),
             '`' => {
-                let name = self.delimited('`', QueryErrorKind::UnterminatedName)?;
+                let name = self.quoted_name()?;
                 if name.is_empty() {
                     return Err(QueryError::new(
                         QueryErrorKind::EmptyName,
                         Span::new(start, self.position),
                     ));
                 }
-                Token::Name(name)
+                Token::Quoted(name)
+            }
+            c if c.is_ascii_digit()
+                || (c == '-' && self.peek_second().is_some_and(|c| c.is_ascii_digit())) =>
+            {
+                Token::Number(self.number(start))
             }
             c if is_name_start(c) => {
-                while let Some(c) = self.peek().filter(|c| is_name_char(*c)) {
-                    self.bump(c);
-                }
+                self.bump_while(is_name_char);
                 let word = self.slice(start, self.position);
                 Keyword::of(word).map_or(Token::Name(word), Token::Keyword)
             }
             c => {
                 return Err(QueryError::new(
                     QueryErrorKind::UnexpectedCharacter(c),
-                    Span::new(start, start + c.len_utf8()),
+                    Span::new(start, start.saturating_add(c.len_utf8())),
                 ));
             }
         };
         Ok((token, Span::new(start, self.position)))
     }
 
-    /// Reads the text between the delimiter at the current position and the next one.
-    fn delimited(
-        &mut self,
-        delimiter: char,
-        unterminated: QueryErrorKind,
-    ) -> Result<&'q str, QueryError> {
+    const fn single(&mut self, c: char, token: Token<'q>) -> Token<'q> {
+        self.bump(c);
+        token
+    }
+
+    fn with_equal(&mut self, c: char, alone: Symbol, with_equal: Symbol) -> Token<'q> {
+        self.bump(c);
+        if self.peek() == Some('=') {
+            self.bump('=');
+            Token::Symbol(with_equal)
+        } else {
+            Token::Symbol(alone)
+        }
+    }
+
+    /// Reads a number: `-`, digits, a fraction and an exponent; a part without its digits is
+    /// left for the next token.
+    fn number(&mut self, start: usize) -> &'q str {
+        if self.peek() == Some('-') {
+            self.bump('-');
+        }
+        self.bump_while(|c| c.is_ascii_digit());
+        if self.peek() == Some('.') && self.peek_second().is_some_and(|c| c.is_ascii_digit()) {
+            self.bump('.');
+            self.bump_while(|c| c.is_ascii_digit());
+        }
+        if matches!(self.peek(), Some('e' | 'E')) {
+            let mark = self.position;
+            self.bump('e');
+            if let Some(sign @ ('+' | '-')) = self.peek() {
+                self.bump(sign);
+            }
+            if self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                self.bump_while(|c| c.is_ascii_digit());
+            } else {
+                self.position = mark;
+            }
+        }
+        self.slice(start, self.position)
+    }
+
+    /// Reads a string in double quotes, where a doubled quote stands for one quote.
+    fn string(&mut self) -> Result<Cow<'q, str>, QueryError> {
         let start = self.position;
-        self.bump(delimiter);
+        self.bump('"');
         let inner = self.position;
+        let mut doubled = false;
         while let Some(c) = self.peek() {
             self.bump(c);
-            if c == delimiter {
-                return Ok(self.slice(inner, self.position - delimiter.len_utf8()));
+            if c == '"' {
+                if self.peek() == Some('"') {
+                    self.bump('"');
+                    doubled = true;
+                    continue;
+                }
+                let text = self.slice(inner, self.position.saturating_sub(1));
+                return Ok(if doubled {
+                    Cow::Owned(text.replace("\"\"", "\""))
+                } else {
+                    Cow::Borrowed(text)
+                });
             }
         }
         Err(QueryError::new(
-            unterminated,
+            QueryErrorKind::UnterminatedString,
+            Span::new(start, self.position),
+        ))
+    }
+
+    /// Reads a name between backticks.
+    fn quoted_name(&mut self) -> Result<&'q str, QueryError> {
+        let start = self.position;
+        self.bump('`');
+        let inner = self.position;
+        while let Some(c) = self.peek() {
+            self.bump(c);
+            if c == '`' {
+                return Ok(self.slice(inner, self.position.saturating_sub(1)));
+            }
+        }
+        Err(QueryError::new(
+            QueryErrorKind::UnterminatedName,
             Span::new(start, self.position),
         ))
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(c) = self.peek().filter(|c| c.is_whitespace()) {
+        self.bump_while(char::is_whitespace);
+    }
+
+    fn bump_while(&mut self, keep: impl Fn(char) -> bool) {
+        while let Some(c) = self.peek().filter(|c| keep(*c)) {
             self.bump(c);
         }
     }
@@ -158,8 +265,12 @@ impl<'q> Lexer<'q> {
         self.text.get(self.position..)?.chars().next()
     }
 
+    fn peek_second(&self) -> Option<char> {
+        self.text.get(self.position..)?.chars().nth(1)
+    }
+
     const fn bump(&mut self, c: char) {
-        self.position += c.len_utf8();
+        self.position = self.position.saturating_add(c.len_utf8());
     }
 
     fn slice(&self, start: usize, end: usize) -> &'q str {
@@ -173,6 +284,18 @@ pub(crate) fn is_bare_name(name: &str) -> bool {
     chars.next().is_some_and(is_name_start)
         && chars.all(is_name_char)
         && Keyword::of(name).is_none()
+}
+
+/// Writes `text` in double quotes with each quote doubled.
+pub(crate) fn quote(f: &mut fmt::Formatter<'_>, text: &str) -> fmt::Result {
+    f.write_str("\"")?;
+    for (index, part) in text.split('"').enumerate() {
+        if index > 0 {
+            f.write_str("\"\"")?;
+        }
+        f.write_str(part)?;
+    }
+    f.write_str("\"")
 }
 
 const fn is_name_start(c: char) -> bool {

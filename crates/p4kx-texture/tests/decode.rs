@@ -218,18 +218,18 @@ fn rows_of_uncompressed_pixels_follow_each_other() -> Result<(), TextureError> {
 
 #[test]
 fn a_format_without_a_decoder_is_named_in_the_error() {
-    let result = decode(dxgi(95), 4, 4, &[0; 16]);
+    let result = decode(dxgi(67), 1, 1, &[0; 4]);
 
     let Err(error) = result else {
-        panic!("BC6H cannot be decoded yet");
+        panic!("R9G9B9E5 has no decoder");
     };
     assert!(
-        matches!(error, TextureError::UnsupportedDecode(format) if format == dxgi(95)),
+        matches!(error, TextureError::UnsupportedDecode(format) if format == dxgi(67)),
         "unsupported decode: {error:?}"
     );
     assert_eq!(
         error.to_string(),
-        "decoding the texture format BC6H_UF16 is not supported",
+        "decoding the texture format R9G9B9E5_SHAREDEXP is not supported",
         "the message names the format"
     );
 }

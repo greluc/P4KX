@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_condition.rs
+expression: "table(\"at \\\"*\\\" select name where name contains \\\"DE\\\" or name like \\\"b*\\\"\\\"LARGE\\\"\\\"\\\"\")?"
+---
+record path                            name
+-------------------------------------  -----------
+libs/foundry/records/items/box         Box "large"
+libs/foundry/records/weapons/deadbolt  Deadbolt
+2 Records

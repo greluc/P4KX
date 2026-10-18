@@ -1,3 +1,5 @@
+mod condition;
+
 use crate::query::lexer::{Keyword, Lexer, Token};
 use crate::query::syntax::{Glob, Name, Path, Query, Segment};
 use crate::query::{Expected, Found, MAX_QUERY_LEN, QueryError, QueryErrorKind, Span};
@@ -23,7 +25,7 @@ impl Query {
 }
 
 /// The clauses in the order they have to appear.
-const CLAUSES: [Keyword; 3] = [Keyword::From, Keyword::At, Keyword::Select];
+const CLAUSES: [Keyword; 4] = [Keyword::From, Keyword::At, Keyword::Select, Keyword::Where];
 
 struct Parser<'q> {
     lexer: Lexer<'q>,
@@ -49,6 +51,7 @@ impl<'q> Parser<'q> {
             from: None,
             at: None,
             select: Vec::new(),
+            condition: None,
         };
         let start = self.span;
         if self.token == Token::Keyword(Keyword::From) {
@@ -80,6 +83,11 @@ impl<'q> Parser<'q> {
         if self.token == Token::Keyword(Keyword::Select) {
             query.select = self.paths()?;
             self.check_clause(Keyword::Select, Expected::AfterPath)?;
+        }
+        if self.token == Token::Keyword(Keyword::Where) {
+            self.advance()?;
+            query.condition = Some(self.condition(0)?);
+            self.check_clause(Keyword::Where, Expected::AfterCondition)?;
         }
         Ok(query)
     }
@@ -124,22 +132,23 @@ impl<'q> Parser<'q> {
 
     fn type_name(&mut self) -> Result<Name, QueryError> {
         match self.token {
-            Token::Name(_) => self.name(Expected::TypeName),
+            Token::Name(_) | Token::Quoted(_) => self.name(Expected::TypeName),
             _ => Err(self.expected(Expected::TypeName)),
         }
     }
 
     fn glob(&mut self) -> Result<Glob, QueryError> {
-        match self.token {
-            Token::Text(text) => {
-                let (_, span) = self.advance()?;
-                Ok(Glob {
-                    text: text.to_owned(),
-                    span,
-                })
-            }
-            _ => Err(self.expected(Expected::Glob)),
+        if !matches!(self.token, Token::Text(_)) {
+            return Err(self.expected(Expected::Glob));
         }
+        let (token, span) = self.advance()?;
+        Ok(Glob {
+            text: match token {
+                Token::Text(text) => text.into_owned(),
+                _ => String::new(),
+            },
+            span,
+        })
     }
 
     fn path(&mut self) -> Result<Path, QueryError> {
@@ -160,7 +169,7 @@ impl<'q> Parser<'q> {
 
     fn field(&mut self) -> Result<Name, QueryError> {
         match self.token {
-            Token::Name(_) => self.name(Expected::FieldName),
+            Token::Name(_) | Token::Quoted(_) => self.name(Expected::FieldName),
             _ => Err(self.expected(Expected::FieldName)),
         }
     }
@@ -168,7 +177,7 @@ impl<'q> Parser<'q> {
     fn name(&mut self, expected: Expected) -> Result<Name, QueryError> {
         let (token, span) = self.advance()?;
         match token {
-            Token::Name(text) => Ok(Name {
+            Token::Name(text) | Token::Quoted(text) => Ok(Name {
                 text: text.to_owned(),
                 span,
             }),
@@ -196,8 +205,10 @@ impl<'q> Parser<'q> {
 fn found(token: &Token<'_>) -> Found {
     match token {
         Token::Keyword(keyword) => Found::Keyword(*keyword),
-        Token::Name(name) => Found::Name((*name).to_owned()),
+        Token::Name(name) | Token::Quoted(name) => Found::Name((*name).to_owned()),
         Token::Text(_) => Found::Text,
+        Token::Number(_) => Found::Number,
+        Token::Symbol(symbol) => Found::Symbol(symbol.as_str()),
         Token::Comma => Found::Comma,
         Token::Dot => Found::Dot,
         Token::End => Found::End,

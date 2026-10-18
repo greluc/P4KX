@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,22 +88,7 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
 }
 
 fn workspace_packages(root: &Path) -> Result<Vec<Package>> {
-    let output = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()))
-        .args(["metadata", "--format-version", "1", "--no-deps"])
-        .current_dir(root)
-        .output()
-        .context("cannot run cargo metadata")?;
-    if !output.status.success() {
-        bail!(
-            "cargo metadata failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    let metadata: Value = serde_json::from_slice(&output.stdout)?;
-    metadata
-        .get("packages")
-        .and_then(Value::as_array)
-        .context("cargo metadata has no packages")?
+    crate::metadata::packages(root)?
         .iter()
         .map(package)
         .collect()

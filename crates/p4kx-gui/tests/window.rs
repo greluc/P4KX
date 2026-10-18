@@ -255,6 +255,25 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
 }
 
 #[test]
+fn the_help_menu_shows_the_font_licence() {
+    let mut harness = harness(Language::BritishEnglish);
+    harness.run();
+
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Font licence").click();
+    harness.run();
+
+    assert!(harness.state().licence_shown(), "the licence is open");
+    assert!(
+        harness
+            .query_by_label_contains("SIL OPEN FONT LICENSE Version 1.1")
+            .is_some(),
+        "the OFL text is shown"
+    );
+}
+
+#[test]
 fn a_file_that_is_no_archive_shows_the_failure() -> TestResult {
     let folder = tempfile::tempdir()?;
     let path = folder.path().join("broken.p4k");

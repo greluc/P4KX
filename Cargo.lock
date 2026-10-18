@@ -2669,11 +2669,13 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",
+ "raw-window-handle",
  "rayon",
  "rfd",
  "sys-locale",
  "tempfile",
  "unic-langid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4655,6 +4657,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde_json",
+ "toml",
 ]
 
 [[package]]

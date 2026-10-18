@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod licence;
 mod menu;
 mod status;
 mod table;
@@ -40,6 +41,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             table::show(ui, model);
         }
     });
+    licence::show(ui, model);
     requests
 }
 

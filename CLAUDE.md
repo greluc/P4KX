@@ -50,7 +50,10 @@ and takes the path from `p4kx_testkit::real_archive_path`.
   Never add a dependency against this direction.
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.
 - `thiserror` in libraries, `anyhow` only in binaries; no `unwrap` / `expect` outside tests.
-- `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`.
+- `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
+  manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks
+  that (ADR-0006).
+- The look follows the KRT design system strictly: dark only, Lato only (ADR-0006).
 - Source files stay below about 400 lines; split by responsibility before that.
 - One canonical Record tree serialised to XML and JSON; References are links, never embedded
   (ADR-0004).

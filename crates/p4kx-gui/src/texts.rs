@@ -16,6 +16,10 @@ pub enum Text {
     MenuLanguage,
     /// The name of a language, in that language.
     LanguageName(Language),
+    /// The help menu.
+    MenuHelp,
+    /// The action and window that show the font licence.
+    FontLicence,
     /// The file type filter of the open dialog.
     DialogArchiveFilter,
     /// The name column.
@@ -70,13 +74,15 @@ pub enum Text {
 
 impl Text {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 33] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
         Self::MenuLanguage,
         Self::LanguageName(Language::German),
         Self::LanguageName(Language::BritishEnglish),
+        Self::MenuHelp,
+        Self::FontLicence,
         Self::DialogArchiveFilter,
         Self::ColumnName,
         Self::ColumnCompression,
@@ -114,6 +120,8 @@ impl Text {
             Self::MenuLanguage => "menu-language",
             Self::LanguageName(Language::German) => "language-de-DE",
             Self::LanguageName(Language::BritishEnglish) => "language-en-GB",
+            Self::MenuHelp => "menu-help",
+            Self::FontLicence => "font-licence",
             Self::DialogArchiveFilter => "dialog-archive-filter",
             Self::ColumnName => "column-name",
             Self::ColumnCompression => "column-compression",

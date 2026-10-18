@@ -28,7 +28,8 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
     Ok(violations)
 }
 
-fn collect_rust_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+/// Adds every Rust source file below `dir` to `files`, skipping `target` folders.
+pub(crate) fn collect_rust_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }

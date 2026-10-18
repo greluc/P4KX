@@ -5,6 +5,8 @@
 
 mod app;
 mod browser;
+#[cfg(windows)]
+pub mod dwm;
 mod entry_index;
 mod folder_tree;
 mod format;
@@ -12,6 +14,7 @@ mod language;
 mod model;
 mod sort;
 mod texts;
+pub mod theme;
 pub mod ui;
 pub mod window;
 

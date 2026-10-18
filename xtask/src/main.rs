@@ -1,8 +1,10 @@
-//! Repository checks run by CI: `cargo xtask layers`, `cargo xtask file-size`, or both with
-//! `cargo xtask`.
+//! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
+//! `cargo xtask file-size`, or all of them with `cargo xtask`.
 
 mod file_size;
 mod layers;
+mod lints;
+mod metadata;
 
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -30,12 +32,14 @@ fn run() -> Result<Vec<String>> {
     match command.as_deref() {
         None => {
             let mut violations = layers::check(&root)?;
+            violations.extend(lints::check(&root)?);
             violations.extend(file_size::check(&root)?);
             Ok(violations)
         }
         Some("layers") => layers::check(&root),
+        Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
-        Some(other) => bail!("unknown check `{other}`; use `layers` or `file-size`"),
+        Some(other) => bail!("unknown check `{other}`; use `layers`, `lints` or `file-size`"),
     }
 }
 

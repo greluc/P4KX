@@ -32,7 +32,7 @@ pub use p4kx_extraction::{
     CancelToken, ConflictPolicy, ExtractionError, Filter, RecordExportError, RecordExportOptions,
     RecordFailure,
 };
-pub use record_export::write_record_export;
+pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use summary::{

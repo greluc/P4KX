@@ -1,0 +1,157 @@
+use std::path::{Path, PathBuf};
+
+use p4kx_export::{NDJSON_FILE, RecordForm};
+
+use crate::model::describe;
+
+/// One Record a Record export did not write, with the reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailedRecord {
+    /// The record path, empty when it cannot be read.
+    pub record_path: String,
+    /// The GUID in canonical form.
+    pub guid: String,
+    /// The error and its causes, joined by colons.
+    pub reason: String,
+}
+
+/// The outcome of a finished Record export.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordExportSummary {
+    form: RecordForm,
+    target: PathBuf,
+    selected: usize,
+    written: usize,
+    skipped: Vec<String>,
+    failures: Vec<FailedRecord>,
+    cancelled: usize,
+    error_values: usize,
+    records_with_errors: usize,
+    error: Option<String>,
+    interrupted: bool,
+}
+
+impl RecordExportSummary {
+    pub(crate) fn new(
+        target: PathBuf,
+        selected: usize,
+        summary: &p4kx_export::RecordExportSummary,
+    ) -> Self {
+        Self {
+            form: summary.form(),
+            target,
+            selected,
+            written: summary.written(),
+            skipped: summary.skipped().to_vec(),
+            failures: summary
+                .failures()
+                .iter()
+                .map(|failure| FailedRecord {
+                    record_path: failure.record_path().to_owned(),
+                    guid: failure.guid().to_string(),
+                    reason: describe(failure.error()),
+                })
+                .collect(),
+            cancelled: summary.cancelled(),
+            error_values: summary.error_values(),
+            records_with_errors: summary.records_with_errors(),
+            error: summary.error().map(|error| describe(error)),
+            interrupted: summary.cancelled() > 0,
+        }
+    }
+
+    /// Returns the summary of an export that wrote nothing: none of the `selected` Records,
+    /// because none matched or, when `interrupted`, because it was cancelled first.
+    pub(crate) const fn nothing_written(
+        form: RecordForm,
+        target: PathBuf,
+        selected: usize,
+        interrupted: bool,
+    ) -> Self {
+        Self {
+            form,
+            target,
+            selected,
+            written: 0,
+            skipped: Vec::new(),
+            failures: Vec::new(),
+            cancelled: if interrupted { selected } else { 0 },
+            error_values: 0,
+            records_with_errors: 0,
+            error: None,
+            interrupted,
+        }
+    }
+
+    /// Returns the form the Records were written in.
+    #[must_use]
+    pub const fn form(&self) -> RecordForm {
+        self.form
+    }
+
+    /// Returns the folder the Records were written into.
+    #[must_use]
+    pub fn target(&self) -> &Path {
+        &self.target
+    }
+
+    /// Returns the file of an NDJSON export, or `None` for one file per Record.
+    #[must_use]
+    pub fn file(&self) -> Option<PathBuf> {
+        (self.form == RecordForm::Ndjson).then(|| self.target.join(NDJSON_FILE))
+    }
+
+    /// Returns the number of Records the export was asked to write.
+    #[must_use]
+    pub const fn selected(&self) -> usize {
+        self.selected
+    }
+
+    /// Returns the number of Records written.
+    #[must_use]
+    pub const fn written(&self) -> usize {
+        self.written
+    }
+
+    /// Returns the files, relative to the target, whose existing file was kept.
+    #[must_use]
+    pub fn skipped(&self) -> &[String] {
+        &self.skipped
+    }
+
+    /// Returns the Records that failed, with the reason.
+    #[must_use]
+    pub fn failures(&self) -> &[FailedRecord] {
+        &self.failures
+    }
+
+    /// Returns the number of Records not written because the export was cancelled.
+    #[must_use]
+    pub const fn cancelled(&self) -> usize {
+        self.cancelled
+    }
+
+    /// Returns the number of error values in the Records written or kept.
+    #[must_use]
+    pub const fn error_values(&self) -> usize {
+        self.error_values
+    }
+
+    /// Returns the number of Records written or kept that hold at least one error value.
+    #[must_use]
+    pub const fn records_with_errors(&self) -> usize {
+        self.records_with_errors
+    }
+
+    /// Returns why the NDJSON file could not be written, if it could not.
+    #[must_use]
+    pub fn error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
+
+    /// Returns whether the export was cancelled before every Record was written.
+    #[must_use]
+    pub const fn was_cancelled(&self) -> bool {
+        self.interrupted
+    }
+}

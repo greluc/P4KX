@@ -75,6 +75,30 @@ matches list name, type and record path, sorted by record path, and their number
 field. Clicking a match, or pressing Enter on it, selects the Record in the tree, opens the folders
 above it and shows the **DataForge** tab. Selecting a folder of the Archive returns to the Entries.
 
+### Exporting Records
+
+**Export › Record export…** writes Records as Record JSON (see [record-json.md](record-json.md)).
+It is offered while the open Archive holds DataForge that did not fail to load, and while no other
+Record export runs.
+
+1. Choose the Records: **Selected in the Record tree** takes the Records at and below the node
+   selected in the tree when the dialog opened (the DataForge node takes every Record), and
+   **Record path filter** takes every Record whose record path matches the text, with the rules of
+   the search: a glob with `*` or `?`, otherwise any part of the record path.
+2. Choose the form: **JSON** writes one file per Record under its record path, Records sharing a
+   record path into a folder of that name; **NDJSON** writes the one file `records.ndjson` with one
+   Record per line in record-path order.
+3. Choose the target like for an Extraction: a new folder `SC-EXPORT-<Channel>-<Build>-<time>`
+   inside the chosen folder, or the chosen folder itself with what to do about files that already
+   exist.
+4. Press **Start export**.
+
+The export runs in the background with a progress window; the first export of an Archive reads
+DataForge first, and later ones reuse it. **Cancel** stops it at once. The summary gives the
+Records written, skipped, failed and cancelled, the Records with error values and their number,
+and the target, then lists failed Records with the reason. A cancelled NDJSON export keeps no
+partial file.
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

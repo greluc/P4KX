@@ -18,6 +18,8 @@ mod extraction_outcome;
 mod licence;
 mod menu;
 mod preview;
+mod record_export;
+mod record_export_outcome;
 mod record_results;
 mod record_search;
 mod record_tree;
@@ -55,6 +57,8 @@ pub enum Dialog {
     ComparisonArchive(ComparisonSide),
     /// Picks the file the Comparison report is saved to.
     ComparisonReport,
+    /// Picks the folder of a Record export.
+    RecordExportFolder,
 }
 
 /// What the window asks of its host after a frame.
@@ -78,6 +82,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         browser.poll();
     }
     model.poll_extraction();
+    model.poll_record_export();
     model.poll_update();
     model.comparison_mut().poll();
     if let Some(path) = dropped_file(ui) {
@@ -113,6 +118,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .show(ui, |ui| work_surface(ui, model, &mut requests));
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
+    record_export::setup(ui, model, &mut requests);
+    record_export_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }

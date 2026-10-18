@@ -1,4 +1,4 @@
-use super::{ComparisonText, DataForgeText, DiffText, ExtractionText, Text};
+use super::{ComparisonText, DataForgeText, DiffText, ExtractionText, RecordExportText, Text};
 use crate::Language;
 
 impl Text {
@@ -77,6 +77,7 @@ impl Text {
             .chain(ComparisonText::ALL.map(Self::Comparison))
             .chain(DataForgeText::ALL.map(Self::DataForge))
             .chain(DiffText::ALL.map(Self::Diff))
+            .chain(RecordExportText::ALL.map(Self::RecordExport))
     }
 
     /// Returns the Fluent message id.
@@ -151,6 +152,7 @@ impl Text {
             Self::Comparison(text) => text.id(),
             Self::DataForge(text) => text.id(),
             Self::Diff(text) => text.id(),
+            Self::RecordExport(text) => text.id(),
         }
     }
 }

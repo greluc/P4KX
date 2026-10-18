@@ -8,9 +8,11 @@ use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod extraction_control;
+mod record_export_control;
 mod update;
 mod work_tab;
 
+use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
@@ -52,6 +54,7 @@ pub struct Model {
     update: UpdateState,
     work_tab: WorkTab,
     comparison: ComparisonTab,
+    record_export: RecordExportState,
 }
 
 impl std::fmt::Debug for Model {
@@ -73,6 +76,7 @@ impl std::fmt::Debug for Model {
             .field("update", &self.update)
             .field("work_tab", &self.work_tab)
             .field("comparison", &self.comparison)
+            .field("record_export", &self.record_export)
             .finish()
     }
 }
@@ -98,6 +102,7 @@ impl Model {
             update: UpdateState::default(),
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
+            record_export: RecordExportState::default(),
         }
     }
 

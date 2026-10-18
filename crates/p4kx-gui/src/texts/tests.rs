@@ -53,6 +53,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("line", "12".into()),
         ("text", "<a/>".into()),
         ("lines", "4,194,304".into()),
+        ("guid", "cbee34fd-6441-4000-b99f-924f7f26e19f".into()),
     ]
 }
 

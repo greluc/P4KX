@@ -3202,6 +3202,7 @@ dependencies = [
  "fluent-syntax",
  "p4kx-channels",
  "p4kx-comparison",
+ "p4kx-export",
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",

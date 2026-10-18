@@ -81,7 +81,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
+pub(super) fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
     if let Some(shown) = shown {
         frames::modal_decoration(ui.ctx(), shown.response.layer_id, shown.response.rect, tone);
     }
@@ -157,7 +157,7 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
     clippy::cast_precision_loss,
     reason = "a progress bar needs no more than f32 precision"
 )]
-fn ratio(done: u64, total: u64) -> f32 {
+pub(super) fn ratio(done: u64, total: u64) -> f32 {
     (done as f32 / total as f32).clamp(0.0, 1.0)
 }
 
@@ -297,7 +297,7 @@ fn list(
         });
 }
 
-fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {
+pub(super) fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {
     let size = vec2(ui.available_width(), ROW_HEIGHT);
     let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, text));

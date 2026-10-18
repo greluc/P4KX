@@ -55,7 +55,9 @@ impl App {
             .spawn(move || {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
-                    Dialog::AddFolder | Dialog::ExtractionFolder => picker.pick_folder(),
+                    Dialog::AddFolder | Dialog::ExtractionFolder | Dialog::RecordExportFolder => {
+                        picker.pick_folder()
+                    }
                     Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
@@ -120,6 +122,11 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::RecordExportFolder, path)) => {
+                if let Some(setup) = self.model.record_export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
             Some((Dialog::ComparisonArchive(side), path)) => {
                 self.model.comparison_mut().set_archive(side, path);
             }
@@ -146,6 +153,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self) {
         self.model.stop_extraction();
+        self.model.stop_record_export();
         self.model.comparison_mut().cancel();
         self.save_settings();
     }

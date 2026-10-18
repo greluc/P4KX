@@ -189,6 +189,42 @@ Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
 `sample_count` is the number of frames written and `size` the size of the written WAV file. A
 codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
+## `p4kx bnk list <archive> <entry> --json`
+
+Also `p4kx bnk list <file> --json` for a soundbank file on disk.
+
+```json
+{"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
+ "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
+           "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
+           "duration_seconds": null, "prefetch": true, "error": null}]}
+```
+
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
+`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
+whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
+cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+prints no JSON; it fails with exit code 1 and an error naming the section.
+
+## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav] --json`
+
+Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on disk.
+
+```json
+{"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "target": "…\\out", "format": "wav",
+ "extracted": [{"id": 100, "file": "…\\out\\100.wav", "size": 9644, "prefetch": false}],
+ "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
+```
+
+`format` is `wem` or `wav`, the extension of the files. `extracted` lists the WEMs written as
+`<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
+both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
+fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
+`"prefetch": true`. With `--json`
+failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
+
 ## `p4kx extract … --json`
 
 ```json

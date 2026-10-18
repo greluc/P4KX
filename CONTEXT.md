@@ -113,6 +113,12 @@ A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one au
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
 
+**Soundbank**:
+A Wwise BNK file holding sections such as `BKHD`, `HIRC` (sounds, events and actions) and `DIDX`
+with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be embedded only as its
+prefetched start.
+_Avoid_: sound package, audio archive
+
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model

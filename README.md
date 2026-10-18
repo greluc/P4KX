@@ -126,6 +126,10 @@ Early development (milestone M1). Available today:
   Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
   Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
   with an error naming it, and a corrupt or truncated WEM fails with the reason.
+- `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
+  soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
+  `<id>.wem`, or with `--format wav` converted to WAV. Both also take a soundbank file on disk. A
+  corrupt soundbank fails with an error naming the section.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

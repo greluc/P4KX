@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -57,6 +58,9 @@ pub(crate) enum Command {
     /// Shows a Wwise WEM sound or converts it to WAV.
     #[command(after_help = EXIT_CODES_HELP)]
     Audio(AudioArgs),
+    /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Bnk(BnkArgs),
 }
 
 /// Arguments of `p4kx audio`.

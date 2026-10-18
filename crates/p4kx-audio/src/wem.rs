@@ -1,14 +1,13 @@
 use std::ops::Range;
 use std::time::Duration;
 
+use crate::adpcm::Layout;
 use crate::riff::{Chunk, Chunks};
 use crate::{AudioError, ByteOrder, Codec};
 
 const SAMPLE_COUNT_OFFSET: usize = 0x18;
 const VORBIS_FMT_LEN: usize = 0x42;
 const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
-const IMA_HEADER_LEN: u64 = 4;
-const PTADPCM_HEADER_LEN: u64 = 5;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
@@ -220,17 +219,8 @@ fn sample_count(
             }
             Some(data_len / block_align)
         }
-        Codec::ImaAdpcm => adpcm_frames(data_len, block_align, channels, IMA_HEADER_LEN).map(
-            |(blocks, per_channel, rest)| {
-                let samples = |bytes: u64| (bytes - IMA_HEADER_LEN) * 2 + 1;
-                let partial = (rest / channels)
-                    .checked_sub(IMA_HEADER_LEN)
-                    .map_or(0, |_| samples(rest / channels));
-                blocks * samples(per_channel) + partial
-            },
-        ),
-        Codec::PtAdpcm => adpcm_frames(data_len, block_align, channels, PTADPCM_HEADER_LEN)
-            .map(|(frames, per_channel, _)| frames * ((per_channel - PTADPCM_HEADER_LEN) * 2 + 2)),
+        Codec::ImaAdpcm | Codec::PtAdpcm => Layout::of(codec, format.channels, format.block_align)
+            .map(|layout| layout.frames(data_len)),
         Codec::Vorbis => vorb_sample_count
             .or_else(|| {
                 format
@@ -241,22 +231,6 @@ fn sample_count(
         Codec::Opus => format.embedded_sample_count.map(u64::from),
         _ => None,
     })
-}
-
-/// Splits `data_len` into whole blocks of `block_align` bytes and returns their count, the bytes
-/// per channel and block, and the bytes left over, if a block holds a header per channel.
-fn adpcm_frames(
-    data_len: u64,
-    block_align: u64,
-    channels: u64,
-    header_len: u64,
-) -> Option<(u64, u64, u64)> {
-    let per_channel = block_align.checked_div(channels)?;
-    (per_channel >= header_len).then_some((
-        data_len / block_align,
-        per_channel,
-        data_len % block_align,
-    ))
 }
 
 /// Returns the playing time of `frames` frames at `sample_rate` Hz; `None` for a rate of 0.

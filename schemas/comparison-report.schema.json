@@ -175,7 +175,7 @@
       "type": "object"
     },
     "FieldChangeReport": {
-      "description": "One field whose value differs, or that only one side has.",
+      "description": "One field or array element whose value differs, or that only one side has.",
       "properties": {
         "new": {
           "anyOf": [
@@ -186,7 +186,7 @@
               "type": "null"
             }
           ],
-          "description": "The new value, absent when the new side has no such field."
+          "description": "The new value, absent when the new side has no such field or element."
         },
         "old": {
           "anyOf": [
@@ -197,10 +197,10 @@
               "type": "null"
             }
           ],
-          "description": "The old value, absent when the old side has no such field."
+          "description": "The old value, absent when the old side has no such field or element."
         },
         "path": {
-          "description": "The path of the field in the Record: its name for a field of the Record itself.",
+          "description": "Where the value lies in the Record: the field names separated by `.`, with `[index]`\nafter an array field, e.g. `hull.plates[1].armor`.",
           "type": "string"
         }
       },
@@ -290,7 +290,7 @@
           "type": "array"
         },
         "fields": {
-          "description": "The changed fields in field order of the new side, the fields only the old side has\nlast; empty for an added, removed or unreadable Record.",
+          "description": "The changed fields and array elements, nested ones included, depth first in field order\nof the new side with the fields only the old side has last in each struct; empty for an\nadded, removed or unreadable Record.",
           "items": {
             "$ref": "#/$defs/FieldChangeReport"
           },
@@ -450,6 +450,36 @@
       ],
       "type": "object"
     },
+    "ReferenceReport": {
+      "description": "The target of a Reference.",
+      "properties": {
+        "at": {
+          "description": "For a weak pointer, where inside the target Record it points, e.g. `wheels[0]`; absent\nfor the Record itself.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the target Record."
+        },
+        "record_path": {
+          "description": "The record path of the target Record, without `.xml`.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the target: the struct of the Record, or of the instance at `at`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "guid",
+        "record_path",
+        "type"
+      ],
+      "type": "object"
+    },
     "SourceSide": {
       "description": "One Archive of a Comparison.",
       "properties": {
@@ -516,7 +546,7 @@
       "type": "object"
     },
     "ValueReport": {
-      "description": "A scalar value with its type.",
+      "description": "One side's value of a changed field or array element, with its type.",
       "oneOf": [
         {
           "description": "A boolean.",
@@ -788,6 +818,72 @@
           "required": [
             "type",
             "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A link to a Record, or for a weak pointer to a place inside the Record.",
+          "properties": {
+            "type": {
+              "const": "reference",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/ReferenceReport"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A struct, as the name of its type; its fields follow as changes of their own.",
+          "properties": {
+            "type": {
+              "const": "struct",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An array, as its number of elements; its elements follow as changes of their own.",
+          "properties": {
+            "type": {
+              "const": "array",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A null pointer or a null Reference.",
+          "properties": {
+            "type": {
+              "const": "null",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "type": "object"
         },

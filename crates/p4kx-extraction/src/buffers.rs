@@ -7,8 +7,8 @@ pub(crate) struct Buffers {
     pub(crate) chunk: Vec<u8>,
     /// Holds the whole data of a `CryXml` Entry.
     pub(crate) data: Vec<u8>,
-    /// Holds the XML a `CryXml` Entry converts to.
-    pub(crate) xml: Vec<u8>,
+    /// Holds a converted file before it is written: the XML of a `CryXml` Entry or a PNG.
+    pub(crate) output: Vec<u8>,
 }
 
 impl Buffers {
@@ -16,13 +16,13 @@ impl Buffers {
         Self {
             chunk: vec![0; CHUNK_LEN],
             data: Vec::new(),
-            xml: Vec::new(),
+            output: Vec::new(),
         }
     }
 
     /// Frees the conversion buffers once an unusually large Entry has grown them.
     pub(crate) fn trim(&mut self) {
-        for buffer in [&mut self.data, &mut self.xml] {
+        for buffer in [&mut self.data, &mut self.output] {
             buffer.clear();
             if buffer.capacity() > RETAINED_LEN {
                 *buffer = Vec::new();

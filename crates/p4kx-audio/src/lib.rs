@@ -3,13 +3,16 @@
 //! rebuilds Wwise Vorbis sounds as Ogg Vorbis into a writer the caller supplies; parses BNK
 //! soundbanks with their sections, their `HIRC` objects and the WEMs they embed.
 
+mod adpcm;
 mod bank_error;
 mod bank_parse;
 mod bank_reader;
 mod codec;
 mod error;
 mod hirc;
+mod ima;
 mod ogg;
+mod ptadpcm;
 mod riff;
 mod soundbank;
 mod vorbis;

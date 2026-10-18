@@ -27,7 +27,7 @@ pub enum AudioError {
     /// The `fmt` chunk is too short or contradicts itself.
     #[error("the WEM format is invalid: {0}")]
     InvalidFormat(&'static str),
-    /// The codec cannot be converted to WAV yet.
+    /// The codec has no decoder to convert it to WAV yet.
     #[error("converting {0} to WAV is not supported")]
     UnsupportedCodec(Codec),
     /// The codec cannot be converted to Ogg yet.

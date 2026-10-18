@@ -4,6 +4,7 @@ mod audio;
 mod bnk;
 mod channels;
 mod cli;
+mod cli_audio;
 mod cli_bnk;
 mod compare;
 mod cryxml;
@@ -18,6 +19,9 @@ mod info;
 mod json;
 mod list;
 mod progress;
+mod query_file;
+mod query_rows;
+mod query_table;
 mod texture;
 mod texture_image;
 

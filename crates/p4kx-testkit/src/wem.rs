@@ -70,6 +70,53 @@ impl TestWem {
         }
     }
 
+    /// Encodes the interleaved `samples` as Wwise IMA ADPCM: tag `0x0002` and one 36-byte
+    /// sub-block of 64 frames per channel and block, the last block padded with silence.
+    #[must_use]
+    pub fn ima_adpcm(channels: u16, sample_rate: u32, samples: &[i16]) -> Self {
+        Self::adpcm(
+            TestCodec::Tag(0x0002),
+            channels,
+            sample_rate,
+            channels.saturating_mul(0x24),
+            crate::adpcm::encode_ima(samples, channels),
+        )
+    }
+
+    /// Encodes the interleaved `samples` as PTADPCM: tag `0x8311` and one frame of `frame_len`
+    /// bytes per channel and block, 36 or 260 as Wwise writes them, the last block padded with
+    /// silence.
+    #[must_use]
+    pub fn ptadpcm(channels: u16, sample_rate: u32, frame_len: u16, samples: &[i16]) -> Self {
+        Self::adpcm(
+            TestCodec::Tag(0x8311),
+            channels,
+            sample_rate,
+            channels.saturating_mul(frame_len),
+            crate::adpcm::encode_ptadpcm(samples, channels, usize::from(frame_len)),
+        )
+    }
+
+    const fn adpcm(
+        codec: TestCodec,
+        channels: u16,
+        sample_rate: u32,
+        block_align: u16,
+        data: Vec<u8>,
+    ) -> Self {
+        Self {
+            codec,
+            channels,
+            sample_rate,
+            sample_count: 0,
+            block_align,
+            big_endian: false,
+            chunks: Vec::new(),
+            vorbis_fields: Vec::new(),
+            data,
+        }
+    }
+
     /// Writes the file as big-endian RIFX, with PCM samples big-endian too.
     #[must_use]
     pub const fn big_endian(mut self) -> Self {

@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use crate::adpcm::Layout;
 use crate::{AudioError, ByteOrder, Codec, Wem};
 
 const BITS_PER_SAMPLE: u16 = 16;
@@ -28,22 +29,48 @@ pub struct WavReport {
 
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Writes the sound as a 16-bit PCM WAV file to `out`: a canonical `WAVE_FORMAT_PCM` header
-    /// for one or two channels, `WAVE_FORMAT_EXTENSIBLE` with the channel mask for more. A
-    /// trailing partial frame is dropped.
+    /// for one or two channels, `WAVE_FORMAT_EXTENSIBLE` with the channel mask for more. PCM is
+    /// copied, IMA ADPCM and PTADPCM are decoded. A trailing partial frame or block is dropped.
     ///
     /// # Errors
     ///
-    /// Returns [`AudioError::UnsupportedCodec`] before writing anything when the codec is not
-    /// PCM, [`AudioError::WavTooLarge`] when the WAV would exceed 4 GiB, and
+    /// Returns [`AudioError::UnsupportedCodec`] before writing anything when the codec has no
+    /// decoder, [`AudioError::InvalidFormat`] when the ADPCM block alignment does not fit the
+    /// channels, [`AudioError::WavTooLarge`] when the WAV would exceed 4 GiB, and
     /// [`AudioError::Write`] when `out` fails.
     pub fn write_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
-        if self.codec() != Codec::Pcm {
-            return Err(AudioError::UnsupportedCodec(self.codec()));
+        match self.codec() {
+            Codec::Pcm => self.write_pcm_wav(out),
+            Codec::ImaAdpcm | Codec::PtAdpcm => self.write_adpcm_wav(out),
+            codec => Err(AudioError::UnsupportedCodec(codec)),
         }
+    }
+
+    fn write_adpcm_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
+        let layout = Layout::of(self.codec(), self.channels(), self.block_align()).ok_or(
+            AudioError::InvalidFormat("the ADPCM block alignment does not fit the channels"),
+        )?;
         let channels = self.channels();
-        let block_align = channels
-            .checked_mul(BITS_PER_SAMPLE / 8)
-            .ok_or(AudioError::InvalidFormat("too many channels"))?;
+        let block_align = wav_block_align(channels)?;
+        let frames = layout.frames(self.data().len() as u64);
+        let data_len = frames
+            .checked_mul(u64::from(block_align))
+            .and_then(|len| usize::try_from(len).ok())
+            .ok_or(AudioError::WavTooLarge)?;
+        let header = self.wav_header(block_align, data_len)?;
+        out.write_all(&header).map_err(AudioError::Write)?;
+        layout.write_pcm(self.data(), self.byte_order(), out)?;
+        Ok(WavReport {
+            channels,
+            sample_rate: self.sample_rate(),
+            sample_count: frames,
+            size: (header.len() + data_len) as u64,
+        })
+    }
+
+    fn write_pcm_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
+        let channels = self.channels();
+        let block_align = wav_block_align(channels)?;
         let frames = self.data().len() / usize::from(block_align);
         let data = self
             .data()
@@ -126,4 +153,10 @@ fn write_swapped(data: &[u8], out: &mut impl Write) -> Result<(), AudioError> {
             .map_err(AudioError::Write)?;
     }
     Ok(())
+}
+
+fn wav_block_align(channels: u16) -> Result<u16, AudioError> {
+    channels
+        .checked_mul(BITS_PER_SAMPLE / 8)
+        .ok_or(AudioError::InvalidFormat("too many channels"))
 }

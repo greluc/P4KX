@@ -12,7 +12,9 @@ use p4kx_extraction::{
     extract,
 };
 
-use super::{ExtractionSummary, TargetKind};
+use p4kx_settings::ExtractionTextures;
+
+use super::{ExtractionSummary, TargetKind, texture_conversion};
 use crate::EntryIndex;
 use crate::model::describe;
 
@@ -24,6 +26,7 @@ pub(crate) struct Request {
     pub(crate) folder: PathBuf,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
+    pub(crate) textures: ExtractionTextures,
 }
 
 type RunResult = Result<ExtractionSummary, String>;
@@ -185,6 +188,7 @@ fn run(
     let options = ExtractOptions {
         policy: request.policy,
         convert: request.convert,
+        textures: texture_conversion(request.textures),
         cancel: Some(cancel),
         progress: Some(&on_progress),
         watch: Some(index.watch()),

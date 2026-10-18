@@ -15,13 +15,6 @@ pub(crate) struct FieldDef<'f> {
     pub(crate) end: u64,
 }
 
-impl FieldDef<'_> {
-    /// Returns whether the field holds one scalar value.
-    pub(crate) const fn is_scalar(&self) -> bool {
-        !self.slot.is_array() && is_scalar(self.slot.data_type())
-    }
-}
-
 /// Returns whether values of `data_type` are scalars a column can hold.
 pub(crate) const fn is_scalar(data_type: DataType) -> bool {
     !matches!(
@@ -67,6 +60,10 @@ impl<'f> StructFields<'f> {
         self.names.iter().flatten().copied()
     }
 
+    pub(crate) fn name(&self, index: usize) -> Option<&'f str> {
+        self.names.get(index).copied().flatten()
+    }
+
     pub(crate) fn positions_of<'s>(&'s self, name: &'s str) -> impl Iterator<Item = usize> + 's {
         self.names
             .iter()
@@ -104,17 +101,6 @@ impl<'f> StructFields<'f> {
 
     pub(crate) fn all_field_names(&self) -> impl Iterator<Item = &'f str> + '_ {
         (0..self.len()).flat_map(|index| self.field_names(index))
-    }
-
-    /// Returns the first field named `name` that holds one scalar value, otherwise the first
-    /// field of that name, in struct order.
-    pub(crate) fn representative(&self, name: &str) -> Option<FieldDef<'f>> {
-        let mut declared = (0..self.len()).filter_map(|index| self.field(index, name));
-        let first = declared.next()?;
-        if first.is_scalar() {
-            return Some(first);
-        }
-        Some(declared.find(FieldDef::is_scalar).unwrap_or(first))
     }
 }
 

@@ -5,6 +5,7 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Serialize, Serializer};
 
 use crate::{ChangedValue, Guid, Location, Reference, Value, ValueError};
+
 /// One side's value of a changed field or array element, with its type.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]

@@ -19,8 +19,7 @@ const HEAD: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<p4kx:records 
 /// Writes `records` of `forge` as one Record XML document, the file `file`, in record-path order.
 ///
 /// The root element `p4kx:records` declares the `p4kx` namespace once and holds one Record
-/// element per Record, ordered by record path ignoring ASCII case with `/` and `\` alike, then
-/// by Record name, then by definition order; a
+/// element per Record in Record order, as [`DataForge::path_order`] gives it; a
 /// Record selected twice is written once. Records are built in parallel and streamed to the file
 /// in that order, so the same Records always give the same bytes and no more than a batch of
 /// Records is held at a time. An existing `file` is handled by the [`ConflictPolicy`] of
@@ -103,13 +102,20 @@ fn existing_file(file: &Path) -> Result<bool, ExtractionError> {
     }
 }
 
-/// Returns the positions in `records` of the Records to write, in record-path order without
-/// repeats; Records of another DataForge are reported as failed.
+/// Returns the positions in `records` of the Records to write in Record order without repeats,
+/// those without a readable record path last; Records of another DataForge are reported as
+/// failed.
 fn order(
     forge: &DataForge<'_>,
     records: &[Record<'_>],
     report: &mut RecordExportReport,
 ) -> Vec<usize> {
+    let mut rank = vec![u32::MAX; forge.record_count()];
+    for (position, index) in (0_u32..).zip(forge.path_order()) {
+        if let Some(slot) = rank.get_mut(*index as usize) {
+            *slot = position;
+        }
+    }
     let mut order = Vec::with_capacity(records.len());
     for (position, record) in records.iter().enumerate() {
         if record.is_from(forge) {
@@ -122,26 +128,13 @@ fn order(
     }
     let key = |position: &usize| {
         records.get(*position).map(|record| {
-            (
-                fold_ascii(record.record_path().unwrap_or_default()),
-                record.name().unwrap_or_default(),
-                record.index(),
-            )
+            let index = record.index();
+            (rank.get(index as usize).copied().unwrap_or(u32::MAX), index)
         })
     };
-    order.par_sort_by_cached_key(key);
+    order.par_sort_unstable_by_key(key);
     order.dedup_by_key(|position| records.get(*position).map(Record::index));
     order
-}
-
-/// Returns `path` with ASCII letters in lower case and `\` as `/`, the key of record-path order.
-fn fold_ascii(path: &str) -> Vec<u8> {
-    path.bytes()
-        .map(|byte| match byte {
-            b'\\' => b'/',
-            other => other.to_ascii_lowercase(),
-        })
-        .collect()
 }
 
 fn failure(record: &Record<'_>, error: RecordExportError) -> RecordFailure {

@@ -196,7 +196,7 @@ fn records_sharing_a_record_path_are_ordered_by_name_then_definition_order() -> 
     };
     let bytes = builder([
         item(1, "Item.B", "records/shared.xml"),
-        item(2, "Item.A", "Records\\Shared.xml"),
+        item(2, "item.A", "Records\\Shared.xml"),
         item(3, "Item.B", "records/shared.xml"),
         item(4, "Item.C", "records/a.xml"),
     ])
@@ -219,7 +219,7 @@ fn records_sharing_a_record_path_are_ordered_by_name_then_definition_order() -> 
     assert_eq!(
         guids,
         ["4", "2", "1", "3"],
-        "record path ignoring case, then name, then definition order"
+        "record path and name ignoring case, then definition order"
     );
     Ok(())
 }

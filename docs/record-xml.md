@@ -179,7 +179,7 @@ named after the DataForge Entry with `.xml`, e.g. `Game2.xml`:
   is selected.
 - One child element per Record, written as the root of a single Record but indented by one level
   and without its own `xmlns:p4kx`.
-- Records are ordered by record path, compared ignoring ASCII case with `/` and `\` alike, then
-  by Record name as stored, then by their order in DataForge; a Record selected twice is written
-  once.
+- Records are in Record order ([CONTEXT.md](../CONTEXT.md)): by record path ignoring ASCII case
+  with `/` and `\` alike, then by Record name ignoring ASCII case, then by their order in
+  DataForge; a Record selected twice is written once.
 - A Record whose tree cannot be built is left out and reported as failed.

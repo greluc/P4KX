@@ -37,9 +37,8 @@ pub use syntax::{Glob, Name, Path, Query, Segment};
 /// The most segments a path has behind its first field: `.name`, `[n]`, `[*]` and `[TypeName]`.
 pub const MAX_PATH_SEGMENTS: usize = 64;
 
-/// The most array elements the paths of one Record reach together, over every column when its
-/// row is built and over every comparison when its condition is checked; beyond them a value is
-/// an error.
+/// The most array elements the columns of one row reach together, and each comparison of a
+/// condition on its own; beyond them a cell is an error and a comparison unknown.
 pub const MAX_PATH_VALUES: usize = 4_096;
 
 /// The longest Query text in bytes.

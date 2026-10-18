@@ -60,8 +60,8 @@ impl Predicate {
     }
 
     /// Returns whether the instance at `place` meets the predicate, with `tests` of its struct;
-    /// `None` when that is unknown because a compared value is missing or unreadable. Every
-    /// comparison counts against the one `state` of the Record.
+    /// `None` when that is unknown because a compared value is missing or unreadable. Each
+    /// comparison streams its values with a budget of its own, as it holds none of them.
     ///
     /// A comparison over a path that reaches several values holds when one of them compares
     /// true; it is unknown when none does and one is unknown, and false otherwise.
@@ -70,18 +70,18 @@ impl Predicate {
         forge: &'f DataForge<'f>,
         tests: &[Option<Test>],
         place: Place<'f>,
-        state: &mut WalkState,
     ) -> Option<bool> {
         match self {
             Self::Test(index, operator) => {
                 let test = tests.get(*index)?.as_ref()?;
-                test.reader.any(forge, place, state, |value| {
-                    test.operand.compare(*operator, value)
-                })
+                test.reader
+                    .any(forge, place, &mut WalkState::new(), |value| {
+                        test.operand.compare(*operator, value)
+                    })
             }
-            Self::Not(inner) => inner.eval(forge, tests, place, state).map(|holds| !holds),
-            Self::And(parts) => decide(parts, false, |part| part.eval(forge, tests, place, state)),
-            Self::Or(parts) => decide(parts, true, |part| part.eval(forge, tests, place, state)),
+            Self::Not(inner) => inner.eval(forge, tests, place).map(|holds| !holds),
+            Self::And(parts) => decide(parts, false, |part| part.eval(forge, tests, place)),
+            Self::Or(parts) => decide(parts, true, |part| part.eval(forge, tests, place)),
         }
     }
 }

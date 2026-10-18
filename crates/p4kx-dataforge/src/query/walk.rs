@@ -58,8 +58,8 @@ impl<'f> Place<'f> {
     }
 }
 
-/// What the paths of one Record have used of their limits while they are read; one per Record
-/// and phase, shared by every column, or by every comparison of the condition.
+/// What paths have used of their limits while they are read in one Record: one shared by every
+/// column of its row, and one for each comparison of its condition.
 #[derive(Debug)]
 pub(crate) struct WalkState {
     budget: usize,

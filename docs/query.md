@@ -256,15 +256,18 @@ writes that same JSON array in its field. The table writes the values in their t
 separated by `, ` in brackets, e.g. `[250.5, 1200]` or `[]`, shortened after 8 values; the
 values are not quoted there, so a string holding `, ` or `]` reads ambiguously in the table only.
 
-The paths of one Record reach at most 4,096 array elements together (`MAX_PATH_VALUES`): every
-column of its row counts against one budget, and every comparison of its condition against
-another. `[n]` counts one element, `[*]` and `[TypeName]` every element of their array, also those
-`[TypeName]` skips, and nested brackets count on every level: `Components[*].modes[*]` counts the
-components and then the modes of each. A bracket that would go beyond the budget gives the error
-value `error: the paths of the Record reach more than 4096 array elements` in its cell, and the
-cells after it can still read what remains. A comparison that hits the limit is unknown, unless a
-value it reached before already holds. The limit bounds the memory of a page: at most 4,096
-values per row.
+Paths reach at most 4,096 array elements (`MAX_PATH_VALUES`). The `select` paths of one row share
+this budget, as their cells hold their values: it bounds the memory of a page to at most 4,096
+values per row. Each comparison of `where` has a budget of its own, as it holds none of the values
+it compares, so `tags[*] = -1 or tags[*] = 1` checks both comparisons in full. `[n]` counts one
+element, `[*]` and `[TypeName]` every element of their array, also those `[TypeName]` skips, and
+nested brackets count on every level: `Components[*].modes[*]` counts the components and then
+the modes of each.
+
+A bracket that would go beyond the budget of the row gives the error value `error: the paths of
+the Record reach more than 4096 array elements` in its cell, and the cells after it can still
+read what remains. A comparison that would go beyond its budget is unknown, unless a value it
+reached before already holds.
 
 ## Conditions
 

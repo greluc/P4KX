@@ -190,7 +190,7 @@ fn the_budget_counts_every_level_of_nested_arrays() -> TestResult {
 }
 
 #[test]
-fn every_path_of_a_record_shares_one_budget() -> TestResult {
+fn the_columns_of_a_row_share_one_budget_and_each_comparison_has_its_own() -> TestResult {
     let many = MAX_PATH_VALUES + 1;
     let tags = |count: usize| {
         TestValue::Array(
@@ -229,7 +229,12 @@ fn every_path_of_a_record_shares_one_budget() -> TestResult {
     assert_rows(
         &forge,
         "from Station where tags[*] = -1 or tags[*] = 1",
-        &[],
+        &["half: "],
+    )?;
+    assert_rows(
+        &forge,
+        "from Station where tags[*] = 1 and tags[*] = 2 and tags[*] = 2048",
+        &["half: "],
     )?;
     assert_rows(&forge, "from Station where tags[4096] = 4096", &["big: "])
 }

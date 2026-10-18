@@ -55,7 +55,7 @@ impl<'f> CompiledQuery<'f> {
         };
         match self.plan_of(record) {
             Some(Plan::Read { tests, .. }) => self.instance_of(record).map_or(true, |place| {
-                predicate.eval(self.forge, tests, place, &mut WalkState::new()) == Some(true)
+                predicate.eval(self.forge, tests, place) == Some(true)
             }),
             Some(Plan::Broken(_)) => true,
             None => false,

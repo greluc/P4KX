@@ -250,7 +250,7 @@ fn a_struct_that_contains_itself_inline_stops_at_the_value_limit() -> TestResult
 }
 
 #[test]
-fn an_array_larger_than_the_value_limit_is_an_error() -> TestResult {
+fn an_array_larger_than_the_value_limit_is_an_error_at_its_field() -> TestResult {
     let count = u32::try_from(MAX_RECORD_VALUES + 1)?;
     let bytes = DataForgeBuilder::new()
         .structure(TestStruct::new("Big").array("bytes", TestType::Int8))
@@ -261,11 +261,15 @@ fn an_array_larger_than_the_value_limit_is_an_error() -> TestResult {
         .build();
     let forge = DataForge::open(&bytes)?;
 
-    let result = forge.records().next().ok_or("no Record")?.tree();
+    let tree = forge.records().next().ok_or("no Record")?.tree()?;
 
-    assert!(
-        matches!(result, Err(DataForgeError::RecordTooLarge { .. })),
-        "rejected before it is read: {result:?}"
+    assert_eq!(
+        value(&tree, "bytes")?,
+        &Value::Error(ValueError::TooManyValues {
+            count,
+            limit: MAX_RECORD_VALUES
+        }),
+        "rejected before it is read"
     );
     Ok(())
 }
@@ -312,6 +316,10 @@ fn error_values_of_nested_data_carry_a_reason() -> TestResult {
                 instance_index: 3,
             },
             "the weak pointer refers to instance 3 of struct 2, which lies outside the Record",
+        ),
+        (
+            ValueError::TooManyValues { count: 9, limit: 8 },
+            "the array of 9 values is larger than the 8 values a Record may hold",
         ),
         (
             ValueError::UnknownStruct { index: 7 },

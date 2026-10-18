@@ -50,6 +50,33 @@ impl<'f> RecordTree<'f> {
         collect_errors(&self.fields, &mut errors);
         errors.into_iter()
     }
+
+    /// Returns the number of error values in the tree, nested ones included, without collecting
+    /// them.
+    #[must_use]
+    pub fn error_count(&self) -> usize {
+        self.fields
+            .iter()
+            .map(|field| count_errors(std::slice::from_ref(&field.value)))
+            .sum()
+    }
+}
+
+/// Returns the number of error values in the tree, nested ones included.
+fn count_errors(values: &[Value<'_>]) -> usize {
+    values
+        .iter()
+        .map(|value| match value {
+            Value::Error(_) => 1,
+            Value::Struct(structure) => structure
+                .fields
+                .iter()
+                .map(|field| count_errors(std::slice::from_ref(&field.value)))
+                .sum(),
+            Value::Array(items) => count_errors(items),
+            _ => 0,
+        })
+        .sum()
 }
 
 fn collect_errors<'t, 'f>(fields: &'t [Field<'f>], errors: &mut Vec<(&'f str, &'t ValueError)>) {

@@ -35,11 +35,7 @@ impl<'f> TreeBuilder<'f> {
             return forge
                 .record_at(target.0, target.1)
                 .and_then(|index| forge.record(index))
-                .map_or(outside, |record| {
-                    record
-                        .link(None)
-                        .map_or_else(Value::Error, Value::Reference)
-                });
+                .map_or(outside, |record| record.link());
         };
         let at = span(positions, owned);
         if at.is_empty() {

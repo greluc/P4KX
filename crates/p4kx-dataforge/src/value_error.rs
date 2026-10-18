@@ -67,6 +67,14 @@ pub enum ValueError {
         /// The instance.
         instance_index: u32,
     },
+    /// An array has more elements than one Record tree may hold.
+    #[error("the array of {count} values is larger than the {limit} values a Record may hold")]
+    TooManyValues {
+        /// The number of elements.
+        count: u32,
+        /// The most values one Record tree may hold.
+        limit: usize,
+    },
     /// Owned structs are nested deeper than [`MAX_NESTING_DEPTH`](crate::MAX_NESTING_DEPTH).
     #[error("the value is nested deeper than {limit} structs")]
     TooDeep {

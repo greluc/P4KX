@@ -36,7 +36,7 @@ pub fn export_records<'f>(
     options: &RecordExportOptions<'_>,
 ) -> RecordExportReport {
     let plan = RecordFiles::plan(forge);
-    let files = select_files(&plan, records);
+    let files = select_files(forge, &plan, records);
     let (independent, dependent) = split_dependent(files.iter().map(|file| match file {
         Selected::File(file) => *file,
         Selected::Taken(_) | Selected::Unsafe => "",
@@ -72,12 +72,17 @@ pub fn export_records<'f>(
 }
 
 /// Returns the planned file of every selected Record; a file an earlier Record of the selection
-/// takes, ignoring case, is taken.
-fn select_files<'p>(plan: &'p RecordFiles, records: &[Record<'_>]) -> Vec<Selected<'p>> {
+/// takes, ignoring case, is taken, and a Record of another DataForge gets none.
+fn select_files<'p>(
+    forge: &DataForge<'_>,
+    plan: &'p RecordFiles,
+    records: &[Record<'_>],
+) -> Vec<Selected<'p>> {
     let mut taken = HashSet::new();
     records
         .iter()
         .map(|record| match plan.file(record) {
+            _ if !record.is_from(forge) => Selected::Unsafe,
             None => Selected::Unsafe,
             Some(file) if taken.insert(fold(file).collect::<String>()) => Selected::File(file),
             Some(file) => Selected::Taken(file),
@@ -174,7 +179,7 @@ impl Writer<'_> {
         let relative = relative_path(file).ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let tree = scratch.trees.build(record)?;
-        let errors = tree.errors().count();
+        let errors = tree.error_count();
         let folder = create_folders(self.target, relative.parent())?;
         let destination = folder.join(name);
         scratch.bytes.clear();

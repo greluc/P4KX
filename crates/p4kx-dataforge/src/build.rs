@@ -38,7 +38,7 @@ pub(crate) struct Pending {
 /// layouts; [`Record::tree`] uses a new one each time.
 #[derive(Debug, Default)]
 pub struct TreeBuilder<'f> {
-    forge: usize,
+    forge_id: usize,
     pub(crate) layouts: Layouts<'f>,
     pub(crate) owned: HashMap<(u32, u32), Span>,
     pub(crate) positions: Vec<u32>,
@@ -46,7 +46,7 @@ pub struct TreeBuilder<'f> {
     pub(crate) weak: Vec<Pending>,
     pub(crate) locations: HashMap<(u32, u32), Arc<str>>,
     pub(crate) text: String,
-    values: usize,
+    value_count: usize,
 }
 
 impl<'f> TreeBuilder<'f> {
@@ -72,7 +72,7 @@ impl<'f> TreeBuilder<'f> {
         let bytes = forge.instance(def.struct_index, instance).ok_or_else(|| {
             out_of_range("Record", record.index as usize, "instance", instance.into())
         })?;
-        self.claim(def.struct_index, instance);
+        self.claim(def.struct_index, instance)?;
         let fields = self.fields(forge, &layout, bytes, 0)?;
         let mut tree = RecordTree {
             type_name: layout.type_name,
@@ -87,41 +87,42 @@ impl<'f> TreeBuilder<'f> {
 
     fn start(&mut self, forge: &'f DataForge<'f>) {
         let id = ptr::from_ref(forge).addr();
-        if self.forge != id {
+        if self.forge_id != id {
             self.layouts.clear();
-            self.forge = id;
+            self.forge_id = id;
         }
         self.owned.clear();
         self.positions.clear();
         self.stack.clear();
         self.weak.clear();
         self.locations.clear();
-        self.values = 0;
+        self.value_count = 0;
     }
 
     /// Marks an instance as owned at the current position; returns `false` when it already is.
-    fn claim(&mut self, struct_index: u32, instance_index: u32) -> bool {
+    fn claim(&mut self, struct_index: u32, instance_index: u32) -> Result<bool, DataForgeError> {
         if self.owned.contains_key(&(struct_index, instance_index)) {
-            return false;
+            return Ok(false);
         }
-        let span = self.here();
+        let span = self.here()?;
         self.owned.insert((struct_index, instance_index), span);
-        true
+        Ok(true)
     }
 
-    /// Copies the current position into the arena.
-    fn here(&mut self) -> Span {
+    /// Copies the current position into the arena, which counts against the value limit.
+    fn here(&mut self) -> Result<Span, DataForgeError> {
+        self.count(self.stack.len())?;
         let start = self.positions.len();
         self.positions.extend_from_slice(&self.stack);
-        Span {
+        Ok(Span {
             start,
             end: self.positions.len(),
-        }
+        })
     }
 
     const fn count(&mut self, values: usize) -> Result<(), DataForgeError> {
-        self.values = self.values.saturating_add(values);
-        if self.values > MAX_RECORD_VALUES {
+        self.value_count = self.value_count.saturating_add(values);
+        if self.value_count > MAX_RECORD_VALUES {
             return Err(DataForgeError::RecordTooLarge {
                 limit: MAX_RECORD_VALUES,
             });
@@ -183,7 +184,7 @@ impl<'f> TreeBuilder<'f> {
                     return self.owned(forge, struct_index, instance, depth + 1);
                 }
             },
-            DataType::WeakPointer => self.weak(forge, bytes),
+            DataType::WeakPointer => self.weak(forge, bytes)?,
             DataType::Reference => reference(forge, bytes),
             other => read_scalar(forge, other, target, bytes).unwrap_or(Value::Null),
         })
@@ -223,7 +224,7 @@ impl<'f> TreeBuilder<'f> {
                 instance_index,
             }));
         };
-        if depth <= MAX_NESTING_DEPTH && !self.claim(struct_index, instance_index) {
+        if depth <= MAX_NESTING_DEPTH && !self.claim(struct_index, instance_index)? {
             return Ok(Value::Error(ValueError::OwnedTwice {
                 struct_index,
                 instance_index,
@@ -233,19 +234,19 @@ impl<'f> TreeBuilder<'f> {
     }
 
     /// Reads a weak pointer; its target is resolved once the tree is complete.
-    fn weak(&mut self, forge: &DataForge<'_>, bytes: &[u8]) -> Value<'f> {
+    fn weak(&mut self, forge: &DataForge<'_>, bytes: &[u8]) -> Result<Value<'f>, DataForgeError> {
         let Some(target) = pointer(bytes) else {
-            return Value::Null;
+            return Ok(Value::Null);
         };
         if forge.instance(target.0, target.1).is_none() {
-            return Value::Error(ValueError::InvalidPointer {
+            return Ok(Value::Error(ValueError::InvalidPointer {
                 struct_index: target.0,
                 instance_index: target.1,
-            });
+            }));
         }
-        let at = self.here();
+        let at = self.here()?;
         self.weak.push(Pending { target, at });
-        Value::Null
+        Ok(Value::Null)
     }
 
     fn array(
@@ -255,8 +256,7 @@ impl<'f> TreeBuilder<'f> {
         bytes: &[u8],
         depth: usize,
     ) -> Result<Value<'f>, DataForgeError> {
-        let [count, first] =
-            [0, 4].map(|at| u32::from_le_bytes(first_bytes(bytes.get(at..).unwrap_or_default())));
+        let [count, first] = words(bytes);
         let kind = ValueKind::of(slot.data_type);
         let (len, pool) = match kind {
             Some(kind) => (forge.value_count(kind) as u64, kind.name()),
@@ -277,10 +277,16 @@ impl<'f> TreeBuilder<'f> {
                 pool,
             }));
         }
+        if self.value_count.saturating_add(count as usize) > MAX_RECORD_VALUES {
+            return Ok(Value::Error(ValueError::TooManyValues {
+                count,
+                limit: MAX_RECORD_VALUES,
+            }));
+        }
         self.count(count as usize)?;
         let mut items = Vec::with_capacity(count as usize);
         for index in 0..count {
-            let element = first + index;
+            let element = first.saturating_add(index);
             self.stack.push(index);
             let item = match kind {
                 None => self.owned(forge, u32::from(slot.target), element, depth + 1),
@@ -298,18 +304,24 @@ impl<'f> TreeBuilder<'f> {
 
 fn element_bytes<'f>(forge: &DataForge<'f>, kind: ValueKind, element: u32) -> &'f [u8] {
     let len = kind.element_len();
-    let start = element as usize * len;
+    let start = (element as usize).checked_mul(len);
+    let end = start.and_then(|start| start.checked_add(len));
     forge
         .values
         .get(kind.index())
-        .and_then(|pool| pool.get(start..start + len))
+        .zip(start.zip(end))
+        .and_then(|(pool, (start, end))| pool.get(start..end))
         .unwrap_or_default()
+}
+
+/// Returns the two little-endian words at the start of a pointer or an array header.
+fn words(bytes: &[u8]) -> [u32; 2] {
+    [0, 4].map(|at| u32::from_le_bytes(first_bytes(bytes.get(at..).unwrap_or_default())))
 }
 
 /// Returns the struct and instance a pointer names, or `None` for a null pointer.
 fn pointer(bytes: &[u8]) -> Option<(u32, u32)> {
-    let [struct_index, instance] =
-        [0, 4].map(|at| u32::from_le_bytes(first_bytes(bytes.get(at..).unwrap_or_default())));
+    let [struct_index, instance] = words(bytes);
     (struct_index != NULL || instance != NULL).then_some((struct_index, instance))
 }
 
@@ -321,10 +333,6 @@ fn reference<'f>(forge: &'f DataForge<'f>, bytes: &[u8]) -> Value<'f> {
     }
     forge.record_by_guid(guid).map_or(
         Value::Error(ValueError::DanglingReference { guid }),
-        |record| {
-            record
-                .link(None)
-                .map_or_else(Value::Error, Value::Reference)
-        },
+        |record| record.link(),
     )
 }

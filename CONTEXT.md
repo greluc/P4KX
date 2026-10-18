@@ -76,8 +76,9 @@ _Avoid_: category, kind
 
 **Reference**:
 A link from one Record to another by GUID; it is never expanded into the referring Record. A weak
-pointer is a Reference into its own Record, with the location of the instance it points to.
-_Avoid_: weak pointer, pointer (alone)
+pointer, the stored data type, becomes a Reference into its own Record, with the location of the
+instance it points to.
+_Avoid_: pointer (alone); weak pointer for the link itself
 
 **Query**:
 A path expression that selects Records or values inside Records.

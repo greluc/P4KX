@@ -91,3 +91,29 @@ fn records_of_another_dataforge_fail_instead_of_getting_wrong_files() -> TestRes
     assert!(fs::read_dir(dir.path())?.next().is_none(), "no file");
     Ok(())
 }
+
+#[test]
+fn a_record_of_another_dataforge_does_not_take_the_file_of_a_later_one() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let other = DataForge::open(&bytes)?;
+    let records: Vec<_> = other.records().chain(forge.records()).collect();
+    let dir = tempfile::tempdir()?;
+
+    let report = export_records(
+        &forge,
+        &records,
+        dir.path(),
+        &RecordExportOptions::default(),
+    );
+
+    assert_eq!(
+        report.written(),
+        1,
+        "the own Record is written: {:?}",
+        report.failures()
+    );
+    assert_eq!(report.failures().len(), 1, "the foreign Record fails");
+    assert!(dir.path().join("ships/one.xml").is_file(), "its file");
+    Ok(())
+}

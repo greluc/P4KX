@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
 use rayon::slice::ParallelSliceMut;
 
 use crate::dataforge::out_of_range;
 use crate::rows::RecordDef;
 use crate::strings::{compare_paths, strip_xml};
 use crate::{
-    DataForge, DataForgeError, Guid, RecordTree, Reference, Struct, TreeBuilder, ValueError,
+    DataForge, DataForgeError, Guid, RecordTree, Reference, Struct, TreeBuilder, Value, ValueError,
 };
 
 /// One Record of a DataForge: its GUID, name, type and record path.
@@ -112,18 +110,22 @@ impl<'f> Record<'f> {
         std::ptr::addr_eq(self.forge, forge)
     }
 
-    /// Returns a link to this Record, or to the instance at `location` inside it.
-    pub(crate) fn link(&self, location: Option<Arc<str>>) -> Result<Reference<'f>, ValueError> {
+    /// Returns a Reference to this Record as a value, or the error that keeps it from being one.
+    pub(crate) fn link(&self) -> Value<'f> {
+        self.reference().map_or_else(Value::Error, Value::Reference)
+    }
+
+    fn reference(&self) -> Result<Reference<'f>, ValueError> {
         let forge = self.forge;
-        let type_name = forge
+        let def = forge
             .structs
             .get(self.def.struct_index as usize)
-            .map_or(Ok(""), |def| forge.blob.value(def.name))?;
+            .ok_or(ValueError::DanglingReference { guid: self.guid() })?;
         Ok(Reference {
             guid: self.guid(),
             record_path: forge.text.value(self.def.file_name).map(strip_xml)?,
-            type_name,
-            location,
+            type_name: forge.blob.value(def.name)?,
+            location: None,
         })
     }
 }

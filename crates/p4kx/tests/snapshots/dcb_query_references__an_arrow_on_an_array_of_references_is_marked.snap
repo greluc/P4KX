@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "error(\"from Ship select escorts->name\")?"
+---
+error: field `escorts` of `Ship` holds an array of References; select its elements with `[n]` or `[*]` before `->`
+  from Ship select escorts->name
+                          ^^

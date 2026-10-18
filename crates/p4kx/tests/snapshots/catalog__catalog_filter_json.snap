@@ -2,4 +2,4 @@
 source: crates/p4kx/tests/catalog.rs
 expression: summary
 ---
-{"archive":"[DIR]/LIVE/Data.p4k","out":"[DIR]/partial.json","schema_version":1,"size":620,"upload_limit":64000000,"size_warning":null,"kinds":[{"kind":"manufacturers","count":1,"skipped":0,"complete":false}],"skipped":0}
+{"archive":"[DIR]/LIVE/Data.p4k","out":"[DIR]/partial.json","schema_version":1,"size":687,"upload_limit":64000000,"size_warning":null,"kinds":[{"kind":"manufacturers","count":1,"skipped":0,"complete":false}],"skipped":0,"texts":[{"language":"en","available":true,"resolved":2,"unresolved":0,"placeholder":0},{"language":"de","available":true,"resolved":2,"unresolved":0,"placeholder":0}],"unresolved":0}

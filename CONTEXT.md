@@ -95,6 +95,11 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Unresolved Reference**:
+A null or dangling link that a Query path follows with `->`; it reaches null and is counted
+ once per row in the Query result, however many paths of the row meet it.
+_Avoid_: broken link, missing Reference
+
 **Query**:
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
@@ -112,6 +117,12 @@ _Avoid_: type filter, cast
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML
+
+**Localisation key**:
+The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
+resolves to one text per language in that language's `global.ini` Entry
+(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+_Avoid_: loc string, text id
 
 ### Assets
 

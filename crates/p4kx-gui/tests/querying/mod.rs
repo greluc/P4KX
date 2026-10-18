@@ -99,3 +99,36 @@ pub(crate) fn archive(dir: &Path, forge: &DataForgeBuilder) -> Result<PathBuf, B
         .write_to(&path)?;
     Ok(path)
 }
+
+/// The Query with `->` that the `referencing` tests run.
+pub(crate) const REFERENCING: &str = "from Ship select name, maker->name, escorts[*]->name";
+
+/// Ships with a Reference to their maker and References to escorts, one of them dangling, and a
+/// Ship without a maker.
+pub(crate) fn referencing() -> DataForgeBuilder {
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Maker").field("name", TestType::String))
+        .structure(
+            TestStruct::new("Ship")
+                .field("name", TestType::String)
+                .field("maker", TestType::ReferenceTo("Maker".to_owned()))
+                .array("escorts", TestType::ReferenceTo("Ship".to_owned())),
+        )
+        .record(
+            TestRecord::new(10, "Maker", "Maker.Aegis", "libs/makers/aegis.xml")
+                .value("name", TestValue::text("Aegis")),
+        )
+        .record(
+            TestRecord::new(1, "Ship", "Ship.Alpha", "libs/ships/alpha.xml")
+                .value("name", TestValue::text("Alpha"))
+                .value("maker", TestValue::Reference(10))
+                .value(
+                    "escorts",
+                    TestValue::Array(vec![TestValue::Reference(2), TestValue::Reference(99)]),
+                ),
+        )
+        .record(
+            TestRecord::new(2, "Ship", "Ship.Beta", "libs/ships/beta.xml")
+                .value("name", TestValue::text("Beta")),
+        )
+}

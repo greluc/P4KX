@@ -82,8 +82,8 @@ fn name(random: &mut Random) -> String {
     }
 }
 
-/// Writes a random path of up to four segments: dotted fields, indices, `[*]` and types, with
-/// random whitespace around the brackets and dots.
+/// Writes a random path of up to four segments: dotted fields, `->` fields, indices, `[*]` and
+/// types, with random whitespace around the arrows, brackets and dots.
 fn path(random: &mut Random) -> String {
     let mut text = name(random);
     for _ in 0..random.below(5) {
@@ -93,9 +93,9 @@ fn path(random: &mut Random) -> String {
             ""
         };
         text.push_str(gap);
-        let inner = match random.below(4) {
-            0 => {
-                text.push('.');
+        let inner = match random.below(5) {
+            0 | 4 => {
+                text.push_str(if random.chance(50) { "." } else { "->" });
                 text.push_str(gap);
                 text.push_str(&name(random));
                 continue;
@@ -206,6 +206,7 @@ fn segments(path: &Path) -> String {
         Segment::Index { index, .. } => format!("index {index}"),
         Segment::All(_) => "all".to_owned(),
         Segment::Type { name, .. } => format!("type {}", name.as_str()),
+        Segment::Follow { name, .. } => format!("follow {}", name.as_str()),
         _ => "?".to_owned(),
     }));
     parts.join(" ")

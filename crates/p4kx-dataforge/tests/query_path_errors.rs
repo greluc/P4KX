@@ -104,8 +104,8 @@ fn a_segment_that_does_not_fit_the_value_is_marked() -> TestResult {
         ),
         (
             "from Ship select links[0].name",
-            "field `links[0]` of `Ship` holds a Reference, so a path cannot reach its field \
-             `name`",
+            "field `links[0]` of `Ship` holds a Reference; follow it with `->name` to reach the \
+             field `name` of what it links to",
             "name",
         ),
         (

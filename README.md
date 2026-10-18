@@ -39,6 +39,10 @@ Early development (milestone M1). Available today:
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
+- `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
+  `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
+  structs and enums. DataForge version 6 is read; any other version is reported as not supported,
+  and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -82,6 +86,7 @@ Early development (milestone M1). Available today:
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, or `--json` without `--out` for `cryxml` |
 | 3 | The Archive or the input file cannot be read: missing, not an Archive, not CryXml or corrupt; a missing texture file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
+| 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 

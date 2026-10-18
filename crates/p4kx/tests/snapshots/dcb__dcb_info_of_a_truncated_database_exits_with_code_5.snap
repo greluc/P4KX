@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb.rs
+expression: stderr
+---
+error: the DataForge is truncated in its enum table: unexpected end of data at offset 192: needed 16 bytes, 8 left

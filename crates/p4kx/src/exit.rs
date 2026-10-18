@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 use p4kx_extraction::cryxml::CryXmlError;
-use p4kx_extraction::{ArchiveError, UnknownEntries};
+use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownEntries};
 
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
@@ -22,6 +22,8 @@ pub(crate) const INVALID_INPUT: u8 = 2;
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
 /// The Archive changed on disk after it was opened, so the Extraction stopped.
 pub(crate) const ARCHIVE_CHANGED: u8 = 4;
+/// The Archive holds no DataForge, or its DataForge has an unknown version or is corrupt.
+pub(crate) const DATAFORGE_ERROR: u8 = 5;
 /// A Comparison ran, but its report or its output cannot be written.
 pub(crate) const COMPARISON_FAILED: u8 = 6;
 /// A second Ctrl+C ended an Extraction without waiting for it to stop.
@@ -41,6 +43,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      corrupt; a missing texture file is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
+  5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
+     is corrupt
   6  compare: the report or the output cannot be written
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 
@@ -58,12 +62,19 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
+    let dataforge = error.downcast_ref::<DataForgeLoadError>();
     if error.downcast_ref::<ArchiveError>().is_some()
         || texture::is_archive_error(error)
         || error.downcast_ref::<CryXmlError>().is_some()
         || error.downcast_ref::<UnreadableInput>().is_some()
+        || matches!(
+            dataforge,
+            Some(DataForgeLoadError::Archive(_) | DataForgeLoadError::Read { .. })
+        )
     {
         ARCHIVE_ERROR
+    } else if dataforge.is_some() || error.downcast_ref::<DataForgeError>().is_some() {
+        DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()
         || error.downcast_ref::<NoMatch>().is_some()

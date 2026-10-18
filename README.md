@@ -77,6 +77,11 @@ Early development (milestone M1). Available today:
   writes RFC 4180 CSV with a header row and `--format json` (or `--json`) one line of JSON, an
   array of objects keyed by column with typed values; `--out <file>` writes the result to a file
   instead of stdout and prints a summary.
+- `p4kx entity loadout <archive> <entity>` prints the default Loadout tree of an Entity named by
+  class name (`AEGS_Avenger_Titan`), GUID or record path: every port with the Entity attached to
+  it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
+  resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
+  the shape described in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -137,14 +142,16 @@ Early development (milestone M1). Available today:
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
   Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
-  PTADPCM WEM as a 16-bit WAV file. Both also take a WEM file on disk instead of an Archive and an
-  Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are detected;
-  converting any other codec fails with an error naming it, and a corrupt or truncated WEM fails
-  with the reason.
+  PTADPCM WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
+  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
+  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
+  the console codecs are detected; a conversion the codec does not support yet fails with an
+  error naming it, and a corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
-  `<id>.wem`, or with `--format wav` converted to WAV. Both also take a soundbank file on disk. A
-  corrupt soundbank fails with an error naming the section.
+  `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
+  Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
+  section.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -208,3 +215,7 @@ removed afterwards.
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT licence](LICENSE-MIT) at your option.
+
+The Vorbis codebook libraries embedded in `p4kx-audio` come from
+[ww2ogg](https://github.com/hcs64/ww2ogg) and are licensed under the BSD 3-Clause licence; see
+[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with every Release.

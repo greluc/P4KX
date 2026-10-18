@@ -157,7 +157,19 @@ angesprungene Hunk trägt den aktiven Balken links (3 `color-primary`) wie die a
 Lange Zeilen werden je Seite abgeschnitten und laufen mit einer gemeinsamen horizontalen
 Scrollleiste. Binäre und zu große Einträge zeigen statt des Vergleichs den Hinweis im Panel-Körper.
 
-**D.13 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
+**D.13 Änderungen einer Seite extrahieren: zwei Ghost-Aktionen in der Listen-Toolbar.** „Alt
+extrahieren (n) …" und „Neu extrahieren (n) …" stehen links neben der Anzahl und „Bericht
+speichern …", als Ghost wie dieses, weil „Vergleichen" die eine CTA des Tabs bleibt (D.7, D.10).
+Die Zahl nennt, was extrahiert würde: für Neu die hinzugefügten und geänderten Einträge, für Alt
+die geänderten, beide nach dem aktuellen Filter; entfernte Einträge nie. Während ein Filter
+läuft, eine Extraktion läuft oder die Zahl 0 ist, sind sie gesperrt (D.3). Lassen sie dem
+Suchfeld weniger als seine Basisbreite 260, brechen sie in eine eigene, rechtsbündige Zeile der
+Toolbar um. Sie öffnen den vorhandenen Dialog „Einträge extrahieren"; statt der Bereichswahl steht
+dort der Bereich als Text, darunter in `color-gray-2-text` der Filter, der ihn einschränkt.
+Ziel, Konfliktregel, Umwandlung, Fortschritt, Abbrechen und Zusammenfassung sind die der
+normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Seite.
+
+**D.14 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
 Vorschau den Tab „Bild"; andere Einträge kehren zu „Text" zurück. Format, Größe, Mip-Anzahl und
 Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des Vergleichs. Die
 Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",

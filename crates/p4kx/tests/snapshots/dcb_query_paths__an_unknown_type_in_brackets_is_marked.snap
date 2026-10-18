@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "error(\"from Ship select Components[Weapn].damage\")?"
+---
+error: unknown type `Weapn`; did you mean `Weapon`?
+  from Ship select Components[Weapn].damage
+                              ^^^^^

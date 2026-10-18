@@ -9,6 +9,7 @@ mod filter_job;
 mod orders;
 mod report;
 mod run;
+mod selection;
 mod view;
 
 pub use diff::{DiffStatus, EntryDiff};
@@ -19,6 +20,7 @@ pub use report::ReportStatus;
 pub use view::{ComparisonView, DirectorySummary, Summary};
 
 use run::{Outcome, Run};
+pub(crate) use selection::{ChangeSelection, side_archive};
 
 /// One of the two Archives of a Comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "table(\"from Ship select tags[*], Components[*].name, hardpoints[*].x\")?"
+---
+record path         tags[*]        Components[*].name       hardpoints[*].x
+------------------  -------------  -----------------------  ---------------
+libs/ships/aurora   [slow]         [null, Wall]             []
+libs/ships/avenger  [fast, small]  [Laser, Bubble, Cannon]  [1, 3]
+2 Records

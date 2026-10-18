@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "table(\"from Ship select Components[Weapon].name, Components[Weapon].damage, \\\n         Components[Shield].hp\")?"
+---
+record path         Components[Weapon].name  Components[Weapon].damage  Components[Shield].hp
+------------------  -----------------------  -------------------------  ---------------------
+libs/ships/aurora   []                       []                         [10]
+libs/ships/avenger  [Laser, Cannon]          [250.5, 1200]              [900]
+2 Records

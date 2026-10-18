@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
 mod diff_text;
@@ -8,6 +9,7 @@ mod extraction_text;
 mod image_text;
 mod text_ids;
 
+pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
@@ -139,7 +141,8 @@ pub enum Text {
     PreviewStopped,
     /// Shown instead of the preview once the Archive changed on disk.
     PreviewArchiveChanged,
-    /// The notice that the open Archive changed on disk; takes `path`.
+    /// The notice that the open Archive changed on disk; takes `path` and `stopped`, `yes` when
+    /// the change stopped a running Extraction.
     ArchiveChanged,
     /// The action that opens the changed Archive again.
     ActionReload,
@@ -149,6 +152,8 @@ pub enum Text {
     Comparison(ComparisonText),
     /// A text of the DataForge node and tab.
     DataForge(DataForgeText),
+    /// A text of extracting the changes of one Comparison side.
+    ChangeExtraction(ChangeExtractionText),
     /// A text of the line diff of the Comparison tab.
     Diff(DiffText),
     /// A text of the image preview.

@@ -136,6 +136,10 @@ fn an_open_setup_closes_when_the_archive_changes() -> TestResult {
     model.check_archive();
 
     assert!(model.extraction_setup().is_none(), "the setup is closed");
+    assert!(
+        !model.change_stopped_extraction(),
+        "the notice does not claim a stopped Extraction"
+    );
     Ok(())
 }
 
@@ -172,13 +176,19 @@ fn a_change_during_an_extraction_stops_it_and_is_reported() -> TestResult {
     }
 
     small().write_to(&path)?;
+    let running = model.extraction().is_some_and(Extraction::is_running);
     model.check_archive();
+    let stopped = model.change_stopped_extraction();
     wait_until(&mut model, |model| {
         !model.extraction().is_some_and(Extraction::is_running)
     })?;
 
     assert!(summary(&model)?.archive_changed(), "the summary says why");
     assert!(model.archive_changed(), "the window offers a reload");
+    assert_eq!(
+        stopped, running,
+        "the notice says a running Extraction was stopped"
+    );
     Ok(())
 }
 

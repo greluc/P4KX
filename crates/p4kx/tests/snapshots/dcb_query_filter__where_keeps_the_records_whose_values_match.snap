@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_filter.rs
+expression: "table(\"from Weapon select name, dps where dps > 1000\")?"
+---
+record path                            name      dps
+-------------------------------------  --------  ------
+libs/foundry/records/weapons/arrow     Arrow     1250.5
+libs/foundry/records/weapons/deadbolt  Deadbolt  2400
+2 Records

@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::query::lexer::Keyword;
 use crate::query::parser::floor_char_boundary;
-use crate::query::{MAX_QUERY_LEN, Span};
+use crate::query::{MAX_QUERY_LEN, Operator, Span};
 use crate::{DataForgeError, DataType};
 
 /// A Query that cannot be parsed or compiled, with the span of the cause in the Query text.
@@ -129,6 +129,35 @@ pub enum QueryErrorKind {
         /// The name written behind it.
         next: String,
     },
+    /// Parentheses and `not` nest deeper than [`MAX_CONDITION_DEPTH`](crate::query::MAX_CONDITION_DEPTH).
+    #[error("the condition nests parentheses and `not` deeper than {limit}")]
+    ConditionTooDeep {
+        /// The deepest nesting allowed.
+        limit: usize,
+    },
+    /// A comparison whose operator cannot compare the field's values with the literal.
+    #[error(
+        "`{operator}` cannot compare field `{name}`{}, which holds {data_type} values, with {literal}",
+        Owner(.owner.as_deref())
+    )]
+    IncompatibleComparison {
+        /// The compared field.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its values.
+        data_type: DataType,
+        /// The operator.
+        operator: Operator,
+        /// What the literal is.
+        literal: LiteralKind,
+    },
+    /// A number that has no value in the compared type.
+    #[error("the number is out of the range of {0} values")]
+    NumberOutOfRange(DataType),
+    /// A string compared with a GUID field that is no GUID.
+    #[error("the string is not a GUID of the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")]
+    InvalidGuid,
     /// The schema of the DataForge cannot be read.
     #[error("the DataForge schema cannot be read: {0}")]
     DataForge(DataForgeError),
@@ -152,6 +181,20 @@ pub enum Expected {
     AfterAt,
     /// What may follow a path.
     AfterPath,
+    /// A comparison, `not` or `(` where a condition starts.
+    Condition,
+    /// A comparison operator after the path of a comparison.
+    Operator,
+    /// `with` after `starts`.
+    With,
+    /// A number, a string, `true` or `false` after a comparison operator.
+    Value,
+    /// A string after a matching operator.
+    Text,
+    /// What may follow a condition in parentheses.
+    CloseParenthesis,
+    /// What may follow the condition of `where`.
+    AfterCondition,
 }
 
 impl fmt::Display for Expected {
@@ -161,9 +204,43 @@ impl fmt::Display for Expected {
             Self::TypeName => "a type name",
             Self::Glob => "a record-path glob in double quotes",
             Self::FieldName => "a field name",
-            Self::AfterFrom => "`at`, `select` or the end of the Query",
-            Self::AfterAt => "`select` or the end of the Query",
-            Self::AfterPath => "`.`, `,` or the end of the Query",
+            Self::AfterFrom => "`at`, `select`, `where` or the end of the Query",
+            Self::AfterAt => "`select`, `where` or the end of the Query",
+            Self::AfterPath => "`.`, `,`, `where` or the end of the Query",
+            Self::Condition => "a comparison, `not` or `(`",
+            Self::Operator => {
+                "`=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `starts with` or `like`"
+            }
+            Self::With => "`with`",
+            Self::Value => "a number, a string, `true` or `false`",
+            Self::Text => "a string in double quotes",
+            Self::CloseParenthesis => "`and`, `or` or `)`",
+            Self::AfterCondition => "`and`, `or` or the end of the Query",
+        })
+    }
+}
+
+/// What the literal of a comparison is, for [`QueryErrorKind::IncompatibleComparison`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LiteralKind {
+    /// A number without fraction or exponent.
+    Integer,
+    /// A number with a fraction or an exponent.
+    Fraction,
+    /// A string.
+    Text,
+    /// `true` or `false`.
+    Bool,
+}
+
+impl fmt::Display for LiteralKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Integer => "an integer",
+            Self::Fraction => "a number with a fraction or exponent",
+            Self::Text => "a string",
+            Self::Bool => "a boolean",
         })
     }
 }
@@ -184,6 +261,10 @@ pub enum Found {
     Comma,
     /// A `.`.
     Dot,
+    /// A number.
+    Number,
+    /// An operator or a parenthesis.
+    Symbol(&'static str),
 }
 
 impl fmt::Display for Found {
@@ -195,6 +276,8 @@ impl fmt::Display for Found {
             Self::Text => f.write_str("a string"),
             Self::Comma => f.write_str("`,`"),
             Self::Dot => f.write_str("`.`"),
+            Self::Number => f.write_str("a number"),
+            Self::Symbol(symbol) => write!(f, "`{symbol}`"),
         }
     }
 }

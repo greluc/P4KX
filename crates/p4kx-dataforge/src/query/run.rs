@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use crate::build::instance;
 use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
-use crate::query::compile::{Column, Plan};
+use crate::query::compile::Plan;
 use crate::{DataForgeError, Record, Value};
 
 /// The Records a compiled Query selects, ordered by record path and then by definition order;
@@ -18,9 +18,11 @@ pub struct QueryRun<'q, 'f> {
 }
 
 impl<'f> CompiledQuery<'f> {
-    /// Selects the Records by type and record path, in parallel over every Record.
+    /// Selects the Records by type and record path and keeps those that meet the condition, in
+    /// parallel over every Record.
     ///
-    /// Records whose record path cannot be read are never selected.
+    /// Records whose record path cannot be read are never selected. A Record whose values cannot
+    /// be read to decide the condition is kept, and its row reports why.
     #[must_use]
     pub fn run(&self) -> QueryRun<'_, 'f> {
         let records = self
@@ -43,6 +45,21 @@ impl<'f> CompiledQuery<'f> {
                     .path_of(record)
                     .is_some_and(|path| pattern.matches(path))
             })
+            && self.meets_condition(record)
+    }
+
+    /// Returns whether the Record meets the condition or cannot be read to decide it.
+    fn meets_condition(&self, record: u32) -> bool {
+        let Some(predicate) = &self.predicate else {
+            return true;
+        };
+        match self.plan_of(record) {
+            Some(Plan::Read { tests, .. }) => self.instance_of(record).map_or(true, |bytes| {
+                predicate.eval(self.forge, tests, bytes) == Some(true)
+            }),
+            Some(Plan::Broken(_)) => true,
+            None => false,
+        }
     }
 
     fn plan_of(&self, record: u32) -> Option<&Plan> {
@@ -148,9 +165,14 @@ impl<'f> CompiledQuery<'f> {
         let record = self.forge.record(index)?;
         let record_path = self.forge.path_of(index)?;
         let cells = match self.plan_of(index)? {
-            _ if self.columns.is_empty() => Ok(Vec::new()),
+            _ if self.columns.is_empty() && self.predicate.is_none() => Ok(Vec::new()),
             Plan::Broken(error) => Err(error.clone()),
-            Plan::Read(columns) => self.read(index, columns),
+            Plan::Read { columns, .. } => self.instance_of(index).map(|bytes| {
+                columns
+                    .iter()
+                    .map(|column| column.as_ref()?.read(self.forge, bytes))
+                    .collect()
+            }),
         };
         Some(Row {
             record,
@@ -159,12 +181,8 @@ impl<'f> CompiledQuery<'f> {
         })
     }
 
-    /// Reads the column values straight from the Record's instance, as the Record tree would.
-    fn read(
-        &self,
-        index: u32,
-        columns: &[Option<Column>],
-    ) -> Result<Vec<Option<Value<'f>>>, DataForgeError> {
+    /// Returns the bytes of the Record's instance, which the Record tree reads its values from.
+    fn instance_of(&self, index: u32) -> Result<&'f [u8], DataForgeError> {
         let forge = self.forge;
         let def = forge
             .record_def(index)
@@ -175,15 +193,6 @@ impl<'f> CompiledQuery<'f> {
             .ok_or_else(|| {
                 out_of_range("Record", index as usize, "struct", def.struct_index.into())
             })?;
-        let bytes = instance(forge, index, def, structure)?;
-        Ok(columns
-            .iter()
-            .map(|column| {
-                let column = column.as_ref()?;
-                let start = usize::try_from(column.start).ok()?;
-                let end = usize::try_from(column.end).ok()?;
-                Some(column.slot.read(forge, bytes.get(start..end)?))
-            })
-            .collect())
+        instance(forge, index, def, structure)
     }
 }

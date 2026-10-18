@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_filter.rs
+expression: "table(\"from Weapon select name, maker \\\n         where maker > \\\"00000000-0000-0000-0000-000000000001\\\" and ammo <= 3\")?"
+---
+record path                          name    maker
+-----------------------------------  ------  ------------------------------------
+libs/foundry/records/weapons/badger  Badger  00000000-0000-0000-0000-000000000002
+libs/foundry/records/weapons/cutter  Cutter  00000000-0000-0000-0000-000000000003
+2 Records

@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_filter.rs
+expression: "error(\"from Weapon where dps 1000\")?"
+---
+error: expected `=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `starts with` or `like`, found a number
+  from Weapon where dps 1000
+                        ^^^^

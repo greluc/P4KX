@@ -108,6 +108,11 @@ _Avoid_: scene, build (a Build is a game version)
 The rooms and props of an Entity, stored in socpak containers inside the Archive.
 _Avoid_: room, level
 
+**WEM**:
+A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
+codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
+_Avoid_: audio file, sound file
+
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model

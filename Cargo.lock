@@ -2787,6 +2787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "p4kx-audio"
+version = "0.1.0"
+dependencies = [
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "p4kx-channels"
 version = "0.1.0"
 dependencies = [
@@ -2840,6 +2849,7 @@ version = "0.1.0"
 dependencies = [
  "crc32c",
  "p4kx-archive",
+ "p4kx-audio",
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-testkit",

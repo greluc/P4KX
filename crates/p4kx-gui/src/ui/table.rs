@@ -82,16 +82,20 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 }
             });
         });
-    ui.data_mut(|data| {
-        if let Some(index) = hovered_now {
-            data.insert_temp(hovered_id, index);
-        } else {
-            data.remove_temp::<usize>(hovered_id);
-        }
-    });
+    remember_hovered(ui, hovered_id, hovered_now);
     if let Some(action) = action {
         apply(ui, model, &action);
     }
+}
+
+fn remember_hovered(ui: &Ui, id: egui::Id, row: Option<usize>) {
+    ui.data_mut(|data| {
+        if let Some(index) = row {
+            data.insert_temp(id, index);
+        } else {
+            data.remove_temp::<usize>(id);
+        }
+    });
 }
 
 fn apply(ui: &Ui, model: &mut Model, action: &Action) {
@@ -176,11 +180,8 @@ fn show_row(
         cell_text(ui, &texts.get(text), colour, weight);
     });
     row.col(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.add_space(CELL_PADDING_X);
-            let size = format::size(entry.uncompressed_size(), language);
-            ui.add(Label::new(plain(size, ROW_FONT, weight).color(colour)).selectable(false));
-        });
+        let size = format::size(entry.uncompressed_size(), language);
+        size_cell(ui, size, colour, weight);
     });
     let response = row.response();
     let is_hovered = response.hovered();
@@ -194,6 +195,13 @@ fn show_row(
         action = Some(Action::Preview(id));
     }
     (action, is_hovered)
+}
+
+fn size_cell(ui: &mut Ui, size: String, colour: egui::Color32, weight: Weight) {
+    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        ui.add_space(CELL_PADDING_X);
+        ui.add(Label::new(plain(size, ROW_FONT, weight).color(colour)).selectable(false));
+    });
 }
 
 fn cell_text(ui: &mut Ui, text: &str, colour: egui::Color32, weight: Weight) {

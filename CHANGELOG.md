@@ -11,6 +11,12 @@ fails while its section is missing.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 
+### Changed
+
+- The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
+  tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
+  icon and header mark, an empty state with an "Open Archive" action.
+
 ## [0.1.0]
 
 The first Release: open, browse and extract Star Citizen Archives.

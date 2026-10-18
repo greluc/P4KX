@@ -1,0 +1,7 @@
+/target/
+*.p4k
+/out/
+.idea/
+*.iml
+.vscode/
+.claude/settings.local.json

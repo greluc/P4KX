@@ -18,6 +18,18 @@ impl Model {
         self.extraction_folder = folder;
     }
 
+    /// Returns whether the last Extraction converted `CryXml` Entries, the switch a new setup
+    /// starts with.
+    #[must_use]
+    pub const fn extraction_conversion(&self) -> bool {
+        self.extraction_conversion
+    }
+
+    /// Replaces the Conversion switch an Extraction setup starts with.
+    pub const fn set_extraction_conversion(&mut self, convert: bool) {
+        self.extraction_conversion = convert;
+    }
+
     /// Opens the Extraction setup for `scope`, unless no Archive is open, it changed on disk or
     /// an Extraction runs; a finished Extraction is dismissed.
     pub fn begin_extraction(&mut self, scope: ExtractionScope) {
@@ -28,7 +40,11 @@ impl Model {
             return;
         }
         self.extraction = None;
-        self.extraction_setup = Some(ExtractionSetup::new(scope, self.extraction_folder.clone()));
+        self.extraction_setup = Some(ExtractionSetup::new(
+            scope,
+            self.extraction_folder.clone(),
+            self.extraction_conversion,
+        ));
     }
 
     /// Returns the open Extraction setup, or `None` when none is open.
@@ -92,6 +108,7 @@ impl Model {
             return false;
         };
         self.extraction_folder = Some(request.folder.clone());
+        self.extraction_conversion = request.convert;
         self.extraction = Some(start(browser.shared_index(), request, wake));
         self.extraction_setup = None;
         true

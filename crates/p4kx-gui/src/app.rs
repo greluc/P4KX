@@ -146,6 +146,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.window = window;
     settings.recent = model.recent().clone();
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
+    settings.extraction_conversion = model.extraction_conversion();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }
@@ -219,6 +220,17 @@ mod tests {
         remember(&mut settings, &model, false, None);
 
         assert!(settings.update_check, "switched on");
+    }
+
+    #[test]
+    fn the_conversion_switch_is_stored() {
+        let mut model = Model::new(Language::German);
+        model.set_extraction_conversion(true);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert!(settings.extraction_conversion, "switched on");
     }
 
     #[test]

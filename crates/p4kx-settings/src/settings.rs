@@ -19,6 +19,8 @@ pub struct Settings {
     /// The folder last chosen for an Extraction, or `None` before the first one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extraction_folder: Option<PathBuf>,
+    /// Whether an Extraction converts `CryXml` Entries to XML; off until the user switches it on.
+    pub extraction_conversion: bool,
     /// Whether the GUI asks GitHub for a newer Release at start; off until the user switches it on.
     pub update_check: bool,
     /// The recently opened Archives.

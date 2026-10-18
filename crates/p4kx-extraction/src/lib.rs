@@ -1,7 +1,9 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge and texture APIs
 //! front-ends use.
 
+mod buffers;
 mod conversion_error;
+mod convert;
 mod dataforge;
 mod entry_path;
 mod extract;

@@ -3,7 +3,8 @@ use std::sync::OnceLock;
 use p4kx_foundation::ByteReader;
 
 use crate::header::Header;
-use crate::rows::{DataMapping, EnumDef, NO_PARENT, OptionName, PropertyDef, RecordDef, StructDef};
+use crate::record_table::RecordTable;
+use crate::rows::{DataMapping, EnumDef, NO_PARENT, OptionName, PropertyDef, StructDef};
 use crate::strings::StringTable;
 use crate::table::{Table, take};
 use crate::{DataForgeError, ValueKind};
@@ -19,7 +20,7 @@ pub struct DataForge<'a> {
     pub(crate) properties: Table<'a, PropertyDef>,
     pub(crate) enums: Table<'a, EnumDef>,
     pub(crate) mappings: Table<'a, DataMapping>,
-    pub(crate) records: Table<'a, RecordDef>,
+    pub(crate) records: RecordTable<'a>,
     pub(crate) values: [&'a [u8]; ValueKind::COUNT],
     pub(crate) options: Table<'a, OptionName>,
     pub(crate) text: StringTable<'a>,
@@ -36,7 +37,7 @@ impl<'a> DataForge<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`DataForgeError::UnsupportedVersion`] for any version but 6, and another
+    /// Returns [`DataForgeError::UnsupportedVersion`] for any version but 6 and 8, and another
     /// [`DataForgeError`] when a table is truncated, a row refers to a row that does not exist or
     /// the instance data does not end the input.
     pub fn open(bytes: &'a [u8]) -> Result<Self, DataForgeError> {
@@ -46,7 +47,7 @@ impl<'a> DataForge<'a> {
         let properties = Table::read(&mut reader, header.properties, "property table")?;
         let enums = Table::read(&mut reader, header.enums, "enum table")?;
         let mappings = Table::read(&mut reader, header.mappings, "data mapping table")?;
-        let records = Table::read(&mut reader, header.records, "Record table")?;
+        let records = RecordTable::read(&mut reader, header.records, header.record_layout)?;
         let mut values: [&[u8]; ValueKind::COUNT] = [&[]; ValueKind::COUNT];
         for kind in ValueKind::ALL {
             let count = header.values.get(kind.index()).copied().unwrap_or_default();

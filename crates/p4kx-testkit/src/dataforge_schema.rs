@@ -142,6 +142,7 @@ pub struct TestRecord {
     pub(crate) type_name: String,
     pub(crate) name: String,
     pub(crate) file_name: String,
+    pub(crate) tag: String,
     pub(crate) values: Vec<(String, TestValue)>,
 }
 
@@ -163,8 +164,17 @@ impl TestRecord {
             type_name: type_name.into(),
             name: name.into(),
             file_name: file_name.into(),
+            tag: String::new(),
             values: Vec::new(),
         }
+    }
+
+    /// Sets the tag a version 8 database stores with the Record, e.g. `SystemsDesign`; it is
+    /// empty by default and not written in the version 6 layout.
+    #[must_use]
+    pub fn tag(mut self, tag: impl Into<String>) -> Self {
+        self.tag = tag.into();
+        self
     }
 
     /// Sets the field `name` of the Record's instance to `value`; fields not set stay zero.

@@ -46,6 +46,16 @@ impl<'f> Record<'f> {
         self.forge.text.get(self.def.file_name).map(strip_xml)
     }
 
+    /// Returns the Record tag version 8 stores with every Record, e.g. `SystemsDesign`, or `None` for
+    /// version 6, which has no tags.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DataForgeError::InvalidString`] when the tag offset is not a valid string.
+    pub fn tag(&self) -> Result<Option<&'f str>, DataForgeError> {
+        self.def.tag.map(|tag| self.forge.blob.get(tag)).transpose()
+    }
+
     /// Returns the struct the Record is an instance of.
     ///
     /// # Errors

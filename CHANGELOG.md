@@ -10,12 +10,17 @@ fails while its section is missing.
 
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
+- `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
+  decoders and write it as an 8-bit PNG; the largest mip by default, another with `--mip`.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
+- `p4kx dcb info`: the version and the number of Records, structs and enums of the DataForge
+  (`Data\Game2.dcb`, falling back to `Data\Game.dcb`); versions 6 and 8 are read, so it works on
+  every current Channel, and any other version is reported as not supported.
 
 ## [0.1.0]
 

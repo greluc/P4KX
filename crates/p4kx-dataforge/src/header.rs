@@ -1,9 +1,10 @@
 use p4kx_foundation::{ByteReader, ParseError};
 
+use crate::record_table::RecordLayout;
 use crate::{DataForgeError, ValueKind};
 
-/// The DataForge version this reader understands.
-pub const SUPPORTED_VERSION: u32 = 6;
+/// The DataForge versions this reader understands.
+pub const SUPPORTED_VERSIONS: [u32; 2] = [6, 8];
 
 const PART: &str = "header";
 
@@ -11,6 +12,7 @@ const PART: &str = "header";
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Header {
     pub(crate) version: u32,
+    pub(crate) record_layout: RecordLayout,
     pub(crate) structs: u32,
     pub(crate) properties: u32,
     pub(crate) enums: u32,
@@ -22,15 +24,15 @@ pub(crate) struct Header {
 }
 
 impl Header {
-    /// Reads the header and rejects every version but [`SUPPORTED_VERSION`].
+    /// Reads the header and rejects every version but the [`SUPPORTED_VERSIONS`].
     pub(crate) fn read(reader: &mut ByteReader<'_>) -> Result<Self, DataForgeError> {
         let truncated = |source: ParseError| DataForgeError::Truncated { part: PART, source };
         let mut word = || reader.read_u32().map_err(truncated);
         let _reserved = word()?;
         let version = word()?;
-        if version != SUPPORTED_VERSION {
+        let Some(record_layout) = RecordLayout::for_version(version) else {
             return Err(DataForgeError::UnsupportedVersion { version });
-        }
+        };
         let _flags = [word()?, word()?];
         let [structs, properties, enums, mappings, records] =
             [word()?, word()?, word()?, word()?, word()?];
@@ -42,6 +44,7 @@ impl Header {
         }
         Ok(Self {
             version,
+            record_layout,
             structs,
             properties,
             enums,

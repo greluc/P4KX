@@ -41,8 +41,8 @@ Early development (milestone M1). Available today:
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge version 6 is read; any other version is reported as not supported,
-  and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
+  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml] [--filter <filter>] [--out <folder>] [--conflict …]`
   writes Records as Record XML ([docs/record-xml.md](docs/record-xml.md)), one file per Record:
   `<record path>.xml`, or `<record path>/<Record name>.xml` for Records that share a record path.
@@ -73,6 +73,11 @@ Early development (milestone M1). Available today:
   Archive and an Entry, with its parts next to it. Legacy and DX10 headers are read; a missing,
   truncated or oversized part is named in the error and nothing is written. Split cubemaps and
   texture arrays are not merged yet.
+- `p4kx texture png <archive> <entry> --out <file>` decodes the largest mip of a texture and
+  writes it as an 8-bit RGBA PNG; `--mip <level>` picks a smaller one, 0 being the largest. It
+  takes a header file on disk like `info` and `merge`. BC1, BC2, BC3 and the uncompressed
+  formats in use decode with pure-Rust decoders; any other format fails with a message naming it
+  and exit code 1. Cubemaps, texture arrays and volumes are not decoded yet.
 - `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
   Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
   (ignoring case and separator kind) and lists Entries as added, removed, or changed when their

@@ -202,30 +202,34 @@ fn inherited_fields_come_first() -> TestResult {
 }
 
 #[test]
-fn several_records_of_one_struct_read_their_own_instances() -> TestResult {
-    let bytes = DataForgeBuilder::new()
-        .structure(TestStruct::new("Counter").field("count", TestType::Int32))
-        .record(
-            TestRecord::new(SAMPLE, "Counter", "Counter.A", "a.xml")
-                .value("count", TestValue::Int32(1)),
-        )
-        .record(
-            TestRecord::new(OTHER, "Counter", "Counter.B", "b.xml")
-                .value("count", TestValue::Int32(2)),
-        )
-        .build();
-    let forge = DataForge::open(&bytes)?;
+fn several_records_of_one_struct_read_their_own_instances_in_v6_and_v8() -> TestResult {
+    for version in [6, 8] {
+        let bytes = DataForgeBuilder::new()
+            .version(version)
+            .structure(TestStruct::new("Counter").field("count", TestType::Int32))
+            .record(
+                TestRecord::new(SAMPLE, "Counter", "Counter.A", "a.xml")
+                    .tag("Design")
+                    .value("count", TestValue::Int32(1)),
+            )
+            .record(
+                TestRecord::new(OTHER, "Counter", "Counter.B", "b.xml")
+                    .value("count", TestValue::Int32(2)),
+            )
+            .build();
+        let forge = DataForge::open(&bytes)?;
 
-    let counts = forge
-        .records()
-        .map(|record| Ok(record.tree()?.fields().first().map(|f| f.value().clone())))
-        .collect::<Result<Vec<_>, DataForgeError>>()?;
+        let counts = forge
+            .records()
+            .map(|record| Ok(record.tree()?.fields().first().map(|f| f.value().clone())))
+            .collect::<Result<Vec<_>, DataForgeError>>()?;
 
-    assert_eq!(
-        counts,
-        [Some(Value::Int32(1)), Some(Value::Int32(2))],
-        "each Record reads its own instance"
-    );
+        assert_eq!(
+            counts,
+            [Some(Value::Int32(1)), Some(Value::Int32(2))],
+            "each Record of version {version} reads its own instance"
+        );
+    }
     Ok(())
 }
 

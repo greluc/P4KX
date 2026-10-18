@@ -4,14 +4,11 @@
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::io::{Read, Write};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::cryxml::{self, Format};
 use p4kx_extraction::{
-    Archive, ConflictPolicy, ConversionError, DataForgeEntry, DataForgeError, Entry,
-    ExtractOptions, RecordExportOptions, RecordXml, Texture, TextureError, ValueError,
-    export_records, extract,
+    Archive, ConflictPolicy, ConversionError, Entry, ExtractOptions, Texture, TextureError, extract,
 };
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
@@ -19,14 +16,16 @@ use rayon::prelude::*;
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;
 
+#[path = "real_archive/records.rs"]
+mod records;
+
 const PER_KIND: usize = 10;
 const MAX_SIZE: u64 = 4 << 20;
 const CRYXML_EXTENSIONS: [&str; 2] = [".xml", ".mtl"];
 const MAX_CRYXML_SIZE: u64 = 64 << 20;
 const TEXTURE_SAMPLE: usize = 400;
-const KNOWN_RECORD: &str = "libs/foundry/records/entities/spaceships/aegs_avenger_titan";
-const KNOWN_TYPE: &str = "EntityClassDefinition";
-const KNOWN_GUID: &str = "0079c5d5-1678-4f8c-85ba-18ca8f642af6";
+const DECODE_SAMPLE: usize = 3000;
+const PER_FORMAT: usize = 12;
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
@@ -144,139 +143,9 @@ fn extracts_a_small_subset_of_a_real_archive() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn reads_the_dataforge_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
-
-    let entry = DataForgeEntry::read(&archive)?;
-
-    assert!(
-        entry.path().eq_ignore_ascii_case("Data\\Game2.dcb"),
-        "Game2.dcb is preferred: {}",
-        entry.path()
-    );
-    match entry.open() {
-        Ok(forge) => {
-            assert!(forge.record_count() > 0, "the DataForge has Records");
-            for record in forge.records() {
-                record.name()?;
-                record.type_name()?;
-                let path = record.record_path()?;
-                assert!(
-                    forge
-                        .records_at_path(path)
-                        .any(|found| found.guid() == record.guid()),
-                    "{path} finds its Record"
-                );
-                assert!(
-                    forge.record_by_guid(record.guid()).is_some(),
-                    "{} finds its Record",
-                    record.guid()
-                );
-            }
-        }
-        Err(DataForgeError::UnsupportedVersion { version }) => {
-            assert!(version > 6, "only a newer version is rejected: {version}");
-        }
-        Err(error) => return Err(error.into()),
-    }
-    Ok(())
-}
-
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-    let errors: Mutex<HashMap<String, usize>> = Mutex::default();
-
-    let failures: Vec<String> = forge
-        .records()
-        .collect::<Vec<_>>()
-        .par_iter()
-        .map_init(RecordXml::new, |xml, record| {
-            let tree = record.tree().map_err(|error| error.to_string())?;
-            let mut out = Vec::new();
-            xml.write(&tree, &mut out)
-                .map_err(|error| error.to_string())?;
-            let text = std::str::from_utf8(&out).map_err(|error| error.to_string())?;
-            roxmltree::Document::parse(text).map_err(|error| format!("{error}: {text}"))?;
-            if let Ok(mut errors) = errors.lock() {
-                for (_, error) in tree.errors() {
-                    *errors.entry(error_kind(error)).or_default() += 1;
-                }
-            }
-            Ok::<_, String>(())
-        })
-        .filter_map(Result::err)
-        .collect();
-
-    assert!(
-        failures.is_empty(),
-        "{} of {} Records fail, e.g. {:?}",
-        failures.len(),
-        forge.record_count(),
-        failures.iter().take(10).collect::<Vec<_>>()
-    );
-    let errors = errors.into_inner().unwrap_or_default();
-    let broken: usize = errors
-        .iter()
-        .filter(|(kind, _)| !kind.starts_with("not read"))
-        .map(|(_, count)| count)
-        .sum();
-    assert_eq!(broken, 0, "error values by kind: {errors:?}");
-    Ok(())
-}
-
-fn error_kind(error: &ValueError) -> String {
-    match error {
-        ValueError::NotRead { data_type, array } => format!("not read {data_type} {array}"),
-        other => other.to_string(),
-    }
-}
-
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn exports_a_known_record_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-    let records: Vec<_> = forge.records_at_path(KNOWN_RECORD).collect();
-    let target = tempfile::tempdir()?;
-
-    let report = export_records(
-        &forge,
-        &records,
-        target.path(),
-        &RecordExportOptions::default(),
-    );
-
-    assert!(report.is_complete(), "{:?}", report.failures());
-    let xml = std::fs::read_to_string(target.path().join(format!("{KNOWN_RECORD}.xml")))?;
-    let document = roxmltree::Document::parse(&xml)?;
-    let root = document.root_element();
-    assert_eq!(root.tag_name().name(), KNOWN_TYPE, "type: {xml}");
-    assert_eq!(root.attribute("guid"), Some(KNOWN_GUID), "GUID: {xml}");
-    assert_eq!(
-        root.attribute("path"),
-        Some(KNOWN_RECORD),
-        "record path: {xml}"
-    );
-    Ok(())
-}
-
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_real_textures_merges_into_standard_dds_files() -> TestResult {
     let archive = Archive::open(real_archive_path()?)?;
-    let headers: Vec<&Entry> = archive
-        .entries()
-        .iter()
-        .filter(|entry| {
-            let path = entry.path().as_bytes();
-            path.len() > 4 && path[path.len() - 4..].eq_ignore_ascii_case(b".dds")
-        })
-        .collect();
+    let headers = dds_headers(&archive);
     let stride = (headers.len() / TEXTURE_SAMPLE).max(1);
 
     let outcomes: Vec<(String, Result<String, String>)> = headers
@@ -317,6 +186,126 @@ fn a_sample_of_real_textures_merges_into_standard_dds_files() -> TestResult {
         "several formats are sampled: {summary:?}"
     );
     Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn a_sample_of_real_textures_of_every_format_decodes_and_exports_png() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let headers = dds_headers(&archive);
+    let stride = (headers.len() / DECODE_SAMPLE).max(1);
+    let sampled: Vec<Texture<'_>> = headers
+        .par_iter()
+        .step_by(stride)
+        .filter_map(|entry| Texture::from_archive(&archive, entry.path()).ok())
+        .collect();
+    let mut per_format: HashMap<String, Vec<&Texture<'_>>> = HashMap::new();
+    for texture in &sampled {
+        let group = per_format
+            .entry(texture.header().format().to_string())
+            .or_default();
+        if group.len() < PER_FORMAT {
+            group.push(texture);
+        }
+    }
+
+    let outcomes: Vec<(String, Result<String, String>)> = per_format
+        .par_iter()
+        .flat_map(|(format, textures)| textures.par_iter().map(move |texture| (format, texture)))
+        .map(|(format, texture)| (format.clone(), decode_texture(texture)))
+        .collect();
+
+    let mut summary: HashMap<String, usize> = HashMap::new();
+    let mut failures = Vec::new();
+    for (format, outcome) in outcomes {
+        match outcome {
+            Ok(kind) => *summary.entry(format!("{format}: {kind}")).or_default() += 1,
+            Err(reason) => failures.push(format!("{format}: {reason}")),
+        }
+    }
+    let mut summary: Vec<_> = summary.into_iter().collect();
+    summary.sort();
+    writeln!(
+        std::io::stderr(),
+        "{} textures in {} formats decoded: {summary:#?}",
+        sampled.len(),
+        per_format.len()
+    )?;
+    assert!(failures.is_empty(), "decoding failed: {failures:#?}");
+    for format in ["BC1_UNORM", "BC3_UNORM", "B8G8R8A8_UNORM"] {
+        assert!(
+            summary
+                .iter()
+                .any(|(kind, _)| kind == &format!("{format}: decoded")),
+            "{format} is sampled and decodes: {summary:?}"
+        );
+    }
+
+    export_one_png_per_format(&per_format)
+}
+
+fn export_one_png_per_format(per_format: &HashMap<String, Vec<&Texture<'_>>>) -> TestResult {
+    let target = tempfile::tempdir()?;
+    for (format, textures) in per_format {
+        let Some(texture) = textures.iter().find(|texture| {
+            let header = texture.header();
+            header.format().is_decodable() && header.surfaces() == 1 && header.depth() == 1
+        }) else {
+            continue;
+        };
+        let out = target.path().join(format!("{format}.png"));
+        let report = texture.png_to_file(&out, 0)?;
+        let reader =
+            png::Decoder::new(std::io::BufReader::new(std::fs::File::open(&out)?)).read_info()?;
+        assert_eq!(
+            (reader.info().width, reader.info().height),
+            (texture.header().width(), texture.header().height()),
+            "{}: the PNG has the largest mip's size",
+            texture.name()
+        );
+        assert_eq!(report.level, 0, "the largest mip");
+    }
+    Ok(())
+}
+
+fn decode_texture(texture: &Texture<'_>) -> Result<String, String> {
+    let header = texture.header();
+    match texture.decode_mip(0) {
+        Ok(image) if (image.width(), image.height()) == (header.width(), header.height()) => {
+            Ok("decoded".to_owned())
+        }
+        Ok(image) => Err(format!(
+            "{}: decoded {} x {}, header says {} x {}",
+            texture.name(),
+            image.width(),
+            image.height(),
+            header.width(),
+            header.height()
+        )),
+        Err(ConversionError::Texture {
+            source: TextureError::UnsupportedDecode(_),
+            ..
+        }) => Ok("no decoder".to_owned()),
+        Err(ConversionError::Texture {
+            source: TextureError::UnsupportedImage { images },
+            ..
+        }) => Ok(format!("skipped: {images} images per mip")),
+        Err(error) => Err(format!("{}: {error}", texture.name())),
+    }
+}
+
+fn dds_headers(archive: &Archive) -> Vec<&Entry> {
+    archive
+        .entries()
+        .iter()
+        .filter(|entry| {
+            entry
+                .path()
+                .as_bytes()
+                .last_chunk::<4>()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case(b".dds"))
+        })
+        .collect()
 }
 
 fn merge_texture(archive: &Archive, path: &str) -> Result<String, String> {

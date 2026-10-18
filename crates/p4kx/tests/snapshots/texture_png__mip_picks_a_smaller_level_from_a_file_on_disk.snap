@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/texture_png.rs
+expression: pixel_snapshot(&out)?
+---
+4 x 2
+a551de58 9a7c9159 9a7c915c 9a7c915b
+94926b00 94926b56 9f67b859 9a7c9158

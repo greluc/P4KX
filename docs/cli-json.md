@@ -62,7 +62,7 @@ when nothing matches.
 ## `p4kx dcb info <archive> --json`
 
 ```json
-{"archive": "…", "entry": "Data\\Game2.dcb", "version": 6, "record_count": 117709,
+{"archive": "…", "entry": "Data\\Game2.dcb", "version": 8, "record_count": 117709,
  "struct_count": 6696, "enum_count": 774}
 ```
 
@@ -125,6 +125,19 @@ Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
 ```
 
 `parts` is the number of mip parts merged and `size` the size of the written DDS file.
+
+## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] --json`
+
+Also `p4kx texture png <file> --out <file> [--mip <level>] --json` for a header file on disk.
+
+```json
+{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "mip": 1, "width": 32,
+ "height": 16}
+```
+
+`mip` is the exported level, 0 being the largest and the default; `width` and `height` are the
+size of the written 8-bit RGBA PNG. A format without a decoder fails with exit code 1 and a
+message naming the format; a level the texture does not have fails with exit code 2.
 
 ## `p4kx extract … --json`
 

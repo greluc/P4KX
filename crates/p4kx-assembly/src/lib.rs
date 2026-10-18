@@ -11,6 +11,8 @@
 //! A port that cannot be resolved, such as a dangling Reference, an unknown class name or a
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
+//!
+//! [`character`] reads and writes the CHF files of Characters and their JSON form.
 
 mod entities;
 mod error;
@@ -27,6 +29,7 @@ mod xml;
 pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
+pub use p4kx_character as character;
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use resolver::LoadoutResolver;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};

@@ -4,6 +4,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
+pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
@@ -62,6 +63,9 @@ pub(crate) enum Command {
     /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     Bnk(BnkArgs),
+    /// Converts a CHF character file to JSON and back, byte-exactly.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Chf(ChfArgs),
 }
 
 /// Arguments of `p4kx cryxml`.

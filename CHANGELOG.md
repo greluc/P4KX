@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
+  character files as JSON and back. The new `p4kx-character` crate checks magic, size and
+  CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
+  item ports and material choices; an unchanged JSON gives back the original file byte for byte,
+  an edited one a new file with a correct CRC-32C. Unknown versions and CRC-32C mismatches are
+  errors that name them.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

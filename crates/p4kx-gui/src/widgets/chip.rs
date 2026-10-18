@@ -4,8 +4,8 @@ use egui::{Color32, CornerRadius, Galley, Pos2, Rect, Stroke, StrokeKind, Ui, po
 
 use super::text::{caps, line};
 use crate::theme::desktop::{
-    CHIP_DANGER_FILL, CHIP_PADDING_X, CHIP_PADDING_Y, CHIP_SUCCESS_FILL, CHIP_TRACKING,
-    CHIP_WARNING_FILL,
+    CHIP_DANGER_FILL, CHIP_INFO_FILL, CHIP_PADDING_X, CHIP_PADDING_Y, CHIP_SUCCESS_FILL,
+    CHIP_TRACKING, CHIP_WARNING_FILL,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_2XS, Weight};
@@ -19,6 +19,10 @@ pub(crate) enum Tone {
     Danger,
     /// `.chip--warning`.
     Warning,
+    /// `.chip--info`.
+    Info,
+    /// `.chip--muted`.
+    Muted,
 }
 
 /// The colours of a chip: its border, its text tint and its faint fill.
@@ -46,6 +50,16 @@ pub(crate) const fn colours(tone: Tone) -> ChipColours {
             border: palette::WARNING,
             text: palette::WARNING,
             fill: CHIP_WARNING_FILL,
+        },
+        Tone::Info => ChipColours {
+            border: palette::INFO,
+            text: palette::INFO_TEXT,
+            fill: CHIP_INFO_FILL,
+        },
+        Tone::Muted => ChipColours {
+            border: palette::GRAY_3,
+            text: palette::GRAY_2_TEXT,
+            fill: Color32::TRANSPARENT,
         },
     }
 }
@@ -95,6 +109,9 @@ mod tests {
         );
         assert_eq!(colours(Tone::Danger).text, palette::DANGER_TEXT, "danger");
         assert_eq!(colours(Tone::Warning).text, palette::WARNING, "warning");
+        assert_eq!(colours(Tone::Info).text, palette::INFO_TEXT, "info");
+        assert_eq!(colours(Tone::Muted).text, palette::GRAY_2_TEXT, "muted");
+        assert_eq!(colours(Tone::Muted).border, palette::GRAY_3, "muted border");
         assert_eq!(
             colours(Tone::Danger).border,
             palette::DANGER,

@@ -48,6 +48,12 @@ pub(crate) fn strip_xml(path: &str) -> &str {
         .map_or(path, |(stem, _)| stem)
 }
 
+/// Orders texts ignoring ASCII case.
+pub(crate) fn compare_ignoring_case(left: &str, right: &str) -> Ordering {
+    let key = |byte: u8| byte.to_ascii_lowercase();
+    left.bytes().map(key).cmp(right.bytes().map(key))
+}
+
 /// Orders record paths ignoring ASCII case and treating `\` as `/`.
 pub(crate) fn compare_paths(left: &str, right: &str) -> Ordering {
     let key = |byte: u8| {

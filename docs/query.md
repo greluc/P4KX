@@ -31,8 +31,9 @@ The result is a table of rows and columns, written as a table, CSV or JSON (see
 `record path`; then follows one column per path of `select`, in the order written, headed by the
 path as the canonical form prints it.
 
-There is one row per selected Record, ordered by record path (ignoring ASCII case, `\` and `/`
-alike) and then by the Record's position in the DataForge. Records share record paths, so a
+There is one row per selected Record, in Record order ([CONTEXT.md](../CONTEXT.md)): by record
+path ignoring ASCII case with `\` and `/` alike, then by Record name ignoring ASCII case, then by
+the Record's position in the DataForge. Records share record paths, so a
 record path can appear in several rows.
 
 Without `from`, a Record whose type has no scalar field of a selected name gives an empty cell;

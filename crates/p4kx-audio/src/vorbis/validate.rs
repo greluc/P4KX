@@ -2,7 +2,9 @@ use std::fmt::Display;
 use std::panic::{self, AssertUnwindSafe};
 
 use lewton::audio::{PreviousWindowRight, read_audio_packet_generic};
-use lewton::header::{read_header_comment, read_header_ident, read_header_setup};
+use lewton::header::{
+    IdentHeader, SetupHeader, read_header_comment, read_header_ident, read_header_setup,
+};
 
 use super::VorbisError;
 use super::packets::AudioPackets;
@@ -20,13 +22,20 @@ pub(crate) enum Fit {
     Clipped,
 }
 
-/// Decodes the rebuilt headers and the first audio packets with a standard Vorbis decoder.
+/// The rebuilt headers as the decoder parsed them.
+pub(crate) struct Decoder {
+    pub(crate) ident: IdentHeader,
+    pub(crate) setup: SetupHeader,
+}
+
+/// Decodes the rebuilt headers and the first audio packets with a standard Vorbis decoder and
+/// returns the parsed headers for decoding the rest.
 pub(crate) fn validate(
     ident: &[u8],
     comment: &[u8],
     setup: &[u8],
     audio: AudioPackets<'_>,
-) -> Result<Fit, VorbisError> {
+) -> Result<(Fit, Decoder), VorbisError> {
     panic::catch_unwind(AssertUnwindSafe(|| decode(ident, comment, setup, audio)))
         .unwrap_or_else(|_| Err(VorbisError::Rejected("the decoder failed".to_owned())))
 }
@@ -40,7 +49,7 @@ fn decode(
     comment: &[u8],
     setup: &[u8],
     mut audio: AudioPackets<'_>,
-) -> Result<Fit, VorbisError> {
+) -> Result<(Fit, Decoder), VorbisError> {
     let ident = read_header_ident(ident).map_err(|error| rejected(&error))?;
     read_header_comment(comment).map_err(|error| rejected(&error))?;
     let blocksizes = (ident.blocksize_0, ident.blocksize_1);
@@ -69,9 +78,10 @@ fn decode(
             }
         }
     }
-    Ok(if clipped * CLIPPED_SHARE > samples {
+    let fit = if clipped * CLIPPED_SHARE > samples {
         Fit::Clipped
     } else {
         Fit::Clean
-    })
+    };
+    Ok((fit, Decoder { ident, setup }))
 }

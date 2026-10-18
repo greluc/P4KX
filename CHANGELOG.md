@@ -87,6 +87,10 @@ fails while its section is missing.
 - `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
   mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
   per channel, as Wwise writes them, instead of 65.
+- `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise Vorbis WEMs to 16-bit WAV for
+  the sound's exact duration, with the codebooks the Ogg export picks; the channels keep the
+  order and speaker mask of the WEM. A sound that cannot be decoded fails with an error naming
+  the WEM and the reason.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a

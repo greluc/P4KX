@@ -45,7 +45,8 @@ pub(crate) fn source_of(parent: &Source, entry: &Entry) -> Result<Source, Format
 }
 
 /// Checks the Entries of a container of `len` bytes against the limits, leaves out folder
-/// Entries, writes their paths with backslashes and marks the checksums as the plain ZIP CRC-32 that containers store.
+/// Entries, writes their paths with backslashes and marks the checksums as the plain ZIP CRC-32
+/// that containers store.
 pub(crate) fn admit(entries: Vec<Entry>, len: u64) -> Result<Vec<Entry>, FormatError> {
     if entries.len() > MAX_CONTAINER_ENTRIES {
         return Err(FormatError::LimitExceeded(format!(
@@ -74,7 +75,7 @@ fn check_sizes(entry: &Entry) -> Result<(), FormatError> {
         && !entry.encrypted
         && entry.compressed_size != entry.uncompressed_size
     {
-        return Err(stored_sizes_differ(start(entry), entry));
+        return Err(stored_sizes_differ(entry.data.offset(), entry));
     }
     if entry.uncompressed_size > entry.compressed_size.saturating_mul(MAX_COMPRESSION_RATIO) {
         return Err(FormatError::LimitExceeded(format!(
@@ -89,7 +90,7 @@ fn check_sizes(entry: &Entry) -> Result<(), FormatError> {
 fn check_disjoint(entries: &[Entry], len: u64) -> Result<(), FormatError> {
     let mut ranges: Vec<(u64, u64)> = entries
         .iter()
-        .map(|entry| (start(entry), min_stored_len(entry)))
+        .map(|entry| (entry.data.offset(), min_stored_len(entry)))
         .collect();
     ranges.sort_unstable();
     let mut free_from = 0_u64;
@@ -106,12 +107,6 @@ fn check_disjoint(entries: &[Entry], len: u64) -> Result<(), FormatError> {
             .ok_or_else(|| FormatError::corrupt(start, "Entry data lies outside the file"))?;
     }
     Ok(())
-}
-
-const fn start(entry: &Entry) -> u64 {
-    match entry.data {
-        DataStart::LocalHeader(offset) | DataStart::Direct(offset) => offset,
-    }
 }
 
 const fn min_stored_len(entry: &Entry) -> u64 {

@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 
+use p4kx_archive::Checksum;
 use p4kx_texture::{Mip, TextureError, read_mip, write_exr, write_png};
 
 use crate::buffers::Buffers;
@@ -8,8 +9,6 @@ use crate::texture_convert::{Source, Step};
 use crate::texture_outputs::step_of;
 use crate::texture_siblings::Replay;
 use crate::write::{Chunk, Destination, EntryWriter, Outcome, create_temporary, write_error};
-use p4kx_archive::Checksum;
-
 use crate::{CUBE_FACE_NAMES, ConflictPolicy, ExtractionError, Texture};
 
 const CUBE_FACES: u32 = 6;

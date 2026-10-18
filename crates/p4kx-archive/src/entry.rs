@@ -9,6 +9,15 @@ pub(crate) enum DataStart {
     Direct(u64),
 }
 
+impl DataStart {
+    /// Returns the offset of the local header or of the data.
+    pub(crate) const fn offset(self) -> u64 {
+        match self {
+            Self::LocalHeader(offset) | Self::Direct(offset) => offset,
+        }
+    }
+}
+
 /// One file inside an Archive, as described by the central directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {

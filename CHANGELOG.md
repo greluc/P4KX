@@ -119,11 +119,6 @@ The first Release: open, browse and extract Star Citizen Archives.
 
 ### Added
 
-- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
-  socpak containers, also nested ones, are read from the Archive without extracting them first,
-  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
-  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
-  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
 - Reading Archive layouts v1 and v2: ZIP64 central directory, Store, Deflate and Zstandard
   Entries, AES-128-CBC encrypted Entries.
 - Detection of the installed Channels and the Build of each, plus manually added folders and

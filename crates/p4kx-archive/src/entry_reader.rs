@@ -81,9 +81,7 @@ pub(crate) fn data_offset(source: &Source, entry: &Entry) -> Result<u64, FormatE
 pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
     let data_offset = data_offset(source, entry)?;
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
-        let offset = match entry.data {
-            DataStart::LocalHeader(offset) | DataStart::Direct(offset) => offset,
-        };
+        let offset = entry.data.offset();
         return Err(FormatError::corrupt(
             offset,
             "encrypted Entry data is not a whole number of AES blocks",

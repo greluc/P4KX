@@ -329,3 +329,21 @@ fn records_are_searched_again_after_a_reload() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_change_on_disk_ends_the_search() -> TestResult {
+    let (dir, mut model) = opened(database().build())?;
+    search(&mut model, "ammo")?;
+
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\Libs\\config.xml", "changed"))
+        .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()))
+        .write_to(dir.path().join("Data.p4k"))?;
+    model.check_archive();
+
+    let browser = model.browser().ok_or("no Archive")?;
+    assert!(browser.record_matches().is_none(), "no matches");
+    assert!(browser.record_search_text().is_empty(), "no text");
+    assert!(!browser.is_searching_records(), "nothing runs");
+    Ok(())
+}

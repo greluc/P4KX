@@ -29,21 +29,19 @@ impl RecordTree {
         let Some(node) = self.record_node(id) else {
             return false;
         };
-        let mut above = self
-            .shared_index()
-            .and_then(|index| index.nodes.get(node.0 as usize))
-            .and_then(|node| node.parent);
+        let mut above = self.parent_of(node);
         while let Some(parent) = above {
             self.expanded.insert(parent);
-            above = self
-                .shared_index()
-                .and_then(|index| index.nodes.get(parent.0 as usize))
-                .and_then(|node| node.parent);
+            above = self.parent_of(parent);
         }
         self.selected = Some(node);
         self.scroll_to = Some(node);
         self.refresh_rows();
         true
+    }
+
+    fn parent_of(&self, node: RecordNodeId) -> Option<RecordNodeId> {
+        self.shared_index()?.nodes.get(node.0 as usize)?.parent
     }
 
     /// Takes the row the tree was asked to scroll to, counted from the DataForge node.

@@ -6,6 +6,7 @@ use egui::{
     WidgetInfo, pos2, vec2,
 };
 
+use super::dataforge_summary::COLUMNS;
 use super::record_tree::status_code;
 use super::search::eyebrow;
 use crate::texts::RecordSearchText;
@@ -16,17 +17,9 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
 use crate::widgets::text::{caps, line, paint_left, plain};
-use crate::{
-    Browser, DataForgeText, Language, RecordId, RecordInfo, RecordNodeKind, RecordTree, Text, Texts,
-};
+use crate::{Browser, Language, RecordId, RecordInfo, RecordNodeKind, RecordTree, Texts};
 
 const MAX_CACHED: usize = 4096;
-
-const COLUMNS: [Text; 3] = [
-    Text::ColumnName,
-    Text::DataForge(DataForgeText::ColumnType),
-    Text::DataForge(DataForgeText::ColumnRecordPath),
-];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Key {

@@ -33,9 +33,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     ui.spacing_mut().item_spacing.y = 0.0;
     let mut area = ScrollArea::vertical().auto_shrink(false);
     if let Some(row) = scroll {
-        let rows = u16::try_from(row).map_or(f32::MAX, f32::from);
+        let top = u32::try_from(row).map_or(f64::MAX, f64::from) * f64::from(ROW_HEIGHT);
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a scroll offset needs no more than f32 precision"
+        )]
+        let top = top as f32;
         let above = (ui.available_height() - ROW_HEIGHT).max(0.0) / 2.0;
-        area = area.vertical_scroll_offset(rows.mul_add(ROW_HEIGHT, -above).max(0.0));
+        area = area.vertical_scroll_offset((top - above).max(0.0));
     }
     area.show_rows(
         ui,

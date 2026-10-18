@@ -2,6 +2,7 @@ use egui::{Align, Frame, Label, Layout, Margin, Sense, Ui, Vec2, vec2};
 use fluent_bundle::FluentValue;
 
 use super::dataforge_summary::message;
+use super::extraction;
 use super::record_results::{self, Laid, Note};
 use super::search::field;
 use crate::texts::RecordSearchText;
@@ -15,19 +16,24 @@ use crate::{
     format,
 };
 
-/// Shows the Record search in the list panel: the toolbar with the search field, then the
-/// matching Records.
+/// Shows the Record search in the list panel: the toolbar with the search field and the
+/// Extraction actions, then the matching Records.
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
+    let Some(laid) = model
+        .browser()
+        .and_then(|browser| Some((browser, browser.records()?)))
+        .map(|(browser, tree)| Laid::get(ui, model.texts(), browser, tree))
+    else {
+        return;
+    };
+    let changed = toolbar(ui, model, &laid);
     let Some(browser) = model.browser() else {
         return;
     };
     let Some(tree) = browser.records() else {
         return;
     };
-    let texts = model.texts();
-    let laid = Laid::get(ui, texts, browser, tree);
-    let changed = toolbar(ui, texts, browser, &laid);
-    let picked = body(ui, texts, browser, tree, &laid);
+    let picked = body(ui, model.texts(), browser, tree, &laid);
     let ctx = ui.ctx().clone();
     if picked.is_some() {
         model.set_preview_tab(PreviewTab::DataForge);
@@ -43,7 +49,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-fn toolbar(ui: &mut Ui, texts: &Texts, browser: &Browser, laid: &Laid) -> Option<String> {
+fn toolbar(ui: &mut Ui, model: &mut Model, laid: &Laid) -> Option<String> {
     let mut changed = None;
     let toolbar = Frame::NONE
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
@@ -53,7 +59,11 @@ fn toolbar(ui: &mut Ui, texts: &Texts, browser: &Browser, laid: &Laid) -> Option
                 let label = laid.show_label(ui);
                 let hint = laid.hint();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    progress(ui, texts, browser, laid);
+                    extraction::actions(ui, model);
+                    let Some(browser) = model.browser() else {
+                        return;
+                    };
+                    progress(ui, model.texts(), browser, laid);
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                         laid.edit(browser.record_search_text(), |text| {
                             if field(ui, text, &hint, label.id) {
@@ -67,7 +77,6 @@ fn toolbar(ui: &mut Ui, texts: &Texts, browser: &Browser, laid: &Laid) -> Option
     hairline_below(ui, toolbar.response.rect);
     changed
 }
-
 fn progress(ui: &mut Ui, texts: &Texts, browser: &Browser, laid: &Laid) {
     let searching = browser.is_searching_records();
     let matches = browser.record_matches();

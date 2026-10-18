@@ -91,6 +91,12 @@ impl RecordSearch {
         }
     }
 
+    /// Ends the search and forgets its text and matches.
+    pub(crate) fn clear(&mut self) {
+        self.text.clear();
+        self.stop();
+    }
+
     /// Ends the search and forgets its matches, keeping the text.
     pub(crate) fn stop(&mut self) {
         self.pending = None;

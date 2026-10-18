@@ -99,7 +99,7 @@ impl Browser {
     /// folder.
     pub(crate) fn take_tree_scroll(&mut self) -> Option<usize> {
         let row = self.records.as_mut()?.take_scroll_request()?;
-        Some(self.tree_rows().len() + row)
+        self.tree_rows().len().checked_add(row)
     }
 
     /// Takes the result of a finished Record search and starts one that waited for DataForge,
@@ -119,6 +119,6 @@ impl Browser {
         if let Some(records) = &mut self.records {
             records.archive_changed();
         }
-        self.record_search.stop();
+        self.record_search.clear();
     }
 }

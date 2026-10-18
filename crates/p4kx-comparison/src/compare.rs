@@ -3,9 +3,10 @@ use std::cmp::Ordering;
 use rayon::prelude::*;
 
 use crate::path_key::cmp_normalised;
+use crate::record_compare::compare_records;
 use crate::{
-    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress, Entry,
-    EntryChange, Side,
+    Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress,
+    DataForges, Entry, EntryChange, Side,
 };
 
 const PROGRESS_STEP: usize = 1 << 16;
@@ -15,23 +16,44 @@ const PROGRESS_STEP: usize = 1 << 16;
 /// Entries are joined by their path with ASCII case folded and `/` read as `\`; an Entry is
 /// changed when its uncompressed size or CRC-32C differs. Nothing is decompressed.
 ///
+/// Records of the `dataforges` are joined by GUID: a Record is moved when its record path
+/// differs, ignoring case and separator kind, and changed when its name, its type or the value
+/// of a field differs. Fields are joined by name and floats compared by their bits.
+///
 /// # Errors
 ///
-/// Returns [`ComparisonError::NoLevel`] when no level is selected and
-/// [`ComparisonError::Cancelled`] when the Comparison was cancelled.
+/// Returns [`ComparisonError::NoLevel`] when no level is selected,
+/// [`ComparisonError::NoDataForge`] when the Record level is selected without `dataforges`,
+/// [`ComparisonError::Record`] when a Record cannot be read and [`ComparisonError::Cancelled`]
+/// when the Comparison was cancelled.
 pub fn compare<'a>(
     old: &'a Archive,
     new: &'a Archive,
+    dataforges: Option<DataForges<'a>>,
     options: &CompareOptions<'_>,
 ) -> Result<Comparison<'a>, ComparisonError> {
     if options.levels.is_empty() {
         return Err(ComparisonError::NoLevel);
     }
+    let dataforges = match (options.levels.records, dataforges) {
+        (true, None) => return Err(ComparisonError::NoDataForge),
+        (true, forges) => forges,
+        (false, _) => None,
+    };
     check_cancel(options)?;
-    let entries = if options.levels.entries {
+    let (entries, entries_total) = if options.levels.entries {
         compare_entries(old, new, options)?
     } else {
-        Vec::new()
+        (Vec::new(), 0)
+    };
+    let progress = ComparisonProgress {
+        entries_done: entries_total,
+        entries_total,
+        ..ComparisonProgress::default()
+    };
+    let records = match dataforges {
+        Some(forges) => compare_records(forges, options, progress)?,
+        None => Vec::new(),
     };
     Ok(Comparison {
         old: Side::of(old),
@@ -39,6 +61,7 @@ pub fn compare<'a>(
         levels: options.levels,
         filter: options.filter.map(|filter| filter.as_str().to_owned()),
         entries,
+        records,
     })
 }
 
@@ -46,7 +69,7 @@ fn compare_entries<'a>(
     old: &'a Archive,
     new: &'a Archive,
     options: &CompareOptions<'_>,
-) -> Result<Vec<EntryChange<'a>>, ComparisonError> {
+) -> Result<(Vec<EntryChange<'a>>, usize), ComparisonError> {
     let (old, new) = rayon::join(
         || sorted_selection(old, options),
         || sorted_selection(new, options),
@@ -58,6 +81,7 @@ fn compare_entries<'a>(
             progress(ComparisonProgress {
                 entries_done: done,
                 entries_total: total,
+                ..ComparisonProgress::default()
             });
         }
     };
@@ -100,7 +124,7 @@ fn compare_entries<'a>(
         }
     }
     report(total);
-    Ok(changes)
+    Ok((changes, total))
 }
 
 fn sorted_selection<'a>(archive: &'a Archive, options: &CompareOptions<'_>) -> Vec<&'a Entry> {
@@ -124,7 +148,7 @@ const fn differs(old: &Entry, new: &Entry) -> bool {
     old.uncompressed_size() != new.uncompressed_size() || old.crc32c() != new.crc32c()
 }
 
-fn check_cancel(options: &CompareOptions<'_>) -> Result<(), ComparisonError> {
+pub(crate) fn check_cancel(options: &CompareOptions<'_>) -> Result<(), ComparisonError> {
     if options.cancel.is_some_and(CancelToken::is_cancelled) {
         Err(ComparisonError::Cancelled)
     } else {

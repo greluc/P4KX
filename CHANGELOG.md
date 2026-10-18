@@ -16,6 +16,9 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
+  removed, moved or changed, with each changed scalar field and its old and new value, in the
+  summary counts and the JSON report; without `--entries` or `--records` both levels run.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

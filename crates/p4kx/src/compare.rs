@@ -5,13 +5,13 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_comparison::{
-    Archive, ArchiveError, CompareOptions, Comparison, DirectoryCounts, Filter, Levels, Side,
-    compare,
+    Archive, ArchiveError, CompareOptions, Comparison, DataForges, DirectoryCounts, Filter, Levels,
+    Side, compare,
 };
 use thiserror::Error;
 
 use crate::cli::CompareArgs;
-use crate::{exit, json};
+use crate::{compare_records, exit, json};
 
 const UNKNOWN: &str = "unknown";
 const ROOT: &str = "(root)";
@@ -35,7 +35,17 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
         filter: filter.as_ref(),
         ..CompareOptions::default()
     };
-    let comparison = compare(&old, &new, &options)?;
+    let entries = if options.levels.records {
+        Some(compare_records::read_both(&old, &new)?)
+    } else {
+        None
+    };
+    let forges = entries
+        .as_ref()
+        .map(|(old, new)| compare_records::open_both(old, new))
+        .transpose()?;
+    let dataforges = forges.as_ref().map(|(old, new)| DataForges { old, new });
+    let comparison = compare(&old, &new, dataforges, &options)?;
     if let Some(path) = &args.report {
         write_report(path, &comparison).map_err(|source| ReportNotWritten {
             path: path.clone(),
@@ -60,8 +70,10 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
 }
 
 const fn levels(args: &CompareArgs) -> Levels {
-    if args.entries {
-        Levels { entries: true }
+    if args.entries || args.records {
+        Levels::NONE
+            .with_entries(args.entries)
+            .with_records(args.records)
     } else {
         Levels::ALL
     }
@@ -92,10 +104,19 @@ fn print_summary(comparison: &Comparison<'_>) -> io::Result<()> {
     write_side(&mut out, "Old", comparison.old_side())?;
     write_side(&mut out, "New", comparison.new_side())?;
     write_line(&mut out, "Filter", comparison.filter().unwrap_or("none"))?;
-    let counts = comparison.entry_counts();
-    write_line(&mut out, "Added", &counts.added.to_string())?;
-    write_line(&mut out, "Removed", &counts.removed.to_string())?;
-    write_line(&mut out, "Changed", &counts.changed.to_string())?;
+    if comparison.levels().entries {
+        let counts = comparison.entry_counts();
+        write_line(&mut out, "Added", &counts.added.to_string())?;
+        write_line(&mut out, "Removed", &counts.removed.to_string())?;
+        write_line(&mut out, "Changed", &counts.changed.to_string())?;
+    }
+    if comparison.levels().records {
+        let counts = comparison.record_counts();
+        write_line(&mut out, "Records added", &counts.added.to_string())?;
+        write_line(&mut out, "Records removed", &counts.removed.to_string())?;
+        write_line(&mut out, "Records moved", &counts.moved.to_string())?;
+        write_line(&mut out, "Records changed", &counts.changed.to_string())?;
+    }
     let directories = comparison.directory_counts();
     if !directories.is_empty() {
         writeln!(out)?;

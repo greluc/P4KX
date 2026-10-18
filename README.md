@@ -82,14 +82,19 @@ Early development (milestone M1). Available today:
   takes a header file on disk like `info` and `merge`. BC1, BC2, BC3 and the uncompressed
   formats in use decode with pure-Rust decoders; any other format fails with a message naming it
   and exit code 1. Cubemaps, texture arrays and volumes are not decoded yet.
-- `p4kx compare <old> <new> [--entries] [--filter <filter>] [--report <file>]` compares two
-  Archives, e.g. LIVE against PTU. The Entry level joins both central directories by path
-  (ignoring case and separator kind) and lists Entries as added, removed, or changed when their
-  size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. It prints both
-  sides (Channel and Build) and the counts per change kind and per top-level directory.
-  `--filter` selects Entries with the rules of `search`; `--report` writes the full Comparison as
-  JSON (see [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is
-  compared when none is given. The exit code is 0 without and 1 with differences.
+- `p4kx compare <old> <new> [--entries] [--records] [--filter <filter>] [--report <file>]`
+  compares two Archives, e.g. LIVE against PTU. The Entry level joins both central directories
+  by path (ignoring case and separator kind) and lists Entries as added, removed, or changed when
+  their size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. The Record
+  level joins the Records of both DataForges by GUID and lists them as added, removed, moved (same
+  GUID at another record path) or changed, with every changed scalar field and its old and new
+  value; enum fields show the option names, and a value that cannot be read is a change with the
+  reason. It prints both sides (Channel and Build) and the counts per change kind, for Entries
+  also per top-level directory. `--filter` selects Entries by path and Records by record path
+  with the rules of `search`; `--report` writes the full Comparison as JSON (see
+  [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is compared when
+  none is given; the Record level needs a DataForge in both Archives (exit code 5 otherwise). The
+  exit code is 0 without and 1 with differences.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

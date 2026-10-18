@@ -1,0 +1,139 @@
+---
+source: crates/p4kx/tests/compare_records.rs
+expression: report
+---
+{
+  "format_version": 1,
+  "source": {
+    "old": {
+      "archive": "LIVE/Data.p4k",
+      "channel": "LIVE",
+      "build": null
+    },
+    "new": {
+      "archive": "PTU/Data.p4k",
+      "channel": "PTU",
+      "build": null
+    }
+  },
+  "levels": [
+    "records"
+  ],
+  "filter": null,
+  "records": {
+    "counts": {
+      "added": 1,
+      "removed": 1,
+      "moved": 1,
+      "changed": 1
+    },
+    "changes": [
+      {
+        "guid": "30000000-0000-4000-8000-000000000004",
+        "change": "added",
+        "new": {
+          "record_path": "libs/ships/added",
+          "name": "Ship.Added",
+          "type": "Ship"
+        },
+        "fields": []
+      },
+      {
+        "guid": "30000000-0000-4000-8000-000000000001",
+        "change": "changed",
+        "old": {
+          "record_path": "libs/ships/avenger",
+          "name": "Ship.Avenger",
+          "type": "Ship"
+        },
+        "new": {
+          "record_path": "libs/ships/avenger",
+          "name": "Ship.Avenger",
+          "type": "Ship"
+        },
+        "fields": [
+          {
+            "path": "speed",
+            "old": {
+              "type": "int32",
+              "value": 100
+            },
+            "new": {
+              "type": "int32",
+              "value": 120
+            }
+          },
+          {
+            "path": "mass",
+            "old": {
+              "type": "single",
+              "value": 1.5
+            },
+            "new": {
+              "type": "single",
+              "value": "NaN"
+            }
+          },
+          {
+            "path": "size",
+            "old": {
+              "type": "enum",
+              "value": "Small"
+            },
+            "new": {
+              "type": "enum",
+              "value": "Large"
+            }
+          },
+          {
+            "path": "label",
+            "old": {
+              "type": "locale",
+              "value": "@ship_Name"
+            },
+            "new": {
+              "type": "error",
+              "value": "offset 4294967295 in the text table is not a valid string"
+            }
+          },
+          {
+            "path": "maker",
+            "old": {
+              "type": "guid",
+              "value": "30000000-0000-4000-8000-000000000005"
+            },
+            "new": {
+              "type": "guid",
+              "value": "30000000-0000-4000-8000-000000000002"
+            }
+          }
+        ]
+      },
+      {
+        "guid": "30000000-0000-4000-8000-000000000002",
+        "change": "removed",
+        "old": {
+          "record_path": "libs/ships/gone",
+          "name": "Ship.Gone",
+          "type": "Ship"
+        },
+        "fields": []
+      },
+      {
+        "guid": "30000000-0000-4000-8000-000000000003",
+        "change": "moved",
+        "old": {
+          "record_path": "libs/ships/old/moved",
+          "name": "Ship.Moved",
+          "type": "Ship"
+        },
+        "new": {
+          "record_path": "libs/ships/new/moved",
+          "name": "Ship.Moved",
+          "type": "Ship"
+        },
+        "fields": []
+      }
+    ]
+  }
+}

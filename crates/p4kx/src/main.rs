@@ -3,6 +3,7 @@
 mod channels;
 mod cli;
 mod compare;
+mod compare_records;
 mod cryxml;
 mod dcb;
 mod dcb_export;

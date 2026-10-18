@@ -7,6 +7,7 @@ use crate::path_key::{eq_normalised, top_level};
 /// How an Entry differs between the two sides of a Comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ChangeKind {
     /// Only the new side has the Entry.
     Added,

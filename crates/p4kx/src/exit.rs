@@ -6,19 +6,20 @@ use p4kx_extraction::{ArchiveError, DataForgeError, DataForgeLoadError, UnknownE
 
 use crate::channels::InvalidPath;
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
+use crate::dcb_export::NoRecordMatch;
 use crate::extract::NoMatch;
 use crate::texture;
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
-/// Some Entries failed or were cancelled, the target folder could not be created, or a texture
-/// cannot be read, merged, decoded or written.
+/// Some Entries or Records failed or were cancelled, the target folder could not be created, or a
+/// texture cannot be read, merged, decoded or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file that does not exist or a mip level the texture does not have,
-/// or has a Filter that matches no Entry.
+/// or has a Filter that matches no Entry or Record.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive or the input file cannot be opened or read.
 pub(crate) const ARCHIVE_ERROR: u8 = 3;
@@ -35,14 +36,14 @@ pub(crate) const INTERRUPTED: u8 = 130;
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   0  success: every requested Entry was extracted or already existed; compare: no differences,
      also for the --diff Entry
-  1  partial failure: some Entries failed or were cancelled, the target or the settings
-     cannot be written, or a texture cannot be read, merged, decoded or written, e.g. because
-     its format is not supported; compare: the Archives or the --diff Entry differ
+  1  partial failure: some Entries or Records failed or were cancelled, the target or the
+     settings cannot be written, or a texture cannot be read, merged, decoded or written, e.g.
+     because its format is not supported; compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
-     neither Archive contains), a Filter that
-     matches no Entry, a Channel path that does not exist or was never added, a texture file
-     that does not exist, a mip level the texture does not have, a merge or PNG output that is
-     one of its inputs, or --json without --out for cryxml
+     neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
+     does not exist or was never added, a texture file that does not exist, a mip level the
+     texture does not have, a merge or PNG output that is one of its inputs, or --json without
+     --out for cryxml
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml or
      corrupt, also a --diff Entry that cannot be read or holds corrupt CryXml; a missing
      texture file is 2
@@ -89,6 +90,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else if error.downcast_ref::<UnknownEntries>().is_some()
         || error.downcast_ref::<InvalidPath>().is_some()
         || error.downcast_ref::<NoMatch>().is_some()
+        || error.downcast_ref::<NoRecordMatch>().is_some()
         || texture::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
     {

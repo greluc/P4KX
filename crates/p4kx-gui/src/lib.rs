@@ -20,6 +20,7 @@ mod sort;
 mod texts;
 pub mod theme;
 pub mod ui;
+mod widgets;
 pub mod window;
 
 pub use app::App;

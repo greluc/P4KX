@@ -66,6 +66,7 @@ fn harness(library: &Path) -> Harness<'static, State> {
         ManualChannels::default(),
     ));
     Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1200.0, 800.0])
         .build_ui_state(
             |ui, (model, requests): &mut State| {

@@ -9,7 +9,9 @@ mod build_manifest;
 mod bytes;
 mod cryxml;
 mod dataforge_builder;
+mod dataforge_instances;
 mod dataforge_schema;
+mod dataforge_value;
 mod layout_v1;
 mod layout_v2;
 mod real_archive;
@@ -21,6 +23,7 @@ pub use build_manifest::write_build_manifest;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
+pub use dataforge_value::TestValue;
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

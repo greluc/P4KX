@@ -34,6 +34,7 @@ fn opened(convert: bool) -> Result<(TempDir, PathBuf, Harness<'static, Model>), 
     model.set_extraction_folder(Some(out.clone()));
     model.set_extraction_conversion(convert);
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1400.0, 900.0])
         .build_ui_state(
             |ui, model: &mut Model| {

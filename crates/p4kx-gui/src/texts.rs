@@ -76,6 +76,14 @@ pub enum Text {
     SearchHint,
     /// Shown while a file is dragged over the window.
     DropHint,
+    /// The title of the empty state before an Archive is open.
+    EmptyTitle,
+    /// The title of the empty state while a file is dragged over the window.
+    DropRelease,
+    /// The label of the quick filters.
+    QuickFilters,
+    /// The accessible name of the close icon of a dialog.
+    CloseDialog,
     /// The status bar before an Archive is opened.
     StatusEmpty,
     /// The status bar while an Archive opens; takes `path`.
@@ -128,7 +136,7 @@ pub enum Text {
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 57] = [
+    const BASE: [Self; 61] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -163,6 +171,10 @@ impl Text {
         Self::SearchLabel,
         Self::SearchHint,
         Self::DropHint,
+        Self::EmptyTitle,
+        Self::DropRelease,
+        Self::QuickFilters,
+        Self::CloseDialog,
         Self::StatusEmpty,
         Self::StatusOpening,
         Self::StatusFailed,
@@ -197,6 +209,7 @@ impl Text {
 
     /// Returns the Fluent message id.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per text")]
     pub const fn id(self) -> &'static str {
         match self {
             Self::AppTitle => "app-title",
@@ -233,6 +246,10 @@ impl Text {
             Self::SearchLabel => "search-label",
             Self::SearchHint => "search-hint",
             Self::DropHint => "drop-hint",
+            Self::EmptyTitle => "empty-title",
+            Self::DropRelease => "drop-release",
+            Self::QuickFilters => "quick-filters",
+            Self::CloseDialog => "close-dialog",
             Self::StatusEmpty => "status-empty",
             Self::StatusOpening => "status-opening",
             Self::StatusFailed => "status-failed",

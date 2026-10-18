@@ -22,6 +22,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
+png.workspace = true
 rayon.workspace = true
 roxmltree.workspace = true
 tempfile.workspace = true

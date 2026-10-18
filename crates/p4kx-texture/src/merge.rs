@@ -119,32 +119,47 @@ where
     S: SiblingReader + ?Sized,
 {
     (1..=parts)
-        .map(|index| {
-            let expected = dds
-                .mip_size(parts - index)
-                .ok_or_else(|| TextureError::UnsupportedFormat(dds.format()))?;
-            let actual = siblings
-                .part_len(index)
-                .map_err(|source| TextureError::ReadPart { index, source })?
-                .ok_or(TextureError::MissingPart { index })?;
-            match actual.cmp(&expected) {
-                std::cmp::Ordering::Less => Err(TextureError::TruncatedPart {
-                    index,
-                    expected,
-                    actual,
-                }),
-                std::cmp::Ordering::Greater => Err(TextureError::OversizedPart {
-                    index,
-                    expected,
-                    actual,
-                }),
-                std::cmp::Ordering::Equal => Ok(expected),
-            }
-        })
+        .map(|index| checked_part_len(dds, parts, index, siblings))
         .collect()
 }
 
-fn read_prefix(header: &mut impl Read, prefix: &mut [u8]) -> Result<usize, TextureError> {
+/// Returns the length of part `index` of a texture split into `parts` parts after checking that
+/// it exists and holds exactly its mip.
+pub(crate) fn checked_part_len<S>(
+    dds: &DdsHeader,
+    parts: u32,
+    index: u32,
+    siblings: &S,
+) -> Result<u64, TextureError>
+where
+    S: SiblingReader + ?Sized,
+{
+    let expected = dds
+        .mip_size(parts - index)
+        .ok_or_else(|| TextureError::UnsupportedFormat(dds.format()))?;
+    let actual = siblings
+        .part_len(index)
+        .map_err(|source| TextureError::ReadPart { index, source })?
+        .ok_or(TextureError::MissingPart { index })?;
+    match actual.cmp(&expected) {
+        std::cmp::Ordering::Less => Err(TextureError::TruncatedPart {
+            index,
+            expected,
+            actual,
+        }),
+        std::cmp::Ordering::Greater => Err(TextureError::OversizedPart {
+            index,
+            expected,
+            actual,
+        }),
+        std::cmp::Ordering::Equal => Ok(expected),
+    }
+}
+
+pub(crate) fn read_prefix(
+    header: &mut impl Read,
+    prefix: &mut [u8],
+) -> Result<usize, TextureError> {
     let mut filled = 0;
     while let Some(free) = prefix.get_mut(filled..).filter(|free| !free.is_empty()) {
         match header.read(free) {

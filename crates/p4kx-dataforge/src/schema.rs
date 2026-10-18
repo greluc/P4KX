@@ -2,7 +2,7 @@ use crate::dataforge::out_of_range;
 use crate::rows::{EnumDef, NO_PARENT, PropertyDef, StructDef};
 use crate::{DataForge, DataForgeError, DataType};
 
-const CONVERSION_ATTRIBUTE: u16 = 0;
+pub(crate) const CONVERSION_ATTRIBUTE: u16 = 0;
 
 /// A struct definition: a Record type or a type of nested values.
 #[derive(Debug, Clone, Copy)]

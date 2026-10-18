@@ -1,37 +1,59 @@
-use egui::{TextEdit, Ui};
+use egui::{Align, CornerRadius, Frame, Id, Layout, Margin, Rect, Shape, TextEdit, Ui, pos2, vec2};
 
+use super::extraction;
+use crate::theme::desktop::{
+    ICON, SEARCH_ICON_INSET, SEARCH_PADDING_LEFT, SEARCH_WIDTH, TOOLBAR_PADDING,
+};
+use crate::theme::palette;
+use crate::theme::tokens::{
+    FS_2XS, FS_BODY, GLOW_PRIMARY, TOUCH_TARGET, TRACKING_OVERLINE, Weight, font,
+};
+use crate::widgets::frames::px;
+use crate::widgets::text::{caps, hairline_below, plain};
+use crate::widgets::{indicator, tab};
 use crate::{Model, Text};
 
 /// The Filters the quick-filter chips apply.
 const QUICK_FILTERS: [&str; 5] = ["*.xml", "*.dds", "*.dcb", "Game2.dcb", "aurora"];
 
+/// Shows the toolbar of the list panel: the search field, the Extraction actions and the quick
+/// filters.
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
-    let texts = model.texts();
-    let label = texts.get(Text::SearchLabel);
-    let hint = texts.get(Text::SearchHint);
     let Some(browser) = model.browser() else {
         return;
     };
     let mut text = browser.search_text().to_owned();
+    let texts = model.texts();
+    let label = eyebrow(&texts.get(Text::SearchLabel));
+    let hint = texts.get(Text::SearchHint);
+    let filters = eyebrow(&texts.get(Text::QuickFilters));
     let mut changed = false;
-    ui.horizontal(|ui| {
-        let label = ui.label(label);
-        let field = TextEdit::singleline(&mut text)
-            .hint_text(hint)
-            .desired_width(360.0);
-        changed = ui.add(field).labelled_by(label.id).changed();
-        for chip in QUICK_FILTERS {
-            let active = text == chip;
-            if ui.selectable_label(active, chip).clicked() {
-                text = if active {
-                    String::new()
-                } else {
-                    chip.to_owned()
-                };
-                changed = true;
-            }
-        }
-    });
+    let toolbar = Frame::NONE
+        .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
+            ui.horizontal(|ui| {
+                let label = ui.label(label);
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    extraction::actions(ui, model);
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        changed |= field(ui, &mut text, &hint, label.id);
+                    });
+                });
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.label(filters);
+                let active = QUICK_FILTERS.iter().position(|chip| text == *chip);
+                if let Some(index) = tab::segments(ui, &QUICK_FILTERS, active) {
+                    text = match (active == Some(index), QUICK_FILTERS.get(index)) {
+                        (false, Some(chip)) => (*chip).to_owned(),
+                        _ => String::new(),
+                    };
+                    changed = true;
+                }
+            });
+        });
+    hairline_below(ui, toolbar.response.rect);
     if !changed {
         return;
     }
@@ -39,4 +61,40 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if let Some(browser) = model.browser_mut() {
         browser.search(&text, move || ctx.request_repaint());
     }
+}
+
+fn eyebrow(text: &str) -> egui::RichText {
+    caps(text, FS_2XS, Weight::Bold, TRACKING_OVERLINE).color(palette::GRAY_2_TEXT)
+}
+
+fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
+    let glow = ui.painter().add(Shape::Noop);
+    let edit = TextEdit::singleline(text)
+        .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())
+        .font(font(FS_BODY, Weight::Regular))
+        .margin(Margin {
+            left: px(SEARCH_PADDING_LEFT),
+            right: px(TOOLBAR_PADDING),
+            top: 0,
+            bottom: 0,
+        })
+        .min_size(vec2(SEARCH_WIDTH, TOUCH_TARGET))
+        .desired_width(ui.available_width().max(SEARCH_WIDTH))
+        .align(egui::Align2::LEFT_CENTER);
+    let response = ui.add(edit).labelled_by(label);
+    if response.has_focus() {
+        ui.painter().set(
+            glow,
+            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
+        );
+    }
+    let icon = Rect::from_min_size(
+        pos2(
+            response.rect.left() + SEARCH_ICON_INSET,
+            response.rect.center().y - ICON / 2.0,
+        ),
+        vec2(ICON, ICON),
+    );
+    indicator::search_icon(ui, icon, palette::GRAY_2_TEXT);
+    response.changed()
 }

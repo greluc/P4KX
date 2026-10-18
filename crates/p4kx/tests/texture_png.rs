@@ -26,16 +26,23 @@ fn write_archive(folder: &Path, dds: &SplitDds) -> Result<PathBuf, Box<dyn Error
     Ok(path)
 }
 
-/// Reads an 8-bit RGBA PNG and renders its pixels as one line of `RRGGBBAA` values per row.
-fn pixel_snapshot(path: &Path) -> Result<String, Box<dyn Error>> {
+/// Reads an 8-bit RGBA PNG, returning its width, height and pixels.
+fn read_rgba(path: &Path) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {
     let mut reader = png::Decoder::new(std::io::BufReader::new(File::open(path)?)).read_info()?;
     let mut pixels = vec![0; reader.output_buffer_size().unwrap_or_default()];
     let info = reader.next_frame(&mut pixels)?;
     assert_eq!(info.color_type, png::ColorType::Rgba, "RGBA");
     assert_eq!(info.bit_depth, png::BitDepth::Eight, "8 bits per channel");
-    let mut text = format!("{} x {}\n", info.width, info.height);
-    let row_len = info.width as usize * 4;
-    for row in pixels.chunks_exact(row_len).take(info.height as usize) {
+    pixels.truncate(info.buffer_size());
+    Ok((info.width, info.height, pixels))
+}
+
+/// Reads an 8-bit RGBA PNG and renders its pixels as one line of `RRGGBBAA` values per row.
+fn pixel_snapshot(path: &Path) -> Result<String, Box<dyn Error>> {
+    let (width, height, pixels) = read_rgba(path)?;
+    let mut text = format!("{width} x {height}\n");
+    let row_len = width as usize * 4;
+    for row in pixels.chunks_exact(row_len) {
         let line: Vec<String> = row
             .as_chunks::<4>()
             .0
@@ -49,6 +56,41 @@ fn pixel_snapshot(path: &Path) -> Result<String, Box<dyn Error>> {
         writeln!(text, "{}", line.join(" "))?;
     }
     Ok(text)
+}
+
+const fn block_format(dxgi_format: u32, block_bytes: u32) -> TestTextureFormat {
+    TestTextureFormat::Dx10Block {
+        dxgi_format,
+        block_bytes,
+    }
+}
+
+/// Writes a texture of one mip with `blocks` as its data to `folder`, returning its path.
+fn write_blocks(
+    folder: &Path,
+    format: TestTextureFormat,
+    (width, height): (u32, u32),
+    blocks: &[u8],
+) -> Result<PathBuf, Box<dyn Error>> {
+    let dds = SplitDds::new(format, width, height).mips(1);
+    let mut bytes = dds.header_bytes();
+    bytes.truncate(dds.header_len());
+    bytes.extend_from_slice(blocks);
+    let path = folder.join("blocks.dds");
+    std::fs::write(&path, bytes)?;
+    Ok(path)
+}
+
+fn export_file(header: &Path) -> Result<String, Box<dyn Error>> {
+    let out = header.with_extension("png");
+    p4kx()?
+        .args(["texture", "png"])
+        .arg(header)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(0);
+    pixel_snapshot(&out)
 }
 
 fn export_entry(dds: &SplitDds, mip: Option<&str>) -> Result<String, Box<dyn Error>> {
@@ -105,10 +147,72 @@ fn every_supported_format_exports_its_largest_mip() -> TestResult {
                 pixel_bytes: 2,
             },
         ),
+        ("bc4", block_format(80, 8)),
+        ("bc4_snorm", block_format(81, 8)),
+        ("bc5", block_format(83, 16)),
+        ("bc5_snorm", block_format(84, 16)),
+        ("bc7", TestTextureFormat::BC7_SRGB),
     ];
     for (name, format) in formats {
         let snapshot = export_entry(&SplitDds::new(format, 8, 8).split(2), None)?;
         insta::assert_snapshot!(format!("largest_mip_{name}"), snapshot);
+    }
+    Ok(())
+}
+
+/// One BC7 block per mode 0 to 7 and one of the reserved mode, their other bits pseudo-random.
+fn bc7_blocks_of_every_mode() -> Vec<u8> {
+    let mut state = 0x0007_8B07_u64;
+    let mut next = move || {
+        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut mixed = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        mixed = (mixed ^ (mixed >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        u128::from(mixed ^ (mixed >> 31))
+    };
+    (0..=8_u32)
+        .flat_map(|mode| {
+            let random = (next() << 64) | next();
+            let mode_bit = if mode < 8 { 1 << mode } else { 0 };
+            ((random & !((1 << (mode + 1)) - 1)) | mode_bit).to_le_bytes()
+        })
+        .collect()
+}
+
+#[test]
+fn bc7_blocks_of_every_mode_export_to_known_pixels() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = write_blocks(
+        dir.path(),
+        block_format(98, 16),
+        (36, 4),
+        &bc7_blocks_of_every_mode(),
+    )?;
+
+    insta::assert_snapshot!(export_file(&header)?);
+    Ok(())
+}
+
+#[test]
+fn a_bc5_normal_map_exports_unit_normals_in_rgb() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = SplitDds::new(block_format(83, 16), 32, 32)
+        .split(2)
+        .write_files(dir.path(), "hull_ddna.dds")?;
+    export_file(&header)?;
+
+    let (width, height, pixels) = read_rgba(&header.with_extension("png"))?;
+
+    assert_eq!((width, height), (32, 32), "the largest mip");
+    let unit = |value: u8| f32::from(value) / 127.5 - 1.0;
+    for pixel in pixels.as_chunks::<4>().0 {
+        let [x, y, z, alpha] = pixel.map(unit);
+        let planar = x.mul_add(x, y * y);
+        let length = z.mul_add(z, planar);
+        assert!(
+            (planar > 1.0 && pixel[2] == 128) || (length - 1.0).abs() < 0.03,
+            "{pixel:?} is a unit normal, Z 0 when X and Y are already longer"
+        );
+        assert!((alpha - 1.0).abs() < f32::EPSILON, "{pixel:?} is opaque");
     }
     Ok(())
 }
@@ -156,7 +260,7 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(
         dir.path(),
-        &SplitDds::new(TestTextureFormat::BC7_SRGB, 16, 16).split(1),
+        &SplitDds::new(block_format(95, 16), 16, 16).split(1),
     )?;
     let out = dir.path().join("panel_diff.png");
 
@@ -169,7 +273,7 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
         .assert()
         .code(1)
         .stderr(predicate::str::contains(
-            "decoding the texture format BC7_UNORM_SRGB is not supported",
+            "decoding the texture format BC6H_UF16 is not supported",
         ));
 
     assert!(!out.exists(), "nothing is written");

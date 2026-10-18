@@ -243,7 +243,10 @@ impl EntryWriter<'_> {
     }
 }
 
-fn create_folders(target: &Path, relative: Option<&Path>) -> Result<PathBuf, ExtractionError> {
+pub(crate) fn create_folders(
+    target: &Path,
+    relative: Option<&Path>,
+) -> Result<PathBuf, ExtractionError> {
     let mut folder = target.to_path_buf();
     for component in relative.into_iter().flat_map(Path::components) {
         folder.push(component);
@@ -286,7 +289,7 @@ pub(crate) const fn write_error(path: PathBuf, source: io::Error) -> ExtractionE
     ExtractionError::Write { path, source }
 }
 
-fn read_existing_error(path: &Path, source: io::Error) -> ExtractionError {
+pub(crate) fn read_existing_error(path: &Path, source: io::Error) -> ExtractionError {
     ExtractionError::ReadExisting {
         path: path.to_path_buf(),
         source,

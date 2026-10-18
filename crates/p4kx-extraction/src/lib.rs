@@ -38,6 +38,7 @@ pub use p4kx_audio::{
 };
 pub use p4kx_audio::{AudioError, ByteOrder, Codec, WavReport, Wem};
 pub use p4kx_cryxml as cryxml;
+pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, Property,
     RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Struct, Value, ValueError, ValueKind,

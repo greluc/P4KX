@@ -110,6 +110,19 @@ pub(crate) enum DcbCommand {
     /// folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
+    /// Runs a Query over the Records and prints the result as a table, the record path first.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Query(DcbQueryArgs),
+}
+
+/// Arguments of `p4kx dcb query`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbQueryArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The Query, defined in docs/query.md, e.g.
+    /// `from EntityClassDefinition at "*/spaceships/*" select Size`.
+    pub(crate) query: String,
 }
 
 /// Arguments of `p4kx dcb export`.

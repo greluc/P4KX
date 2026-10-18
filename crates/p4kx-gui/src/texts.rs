@@ -84,6 +84,10 @@ pub enum Text {
     QuickFilters,
     /// The accessible name of the close icon of a dialog.
     CloseDialog,
+    /// The shortcut hint of the reload entry.
+    ShortcutReload,
+    /// The shortcut hint of the entry that extracts the selected Entries.
+    ShortcutExtractSelected,
     /// The status bar before an Archive is opened.
     StatusEmpty,
     /// The status bar while an Archive opens; takes `path`.
@@ -136,7 +140,7 @@ pub enum Text {
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 61] = [
+    const BASE: [Self; 63] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -175,6 +179,8 @@ impl Text {
         Self::DropRelease,
         Self::QuickFilters,
         Self::CloseDialog,
+        Self::ShortcutReload,
+        Self::ShortcutExtractSelected,
         Self::StatusEmpty,
         Self::StatusOpening,
         Self::StatusFailed,
@@ -250,6 +256,8 @@ impl Text {
             Self::DropRelease => "drop-release",
             Self::QuickFilters => "quick-filters",
             Self::CloseDialog => "close-dialog",
+            Self::ShortcutReload => "shortcut-reload",
+            Self::ShortcutExtractSelected => "shortcut-extract-selected",
             Self::StatusEmpty => "status-empty",
             Self::StatusOpening => "status-opening",
             Self::StatusFailed => "status-failed",

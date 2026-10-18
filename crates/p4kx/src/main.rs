@@ -1,6 +1,8 @@
 //! `p4kx`, the command-line interface of P4K-Extractor.
 
 mod cli;
+mod exit;
+mod extract;
 mod list;
 
 use std::io::{self, Write};
@@ -13,14 +15,15 @@ use crate::cli::{Cli, Command};
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
-        Command::List(args) => list::run(&args),
+        Command::List(args) => list::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
+        Command::Extract(args) => extract::run(&args),
     };
     match result {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) if is_broken_pipe(&error) => ExitCode::SUCCESS,
+        Ok(code) => code,
+        Err(error) if is_broken_pipe(&error) => ExitCode::from(exit::SUCCESS),
         Err(error) => {
             let _ignored = writeln!(io::stderr().lock(), "error: {error:#}");
-            ExitCode::FAILURE
+            exit::for_error(&error)
         }
     }
 }

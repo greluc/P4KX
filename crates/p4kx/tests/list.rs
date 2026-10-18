@@ -59,7 +59,7 @@ fn list_of_a_file_that_is_not_an_archive_fails_with_a_message() -> TestResult {
         .arg("list")
         .arg(&not_archive)
         .assert()
-        .failure()
+        .code(3)
         .stderr(predicate::str::contains("is not a p4k Archive"));
     Ok(())
 }

@@ -290,6 +290,9 @@ name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "p4kx-archive",
+ "p4kx-testkit",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

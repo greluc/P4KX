@@ -13,6 +13,11 @@ layer = "service"
 
 [dependencies]
 p4kx-archive.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

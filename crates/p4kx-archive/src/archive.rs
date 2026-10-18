@@ -1,12 +1,14 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::format_error::FormatError;
 use crate::source::Source;
-use crate::{ArchiveError, Entry, central_directory, end_records};
+use crate::{ArchiveError, Entry, EntryReader, central_directory, end_records, entry_reader};
 
 /// An opened Archive with its Entries.
 #[derive(Debug)]
 pub struct Archive {
+    path: PathBuf,
+    source: Source,
     entries: Vec<Entry>,
 }
 
@@ -21,9 +23,19 @@ impl Archive {
     /// Returns an [`ArchiveError`] when the file cannot be read or is not a valid Archive.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
-        read_entries(path)
-            .map(|entries| Self { entries })
-            .map_err(|error| error.at(path))
+        let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
+        let entries = read_entries(&source).map_err(|error| error.at(path))?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            source,
+            entries,
+        })
+    }
+
+    /// Returns the path the Archive was opened from.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Returns the Entries in central-directory order.
@@ -31,11 +43,21 @@ impl Archive {
     pub fn entries(&self) -> &[Entry] {
         &self.entries
     }
+
+    /// Opens the data of `entry`, which must be one of this Archive's Entries.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::Encrypted`] or [`ArchiveError::UnsupportedCompression`] for Entries
+    /// this version cannot read yet, and another [`ArchiveError`] when the local header is
+    /// malformed or cannot be read.
+    pub fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
+        entry_reader::open(&self.source, entry).map_err(|error| error.at(&self.path))
+    }
 }
 
-fn read_entries(path: &Path) -> Result<Vec<Entry>, FormatError> {
-    let source = Source::open(path)?;
-    let location = end_records::locate_directory(&source)?;
+fn read_entries(source: &Source) -> Result<Vec<Entry>, FormatError> {
+    let location = end_records::locate_directory(source)?;
     let size = usize::try_from(location.size).map_err(|_| {
         FormatError::corrupt(
             location.offset,

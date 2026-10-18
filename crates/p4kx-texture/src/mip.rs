@@ -72,6 +72,7 @@ impl Mip {
         )
     }
 }
+
 const fn side(full: u32, level: u32) -> u32 {
     match full.checked_shr(level) {
         Some(side) if side > 0 => side,

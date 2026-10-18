@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, Texture, TextureError};
+use p4kx_extraction::{Archive, ConversionError, ExrReport, PngReport, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
@@ -33,10 +33,11 @@ struct MergeJson<'a> {
 }
 
 #[derive(Serialize)]
-struct PngJson<'a> {
+struct ImageJson<'a> {
     texture: &'a str,
     output: String,
-    format: &'a str,
+    requested: String,
+    format: ImageFormat,
     mip: u32,
     width: u32,
     height: u32,
@@ -55,7 +56,7 @@ pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
             mip,
             tone_map,
         } => with_texture(source, |texture| {
-            png(texture, out, *mip, *tone_map, as_json)
+            export_image(texture, out, *mip, *tone_map, as_json)
         }),
     }
 }
@@ -134,26 +135,51 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn png(texture: &Texture<'_>, out: &Path, mip: u32, tone_map: bool, as_json: bool) -> Result<()> {
+/// How `p4kx texture png` wrote a mip.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ImageFormat {
+    Png,
+    Exr,
+}
+
+fn export_image(
+    texture: &Texture<'_>,
+    out: &Path,
+    mip: u32,
+    tone_map: bool,
+    as_json: bool,
+) -> Result<()> {
     let format = texture.header().format();
     let high_range = format.is_high_range();
-    let (output, kind, report) = if high_range && !tone_map {
+    if tone_map && !high_range {
+        writeln!(
+            io::stderr().lock(),
+            "note: --tone-map has no effect: {format} is not a high-range format"
+        )?;
+    }
+    let (output, kind, level, width, height) = if high_range && !tone_map {
         let output = out.with_extension("exr");
         let report = texture.exr_to_file(&output, mip)?;
-        (output, "exr", (report.level, report.width, report.height))
+        let ExrReport {
+            level,
+            width,
+            height,
+        } = report;
+        (output, ImageFormat::Exr, level, width, height)
     } else {
-        let report = texture.png_to_file(out, mip)?;
-        (
-            out.to_path_buf(),
-            "png",
-            (report.level, report.width, report.height),
-        )
+        let PngReport {
+            level,
+            width,
+            height,
+        } = texture.png_to_file(out, mip)?;
+        (out.to_path_buf(), ImageFormat::Png, level, width, height)
     };
-    let (level, width, height) = report;
     if as_json {
-        json::print(&PngJson {
+        json::print(&ImageJson {
             texture: texture.name(),
             output: json::path(&output),
+            requested: json::path(out),
             format: kind,
             mip: level,
             width,
@@ -161,27 +187,28 @@ fn png(texture: &Texture<'_>, out: &Path, mip: u32, tone_map: bool, as_json: boo
         })?;
         return Ok(());
     }
-    let mut stdout = io::stdout().lock();
     let written = format!(
         "wrote mip {level} of {}, {width} x {height}",
         texture.name()
     );
-    if kind == "exr" {
-        writeln!(
-            stdout,
+    let line = match kind {
+        ImageFormat::Exr if output == out => format!(
             "{written}, as OpenEXR to {}: {format} is a high-range format; --tone-map writes an \
              8-bit PNG",
             output.display()
-        )?;
-    } else if high_range {
-        writeln!(
-            stdout,
-            "{written}, tone-mapped to 8 bits, to {}",
-            output.display()
-        )?;
-    } else {
-        writeln!(stdout, "{written}, to {}", output.display())?;
-    }
+        ),
+        ImageFormat::Exr => format!(
+            "{written}, as OpenEXR to {} instead of {}: {format} is a high-range format; \
+             --tone-map writes an 8-bit PNG",
+            output.display(),
+            out.display()
+        ),
+        ImageFormat::Png if high_range => {
+            format!("{written}, tone-mapped to 8 bits, to {}", output.display())
+        }
+        ImageFormat::Png => format!("{written}, to {}", output.display()),
+    };
+    writeln!(io::stdout().lock(), "{line}")?;
     Ok(())
 }
 

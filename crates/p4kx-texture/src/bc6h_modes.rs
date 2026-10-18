@@ -15,8 +15,7 @@ const RZ: u8 = 9;
 const GZ: u8 = 10;
 const BZ: u8 = 11;
 /// The partition number.
-pub(crate) const PARTITION: usize = 12;
-const D_FIELD: u8 = 12;
+pub(crate) const PARTITION: u8 = 12;
 /// The number of header fields: twelve endpoint channels and the partition.
 pub(crate) const FIELDS: usize = 13;
 
@@ -75,7 +74,7 @@ const fn one(endpoint_bits: u32, delta_bits: u32, runs: &'static [Run]) -> Mode 
     }
 }
 
-const D: Run = run(D_FIELD, 0, 5);
+const D: Run = run(PARTITION, 0, 5);
 
 /// Modes 1 to 14 of the D3D11 functional specification.
 #[rustfmt::skip]

@@ -57,9 +57,11 @@ impl Decoder {
         {
             return Some(decoder);
         }
-        match PixelFormat::of(format) {
-            Some(pixels) => Some(Self::Pixels(pixels)),
-            None => None,
+        match (bc6h::signedness(format), PixelFormat::of(format)) {
+            (Some(true), _) => Some(Self::Block16(bc6h::bc6h_signed_rgba8)),
+            (Some(false), _) => Some(Self::Block16(bc6h::bc6h_unsigned_rgba8)),
+            (None, Some(pixels)) => Some(Self::Pixels(pixels)),
+            (None, None) => None,
         }
     }
 
@@ -72,8 +74,6 @@ impl Decoder {
             81 => Self::Block8(rgtc::bc4_snorm),
             82 | 83 => Self::Block16(rgtc::bc5_unorm),
             84 => Self::Block16(rgtc::bc5_snorm),
-            94 | 95 => Self::Block16(bc6h::bc6h_unsigned_rgba8),
-            96 => Self::Block16(bc6h::bc6h_signed_rgba8),
             97..=99 => Self::Block16(bc7::bc7),
             _ => return None,
         })

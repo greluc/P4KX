@@ -43,13 +43,10 @@ impl TextureFormat {
 }
 
 const fn half_decoder(format: TextureFormat) -> Option<fn([u8; 16]) -> HalfTexels> {
-    match format {
-        TextureFormat::Dxgi(dxgi) => match dxgi.0 {
-            94 | 95 => Some(bc6h::bc6h_unsigned),
-            96 => Some(bc6h::bc6h_signed),
-            _ => None,
-        },
-        _ => None,
+    match bc6h::signedness(format) {
+        Some(true) => Some(bc6h::bc6h_signed),
+        Some(false) => Some(bc6h::bc6h_unsigned),
+        None => None,
     }
 }
 

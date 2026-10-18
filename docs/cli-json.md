@@ -132,14 +132,16 @@ Also `p4kx texture png <file> --out <file> [--mip <level>] [--tone-map] --json` 
 on disk.
 
 ```json
-{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "format": "png", "mip": 1,
- "width": 32, "height": 16}
+{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "requested": "…\\hull_diff.png",
+ "format": "png", "mip": 1, "width": 32, "height": 16}
 ```
 
 `mip` is the exported level, 0 being the largest and the default; `width` and `height` are the
 size of the written image. `format` is `png` for an 8-bit RGBA PNG and `exr` for an OpenEXR file
-with 32-bit float RGB, which a high-range BC6H texture is written as without `--tone-map`;
-`output` then names `<file>` with the extension `.exr`. A format without a decoder fails with exit code 1 and a
+with 32-bit float RGB, which a high-range BC6H texture is written as without `--tone-map`.
+`requested` is the `--out` file and `output` the file written: for OpenEXR, `<file>` with the
+extension `.exr`. `--tone-map` on a texture that is not high-range writes the PNG as usual and
+prints a note on stderr. A format without a decoder fails with exit code 1 and a
 message naming the format; a level the texture does not have fails with exit code 2.
 
 ## `p4kx extract … --json`

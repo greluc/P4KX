@@ -3,6 +3,7 @@ use crate::bc6h_modes::{FIELDS, Mode, PARTITION, mode_of};
 use crate::bc7_tables::{ANCHORS, SUBSETS, WEIGHTS3, WEIGHTS4};
 use crate::pixels::half_to_f32;
 use crate::tone_map::tone_map;
+use crate::{DxgiFormat, TextureFormat};
 
 /// The 16 texels of one decoded BC6H block, the half-float bits of red, green and blue, row by
 /// row.
@@ -16,6 +17,16 @@ impl Bits {
         let value = self.0 & ((1 << count) - 1);
         self.0 = self.0.checked_shr(count).unwrap_or_default();
         i32::try_from(value).unwrap_or_default()
+    }
+}
+
+/// Returns whether a BC6H format is signed, None for any other format; typeless BC6H is
+/// unsigned.
+pub(crate) const fn signedness(format: TextureFormat) -> Option<bool> {
+    match format {
+        TextureFormat::Dxgi(DxgiFormat(94 | 95)) => Some(false),
+        TextureFormat::Dxgi(DxgiFormat(96)) => Some(true),
+        _ => None,
     }
 }
 
@@ -62,7 +73,7 @@ fn bc6h(block: [u8; 16], signed: bool) -> HalfTexels {
     let endpoints = endpoints(mode, &fields, signed);
     let (subsets, anchors, index_bits, weights): (u32, u16, u32, &[u8]) = if mode.two_regions {
         let partition = fields
-            .get(PARTITION)
+            .get(usize::from(PARTITION))
             .and_then(|&number| usize::try_from(number).ok())
             .unwrap_or_default();
         let subsets = SUBSETS.get(1).and_then(|table| table.get(partition));

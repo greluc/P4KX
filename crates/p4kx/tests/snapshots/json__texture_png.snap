@@ -7,6 +7,7 @@ expression: json
   "height": 16,
   "mip": 1,
   "output": "[DIR]/hull_diff.png",
+  "requested": "[DIR]/hull_diff.png",
   "texture": "[DIR]/hull_diff.dds",
   "width": 32
 }

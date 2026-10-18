@@ -91,7 +91,8 @@ fn a_bc6h_texture_is_written_as_exr_beside_the_requested_png() -> TestResult {
         .assert()
         .code(0)
         .stdout(predicate::str::contains("as OpenEXR to"))
-        .stdout(predicate::str::contains("sky.exr"))
+        .stdout(predicate::str::contains("sky.exr instead of"))
+        .stdout(predicate::str::contains("sky.png"))
         .stdout(predicate::str::contains("BC6H_UF16 is a high-range format"));
 
     assert!(!dir.path().join("sky.png").exists(), "no PNG is written");
@@ -169,10 +170,40 @@ fn json_names_the_written_format() -> TestResult {
     let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["format"], "exr", "{json}");
     assert!(
+        json["requested"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("sky.png")),
+        "{json}"
+    );
+    assert!(
         json["output"]
             .as_str()
             .is_some_and(|path| path.ends_with("sky.exr")),
         "{json}"
     );
+    Ok(())
+}
+
+#[test]
+fn tone_map_on_a_texture_without_high_range_notes_that_it_has_no_effect() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8)
+        .mips(1)
+        .write_files(dir.path(), "panel.dds")?;
+    let out = dir.path().join("panel.png");
+
+    p4kx()?
+        .args(["texture", "png", "--tone-map"])
+        .arg(&header)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(
+            "--tone-map has no effect: BC1_UNORM is not a high-range format",
+        ))
+        .stdout(predicate::str::contains("panel.png"));
+
+    assert!(out.exists(), "the PNG is written as usual");
     Ok(())
 }

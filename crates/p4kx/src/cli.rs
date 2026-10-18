@@ -145,14 +145,15 @@ pub(crate) enum TextureAction {
         /// The texture.
         #[command(flatten)]
         source: TextureSource,
-        /// The PNG file to write; an existing file is replaced.
+        /// The PNG file to write; an existing file is replaced. A high-range texture goes to FILE
+        /// with the extension .exr instead, unless --tone-map is given.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// The mip level to export, 0 being the largest.
         #[arg(long, value_name = "LEVEL", default_value_t = 0)]
         mip: u32,
-        /// Writes a high-range texture as an 8-bit PNG too, tone-mapped: Reinhard per channel,
-        /// then sRGB.
+        /// Writes a high-range texture as an 8-bit PNG to FILE too, tone-mapped: Reinhard per
+        /// channel, then sRGB. Other textures are 8-bit already; for them it only prints a note.
         #[arg(long)]
         tone_map: bool,
     },

@@ -1,4 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive and DataForge API front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge and texture APIs
+//! front-ends use.
 
 mod conversion_error;
 mod dataforge;
@@ -21,6 +22,7 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Guid, InvalidGuid, Property, Record, Struct,
     ValueKind,

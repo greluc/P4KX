@@ -37,6 +37,9 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
+    /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
+    #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
+    CryXml(CryXmlArgs),
     /// Shows or merges a DDS texture split into a header and mip parts.
     #[command(after_help = EXIT_CODES_HELP)]
     Texture(TextureArgs),
@@ -63,6 +66,16 @@ pub(crate) enum DcbCommand {
 pub(crate) struct DcbInfoArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
+}
+
+/// Arguments of `p4kx cryxml`.
+#[derive(Debug, Args)]
+pub(crate) struct CryXmlArgs {
+    /// Path of the CryXml or text XML file.
+    pub(crate) file: PathBuf,
+    /// Writes the XML to this file instead of stdout; needed with --json.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) out: Option<PathBuf>,
 }
 
 /// Arguments of `p4kx texture`.

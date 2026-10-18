@@ -18,6 +18,7 @@ enum Action {
     Sort(SortColumn),
     CheckShown(bool),
     Check(u32, bool),
+    Preview(u32),
 }
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
@@ -60,11 +61,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 }
             });
         });
+    let ctx = ui.ctx().clone();
     if let (Some(action), Some(browser)) = (action, model.browser_mut()) {
         match action {
             Action::Sort(column) => browser.sort_by(column),
             Action::CheckShown(checked) => browser.set_all_shown_checked(checked),
             Action::Check(id, checked) => browser.set_checked(id, checked),
+            Action::Preview(id) => browser.select_entry(id, move || ctx.request_repaint()),
         }
     }
 }
@@ -83,7 +86,11 @@ fn show_row(mut row: TableRow<'_, '_>, texts: &Texts, browser: &Browser) -> Opti
         }
     });
     row.col(|ui| {
-        ui.label(name).on_hover_text(entry.path());
+        let selected = browser.selected_entry() == Some(id);
+        let response = ui.add(Button::selectable(selected, name).truncate());
+        if response.on_hover_text(entry.path()).clicked() {
+            action = Some(Action::Preview(id));
+        }
     });
     row.col(|ui| {
         ui.label(compression(texts, entry));

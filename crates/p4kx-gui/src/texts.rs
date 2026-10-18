@@ -90,11 +90,29 @@ pub enum Text {
     StatusBuild,
     /// The Build is unknown.
     StatusBuildUnknown,
+    /// The preview tab that shows text.
+    PreviewTabText,
+    /// The preview tab that shows hexadecimal bytes.
+    PreviewTabHex,
+    /// The action that copies the preview to the clipboard.
+    PreviewCopy,
+    /// Shown in the preview when no Entry is selected.
+    PreviewNone,
+    /// Shown while the Entry is read; takes `path`.
+    PreviewLoading,
+    /// Shown instead of an Entry above the size limit; takes `path`, `size` and `limit`.
+    PreviewTooLarge,
+    /// The note above a truncated preview; takes `shown` and `total`.
+    PreviewTruncated,
+    /// Shown when the Entry cannot be read; takes `path` and `reason`.
+    PreviewFailed,
+    /// Shown when reading stopped without a result; takes `path`.
+    PreviewStopped,
 }
 
 impl Text {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 43] = [
+    pub const ALL: [Self; 52] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -138,6 +156,15 @@ impl Text {
         Self::StatusSearching,
         Self::StatusBuild,
         Self::StatusBuildUnknown,
+        Self::PreviewTabText,
+        Self::PreviewTabHex,
+        Self::PreviewCopy,
+        Self::PreviewNone,
+        Self::PreviewLoading,
+        Self::PreviewTooLarge,
+        Self::PreviewTruncated,
+        Self::PreviewFailed,
+        Self::PreviewStopped,
     ];
 
     /// Returns the Fluent message id.
@@ -187,6 +214,15 @@ impl Text {
             Self::StatusSearching => "status-searching",
             Self::StatusBuild => "status-build",
             Self::StatusBuildUnknown => "status-build-unknown",
+            Self::PreviewTabText => "preview-tab-text",
+            Self::PreviewTabHex => "preview-tab-hex",
+            Self::PreviewCopy => "preview-copy",
+            Self::PreviewNone => "preview-none",
+            Self::PreviewLoading => "preview-loading",
+            Self::PreviewTooLarge => "preview-too-large",
+            Self::PreviewTruncated => "preview-truncated",
+            Self::PreviewFailed => "preview-failed",
+            Self::PreviewStopped => "preview-stopped",
         }
     }
 }

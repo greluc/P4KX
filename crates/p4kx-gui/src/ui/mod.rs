@@ -3,6 +3,7 @@
 mod channels;
 mod licence;
 mod menu;
+mod preview;
 mod search;
 mod status;
 mod table;
@@ -67,6 +68,10 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
             ui.centered_and_justified(|ui| ui.label(model.texts().get(Text::DropHint)));
         } else {
             search::show(ui, model);
+            Panel::bottom("preview")
+                .resizable(true)
+                .default_size(300.0)
+                .show(ui, |ui| preview::show(ui, model));
             table::show(ui, model);
         }
     });

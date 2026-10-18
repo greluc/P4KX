@@ -83,6 +83,13 @@ impl TestEntry {
         self
     }
 
+    /// Declares `size` as the uncompressed size in the central directory, keeping the data.
+    #[must_use]
+    pub const fn with_uncompressed_size(mut self, size: u64) -> Self {
+        self.uncompressed_size = size;
+        self
+    }
+
     /// Returns the bytes written into the Archive for this Entry.
     #[must_use]
     pub fn payload(&self) -> &[u8] {

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use p4kx_extraction::Filter;
 
 use crate::search::{self, Matches, Outcome, Pending, Started};
-use crate::{EntryIndex, FolderId, Sort, SortColumn, SortDirection};
+use crate::{EntryIndex, FolderId, Preview, Sort, SortColumn, SortDirection};
 
 /// One visible row of the path tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +32,7 @@ pub struct Browser {
     checked: Vec<bool>,
     checked_count: usize,
     shown_checked_count: usize,
+    preview: Option<Preview>,
 }
 
 impl Browser {
@@ -53,6 +54,7 @@ impl Browser {
             checked,
             checked_count: 0,
             shown_checked_count: 0,
+            preview: None,
         };
         browser.refresh_tree();
         browser.refresh_shown();
@@ -219,8 +221,34 @@ impl Browser {
         }
     }
 
-    /// Takes the result of a finished search; returns whether one finished.
+    /// Returns the Entry selected for the preview, or `None` when none is.
+    #[must_use]
+    pub fn selected_entry(&self) -> Option<u32> {
+        self.preview.as_ref().map(Preview::entry)
+    }
+
+    /// Returns the preview of the selected Entry, or `None` when none is selected.
+    #[must_use]
+    pub const fn preview(&self) -> Option<&Preview> {
+        self.preview.as_ref()
+    }
+
+    /// Selects the Entry `id` and reads its preview on a background thread, unless it is
+    /// selected already; `wake` is called from that thread once the data is ready.
+    pub fn select_entry(&mut self, id: u32, wake: impl Fn() + Send + 'static) {
+        if self.selected_entry() != Some(id) {
+            self.preview = Some(Preview::start(&self.index, id, wake));
+        }
+    }
+
+    /// Takes the result of a finished search and of a finished preview; returns whether one
+    /// finished.
     pub fn poll(&mut self) -> bool {
+        let previewed = self.preview.as_mut().is_some_and(Preview::poll);
+        self.poll_search() || previewed
+    }
+
+    fn poll_search(&mut self) -> bool {
         let Some(pending) = &self.pending else {
             return false;
         };

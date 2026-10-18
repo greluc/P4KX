@@ -1,0 +1,154 @@
+---
+source: crates/p4kx/tests/compare_nested.rs
+expression: report
+---
+{
+  "format_version": 1,
+  "source": {
+    "old": {
+      "archive": "LIVE/Data.p4k",
+      "channel": "LIVE",
+      "build": null
+    },
+    "new": {
+      "archive": "PTU/Data.p4k",
+      "channel": "PTU",
+      "build": null
+    }
+  },
+  "levels": [
+    "records"
+  ],
+  "filter": null,
+  "records": {
+    "counts": {
+      "added": 0,
+      "removed": 0,
+      "moved": 0,
+      "changed": 1,
+      "unreadable": 0
+    },
+    "changes": [
+      {
+        "guid": "30000000-0000-4000-8000-000000000001",
+        "change": "changed",
+        "old": {
+          "record_path": "libs/ships/avenger",
+          "name": "Ship.Avenger",
+          "type": "Ship"
+        },
+        "new": {
+          "record_path": "libs/ships/avenger",
+          "name": "Ship.Avenger",
+          "type": "Ship"
+        },
+        "fields": [
+          {
+            "path": "hull.plate.armor",
+            "old": {
+              "type": "int32",
+              "value": 1
+            },
+            "new": {
+              "type": "int32",
+              "value": 2
+            }
+          },
+          {
+            "path": "hull.label",
+            "old": {
+              "type": "string",
+              "value": "Hull"
+            },
+            "new": {
+              "type": "error",
+              "value": "offset 4294967295 in the text table is not a valid string"
+            }
+          },
+          {
+            "path": "sizes[1]",
+            "old": {
+              "type": "int32",
+              "value": 2
+            },
+            "new": {
+              "type": "int32",
+              "value": 5
+            }
+          },
+          {
+            "path": "sizes[2]",
+            "old": {
+              "type": "int32",
+              "value": 3
+            }
+          },
+          {
+            "path": "spare",
+            "old": {
+              "type": "null"
+            },
+            "new": {
+              "type": "struct",
+              "value": "Plate"
+            }
+          },
+          {
+            "path": "spare.armor",
+            "new": {
+              "type": "int32",
+              "value": 9
+            }
+          },
+          {
+            "path": "spare.grade",
+            "new": {
+              "type": "uint8",
+              "value": 1
+            }
+          },
+          {
+            "path": "maker",
+            "old": {
+              "type": "reference",
+              "value": {
+                "guid": "30000000-0000-4000-8000-000000000002",
+                "record_path": "libs/makers/one",
+                "type": "Maker"
+              }
+            },
+            "new": {
+              "type": "reference",
+              "value": {
+                "guid": "30000000-0000-4000-8000-000000000003",
+                "record_path": "libs/makers/two",
+                "type": "Maker"
+              }
+            }
+          },
+          {
+            "path": "focus",
+            "old": {
+              "type": "reference",
+              "value": {
+                "guid": "30000000-0000-4000-8000-000000000001",
+                "record_path": "libs/ships/avenger",
+                "type": "Plate",
+                "at": "slots[0]"
+              }
+            },
+            "new": {
+              "type": "reference",
+              "value": {
+                "guid": "30000000-0000-4000-8000-000000000001",
+                "record_path": "libs/ships/avenger",
+                "type": "Plate",
+                "at": "slots[1]"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

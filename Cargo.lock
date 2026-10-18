@@ -3028,6 +3028,7 @@ dependencies = [
  "p4kx-archive",
  "p4kx-channels",
  "p4kx-cryxml",
+ "p4kx-dataforge",
  "p4kx-extraction",
  "p4kx-testkit",
  "rayon",

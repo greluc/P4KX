@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use crate::record_report::{RecordLevel, record_level};
 use crate::{
     Build, ChangeKind, Comparison, DirectoryCounts, Entry, EntryChange, EntryCounts, Level, Side,
 };
@@ -20,12 +21,16 @@ pub struct Report<'a> {
     source: Sources<'a>,
     /// The levels compared.
     levels: Vec<Level>,
-    /// The Filter that selected the Entries on both sides, `null` when every Entry was compared.
+    /// The Filter that selected the Entries by path and the Records by either record path on
+    /// both sides, `null` when everything was compared.
     #[schemars(required, transform = nullable)]
     filter: Option<&'a str>,
     /// The Entry level, present when it was compared.
     #[serde(skip_serializing_if = "Option::is_none")]
     entries: Option<EntryLevel<'a>>,
+    /// The Record level, present when it was compared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    records: Option<RecordLevel<'a>>,
 }
 
 /// The two Archives of a Comparison.
@@ -157,6 +162,10 @@ pub(crate) fn to_report<'a>(comparison: &'a Comparison<'_>) -> Report<'a> {
                 .map(EntryChangeReport::from)
                 .collect(),
         }),
+        records: comparison
+            .levels()
+            .records
+            .then(|| record_level(comparison)),
     }
 }
 

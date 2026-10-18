@@ -29,6 +29,10 @@ fails while its section is missing.
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the
   Archives differ.
+- `p4kx compare --records`: the Records of both DataForges joined by GUID and listed as added,
+  removed, moved or changed, with each changed scalar field and its old and new value, in the
+  summary counts and the JSON report; a Record that cannot be read is listed as unreadable with
+  the reason. Without `--entries` or `--records` both levels run.
 - `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
   unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.

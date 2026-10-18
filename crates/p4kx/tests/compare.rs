@@ -4,7 +4,7 @@ use std::error::Error;
 use std::path::Path;
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
+use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, write_build_manifest};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -20,8 +20,13 @@ fn write(dir: &Path, archive: &str, builder: &ArchiveBuilder) -> TestResult {
     Ok(())
 }
 
+fn dataforge() -> TestEntry {
+    TestEntry::stored("Data\\Game2.dcb", DataForgeBuilder::new().build())
+}
+
 fn old_archive() -> ArchiveBuilder {
     ArchiveBuilder::new()
+        .entry(dataforge())
         .entry(TestEntry::stored("Data\\same.txt", b"same".to_vec()))
         .entry(TestEntry::stored("Data\\removed.txt", b"gone".to_vec()))
         .entry(TestEntry::stored("Data\\Libs\\size.xml", b"<a/>".to_vec()))
@@ -39,6 +44,7 @@ fn pair() -> Result<tempfile::TempDir, Box<dyn Error>> {
         dir.path(),
         NEW,
         &ArchiveBuilder::v2()
+            .entry(dataforge())
             .entry(TestEntry::zstd("Engine\\recompressed.cfg", b"x=1".to_vec()))
             .entry(TestEntry::stored("DATA\\LIBS\\CRC.xml", b"<b/>".to_vec()))
             .entry(TestEntry::stored("Data\\Libs\\size.xml", b"<ab/>".to_vec()))

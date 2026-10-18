@@ -44,8 +44,8 @@ pub(crate) enum Command {
         subcommand_negates_reqs = true
     )]
     Catalog(CatalogArgs),
-    /// Compares the Entries of an old and a new Archive, or prints the line diff of one Entry;
-    /// exits with 1 when they differ.
+    /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
+    /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
@@ -288,7 +288,13 @@ pub(crate) struct CompareArgs {
     /// or changed in size or CRC-32C. Every level is compared when none is given.
     #[arg(long)]
     pub(crate) entries: bool,
-    /// Compares only the Entries the Filter matches, with the rules of `p4kx search`.
+    /// Compares the Records of both DataForges, joined by GUID: added, removed, moved to another
+    /// record path, or changed in name, type or a field value. Every level is compared when none
+    /// is given.
+    #[arg(long)]
+    pub(crate) records: bool,
+    /// Compares only the Entries whose path and the Records whose record path on either side the
+    /// Filter matches, with the rules of `p4kx search`.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
     /// Writes the Comparison as a JSON report to FILE; an existing file is replaced.

@@ -6,6 +6,7 @@ mod channels;
 mod cli;
 mod compare;
 mod cryxml;
+mod dataforges;
 mod dcb;
 mod dcb_export;
 mod dcb_query;

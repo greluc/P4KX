@@ -1,4 +1,4 @@
-use crate::Compression;
+use crate::{Checksum, Compression};
 
 /// Where the stored data of an Entry begins.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,20 +9,30 @@ pub(crate) enum DataStart {
     Direct(u64),
 }
 
+impl DataStart {
+    /// Returns the offset of the local header or of the data.
+    pub(crate) const fn offset(self) -> u64 {
+        match self {
+            Self::LocalHeader(offset) | Self::Direct(offset) => offset,
+        }
+    }
+}
+
 /// One file inside an Archive, as described by the central directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub(crate) path: String,
     pub(crate) compressed_size: u64,
     pub(crate) uncompressed_size: u64,
-    pub(crate) crc32c: u32,
+    pub(crate) checksum: Checksum,
     pub(crate) data: DataStart,
     pub(crate) compression: Compression,
     pub(crate) encrypted: bool,
 }
 
 impl Entry {
-    /// Returns the path of the Entry inside the Archive, with backslash separators as stored.
+    /// Returns the path of the Entry inside the Archive, with backslash separators as stored; the
+    /// Entries of a container always use backslashes.
     #[must_use]
     pub fn path(&self) -> &str {
         &self.path
@@ -40,11 +50,21 @@ impl Entry {
         self.uncompressed_size
     }
 
-    /// Returns the CRC-32C (Castagnoli) checksum of the Entry's data after decryption and
-    /// decompression.
+    /// Returns the checksum of the Entry's data after decryption and decompression.
     #[must_use]
-    pub const fn crc32c(&self) -> u32 {
-        self.crc32c
+    pub const fn checksum(&self) -> Checksum {
+        self.checksum
+    }
+
+    /// Returns the CRC-32C (Castagnoli) checksum of the Entry's data after decryption and
+    /// decompression, or `None` when its directory states another checksum, as the plain ZIP CRC-32
+    /// of containers.
+    #[must_use]
+    pub const fn crc32c(&self) -> Option<u32> {
+        match self.checksum {
+            Checksum::Crc32c(value) => Some(value),
+            Checksum::Crc32(_) => None,
+        }
     }
 
     /// Returns the compression method.

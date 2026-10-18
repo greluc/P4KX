@@ -347,6 +347,23 @@ fail; with `--format wem` a prefetched start is written as the bank holds it and
 `"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
+## `p4kx socpak list <archive> <container…> --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k",
+ "containers": ["Data\\ObjectContainers\\Ships\\AEGS\\ship_interior.socpak",
+                "ship_interior\\modules\\cockpit.socpak"],
+ "entries": [Entry, …]}
+```
+
+`containers` names the container Entry in the Archive, then each container inside the one before,
+with the paths as they are stored. `entries` holds the Entries of the last container in directory
+order; folder Entries are left out.
+
+## `p4kx socpak extract <archive> <container…> --json`
+
+The report of `p4kx extract … --json`, for the Entries of the last container.
+
 ## `p4kx chunks list <archive> <entry> --json`
 
 Also `p4kx chunks list <file> --json` for a chunk file on disk.
@@ -429,7 +446,7 @@ code is 0 without and 1 with differences on any compared level.
 | `filter` | string or `null` | The Filter that selected the Entries by path and the Records by the record path of either side |
 | `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
-| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
+| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
 | `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
 | `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
@@ -491,10 +508,10 @@ The line diff of one Entry, with three unchanged lines of context around each ch
 | Field | Type | Meaning |
 |-------|------|---------|
 | `path` | string | The Entry path as the new side stores it, the old side for a removed Entry |
-| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and CRC-32C from the central directories |
-| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or CRC-32C, or with differing lines; it decides the exit code |
+| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and checksum from the central directories |
+| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or checksum, or with differing lines; it decides the exit code |
 | `content` | string | `text`; `binary` when a side holds a NUL byte, or starts with a UTF-16 byte order mark but does not decode as UTF-16 without NUL characters; `too_large` when a side, or the XML converted from it, is larger than 128 MiB or has more than 4 194 304 lines |
-| `old`, `new` | object or `null` | `size`, `crc32c` and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
+| `old`, `new` | object or `null` | `size`, the checksum (`crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive) and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
 | `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator, for display with invalid UTF-8 replaced by U+FFFD; the last line of a side may have none) |
 
 A missing side is diffed as empty text. Lines are compared by their bytes, so a change in bytes

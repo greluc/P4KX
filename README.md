@@ -102,6 +102,11 @@ Early development (milestone M1). Available today:
   [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---diff-entry---json)). The exit code is
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
+- `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file.
+  Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
+  Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
+  with an error naming it, and a corrupt or truncated WEM fails with the reason.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

@@ -8,6 +8,8 @@ use p4kx_archive::{Archive, Entry, EntryReader};
 use p4kx_texture::SiblingReader;
 use rayon::prelude::*;
 
+use crate::entry_path::same_entry_path;
+
 /// Where the header and the parts of a texture are stored.
 #[derive(Debug)]
 pub(crate) enum Parts<'a> {
@@ -126,7 +128,7 @@ enum Role {
 /// header nor one of its parts; separators and ASCII case do not matter.
 fn classify(candidate: &str, header: &str) -> Option<Role> {
     let (start, rest) = candidate.split_at_checked(header.len())?;
-    if !same_path(start, header) {
+    if !same_entry_path(start, header) {
         return None;
     }
     if rest.is_empty() {
@@ -137,15 +139,6 @@ fn classify(candidate: &str, header: &str) -> Option<Role> {
         return None;
     }
     digits.parse().ok().map(Role::Part)
-}
-
-fn same_path(left: &str, right: &str) -> bool {
-    let separator = |byte: u8| byte == b'\\' || byte == b'/';
-    left.len() == right.len()
-        && left
-            .bytes()
-            .zip(right.bytes())
-            .all(|(a, b)| a.eq_ignore_ascii_case(&b) || (separator(a) && separator(b)))
 }
 
 /// Returns whether `path` names an existing file that is one of `inputs`.

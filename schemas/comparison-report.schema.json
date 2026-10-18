@@ -1,0 +1,297 @@
+{
+  "$defs": {
+    "ChangeKind": {
+      "description": "How an Entry differs between the two sides of a Comparison.",
+      "oneOf": [
+        {
+          "const": "added",
+          "description": "Only the new side has the Entry.",
+          "type": "string"
+        },
+        {
+          "const": "removed",
+          "description": "Only the old side has the Entry.",
+          "type": "string"
+        },
+        {
+          "const": "changed",
+          "description": "Both sides have the Entry, with a different uncompressed size or CRC-32C.",
+          "type": "string"
+        }
+      ]
+    },
+    "DirectoryCounts": {
+      "description": "The counts of the changed Entries below one top-level directory.",
+      "properties": {
+        "added": {
+          "description": "Entries only the new side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "changed": {
+          "description": "Entries with a different uncompressed size or CRC-32C.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "directory": {
+          "description": "The top-level directory as the first changed Entry below it spells it; empty for Entries\nat the root.",
+          "type": "string"
+        },
+        "removed": {
+          "description": "Entries only the old side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "directory",
+        "added",
+        "removed",
+        "changed"
+      ],
+      "type": "object"
+    },
+    "EntryChangeReport": {
+      "description": "One added, removed or changed Entry.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/ChangeKind",
+          "description": "How the Entry differs."
+        },
+        "new": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntryState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Entry on the new side, absent when it was removed."
+        },
+        "old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntryState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Entry on the old side, absent when it was added."
+        },
+        "path": {
+          "description": "The Entry path as the new side stores it, or the old side for a removed Entry.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "change"
+      ],
+      "type": "object"
+    },
+    "EntryCounts": {
+      "description": "The number of Entries per change kind.",
+      "properties": {
+        "added": {
+          "description": "Entries only the new side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "changed": {
+          "description": "Entries with a different uncompressed size or CRC-32C.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "removed": {
+          "description": "Entries only the old side has.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "added",
+        "removed",
+        "changed"
+      ],
+      "type": "object"
+    },
+    "EntryLevel": {
+      "description": "The Entries added, removed and changed.",
+      "properties": {
+        "changes": {
+          "description": "Every added, removed or changed Entry, ordered by path ignoring case and separator kind.",
+          "items": {
+            "$ref": "#/$defs/EntryChangeReport"
+          },
+          "type": "array"
+        },
+        "counts": {
+          "$ref": "#/$defs/EntryCounts",
+          "description": "The number of Entries per change kind."
+        },
+        "directories": {
+          "description": "The counts per top-level directory, ordered by directory ignoring case.",
+          "items": {
+            "$ref": "#/$defs/DirectoryCounts"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "counts",
+        "directories",
+        "changes"
+      ],
+      "type": "object"
+    },
+    "EntryState": {
+      "description": "What the central directory says about one side of an Entry.",
+      "properties": {
+        "crc32c": {
+          "description": "The CRC-32C of the uncompressed data.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "size": {
+          "description": "The uncompressed size in bytes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "size",
+        "crc32c"
+      ],
+      "type": "object"
+    },
+    "Level": {
+      "description": "One level a Comparison works on.",
+      "oneOf": [
+        {
+          "const": "entries",
+          "description": "Entries added, removed or changed, from the central directories.",
+          "type": "string"
+        }
+      ]
+    },
+    "SourceSide": {
+      "description": "One Archive of a Comparison.",
+      "properties": {
+        "archive": {
+          "description": "The path the Archive was opened from.",
+          "type": "string"
+        },
+        "build": {
+          "description": "The Build from the Channel's build manifest, `null` when it is unknown.",
+          "properties": {
+            "branch": {
+              "description": "The branch, e.g. `sc-alpha-4.10.2`.",
+              "type": "string"
+            },
+            "build_id": {
+              "description": "The `BuildId` GUID.",
+              "type": "string"
+            },
+            "change_number": {
+              "description": "The Perforce change number the Build was made from.",
+              "type": "string"
+            },
+            "version": {
+              "description": "The version, e.g. `4.10.197.2878`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "branch",
+            "version",
+            "change_number",
+            "build_id"
+          ],
+          "type": "object"
+        },
+        "channel": {
+          "description": "The Channel: the name of the folder holding the Archive, `null` when there is none.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "archive",
+        "channel",
+        "build"
+      ],
+      "type": "object"
+    },
+    "Sources": {
+      "description": "The two Archives of a Comparison.",
+      "properties": {
+        "new": {
+          "$ref": "#/$defs/SourceSide",
+          "description": "The Archive the changes lead to."
+        },
+        "old": {
+          "$ref": "#/$defs/SourceSide",
+          "description": "The Archive the changes start from."
+        }
+      },
+      "required": [
+        "old",
+        "new"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The JSON report of a Comparison between an old and a new Archive.",
+  "properties": {
+    "entries": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EntryLevel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The Entry level, present when it was compared."
+    },
+    "filter": {
+      "description": "The Filter that selected the Entries on both sides, `null` when every Entry was compared.",
+      "type": "string"
+    },
+    "format_version": {
+      "description": "The version of the report shape.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "levels": {
+      "description": "The levels compared.",
+      "items": {
+        "$ref": "#/$defs/Level"
+      },
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/Sources",
+      "description": "The two Archives compared."
+    }
+  },
+  "required": [
+    "format_version",
+    "source",
+    "levels",
+    "filter"
+  ],
+  "title": "P4K-Extractor Comparison report",
+  "type": "object"
+}

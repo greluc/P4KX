@@ -256,6 +256,36 @@ fn extract_with_a_filter() -> TestResult {
 }
 
 #[test]
+fn extract_with_conversion() -> TestResult {
+    let fixture = Fixture::new()?;
+    let archive = fixture.dir().join("Data.p4k");
+    let vehicle = TestElement::new("Vehicle")
+        .attribute("name", "AEGS_Gladius")
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\vehicle.xml", vehicle.clone()))
+        .entry(TestEntry::stored("Data\\text.xml", b"<a/>".to_vec()))
+        .entry(TestEntry::stored(
+            "Data\\broken.xml",
+            vehicle.get(..20).unwrap_or_default().to_vec(),
+        ))
+        .write_to(&archive)?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .arg("extract")
+            .arg(&archive)
+            .args(["--filter", "*.xml", "--convert", "--out"])
+            .arg(fixture.dir().join("out")),
+        1,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
 fn cryxml() -> TestResult {
     let fixture = Fixture::new()?;
     let input = fixture.dir().join("vehicle.xml");
@@ -311,6 +341,28 @@ fn texture_merge() -> TestResult {
             .arg(TEXTURE)
             .arg("--out")
             .arg(fixture.dir().join("hull_ddna.dds")),
+        0,
+    )?;
+
+    insta::assert_snapshot!(json);
+    Ok(())
+}
+
+#[test]
+fn texture_png() -> TestResult {
+    let fixture = Fixture::new()?;
+    let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 64, 32)
+        .split(4)
+        .write_files(fixture.dir(), "hull_diff.dds")?;
+
+    let json = fixture.json(
+        fixture
+            .p4kx()?
+            .args(["texture", "png"])
+            .arg(&header)
+            .arg("--out")
+            .arg(fixture.dir().join("hull_diff.png"))
+            .args(["--mip", "1"]),
         0,
     )?;
 

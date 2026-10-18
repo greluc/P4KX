@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb.rs
+expression: stderr
+---
+error: the Archive holds no DataForge: neither Data\Game2.dcb nor Data\Game.dcb

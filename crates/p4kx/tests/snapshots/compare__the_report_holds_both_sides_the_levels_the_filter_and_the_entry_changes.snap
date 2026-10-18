@@ -1,0 +1,85 @@
+---
+source: crates/p4kx/tests/compare.rs
+expression: report
+---
+{
+  "format_version": 1,
+  "source": {
+    "old": {
+      "archive": "LIVE/Data.p4k",
+      "channel": "LIVE",
+      "build": null
+    },
+    "new": {
+      "archive": "PTU/Data.p4k",
+      "channel": "PTU",
+      "build": {
+        "branch": "sc-alpha-4.11.0",
+        "version": "4.11.42.1234",
+        "change_number": "12999999",
+        "build_id": "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0"
+      }
+    }
+  },
+  "levels": [
+    "entries"
+  ],
+  "filter": "data/*",
+  "entries": {
+    "counts": {
+      "added": 1,
+      "removed": 1,
+      "changed": 2
+    },
+    "directories": [
+      {
+        "directory": "Data",
+        "added": 1,
+        "removed": 1,
+        "changed": 2
+      }
+    ],
+    "changes": [
+      {
+        "path": "Data\\added.txt",
+        "change": "added",
+        "new": {
+          "size": 3,
+          "crc32c": 3611556910
+        }
+      },
+      {
+        "path": "DATA\\LIBS\\CRC.xml",
+        "change": "changed",
+        "old": {
+          "size": 4,
+          "crc32c": 2085178046
+        },
+        "new": {
+          "size": 4,
+          "crc32c": 2523368141
+        }
+      },
+      {
+        "path": "Data\\Libs\\size.xml",
+        "change": "changed",
+        "old": {
+          "size": 4,
+          "crc32c": 2085178046
+        },
+        "new": {
+          "size": 5,
+          "crc32c": 943440109
+        }
+      },
+      {
+        "path": "Data\\removed.txt",
+        "change": "removed",
+        "old": {
+          "size": 4,
+          "crc32c": 1729407474
+        }
+      }
+    ]
+  }
+}

@@ -41,17 +41,19 @@ impl Length {
     }
 }
 
-/// Returns a range of the text of the Entry at `path`.
-pub(crate) fn text(
+/// Returns a range of the text of the Entry at `path`; `whole` runs before an Entry is decoded as
+/// a whole and its result is held while that lasts.
+pub(crate) fn text<G>(
     archive: &Archive,
     path: &str,
     offset: u64,
     requested: Option<u32>,
+    whole: impl FnOnce() -> G,
 ) -> Result<TextResult, ToolError> {
     let length = Length::new(requested, DEFAULT_TEXT_LEN, MIN_TEXT_LEN, MAX_TEXT_LEN);
     let entry = entry(archive, path)?;
-    let range =
-        read_text(archive, entry, offset, length.value).map_err(|error| failed(entry, error))?;
+    let range = read_text(archive, entry, offset, length.value, whole)
+        .map_err(|error| failed(entry, error))?;
     let next_offset = range.next_offset();
     Ok(TextResult {
         archive: archive.path().display().to_string(),
@@ -102,6 +104,10 @@ fn entry<'a>(archive: &'a Archive, path: &str) -> Result<&'a Entry, ToolError> {
 fn failed(entry: &Entry, error: EntryReadError) -> ToolError {
     match error {
         EntryReadError::Binary => ToolError::Binary(entry.path().to_owned()),
+        EntryReadError::TooLarge { limit } => ToolError::TooLarge {
+            path: entry.path().to_owned(),
+            limit,
+        },
         source => ToolError::Read {
             path: entry.path().to_owned(),
             source,

@@ -16,6 +16,8 @@ fails while its section is missing.
   offset, as text (CryXml converted to XML, UTF-16 by its byte order mark, otherwise UTF-8;
   binary Entries are an error) or as base64. A range is at most 256 KiB of text or 192 KiB of
   bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
+  Stored Entries, encrypted or not, are read from the offset directly; compressed ones decode at
+  most 1 GiB to reach it. At most four Entries are decoded whole for text at a time.
 - The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,

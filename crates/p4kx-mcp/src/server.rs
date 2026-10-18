@@ -17,6 +17,8 @@ use crate::page::Page;
 use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
 
+const WHOLE_TEXT_DECODERS: usize = 4;
+
 const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Citizen. \
 An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
 of a .p4k file; without one the tools use the Archive the server was started with. Listings \
@@ -28,6 +30,7 @@ next_offset back as offset for the next range.";
 pub(crate) struct Server {
     state: Arc<State>,
     workers: Arc<Semaphore>,
+    whole_text: Arc<Semaphore>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -52,8 +55,14 @@ impl Server {
             workers: Arc::new(Semaphore::new(
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
             )),
+            whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
             tool_router: Self::tool_router() + Self::content_router(),
         }
+    }
+
+    /// Returns the permits for decoding an Entry as a whole, at most four at a time.
+    pub(crate) fn whole_text(&self) -> Arc<Semaphore> {
+        Arc::clone(&self.whole_text)
     }
 
     /// Runs `work` on the blocking pool, at most one call per CPU at a time.

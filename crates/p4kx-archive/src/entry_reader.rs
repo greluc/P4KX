@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::{self, BufReader, Read};
 
 use flate2::read::DeflateDecoder;
-use p4kx_foundation::ByteReader;
+use p4kx_foundation::{ARCHIVE_IV, ByteReader};
 
 use crate::decode::{CorruptAs, ExactSize, ZstdOrPlain};
 use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
@@ -61,35 +61,69 @@ impl Read for RawReader<'_> {
     }
 }
 
-/// Opens the data of `entry` after checking its local header, if its layout has one.
-pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
-    let (offset, data_offset) = match entry.data {
-        DataStart::LocalHeader(offset) => (offset, read_local_header(source, offset)?),
-        DataStart::Direct(offset) => (offset, offset),
+/// Opens the data of `entry` from decoded byte `offset`, at most its size, after checking its
+/// local header, if its layout has one; returns the reader and how many decoded bytes it still
+/// has to skip to reach `offset`.
+///
+/// Stored data starts at `offset` directly: unencrypted at that byte, encrypted at the AES block
+/// holding it, chained from the previous ciphertext block. Compressed data starts at the
+/// beginning and the whole `offset` is left to skip.
+pub(crate) fn open_at<'a>(
+    source: &'a Source,
+    entry: &Entry,
+    offset: u64,
+) -> Result<(EntryReader<'a>, u64), FormatError> {
+    let (header, data_offset) = match entry.data {
+        DataStart::LocalHeader(header) => (header, read_local_header(source, header)?),
+        DataStart::Direct(start) => (start, start),
     };
     if !fits(source, data_offset, entry.compressed_size) {
         return Err(FormatError::corrupt(
-            offset,
+            header,
             "Entry data lies outside the file",
         ));
     }
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
         return Err(FormatError::corrupt(
-            offset,
+            header,
             "encrypted Entry data is not a whole number of AES blocks",
         ));
     }
+    let start = match entry.compression {
+        Compression::Store if entry.encrypted => {
+            offset.min(entry.compressed_size) / AES_BLOCK_LEN as u64 * AES_BLOCK_LEN as u64
+        }
+        Compression::Store => offset.min(entry.compressed_size),
+        _ => 0,
+    };
+    let iv = if entry.encrypted && start > 0 {
+        let mut iv = [0; AES_BLOCK_LEN];
+        source.read_into(data_offset + start - AES_BLOCK_LEN as u64, &mut iv)?;
+        iv
+    } else {
+        ARCHIVE_IV
+    };
+    let stored_len = entry.compressed_size - start;
     let raw = RawReader {
         source,
-        offset: data_offset,
-        remaining: entry.compressed_size,
+        offset: data_offset + start,
+        remaining: stored_len,
     };
     let stored: DataReader<'a> = if entry.encrypted {
-        Box::new(Decrypting::new(raw, buffer_len(entry.compressed_size)))
+        Box::new(Decrypting::new(raw, buffer_len(stored_len), iv))
     } else {
         Box::new(raw)
     };
-    let decoded: DataReader<'a> = match entry.compression {
+    let decoded = decoder(stored, entry)?;
+    let reader = EntryReader {
+        inner: ExactSize::new(decoded, entry.uncompressed_size.saturating_sub(start)),
+    };
+    Ok((reader, offset.saturating_sub(start)))
+}
+
+/// Wraps `stored` in the decompressor of `entry`.
+fn decoder<'a>(stored: DataReader<'a>, entry: &Entry) -> Result<DataReader<'a>, FormatError> {
+    Ok(match entry.compression {
         Compression::Store => stored,
         Compression::Deflate => Box::new(CorruptAs::new(
             DeflateDecoder::new_with_buf(stored, vec![0; buffer_len(entry.compressed_size)]),
@@ -108,9 +142,6 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
                 compression: entry.compression,
             });
         }
-    };
-    Ok(EntryReader {
-        inner: ExactSize::new(decoded, entry.uncompressed_size),
     })
 }
 

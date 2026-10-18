@@ -19,7 +19,7 @@ mod format_error;
 mod layout;
 mod source;
 
-pub use archive::Archive;
+pub use archive::{Archive, MAX_DECODED_SKIP};
 pub use build::{Build, BuildError};
 pub use compression::Compression;
 pub use data_error::DataError;

@@ -1,5 +1,6 @@
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{Json, tool, tool_router};
+use tokio::runtime::Handle;
 
 use crate::content;
 use crate::error::capped;
@@ -26,6 +27,8 @@ impl Server {
         &self,
         Parameters(params): Parameters<TextParams>,
     ) -> Result<Json<TextResult>, String> {
+        let decoders = self.whole_text();
+        let runtime = Handle::current();
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let archive = state.archive(params.archive.as_deref())?;
@@ -34,6 +37,7 @@ impl Server {
                 path,
                 params.offset.unwrap_or_default(),
                 params.max_bytes,
+                || runtime.block_on(decoders.acquire_owned()),
             )
         })
         .await

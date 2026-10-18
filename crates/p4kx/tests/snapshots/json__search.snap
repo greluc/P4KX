@@ -1,0 +1,24 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "archive": "[DIR]/library/LIVE/Data.p4k",
+  "entries": [
+    {
+      "compressed_size": 6,
+      "compression": "deflate",
+      "encrypted": false,
+      "path": "Data\\Libs\\a.xml",
+      "size": 4
+    },
+    {
+      "compressed_size": 16,
+      "compression": "zstd",
+      "encrypted": true,
+      "path": "Data\\Libs\\secret.xml",
+      "size": 100
+    }
+  ],
+  "filter": "*libs/*.XML"
+}

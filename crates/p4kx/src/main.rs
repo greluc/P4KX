@@ -5,6 +5,7 @@ mod cli;
 mod exit;
 mod extract;
 mod info;
+mod json;
 mod list;
 
 use std::io::{self, Write};
@@ -16,11 +17,14 @@ use crate::cli::{Cli, Command};
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    let json = cli.json;
+    let success = |()| ExitCode::from(exit::SUCCESS);
     let result = match cli.command {
-        Command::List(args) => list::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
-        Command::Extract(args) => extract::run(&args),
-        Command::Channels(args) => channels::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
-        Command::Info(args) => info::run(&args).map(|()| ExitCode::from(exit::SUCCESS)),
+        Command::List(args) => list::run(&args, json).map(success),
+        Command::Search(args) => list::search(&args, json).map(success),
+        Command::Extract(args) => extract::run(&args, json),
+        Command::Channels(args) => channels::run(&args, json).map(success),
+        Command::Info(args) => info::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

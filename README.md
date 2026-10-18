@@ -12,6 +12,13 @@ Early development (milestone M1). Available today:
 - `p4kx list <archive>` lists every Entry of an Archive: compression method, encryption flag,
   compressed size, size and path. Archives in the v1 (ZIP64) and the v2 (`Jiji` trailer) layout
   are recognised automatically; any other layout version is rejected with its number.
+- `p4kx search <archive> <filter>` lists the Entries whose path matches a Filter, in the same
+  columns as `list`. A Filter with `*` or `?` is a glob over the full path: `*` matches any run of
+  characters, separators included, `?` exactly one character, and the glob must match the whole
+  path (`*.xml`, `Data\Libs\*`, `*\defaultProfile.???`). Any other Filter matches when it occurs
+  anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
+  other character, spaces and brackets included, is literal, and an empty Filter matches every
+  Entry. No match is not an error.
 - `p4kx extract <archive> <entry paths…> [--out <folder>]` writes the given Entries (stored,
   deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
@@ -20,7 +27,8 @@ Early development (milestone M1). Available today:
   Existing files are kept and reported as skipped; Entry paths that are absolute, carry a drive
   prefix, contain `..` or name a Windows device are rejected, and nothing is written outside the
   target. A corrupt Entry fails alone and is named with the reason. The run ends with a summary
-  of extracted, skipped, failed and cancelled Entries.
+  of extracted, skipped, failed and cancelled Entries. `p4kx extract <archive> --filter <filter>`
+  extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries. An Archive without a readable manifest has an unknown Build and still opens.
@@ -33,6 +41,8 @@ Early development (milestone M1). Available today:
   elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
   `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
   files and the launcher's settings store are never opened.
+- `--json` on any command prints its result as one line of JSON instead of text; the shapes are
+  documented in [docs/cli-json.md](docs/cli-json.md).
 
 ### Exit codes
 
@@ -40,7 +50,7 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed |
 | 1 | Partial failure: some Entries failed or were cancelled, or the target or the settings cannot be written |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, or a Channel path that does not exist or was never added |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain, a Filter that matches no Entry, or a Channel path that does not exist or was never added |
 | 3 | The Archive cannot be read: missing, not an Archive or corrupt |
 
 ## Build

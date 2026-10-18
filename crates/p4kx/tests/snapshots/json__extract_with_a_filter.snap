@@ -1,0 +1,16 @@
+---
+source: crates/p4kx/tests/json.rs
+expression: json
+---
+{
+  "cancelled": 0,
+  "extracted": 2,
+  "failed": [
+    {
+      "error": "cannot read the Entry data: deflate data is corrupt: corrupt deflate stream",
+      "path": "Data\\broken.xml"
+    }
+  ],
+  "skipped": [],
+  "target": "[DIR]/out"
+}

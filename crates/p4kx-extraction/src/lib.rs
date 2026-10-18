@@ -2,11 +2,13 @@
 
 mod entry_path;
 mod extract;
+mod filter;
 mod report;
 mod selection;
 mod target;
 
 pub use extract::extract;
+pub use filter::Filter;
 pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
 pub use selection::{UnknownEntries, select_entries};

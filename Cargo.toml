@@ -14,6 +14,7 @@ publish = false
 p4kx-foundation = { path = "crates/p4kx-foundation" }
 p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-channels = { path = "crates/p4kx-channels" }
+p4kx-dataforge = { path = "crates/p4kx-dataforge" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }

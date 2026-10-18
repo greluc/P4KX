@@ -34,6 +34,32 @@ pub(crate) enum Command {
     /// Lists the installed Channels, or adds or removes a manually added folder or Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Channels(ChannelsArgs),
+    /// Reads the DataForge of an Archive.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Dcb(DcbArgs),
+}
+
+/// Arguments of `p4kx dcb`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbArgs {
+    /// What to read.
+    #[command(subcommand)]
+    pub(crate) command: DcbCommand,
+}
+
+/// The subcommands of `p4kx dcb`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum DcbCommand {
+    /// Prints the version of the DataForge and its number of Records, structs and enums.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Info(DcbInfoArgs),
+}
+
+/// Arguments of `p4kx dcb info`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbInfoArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
 }
 
 /// Arguments of `p4kx list`.

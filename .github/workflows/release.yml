@@ -50,7 +50,7 @@ jobs:
           New-Item -ItemType Directory -Force target\package | Out-Null
           cargo xtask release-notes $env:TAG target\package\release-notes.md
       - name: Build
-        run: cargo build --release --locked -p p4kx-gui -p p4kx
+        run: cargo build --release --locked -p p4kx-gui -p p4kx -p p4kx-mcp
       - name: Portable ZIP
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -58,7 +58,7 @@ jobs:
           $name = "P4K-Extractor-$env:VERSION-x86_64"
           $folder = "target\package\$name"
           New-Item -ItemType Directory -Force $folder | Out-Null
-          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
+          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
       - name: Install WiX Toolset
         run: dotnet tool install wix --version 7.0.0 --tool-path target\wix-tool

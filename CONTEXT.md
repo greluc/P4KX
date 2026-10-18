@@ -55,8 +55,8 @@ or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`
 _Avoid_: format version, Archive version
 
 **Preview**:
-The start of one Entry shown in the window as text or as hexadecimal bytes, read without an
-Extraction.
+The start of one Entry shown in the window as text or as hexadecimal bytes, or a texture shown as
+an image one mip at a time, read without an Extraction.
 _Avoid_: viewer, inspector
 
 ### Game data

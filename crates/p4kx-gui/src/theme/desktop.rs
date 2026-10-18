@@ -312,3 +312,14 @@ pub const DIFF_MARKER_GAP: f32 = SPACE_2;
 pub const DIFF_ADDED_FILL: Color32 = CHIP_SUCCESS_FILL;
 /// The fill of a removed line, the danger chip fill.
 pub const DIFF_REMOVED_FILL: Color32 = CHIP_DANGER_FILL;
+
+/// The horizontal padding of the image preview's body.
+pub const IMAGE_PADDING_X: f32 = PREVIEW_PADDING_X;
+/// The vertical padding of the image preview's body.
+pub const IMAGE_PADDING_Y: f32 = SPACE_2;
+/// The gap between the mip label and the mip selector.
+pub const IMAGE_LABEL_GAP: f32 = SPACE_3;
+/// The gap between the mip selector and the image.
+pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
+/// The offset of the focus ring of a segment, inside it.
+pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;

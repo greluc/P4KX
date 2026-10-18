@@ -13,6 +13,10 @@ fails while its section is missing.
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
   Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
   bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
+- `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
+  `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
+  absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
+  page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

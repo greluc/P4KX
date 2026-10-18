@@ -216,3 +216,17 @@ change-extraction-scope-old = Changed Entries of the old Archive, in their old v
 change-extraction-scope-new = Added and changed Entries of the new Archive ({ $number })
 change-extraction-scope-filtered = Only the changes matching the Filter { $filter }
 change-extraction-summary-changed = The Archive changed on disk during the Extraction. Files written before may be stale; compare the Archives again and extract the changes again.
+
+preview-tab-image = Image
+image-mip = Mip
+image-format = Format
+image-size = Size
+image-mips = Mips
+image-faces = Cubemap faces
+image-dimensions = { $width } × { $height }
+image-none = –
+image-shown = Mip { $level }: { $width } × { $height } pixels
+image-decoding = Decoding mip { $level } of { $path }…
+image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
+image-failed = Cannot decode { $path }: { $reason }
+image-unshowable = Every mip of { $path } is larger than the preview can show.

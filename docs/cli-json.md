@@ -175,6 +175,22 @@ Also `p4kx audio wav <file> --out <file> --json` for a WEM file on disk.
 `sample_count` is the number of frames written and `size` the size of the written WAV file. A
 codec without a decoder prints no JSON; it fails with exit code 1 and an error naming the codec.
 
+## `p4kx audio ogg <archive> <entry> --out <file> --json`
+
+Also `p4kx audio ogg <file> --out <file> --json` for a WEM file on disk.
+
+```json
+{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "channels": 2,
+ "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0, "codebooks": "aotuv",
+ "size": 9876}
+```
+
+`sample_count` is the number of frames of the Ogg Vorbis stream, the granule position of its last
+page, and `duration_seconds` its playing time. `codebooks` names the codebooks the setup header was
+rebuilt with: `default`, `aotuv` or `inline`. `size` is the size of the written Ogg file. A codec
+other than Wwise Vorbis, or a Vorbis WEM that no codebooks fit, prints no JSON; it fails with exit
+code 1 and an error giving the reason.
+
 ## `p4kx extract … --json`
 
 ```json

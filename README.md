@@ -110,10 +110,12 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file.
-  Both also take a WEM file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise
-  Vorbis, Opus, PTADPCM and the console codecs are detected; converting any codec but PCM fails
-  with an error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM WEM as a WAV file,
+  and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard
+  Ogg Vorbis file without re-encoding. All three also take a WEM file on disk instead of an
+  Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -177,3 +179,7 @@ removed afterwards.
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT licence](LICENSE-MIT) at your option.
+
+The Vorbis codebook libraries embedded in `p4kx-audio` come from
+[ww2ogg](https://github.com/hcs64/ww2ogg) and are licensed under the BSD 3-Clause licence; see
+[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with every Release.

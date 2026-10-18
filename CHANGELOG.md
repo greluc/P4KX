@@ -29,6 +29,11 @@ fails while its section is missing.
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.
 - `p4kx audio info` and `p4kx audio wav`: describe a Wwise WEM sound from an Archive or from disk
   and write PCM WEMs as WAV files; every Wwise codec is detected.
+- `p4kx audio ogg`: rebuild a Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding,
+  from an Archive or from disk. The headers are rebuilt with the default codebooks and checked
+  with a Vorbis decoder, falling back to the aoTuV codebooks; the file plays for the sound's exact
+  duration. The codebook libraries come from ww2ogg under the BSD 3-Clause licence, whose notice
+  ships as `THIRD-PARTY-NOTICES` in the ZIP and the MSI.
 - `p4kx cryxml`: convert a CryXml file on disk (`CryXmlB`, `CryXml`, `CRY3SDK`, either byte
   order) to well-formed UTF-8 XML; text XML is written unchanged.
 - Conversion during Extraction: `p4kx extract --convert` and the Conversion switch of the

@@ -113,6 +113,11 @@ A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one au
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
 
+**Codebook library**:
+The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
+(libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.
+_Avoid_: codebook file, packed codebooks
+
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model

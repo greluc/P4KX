@@ -157,7 +157,7 @@ impl HexLayout {
         let character = widest("MW@");
         let gap = ui.spacing().item_spacing.x * 2.0;
         Self {
-            offset: digit * 8.0 + gap,
+            offset: digit.mul_add(8.0, gap),
             byte: digit.mul_add(2.0, gap / 2.0),
             character,
             gap,

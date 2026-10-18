@@ -38,6 +38,7 @@ windows-sys.workspace = true
 p4kx-testkit.workspace = true
 egui_kittest.workspace = true
 fluent-syntax.workspace = true
+serde_json.workspace = true
 tempfile.workspace = true
 
 [lints.rust]

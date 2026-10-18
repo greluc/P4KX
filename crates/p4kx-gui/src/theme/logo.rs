@@ -3,7 +3,7 @@
 //! The glyph is a ring open towards the lower right, a wedge reading through it and a data block
 //! leaving it, on a 240 unit square. It appears only in the design system's logo colours.
 
-use egui::{Color32, ColorImage, Context, Id, IconData, TextureHandle, TextureOptions};
+use egui::{Color32, ColorImage, Context, IconData, Id, TextureHandle, TextureOptions};
 
 use super::palette;
 
@@ -50,7 +50,7 @@ pub fn mark(ctx: &Context) -> Option<TextureHandle> {
 }
 
 fn mark_id() -> Id {
-    Id::new(MARK_TEXTURE)
+    Id::unique(MARK_TEXTURE)
 }
 
 /// Returns the glyph as unmultiplied RGBA rows of `size` pixels in `color` over `background`,
@@ -71,18 +71,19 @@ pub fn rgba(size: u32, color: Color32, background: Option<Color32>) -> Vec<u8> {
 
 fn blend(color: Color32, background: Option<Color32>, coverage: f32) -> [u8; 4] {
     let mix = |over: u8, under: u8| {
-        let value = f32::from(under) + (f32::from(over) - f32::from(under)) * coverage;
-        to_u8(value)
+        to_u8((f32::from(over) - f32::from(under)).mul_add(coverage, f32::from(under)))
     };
-    match background {
-        Some(under) => [
-            mix(color.r(), under.r()),
-            mix(color.g(), under.g()),
-            mix(color.b(), under.b()),
-            255,
-        ],
-        None => [color.r(), color.g(), color.b(), to_u8(255.0 * coverage)],
-    }
+    background.map_or_else(
+        || [color.r(), color.g(), color.b(), to_u8(255.0 * coverage)],
+        |under| {
+            [
+                mix(color.r(), under.r()),
+                mix(color.g(), under.g()),
+                mix(color.b(), under.b()),
+                255,
+            ]
+        },
+    )
 }
 
 struct Geometry {
@@ -158,7 +159,7 @@ const fn to_f32(value: u32) -> f32 {
     clippy::cast_sign_loss,
     reason = "the value is clamped to the u8 range first"
 )]
-fn to_u8(value: f32) -> u8 {
+const fn to_u8(value: f32) -> u8 {
     value.round().clamp(0.0, 255.0) as u8
 }
 
@@ -173,7 +174,7 @@ mod tests {
         assert!(geometry.contains(110.0, 34.0), "top of the ring");
         assert!(geometry.contains(60.0, 70.0), "wedge");
         assert!(geometry.contains(200.0, 186.0), "data block");
-        assert!(!geometry.contains(110.0, 110.0), "inside the ring");
+        assert!(!geometry.contains(150.0, 80.0), "inside the ring");
         assert!(!geometry.contains(170.0, 160.0), "the opening");
     }
 
@@ -183,7 +184,11 @@ mod tests {
 
         assert_eq!((icon.width, icon.height), (ICON_SIZE, ICON_SIZE), "square");
         assert!(
-            icon.rgba.chunks_exact(4).all(|pixel| pixel.get(3) == Some(&255)),
+            icon.rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|pixel| pixel[3] == 255),
             "black tile, no transparency"
         );
     }

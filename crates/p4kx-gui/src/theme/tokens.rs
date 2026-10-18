@@ -61,12 +61,20 @@ pub const RADIUS_NONE: f32 = 0.0;
 pub const RADIUS_PILL: f32 = 999.0;
 
 /// `glow-primary`: the orange bloom of input focus and the filled CTA.
-pub const GLOW_PRIMARY: Shadow = glow(0, 5, Color32::from_rgba_unmultiplied_const(231, 126, 35, 77));
+pub const GLOW_PRIMARY: Shadow = glow(
+    0,
+    5,
+    Color32::from_rgba_unmultiplied_const(231, 126, 35, 77),
+);
 /// `glow-primary-lg`: the large orange bloom of modals and the hovered CTA.
-pub const GLOW_PRIMARY_LG: Shadow =
-    glow(0, 20, Color32::from_rgba_unmultiplied_const(231, 126, 35, 51));
+pub const GLOW_PRIMARY_LG: Shadow = glow(
+    0,
+    20,
+    Color32::from_rgba_unmultiplied_const(231, 126, 35, 51),
+);
 /// `glow-danger-lg`: the red bloom of the danger modal.
-pub const GLOW_DANGER_LG: Shadow = glow(0, 20, Color32::from_rgba_unmultiplied_const(163, 0, 10, 51));
+pub const GLOW_DANGER_LG: Shadow =
+    glow(0, 20, Color32::from_rgba_unmultiplied_const(163, 0, 10, 51));
 /// `shadow-drawer`: the separation of a drawer.
 pub const SHADOW_DRAWER: Shadow = Shadow {
     offset: [5, 0],
@@ -75,7 +83,8 @@ pub const SHADOW_DRAWER: Shadow = Shadow {
     color: Color32::from_rgba_unmultiplied_const(0, 0, 0, 128),
 };
 /// `shadow-dropdown`: the separation of dropdowns and popovers.
-pub const SHADOW_DROPDOWN: Shadow = glow(8, 16, Color32::from_rgba_unmultiplied_const(0, 0, 0, 204));
+pub const SHADOW_DROPDOWN: Shadow =
+    glow(8, 16, Color32::from_rgba_unmultiplied_const(0, 0, 0, 204));
 
 const fn glow(y: i8, blur: u8, color: Color32) -> Shadow {
     Shadow {

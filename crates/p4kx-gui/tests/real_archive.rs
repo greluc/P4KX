@@ -149,6 +149,7 @@ fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
 
 fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1400.0, 900.0])
         .with_accessibility_check(false)
         .build_ui_state(

@@ -2828,6 +2828,7 @@ dependencies = [
  "raw-window-handle",
  "rayon",
  "rfd",
+ "serde_json",
  "sys-locale",
  "tempfile",
  "unic-langid",

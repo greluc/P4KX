@@ -30,6 +30,7 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
 fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let (folder, path) = archive()?;
     let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1200.0, 800.0])
         .build_ui_state(
             |ui, model: &mut Model| {

@@ -113,13 +113,12 @@ fn make(texts: &Texts, view: &ComparisonView, summary: &Summary) -> SummaryTexts
         old: side(texts, &comparison.old_side()),
         new_key: texts.get(ComparisonText::FactNew),
         new: side(texts, &comparison.new_side()),
-        kinds: [counts.added, counts.removed, counts.changed]
-            .into_iter()
-            .zip(KINDS)
-            .map(|(count, (text, _))| (texts.get(text), number(count)))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap_or_default(),
+        kinds: [
+            (ComparisonText::Added, counts.added),
+            (ComparisonText::Removed, counts.removed),
+            (ComparisonText::Changed, counts.changed),
+        ]
+        .map(|(text, count)| (texts.get(text), number(count))),
         directories_title: texts.format(
             ComparisonText::Directories,
             &[("number", number(summary.directories.len()).into())],

@@ -297,3 +297,37 @@ fn values_this_level_does_not_read_are_unchanged_on_both_sides() -> TestResult {
     assert!(changes.is_empty(), "no change: {changes:?}");
     Ok(())
 }
+
+#[test]
+fn values_this_level_does_not_read_are_left_out_when_one_side_has_them() -> TestResult {
+    let hull = || TestStruct::new("Hull").field("armor", TestType::Int32);
+    let old = DataForgeBuilder::new()
+        .structure(hull())
+        .structure(TestStruct::new("Item").field("speed", TestType::Int32))
+        .record(TestRecord::new(
+            GUID,
+            "Item",
+            "Item.Sample",
+            "libs/items/sample.xml",
+        ));
+    let new = DataForgeBuilder::new()
+        .structure(hull())
+        .structure(
+            TestStruct::new("Item")
+                .field("speed", TestType::Int32)
+                .array("sizes", TestType::Int32)
+                .field("hull", TestType::Class("Hull".to_owned()))
+                .field("target", TestType::Reference),
+        )
+        .record(TestRecord::new(
+            GUID,
+            "Item",
+            "Item.Sample",
+            "libs/items/sample.xml",
+        ));
+
+    let changes = field_changes(&old, &new)?;
+
+    assert!(changes.is_empty(), "nothing compared yet: {changes:?}");
+    Ok(())
+}

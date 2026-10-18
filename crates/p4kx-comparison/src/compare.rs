@@ -23,9 +23,9 @@ const PROGRESS_STEP: usize = 1 << 16;
 /// # Errors
 ///
 /// Returns [`ComparisonError::NoLevel`] when no level is selected,
-/// [`ComparisonError::NoDataForge`] when the Record level is selected without `dataforges`,
-/// [`ComparisonError::Record`] when a Record cannot be read and [`ComparisonError::Cancelled`]
-/// when the Comparison was cancelled.
+/// [`ComparisonError::NoDataForge`] when the Record level is selected without `dataforges`
+/// and [`ComparisonError::Cancelled`] when the Comparison was cancelled. A Record that cannot be
+/// read is reported as unreadable, not as an error.
 pub fn compare<'a>(
     old: &'a Archive,
     new: &'a Archive,

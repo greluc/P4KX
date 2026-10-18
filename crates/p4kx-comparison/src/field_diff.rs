@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{Field, FieldChange, Value};
+use crate::{Field, FieldChange, Value, ValueError};
 
 /// Returns the fields whose scalar value differs between `old` and `new`, or that only one side
 /// has, in field order of `new` and then the fields only `old` has.
@@ -92,7 +92,8 @@ fn same(old: &Value<'_>, new: &Value<'_>) -> bool {
     }
 }
 
-/// Returns whether `value` is a scalar or an error value, the kinds this level compares.
+/// Returns whether `value` is a scalar or a scalar that cannot be read, the kinds this level
+/// compares; values that are not read yet are left out.
 const fn is_scalar(value: &Value<'_>) -> bool {
     matches!(
         value,
@@ -111,6 +112,10 @@ const fn is_scalar(value: &Value<'_>) -> bool {
             | Value::Locale(_)
             | Value::Guid(_)
             | Value::Enum(_)
-            | Value::Error(_)
+            | Value::Error(
+                ValueError::InvalidString { .. }
+                    | ValueError::UnknownEnum { .. }
+                    | ValueError::InvalidBool { .. }
+            )
     )
 }

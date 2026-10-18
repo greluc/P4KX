@@ -1,0 +1,21 @@
+[package]
+name = "p4kx-localization"
+description = "Reads the global.ini localisation files of Star Citizen and resolves localisation keys."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "format"
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+
+[lints]
+workspace = true

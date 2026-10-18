@@ -190,16 +190,23 @@ them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 1061001, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}], "skipped": 2}
+ "complete": true}], "skipped": 2, "texts": [{"language": "en", "available": true,
+ "resolved": 2240, "unresolved": 8, "placeholder": 154}, {"language": "de", "available": true,
+ "resolved": 2132, "unresolved": 116, "placeholder": 154}], "unresolved": 124}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them.
+them. `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+counts per text occurrence, so a key that several names or descriptions share counts once for
+each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
+language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
+for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
+unresolved texts of every language.
 
 ## `p4kx channels --json`
 

@@ -17,6 +17,7 @@ mod layout_v2;
 mod real_archive;
 mod split_dds;
 mod test_entry;
+mod vorbis;
 mod wem;
 
 pub use archive_builder::ArchiveBuilder;
@@ -31,4 +32,5 @@ pub use real_archive::{
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
+pub use vorbis::{TestCodebook, TestVorbis};
 pub use wem::{TestCodec, TestWem, test_signal};

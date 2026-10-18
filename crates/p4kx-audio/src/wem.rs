@@ -107,6 +107,10 @@ impl<B: AsRef<[u8]>> Wem<B> {
         Some(Duration::new(frames / rate, u32::try_from(nanos).ok()?))
     }
 
+    pub(crate) fn bytes(&self) -> &[u8] {
+        self.bytes.as_ref()
+    }
+
     /// Returns the bytes the WEM was parsed from.
     pub fn into_inner(self) -> B {
         self.bytes

@@ -12,10 +12,12 @@ publish.workspace = true
 layer = "format"
 
 [dependencies]
+lewton.workspace = true
 p4kx-foundation.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+lewton = { workspace = true, features = ["ogg"] }
 p4kx-testkit.workspace = true
 
 [lints]

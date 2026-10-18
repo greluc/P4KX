@@ -33,11 +33,24 @@ struct WavJson<'a> {
     size: u64,
 }
 
-/// Runs `p4kx audio info` or `p4kx audio wav`.
+#[derive(Serialize)]
+struct OggJson<'a> {
+    sound: &'a str,
+    output: String,
+    channels: u16,
+    sample_rate: u32,
+    sample_count: u64,
+    duration_seconds: f64,
+    codebooks: &'static str,
+    size: u64,
+}
+
+/// Runs `p4kx audio info`, `p4kx audio wav` or `p4kx audio ogg`.
 pub(crate) fn run(args: &AudioArgs, as_json: bool) -> Result<()> {
     match &args.action {
         AudioAction::Info(source) => info(&open(source)?, as_json),
         AudioAction::Wav { source, out } => wav(&open(source)?, out, as_json),
+        AudioAction::Ogg { source, out } => ogg(&open(source)?, out, as_json),
     }
 }
 
@@ -104,6 +117,37 @@ fn wav(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
             "wrote {} as WAV to {}, {} bytes",
             sound.name(),
             out.display(),
+            report.size
+        )?;
+    }
+    Ok(())
+}
+
+fn ogg(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
+    let report = sound.write_ogg_to_file(out)?;
+    let duration = Duration::from_secs(report.sample_count / u64::from(report.sample_rate))
+        + Duration::from_nanos(
+            report.sample_count % u64::from(report.sample_rate) * 1_000_000_000
+                / u64::from(report.sample_rate),
+        );
+    if as_json {
+        json::print(&OggJson {
+            sound: sound.name(),
+            output: json::path(out),
+            channels: report.channels,
+            sample_rate: report.sample_rate,
+            sample_count: report.sample_count,
+            duration_seconds: duration.as_secs_f64(),
+            codebooks: report.codebooks.id(),
+            size: report.size,
+        })?;
+    } else {
+        writeln!(
+            io::stdout().lock(),
+            "wrote {} as Ogg Vorbis to {}, {}, {} bytes",
+            sound.name(),
+            out.display(),
+            format_duration(duration),
             report.size
         )?;
     }

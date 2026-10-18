@@ -22,6 +22,7 @@ rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+lewton = { workspace = true, features = ["ogg"] }
 p4kx-testkit.workspace = true
 png.workspace = true
 rayon.workspace = true

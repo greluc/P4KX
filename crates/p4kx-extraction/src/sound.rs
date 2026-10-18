@@ -3,7 +3,7 @@ use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
-use p4kx_audio::{AudioError, WavReport, Wem};
+use p4kx_audio::{AudioError, OggReport, WavReport, Wem};
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
@@ -115,6 +115,32 @@ impl Sound {
     /// [`ConversionError::OutputIsInput`] when `out` is the WEM file itself, and
     /// [`ConversionError::Write`] when the file cannot be written.
     pub fn write_wav_to_file(&self, out: &Path) -> Result<WavReport, ConversionError> {
+        self.refuse_input_as_output(out)?;
+        write_replacing(out, |writer| {
+            self.wem
+                .write_wav(writer)
+                .map_err(|source| self.audio_error(out, source))
+        })
+    }
+
+    /// Rebuilds a Wwise Vorbis sound as an Ogg Vorbis file at `out`, replacing it; the file is
+    /// written under a temporary name first, so a failed conversion leaves nothing behind.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::Audio`] naming the codec when it is not Wwise Vorbis or the
+    /// stream cannot be rebuilt, [`ConversionError::OutputIsInput`] when `out` is the WEM file
+    /// itself, and [`ConversionError::Write`] when the file cannot be written.
+    pub fn write_ogg_to_file(&self, out: &Path) -> Result<OggReport, ConversionError> {
+        self.refuse_input_as_output(out)?;
+        write_replacing(out, |writer| {
+            self.wem
+                .write_ogg(writer)
+                .map_err(|source| self.audio_error(out, source))
+        })
+    }
+
+    fn refuse_input_as_output(&self, out: &Path) -> Result<(), ConversionError> {
         if let Some(file) = &self.file
             && is_same_file(out, [file.clone()])
         {
@@ -122,11 +148,7 @@ impl Sound {
                 path: out.to_path_buf(),
             });
         }
-        write_replacing(out, |writer| {
-            self.wem
-                .write_wav(writer)
-                .map_err(|source| self.audio_error(out, source))
-        })
+        Ok(())
     }
 
     fn audio_error(&self, out: &Path, source: AudioError) -> ConversionError {

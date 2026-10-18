@@ -1,0 +1,219 @@
+mod bits;
+mod codebook;
+mod error;
+mod header;
+mod packets;
+mod setup;
+mod validate;
+
+use std::io::Write;
+
+pub use codebook::Codebooks;
+pub use error::VorbisError;
+
+use self::header::Header;
+use self::packets::{AudioPackets, Packets};
+use self::setup::Setup;
+use self::validate::Fit;
+use crate::riff::{Chunk, Chunks};
+use crate::{AudioError, ByteOrder, Codec, OggWriter, Wem};
+
+pub(crate) const HEADER_IDENT: u8 = 1;
+pub(crate) const HEADER_COMMENT: u8 = 3;
+pub(crate) const HEADER_SETUP: u8 = 5;
+const SERIAL: u32 = 0x5034_4B58;
+const ATTEMPTS: [Codebooks; 3] = [Codebooks::Default, Codebooks::AoTuV, Codebooks::Inline];
+
+/// What [`Wem::write_ogg`] wrote.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OggReport {
+    /// Channels of the stream.
+    pub channels: u16,
+    /// Sample rate in Hz.
+    pub sample_rate: u32,
+    /// Frames of the stream, samples per channel: the granule position of its last page.
+    pub sample_count: u64,
+    /// Size of the whole Ogg file in bytes.
+    pub size: u64,
+    /// The codebooks the setup header was rebuilt with.
+    pub codebooks: Codebooks,
+}
+
+/// The parts of a Wwise Vorbis WEM that rebuilding reads.
+struct Stream<'a> {
+    header: Header,
+    order: ByteOrder,
+    data: &'a [u8],
+    setup: &'a [u8],
+}
+
+impl<B: AsRef<[u8]>> Wem<B> {
+    /// Rebuilds a Wwise Vorbis sound as a standard Ogg Vorbis file and writes it to `out`.
+    ///
+    /// The setup header is rebuilt with the default codebook library first; when a Vorbis
+    /// decoder rejects the result, the aoTuV library and then inline codebooks are tried. When
+    /// every candidate that decodes gives mostly clipped samples, the first of them is taken.
+    /// Granule positions count the samples of every packet, the first audio packet ends its own
+    /// page at granule 0, and the last page is trimmed to the sample count of the WEM.
+    ///
+    /// # Errors
+    ///
+    /// Returns, before writing anything, [`AudioError::UnsupportedOggCodec`] for a codec other
+    /// than Wwise Vorbis, [`AudioError::InvalidVorbis`] for a malformed header or packet layout
+    /// and [`AudioError::CodebooksRejected`] when no codebooks give a decodable stream;
+    /// [`AudioError::Write`] when `out` fails.
+    pub fn write_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
+        let stream = self.vorbis_stream()?;
+        let ident = stream.header.ident_packet();
+        let mut comment = Vec::new();
+        header::comment_packet(&mut comment);
+        let mut setup = Vec::new();
+        let (codebooks, rebuilt) = stream.choose_codebooks(&ident, &comment, &mut setup)?;
+        let headers = [ident.as_slice(), &comment, &setup];
+        let (sample_count, size) = stream.write(headers, &rebuilt, out)?;
+        Ok(OggReport {
+            channels: u16::from(stream.header.channels),
+            sample_rate: stream.header.sample_rate,
+            sample_count,
+            size,
+            codebooks,
+        })
+    }
+
+    fn vorbis_stream(&self) -> Result<Stream<'_>, AudioError> {
+        if self.codec() != Codec::Vorbis {
+            return Err(AudioError::UnsupportedOggCodec(self.codec()));
+        }
+        let bytes = self.bytes();
+        let (order, chunks) = Chunks::of(bytes)?;
+        let mut fmt = None;
+        let mut vorb = None;
+        for chunk in chunks {
+            let Chunk { id, body } = chunk?;
+            match &id {
+                b"fmt " => fmt = bytes.get(body),
+                b"vorb" => vorb = bytes.get(body),
+                b"data" => break,
+                _ => {}
+            }
+        }
+        let fmt = fmt.ok_or(AudioError::MissingChunk("fmt "))?;
+        let header = Header::read(order, fmt, vorb, self.channels(), self.sample_rate())
+            .map_err(AudioError::InvalidVorbis)?;
+        let data = self.data();
+        let out_of_bounds = |offset: usize| {
+            AudioError::InvalidVorbis(VorbisError::PacketOutOfBounds {
+                offset: offset as u64,
+            })
+        };
+        let setup = Packets::new(data, order, header.setup_offset)
+            .next()
+            .ok_or_else(|| out_of_bounds(header.setup_offset))?
+            .map_err(AudioError::InvalidVorbis)?
+            .payload;
+        if header.audio_offset > data.len() {
+            return Err(out_of_bounds(header.audio_offset));
+        }
+        for packet in Packets::new(data, order, header.audio_offset) {
+            packet.map_err(AudioError::InvalidVorbis)?;
+        }
+        Ok(Stream {
+            header,
+            order,
+            data,
+            setup,
+        })
+    }
+}
+
+impl Stream<'_> {
+    fn audio<'a>(&'a self, setup: &'a Setup) -> AudioPackets<'a> {
+        AudioPackets::new(self.data, self.order, &self.header, &setup.long_modes)
+    }
+
+    fn choose_codebooks(
+        &self,
+        ident: &[u8],
+        comment: &[u8],
+        setup: &mut Vec<u8>,
+    ) -> Result<(Codebooks, Setup), AudioError> {
+        let mut clipped = None;
+        let mut reasons = Vec::with_capacity(ATTEMPTS.len());
+        for codebooks in ATTEMPTS {
+            match self.rebuild_setup(codebooks, ident, comment, setup) {
+                Ok((rebuilt, Fit::Clean)) => return Ok((codebooks, rebuilt)),
+                Ok((_, Fit::Clipped)) => {
+                    clipped.get_or_insert(codebooks);
+                    reasons.push(VorbisError::Rejected(
+                        "most decoded samples are clipped".to_owned(),
+                    ));
+                }
+                Err(reason) => reasons.push(reason),
+            }
+        }
+        if let Some(codebooks) = clipped {
+            let (rebuilt, _) = self
+                .rebuild_setup(codebooks, ident, comment, setup)
+                .map_err(AudioError::InvalidVorbis)?;
+            return Ok((codebooks, rebuilt));
+        }
+        let mut reasons = reasons.into_iter();
+        let mut next = || reasons.next().unwrap_or(VorbisError::SetupTruncated);
+        Err(AudioError::CodebooksRejected {
+            default: next(),
+            aotuv: next(),
+            inline: next(),
+        })
+    }
+
+    fn rebuild_setup(
+        &self,
+        codebooks: Codebooks,
+        ident: &[u8],
+        comment: &[u8],
+        out: &mut Vec<u8>,
+    ) -> Result<(Setup, Fit), VorbisError> {
+        let channels = u32::from(self.header.channels);
+        let rebuilt = setup::rebuild(self.setup, channels, codebooks, out)?;
+        let fit = validate::validate(ident, comment, out, self.audio(&rebuilt))?;
+        Ok((rebuilt, fit))
+    }
+
+    fn write(
+        &self,
+        headers: [&[u8]; 3],
+        setup: &Setup,
+        out: &mut impl Write,
+    ) -> Result<(u64, u64), AudioError> {
+        let [ident, comment, setup_packet] = headers;
+        let mut ogg = OggWriter::new(out, SERIAL);
+        ogg.write_packet(ident, 0).map_err(AudioError::Write)?;
+        ogg.end_page().map_err(AudioError::Write)?;
+        ogg.write_packet(comment, 0).map_err(AudioError::Write)?;
+        ogg.write_packet(setup_packet, 0)
+            .map_err(AudioError::Write)?;
+        ogg.end_page().map_err(AudioError::Write)?;
+        let mut audio = self.audio(setup);
+        let mut packet = Vec::new();
+        let mut previous = 0;
+        let mut granule = 0;
+        let mut first = true;
+        while let Some(rebuilt) = audio.next_into(&mut packet) {
+            let rebuilt = rebuilt.map_err(AudioError::InvalidVorbis)?;
+            granule = rebuilt.granule;
+            let expected = u64::from(self.header.sample_count);
+            if rebuilt.last && (previous..granule).contains(&expected) {
+                granule = expected;
+            }
+            ogg.write_packet(&packet, granule)
+                .map_err(AudioError::Write)?;
+            if first {
+                ogg.end_page().map_err(AudioError::Write)?;
+                first = false;
+            }
+            previous = rebuilt.granule;
+        }
+        let size = ogg.finish().map_err(AudioError::Write)?;
+        Ok((granule, size))
+    }
+}

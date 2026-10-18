@@ -230,3 +230,10 @@ image-decoding = Decoding mip { $level } of { $path }…
 image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
 image-failed = Cannot decode { $path }: { $reason }
 image-unshowable = Every mip of { $path } is larger than the preview can show.
+
+preview-tab-xml = XML
+xml-converting = Converting { $path } to XML…
+xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.
+xml-failed = Cannot convert { $path } to XML: { $reason }
+xml-stopped = Converting { $path } stopped without a result.
+xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.

@@ -281,6 +281,11 @@ impl Browser {
         self.preview.as_ref()
     }
 
+    /// Returns the preview of the selected Entry for changing it, or `None` when none is selected.
+    pub(crate) const fn preview_mut(&mut self) -> Option<&mut Preview> {
+        self.preview.as_mut()
+    }
+
     /// Returns the image preview of the selected Entry when it is the header of a texture.
     pub fn image_mut(&mut self) -> Option<&mut ImagePreview> {
         self.preview.as_mut().and_then(Preview::image_mut)

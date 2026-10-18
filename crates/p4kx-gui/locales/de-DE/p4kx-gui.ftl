@@ -230,3 +230,10 @@ image-decoding = Mip { $level } von { $path } wird dekodiert …
 image-unsupported = Die Vorschau kann Texturen im Format { $format } nicht dekodieren. Die Tabs Text und Hex zeigen die Daten von { $path } weiterhin.
 image-failed = { $path } kann nicht dekodiert werden: { $reason }
 image-unshowable = Jedes Mip von { $path } ist größer, als die Vorschau zeigen kann.
+
+preview-tab-xml = XML
+xml-converting = { $path } wird in XML umgewandelt …
+xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit } werden in der Vorschau nicht umgewandelt; zum Lesen mit Umwandlung extrahieren.
+xml-failed = { $path } kann nicht in XML umgewandelt werden: { $reason }
+xml-stopped = Das Umwandeln von { $path } brach ohne Ergebnis ab.
+xml-truncated = Gekürzt: angezeigt werden die ersten { $lines } Zeilen, die ersten { $limit } des XML.

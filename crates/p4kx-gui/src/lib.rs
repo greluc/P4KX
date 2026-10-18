@@ -47,6 +47,7 @@ pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
     PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
+    XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlDocument, XmlPreview, XmlStatus,
 };
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
@@ -55,5 +56,5 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    RecordSearchText, Text, Texts,
+    RecordSearchText, Text, Texts, XmlText,
 };

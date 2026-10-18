@@ -75,6 +75,7 @@ sind keine neuen Farben.
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 | Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
+| XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Ziffern tabellarisch | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | – |
 
 ## Entscheidungen
 
@@ -179,6 +180,18 @@ größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (
 8192 × 8192 Pixel oder über der größten Texturgröße des Renderers), werden nicht angeboten;
 hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
 Farben hat; Alpha wird auf `surface-panel` gemischt.
+
+**D.15 CryXml im Tab „XML".** Ist der gewählte Eintrag CryXml (erkannt an der Signatur, nicht an
+der Endung), bietet die Vorschau den Tab „XML" hinter „Hex" an und öffnet ihn, sobald der Anfang
+gelesen ist; andere Einträge, auch Text-XML, bekommen den Tab nicht und kehren zu „Text" zurück.
+Das umgewandelte XML steht in der Dichte der Hex-Zeile (20 px, 12,8 px) mit Zeilennummern in
+`color-gray-2-text` wie der Zeilenvergleich (D.12), ohne Syntaxfarben, weil das DS keine
+Code-Farben kennt. Steuerzeichen erscheinen als Escapes in `color-gray-2-text`, Zeilen enden nach
+1024 Zeichen mit Auslassung und laufen mit einer horizontalen Scrollleiste; gezeichnet werden nur
+die sichtbaren Zeilen. Umgewandelt wird im Hintergrund, für Einträge bis 64 MiB; das XML wird
+nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis in `color-warning`
+wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
+„Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

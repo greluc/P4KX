@@ -8,6 +8,7 @@ mod diff_text;
 mod extraction_text;
 mod image_text;
 mod text_ids;
+mod xml_text;
 
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
@@ -15,6 +16,7 @@ pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 pub use image_text::ImageText;
+pub use xml_text::XmlText;
 
 use crate::Language;
 
@@ -158,6 +160,8 @@ pub enum Text {
     Diff(DiffText),
     /// A text of the image preview.
     Image(ImageText),
+    /// A text of the XML preview.
+    Xml(XmlText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

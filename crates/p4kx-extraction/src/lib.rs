@@ -17,6 +17,7 @@ mod output_file;
 mod record_combined;
 mod record_export;
 mod record_files;
+mod record_format;
 mod record_report;
 mod report;
 mod selection;
@@ -53,9 +54,10 @@ pub use p4kx_audio::{
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, MAX_NESTING_DEPTH,
-    MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordTree, RecordXml, Reference,
-    Struct, StructValue, TreeBuilder, Value, ValueError, ValueKind,
+    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, JsonLayout,
+    MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordJson,
+    RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
+    ValueKind,
 };
 pub use p4kx_localization::{
     GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
@@ -65,7 +67,8 @@ pub use p4kx_texture::{
     TextureFormat,
 };
 pub use record_combined::export_combined;
-pub use record_export::export_records;
+pub use record_export::{export_record_files, export_records};
+pub use record_format::RecordFileFormat;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };

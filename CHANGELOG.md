@@ -100,6 +100,11 @@ fails while its section is missing.
   owned structs nested, arrays in stored order, References and weak pointers as links (GUID,
   record path, type and, inside the Record, the location) and explicit nulls. Unreadable values
   such as dangling References are reported per value while the rest of the Record is written.
+- `p4kx dcb export --format json|ndjson`: write Records as Record JSON (`docs/record-json.md`,
+  with a checked-in JSON Schema), one file per Record under its record path or one
+  `records.ndjson` with one Record per line in record-path order, with the structure and field
+  order of the Record XML, References as objects with `guid`, `path` and `type`, and errors with
+  their reason. The new service crate `p4kx-export` writes the Record export in every form.
 - `p4kx dcb export --combined`: every selected Record in one Record XML file in record-path
   order, named after the DataForge Entry, built in parallel and streamed to disk, byte-identical
   across runs.

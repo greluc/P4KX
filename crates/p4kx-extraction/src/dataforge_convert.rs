@@ -2,7 +2,7 @@ use std::io::{self, Read};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_archive::Entry;
-use p4kx_dataforge::{DataForge, Record};
+use p4kx_dataforge::{DataForge, Record, RecordXml};
 
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
@@ -76,7 +76,7 @@ impl EntryWriter<'_> {
                 self.tracker.wrote(share);
             },
         };
-        let report = write_records(&forge, &records, &folder, &run);
+        let report = write_records::<RecordXml>(&forge, &records, &folder, &run);
         let outcome = if report.cancelled() > 0 {
             Outcome::Cancelled
         } else {

@@ -14,6 +14,7 @@ layer = "service"
 [dependencies]
 p4kx-archive.workspace = true
 p4kx-audio.workspace = true
+p4kx-chunks.workspace = true
 p4kx-foundation.workspace = true
 p4kx-gfx.workspace = true
 p4kx-dataforge.workspace = true

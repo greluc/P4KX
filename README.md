@@ -176,6 +176,11 @@ Early development (milestone M1). Available today:
   movie stores them; an external image is decoded from the DDS texture it names next to the
   movie, a sub-image is cut from its bitmap. Both also take a movie file on disk, compressed
   (`CWS`, `CFX`, `ZWS`) or not (`FWS`, `GFX`).
+- `p4kx chunks list <archive> <entry>` prints the chunk table of a CryEngine chunk file (`.cgf`,
+  `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`
+  container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
+  types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
+  chunk's bytes unchanged. Both also take a chunk file on disk.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

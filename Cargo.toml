@@ -17,6 +17,7 @@ p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
 p4kx-channels = { path = "crates/p4kx-channels" }
+p4kx-chunks = { path = "crates/p4kx-chunks" }
 p4kx-dataforge = { path = "crates/p4kx-dataforge" }
 p4kx-comparison = { path = "crates/p4kx-comparison" }
 p4kx-cryxml = { path = "crates/p4kx-cryxml" }
@@ -50,6 +51,7 @@ lewton = { version = "0.10.2", default-features = false }
 lzma-rs = "0.3.0"
 png = "0.18.1"
 predicates = "3.1.4"
+proptest = "1.12.0"
 raw-window-handle = "0.6.2"
 rayon = "1.12.0"
 rfd = "0.17.2"

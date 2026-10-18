@@ -51,6 +51,10 @@ fails while its section is missing.
   removed, moved or changed, with each changed scalar field and its old and new value, in the
   summary counts and the JSON report; a Record that cannot be read is listed as unreadable with
   the reason. Without `--entries` or `--records` both levels run.
+- `p4kx compare --records` compares the whole Record tree: changes inside nested structs and
+  arrays carry their location, e.g. `hull.plates[1].armor`, array elements added or removed at the
+  end are listed as such, and changed References show the old and new target's GUID and record
+  path; weak pointers compare by their location inside the Record as well.
 - `p4kx compare <old> <new> --diff <entry>`: the line diff of one text, XML or CryXml Entry as a
   unified diff, or as JSON hunks with `--json`; CryXml is converted to XML first, an added or
   removed Entry is diffed against an empty side, and a binary Entry is reported as changed or not.

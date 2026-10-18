@@ -1,0 +1,167 @@
+use std::ops::ControlFlow;
+use std::sync::Arc;
+
+use crate::query::walk::{Place, WalkState};
+use crate::scalar::read_scalar;
+use crate::{DataForge, DataType, Value, ValueKind};
+
+/// Where a scalar lies in the bytes a path has reached, and how it is read.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Column {
+    pub(crate) data_type: DataType,
+    pub(crate) target: u16,
+    pub(crate) start: u64,
+    pub(crate) end: u64,
+}
+
+impl Column {
+    /// Reads the value from `place`, or the error that its bytes end before the column does.
+    pub(crate) fn read<'f>(&self, forge: &'f DataForge<'f>, place: Place<'f>) -> Value<'f> {
+        let bytes = usize::try_from(self.start)
+            .ok()
+            .zip(usize::try_from(self.end).ok())
+            .and_then(|(start, end)| place.bytes().get(start..end));
+        bytes.map_or_else(
+            || Value::Error(place.too_short(forge, self.end)),
+            |bytes| read_scalar(forge, self.data_type, self.target, bytes).unwrap_or(Value::Null),
+        )
+    }
+}
+
+/// How a compiled path reads its values from the instance of a Record.
+#[derive(Debug, Clone)]
+pub(crate) enum Reader {
+    /// A scalar at a fixed place in the instance, reached through fields and inline structs only.
+    Column(Column),
+    /// A path through pointers or array elements.
+    Walk(Arc<Walk>),
+}
+
+/// The pointer and array steps of a path and the scalar read behind the last of them.
+#[derive(Debug)]
+pub(crate) struct Walk {
+    pub(crate) steps: Box<[Step]>,
+    pub(crate) leaf: Column,
+    pub(crate) multi: bool,
+}
+
+/// One step that leaves the bytes reached so far, at the offset `at` in them.
+#[derive(Debug, Clone)]
+pub(crate) enum Step {
+    /// A strong pointer to an instance of `declared` or of a struct deriving from it.
+    Pointer { at: u64, declared: Box<[usize]> },
+    /// An array header and the elements it selects.
+    Array {
+        at: u64,
+        elements: Elements,
+        select: Select,
+    },
+}
+
+/// What the elements of an array are.
+#[derive(Debug, Clone)]
+pub(crate) enum Elements {
+    /// Values in the pool of their kind.
+    Values(ValueKind),
+    /// Instances of the struct at this index.
+    Instances(u32),
+    /// Strong pointers to instances of `declared` or of a struct deriving from it.
+    Pointers(Box<[usize]>),
+}
+
+/// Which elements of an array a step selects.
+#[derive(Debug, Clone)]
+pub(crate) enum Select {
+    Index(u32),
+    All,
+    Type(Box<[usize]>),
+}
+
+impl Reader {
+    /// Returns the reader with every offset into the Record's instance moved by `base`.
+    pub(crate) fn shifted(&self, base: u64) -> Self {
+        let shift = |column: Column| Column {
+            start: column.start.saturating_add(base),
+            end: column.end.saturating_add(base),
+            ..column
+        };
+        match self {
+            Self::Column(column) => Self::Column(shift(*column)),
+            Self::Walk(walk) => {
+                let mut steps = walk.steps.clone();
+                match steps.first_mut() {
+                    Some(Step::Pointer { at, .. } | Step::Array { at, .. }) => {
+                        *at = at.saturating_add(base);
+                    }
+                    None => {}
+                }
+                Self::Walk(Arc::new(Walk {
+                    steps,
+                    leaf: walk.leaf,
+                    multi: walk.multi,
+                }))
+            }
+        }
+    }
+
+    /// Returns the cell of the path in the Record instance at `place`: its value, or for a
+    /// multi-valued path every value it reaches as a [`Value::Array`]. Only a multi-valued path
+    /// allocates, for its list.
+    pub(crate) fn cell<'f>(
+        &self,
+        forge: &'f DataForge<'f>,
+        place: Place<'f>,
+        state: &mut WalkState,
+    ) -> Value<'f> {
+        let walk = match self {
+            Self::Column(column) => return column.read(forge, place),
+            Self::Walk(walk) => walk,
+        };
+        if !walk.multi {
+            let mut single = Value::Null;
+            let reached = walk.visit(forge, place, state, &mut |value| {
+                single = value;
+                ControlFlow::Break(())
+            });
+            return reached.map_or_else(Value::Error, |()| single);
+        }
+        let mut values = Vec::new();
+        let reached = walk.visit(forge, place, state, &mut |value| {
+            values.push(value);
+            ControlFlow::Continue(())
+        });
+        reached.map_or_else(Value::Error, |()| Value::Array(values.into_boxed_slice()))
+    }
+
+    /// Returns whether some value of the path holds `test`: `Some(true)` when one does, `None`
+    /// when none does but one is unknown, `Some(false)` otherwise, also when there is none.
+    pub(crate) fn any<'f>(
+        &self,
+        forge: &'f DataForge<'f>,
+        place: Place<'f>,
+        state: &mut WalkState,
+        test: impl Fn(&Value<'f>) -> Option<bool>,
+    ) -> Option<bool> {
+        let walk = match self {
+            Self::Column(column) => return test(&column.read(forge, place)),
+            Self::Walk(walk) => walk,
+        };
+        let mut result = Some(false);
+        let reached = walk.visit(forge, place, state, &mut |value| match test(&value) {
+            Some(true) => {
+                result = Some(true);
+                ControlFlow::Break(())
+            }
+            Some(false) => ControlFlow::Continue(()),
+            None => {
+                result = None;
+                ControlFlow::Continue(())
+            }
+        });
+        match (reached, result) {
+            (_, Some(true)) => Some(true),
+            (Err(_), _) => None,
+            (Ok(()), result) => result,
+        }
+    }
+}

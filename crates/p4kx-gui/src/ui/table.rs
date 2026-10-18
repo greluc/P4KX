@@ -13,7 +13,7 @@ use crate::widgets::rows::{
 };
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::widgets::toggle::{Check, checkbox_cell};
-use crate::{Browser, Model, PreviewTab, SortColumn, SortDirection, Text, Texts, format};
+use crate::{Browser, Model, SortColumn, SortDirection, Text, Texts, format};
 
 const COLUMNS: [(SortColumn, Text); 4] = [
     (SortColumn::Name, Text::ColumnName),
@@ -104,8 +104,8 @@ fn remember_hovered(ui: &Ui, id: egui::Id, row: Option<usize>) {
 
 fn apply(ui: &Ui, model: &mut Model, action: &Action) {
     let ctx = ui.ctx().clone();
-    if matches!(action, Action::Preview(_)) && model.preview_tab() == PreviewTab::DataForge {
-        model.set_preview_tab(PreviewTab::Text);
+    if let Action::Preview(id) = action {
+        super::preview::select(model, *id);
     }
     if let Some(browser) = model.browser_mut() {
         match action {

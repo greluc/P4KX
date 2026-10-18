@@ -8,6 +8,10 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
+  `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
+  absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
+  page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
 - The Export menu of the window with **Record export…**: the Records selected in the Record tree
   or matching a record-path filter as Record JSON, one file per Record or one NDJSON file, into a
   new or an existing folder with a Conflict policy, in the background with progress, cancel and a
@@ -34,6 +38,12 @@ fails while its section is missing.
   strings, GUIDs, enums by name and booleans, string matching with `contains`, `starts with` and
   `like` ignoring case, joined by `and`, `or`, `not` and parentheses. A comparison of
   incompatible types is marked as an error, and a missing value never matches.
+- Paths into nested data in Queries: dot paths through inline structs and strong pointers, `[n]`
+  for one array element (null when out of range), `[*]` for every element and `[TypeName]` for
+  the elements of a polymorphic array of that type, e.g.
+  `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
+  list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
+  values holds.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
@@ -82,6 +92,10 @@ fails while its section is missing.
 - `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise IMA ADPCM and PTADPCM WEMs,
   mono and multi-channel, to 16-bit WAV. IMA ADPCM durations count 64 frames per 36-byte block
   per channel, as Wwise writes them, instead of 65.
+- `p4kx audio wav` and `p4kx bnk extract --format wav` decode Wwise Vorbis WEMs to 16-bit WAV for
+  the sound's exact duration, with the codebooks the Ogg export picks; the channels keep the
+  order and speaker mask of the WEM. A sound that cannot be decoded fails with an error naming
+  the WEM and the reason.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a

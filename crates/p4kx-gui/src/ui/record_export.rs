@@ -12,8 +12,8 @@ use crate::widgets::frames::{self, Tone};
 use crate::widgets::text::plain;
 use crate::widgets::toggle;
 use crate::{
-    DataForgeText, ExtractionText, Model, RecordExportSetup, RecordExportText as T, RecordForm,
-    RecordScope, TargetKind, Text, Texts,
+    DataForgeText, ExtractionScope, ExtractionText, Model, RecordExportSetup,
+    RecordExportText as T, RecordForm, RecordScope, TargetKind, Text, Texts,
 };
 
 enum Action {
@@ -27,7 +27,7 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     if model.record_export_setup().is_none() {
         return;
     }
-    let new_folder = new_folder_name(model);
+    let new_folder = new_folder_name(model, ExtractionScope::All);
     let Some((setup, texts)) = model.record_export_setup_with_texts() else {
         return;
     };

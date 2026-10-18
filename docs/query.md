@@ -14,6 +14,8 @@ at "*/spaceships/*" select Icon
 from AmmoParams at "*/vehicle/*" select speed, lifetime where speed >= 1500 and lifetime <= 3
 from EntityClassDefinition at "*/spaceships/*" select Category, Invisible where Category = "Default" and not Invisible = true
 at "*/spaceships/*" select Icon, Category where Icon like "default.*" and (Category contains "def" or Invisible = true)
+from EntityClassDefinition at "libs/foundry/records/entities/spaceships/*" select Components[VehicleComponentParams].vehicleName, Components[VehicleComponentParams].crewSize where Components[VehicleComponentParams].crewSize >= 4
+from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Size, Components[SAttachableComponentParams].AttachDef.Type where Components[SAttachableComponentParams].AttachDef.Size >= 7
 ```
 
 - `from EntityClassDefinition` lists every Record of type `EntityClassDefinition` or of a struct
@@ -21,6 +23,9 @@ at "*/spaceships/*" select Icon, Category where Icon like "default.*" and (Categ
 - `at "…"` lists the Records whose record path matches.
 - `select Category, Invisible` adds one column per dot path behind the record path.
 - `where speed >= 1500 and lifetime <= 3` keeps only the Records whose values meet the condition.
+- `Components[VehicleComponentParams].crewSize` reads the field `crewSize` of the components of
+  type `VehicleComponentParams`, wherever they stand in the array `Components`
+  ([Paths into nested data](#paths-into-nested-data)).
 
 The opt-in tests against a real Archive run these examples.
 
@@ -36,9 +41,12 @@ path ignoring ASCII case with `\` and `/` alike, then by Record name ignoring AS
 the Record's position in the DataForge. Records share record paths, so a
 record path can appear in several rows.
 
-Without `from`, a Record whose type has no scalar field of a selected name gives an empty cell;
-with `from`, every selected type declares the fields of the named type. A value that cannot be
-read shows its reason as `error: …`. A Record whose layout cannot be read gives no row and is
+A cell holds the one value its path reaches, or for a path through `[*]` or `[TypeName]` a list
+of every value it reaches ([Several values](#several-values)). A null pointer or an index out of
+range on the way gives `null`. Without `from`, a Record whose type does not resolve the path,
+e.g. has no field of the first name, gives an empty cell; with `from`, every selected type
+declares the fields of the named type. A value that cannot be read shows its reason as
+`error: …`. A Record whose layout cannot be read gives no row and is
 reported as failed; with `where`, so is a Record whose values cannot be read to decide the
 filter.
 
@@ -66,7 +74,10 @@ Columns separated by two spaces and padded to the widest text of the column over
 line of `-` under the headings, and on stdout a last line with the number of Records. Line
 breaks and tabs in a value are shown as `\n`, `\r` and `\t`, other control characters as
 U+FFFD. The widths are measured in a first pass over the pages, so the Records are read twice.
-The table is for reading; scripts use CSV or JSON.
+A list ([Several values](#several-values)) is written as its values in brackets separated by
+`, `, e.g. `[250.5, 1200]`; a list of more than 8 values shows the first 8 and how many more
+there are, e.g. `[t1, t2, t3, t4, t5, t6, t7, t8, … 4 more]`. The table is for reading; scripts
+use CSV or JSON.
 
 ### CSV
 
@@ -80,7 +91,9 @@ CSV after [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180):
 - A value is written in its Record XML text ([record-xml.md](record-xml.md#values)): `true`,
   `25000.5`, `NaN`, the enum option, the GUID in lower case. A value that cannot be read is
   `error: <reason>`. An empty cell (a Record without the field) is an empty field, as is an
-  empty string.
+  empty string. A list ([Several values](#several-values)) is written as the JSON array the
+  JSON format writes for it, in a quoted field, e.g. `"[""fast"",""small""]"` or `[250.5,1200]`,
+  so that a value holding `,` or `]` stays unambiguous.
 - Values are written unchanged: a text starting with `=`, `+`, `-` or `@` stays as it is, so a
   spreadsheet may read it as a formula.
 
@@ -104,6 +117,7 @@ path selected twice appears once, as its values are the same. The values are typ
 | string, localisation key, enum | A string: the text, the key as stored, the option name |
 | GUID | A string, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | a value that cannot be read | An object `{"error": "<reason>"}` |
+| a list of a path through `[*]` or `[TypeName]` | An array of the values, each typed by this table, `null` for a null; `[]` when there is none |
 | an empty cell | `null` |
 
 Strings escape `"` and `\`, line feed, carriage return and tab as `\n`, `\r` and `\t`, and the
@@ -119,7 +133,12 @@ other control characters below U+0020 as `\u00XX`; every other character is writ
 query      = selection [ "select" path { "," path } ] [ "where" condition ] ;
 selection  = "from" name [ "at" string ]
            | "at" string ;
-path       = name { "." name } ;
+path       = name { segment } ;
+segment    = "." name
+           | "[" index "]"
+           | "[" "*" "]"
+           | "[" name "]" ;
+index      = digit { digit } ;
 condition  = term { "or" term } ;
 term       = factor { "and" factor } ;
 factor     = "not" factor
@@ -142,6 +161,9 @@ string     = '"' { char-but-quote | '""' } '"' ;
 - The clauses come in the order `from`, `at`, `select`, `where`; each appears at most once, and
   at least one of `from` and `at` is given.
 - A Query is at most 65,536 bytes long.
+- A path has at most 64 segments behind its first name.
+- An index is a whole number from 0 to 4,294,967,295 without sign, fraction or exponent;
+  leading zeros are allowed, so `[007]` is `[7]`.
 
 ### Keywords
 
@@ -171,11 +193,8 @@ unknown name is an error that names the closest known one, if any, e.g.
 - A path starts with a field of the Record's type, inherited fields included. With `from`, the
   fields are those of the named struct. Without `from`, each Record's own type is used, and a name
   that no struct declares is an error.
-- Only fields that hold one scalar value can be selected or compared: booleans, integers, floats,
-  strings, localisation keys, GUIDs and enum values. With `from`, a field that holds an array, a
-  struct, a pointer or a Reference is an error. Without `from`, it is an error only when no
-  struct declares the name as a scalar field; a type that declares it otherwise gives an empty
-  cell. A path that continues behind a scalar field is an error.
+- A name behind `.` is a field of the struct the path has reached, and a name in brackets is a
+  struct; both follow [Paths into nested data](#paths-into-nested-data).
 
 ### Record-path glob
 
@@ -183,6 +202,73 @@ The string of `at` matches record paths with the rules of a Filter: with `*` (an
 characters, separators included) or `?` (exactly one character) it is a glob over the full
 record path; otherwise it matches when it occurs anywhere in the record path. Both forms ignore
 ASCII case and treat `/` and `\` alike. The record path has no `.xml` extension.
+
+## Paths into nested data
+
+A path walks from a field of the Record into the values it holds, segment by segment, and has to
+end at a scalar: a boolean, integer, float, string, localisation key, GUID or enum value.
+
+| Segment | Behind | Reaches |
+| --- | --- | --- |
+| `.name` | an inline struct, or a strong pointer | the field `name` of the struct, or of the struct the pointer owns |
+| `[n]` | an array | the element at index `n`, counted from 0; `null` when the array has `n` or fewer elements |
+| `[*]` | an array | every element, in stored order |
+| `[TypeName]` | an array of inline structs or strong pointers | every element whose struct is `TypeName` or derives from it, in stored order |
+
+- Behind a strong pointer the fields are those of the struct the field declares, also when the
+  pointer owns an instance of a struct deriving from it; behind `[TypeName]` they are those of
+  `TypeName`, so `Components[VehicleComponentParams].crewSize` reads a field the base type of the
+  components does not have.
+- A null pointer reaches `null`, and so does a path through it; so does an index out of range.
+  `[TypeName]` skips null pointers, as they have no type.
+- A pointer to an instance of a struct that does not derive from the declared one, an array that
+  lies outside its values, a pointer to a missing instance or struct (also under `[TypeName]`)
+  and an instance shorter than the layout the path reads it with reach an error value, shown as
+  `error: …` at its place. A layout that cannot be read never reads as `null` or `[]`.
+- References and weak pointers are links, not owned values: a path cannot continue behind them,
+  and since they are no scalars, it cannot end at them either.
+
+These are compile errors, marked on the segment or name that causes them:
+
+- a field the struct does not declare, or a `TypeName` no struct has, with a suggestion;
+- `.name` behind a scalar, behind an array (select its elements first) or behind a Reference or
+  a weak pointer;
+- `[n]`, `[*]` or `[TypeName]` behind a value that is no array, and `[TypeName]` behind an array
+  of scalars or links;
+- a `TypeName` that neither is nor derives from the struct of the elements, nor is one of its
+  bases, so no element can have it;
+- a path that ends at a struct, an array, a pointer or a link.
+
+Without `from`, the path is resolved for each Record's own type: a type that does not resolve it
+gives an empty cell and no value to compare, and the path is a compile error only when it
+resolves in no type; the error is then the one of the first struct that declares its first
+field.
+
+### Several values
+
+A path through `[*]` or `[TypeName]` can reach any number of values, so its cell is always a
+list, also when it reaches one value or none: the values in the order the path reaches them,
+nested arrays flattened, e.g. `Components[*].name` of a ship with a null first component is
+`[null, Wall]`. A null or error value stays at its place, so two lists over the same array line up
+element by element. A path without `[*]` and `[TypeName]` always gives one value, never a list.
+
+JSON writes a list as an array of the values, each typed as a single value would be, and CSV
+writes that same JSON array in its field. The table writes the values in their text form,
+separated by `, ` in brackets, e.g. `[250.5, 1200]` or `[]`, shortened after 8 values; the
+values are not quoted there, so a string holding `, ` or `]` reads ambiguously in the table only.
+
+Paths reach at most 4,096 array elements (`MAX_PATH_VALUES`). The `select` paths of one row share
+this budget, as their cells hold their values: it bounds the memory of a page to at most 4,096
+values per row. Each comparison of `where` has a budget of its own, as it holds none of the values
+it compares, so `tags[*] = -1 or tags[*] = 1` checks both comparisons in full. `[n]` counts one
+element, `[*]` and `[TypeName]` every element of their array, also those `[TypeName]` skips, and
+nested brackets count on every level: `Components[*].modes[*]` counts the components and then
+the modes of each.
+
+A bracket that would go beyond the budget of the row gives the error value `error: the paths of
+the Record reach more than 4096 array elements` in its cell, and the cells after it can still
+read what remains. A comparison that would go beyond its budget is unknown, unless a value it
+reached before already holds.
 
 ## Conditions
 
@@ -223,15 +309,28 @@ Double values, with a string"``.
   characters and `?` exactly one. All three ignore ASCII case only; other characters match
   exactly. An empty string is contained in every value.
 
-Without `from`, a comparison is an error only when no struct declares the field as a scalar
-field that can be compared with the value; a Record whose type declares it otherwise, or not at
-all, has no value for it.
+The type that counts is the one of the scalar the path ends at, e.g. `Double` for
+`Components[Weapon].damage`; the message names the whole path. Without `from`, a comparison is
+an error only when the path resolves in no type to a scalar that can be compared with the value;
+a Record whose type resolves it otherwise, or not at all, has no value for it.
+
+### Comparing several values
+
+A comparison over a path through `[*]` or `[TypeName]` holds when **any** of the values the path
+reaches holds: `Components[Weapon].damage > 1000` keeps a ship with at least one weapon above
+1000. It is false when every value compares false, also when the path reaches no value at all,
+and unknown when none holds but one is unknown, e.g. null. So `not Components[*].name = "x"`
+keeps the Records where no component is named `x` and every name is known (no null component),
+and a condition that has to hold for **all** values is written as the negation of its opposite:
+`not Components[Weapon].damage <= 1000` keeps the ships whose every weapon does more than 1000
+damage, ships without weapons included.
 
 ### Missing values
 
-A comparison is unknown when the Record has no value for its path: its type does not declare the
-field (without `from`), declares it with a type the value cannot be compared with, or the value
-cannot be read. An unknown comparison never matches, and the conditions combine as in SQL:
+A comparison is unknown when the Record has no value for its path: its type does not resolve the
+path (without `from`), the path ends at a type the value cannot be compared with, reaches `null`
+through a null pointer or an index out of range, or the value cannot be read. An unknown
+comparison never matches, and the conditions combine as in SQL:
 `not` of unknown is unknown, `false and unknown` is false, `true or unknown` is true, and any
 other combination with unknown is unknown. A Record is kept only when the whole condition is
 true, so `x = 1` and `not x = 1` together never select a Record without a value for `x`.
@@ -257,6 +356,7 @@ by `from` has a layout the DataForge cannot give, since that DataForge is corrup
 ## Canonical form
 
 A parsed Query prints in one canonical form: keywords and word operators in lower case, one
-space between tokens, `, ` between paths, no spaces around `.`, backticks only where a name
-needs them, numbers as written, strings with each quote doubled, and parentheses only where
-precedence needs them. Parsing the canonical form gives the same Query.
+space between tokens, `, ` between paths, no spaces around `.` and inside or before brackets,
+indices without leading zeros, backticks only where a name needs them, numbers as written,
+strings with each quote doubled, and parentheses only where precedence needs them, e.g.
+``from Ship select Components[Weapon].damage, tags[0], `a b`[*]``. Parsing the canonical form gives the same Query.

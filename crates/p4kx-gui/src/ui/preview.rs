@@ -5,9 +5,9 @@ use egui::{
     WidgetInfo, pos2, vec2,
 };
 use fluent_bundle::FluentValue;
-use p4kx_extraction::Entry;
+use p4kx_extraction::{Entry, Texture};
 
-use super::dataforge_summary;
+use super::{dataforge_summary, image_preview};
 use crate::preview::{HEX_ROW_LEN, printable};
 use crate::theme::desktop::{
     HEX_ASCII_GAP, HEX_ASCII_WIDTH, HEX_BYTE_GAP, HEX_BYTE_WIDTH, HEX_GROUP_GAP, HEX_OFFSET_WIDTH,
@@ -20,35 +20,84 @@ use crate::widgets::frames;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    Browser, DataForgeText, Model, PREVIEW_SIZE_LIMIT, PreviewContents, PreviewStatus, PreviewTab,
-    Text, Texts, format,
+    Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents,
+    PreviewStatus, PreviewTab, Text, Texts, format,
 };
 
-const TABS: [(PreviewTab, Text); 3] = [
+const TABS: [(PreviewTab, Text); 4] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
+    (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
 ];
 const GROUP: u8 = 8;
 
+/// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, and
+/// leaves the Image and DataForge tabs for the Text tab otherwise.
+pub(super) fn select(model: &mut Model, id: u32) {
+    let texture = model
+        .browser()
+        .and_then(|browser| browser.index().entry(id))
+        .is_some_and(|entry| Texture::is_header_path(entry.path()));
+    if texture {
+        model.set_preview_tab(PreviewTab::Image);
+    } else if matches!(
+        model.preview_tab(),
+        PreviewTab::Image | PreviewTab::DataForge
+    ) {
+        model.set_preview_tab(PreviewTab::Text);
+    }
+}
+
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
+    if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
+        image.upload(ui.ctx());
+    }
     let Some(browser) = model.browser() else {
         return;
     };
     let texts = model.texts();
+    let (tab, copy) = tab_bar(ui, texts, browser, model.preview_tab());
+    let level = tab_body(ui, texts, browser, tab);
+    if let Some(text) = copy {
+        ui.ctx().copy_text(text);
+    }
+    model.set_preview_tab(tab);
+    if let Some(level) = level
+        && let Some(image) = model.browser_mut().and_then(Browser::image_mut)
+    {
+        image.request(level, image_preview::max_side(ui));
+    }
+    if tab == PreviewTab::DataForge
+        && let Some(browser) = model.browser_mut()
+    {
+        let ctx = ui.ctx().clone();
+        browser.load_records(move || ctx.request_repaint());
+    }
+}
+
+/// Shows the tabs `browser` offers with the copy action; returns the tab to show, `tab` unless
+/// another was clicked or it is not offered, and the text to copy when copy was clicked.
+fn tab_bar(
+    ui: &mut Ui,
+    texts: &Texts,
+    browser: &Browser,
+    mut tab: PreviewTab,
+) -> (PreviewTab, Option<String>) {
+    let image = browser.preview().and_then(Preview::image);
     let records = browser.records();
-    let tabs = TABS
-        .get(..if records.is_some() { 3 } else { 2 })
-        .unwrap_or_default();
-    let mut tab = model.preview_tab();
-    if records.is_none() && tab == PreviewTab::DataForge {
+    let offered = |candidate: PreviewTab| match candidate {
+        PreviewTab::Image => image.is_some(),
+        PreviewTab::DataForge => records.is_some(),
+        PreviewTab::Text | PreviewTab::Hex => true,
+    };
+    let tabs: Vec<(PreviewTab, Text)> = TABS
+        .into_iter()
+        .filter(|&(candidate, _)| offered(candidate))
+        .collect();
+    if !offered(tab) {
         tab = PreviewTab::Text;
     }
-    let contents = browser
-        .preview()
-        .and_then(|preview| preview.contents())
-        .filter(|_| tab != PreviewTab::DataForge);
-    let mut copy = None;
     let labels: Vec<String> = tabs.iter().map(|&(_, text)| texts.get(text)).collect();
     let current = tabs
         .iter()
@@ -60,7 +109,12 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     {
         tab = *candidate;
     }
+    let contents = browser
+        .preview()
+        .and_then(|preview| preview.contents())
+        .filter(|_| matches!(tab, PreviewTab::Text | PreviewTab::Hex));
     let copy_label = texts.get(Text::PreviewCopy);
+    let mut copy = None;
     ui.scope_builder(
         egui::UiBuilder::new().max_rect(bar.shrink2(vec2(SPACE_2, 0.0))),
         |ui| {
@@ -72,20 +126,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             });
         },
     );
-    tab_body(ui, texts, browser, tab);
-    if let Some(text) = copy {
-        ui.ctx().copy_text(text);
-    }
-    model.set_preview_tab(tab);
-    if tab == PreviewTab::DataForge
-        && let Some(browser) = model.browser_mut()
-    {
-        let ctx = ui.ctx().clone();
-        browser.load_records(move || ctx.request_repaint());
-    }
+    (tab, copy)
 }
-
-fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
+/// Shows the body of `tab`; returns the mip level the Image tab asks for.
+fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Option<u32> {
     match browser.records().filter(|_| tab == PreviewTab::DataForge) {
         Some(tree) => {
             let size = browser
@@ -94,12 +138,13 @@ fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
                 .map_or(0, Entry::uncompressed_size);
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));
             dataforge_summary::show(ui, texts, tree);
+            None
         }
         None => body(ui, texts, browser, tab),
     }
 }
 
-fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
+fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Option<u32> {
     let Some(preview) = browser.preview() else {
         frames::preview_body().show(ui, |ui| {
             ui.label(
@@ -107,12 +152,15 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
                     .color(palette::GRAY_2_TEXT),
             );
         });
-        return;
+        return None;
     };
     let entry = browser.index().entry(preview.entry());
     let path = entry.map_or("", Entry::path);
     let size = entry.map_or(0, Entry::uncompressed_size);
     path_line(ui, path, &format::size(size, texts.language()));
+    if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
+        return image_preview::show(ui, texts, path, image);
+    }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
     frames::preview_body().show(ui, |ui| match preview.status() {
@@ -150,6 +198,7 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) {
         }
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
+    None
 }
 
 fn path_line(ui: &mut Ui, path: &str, size: &str) {
@@ -185,7 +234,7 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text | PreviewTab::DataForge => text_rows(ui, contents),
+        PreviewTab::Text | PreviewTab::Image | PreviewTab::DataForge => text_rows(ui, contents),
         PreviewTab::Hex => hex_rows(ui, contents),
     }
 }

@@ -1,4 +1,8 @@
-use egui::{CornerRadius, Rect, Role, Sense, Stroke, StrokeKind, Ui, WidgetInfo, pos2, vec2};
+use std::sync::Arc;
+
+use egui::{
+    CornerRadius, Galley, Rect, Role, Sense, Stroke, StrokeKind, Ui, WidgetInfo, pos2, vec2,
+};
 
 use super::chip::{self, Tone};
 use super::rows::chevron;
@@ -70,6 +74,69 @@ pub(crate) fn facts_bar(ui: &mut Ui, old: Fact<'_>, new: Fact<'_>) {
             } else {
                 FACTS_GAP
             };
+    }
+}
+
+/// The laid-out facts of a `.facts-bar` without a direction, kept across frames.
+pub(crate) struct FactsStrip {
+    facts: Vec<(Arc<Galley>, Arc<Galley>)>,
+    label: String,
+    height: f32,
+}
+
+impl FactsStrip {
+    /// Lays `facts` out as upper-case keys followed by their values.
+    pub(crate) fn lay_out(ui: &Ui, facts: &[Fact<'_>]) -> Self {
+        let laid: Vec<(Arc<Galley>, Arc<Galley>)> = facts
+            .iter()
+            .map(|fact| {
+                let key = caps(fact.key, FACT_KEY_SIZE, Weight::Bold, FACT_KEY_TRACKING);
+                let value = plain(fact.value, FACT_VALUE_SIZE, Weight::Bold);
+                (line(ui, key, f32::INFINITY), line(ui, value, f32::INFINITY))
+            })
+            .collect();
+        let tallest = laid
+            .iter()
+            .map(|(key, value)| key.size().y.max(value.size().y))
+            .fold(0.0, f32::max);
+        let label = facts
+            .iter()
+            .map(|fact| format!("{} {}", fact.key, fact.value))
+            .collect::<Vec<_>>()
+            .join(" ");
+        Self {
+            facts: laid,
+            label,
+            height: 2.0f32.mul_add(FACTS_PADDING_Y, tallest),
+        }
+    }
+
+    /// Shows the facts as a `.facts-bar` across the available width.
+    pub(crate) fn show(&self, ui: &mut Ui) {
+        let (rect, response) =
+            ui.allocate_exact_size(vec2(ui.available_width(), self.height), Sense::hover());
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &self.label));
+        let painter = ui.painter();
+        painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
+        painter.hline(
+            rect.x_range(),
+            rect.bottom() - 0.5,
+            Stroke::new(1.0, palette::GRAY_3),
+        );
+        let mut left = rect.left() + FACTS_PADDING_X;
+        for (key, value) in &self.facts {
+            let key_width = key.size().x;
+            let value_width = value.size().x;
+            paint_left(
+                ui,
+                rect.with_min_x(left),
+                Arc::clone(key),
+                palette::GRAY_2_TEXT,
+            );
+            left += key_width + FACT_KEY_GAP;
+            paint_left(ui, rect.with_min_x(left), Arc::clone(value), palette::WHITE);
+            left += value_width + FACTS_GAP;
+        }
     }
 }
 

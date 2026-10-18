@@ -78,9 +78,9 @@ fn the_export_menu_offers_record_export_only_with_a_dataforge() -> TestResult {
 
 #[test]
 fn the_tree_selection_is_exported_and_summarised() -> TestResult {
-    let (_dir, mut model, out) = opened(&database())?;
+    let (dir, mut model, out) = opened(&database())?;
     select_node(&mut model, "libs/foundry/records/entities/spaceships")?;
-    let (_dir, out, mut harness) = window((_dir, model, out));
+    let (_dir, out, mut harness) = window((dir, model, out));
 
     open_dialog(&mut harness, "Export", "Record export…");
     harness.get_by_label("Selected in the Record tree: spaceships (2)");
@@ -174,9 +174,9 @@ fn the_running_export_can_be_cancelled_from_its_window() -> TestResult {
 
 #[test]
 fn the_dialog_speaks_german() -> TestResult {
-    let (_dir, mut model, out) = opened(&database())?;
+    let (dir, mut model, out) = opened(&database())?;
     model.set_language(Language::German);
-    let (_dir, _out, mut harness) = window((_dir, model, out));
+    let (_dir, _out, mut harness) = window((dir, model, out));
 
     open_dialog(&mut harness, "Export", "Record-Export …");
 

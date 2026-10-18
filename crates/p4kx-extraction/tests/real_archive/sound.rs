@@ -108,9 +108,19 @@ fn convert_sound(archive: &Archive, entry: &Entry) -> Result<String, String> {
                 "{}: reported size",
                 entry.path()
             );
+            if wem.codec() == Codec::Vorbis {
+                let ogg = rebuild_ogg(&wem, entry, Some(&wav))?;
+                if wem.sample_count() != Some(report.sample_count) {
+                    return Err(format!(
+                        "the WAV holds {} frames, the WEM {:?}",
+                        report.sample_count,
+                        wem.sample_count()
+                    ));
+                }
+                return Ok(format!("{ogg} and WAV"));
+            }
             Ok(format!("{}: WAV", wem.codec()))
         }
-        Err(AudioError::UnsupportedCodec(Codec::Vorbis)) => rebuild_ogg(&wem, entry),
         Err(AudioError::UnsupportedCodec(codec)) if codec != Codec::Pcm => {
             Ok(format!("{codec}: no decoder yet"))
         }
@@ -118,7 +128,8 @@ fn convert_sound(archive: &Archive, entry: &Entry) -> Result<String, String> {
     }
 }
 
-fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry) -> Result<String, String> {
+/// Rebuilds the Ogg, decodes it as a player would and checks that `wav` holds the same samples.
+fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry, wav: Option<&[u8]>) -> Result<String, String> {
     let mut ogg = Vec::new();
     let report = wem.write_ogg(&mut ogg).map_err(|error| error.to_string())?;
     assert_eq!(
@@ -128,13 +139,33 @@ fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry) -> Result<String, String> {
         entry.path()
     );
     let mut reader = OggStreamReader::new(Cursor::new(ogg)).map_err(|error| error.to_string())?;
-    let mut frames = 0_u64;
+    let header_len = if wem.channels() > 2 { 68 } else { 44 };
+    let wav: Vec<i16> = wav
+        .and_then(|wav| wav.get(header_len..))
+        .unwrap_or_default()
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .copied()
+        .map(i16::from_le_bytes)
+        .collect();
+    let mut decoded = 0_usize;
+    let mut worst = 0_u16;
     while let Some(packet) = reader
-        .read_dec_packet()
+        .read_dec_packet_itl()
         .map_err(|error| format!("decoding the Ogg: {error}"))?
     {
-        frames += packet.first().map_or(0, Vec::len) as u64;
+        for (played, written) in packet.iter().zip(wav.iter().skip(decoded)) {
+            worst = worst.max(played.abs_diff(*written));
+        }
+        decoded += packet.len();
     }
+    if worst > 0 {
+        return Err(format!(
+            "the WAV differs from the decoded Ogg by up to {worst} in a sample"
+        ));
+    }
+    let frames = (decoded / usize::from(wem.channels())) as u64;
     if wem.sample_count() != Some(report.sample_count) {
         return Err(format!(
             "the last granule {} differs from the {:?} samples of the WEM",

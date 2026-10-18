@@ -1,8 +1,8 @@
-use crate::DataForge;
-use crate::query::compile::Column;
 use crate::query::operand::{Operand, OperandError};
-use crate::query::schema::{FieldDef, StructFields};
+use crate::query::reader::Reader;
+use crate::query::walk::{Place, WalkState};
 use crate::query::{Comparison, Condition, Operator, QueryError, QueryErrorKind};
+use crate::{DataForge, DataType};
 
 /// A compiled `where` condition, which a Record has to meet; each comparison is a test numbered in condition order.
 #[derive(Debug, Clone)]
@@ -13,11 +13,20 @@ pub(crate) enum Predicate {
     Or(Box<[Self]>),
 }
 
-/// How one comparison reads and compares a value in an instance of one struct.
+/// How one comparison reads and compares the values in an instance of one struct.
 #[derive(Debug, Clone)]
 pub(crate) struct Test {
-    pub(crate) column: Column,
+    pub(crate) reader: Reader,
     pub(crate) operand: Operand,
+}
+
+impl Test {
+    /// Returns the test of `comparison` over values of type `leaf` read by `reader`, or `None`
+    /// when the literal cannot compare with them.
+    pub(crate) fn of(comparison: &Comparison, (reader, leaf): (Reader, DataType)) -> Option<Self> {
+        let operand = Operand::of(leaf, comparison.operator, &comparison.literal).ok()?;
+        Some(Self { reader, operand })
+    }
 }
 
 impl Predicate {
@@ -50,23 +59,29 @@ impl Predicate {
         }
     }
 
-    /// Returns whether the instance `bytes` meets the predicate, with `tests` of its struct; `None`
-    /// when that is unknown because a compared value is missing or unreadable.
+    /// Returns whether the instance at `place` meets the predicate, with `tests` of its struct;
+    /// `None` when that is unknown because a compared value is missing or unreadable. Each
+    /// comparison streams its values with a budget of its own, as it holds none of them.
+    ///
+    /// A comparison over a path that reaches several values holds when one of them compares
+    /// true; it is unknown when none does and one is unknown, and false otherwise.
     pub(crate) fn eval<'f>(
         &self,
         forge: &'f DataForge<'f>,
         tests: &[Option<Test>],
-        bytes: &[u8],
+        place: Place<'f>,
     ) -> Option<bool> {
         match self {
             Self::Test(index, operator) => {
                 let test = tests.get(*index)?.as_ref()?;
-                let value = test.column.read(forge, bytes)?;
-                test.operand.compare(*operator, &value)
+                test.reader
+                    .any(forge, place, &mut WalkState::new(), |value| {
+                        test.operand.compare(*operator, value)
+                    })
             }
-            Self::Not(inner) => inner.eval(forge, tests, bytes).map(|holds| !holds),
-            Self::And(parts) => decide(parts, false, |part| part.eval(forge, tests, bytes)),
-            Self::Or(parts) => decide(parts, true, |part| part.eval(forge, tests, bytes)),
+            Self::Not(inner) => inner.eval(forge, tests, place).map(|holds| !holds),
+            Self::And(parts) => decide(parts, false, |part| part.eval(forge, tests, place)),
+            Self::Or(parts) => decide(parts, true, |part| part.eval(forge, tests, place)),
         }
     }
 }
@@ -76,7 +91,7 @@ impl Predicate {
 fn decide(
     parts: &[Predicate],
     decisive: bool,
-    eval: impl Fn(&Predicate) -> Option<bool>,
+    mut eval: impl FnMut(&Predicate) -> Option<bool>,
 ) -> Option<bool> {
     let mut result = Some(!decisive);
     for part in parts {
@@ -89,83 +104,38 @@ fn decide(
     result
 }
 
-/// Checks that some declaration of the compared field can compare with the literal; `declared`
-/// is the field of the `from` type, or without `from` every scalar field of that name.
-pub(crate) fn check<'f>(
+/// Checks that the literal can compare with one of the `leaves`, the types of the scalars the
+/// compared path ends at in the structs it resolves in.
+pub(crate) fn check(
     comparison: &Comparison,
     owner: Option<&str>,
-    mut declared: impl Iterator<Item = FieldDef<'f>>,
+    mut leaves: impl Iterator<Item = DataType>,
 ) -> Result<(), QueryError> {
-    let Some(first) = declared.next() else {
+    let Some(first) = leaves.next() else {
         return Ok(());
     };
-    let operand = |field: &FieldDef<'_>| {
-        Operand::of(
-            field.slot.data_type(),
-            comparison.operator,
-            &comparison.literal,
-        )
-    };
-    let Err(error) = operand(&first) else {
+    let operand = |leaf| Operand::of(leaf, comparison.operator, &comparison.literal);
+    let Err(error) = operand(first) else {
         return Ok(());
     };
-    if declared.any(|field| operand(&field).is_ok()) {
+    if leaves.any(|leaf| operand(leaf).is_ok()) {
         return Ok(());
     }
     let literal = comparison.literal.span;
     Err(match error {
         OperandError::Incompatible(kind) => QueryError::new(
             QueryErrorKind::IncompatibleComparison {
-                name: comparison.path.head.as_str().to_owned(),
+                name: comparison.path.written(),
                 owner: owner.map(str::to_owned),
-                data_type: first.slot.data_type(),
+                data_type: first,
                 operator: comparison.operator,
                 literal: kind,
             },
             comparison.span(),
         ),
-        OperandError::OutOfRange => QueryError::new(
-            QueryErrorKind::NumberOutOfRange(first.slot.data_type()),
-            literal,
-        ),
+        OperandError::OutOfRange => {
+            QueryError::new(QueryErrorKind::NumberOutOfRange(first), literal)
+        }
         OperandError::InvalidGuid => QueryError::new(QueryErrorKind::InvalidGuid, literal),
     })
-}
-
-/// Returns the tests of the struct whose fields are `fields`: per comparison, the field of the
-/// wanted name that is scalar, stands at `position` when given, and can compare with the literal.
-pub(crate) fn tests(
-    fields: &[FieldDef<'_>],
-    comparisons: &[(&Comparison, Option<u32>)],
-) -> Box<[Option<Test>]> {
-    comparisons
-        .iter()
-        .map(|(comparison, position)| {
-            let field = fields
-                .iter()
-                .find(|field| field.name == comparison.path.head.as_str())
-                .filter(|field| field.is_scalar())
-                .filter(|field| position.is_none_or(|position| field.position == position))?;
-            let operand = Operand::of(
-                field.slot.data_type(),
-                comparison.operator,
-                &comparison.literal,
-            )
-            .ok()?;
-            Some(Test {
-                column: Column::of(field),
-                operand,
-            })
-        })
-        .collect()
-}
-
-/// Returns the scalar fields named `name` in struct order.
-pub(crate) fn declarations<'s, 'f>(
-    structs: &'s StructFields<'f>,
-    name: &'s str,
-) -> impl Iterator<Item = FieldDef<'f>> + 's {
-    (0..structs.len())
-        .filter_map(move |index| structs.field(index, name))
-        .filter(FieldDef::is_scalar)
 }

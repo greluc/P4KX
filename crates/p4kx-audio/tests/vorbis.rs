@@ -160,6 +160,27 @@ fn codebooks_that_fit_no_library_give_a_typed_error_naming_each_reason() {
 }
 
 #[test]
+fn codebooks_expanding_beyond_the_lookup_budget_give_a_typed_error() {
+    let sound = TestVorbis::new(1, 48_000, &[false; 4]).codebook(TestCodebook::InlineMaximal);
+    let bytes = sound.wem().bytes();
+    let wem = Wem::parse(bytes.as_slice()).unwrap();
+
+    let ogg = wem.write_ogg(&mut Vec::new()).err();
+    let wav = wem.write_wav(&mut Vec::new()).err();
+
+    let over_budget =
+        VorbisError::InvalidSetup("the codebooks expand to more than 2^20 lookup values");
+    assert!(bytes.len() < 8_192, "a small WEM: {} bytes", bytes.len());
+    for error in [ogg, wav] {
+        assert!(
+            matches!(&error, Some(AudioError::CodebooksRejected { inline, .. })
+                if *inline == over_budget),
+            "{error:?}"
+        );
+    }
+}
+
+#[test]
 fn long_blocks_get_the_window_flags_of_their_neighbours() {
     let flags = [false, true, true, false, true, false];
     let sound = TestVorbis::new(1, 48_000, &flags);

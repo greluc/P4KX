@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "error(\"from Ship select hardpoints.x\")?"
+---
+error: field `hardpoints` of `Ship` holds an array of structs; select its elements with `[n]`, `[*]` or `[TypeName]` before the field `x`
+  from Ship select hardpoints.x
+                              ^

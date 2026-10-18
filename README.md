@@ -155,12 +155,13 @@ Early development (milestone M1). Available today:
   0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
-  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM or
-  PTADPCM WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
-  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
-  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
-  the console codecs are detected; a conversion the codec does not support yet fails with an
-  error naming it, and a corrupt or truncated WEM fails with the reason.
+  Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
+  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
+  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
@@ -181,6 +182,53 @@ Early development (milestone M1). Available today:
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
+
+## MCP server
+
+`p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
+stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
+(`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
+write a file:
+
+| Tool | Result |
+|------|--------|
+| `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
+| `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
+
+Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
+or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
+`:` after the drive (an alternate data stream) and a path that resolves to a network drive or
+device are refused. Without it the tools use the Archive given with `--archive` when the server
+was started. Opened Archives stay open between calls and are opened again when their file
+changes. Listings page: `limit` sets the page size (100 by default, at most 1000), and a result
+with `next_cursor` has a next page that `cursor` asks for; a cursor only continues the listing
+that returned it, on the same version of the Archive. `--config-dir`, `--launcher-dir` and
+`--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
+for `p4kx channels`.
+
+The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
+`%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
+client with its full path. Claude Code:
+
+```powershell
+claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4K-Extractor\p4kx-mcp.exe" --archive LIVE
+```
+
+Claude Desktop and other clients that read an `mcpServers` file, with `<user>` your Windows user
+name:
+
+```json
+{
+  "mcpServers": {
+    "p4kx": {
+      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4K-Extractor\\p4kx-mcp.exe",
+      "args": ["--archive", "LIVE"]
+    }
+  }
+}
+```
 
 ## Build
 

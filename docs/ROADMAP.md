@@ -5,8 +5,8 @@ formats. It replaces the KRT P4K Reader and covers the functionality of unp4k an
 an own Rust core (ADR-0001). Terms follow [CONTEXT.md](../CONTEXT.md).
 
 Every milestone ends in a usable release: SemVer `0.x`, one minor version per milestone, built by
-GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe` and `p4kx.exe` and a per-user MSI
-(ADR-0007), with notes from `CHANGELOG.md`.
+GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe` and
+`p4kx-mcp.exe` and a per-user MSI (ADR-0007), with notes from `CHANGELOG.md`.
 
 ## Product decisions
 

@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::query::lexer::Keyword;
 use crate::query::parser::floor_char_boundary;
-use crate::query::{MAX_QUERY_LEN, Operator, Span};
+use crate::query::{Expected, Found, LiteralKind, MAX_QUERY_LEN, Operator, Span};
 use crate::{DataForgeError, DataType};
 
 /// A Query that cannot be parsed or compiled, with the span of the cause in the Query text.
@@ -102,13 +102,13 @@ pub enum QueryErrorKind {
         /// The closest declared field name.
         suggestion: Option<String>,
     },
-    /// A path names a field that holds no single scalar value.
+    /// A path ends at a value that is no single scalar: a struct, an array or a link.
     #[error(
-        "field `{name}`{} holds {}; only fields with one scalar value can be selected",
+        "field `{name}`{} holds {}; a path has to end at a scalar value",
         Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: *.array }
     )]
     UnsupportedField {
-        /// The field name.
+        /// The field as written from its name on, e.g. `parts[0]`.
         name: String,
         /// The struct declaring it, or `None` without `from`.
         owner: Option<String>,
@@ -117,10 +117,10 @@ pub enum QueryErrorKind {
         /// Whether it holds an array.
         array: bool,
     },
-    /// A path continues behind a field that holds a scalar value.
+    /// A path continues with `.` behind a scalar value.
     #[error("field `{name}`{} holds a {data_type} value and has no field `{next}`", Owner(.owner.as_deref()))]
     ScalarHasNoFields {
-        /// The scalar field.
+        /// The field as written from its name on.
         name: String,
         /// The struct declaring it, or `None` without `from`.
         owner: Option<String>,
@@ -128,6 +128,84 @@ pub enum QueryErrorKind {
         data_type: DataType,
         /// The name written behind it.
         next: String,
+    },
+    /// A path continues with `.` behind an array without selecting elements.
+    #[error(
+        "field `{name}`{} holds {}; select its elements with `[n]`, `[*]` or `[TypeName]` before the field `{next}`",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: true }
+    )]
+    ArrayHasNoFields {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its elements.
+        data_type: DataType,
+        /// The name written behind it.
+        next: String,
+    },
+    /// A path continues with `.` behind a Reference or a weak pointer.
+    #[error(
+        "field `{name}`{} holds {}, so a path cannot reach its field `{next}`",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: false }
+    )]
+    LinkHasNoFields {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// [`DataType::Reference`] or [`DataType::WeakPointer`].
+        data_type: DataType,
+        /// The name written behind it.
+        next: String,
+    },
+    /// `[n]`, `[*]` or `[TypeName]` behind a value that is no array.
+    #[error(
+        "field `{name}`{} holds {}, which has no elements",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: false }
+    )]
+    NotAnArray {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its value.
+        data_type: DataType,
+    },
+    /// `[TypeName]` behind an array whose elements are no structs.
+    #[error(
+        "field `{name}`{} holds {}; `[TypeName]` selects elements of struct arrays only",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: true }
+    )]
+    ElementsHaveNoType {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its elements.
+        data_type: DataType,
+    },
+    /// `[TypeName]` names a struct no element of the array can have.
+    #[error(
+        "the elements of field `{name}` are `{element}`, and `{type_name}` neither derives from it nor is a base of it"
+    )]
+    UnrelatedType {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct the field declares for its elements.
+        element: String,
+        /// The struct named in the brackets.
+        type_name: String,
+    },
+    /// An index that is no whole number from 0 to `u32::MAX`.
+    #[error("an index is a whole number from 0 to {}", u32::MAX)]
+    InvalidIndex,
+    /// A path with more than [`MAX_PATH_SEGMENTS`](crate::query::MAX_PATH_SEGMENTS) segments
+    /// behind its first field.
+    #[error("the path has more than {limit} segments behind its first field")]
+    PathTooLong {
+        /// The most segments allowed.
+        limit: usize,
     },
     /// Parentheses and `not` nest deeper than [`MAX_CONDITION_DEPTH`](crate::query::MAX_CONDITION_DEPTH).
     #[error("the condition nests parentheses and `not` deeper than {limit}")]
@@ -161,125 +239,6 @@ pub enum QueryErrorKind {
     /// The schema of the DataForge cannot be read.
     #[error("the DataForge schema cannot be read: {0}")]
     DataForge(DataForgeError),
-}
-
-/// What the parser expected at a position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Expected {
-    /// `from` or `at` at the start.
-    Selection,
-    /// A struct name after `from`.
-    TypeName,
-    /// A string after `at`.
-    Glob,
-    /// A field name in a path.
-    FieldName,
-    /// What may follow `from <type>`.
-    AfterFrom,
-    /// What may follow `at "<glob>"`.
-    AfterAt,
-    /// What may follow a path.
-    AfterPath,
-    /// A comparison, `not` or `(` where a condition starts.
-    Condition,
-    /// A comparison operator after the path of a comparison.
-    Operator,
-    /// `with` after `starts`.
-    With,
-    /// A number, a string, `true` or `false` after a comparison operator.
-    Value,
-    /// A string after a matching operator.
-    Text,
-    /// What may follow a condition in parentheses.
-    CloseParenthesis,
-    /// What may follow the condition of `where`.
-    AfterCondition,
-}
-
-impl fmt::Display for Expected {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Selection => "`from` or `at`",
-            Self::TypeName => "a type name",
-            Self::Glob => "a record-path glob in double quotes",
-            Self::FieldName => "a field name",
-            Self::AfterFrom => "`at`, `select`, `where` or the end of the Query",
-            Self::AfterAt => "`select`, `where` or the end of the Query",
-            Self::AfterPath => "`.`, `,`, `where` or the end of the Query",
-            Self::Condition => "a comparison, `not` or `(`",
-            Self::Operator => {
-                "`=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `starts with` or `like`"
-            }
-            Self::With => "`with`",
-            Self::Value => "a number, a string, `true` or `false`",
-            Self::Text => "a string in double quotes",
-            Self::CloseParenthesis => "`and`, `or` or `)`",
-            Self::AfterCondition => "`and`, `or` or the end of the Query",
-        })
-    }
-}
-
-/// What the literal of a comparison is, for [`QueryErrorKind::IncompatibleComparison`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum LiteralKind {
-    /// A number without fraction or exponent.
-    Integer,
-    /// A number with a fraction or an exponent.
-    Fraction,
-    /// A string.
-    Text,
-    /// `true` or `false`.
-    Bool,
-}
-
-impl fmt::Display for LiteralKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Integer => "an integer",
-            Self::Fraction => "a number with a fraction or exponent",
-            Self::Text => "a string",
-            Self::Bool => "a boolean",
-        })
-    }
-}
-
-/// The token the parser found instead of an expected one.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Found {
-    /// The end of the Query.
-    End,
-    /// A keyword.
-    Keyword(Keyword),
-    /// A name.
-    Name(String),
-    /// A string.
-    Text,
-    /// A `,`.
-    Comma,
-    /// A `.`.
-    Dot,
-    /// A number.
-    Number,
-    /// An operator or a parenthesis.
-    Symbol(&'static str),
-}
-
-impl fmt::Display for Found {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::End => f.write_str("the end of the Query"),
-            Self::Keyword(keyword) => write!(f, "the keyword `{keyword}`"),
-            Self::Name(name) => write!(f, "the name `{name}`"),
-            Self::Text => f.write_str("a string"),
-            Self::Comma => f.write_str("`,`"),
-            Self::Dot => f.write_str("`.`"),
-            Self::Number => f.write_str("a number"),
-            Self::Symbol(symbol) => write!(f, "`{symbol}`"),
-        }
-    }
 }
 
 struct Suggestion<'a>(Option<&'a str>);
@@ -316,7 +275,8 @@ impl fmt::Display for Holds {
         match (nested, self.array) {
             (Some((one, _)), false) => f.write_str(one),
             (Some((_, many)), true) => write!(f, "an array of {many}"),
-            (None, _) => write!(f, "an array of {} values", self.data_type),
+            (None, false) => write!(f, "a {} value", self.data_type),
+            (None, true) => write!(f, "an array of {} values", self.data_type),
         }
     }
 }

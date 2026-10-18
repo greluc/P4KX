@@ -51,7 +51,10 @@ pub use entry_content::{
 pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
-pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_archive::{
+    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
+    MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
+};
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, EmbeddedWem, HircKind, HircObject, HircValue,
     MediaStorage, Section, SectionId, SoundSource, Soundbank,

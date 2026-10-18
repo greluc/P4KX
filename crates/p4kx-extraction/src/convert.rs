@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 
-use p4kx_archive::Entry;
+use p4kx_archive::{Checksum, Entry};
 use p4kx_cryxml::{self as cryxml, Format};
 
 use crate::ExtractionError;
@@ -82,7 +82,7 @@ impl EntryWriter<'_> {
         document
             .write_xml(&mut *xml)
             .map_err(|source| write_error(destination.file.clone(), source))?;
-        let expected = || (xml.len() as u64, crc32c::crc32c(xml));
+        let expected = || (xml.len() as u64, Checksum::Crc32c(crc32c::crc32c(xml)));
         if let Some(outcome) = self.decide(destination, expected, &mut buffers.chunk)? {
             return Ok(outcome);
         }

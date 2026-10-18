@@ -61,9 +61,29 @@ impl Read for RawReader<'_> {
     }
 }
 
-/// Opens the data of `entry` from decoded byte `offset`, at most its size, after checking its
-/// local header, if its layout has one; returns the reader and how many decoded bytes it still
-/// has to skip to reach `offset`.
+/// Returns where the stored data of `entry` begins after checking its local header, if its layout
+/// has one, and that the data lies inside `source`.
+pub(crate) fn data_offset(source: &Source, entry: &Entry) -> Result<u64, FormatError> {
+    let (offset, data_offset) = match entry.data {
+        DataStart::LocalHeader(offset) => (offset, read_local_header(source, offset)?),
+        DataStart::Direct(offset) => (offset, offset),
+    };
+    if !fits(source, data_offset, entry.compressed_size) {
+        return Err(FormatError::corrupt(
+            offset,
+            "Entry data lies outside the file",
+        ));
+    }
+    Ok(data_offset)
+}
+
+/// Opens the data of `entry` after checking its local header, if its layout has one.
+pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
+    open_at(source, entry, 0).map(|(reader, _)| reader)
+}
+
+/// Opens the data of `entry` from decoded byte `offset`, at most its size; returns the reader
+/// and how many decoded bytes it still has to skip to reach `offset`.
 ///
 /// Stored data starts at `offset` directly: unencrypted at that byte, encrypted at the AES block
 /// holding it, chained from the previous ciphertext block. Compressed data starts at the
@@ -73,19 +93,10 @@ pub(crate) fn open_at<'a>(
     entry: &Entry,
     offset: u64,
 ) -> Result<(EntryReader<'a>, u64), FormatError> {
-    let (header, data_offset) = match entry.data {
-        DataStart::LocalHeader(header) => (header, read_local_header(source, header)?),
-        DataStart::Direct(start) => (start, start),
-    };
-    if !fits(source, data_offset, entry.compressed_size) {
-        return Err(FormatError::corrupt(
-            header,
-            "Entry data lies outside the file",
-        ));
-    }
+    let data_offset = data_offset(source, entry)?;
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
         return Err(FormatError::corrupt(
-            header,
+            entry.data.offset(),
             "encrypted Entry data is not a whole number of AES blocks",
         ));
     }

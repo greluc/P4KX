@@ -49,7 +49,7 @@ fn print(archive: &Path, filter: Option<&Filter>, entries: &[&Entry], as_json: b
 }
 
 /// Prints a header and one row per Entry: method, encrypted, compressed size, size, path.
-fn print_table(entries: &[&Entry]) -> io::Result<()> {
+pub(crate) fn print_table(entries: &[&Entry]) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
     write_row(
         &mut out,

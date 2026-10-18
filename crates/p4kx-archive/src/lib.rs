@@ -1,12 +1,15 @@
 //! Reads Star Citizen `Data.p4k` Archives in two layouts: v1, a ZIP64 container whose central
 //! directory carries CIG-specific extra blocks, and v2, fixed 204-byte directory records with a
 //! name table behind a trailer ending in `Jiji`. Entries may be stored, deflate or zstd compressed
-//! and AES-128-CBC encrypted; their data is streamed through decryption and decompression.
+//! and AES-128-CBC encrypted; their data is streamed through decryption and decompression. An Entry
+//! that is itself a plain ZIP archive, such as a socpak container, opens as an Archive of its own.
 
 mod archive;
 mod build;
 mod central_directory;
+mod checksum;
 mod compression;
+mod container;
 mod data_error;
 mod decode;
 mod decrypt;
@@ -15,13 +18,18 @@ mod end_records;
 mod entry;
 mod entry_reader;
 mod error;
+mod file_source;
 mod format_error;
 mod layout;
 mod source;
 
 pub use archive::{Archive, MAX_DECODED_SKIP};
 pub use build::{Build, BuildError};
+pub use checksum::Checksum;
 pub use compression::Compression;
+pub use container::{
+    MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
+};
 pub use data_error::DataError;
 pub use entry::Entry;
 pub use entry_reader::EntryReader;

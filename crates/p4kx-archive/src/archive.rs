@@ -1,7 +1,9 @@
+use std::ffi::OsString;
 use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::path::{MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::time::SystemTime;
 
+use crate::container::{self, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN};
 use crate::format_error::FormatError;
 
 /// The most decoded bytes [`Archive::open_entry_at`] skips in a compressed Entry to reach an offset.
@@ -9,10 +11,15 @@ pub const MAX_DECODED_SKIP: u64 = 1 << 30;
 use crate::source::Source;
 use crate::{ArchiveError, Build, Entry, EntryReader, entry_reader, layout};
 
-/// An opened Archive with its Entries.
+/// An opened Archive with its Entries, or a container opened from one of its Entries.
 #[derive(Debug)]
 pub struct Archive {
     path: PathBuf,
+    location: PathBuf,
+    file_len: u64,
+    file_modified: Option<SystemTime>,
+    depth: usize,
+    decoded_budget: u64,
     source: Source,
     entries: Vec<Entry>,
     build: Option<Build>,
@@ -31,35 +38,96 @@ impl Archive {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
         let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
-        let entries = layout::read_entries(&source).map_err(|error| error.at(path))?;
+        let entries = layout::read_entries(&source, None).map_err(|error| error.at(path))?;
         let build = path
             .parent()
             .and_then(|folder| Build::read_from(folder).ok().flatten());
         Ok(Self {
             path: path.to_path_buf(),
+            location: path.to_path_buf(),
+            file_len: source.len(),
+            file_modified: source.modified(),
+            depth: 0,
+            decoded_budget: MAX_CONTAINER_LEN,
             source,
             entries,
             build,
         })
     }
 
-    /// Returns the path the Archive was opened from.
+    /// Opens the container held in `entry`, one of this Archive's Entries, as an Archive of its
+    /// own whose Entries are listed and read the same way, without extracting it to disk.
+    ///
+    /// A stored container is read in place; a compressed or encrypted one is decoded into memory.
+    /// The container shares the file, its size, modification time and Build with this Archive.
+    /// Containers open up to [`MAX_CONTAINER_DEPTH`] deep, the compressed ones of a chain decode
+    /// to at most [`MAX_CONTAINER_LEN`] bytes together, and their Entries are checked against the
+    /// other container limits of this crate.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::Container`] naming the Entry, with the reason as its source.
+    pub fn open_container(&self, entry: &Entry) -> Result<Self, ArchiveError> {
+        let mut location = OsString::from(self.location.as_os_str());
+        location.push(MAIN_SEPARATOR_STR);
+        location.push(&entry.path);
+        let location = PathBuf::from(location);
+        match self.read_container(entry) {
+            Ok((source, decoded_budget, entries)) => Ok(Self {
+                path: self.path.clone(),
+                location,
+                file_len: self.file_len,
+                file_modified: self.file_modified,
+                depth: self.depth + 1,
+                decoded_budget,
+                source,
+                entries,
+                build: self.build.clone(),
+            }),
+            Err(error) => Err(ArchiveError::Container {
+                path: self.location.clone(),
+                entry: entry.path.clone(),
+                source: Box::new(error.at(&location)),
+            }),
+        }
+    }
+
+    fn read_container(&self, entry: &Entry) -> Result<(Source, u64, Vec<Entry>), FormatError> {
+        if self.depth >= MAX_CONTAINER_DEPTH {
+            return Err(FormatError::LimitExceeded(format!(
+                "containers nest deeper than {MAX_CONTAINER_DEPTH} levels"
+            )));
+        }
+        let (source, budget) = container::source_of(&self.source, entry, self.decoded_budget)?;
+        let max_entries = Some(MAX_CONTAINER_ENTRIES as u64);
+        let entries = container::admit(layout::read_entries(&source, max_entries)?, &source)?;
+        Ok((source, budget, entries))
+    }
+
+    /// Returns the path of the Archive file, also for a container opened from it.
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Returns the size of the file in bytes when it was opened.
+    /// Returns the path of the Archive file followed by the Entry path of every container down to
+    /// this one; errors name it.
     #[must_use]
-    pub const fn file_len(&self) -> u64 {
-        self.source.len()
+    pub fn location(&self) -> &Path {
+        &self.location
     }
 
-    /// Returns the modification time of the file when it was opened, or `None` when the platform
-    /// records none.
+    /// Returns the size of the Archive file in bytes when it was opened.
+    #[must_use]
+    pub const fn file_len(&self) -> u64 {
+        self.file_len
+    }
+
+    /// Returns the modification time of the Archive file when it was opened, or `None` when the
+    /// platform records none.
     #[must_use]
     pub const fn file_modified(&self) -> Option<SystemTime> {
-        self.source.modified()
+        self.file_modified
     }
 
     /// Returns the Entries in central-directory order.
@@ -106,17 +174,17 @@ impl Archive {
         let size = entry.uncompressed_size();
         if offset > size {
             return Err(ArchiveError::OffsetBeyondEnd {
-                path: self.path.clone(),
+                path: self.location.clone(),
                 entry: entry.path().to_owned(),
                 offset,
                 size,
             });
         }
         let (mut reader, skip) = entry_reader::open_at(&self.source, entry, offset)
-            .map_err(|error| error.at(&self.path))?;
+            .map_err(|error| error.at(&self.location))?;
         if skip > MAX_DECODED_SKIP {
             return Err(ArchiveError::SkipTooLong {
-                path: self.path.clone(),
+                path: self.location.clone(),
                 entry: entry.path().to_owned(),
                 offset,
                 limit: MAX_DECODED_SKIP,
@@ -124,7 +192,7 @@ impl Archive {
         }
         io::copy(&mut (&mut reader).take(skip), &mut io::sink()).map_err(|source| {
             ArchiveError::Io {
-                path: self.path.clone(),
+                path: self.location.clone(),
                 source,
             }
         })?;

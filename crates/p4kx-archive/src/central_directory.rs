@@ -2,7 +2,7 @@ use p4kx_foundation::{ByteReader, ParseError};
 
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
-use crate::{Compression, Entry};
+use crate::{Checksum, Compression, Entry};
 
 const CENTRAL_HEADER_SIGNATURE: u32 = 0x0201_4B50;
 const CENTRAL_HEADER_LEN: usize = 46;
@@ -63,7 +63,7 @@ fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, FormatError> {
         path,
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
-        crc32c: fixed.crc32c,
+        checksum: Checksum::Crc32c(fixed.crc32c),
         data: DataStart::LocalHeader(extra.local_header_offset),
         compression: Compression::from_method(fixed.method),
         encrypted: extra.encrypted,

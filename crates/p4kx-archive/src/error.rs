@@ -77,6 +77,25 @@ pub enum ArchiveError {
         /// [`MAX_DECODED_SKIP`](crate::MAX_DECODED_SKIP).
         limit: u64,
     },
+    /// A container exceeds a limit that guards against nesting, size and compression bombs.
+    #[error("{path} exceeds a container limit: {reason}")]
+    LimitExceeded {
+        /// Location of the container.
+        path: PathBuf,
+        /// Which limit and by how much.
+        reason: String,
+    },
+    /// An Entry cannot be opened as a container.
+    #[error("{path}: Entry {entry} cannot be opened as a container")]
+    Container {
+        /// Location of the Archive or container holding the Entry.
+        path: PathBuf,
+        /// Path of the Entry.
+        entry: String,
+        /// Why the container cannot be opened.
+        #[source]
+        source: Box<Self>,
+    },
     /// The Entry uses a compression method this version cannot read yet.
     #[error("{path}: Entry {entry} uses {compression} compression, which is not supported yet")]
     UnsupportedCompression {

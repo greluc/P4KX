@@ -42,3 +42,22 @@ fn the_report_schema_is_draft_2020_12() {
         "draft 2020-12"
     );
 }
+
+#[test]
+fn the_nullable_report_fields_allow_null() {
+    let schema = p4kx_comparison::report_schema();
+    let side = "/$defs/SourceSide/properties";
+    for pointer in [
+        "/properties/filter/type".to_owned(),
+        format!("{side}/channel/type"),
+        format!("{side}/build/type"),
+    ] {
+        let types = schema
+            .pointer(&pointer)
+            .and_then(serde_json::Value::as_array);
+        assert!(
+            types.is_some_and(|types| types.contains(&serde_json::json!("null"))),
+            "{pointer} allows null"
+        );
+    }
+}

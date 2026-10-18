@@ -4,12 +4,14 @@ use unic_langid::LanguageIdentifier;
 mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
+mod diff_text;
 mod extraction_text;
 mod text_ids;
 
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
+pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 
 use crate::Language;
@@ -150,6 +152,8 @@ pub enum Text {
     DataForge(DataForgeText),
     /// A text of extracting the changes of one Comparison side.
     ChangeExtraction(ChangeExtractionText),
+    /// A text of the line diff of the Comparison tab.
+    Diff(DiffText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

@@ -20,11 +20,15 @@ use crate::{
 /// Shows the list panel of the changes: the Filter, the report and the sortable list.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     toolbar(ui, model, requests);
+    let reveal = model
+        .comparison_mut()
+        .view_mut()
+        .and_then(ComparisonView::take_reveal);
     let texts = model.texts();
     let Some(view) = model.comparison().view() else {
         return;
     };
-    let action = comparison_list::show(ui, texts, view);
+    let action = comparison_list::show(ui, texts, view, reveal);
     let Some(view) = model.comparison_mut().view_mut() else {
         return;
     };

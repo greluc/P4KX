@@ -46,6 +46,12 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("change", "Added".into()),
         ("filter", "*.xml".into()),
         ("stopped", "yes".into()),
+        ("current", "1".into()),
+        ("first", "10".into()),
+        ("last", "16".into()),
+        ("line", "12".into()),
+        ("text", "<a/>".into()),
+        ("lines", "4,194,304".into()),
     ]
 }
 

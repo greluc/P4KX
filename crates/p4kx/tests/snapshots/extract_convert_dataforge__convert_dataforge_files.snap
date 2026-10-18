@@ -1,0 +1,17 @@
+---
+source: crates/p4kx/tests/extract_convert_dataforge.rs
+expression: tree(&out)?
+---
+== Data/libs/foundry/records/anchors/anchor.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Item guid="00000001-0002-0003-0004-000000000006" path="libs/foundry/records/anchors/anchor" mass="900" label="Anchor"/>
+== Data/libs/foundry/records/items/boxes/Item.Box.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Item guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/items/boxes" mass="1" label="Box"/>
+== Data/libs/foundry/records/items/boxes/Item.Crate.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Item xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="00000001-0002-0003-0004-000000000005" path="libs/foundry/records/items/boxes" mass="2.5">
+  <p4kx:error field="label" reason="offset 4294967295 in the text table is not a valid string"/>
+</Item>
+== Data/readme.txt
+hello

@@ -69,6 +69,12 @@ The file a Record is defined in, without `.xml`, e.g. `libs/foundry/records/enti
 several Records may share one, so only the GUID is unique.
 _Avoid_: file name, record name (the name is `EntityClassDefinition.AEGS_Avenger`)
 
+**Record order**:
+The one order of Records in every listing and streamed output: by record path ignoring ASCII case
+with `/` and `\` alike, then by Record name ignoring ASCII case, then by definition order in
+DataForge.
+_Avoid_: path order, sort order
+
 **Record folder**:
 A record path that several Records share, shown in the Record tree as a folder holding those Records.
 _Avoid_: record group, file node

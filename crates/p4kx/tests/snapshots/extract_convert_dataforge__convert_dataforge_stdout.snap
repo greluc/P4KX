@@ -1,0 +1,6 @@
+---
+source: crates/p4kx/tests/extract_convert_dataforge.rs
+expression: stdout
+---
+extracted 2 (1 converted), skipped 0, failed 0, cancelled 0 into [DIR]/out
+exported 3 Records, skipped 0, failed 0, cancelled 0 into [DIR]/out/Data; 1 error values in 1 Records

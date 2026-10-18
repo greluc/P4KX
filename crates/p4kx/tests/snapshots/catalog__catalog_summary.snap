@@ -3,4 +3,6 @@ source: crates/p4kx/tests/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete
-wrote [DIR]/basetool-catalog.json: 870 bytes, 1 Records skipped
+en: 3 texts resolved, 1 unresolved, 0 placeholders
+de: 2 texts resolved, 2 unresolved, 0 placeholders
+wrote [DIR]/basetool-catalog.json: 969 bytes, 1 Records skipped

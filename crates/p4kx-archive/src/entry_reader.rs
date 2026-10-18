@@ -4,7 +4,7 @@ use std::io::{self, BufReader, Read};
 use flate2::read::DeflateDecoder;
 use p4kx_foundation::ByteReader;
 
-use crate::decode::{CorruptAs, ExactSize, ZstdOrPlain};
+use crate::decode::{CorruptAs, ExactSize, Overlong, ZstdOrPlain};
 use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
@@ -25,6 +25,20 @@ type DataReader<'a> = Box<dyn Read + Send + 'a>;
 /// carry a [`DataError`](crate::DataError).
 pub struct EntryReader<'a> {
     inner: ExactSize<DataReader<'a>>,
+    encrypted: bool,
+}
+
+impl EntryReader<'_> {
+    /// Makes data that goes on after the Entry's uncompressed size an error, a
+    /// [`DataError::TooLong`](crate::DataError::TooLong), instead of cutting it; the zero padding
+    /// of an encrypted Entry below one AES block is still allowed.
+    #[must_use]
+    pub fn reject_overlong(mut self) -> Self {
+        self.inner.set_overlong(Overlong::Reject {
+            padding: self.encrypted,
+        });
+        self
+    }
 }
 
 impl fmt::Debug for EntryReader<'_> {
@@ -119,6 +133,7 @@ pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<
     };
     Ok(EntryReader {
         inner: ExactSize::new(decoded, entry.uncompressed_size),
+        encrypted: entry.encrypted,
     })
 }
 

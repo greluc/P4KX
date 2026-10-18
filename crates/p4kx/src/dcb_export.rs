@@ -4,10 +4,11 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{
-    Archive, DataForgeEntry, Filter, Record, RecordExportOptions, RecordExportReport,
-    RecordFailure, export_records,
+use p4kx_export::{
+    NDJSON_FILE, RecordExportOptions, RecordExportSummary, RecordFailure, RecordForm,
+    write_record_export,
 };
+use p4kx_extraction::{Archive, DataForgeEntry, Filter, Record};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -33,6 +34,7 @@ struct ReportJson<'a> {
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
+    error: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -42,12 +44,14 @@ struct FailureJson<'a> {
     error: String,
 }
 
-/// Writes the selected Records of the Archive's DataForge as Record XML into the target folder
-/// and prints the report.
+/// Writes the selected Records of the Archive's DataForge in the chosen format into the target
+/// folder and prints the report.
 pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
-    match args.format {
-        RecordFormat::Xml => {}
-    }
+    let form = match args.format {
+        RecordFormat::Xml => RecordForm::Xml,
+        RecordFormat::Json => RecordForm::Json,
+        RecordFormat::Ndjson => RecordForm::Ndjson,
+    };
     let archive = Archive::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -71,12 +75,12 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
         policy: policy(args.conflict),
         cancel: Some(&cancel),
     };
-    let report = export_records(&forge, &records, &target, &options);
+    let report = write_record_export(&forge, &records, form, &target, &options);
     let printed = if as_json {
         json::print(&ReportJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
-            format: "xml",
+            format: form.name(),
             target: json::path(&target),
             exported: report.written(),
             skipped: report.skipped(),
@@ -84,6 +88,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
             cancelled: report.cancelled(),
             error_values: report.error_values(),
             records_with_errors: report.records_with_errors(),
+            error: report.error().map(|error| reason(error)),
         })
     } else {
         print_report(&report, &target, args.conflict)
@@ -104,13 +109,13 @@ fn failure_json(failure: &RecordFailure) -> FailureJson<'_> {
     FailureJson {
         guid: failure.guid().to_string(),
         path: failure.record_path(),
-        error: reason(failure),
+        error: reason(failure.error()),
     }
 }
 
-fn reason(failure: &RecordFailure) -> String {
-    let mut reason = failure.error().to_string();
-    let mut source = failure.error().source();
+fn reason(error: &dyn Error) -> String {
+    let mut reason = error.to_string();
+    let mut source = error.source();
     while let Some(cause) = source {
         reason.push_str(": ");
         reason.push_str(&cause.to_string());
@@ -119,7 +124,7 @@ fn reason(failure: &RecordFailure) -> String {
     reason
 }
 
-fn print_report(report: &RecordExportReport, target: &Path, conflict: Conflict) -> io::Result<()> {
+fn print_report(report: &RecordExportSummary, target: &Path, conflict: Conflict) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
         writeln!(
@@ -127,8 +132,11 @@ fn print_report(report: &RecordExportReport, target: &Path, conflict: Conflict) 
             "failed {} ({}): {}",
             failure.record_path(),
             failure.guid(),
-            reason(failure)
+            reason(failure.error())
         )?;
+    }
+    if let Some(error) = report.error() {
+        writeln!(err, "failed {NDJSON_FILE}: {}", reason(error))?;
     }
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {

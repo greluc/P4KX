@@ -2,7 +2,7 @@
 
 Record XML is the XML form of one Record of DataForge, written by `p4kx dcb export --format xml`
 and by the `RecordXml` writer of `p4kx-dataforge`. It serialises the canonical Record tree, the
-same tree JSON and the Comparison use: owned children are nested, References are links and never
+same tree [Record JSON](record-json.md) and the Comparison use: owned children are nested, References are links and never
 embedded ([ADR-0004](adr/0004-own-record-xml-with-references.md)). It is not compatible with the
 XML of unp4k.
 

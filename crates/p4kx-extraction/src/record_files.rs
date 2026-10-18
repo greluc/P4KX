@@ -6,12 +6,11 @@ use rayon::slice::ParallelSliceMut;
 
 use crate::entry_path::relative_path;
 
-const EXTENSION: &str = ".xml";
-
 /// The file below the target folder that each Record of a DataForge is written to (ADR-0008).
 ///
-/// A Record alone at its record path goes to `<record path>.xml`. Records that share a record
-/// path go into the folder `<record path>/`, each to `<name>.xml`; when such a file collides with
+/// A Record alone at its record path goes to `<record path><extension>`. Records that share a
+/// record path go into the folder `<record path>/`, each to `<name><extension>`; when such a file
+/// collides with
 /// another one ignoring case, or a name is no plain file name, the GUID is used as well. The plan
 /// depends on the whole DataForge only, so a Record always gets the same file whatever is
 /// selected.
@@ -25,8 +24,8 @@ struct Planned {
 }
 
 impl RecordFiles {
-    /// Plans the file of every Record of `forge`.
-    pub(crate) fn plan(forge: &DataForge<'_>) -> Self {
+    /// Plans the file of every Record of `forge`, ending in `extension`, e.g. `.xml`.
+    pub(crate) fn plan(forge: &DataForge<'_>, extension: &str) -> Self {
         let records: Vec<Record<'_>> = forge.records().collect();
         let keys: Vec<(Option<&str>, Option<&str>)> = records
             .iter()
@@ -53,7 +52,7 @@ impl RecordFiles {
                 };
                 *slot = Some(if group.len() == 1 {
                     Planned {
-                        file: format!("{record_path}{EXTENSION}"),
+                        file: format!("{record_path}{extension}"),
                         shared: false,
                     }
                 } else {
@@ -63,13 +62,13 @@ impl RecordFiles {
                     let unique = !collides(position.checked_sub(1).and_then(|at| group.get(at)))
                         && !collides(group.get(position + 1));
                     Planned {
-                        file: shared_file(record_path, name(index), record, unique),
+                        file: shared_file(record_path, name(index), record, unique, extension),
                         shared: true,
                     }
                 });
             }
         }
-        separate_shared(&mut planned, &records, &keys);
+        separate_shared(&mut planned, &records, &keys, extension);
         let mut folders = Folders::default();
         for planned in planned.iter_mut().flatten() {
             folders.canonicalise(&mut planned.file);
@@ -93,11 +92,12 @@ impl RecordFiles {
 }
 
 /// Gives every shared Record whose file collides with another planned file ignoring case its
-/// GUID, so a Record alone at its record path keeps `<record path>.xml`.
+/// GUID, so a Record alone at its record path keeps `<record path><extension>`.
 fn separate_shared(
     planned: &mut [Option<Planned>],
     records: &[Record<'_>],
     keys: &[(Option<&str>, Option<&str>)],
+    extension: &str,
 ) {
     let mut order: Vec<usize> = (0..planned.len()).collect();
     order.par_sort_unstable_by(|left, right| {
@@ -118,7 +118,7 @@ fn separate_shared(
             continue;
         };
         if slot.shared {
-            slot.file = shared_file(record_path, *name, record, false);
+            slot.file = shared_file(record_path, *name, record, false, extension);
         }
     }
 }
@@ -162,12 +162,18 @@ fn file(planned: &[Option<Planned>], index: usize) -> Option<&str> {
         .map(|planned| planned.file.as_str())
 }
 
-fn shared_file(record_path: &str, name: Option<&str>, record: &Record<'_>, unique: bool) -> String {
+fn shared_file(
+    record_path: &str,
+    name: Option<&str>,
+    record: &Record<'_>,
+    unique: bool,
+    extension: &str,
+) -> String {
     let guid = record.guid();
     match name {
-        Some(name) if is_file_name(name) && unique => format!("{record_path}/{name}{EXTENSION}"),
-        Some(name) if is_file_name(name) => format!("{record_path}/{name}.{guid}{EXTENSION}"),
-        _ => format!("{record_path}/{guid}{EXTENSION}"),
+        Some(name) if is_file_name(name) && unique => format!("{record_path}/{name}{extension}"),
+        Some(name) if is_file_name(name) => format!("{record_path}/{name}.{guid}{extension}"),
+        _ => format!("{record_path}/{guid}{extension}"),
     }
 }
 

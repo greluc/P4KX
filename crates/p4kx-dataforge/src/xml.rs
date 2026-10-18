@@ -139,35 +139,8 @@ impl RecordXml {
         out.write_all(b">\n")
     }
 
-    /// Pushes for every field whether it is written as an attribute: a scalar whose name is a
-    /// plain XML name, not reserved and not taken by an earlier field.
     fn classify(&mut self, fields: &[Field<'_>]) {
-        let base = self.attribute.len();
-        self.attribute.extend(fields.iter().map(|field| {
-            field.value().is_scalar()
-                && is_plain_name(field.name())
-                && !RESERVED.contains(&field.name())
-        }));
-        self.order.clear();
-        self.order.extend(
-            self.attribute
-                .get(base..)
-                .unwrap_or_default()
-                .iter()
-                .enumerate()
-                .filter_map(|(index, attribute)| attribute.then_some(index)),
-        );
-        let name = |index: &usize| fields.get(*index).map(Field::name);
-        self.order
-            .sort_unstable_by(|left, right| name(left).cmp(&name(right)).then(left.cmp(right)));
-        for pair in self.order.windows(2) {
-            if let [first, second] = pair
-                && name(first) == name(second)
-                && let Some(attribute) = self.attribute.get_mut(base + *second)
-            {
-                *attribute = false;
-            }
-        }
+        classify(fields, &mut self.attribute, &mut self.order);
     }
 
     fn write_child(
@@ -273,6 +246,37 @@ impl RecordTree<'_> {
     /// Returns the I/O error of `out`.
     pub fn write_xml<W: Write>(&self, out: &mut W) -> io::Result<()> {
         RecordXml::new().write(self, out)
+    }
+}
+
+/// Pushes onto `attribute` for every field of `fields` whether Record XML writes it as an
+/// attribute: a scalar whose name is a plain XML name, not reserved and not taken by an earlier
+/// such field. `order` is scratch space.
+pub(crate) fn classify(fields: &[Field<'_>], attribute: &mut Vec<bool>, order: &mut Vec<usize>) {
+    let base = attribute.len();
+    attribute.extend(fields.iter().map(|field| {
+        field.value().is_scalar()
+            && is_plain_name(field.name())
+            && !RESERVED.contains(&field.name())
+    }));
+    order.clear();
+    order.extend(
+        attribute
+            .get(base..)
+            .unwrap_or_default()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, attribute)| attribute.then_some(index)),
+    );
+    let name = |index: &usize| fields.get(*index).map(Field::name);
+    order.sort_unstable_by(|left, right| name(left).cmp(&name(right)).then(left.cmp(right)));
+    for pair in order.windows(2) {
+        if let [first, second] = pair
+            && name(first) == name(second)
+            && let Some(flag) = attribute.get_mut(base + *second)
+        {
+            *flag = false;
+        }
     }
 }
 

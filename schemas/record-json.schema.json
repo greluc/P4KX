@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/krt-profit/p4k-extractor/schemas/record-json.schema.json",
+  "title": "Record JSON",
+  "description": "One Record of DataForge as written by p4kx dcb export --format json|ndjson; see docs/record-json.md.",
+  "allOf": [
+    {
+      "$ref": "#/$defs/struct"
+    }
+  ],
+  "required": [
+    "$type",
+    "$guid",
+    "$path"
+  ],
+  "properties": {
+    "$guid": {
+      "$ref": "#/$defs/guid"
+    },
+    "$path": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "guid": {
+      "description": "A GUID in lower case.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "struct": {
+      "description": "A struct: its type, then its fields in the order of the Record XML.",
+      "type": "object",
+      "required": [
+        "$type"
+      ],
+      "properties": {
+        "$type": {
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "enum": [
+              "$type",
+              "$guid",
+              "$path"
+            ]
+          },
+          {
+            "pattern": "^\\$[0-9]+$"
+          },
+          {
+            "not": {
+              "pattern": "^\\$"
+            }
+          }
+        ]
+      },
+      "patternProperties": {
+        "^\\$[0-9]+$": {
+          "$ref": "#/$defs/positionalField"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
+    "positionalField": {
+      "description": "A field whose name starts with $ or is taken by an earlier field, keyed by its position in declaration order.",
+      "type": "object",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "description": "A link to a Record, or to the instance at a location inside it; never its content.",
+      "type": "object",
+      "required": [
+        "guid",
+        "path",
+        "type"
+      ],
+      "properties": {
+        "guid": {
+          "$ref": "#/$defs/guid"
+        },
+        "path": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "description": "A value that cannot be read, with the reason for people.",
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "value": {
+      "description": "A scalar, null, an array, an owned struct, a Reference or an error. Non-finite floats are the strings NaN, INF and -INF.",
+      "anyOf": [
+        {
+          "type": [
+            "boolean",
+            "number",
+            "string",
+            "null"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        {
+          "$ref": "#/$defs/struct"
+        },
+        {
+          "$ref": "#/$defs/reference"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    }
+  }
+}

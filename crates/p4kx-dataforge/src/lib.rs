@@ -8,8 +8,9 @@
 //!
 //! [`Record::tree`] builds the canonical [`RecordTree`] of one Record, the single model every
 //! output is made from: owned children nested, References as links (ADR-0004). [`RecordXml`]
-//! writes it as Record XML (`docs/record-xml.md`). [`query`] selects Records and values inside
-//! them with Queries (`docs/query.md`).
+//! writes it as Record XML (`docs/record-xml.md`), [`RecordJson`] as Record JSON
+//! (`docs/record-json.md`). [`query`] selects Records and values inside them with Queries
+//! (`docs/query.md`).
 
 mod build;
 mod dataforge;
@@ -17,6 +18,8 @@ mod error;
 mod guid;
 mod header;
 mod instance;
+mod json;
+mod json_text;
 mod kinds;
 mod layout;
 mod location;
@@ -43,6 +46,7 @@ pub use dataforge::DataForge;
 pub use error::DataForgeError;
 pub use guid::{Guid, InvalidGuid};
 pub use header::SUPPORTED_VERSIONS;
+pub use json::{JsonLayout, RecordJson};
 pub use kinds::{DataType, ValueKind};
 pub use layout::{MAX_INHERITANCE_DEPTH, MAX_RECORD_FIELDS};
 pub use location::{Location, Step};

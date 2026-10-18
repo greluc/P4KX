@@ -106,8 +106,8 @@ pub(crate) enum DcbCommand {
     /// Prints the version of the DataForge and its number of Records, structs and enums.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(DcbInfoArgs),
-    /// Writes Records as Record XML, one file per Record under its record path, into a target
-    /// folder.
+    /// Writes Records as Record XML or JSON, one file per Record under its record path, or as one
+    /// NDJSON file, into a target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
     /// Runs a Query over the Records and prints the result as a table, the record path first.
@@ -130,7 +130,7 @@ pub(crate) struct DcbQueryArgs {
 pub(crate) struct DcbExportArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
-    /// The format of the Record files.
+    /// The format of the Records.
     #[arg(long, value_enum, default_value_t = RecordFormat::Xml)]
     pub(crate) format: RecordFormat,
     /// Exports only the Records whose record path matches, with the rules of `p4kx search`: a
@@ -149,8 +149,12 @@ pub(crate) struct DcbExportArgs {
 /// The values of `p4kx dcb export --format`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum RecordFormat {
-    /// Record XML, defined in docs/record-xml.md.
+    /// Record XML, defined in docs/record-xml.md, one file per Record.
     Xml,
+    /// Record JSON, defined in docs/record-json.md, one file per Record.
+    Json,
+    /// One file records.ndjson with one Record JSON object per line, in record-path order.
+    Ndjson,
 }
 
 /// Arguments of `p4kx dcb info`.

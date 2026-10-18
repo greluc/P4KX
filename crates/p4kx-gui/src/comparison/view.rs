@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_comparison::{Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
 
@@ -43,9 +44,13 @@ impl Summary {
     }
 }
 
+static GENERATIONS: AtomicU64 = AtomicU64::new(0);
+
 /// A finished Comparison as the tab shows it: filtered, sorted and with the report it saves.
 #[derive(Debug)]
 pub struct ComparisonView {
+    generation: u64,
+    revision: u64,
     comparison: Arc<OwnedComparison>,
     orders: ChangeOrders,
     totals: Summary,
@@ -65,6 +70,8 @@ impl ComparisonView {
         let orders = ChangeOrders::build(&comparison);
         let totals = Summary::of(&comparison.comparison());
         let mut view = Self {
+            generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
+            revision: 0,
             comparison,
             orders,
             totals,
@@ -78,6 +85,16 @@ impl ComparisonView {
         };
         view.refresh_shown();
         view
+    }
+
+    /// Returns a number no other view of this process carries.
+    pub(crate) const fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Returns a number that grows whenever the summary changes.
+    pub(crate) const fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// Returns the Comparison.
@@ -119,6 +136,7 @@ impl ComparisonView {
         self.pending = None;
         if text.is_empty() {
             self.matched = None;
+            self.revision = self.revision.wrapping_add(1);
             self.refresh_shown();
             return;
         }
@@ -202,6 +220,7 @@ impl ComparisonView {
 
     fn show_matched(&mut self, matched: Matched) {
         self.matched = Some(matched);
+        self.revision = self.revision.wrapping_add(1);
         self.refresh_shown();
     }
 

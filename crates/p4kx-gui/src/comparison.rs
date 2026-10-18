@@ -6,6 +6,7 @@ mod report;
 mod run;
 mod view;
 
+pub(crate) use orders::rank;
 pub use orders::{ChangeColumn, ChangeSort};
 pub use report::ReportStatus;
 pub use view::{ComparisonView, DirectorySummary, Summary};
@@ -135,12 +136,12 @@ impl ComparisonTab {
     /// Starts comparing the picked Archives off the UI thread, calling `wake` from it as it
     /// advances and once it ended; returns whether it started.
     pub fn start(&mut self, wake: impl Fn() + Send + Sync + 'static) -> bool {
-        let (Some(old), Some(new)) = (&self.old, &self.new) else {
-            return false;
-        };
         if !self.can_start() {
             return false;
         }
+        let (Some(old), Some(new)) = (&self.old, &self.new) else {
+            return false;
+        };
         self.state = match run::start(old.clone(), new.clone(), wake) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),

@@ -100,7 +100,8 @@ impl ChangeOrders {
     }
 }
 
-const fn rank(kind: ChangeKind) -> u8 {
+/// Returns the position of `kind` in the order Added, Removed, Changed.
+pub(crate) const fn rank(kind: ChangeKind) -> u8 {
     match kind {
         ChangeKind::Added => 0,
         ChangeKind::Removed => 1,
@@ -108,8 +109,8 @@ const fn rank(kind: ChangeKind) -> u8 {
     }
 }
 
-fn sorted_by_key<K: Ord + Send>(ids: &[u32], key: impl Fn(u32) -> K + Sync) -> Vec<u32> {
+fn sorted_by_key<K: Ord + Send + Sync>(ids: &[u32], key: impl Fn(u32) -> K + Sync) -> Vec<u32> {
     let mut ids = ids.to_vec();
-    ids.par_sort_by_key(|&id| key(id));
+    ids.par_sort_by_cached_key(|&id| key(id));
     ids
 }

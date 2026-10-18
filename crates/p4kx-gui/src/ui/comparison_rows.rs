@@ -28,16 +28,22 @@ pub(super) struct RowGalleys {
 pub(super) struct RowCache {
     key: Option<Id>,
     chips: Vec<Arc<Galley>>,
+    heads: Vec<String>,
     rows: HashMap<u32, RowGalleys>,
 }
 
 impl RowCache {
     /// Returns the cache of `ui` for `view` in the language of `texts`, emptied when either
     /// changed.
-    pub(super) fn load(ui: &Ui, texts: &Texts, view: &ComparisonView) -> Self {
+    pub(super) fn load(
+        ui: &Ui,
+        texts: &Texts,
+        view: &ComparisonView,
+        heads: &[ComparisonText],
+    ) -> Self {
         let key = Id::unique((
             texts.language(),
-            std::ptr::from_ref(view.comparison()).addr(),
+            view.generation(),
             ui.ctx().pixels_per_point().to_bits(),
         ));
         let mut cache: Self =
@@ -52,6 +58,7 @@ impl RowCache {
                 ]
                 .map(|text| chip::galley(ui, &texts.get(text)))
                 .to_vec(),
+                heads: heads.iter().map(|&text| texts.get(text)).collect(),
                 rows: HashMap::new(),
             };
         }
@@ -63,14 +70,16 @@ impl RowCache {
         ui.data_mut(|data| *data.get_temp_mut_or_default::<Self>(cache_id()) = self);
     }
 
+    /// Returns the label of the head cell at `index`.
+    pub(super) fn head(&self, index: usize) -> &str {
+        self.heads.get(index).map_or("", String::as_str)
+    }
+
     /// Returns the chip label of `kind`.
     pub(super) fn chip(&self, kind: ChangeKind) -> Option<Arc<Galley>> {
-        let index = match kind {
-            ChangeKind::Added => 0,
-            ChangeKind::Removed => 1,
-            ChangeKind::Changed => 2,
-        };
-        self.chips.get(index).cloned()
+        self.chips
+            .get(usize::from(crate::comparison::rank(kind)))
+            .cloned()
     }
 
     /// Returns the texts of the row of change `id`, laid out for a path cell `width` wide in

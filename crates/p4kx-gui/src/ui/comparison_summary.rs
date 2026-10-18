@@ -26,6 +26,14 @@ pub(super) const KINDS: [(ComparisonText, Tone); 3] = [
     (ComparisonText::Changed, Tone::Warning),
 ];
 
+/// Returns the text and the chip tone of `kind`.
+pub(super) fn kind_look(kind: p4kx_comparison::ChangeKind) -> (ComparisonText, Tone) {
+    KINDS
+        .get(usize::from(crate::comparison::rank(kind)))
+        .copied()
+        .unwrap_or((ComparisonText::Changed, Tone::Warning))
+}
+
 /// The formatted texts of the summary, kept until the summary or the language changes.
 #[derive(Debug, Default)]
 struct SummaryTexts {
@@ -79,13 +87,7 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
 }
 
 fn cached(ui: &Ui, texts: &Texts, view: &ComparisonView) -> Arc<SummaryTexts> {
-    let comparison = view.comparison();
-    let key = Id::unique((
-        texts.language(),
-        view.summary(),
-        comparison.old_archive().path(),
-        comparison.new_archive().path(),
-    ));
+    let key = Id::unique((texts.language(), view.generation(), view.revision()));
     let id = Id::unique("comparison-summary-texts");
     if let Some((known, kept)) = ui.data(|data| data.get_temp::<(Id, Arc<SummaryTexts>)>(id))
         && known == key

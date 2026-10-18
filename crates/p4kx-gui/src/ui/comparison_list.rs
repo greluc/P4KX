@@ -1,13 +1,13 @@
 use egui::{Align, Id, Layout, Rect, Role, Sense, Ui, Vec2, WidgetInfo, pos2, vec2};
 use egui_extras::{Column, TableBuilder, TableRow};
-use p4kx_comparison::ChangeKind;
 
 use super::comparison_rows::{RowCache, RowGalleys};
+use super::comparison_summary::kind_look;
 use super::table::{head_fill, sort_header};
 use crate::theme::desktop::{CELL_PADDING_X, CHANGE_COLUMN, CHANGE_SIZE_COLUMN, ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
-use crate::widgets::chip::{self, Tone};
+use crate::widgets::chip;
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, paint_right, plain};
 use crate::{ChangeColumn, ComparisonText, ComparisonView, Texts};
@@ -25,18 +25,9 @@ pub(super) enum ListAction {
     Select(u32),
 }
 
-/// The tone of the chip of `kind`.
-pub(super) const fn tone(kind: ChangeKind) -> Tone {
-    match kind {
-        ChangeKind::Added => Tone::Success,
-        ChangeKind::Removed => Tone::Danger,
-        ChangeKind::Changed => Tone::Warning,
-    }
-}
-
 /// Shows the sortable, virtual list of the shown changes; only the visible rows are laid out.
 pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<ListAction> {
-    let mut cache = RowCache::load(ui, texts, view);
+    let mut cache = RowCache::load(ui, texts, view, &COLUMNS.map(|(_, text)| text));
     let hovered_id = ui.scope_id().with("changes-hovered-row");
     let hovered = ui.data(|data| data.get_temp::<usize>(hovered_id));
     let mut hovered_now = None;
@@ -56,7 +47,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<
         .column(Column::initial(CHANGE_SIZE_COLUMN).at_least(80.0))
         .column(Column::initial(CHANGE_SIZE_COLUMN).at_least(80.0))
         .header(ROW_HEIGHT, |mut header| {
-            for (index, (column, text)) in COLUMNS.into_iter().enumerate() {
+            for (index, (column, _)) in COLUMNS.into_iter().enumerate() {
                 header.col(|ui| {
                     head_fill(
                         ui,
@@ -68,7 +59,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<
                     );
                     let sort = view.sort();
                     let sorted = (sort.column == column).then_some(sort.direction);
-                    if sort_header(ui, sorted, &texts.get(text)) {
+                    if sort_header(ui, sorted, cache.head(index)) {
                         action = Some(ListAction::Sort(column));
                     }
                 });
@@ -130,7 +121,7 @@ fn show_row(
         paint_divider(ui.painter(), row_rect);
         if let Some(label) = cache.chip(change.kind()) {
             let at = pos2(rect.left() + CELL_PADDING_X, rect.center().y);
-            chip::paint(ui, at, label, tone(change.kind()));
+            chip::paint(ui, at, label, kind_look(change.kind()).1);
         }
     });
     row.col(|ui| {
@@ -173,11 +164,7 @@ fn finish_row(
     active: bool,
 ) -> bool {
     response.widget_info(|| {
-        let kind = texts.get(match change.kind() {
-            ChangeKind::Added => ComparisonText::Added,
-            ChangeKind::Removed => ComparisonText::Removed,
-            ChangeKind::Changed => ComparisonText::Changed,
-        });
+        let kind = texts.get(kind_look(change.kind()).0);
         let name = texts.format(
             ComparisonText::Row,
             &[

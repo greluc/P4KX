@@ -98,6 +98,9 @@ fn run(
         (Ok(old), Ok(new)) => (old, new),
         (Err(reason), _) | (_, Err(reason)) => return Outcome::Failed(Some(reason)),
     };
+    if cancel.is_cancelled() {
+        return Outcome::Cancelled;
+    }
     let on_progress = |progress: ComparisonProgress| {
         set(ComparisonStage::Comparing {
             done: progress.entries_done,

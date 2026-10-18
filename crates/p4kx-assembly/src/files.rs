@@ -1,0 +1,118 @@
+use std::collections::HashMap;
+use std::io::Read;
+use std::sync::OnceLock;
+
+use p4kx_archive::Archive;
+use thiserror::Error;
+
+/// The largest XML Loadout file that is read, 16 MiB.
+pub const MAX_XML_LOADOUT_LEN: u64 = 16 << 20;
+
+/// Where the XML Loadout files a Record names are read from.
+pub trait LoadoutFiles: Sync {
+    /// Returns the bytes of the file at `path` as a Record names it, e.g.
+    /// `Scripts/Loadouts/Objects/Doors/Grin_MXC_Door_NameMDC.xml`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`LoadoutFileError`] when there is no such file or it cannot be read.
+    fn read(&self, path: &str) -> Result<Vec<u8>, LoadoutFileError>;
+}
+
+/// An XML Loadout file cannot be read.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum LoadoutFileError {
+    /// There is no such file.
+    #[error("there is no such file")]
+    NotFound,
+    /// The file is larger than [`MAX_XML_LOADOUT_LEN`].
+    #[error("the file holds {size} bytes, more than the limit of {MAX_XML_LOADOUT_LEN} bytes")]
+    TooLarge {
+        /// Its size.
+        size: u64,
+    },
+    /// The file cannot be read.
+    #[error("{reason}")]
+    Unreadable {
+        /// Why.
+        reason: String,
+    },
+}
+
+/// Reads XML Loadout files from the Entries of an Archive below `Data\`.
+#[derive(Debug)]
+pub struct ArchiveFiles<'a> {
+    archive: &'a Archive,
+    index: OnceLock<HashMap<String, usize>>,
+}
+
+impl<'a> ArchiveFiles<'a> {
+    /// Reads from `archive`; its XML Entries are indexed on the first read.
+    #[must_use]
+    pub const fn new(archive: &'a Archive) -> Self {
+        Self {
+            archive,
+            index: OnceLock::new(),
+        }
+    }
+
+    fn index(&self) -> &HashMap<String, usize> {
+        self.index.get_or_init(|| {
+            self.archive
+                .entries()
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| (key(entry.path()), index))
+                .filter(|(key, _)| {
+                    std::path::Path::new(key)
+                        .extension()
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("xml"))
+                })
+                .collect()
+        })
+    }
+}
+
+impl LoadoutFiles for ArchiveFiles<'_> {
+    fn read(&self, path: &str) -> Result<Vec<u8>, LoadoutFileError> {
+        let mut wanted = key(path);
+        if !wanted.starts_with("data\\") {
+            wanted.insert_str(0, "data\\");
+        }
+        let entry = self
+            .index()
+            .get(&wanted)
+            .and_then(|index| self.archive.entries().get(*index))
+            .ok_or(LoadoutFileError::NotFound)?;
+        let size = entry.uncompressed_size();
+        if size > MAX_XML_LOADOUT_LEN {
+            return Err(LoadoutFileError::TooLarge { size });
+        }
+        let unreadable = |reason: String| LoadoutFileError::Unreadable { reason };
+        let reader = self
+            .archive
+            .open_entry(entry)
+            .map_err(|error| unreadable(error.to_string()))?;
+        let mut bytes = Vec::new();
+        reader
+            .take(MAX_XML_LOADOUT_LEN)
+            .read_to_end(&mut bytes)
+            .map_err(|error| unreadable(error.to_string()))?;
+        Ok(bytes)
+    }
+}
+
+/// Returns a path in lower case with `\` as separator and no leading separator.
+fn key(path: &str) -> String {
+    path.trim_start_matches(['/', '\\'])
+        .chars()
+        .map(|c| {
+            if c == '/' {
+                '\\'
+            } else {
+                c.to_ascii_lowercase()
+            }
+        })
+        .collect()
+}

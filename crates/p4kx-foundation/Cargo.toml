@@ -1,0 +1,18 @@
+[package]
+name = "p4kx-foundation"
+description = "Shared binary reading and error vocabulary for the P4K-Extractor format crates."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "foundation"
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

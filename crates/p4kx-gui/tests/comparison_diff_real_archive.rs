@@ -99,7 +99,7 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
         );
     harness.run_steps(3);
     for _ in 0..20 {
-        if let Some(next) = harness.query_by_label("Next change") {
+        if let Some(next) = harness.query_by_label("Next difference") {
             next.click();
         }
         let started = Instant::now();

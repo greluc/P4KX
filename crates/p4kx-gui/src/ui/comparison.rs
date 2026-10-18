@@ -7,8 +7,8 @@ use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
 use super::{Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_summary, comparison_table};
 use crate::theme::desktop::{
-    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT,
-    SPINNER, TITLE_SIZE, TITLE_TRACKING, TOOLBAR_PADDING,
+    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, PREVIEW_MIN_HEIGHT, SPINNER, TITLE_SIZE,
+    TITLE_TRACKING, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, SPACE_3, Weight};
@@ -42,7 +42,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
                     ..Margin::ZERO
                 }))
                 .resizable(true)
-                .default_size(PREVIEW_HEIGHT)
+                .default_size((list.height() / 2.0).floor().max(PREVIEW_MIN_HEIGHT))
                 .min_size(PREVIEW_MIN_HEIGHT)
                 .show(ui, |ui| comparison_diff::show(ui, model));
             list.max.y = list.max.y.min(diff.response.rect.top());

@@ -178,7 +178,7 @@ fn heads(ui: &mut Ui, cache: &PaneTexts) {
     painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
     let rule = Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.max);
     painter.rect_filled(rule, CornerRadius::ZERO, palette::PRIMARY);
-    let half = (rect.width() / 2.0).floor();
+    let half = diff_rows::split(ui).unwrap_or_else(|| (rect.width() / 2.0).floor());
     for (index, head) in heads.iter().enumerate() {
         let left = if index == 0 {
             rect.left()

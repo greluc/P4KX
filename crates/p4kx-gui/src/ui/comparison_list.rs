@@ -25,8 +25,14 @@ pub(super) enum ListAction {
     Select(u32),
 }
 
-/// Shows the sortable, virtual list of the shown changes; only the visible rows are laid out.
-pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<ListAction> {
+/// Shows the sortable, virtual list of the shown changes, scrolled so the row at `reveal` is
+/// visible; only the visible rows are laid out.
+pub(super) fn show(
+    ui: &mut Ui,
+    texts: &Texts,
+    view: &ComparisonView,
+    reveal: Option<usize>,
+) -> Option<ListAction> {
     let mut cache = RowCache::load(ui, texts, view, &COLUMNS.map(|(_, text)| text));
     let hovered_id = ui.scope_id().with("changes-hovered-row");
     let hovered = ui.data(|data| data.get_temp::<usize>(hovered_id));
@@ -35,7 +41,11 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<
     let left = ui.max_rect().left();
     let body_top = ui.cursor().top() + ROW_HEIGHT;
     ui.spacing_mut().item_spacing = Vec2::ZERO;
-    TableBuilder::new(ui)
+    let mut table = TableBuilder::new(ui);
+    if let Some(row) = reveal {
+        table = table.scroll_to_row(row, None);
+    }
+    table
         .id_salt("comparison-changes")
         .striped(true)
         .resizable(true)

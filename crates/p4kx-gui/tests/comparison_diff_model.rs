@@ -267,3 +267,22 @@ fn a_diff_of_a_hundred_thousand_lines_is_laid_out_and_navigable() -> TestResult 
     assert_eq!(diff.current_hunk(), Some(1999), "the last hunk");
     Ok(())
 }
+
+#[test]
+fn a_new_selection_asks_the_list_once_to_reveal_its_row() -> TestResult {
+    let (_dir, pair) = pair()?;
+    let mut model = compared(&pair)?;
+    let view = model.comparison_mut().view_mut().ok_or("no result")?;
+    let far = id_of(view, FAR)?;
+    let position = view.shown().iter().position(|&id| id == far);
+
+    view.select(far);
+    let first = view.take_reveal();
+    let second = view.take_reveal();
+    view.select(far);
+    let same = view.take_reveal();
+
+    assert_eq!(first, position, "the row of the selection");
+    assert_eq!((second, same), (None, None), "once per new selection");
+    Ok(())
+}

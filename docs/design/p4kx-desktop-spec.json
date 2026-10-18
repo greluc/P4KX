@@ -656,7 +656,7 @@
     "missingSize": "– in color-gray-2-text"
   },
   "lineDiff": {
-    "panel": "previewPanel below the change list once a change is selected, with resizeHandle",
+    "panel": "previewPanel below the change list once a change is selected, opening at half the remaining height (at least previewPanel minHeight), with resizeHandle; the selected row scrolls back into view",
     "pathLine": "previewPanel pathLine with the changeChip after the path",
     "navigation": "buttonCompact + buttonGhost, previous and next hunk, right in the path line",
     "positionColor": "color-gray-2-text",

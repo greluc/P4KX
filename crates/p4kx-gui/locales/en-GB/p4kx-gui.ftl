@@ -156,9 +156,9 @@ comparison-no-matches = No change matches the filter.
 comparison-shown = { $number } shown
 comparison-row = { $change }: { $path }
 
-diff-previous = Previous change
-diff-next = Next change
-diff-position = Change { $current } of { $total }
+diff-previous = Previous difference
+diff-next = Next difference
+diff-position = Difference { $current } of { $total }
 diff-head-old = Old
 diff-head-new = New
 diff-hunk = Lines { $first }–{ $last }

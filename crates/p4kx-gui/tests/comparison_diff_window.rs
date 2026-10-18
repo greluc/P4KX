@@ -104,7 +104,7 @@ fn selecting_a_changed_text_entry_shows_both_sides_next_to_each_other() -> TestR
         "Removed line 2: b",
         "Added line 2: B",
         "Added line 5: e",
-        "Change 1 of 1",
+        "Difference 1 of 1",
     ] {
         assert!(harness.query_by_label(label).is_some(), "{label}");
     }
@@ -115,7 +115,7 @@ fn selecting_a_changed_text_entry_shows_both_sides_next_to_each_other() -> TestR
     );
     assert!(
         harness
-            .get_by_label("Next change")
+            .get_by_label("Next difference")
             .accesskit_node()
             .is_disabled(),
         "one hunk only"
@@ -167,21 +167,21 @@ fn next_and_previous_jump_between_the_hunks() -> TestResult {
     let mut harness = compared((dir.path(), &pair), Language::BritishEnglish)?;
     open(&mut harness, "Changed: Data\\far.txt")?;
 
-    let first = harness.query_by_label("Change 1 of 2").is_some();
-    harness.get_by_label("Next change").click();
+    let first = harness.query_by_label("Difference 1 of 2").is_some();
+    harness.get_by_label("Next difference").click();
     harness.run();
-    let second = harness.query_by_label("Change 2 of 2").is_some();
+    let second = harness.query_by_label("Difference 2 of 2").is_some();
     let shown = harness
         .query_by_label("Lines 32–38 | Lines 32–38")
         .is_some();
-    harness.get_by_label("Previous change").click();
+    harness.get_by_label("Previous difference").click();
     harness.run();
 
     assert!(first, "starts at the first hunk");
     assert!(second, "moved to the second hunk");
     assert!(shown, "the second hunk scrolled into view");
     assert!(
-        harness.query_by_label("Change 1 of 2").is_some(),
+        harness.query_by_label("Difference 1 of 2").is_some(),
         "back at the first hunk"
     );
     Ok(())
@@ -198,9 +198,9 @@ fn the_german_diff_speaks_german() -> TestResult {
         "Alt Neu",
         "Entfernte Zeile 2: b",
         "Hinzugefügte Zeile 2: B",
-        "Änderung 1 von 1",
-        "Nächste Änderung",
-        "Vorherige Änderung",
+        "Unterschied 1 von 1",
+        "Nächster Unterschied",
+        "Vorheriger Unterschied",
     ] {
         assert!(harness.query_by_label(label).is_some(), "{label}");
     }

@@ -144,13 +144,13 @@ Chip in `.kpi-card`; der Akzentbalken bleibt Orange. Die Farbe ist nie der einzi
 Chip trägt immer das Wort.
 
 **D.12 Zeilenvergleich als Vorschau-Panel unter der Änderungsliste.** Sobald eine Änderung
-gewählt ist, öffnet sich darunter ein Panel mit den Maßen des Vorschau-Panels: die Pfadzeile mit
-Änderungs-Chip, rechts „Vorherige Änderung" und „Nächste Änderung" als Ghost `btn-xs` und die
-Position („Änderung 2 von 5") in `color-gray-2-text`; darunter ein Tabellenkopf „Alt" | „Neu"
+gewählt ist, öffnet sich darunter ein Panel nach dem Muster des Vorschau-Panels, anfangs halb so hoch wie der verbleibende Platz (mindestens 120 px, frei verstellbar); die gewählte Zeile rollt dabei wieder ins Bild. Es zeigt die Pfadzeile mit
+Änderungs-Chip, rechts „Vorheriger Unterschied" und „Nächster Unterschied" als Ghost `btn-xs` und die
+Position („Unterschied 2 von 5") in `color-gray-2-text`; darunter ein Tabellenkopf „Alt" | „Neu"
 und die Zeilen beider Seiten nebeneinander in der Dichte der Hex-Zeile (20 px, 12,8 px). Zeilen
 tragen die Füllung und den Text-Tint der Änderungs-Chips aus D.11 (Hinzugefügt `success`,
 Entfernt `danger`); Text bleibt `color-gray-1`, damit langer Code lesbar bleibt. Farbe ist nie
-der einzige Hinweis: Marker „+" bzw. „−" und die Zeilennummer stehen vor jeder geänderten Zeile.
+der einzige Hinweis: Marker „+" bzw. „−" stehen vor jeder geänderten Zeile, die Zeilennummer bleibt `color-gray-2-text`.
 Ein Hunk beginnt mit einer Kopfzeile in `color-surface-input` („Zeilen 10–16" je Seite); der
 angesprungene Hunk trägt den aktiven Balken links (3 `color-primary`) wie die aktive Zeile.
 Lange Zeilen werden je Seite abgeschnitten und laufen mit einer gemeinsamen horizontalen

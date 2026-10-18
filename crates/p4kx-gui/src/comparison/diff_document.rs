@@ -117,7 +117,7 @@ impl DiffDocument {
         count(self.text.old_line_count().max(self.text.new_line_count()))
     }
 
-    /// Returns the longest line of both sides by its bytes.
+    /// Returns the longest line of both sides by its characters, a tab counting as four.
     #[must_use]
     pub const fn widest(&self) -> (ComparisonSide, u32) {
         self.widest
@@ -186,7 +186,7 @@ fn span(lines: Range<usize>) -> Range<u32> {
 fn widest(text: &TextDiff) -> (ComparisonSide, u32) {
     let longest = |len: usize, line: fn(&TextDiff, usize) -> &[u8]| {
         (0..len)
-            .map(|index| (line(text, index).len(), index))
+            .map(|index| (shown_len(line(text, index)), index))
             .max_by_key(|&(bytes, index)| (bytes, std::cmp::Reverse(index)))
             .unwrap_or_default()
     };
@@ -197,4 +197,15 @@ fn widest(text: &TextDiff) -> (ComparisonSide, u32) {
     } else {
         (ComparisonSide::Old, count(old.1))
     }
+}
+
+/// Returns the characters of `line` as shown: UTF-8 sequences count once, a tab four times.
+fn shown_len(line: &[u8]) -> usize {
+    line.iter()
+        .map(|&byte| match byte {
+            b'\t' => 4,
+            _ if byte & 0xC0 == 0x80 => 0,
+            _ => 1,
+        })
+        .sum()
 }

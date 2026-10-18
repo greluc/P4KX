@@ -62,6 +62,7 @@ pub struct ComparisonView {
     shown: Vec<u32>,
     selected: Option<u32>,
     diff: Option<EntryDiff>,
+    reveal: bool,
     report: Option<ReportJob>,
 }
 
@@ -87,6 +88,7 @@ impl ComparisonView {
             shown: Vec::new(),
             selected: None,
             diff: None,
+            reveal: false,
             report: None,
         };
         view.refresh_shown();
@@ -178,6 +180,7 @@ impl ComparisonView {
 
     /// Selects the change `id`, dropping the line diff of another change.
     pub fn select(&mut self, id: u32) {
+        self.reveal |= self.selected != Some(id);
         self.selected = Some(id);
         if self.diff.as_ref().is_some_and(|diff| diff.change() != id) {
             self.diff = None;
@@ -200,6 +203,13 @@ impl ComparisonView {
             .change(id)
             .map(|change| change.path().to_owned())
             .map(|path| EntryDiff::start(&self.comparison, (id, &path), wake));
+    }
+
+    /// Returns the position of the selected change in the list once after each new selection,
+    /// for the list to scroll it into view.
+    pub fn take_reveal(&mut self) -> Option<usize> {
+        let id = self.selected.filter(|_| std::mem::take(&mut self.reveal))?;
+        self.shown.iter().position(|&shown| shown == id)
     }
 
     /// Returns the line diff of the selected change, `None` before [`Self::load_diff`].

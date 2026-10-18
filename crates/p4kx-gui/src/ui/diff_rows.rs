@@ -21,9 +21,17 @@ const MAX_LINE_CHARS: usize = 4096;
 const TAB: &str = "    ";
 const SIDES: [ComparisonSide; 2] = [ComparisonSide::Old, ComparisonSide::New];
 
-/// The laid-out texts of one row: per side the line number and the line, or the hunk range.
+/// The part of a row that names the hunk head for assistive technology; sides are 0 and 1.
+const HUNK_PART: usize = 2;
+
+/// The laid-out texts of one row.
 #[derive(Clone)]
-struct RowGalleys([Option<(Arc<Galley>, Arc<Galley>)>; 2]);
+enum RowGalleys {
+    /// The lines a hunk covers, per side.
+    Hunk([Arc<Galley>; 2]),
+    /// The line number and the line, per side that has one.
+    Lines([Option<(Arc<Galley>, Arc<Galley>)>; 2]),
+}
 
 /// The laid-out texts of the rows shown recently, kept across frames until the diff, the
 /// language or the scale changes.
@@ -67,6 +75,7 @@ pub(super) fn show(ui: &mut Ui, rows: &Rows<'_>) {
             Rect::from_min_size(origin, vec2(viewport.width() + extra, row_top(total))),
             Sense::hover(),
         );
+        ui.data_mut(|data| data.insert_temp(split_id(), half));
         let left = origin.x + viewport.min.x;
         let first = row_at(viewport.min.y.floor());
         let last = row_at(viewport.max.y + DIFF_ROW_HEIGHT - 1.0).min(total);
@@ -138,8 +147,8 @@ fn paint_row(
     let id = u32::try_from(index).unwrap_or(u32::MAX);
     let galleys = cache.row(ui, rows, id, row);
     let painter = ui.painter();
-    match row {
-        DiffRow::Hunk(hunk) => {
+    match (row, galleys) {
+        (DiffRow::Hunk(hunk), RowGalleys::Hunk(ranges)) => {
             let rect = frame.column(0, top).union(frame.column(1, top));
             painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
             let current = rows.current == Some(hunk as usize);
@@ -152,16 +161,14 @@ fn paint_row(
             } else {
                 palette::GRAY_2_TEXT
             };
-            for (side, galley) in galleys.0.iter().enumerate() {
-                if let Some((range, _)) = galley {
-                    let cell = frame.column(side, top);
-                    let at = pos2(cell.left() + DIFF_GUTTER_PADDING_X, centre(cell, range));
-                    painter
-                        .with_clip_rect(cell)
-                        .galley(at, Arc::clone(range), colour);
-                }
+            for (side, range) in ranges.iter().enumerate() {
+                let cell = frame.column(side, top);
+                let at = pos2(cell.left() + DIFF_GUTTER_PADDING_X, centre(cell, range));
+                painter
+                    .with_clip_rect(cell)
+                    .galley(at, Arc::clone(range), colour);
             }
-            label(ui, rect, (id, 2), || {
+            label(ui, rect, (id, HUNK_PART), || {
                 let names: Vec<String> = SIDES
                     .iter()
                     .map(|&side| hunk_text(rows, hunk, side))
@@ -169,9 +176,9 @@ fn paint_row(
                 names.join(" | ")
             });
         }
-        DiffRow::Lines { old, new } => {
+        (DiffRow::Lines { old, new }, RowGalleys::Lines(lines)) => {
             for (side, cell) in [old, new].into_iter().enumerate() {
-                let (Some(cell), Some(Some((number, text)))) = (cell, galleys.0.get(side)) else {
+                let (Some(cell), Some(Some((number, text)))) = (cell, lines.get(side)) else {
                     continue;
                 };
                 let rect = frame.column(side, top);
@@ -186,6 +193,7 @@ fn paint_row(
                 label(ui, rect, (id, side), || line_name(rows, which, cell));
             }
         }
+        _ => {}
     }
 }
 
@@ -208,7 +216,7 @@ fn paint_cell(
     painter.galley(
         pos2(number_right - number.size().x, centre(rect, number)),
         Arc::clone(number),
-        tint,
+        palette::GRAY_2_TEXT,
     );
     if let (Some(marker), Some(markers)) = (marker, &cache.markers)
         && let Some(galley) = markers.get(marker)
@@ -346,10 +354,9 @@ impl RowCache {
             self.rows.clear();
         }
         let galleys = match row {
-            DiffRow::Hunk(hunk) => RowGalleys(SIDES.map(|side| {
-                let range = layout(ui, hunk_text(rows, hunk, side));
-                Some((Arc::clone(&range), range))
-            })),
+            DiffRow::Hunk(hunk) => {
+                RowGalleys::Hunk(SIDES.map(|side| layout(ui, hunk_text(rows, hunk, side))))
+            }
             DiffRow::Lines { old, new } => {
                 let side = |side: ComparisonSide, cell: Option<DiffCell>| {
                     cell.map(|cell| {
@@ -358,7 +365,7 @@ impl RowCache {
                         (number, text)
                     })
                 };
-                RowGalleys([
+                RowGalleys::Lines([
                     side(ComparisonSide::Old, old),
                     side(ComparisonSide::New, new),
                 ])
@@ -367,6 +374,16 @@ impl RowCache {
         self.rows.insert(id, galleys.clone());
         galleys
     }
+}
+
+/// Returns where the rows split into the old and the new side, measured from their left edge in
+/// the last frame, for the head above them.
+pub(super) fn split(ui: &Ui) -> Option<f32> {
+    ui.data(|data| data.get_temp::<f32>(split_id()))
+}
+
+fn split_id() -> Id {
+    Id::unique("comparison-diff-split")
 }
 
 fn cache_id() -> Id {

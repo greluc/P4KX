@@ -19,8 +19,8 @@ pub(crate) enum DcbCommand {
     /// Prints the version of the DataForge and its number of Records, structs and enums.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(DcbInfoArgs),
-    /// Writes Records as Record XML, one file per Record under its record path, into a target
-    /// folder.
+    /// Writes Records as Record XML into a target folder, one file per Record under its record
+    /// path or, with --combined, all of them in one file.
     #[command(after_help = EXIT_CODES_HELP)]
     Export(DcbExportArgs),
     /// Runs a Query over the Records and writes the result as a table, CSV or JSON, the record
@@ -81,6 +81,10 @@ pub(crate) struct DcbExportArgs {
     /// glob with `*` or `?`, otherwise text anywhere in the path; ignores case, `\` and `/` alike.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
+    /// Writes every selected Record into one file in record-path order, named after the
+    /// DataForge Entry, e.g. Game2.xml, instead of one file per Record.
+    #[arg(long)]
+    pub(crate) combined: bool,
     /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
     /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]

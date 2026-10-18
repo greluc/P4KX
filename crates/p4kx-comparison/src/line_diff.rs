@@ -2,7 +2,7 @@ use rayon::prelude::*;
 
 use crate::decode::{Decoded, Encoding, decode};
 use crate::path_key::eq_normalised;
-use crate::{Archive, ChangeKind, Entry, LineDiffError, TextDiff};
+use crate::{Archive, CancelToken, ChangeKind, Entry, LineDiffError, TextDiff};
 
 /// Why an Entry pair has no line diff.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -85,6 +85,12 @@ impl<'a> LineDiff<'a> {
         &self.body
     }
 
+    /// Returns the hunks, or why there are none, owned.
+    #[must_use]
+    pub fn into_body(self) -> DiffBody {
+        self.body
+    }
+
     /// Returns whether the Entry differs: added, removed, changed in size or CRC-32C, or with
     /// differing lines; an Entry whose lines are equal after conversion still differs when its
     /// bytes changed.
@@ -117,6 +123,38 @@ pub fn line_diff<'a>(
     path: &str,
     context: usize,
 ) -> Result<LineDiff<'a>, LineDiffError> {
+    diff(old, new, path, context, None)
+}
+
+/// Returns the line diff of the Entry at `path` like [`line_diff`], stopping once `cancel` is
+/// set: while a side is read or converted and between the steps.
+///
+/// # Errors
+///
+/// Returns [`LineDiffError::Cancelled`] once `cancel` is set, and otherwise the errors of
+/// [`line_diff`].
+pub fn line_diff_cancellable<'a>(
+    old: &'a Archive,
+    new: &'a Archive,
+    path: &str,
+    context: usize,
+    cancel: &CancelToken,
+) -> Result<LineDiff<'a>, LineDiffError> {
+    diff(old, new, path, context, Some(cancel))
+}
+
+fn diff<'a>(
+    old: &'a Archive,
+    new: &'a Archive,
+    path: &str,
+    context: usize,
+    cancel: Option<&CancelToken>,
+) -> Result<LineDiff<'a>, LineDiffError> {
+    let check = || match cancel {
+        Some(token) if token.is_cancelled() => Err(LineDiffError::Cancelled),
+        _ => Ok(()),
+    };
+    check()?;
     let (old_entry, new_entry) = rayon::join(|| find(old, path), || find(new, path));
     if old_entry.is_none() && new_entry.is_none() {
         return Err(LineDiffError::UnknownEntry {
@@ -124,10 +162,19 @@ pub fn line_diff<'a>(
         });
     }
     let (old_side, new_side) = rayon::join(
-        || old_entry.map(|entry| decode(old, entry)).transpose(),
-        || new_entry.map(|entry| decode(new, entry)).transpose(),
+        || {
+            old_entry
+                .map(|entry| decode(old, entry, cancel))
+                .transpose()
+        },
+        || {
+            new_entry
+                .map(|entry| decode(new, entry, cancel))
+                .transpose()
+        },
     );
     let (old_side, new_side) = (old_side?, new_side?);
+    check()?;
     let encoding = |side: &Option<Decoded>| match side {
         Some(Decoded::Text(_, encoding)) => Some(*encoding),
         _ => None,

@@ -23,7 +23,7 @@ pub struct Report<'a> {
     levels: Vec<Level>,
     /// The Filter that selected the Entries by path and the Records by either record path on
     /// both sides, `null` when everything was compared.
-    #[schemars(required)]
+    #[schemars(required, transform = nullable)]
     filter: Option<&'a str>,
     /// The Entry level, present when it was compared.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,10 +48,10 @@ struct SourceSide<'a> {
     /// The path the Archive was opened from.
     archive: Cow<'a, str>,
     /// The Channel: the name of the folder holding the Archive, `null` when there is none.
-    #[schemars(required)]
+    #[schemars(required, transform = nullable)]
     channel: Option<&'a str>,
     /// The Build from the Channel's build manifest, `null` when it is unknown.
-    #[schemars(required)]
+    #[schemars(required, transform = nullable)]
     build: Option<BuildReport<'a>>,
 }
 
@@ -166,6 +166,21 @@ pub(crate) fn to_report<'a>(comparison: &'a Comparison<'_>) -> Report<'a> {
             .levels()
             .records
             .then(|| record_level(comparison)),
+    }
+}
+
+/// Lets a required field also hold `null`.
+fn nullable(schema: &mut schemars::Schema) {
+    let Some(object) = schema.as_object_mut() else {
+        return;
+    };
+    if let Some(serde_json::Value::String(kind)) = object.get("type").cloned() {
+        object.insert("type".to_owned(), serde_json::json!([kind, "null"]));
+    } else if let Some(reference) = object.remove("$ref") {
+        object.insert(
+            "anyOf".to_owned(),
+            serde_json::json!([{ "$ref": reference }, { "type": "null" }]),
+        );
     }
 }
 

@@ -8,14 +8,15 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, Entry, EntryFailure, ExtractOptions,
-    ExtractionReport, Filter, Progress, TextureConversion, create_default_target, extract,
-    select_entries,
+    Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, DataForgeEntry, Entry, EntryFailure,
+    ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, create_default_target,
+    extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{Conflict, ExtractArgs, TextureOutput};
+use crate::dcb_export;
 use crate::exit;
 use crate::json;
 use crate::progress::ProgressLine;
@@ -37,6 +38,18 @@ struct ReportJson<'a> {
     unconverted: Option<Vec<FailureJson<'a>>>,
     cancelled: &'a [String],
     archive_changed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    records: Option<RecordsJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct RecordsJson<'a> {
+    exported: usize,
+    skipped: &'a [String],
+    failed: Vec<dcb_export::FailureJson<'a>>,
+    cancelled: usize,
+    error_values: usize,
+    records_with_errors: usize,
 }
 
 #[derive(Serialize)]
@@ -110,7 +123,12 @@ pub(crate) fn execute(
     let printed = if as_json {
         json::print(&report_json(&report, &target))
     } else {
-        print_report(&report, &target, settings.conflict)
+        print_report(&report, &target, settings.conflict).and_then(|()| {
+            report.records().map_or(Ok(()), |records| {
+                let folder = records_folder(archive, &target);
+                dcb_export::print_report(records, &folder, settings.conflict)
+            })
+        })
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -214,7 +232,31 @@ fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a
             .map(|_| failures_json(report.unconverted())),
         cancelled: report.cancelled(),
         archive_changed: report.archive_changed(),
+        records: report.records().map(|records| RecordsJson {
+            exported: records.written(),
+            skipped: records.skipped(),
+            failed: records
+                .failures()
+                .iter()
+                .map(dcb_export::failure_json)
+                .collect(),
+            cancelled: records.cancelled(),
+            error_values: records.error_values(),
+            records_with_errors: records.records_with_errors(),
+        }),
     }
+}
+
+/// Returns the folder the Records of the converted DataForge Entry were written into: the folder
+/// of that Entry below `target`.
+fn records_folder(archive: &Archive, target: &Path) -> PathBuf {
+    let entry = DataForgeEntry::locate(archive).map_or("", Entry::path);
+    entry
+        .rsplit_once(['\\', '/'])
+        .map_or_else(String::new, |(folder, _)| folder.replace('\\', "/"))
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .fold(target.to_path_buf(), |folder, part| folder.join(part))
 }
 
 fn failures_json(failures: &[EntryFailure]) -> Vec<FailureJson<'_>> {

@@ -29,11 +29,35 @@ const READ_BUFFER_LEN: usize = 64 << 10;
 /// `target` are never followed; a failed or cancelled Record leaves no partial file. A Record of
 /// another DataForge than `forge` fails with [`RecordExportError::OtherDataForge`].
 #[must_use]
-pub fn export_records<'f>(
+pub fn export_records(
+    forge: &DataForge<'_>,
+    records: &[Record<'_>],
+    target: &Path,
+    options: &RecordExportOptions<'_>,
+) -> RecordExportReport {
+    let cancel = options.cancel;
+    let run = RecordRun {
+        policy: options.policy,
+        stop: &|| cancel.is_some_and(crate::CancelToken::is_cancelled),
+        ended: &|| {},
+    };
+    write_records(forge, records, target, &run)
+}
+
+/// How a run writes Record files: the Conflict policy, whether to stop before the next Record,
+/// and what to call once a Record ended.
+pub(crate) struct RecordRun<'a> {
+    pub(crate) policy: ConflictPolicy,
+    pub(crate) stop: &'a (dyn Fn() -> bool + Sync),
+    pub(crate) ended: &'a (dyn Fn() + Sync),
+}
+
+/// Writes `records` of `forge` like [`export_records`], under the control of `run`.
+pub(crate) fn write_records<'f>(
     forge: &DataForge<'_>,
     records: &[Record<'f>],
     target: &Path,
-    options: &RecordExportOptions<'_>,
+    run: &RecordRun<'_>,
 ) -> RecordExportReport {
     let plan = RecordFiles::plan(forge);
     let files = select_files(forge, &plan, records);
@@ -43,9 +67,10 @@ pub fn export_records<'f>(
     }));
     let writer = Writer {
         target,
-        policy: options.policy,
-        cancel: options.cancel,
+        policy: run.policy,
+        stop: run.stop,
     };
+    let ended = run.ended;
     let run = |scratch: &mut Scratch<'f>, index: usize| {
         let outcome = match (records.get(index), files.get(index)) {
             (Some(record), _) if !record.is_from(forge) => {
@@ -59,6 +84,7 @@ pub fn export_records<'f>(
             }
             _ => RecordOutcome::Failed(ExtractionError::UnsafePath.into()),
         };
+        ended();
         (index, outcome)
     };
     let mut outcomes: Vec<_> = independent
@@ -151,7 +177,7 @@ struct Scratch<'f> {
 struct Writer<'a> {
     target: &'a Path,
     policy: ConflictPolicy,
-    cancel: Option<&'a crate::CancelToken>,
+    stop: &'a (dyn Fn() -> bool + Sync),
 }
 
 impl Writer<'_> {
@@ -161,7 +187,7 @@ impl Writer<'_> {
         file: &str,
         scratch: &mut Scratch<'f>,
     ) -> RecordOutcome {
-        if self.cancel.is_some_and(crate::CancelToken::is_cancelled) {
+        if (self.stop)() {
             return RecordOutcome::Cancelled;
         }
         match self.try_write(record, file, scratch) {
@@ -233,7 +259,7 @@ impl Writer<'_> {
     }
 }
 
-fn file_crc(path: &Path, buffer: &mut Vec<u8>) -> Result<u32, ExtractionError> {
+pub(crate) fn file_crc(path: &Path, buffer: &mut Vec<u8>) -> Result<u32, ExtractionError> {
     buffer.resize(READ_BUFFER_LEN, 0);
     let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
     let mut crc = 0;

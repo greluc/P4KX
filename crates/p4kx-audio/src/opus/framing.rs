@@ -1,7 +1,11 @@
+use std::ops::Range;
+
 /// The most samples per channel an Opus packet holds: 120 ms at 48 kHz.
 pub(crate) const MAX_PACKET_SAMPLES: u32 = 5760;
 const MAX_FRAME_LEN: usize = 1275;
-const MAX_FRAMES: u8 = 48;
+const MAX_OPUS_FRAMES: u8 = 48;
+/// The largest packet a WEM may hold, Ogg-framed or not.
+pub(crate) const MAX_PACKET_LEN: usize = 1 << 16;
 
 /// Returns the samples per channel at 48 kHz of a normal or self-delimited Opus packet, read
 /// from its TOC byte and frame count.
@@ -35,11 +39,28 @@ const fn frame_samples(toc: u8) -> u32 {
     }
 }
 
-/// Takes the self-delimited packet at the start of `data`, as RFC 6716 appendix B frames the
-/// streams of a multistream packet but the last: appends it to `out` in normal framing and
-/// returns the bytes it spans in `data`.
-pub(crate) fn take_self_delimited(data: &[u8], out: &mut Vec<u8>) -> Result<usize, &'static str> {
-    packet_samples(data)?;
+/// The self-delimited packet at the start of a multistream packet, as RFC 6716 appendix B frames
+/// every stream but the last.
+pub(crate) struct SelfDelimited {
+    /// Samples per channel of the packet.
+    pub(crate) samples: u32,
+    /// The length field normal framing does not have.
+    length: Range<usize>,
+    /// The bytes the packet spans.
+    pub(crate) end: usize,
+}
+
+impl SelfDelimited {
+    /// Appends the packet in `data`, where it was parsed, to `out` in normal framing.
+    pub(crate) fn normal_into(&self, data: &[u8], out: &mut Vec<u8>) {
+        out.extend_from_slice(data.get(..self.length.start).unwrap_or_default());
+        out.extend_from_slice(data.get(self.length.end..self.end).unwrap_or_default());
+    }
+}
+
+/// Parses the self-delimited packet at the start of `data`.
+pub(crate) fn self_delimited(data: &[u8]) -> Result<SelfDelimited, &'static str> {
+    let samples = packet_samples(data)?;
     let mut cursor = Cursor { data, position: 1 };
     let toc = data.first().copied().unwrap_or_default();
     let mut frames_len = 0_usize;
@@ -54,7 +75,7 @@ pub(crate) fn take_self_delimited(data: &[u8], out: &mut Vec<u8>) -> Result<usiz
         _ => {
             let header = cursor.byte()?;
             let count = header & 0x3F;
-            if count > MAX_FRAMES {
+            if count > MAX_OPUS_FRAMES {
                 return Err("the packet holds more than 48 frames");
             }
             if header & 0x40 != 0 {
@@ -88,9 +109,11 @@ pub(crate) fn take_self_delimited(data: &[u8], out: &mut Vec<u8>) -> Result<usiz
         .and_then(|end| end.checked_add(padding))
         .filter(|&end| end <= data.len())
         .ok_or("the self-delimited packet runs past the multistream packet")?;
-    out.extend_from_slice(data.get(..length_start).unwrap_or_default());
-    out.extend_from_slice(data.get(cursor.position..end).unwrap_or_default());
-    Ok(end)
+    Ok(SelfDelimited {
+        samples,
+        length: length_start..cursor.position,
+        end,
+    })
 }
 
 struct Cursor<'a> {

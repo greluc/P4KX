@@ -4,7 +4,8 @@ use super::packets::Framing;
 use super::{OPUS_RATE, OpusError};
 use crate::ByteOrder;
 
-const TAG_SWITCH: u16 = 0x3039;
+/// The format tag of Switch Opus.
+pub(crate) const TAG_SWITCH: u16 = 0x3039;
 const TAG_OGG: u16 = 0x3040;
 const TAG_WWISE: u16 = 0x3041;
 const SWITCH_FMT_LEN: usize = 0x28;
@@ -20,6 +21,7 @@ pub(crate) struct Header<'a> {
     pub(crate) pre_skip: Option<u16>,
     pub(crate) declared: Option<u64>,
     pub(crate) head: Option<Vec<u8>>,
+    pub(crate) tags: Option<Vec<u8>>,
 }
 
 /// The `fmt` chunk of an Opus WEM in its byte order.
@@ -56,12 +58,18 @@ impl<'a> Header<'a> {
                 "an Opus fmt chunk declares a block alignment or sample size",
             ));
         }
-        match tag {
+        let header = match tag {
             TAG_WWISE => Self::wwise(fmt, seek, data, channels),
             TAG_SWITCH => Self::switch(fmt, data, channels),
             TAG_OGG => Self::ogg(fmt, data, channels),
             _ => Err(OpusError::InvalidHeader("unknown Opus format tag")),
+        }?;
+        if header.layout.mapping.len() != usize::from(channels) {
+            return Err(OpusError::InvalidHeader(
+                "the channel mapping does not cover the channels of the fmt chunk",
+            ));
         }
+        Ok(header)
     }
 
     fn wwise(
@@ -99,6 +107,7 @@ impl<'a> Header<'a> {
             pre_skip: Some(pre_skip),
             declared: fmt.u32_at(0x18).map(u64::from),
             head: None,
+            tags: None,
         })
     }
 
@@ -126,6 +135,7 @@ impl<'a> Header<'a> {
             pre_skip: None,
             declared,
             head: None,
+            tags: None,
         })
     }
 
@@ -138,7 +148,8 @@ impl<'a> Header<'a> {
         let (pre_skip, layout) = read_head(&head, channels)?;
         let tags = packets
             .next_packet()
-            .ok_or(OpusError::InvalidOgg("the OpusTags packet is missing"))??;
+            .ok_or(OpusError::InvalidOgg("the OpusTags packet is missing"))??
+            .to_vec();
         if !tags.starts_with(b"OpusTags") {
             return Err(OpusError::InvalidOgg("the OpusTags packet is missing"));
         }
@@ -149,6 +160,7 @@ impl<'a> Header<'a> {
             pre_skip: Some(pre_skip),
             declared: fmt.u32_at(0x18).map(u64::from),
             head: Some(head),
+            tags: Some(tags),
         })
     }
 }

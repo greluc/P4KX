@@ -1,4 +1,5 @@
 use super::OpusError;
+use super::framing::MAX_PACKET_LEN;
 use crate::ogg::crc_update;
 
 const HEADER_LEN: usize = 27;
@@ -6,7 +7,6 @@ const CRC_RANGE_START: usize = 22;
 const CRC_RANGE_END: usize = 26;
 const FLAG_CONTINUED: u8 = 0x01;
 const FLAG_LAST: u8 = 0x04;
-const MAX_PACKET_LEN: usize = 1 << 16;
 
 /// The packets of the single logical Ogg stream a WEM embeds, read page by page with every page's
 /// CRC checked; a packet is copied into a reused buffer only.
@@ -47,7 +47,7 @@ impl<'a> OggPackets<'a> {
         loop {
             while let Some(&value) = self.lacing.get(self.segment) {
                 let len = usize::from(value);
-                let end = self.body_offset + len;
+                let end = self.body_offset.saturating_add(len);
                 let Some(segment) = self.body.get(self.body_offset..end) else {
                     return Some(Err(OpusError::InvalidOgg("a page body is truncated")));
                 };
@@ -104,7 +104,7 @@ impl<'a> OggPackets<'a> {
             .get(HEADER_LEN..HEADER_LEN + segments)
             .ok_or(OpusError::InvalidOgg("a page's lacing is truncated"))?;
         let body_len: usize = lacing.iter().map(|&value| usize::from(value)).sum();
-        let page_len = HEADER_LEN + segments + body_len;
+        let page_len = (HEADER_LEN + segments).saturating_add(body_len);
         let page = rest
             .get(..page_len)
             .ok_or(OpusError::InvalidOgg("a page body is truncated"))?;

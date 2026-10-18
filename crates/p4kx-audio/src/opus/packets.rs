@@ -1,8 +1,8 @@
+use super::OpusError;
+use super::framing::{self, MAX_PACKET_LEN};
 use super::ogg_read::OggPackets;
-use super::{OpusError, framing};
 
 const SWITCH_HEADER_LEN: usize = 8;
-const MAX_PACKET_LEN: usize = 1 << 16;
 
 /// Where the packets of an Opus WEM come from.
 #[derive(Clone, Copy)]
@@ -69,12 +69,15 @@ impl<'a> Packets<'a> {
                 let (size, rest) = self.sizes.split_first_chunk::<2>()?;
                 self.sizes = rest;
                 let len = usize::from(u16::from_le_bytes(*size));
-                let end = self.offset + len;
-                let Some(packet) = self.data.get(self.offset..end) else {
+                let packet = self
+                    .offset
+                    .checked_add(len)
+                    .and_then(|end| self.data.get(self.offset..end));
+                let Some(packet) = packet else {
                     self.sizes = &[];
                     return Some(Err(out_of_bounds));
                 };
-                self.offset = end;
+                self.offset += packet.len();
                 packet
             }
             Framing::Switch => {
@@ -82,12 +85,12 @@ impl<'a> Packets<'a> {
                 if header.is_empty() {
                     return None;
                 }
-                let start = self.offset + SWITCH_HEADER_LEN;
+                let start = self.offset.saturating_add(SWITCH_HEADER_LEN);
                 let packet = header
                     .first_chunk::<4>()
                     .and_then(|size| usize::try_from(u32::from_be_bytes(*size)).ok())
                     .filter(|&len| len <= MAX_PACKET_LEN)
-                    .and_then(|len| self.data.get(start..start + len));
+                    .and_then(|len| self.data.get(start..start.checked_add(len)?));
                 let Some(packet) = packet else {
                     self.offset = self.data.len();
                     return Some(Err(out_of_bounds));
@@ -105,20 +108,17 @@ impl<'a> Packets<'a> {
 pub(crate) fn multistream_samples(
     packet: &[u8],
     streams: u8,
-    scratch: &mut Vec<u8>,
     index: u64,
 ) -> Result<u32, OpusError> {
     let invalid = |reason| OpusError::InvalidPacket { index, reason };
     let mut rest = packet;
     let mut samples = None;
     for _ in 1..streams {
-        scratch.clear();
-        let taken = framing::take_self_delimited(rest, scratch).map_err(invalid)?;
-        let stream = framing::packet_samples(rest).map_err(invalid)?;
-        if *samples.get_or_insert(stream) != stream {
+        let stream = framing::self_delimited(rest).map_err(invalid)?;
+        if *samples.get_or_insert(stream.samples) != stream.samples {
             return Err(invalid("the streams differ in duration"));
         }
-        rest = rest.get(taken..).unwrap_or_default();
+        rest = rest.get(stream.end..).unwrap_or_default();
     }
     let last = framing::packet_samples(rest).map_err(invalid)?;
     if *samples.get_or_insert(last) != last {

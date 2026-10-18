@@ -9,6 +9,7 @@ mod pcm;
 use std::io::Write;
 
 pub use error::OpusError;
+pub(crate) use header::TAG_SWITCH;
 
 use self::header::Header;
 use self::layout::Layout;
@@ -19,6 +20,7 @@ use crate::{AudioError, Codec, OggReport, OggWriter, Wem};
 /// The sample rate every Opus stream decodes at.
 pub(crate) const OPUS_RATE: u32 = 48_000;
 const SERIAL: u32 = 0x5034_4B4F;
+const SWITCH_PRE_SKIP_DIVISOR: u32 = 8;
 
 /// An Opus WEM with every packet checked and counted.
 pub(crate) struct OpusStream<'a> {
@@ -27,6 +29,7 @@ pub(crate) struct OpusStream<'a> {
     layout: Layout,
     pre_skip: u16,
     head: Option<Vec<u8>>,
+    tags: Option<Vec<u8>>,
     frames: u64,
 }
 
@@ -76,9 +79,9 @@ impl<'a> OpusStream<'a> {
             pre_skip,
             declared,
             head,
+            tags,
         } = header;
         let mut packets = Packets::new(data, framing)?;
-        let mut scratch = Vec::new();
         let mut total = 0_u64;
         let mut first = None;
         loop {
@@ -86,14 +89,15 @@ impl<'a> OpusStream<'a> {
             let Some(packet) = packets.next_packet() else {
                 break;
             };
-            let samples =
-                packets::multistream_samples(packet?, layout.streams, &mut scratch, index)?;
+            let samples = packets::multistream_samples(packet?, layout.streams, index)?;
             first.get_or_insert(samples);
             total += u64::from(samples);
         }
         let pre_skip = match (pre_skip, first) {
             (Some(pre_skip), _) => pre_skip,
-            (None, Some(first)) => u16::try_from(first / 8).unwrap_or(u16::MAX),
+            (None, Some(first)) => {
+                u16::try_from(first / SWITCH_PRE_SKIP_DIVISOR).unwrap_or(u16::MAX)
+            }
             (None, None) => 0,
         };
         let available = total
@@ -110,6 +114,7 @@ impl<'a> OpusStream<'a> {
             layout,
             pre_skip,
             head,
+            tags,
             frames,
         })
     }
@@ -134,7 +139,10 @@ impl<'a> OpusStream<'a> {
         ogg.write_packet(&packet, 0).map_err(write)?;
         ogg.end_page().map_err(write)?;
         packet.clear();
-        header::tags_packet(&mut packet);
+        match &self.tags {
+            Some(tags) => packet.extend_from_slice(tags),
+            None => header::tags_packet(&mut packet),
+        }
         ogg.write_packet(&packet, 0).map_err(write)?;
         ogg.end_page().map_err(write)?;
         let end = u64::from(self.pre_skip) + self.frames;

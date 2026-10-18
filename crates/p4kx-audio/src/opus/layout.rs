@@ -1,6 +1,7 @@
 use super::OpusError;
 
-const SILENT: u8 = 255;
+/// The channel mapping value of a silent channel.
+pub(crate) const SILENT: u8 = 255;
 const FAMILY_VORBIS: u8 = 1;
 const FAMILY_UNDEFINED: u8 = 255;
 const VORBIS_FAMILY_CHANNELS: usize = 8;

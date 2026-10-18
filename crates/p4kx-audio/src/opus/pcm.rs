@@ -4,13 +4,12 @@ use std::panic::{self, AssertUnwindSafe};
 use opus_pure::OpusDecoder;
 
 use super::framing::{self, MAX_PACKET_SAMPLES};
-use super::layout::Layout;
+use super::layout::{Layout, SILENT};
 use super::{OPUS_RATE, OpusError, OpusStream};
 use crate::{AudioError, WavReport, Wem};
 
 const PANICKED: &str = "the decoder failed";
-const SILENT: u8 = 255;
-const MAX_FRAMES: usize = MAX_PACKET_SAMPLES as usize;
+const MAX_SAMPLES_PER_CHANNEL: usize = MAX_PACKET_SAMPLES as usize;
 
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Decodes an Opus sound and writes it as a 16-bit PCM WAV to `out`.
@@ -99,8 +98,8 @@ impl Decoders {
             streams: decoders,
             coupled,
             width,
-            stream_pcm: vec![0; MAX_FRAMES * 2],
-            pcm: vec![0; MAX_FRAMES * width],
+            stream_pcm: vec![0; MAX_SAMPLES_PER_CHANNEL * 2],
+            pcm: vec![0; MAX_SAMPLES_PER_CHANNEL * width],
             packet: Vec::new(),
         })
     }
@@ -123,16 +122,17 @@ impl Decoders {
             let data = if stream + 1 == streams {
                 rest
             } else {
-                scratch.clear();
-                let taken = framing::take_self_delimited(rest, scratch)
+                let sub = framing::self_delimited(rest)
                     .map_err(|reason| OpusError::InvalidPacket { index, reason })?;
-                rest = rest.get(taken..).unwrap_or_default();
+                scratch.clear();
+                sub.normal_into(rest, scratch);
+                rest = rest.get(sub.end..).unwrap_or_default();
                 scratch.as_slice()
             };
             let undecodable = |reason: String| OpusError::Undecodable { index, reason };
             let decoded = panic::catch_unwind(AssertUnwindSafe(|| {
                 decoder
-                    .decode_s16(data, MAX_FRAMES, stream_pcm)
+                    .decode_s16(data, MAX_SAMPLES_PER_CHANNEL, stream_pcm)
                     .map_err(|error| error.to_string())
             }))
             .unwrap_or_else(|_| Err(PANICKED.to_owned()))

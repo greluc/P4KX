@@ -2,6 +2,7 @@ use std::ops::Range;
 use std::time::Duration;
 
 use crate::adpcm::Layout;
+use crate::opus::{OPUS_RATE, TAG_SWITCH};
 use crate::riff::{Chunk, Chunks};
 use crate::{AudioError, ByteOrder, Codec};
 
@@ -9,8 +10,6 @@ const SAMPLE_COUNT_OFFSET: usize = 0x18;
 const VORBIS_FMT_LEN: usize = 0x42;
 const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
-const OPUS_RATE: u32 = 48_000;
-const SWITCH_OPUS_TAG: u16 = 0x3039;
 
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
 #[derive(Debug, Clone)]
@@ -239,7 +238,7 @@ fn sample_count(
             .map(u64::from),
         Codec::Opus => format
             .embedded_sample_count
-            .filter(|_| format.tag != SWITCH_OPUS_TAG || format.sample_rate == OPUS_RATE)
+            .filter(|_| format.tag != TAG_SWITCH || format.sample_rate == OPUS_RATE)
             .map(u64::from),
         _ => None,
     })

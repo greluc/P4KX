@@ -288,3 +288,23 @@ fn a_layout_without_an_opus_mapping_is_a_typed_error() -> TestResult {
     assert!(ogg.is_empty(), "nothing written");
     Ok(())
 }
+
+#[test]
+fn ogg_opus_in_a_wem_keeps_its_own_header_and_tags_packets() -> TestResult {
+    let bytes = TestOpus::new(TestOpusFraming::Ogg, 2, FRAMES).wem().bytes();
+    let wem = Wem::parse(bytes.as_slice())?;
+    let source = pages::packets(&pages::pages(wem.data())?);
+    let mut ogg = Vec::new();
+    wem.write_ogg(&mut ogg)?;
+    let written = pages::packets(&pages::pages(&ogg)?);
+    assert_eq!(
+        written
+            .get(..2)
+            .map(|packets| packets.iter().map(|packet| &packet.0).collect::<Vec<_>>()),
+        source
+            .get(..2)
+            .map(|packets| packets.iter().map(|packet| &packet.0).collect::<Vec<_>>()),
+        "OpusHead and OpusTags"
+    );
+    Ok(())
+}

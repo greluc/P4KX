@@ -5,7 +5,7 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
-use crate::{Model, Text, ui, window};
+use crate::{ComparisonText, Model, Text, ui, window};
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
 /// settings file around it.
@@ -48,6 +48,7 @@ impl App {
         }
         let (sender, receiver) = mpsc::channel();
         let filter = self.model.texts().get(Text::DialogArchiveFilter);
+        let report_filter = self.model.texts().get(ComparisonText::ReportFilter);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -55,9 +56,13 @@ impl App {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
                     Dialog::AddFolder | Dialog::ExtractionFolder => picker.pick_folder(),
-                    Dialog::OpenArchive | Dialog::AddArchive => {
+                    Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
+                    Dialog::ComparisonReport => picker
+                        .add_filter(report_filter, &["json"])
+                        .set_file_name("comparison.json")
+                        .save_file(),
                 };
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
@@ -115,6 +120,15 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::ComparisonArchive(side), path)) => {
+                self.model.comparison_mut().set_archive(side, path);
+            }
+            Some((Dialog::ComparisonReport, path)) => {
+                let ctx = ui.ctx().clone();
+                if let Some(view) = self.model.comparison_mut().view_mut() {
+                    view.save_report(path, move || ctx.request_repaint());
+                }
+            }
             None => {}
         }
         let requests = ui::show(ui, &mut self.model);
@@ -132,6 +146,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self) {
         self.model.stop_extraction();
+        self.model.comparison_mut().cancel();
         self.save_settings();
     }
 }

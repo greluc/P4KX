@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::exit::EXIT_CODES_HELP;
 
@@ -71,10 +71,27 @@ pub(crate) struct ExtractArgs {
     /// Extracts every Entry the Filter matches instead of the given paths.
     #[arg(long, value_name = "FILTER")]
     pub(crate) filter: Option<String>,
-    /// Target folder; created if missing, existing files in it are kept. Defaults to a new folder
-    /// SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
+    /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
+    /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]
     pub(crate) out: Option<PathBuf>,
+    /// What to do with a file that already exists in the target.
+    #[arg(long, value_enum, default_value_t = Conflict::Skip)]
+    pub(crate) conflict: Conflict,
+    /// Cancels the run once this many Entries have ended, as Ctrl+C would.
+    #[arg(long, hide = true, value_name = "COUNT")]
+    pub(crate) cancel_after: Option<usize>,
+}
+
+/// The values of `p4kx extract --conflict`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum Conflict {
+    /// Keep the existing file.
+    Skip,
+    /// Replace the existing file.
+    Overwrite,
+    /// Replace the existing file only when its size or CRC-32C differs from the Entry.
+    IfChanged,
 }
 
 /// Arguments of `p4kx channels`.

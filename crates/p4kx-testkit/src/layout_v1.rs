@@ -41,7 +41,7 @@ fn write_local_entry(out: &mut Vec<u8>, entry: &TestEntry) -> u64 {
     put_u16(out, 0);
     put_u16(out, entry.method);
     put_u32(out, 0);
-    put_u32(out, 0);
+    put_u32(out, entry.crc32c);
     put_u32(out, MARKER_32);
     put_u32(out, MARKER_32);
     put_u16(out, len_u16(entry.path.as_bytes()));
@@ -59,7 +59,7 @@ fn write_central_entry(out: &mut Vec<u8>, entry: &TestEntry, local_offset: u64) 
     put_u16(out, 0);
     put_u16(out, entry.method);
     put_u32(out, 0);
-    put_u32(out, 0);
+    put_u32(out, entry.crc32c);
     put_u32(out, MARKER_32);
     put_u32(out, MARKER_32);
     put_u16(out, len_u16(entry.path.as_bytes()));

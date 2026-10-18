@@ -15,6 +15,7 @@ pub struct Entry {
     pub(crate) path: String,
     pub(crate) compressed_size: u64,
     pub(crate) uncompressed_size: u64,
+    pub(crate) crc32c: u32,
     pub(crate) data: DataStart,
     pub(crate) compression: Compression,
     pub(crate) encrypted: bool,
@@ -37,6 +38,13 @@ impl Entry {
     #[must_use]
     pub const fn uncompressed_size(&self) -> u64 {
         self.uncompressed_size
+    }
+
+    /// Returns the CRC-32C (Castagnoli) checksum of the Entry's data after decryption and
+    /// decompression.
+    #[must_use]
+    pub const fn crc32c(&self) -> u32 {
+        self.crc32c
     }
 
     /// Returns the compression method.

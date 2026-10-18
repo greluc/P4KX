@@ -1,119 +1,78 @@
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashSet;
+use std::path::Path;
 
 use p4kx_archive::{Archive, Entry};
+use rayon::prelude::*;
 
-use crate::entry_path::relative_path;
-use crate::{EntryFailure, ExtractionError, ExtractionReport};
+use crate::tracker::Tracker;
+use crate::write::{EntryWriter, Outcome};
+use crate::{EntryFailure, ExtractOptions, ExtractionReport};
 
 const BUFFER_LEN: usize = 1 << 20;
 
-enum Written {
-    New,
-    Kept,
-}
-
 /// Runs an Extraction of `entries` from `archive` into the existing folder `target`.
 ///
-/// Each Entry is written to a new file at its path below `target`. A file that already exists is
-/// kept and the Entry counted as skipped. Entry paths that could leave `target` are rejected, and
-/// existing links below `target` are never followed. Once `cancel` is set, the Entries not yet
-/// started are counted as cancelled.
+/// Files that already exist are handled by the [`ConflictPolicy`](crate::ConflictPolicy) of
+/// `options`. Entries are written in parallel on the current rayon pool with the same files and
+/// report as a sequential run in the order of `entries`. Entry paths that could leave `target` are
+/// rejected, and existing links below `target` are never followed. A failed or cancelled Entry
+/// leaves no partial file and keeps an existing one; once the token of `options` is cancelled,
+/// the Entries not yet complete are reported as cancelled.
 #[must_use]
 pub fn extract(
     archive: &Archive,
     entries: &[&Entry],
     target: &Path,
-    cancel: &AtomicBool,
+    options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
-    let mut report = ExtractionReport::default();
+    let tracker = Tracker::new(entries, options.cancel, options.progress);
+    let writer = EntryWriter {
+        archive,
+        target,
+        policy: options.policy,
+        tracker: &tracker,
+    };
+    let (independent, dependent) = split_dependent(entries);
+    let run = |buffer: &mut Vec<u8>, (index, entry): (usize, &Entry)| {
+        (index, entry.path().to_owned(), writer.write(entry, buffer))
+    };
+    let mut outcomes: Vec<_> = independent
+        .into_par_iter()
+        .map_init(|| vec![0; BUFFER_LEN], run)
+        .collect();
     let mut buffer = vec![0; BUFFER_LEN];
-    for (index, entry) in entries.iter().enumerate() {
-        if cancel.load(Ordering::Relaxed) {
-            report.cancelled = entries.len() - index;
-            break;
-        }
-        match extract_entry(archive, entry, target, &mut buffer) {
-            Ok(Written::New) => report.extracted += 1,
-            Ok(Written::Kept) => report.skipped.push(entry.path().to_owned()),
-            Err(error) => report.failures.push(EntryFailure {
-                path: entry.path().to_owned(),
-                error,
-            }),
+    outcomes.extend(dependent.into_iter().map(|item| run(&mut buffer, item)));
+    outcomes.sort_unstable_by_key(|(index, _, _)| *index);
+    let mut report = ExtractionReport::default();
+    for (_, path, outcome) in outcomes {
+        match outcome {
+            Outcome::Written => report.extracted += 1,
+            Outcome::Kept => report.skipped.push(path),
+            Outcome::Cancelled => report.cancelled.push(path),
+            Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
     report
 }
 
-fn extract_entry(
-    archive: &Archive,
-    entry: &Entry,
-    target: &Path,
-    buffer: &mut [u8],
-) -> Result<Written, ExtractionError> {
-    let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
-    let mut reader = archive.open_entry(entry)?;
-    let folder = create_folders(target, relative.parent())?;
-    let destination = folder.join(relative.file_name().ok_or(ExtractionError::UnsafePath)?);
-    let file = match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&destination)
-    {
-        Ok(file) => file,
-        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => return Ok(Written::Kept),
-        Err(source) => return Err(write_error(destination, source)),
-    };
-    if let Err(error) = copy(&mut reader, file, buffer, &destination) {
-        let _ignored = fs::remove_file(&destination);
-        return Err(error);
-    }
-    Ok(Written::New)
-}
+type Indexed<'a> = Vec<(usize, &'a Entry)>;
 
-fn create_folders(target: &Path, relative: Option<&Path>) -> Result<PathBuf, ExtractionError> {
-    let mut folder = target.to_path_buf();
-    for component in relative.into_iter().flat_map(Path::components) {
-        folder.push(component);
-        match fs::create_dir(&folder) {
-            Ok(()) => {}
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                let metadata = fs::symlink_metadata(&folder)
-                    .map_err(|source| write_error(folder.clone(), source))?;
-                if metadata.file_type().is_symlink() {
-                    return Err(ExtractionError::UnsafePath);
-                }
-                if !metadata.is_dir() {
-                    return Err(write_error(folder, error));
-                }
-            }
-            Err(source) => return Err(write_error(folder, source)),
-        }
-    }
-    Ok(folder)
-}
-
-fn copy(
-    reader: &mut impl Read,
-    mut file: File,
-    buffer: &mut [u8],
-    destination: &Path,
-) -> Result<(), ExtractionError> {
-    loop {
-        let count = match reader.read(buffer) {
-            Ok(0) => return Ok(()),
-            Ok(count) => count,
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(error) => return Err(ExtractionError::Read(error)),
-        };
-        let chunk = buffer.get(..count).unwrap_or_default();
-        file.write_all(chunk)
-            .map_err(|source| write_error(destination.to_path_buf(), source))?;
-    }
-}
-
-const fn write_error(path: PathBuf, source: io::Error) -> ExtractionError {
-    ExtractionError::Write { path, source }
+/// Splits `entries` into those that may run in parallel and, in order, those whose path collides
+/// with an earlier one by name or as a file where a folder is needed.
+fn split_dependent<'a>(entries: &[&'a Entry]) -> (Indexed<'a>, Indexed<'a>) {
+    let mut files = HashSet::new();
+    let mut folders = HashSet::new();
+    entries.iter().copied().enumerate().partition(|(_, entry)| {
+        let key = entry.path().replace('/', "\\").to_lowercase();
+        let parents: Vec<&str> = key
+            .match_indices('\\')
+            .filter_map(|(at, _)| key.get(..at))
+            .collect();
+        let independent = !files.contains(key.as_str())
+            && !folders.contains(key.as_str())
+            && parents.iter().all(|parent| !files.contains(*parent));
+        folders.extend(parents.iter().map(|parent| (*parent).to_owned()));
+        files.insert(key);
+        independent
+    })
 }

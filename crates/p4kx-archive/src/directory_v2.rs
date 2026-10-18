@@ -9,7 +9,7 @@ const TRAILER_LEN: usize = 175;
 const RECORD_LEN: usize = 204;
 const TRAILER_EXTENSION_COUNT_LEN: usize = 8;
 const TRAILER_EXTENSION_SIZE_LEN: usize = 8;
-const RECORD_TIME_DATE_AND_CRC_LEN: usize = 8;
+const RECORD_TIME_AND_DATE_LEN: usize = 4;
 const RECORD_SIGNATURE_LEN: usize = 128;
 
 struct Trailer {
@@ -97,7 +97,8 @@ fn read_range(
 fn parse_record(record: &[u8], offset: u64, names: &[u8]) -> Result<Entry, FormatError> {
     let mut reader = ByteReader::with_base(record, offset);
     let method = reader.read_u16()?;
-    reader.skip(RECORD_TIME_DATE_AND_CRC_LEN)?;
+    reader.skip(RECORD_TIME_AND_DATE_LEN)?;
+    let crc32c = reader.read_u32()?;
     let compressed_size = reader.read_u64()?;
     let uncompressed_size = reader.read_u64()?;
     let data_offset = reader.read_u64()?;
@@ -108,6 +109,7 @@ fn parse_record(record: &[u8], offset: u64, names: &[u8]) -> Result<Entry, Forma
         path: read_name(names, name_offset, offset)?,
         compressed_size,
         uncompressed_size,
+        crc32c,
         data: DataStart::Direct(data_offset),
         compression: Compression::from_method(method),
         encrypted: encryption != 0,

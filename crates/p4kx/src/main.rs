@@ -7,6 +7,7 @@ mod extract;
 mod info;
 mod json;
 mod list;
+mod progress;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

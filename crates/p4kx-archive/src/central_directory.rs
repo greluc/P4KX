@@ -7,7 +7,7 @@ use crate::{Compression, Entry};
 const CENTRAL_HEADER_SIGNATURE: u32 = 0x0201_4B50;
 const CENTRAL_HEADER_LEN: usize = 46;
 const VERSIONS_AND_FLAGS_LEN: usize = 6;
-const TIME_DATE_AND_CRC_LEN: usize = 8;
+const TIME_AND_DATE_LEN: usize = 4;
 const DISK_AND_ATTRIBUTES_LEN: usize = 8;
 const ZIP64_MARKER_32: u32 = 0xFFFF_FFFF;
 const BLOCK_ZIP64: u16 = 0x0001;
@@ -16,6 +16,7 @@ const BLOCK_HEADER_LEN: usize = 4;
 
 struct FixedFields {
     method: u16,
+    crc32c: u32,
     compressed_size: u32,
     uncompressed_size: u32,
     local_header_offset: u32,
@@ -62,6 +63,7 @@ fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, FormatError> {
         path,
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
+        crc32c: fixed.crc32c,
         data: DataStart::LocalHeader(extra.local_header_offset),
         compression: Compression::from_method(fixed.method),
         encrypted: extra.encrypted,
@@ -77,7 +79,8 @@ fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFi
     }
     reader.skip(VERSIONS_AND_FLAGS_LEN)?;
     let method = reader.read_u16()?;
-    reader.skip(TIME_DATE_AND_CRC_LEN)?;
+    reader.skip(TIME_AND_DATE_LEN)?;
+    let crc32c = reader.read_u32()?;
     let compressed_size = reader.read_u32()?;
     let uncompressed_size = reader.read_u32()?;
     let name_len = usize::from(reader.read_u16()?);
@@ -87,6 +90,7 @@ fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFi
     let local_header_offset = reader.read_u32()?;
     Ok(FixedFields {
         method,
+        crc32c,
         compressed_size,
         uncompressed_size,
         local_header_offset,

@@ -54,7 +54,12 @@ fn pair() -> Result<tempfile::TempDir, Box<dyn Error>> {
                 "Data\\icon.dds",
                 b"DDS \0\x01\x02".to_vec(),
             ))
-            .entry(TestEntry::stored("Data\\same.cfg", "a=1\n")),
+            .entry(TestEntry::stored("Data\\same.cfg", "a=1\n"))
+            .entry(TestEntry::stored("Data\\same.dds", b"DDS \0".to_vec()))
+            .entry(TestEntry::stored(
+                "Data\\reencoded.xml",
+                vehicle("1").to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little),
+            )),
     )?;
     write(
         dir.path(),
@@ -76,7 +81,12 @@ fn pair() -> Result<tempfile::TempDir, Box<dyn Error>> {
             ))
             .entry(TestEntry::stored("Data\\added.ini", "[section]\nkey=value\n"))
             .entry(TestEntry::stored("Data\\icon.dds", b"DDS \0\x03\x04".to_vec()))
-            .entry(TestEntry::stored("Data\\same.cfg", "a=1\n")),
+            .entry(TestEntry::stored("Data\\same.cfg", "a=1\n"))
+            .entry(TestEntry::stored("Data\\same.dds", b"DDS \0".to_vec()))
+            .entry(TestEntry::stored(
+                "Data\\reencoded.xml",
+                vehicle("1").to_cryxml(CryXmlSignature::CryXml, CryXmlByteOrder::Big),
+            )),
     )?;
     Ok(dir)
 }
@@ -151,6 +161,38 @@ fn an_unchanged_entry_prints_nothing_and_exits_with_code_0() -> TestResult {
         "",
         "no output"
     );
+    Ok(())
+}
+
+#[test]
+fn an_unchanged_binary_entry_says_so_and_exits_with_code_0() -> TestResult {
+    let dir = pair()?;
+
+    assert_eq!(
+        diff(dir.path(), "Data\\same.dds", false, 0)?,
+        "Data\\same.dds is binary; it is unchanged\n",
+        "the note"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cryxml_entry_with_the_same_xml_says_so_and_exits_with_code_0() -> TestResult {
+    let dir = pair()?;
+
+    assert_eq!(
+        diff(dir.path(), "Data\\reencoded.xml", false, 0)?,
+        "Data\\reencoded.xml changed, but its text is the same line by line\n",
+        "the note"
+    );
+    Ok(())
+}
+
+#[test]
+fn json_of_a_removed_entry_has_no_new_side() -> TestResult {
+    let dir = pair()?;
+
+    insta::assert_snapshot!(diff(dir.path(), "Data\\removed.txt", true, 1)?);
     Ok(())
 }
 

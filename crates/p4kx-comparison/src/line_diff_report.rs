@@ -1,21 +1,16 @@
 use serde::ser::{SerializeSeq, SerializeStruct};
 use serde::{Serialize, Serializer};
 
-use crate::{ChangeKind, DiffBody, DiffLine, Encoding, Entry, Hunk, LineDiff, NotText};
+use crate::{DiffBody, DiffLine, Encoding, Entry, Hunk, LineDiff, NotText};
 
 impl Serialize for LineDiff<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut out = serializer.serialize_struct("LineDiff", 7)?;
         out.serialize_field("path", self.path())?;
-        out.serialize_field(
-            "change",
-            match self.kind() {
-                Some(ChangeKind::Added) => "added",
-                Some(ChangeKind::Removed) => "removed",
-                Some(ChangeKind::Changed) => "changed",
-                None => "unchanged",
-            },
-        )?;
+        match self.kind() {
+            Some(kind) => out.serialize_field("change", &kind)?,
+            None => out.serialize_field("change", "unchanged")?,
+        }
         out.serialize_field("differs", &self.has_differences())?;
         out.serialize_field("content", content(self.body()))?;
         out.serialize_field(

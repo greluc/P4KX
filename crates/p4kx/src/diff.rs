@@ -8,8 +8,8 @@ use crate::json;
 
 const MIB: u64 = 1024 * 1024;
 
-/// Prints `diff` as a unified diff, as a note for an Entry that is not text, or as one line of
-/// JSON.
+/// Prints `diff` as a unified diff, as a note for an Entry that is not text or whose text did not
+/// change, or as one line of JSON.
 pub(crate) fn print(
     diff: &LineDiff<'_>,
     old: &Archive,
@@ -24,6 +24,12 @@ pub(crate) fn print(
         DiffBody::Text(text) => {
             if diff.has_differences() {
                 write_unified(&mut out, diff, text, old, new)?;
+            } else if diff.kind().is_some() {
+                writeln!(
+                    out,
+                    "{} changed, but its text is the same line by line",
+                    diff.path()
+                )?;
             }
         }
         DiffBody::NotText(reason) => {

@@ -7,6 +7,9 @@ use crate::{Archive, Entry, LineDiffError};
 /// The largest Entry, and the largest XML converted from `CryXml`, a line diff reads.
 pub const MAX_DIFF_LEN: u64 = 128 * 1024 * 1024;
 
+/// The most a buffer reserves before its data has arrived; it grows from there.
+const MAX_INITIAL_CAPACITY: u64 = 16 * 1024 * 1024;
+
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 const UTF16_LE_BOM: &[u8] = b"\xFF\xFE";
 const UTF16_BE_BOM: &[u8] = b"\xFE\xFF";
@@ -37,8 +40,7 @@ pub(crate) fn decode(archive: &Archive, entry: &Entry) -> Result<Decoded, LineDi
         path: entry.path().to_owned(),
         source,
     };
-    let capacity = usize::try_from(entry.uncompressed_size()).unwrap_or(0);
-    let mut bytes = Vec::with_capacity(capacity);
+    let mut bytes = Vec::with_capacity(initial_capacity(entry.uncompressed_size()));
     archive
         .open_entry(entry)?
         .take(MAX_DIFF_LEN)
@@ -49,7 +51,9 @@ pub(crate) fn decode(archive: &Archive, entry: &Entry) -> Result<Decoded, LineDi
             path: entry.path().to_owned(),
             source,
         })?;
-        let mut out = Capped(Vec::with_capacity(bytes.len().saturating_mul(2)));
+        let mut out = Capped(Vec::with_capacity(initial_capacity(
+            (bytes.len() as u64).saturating_mul(2),
+        )));
         return match document.write_xml(&mut out) {
             Ok(()) => Ok(Decoded::Text(
                 into_string(out.0),
@@ -84,6 +88,10 @@ fn utf16(bytes: &[u8], unit: fn([u8; 2]) -> u16) -> String {
         text.push(char::REPLACEMENT_CHARACTER);
     }
     text
+}
+
+fn initial_capacity(expected: u64) -> usize {
+    usize::try_from(expected.min(MAX_INITIAL_CAPACITY)).unwrap_or(0)
 }
 
 fn into_string(bytes: Vec<u8>) -> String {

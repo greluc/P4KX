@@ -101,7 +101,9 @@ impl<'a> LineDiff<'a> {
 ///
 /// The path matches with either separator and ignoring ASCII case. `CryXml` is converted to XML
 /// first, UTF-16 text with a byte order mark is decoded, and other text is read as UTF-8; a side
-/// with a NUL byte is binary. A missing side is diffed as empty text.
+/// with a NUL byte is binary. A missing side is diffed as empty text. The patience diff falls back
+/// to Myers where no line is unique; a region needing more than 1024 edits there, or any region
+/// once a fixed work budget is spent, is shown as replaced as a whole, so the work stays bounded.
 ///
 /// # Errors
 ///

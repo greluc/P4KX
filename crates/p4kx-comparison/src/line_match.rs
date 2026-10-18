@@ -9,7 +9,7 @@ const WORK_BUDGET: u64 = 1 << 26;
 /// patience diff removes and adds; regions without a line unique on both sides fall back to
 /// Myers. Once the work budget is spent, every region still open is marked as replaced, so the
 /// result is deterministic and the work bounded.
-pub(crate) fn mark_changes(old: &[u32], new: &[u32], distinct: usize) -> (Vec<bool>, Vec<bool>) {
+pub(crate) fn mark_changes(old: &[u32], new: &[u32], distinct: usize) -> Marks {
     let mut matcher = Matcher {
         old,
         new,
@@ -17,13 +17,36 @@ pub(crate) fn mark_changes(old: &[u32], new: &[u32], distinct: usize) -> (Vec<bo
         added: vec![false; new.len()],
         counts: vec![Count::default(); distinct],
         touched: Vec::new(),
+        frontier: Vec::new(),
+        trace: Vec::new(),
         work: 0,
     };
     let mut open = vec![(0..old.len(), 0..new.len())];
     while let Some((a, b)) = open.pop() {
         matcher.region(a, b, &mut open);
     }
-    (matcher.removed, matcher.added)
+    Marks {
+        removed: matcher.removed,
+        added: matcher.added,
+    }
+}
+
+/// Which lines of each side a diff removes and adds.
+pub(crate) struct Marks {
+    pub(crate) removed: Vec<bool>,
+    pub(crate) added: Vec<bool>,
+}
+
+impl Marks {
+    /// Returns whether the old line at `index` is removed.
+    pub(crate) fn is_removed(&self, index: usize) -> bool {
+        self.removed.get(index).copied().unwrap_or(false)
+    }
+
+    /// Returns whether the new line at `index` is added.
+    pub(crate) fn is_added(&self, index: usize) -> bool {
+        self.added.get(index).copied().unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -41,6 +64,8 @@ struct Matcher<'t> {
     added: Vec<bool>,
     counts: Vec<Count>,
     touched: Vec<u32>,
+    frontier: Vec<usize>,
+    trace: Vec<usize>,
     work: u64,
 }
 
@@ -51,11 +76,11 @@ impl Matcher<'_> {
         mut b: Range<usize>,
         open: &mut Vec<(Range<usize>, Range<usize>)>,
     ) {
-        while a.start < a.end && b.start < b.end && self.same(a.start, b.start) {
+        while a.start < a.end && b.start < b.end && self.same_line(a.start, b.start) {
             a.start += 1;
             b.start += 1;
         }
-        while a.start < a.end && b.start < b.end && self.same(a.end - 1, b.end - 1) {
+        while a.start < a.end && b.start < b.end && self.same_line(a.end - 1, b.end - 1) {
             a.end -= 1;
             b.end -= 1;
         }
@@ -77,7 +102,7 @@ impl Matcher<'_> {
         open.push((x..a.end, y..b.end));
     }
 
-    fn same(&self, x: usize, y: usize) -> bool {
+    fn same_line(&self, x: usize, y: usize) -> bool {
         matches!((self.old.get(x), self.new.get(y)), (Some(a), Some(b)) if a == b)
     }
 
@@ -141,12 +166,42 @@ impl Matcher<'_> {
         let end = (old.len(), new.len());
         let max = MAX_EDIT_DISTANCE.min(end.0 + end.1);
         let offset = max + 1;
-        let mut frontier = vec![0_usize; 2 * max + 3];
-        let mut trace: Vec<usize> = Vec::new();
+        let mut frontier = std::mem::take(&mut self.frontier);
+        let mut trace = std::mem::take(&mut self.trace);
+        frontier.clear();
+        frontier.resize(2 * max + 3, 0);
+        trace.clear();
+        let found = self.search(old, new, &mut frontier, &mut trace, max);
+        if let Some(distance) = found {
+            self.backtrack(
+                &trace,
+                offset,
+                distance,
+                (old_range.start, new_range.start),
+                end,
+            );
+        } else {
+            self.replace(old_range, new_range);
+        }
+        (self.frontier, self.trace) = (frontier, trace);
+    }
+
+    /// Runs the greedy Myers search over `frontier`, keeping each round's frontier in `trace`;
+    /// returns the edit distance, or `None` past `max` edits or the work budget.
+    fn search(
+        &mut self,
+        old: &[u32],
+        new: &[u32],
+        frontier: &mut [usize],
+        trace: &mut Vec<usize>,
+        max: usize,
+    ) -> Option<usize> {
+        let end = (old.len(), new.len());
+        let offset = max + 1;
         for d in 0..=max {
             trace.extend_from_slice(frontier.get(offset - d..=offset + d).unwrap_or_default());
             for k in (offset - d..=offset + d).step_by(2) {
-                let start = next_x(&frontier, k, offset, d);
+                let start = next_x(frontier, k, offset, d);
                 let mut point = (start, (start + offset).saturating_sub(k));
                 while let (Some(left), Some(right)) = (old.get(point.0), new.get(point.1))
                     && left == right
@@ -158,15 +213,14 @@ impl Matcher<'_> {
                     *slot = point.0;
                 }
                 if point.0 >= end.0 && point.1 >= end.1 {
-                    self.backtrack(&trace, offset, d, (old_range.start, new_range.start), end);
-                    return;
+                    return Some(d);
                 }
             }
             if self.work > WORK_BUDGET {
-                break;
+                return None;
             }
         }
-        self.replace(old_range, new_range);
+        None
     }
 
     fn backtrack(
@@ -187,18 +241,23 @@ impl Matcher<'_> {
                     .unwrap_or(0)
             };
             let k = (x + offset).saturating_sub(y);
-            let down = k + d == offset || (k != offset + d && row(k - 1) < row(k + 1));
-            let previous_k = if down { k + 1 } else { k - 1 };
+            let down =
+                k + d == offset || (k != offset + d && row(k.saturating_sub(1)) < row(k + 1));
+            let previous_k = if down { k + 1 } else { k.saturating_sub(1) };
             let previous_x = row(previous_k);
             let previous_y = (previous_x + offset).saturating_sub(previous_k);
-            let snake = (x - previous_x.min(x)).min(y - previous_y.min(y));
-            let (edit_x, edit_y) = (x - snake, y - snake);
-            if down {
-                if let Some(added) = self.added.get_mut(new_start + edit_y - 1) {
-                    *added = true;
-                }
-            } else if let Some(removed) = self.removed.get_mut(old_start + edit_x - 1) {
-                *removed = true;
+            let snake = x
+                .saturating_sub(previous_x)
+                .min(y.saturating_sub(previous_y));
+            let (marks, start, edit) = if down {
+                (&mut self.added, new_start, y.saturating_sub(snake))
+            } else {
+                (&mut self.removed, old_start, x.saturating_sub(snake))
+            };
+            if let Some(line) = edit.checked_sub(1).map(|edited| start + edited)
+                && let Some(mark) = marks.get_mut(line)
+            {
+                *mark = true;
             }
             (x, y) = (previous_x, previous_y);
         }
@@ -208,10 +267,10 @@ impl Matcher<'_> {
 /// Returns the x a path reaching diagonal `k` in round `d` starts its snake at.
 fn next_x(frontier: &[usize], k: usize, offset: usize, d: usize) -> usize {
     let at = |k: usize| frontier.get(k).copied().unwrap_or(0);
-    if k + d == offset || (k != offset + d && at(k - 1) < at(k + 1)) {
+    if k + d == offset || (k != offset + d && at(k.saturating_sub(1)) < at(k + 1)) {
         at(k + 1)
     } else {
-        at(k - 1) + 1
+        at(k.saturating_sub(1)) + 1
     }
 }
 

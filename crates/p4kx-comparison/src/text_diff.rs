@@ -1,8 +1,8 @@
+use std::collections::HashMap;
 use std::ops::Range;
 
 use schemars::JsonSchema;
 use serde::Serialize;
-use std::collections::HashMap;
 
 use crate::line_match::mark_changes;
 
@@ -145,17 +145,16 @@ impl TextDiff {
 fn changes(old: &Lines, new: &Lines) -> Vec<Change> {
     let mut ids: HashMap<&str, u32> = HashMap::with_capacity(old.len().max(new.len()));
     let (old_tokens, new_tokens) = (intern(&mut ids, old), intern(&mut ids, new));
-    let (removed, added) = mark_changes(&old_tokens, &new_tokens, ids.len());
+    let marks = mark_changes(&old_tokens, &new_tokens, ids.len());
     let mut changes = Vec::new();
     let (mut x, mut y) = (0, 0);
-    let is = |marks: &[bool], at: usize| marks.get(at).copied().unwrap_or(false);
-    while x < removed.len() || y < added.len() {
-        if is(&removed, x) || is(&added, y) {
+    while x < old.len() || y < new.len() {
+        if marks.is_removed(x) || marks.is_added(y) {
             let (old_start, new_start) = (x, y);
-            while is(&removed, x) {
+            while marks.is_removed(x) {
                 x += 1;
             }
-            while is(&added, y) {
+            while marks.is_added(y) {
                 y += 1;
             }
             changes.push(Change {

@@ -161,7 +161,11 @@ The line diff of one Entry, with three unchanged lines of context around each ch
 | `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator; the last line of a side may have none) |
 
 A missing side is diffed as empty text; text with a UTF-16 byte order mark is decoded, other text
-is read as UTF-8 with invalid sequences replaced. The exit code is 0 when `differs` is false, 1
+is read as UTF-8 with invalid sequences replaced. The diff is a patience diff with a Myers fallback
+where no line is unique; so that pathological pairs stay fast, a region that needs more than 1024
+edits there, or every region once a fixed work budget is spent, is shown as removed and added as a
+whole. An Entry whose bytes changed but whose text (for CryXml: the converted XML) did not has
+`change` `changed`, `differs` false and no hunks; without `--json` a note says so. The exit code is 0 when `differs` is false, 1
 when it is true, 2 when neither Archive has the Entry and 3 when an Entry cannot be read or holds
 corrupt CryXml.
 

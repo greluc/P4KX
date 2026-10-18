@@ -34,10 +34,7 @@ impl ChangeSelection {
 
     /// Returns the Archive of the chosen side, the one the Entries are read from.
     pub(crate) fn archive(&self) -> &Archive {
-        match self.side {
-            ComparisonSide::Old => self.comparison.old_archive(),
-            ComparisonSide::New => self.comparison.new_archive(),
-        }
+        side_archive(&self.comparison, self.side)
     }
 
     /// Returns the number of selected Entries.
@@ -66,6 +63,14 @@ pub(crate) const fn selected_len(side: ComparisonSide, counts: EntryCounts) -> u
     match side {
         ComparisonSide::Old => counts.changed,
         ComparisonSide::New => counts.added.saturating_add(counts.changed),
+    }
+}
+
+/// Returns the Archive of `side` of `comparison`.
+pub(crate) fn side_archive(comparison: &OwnedComparison, side: ComparisonSide) -> &Archive {
+    match side {
+        ComparisonSide::Old => comparison.old_archive(),
+        ComparisonSide::New => comparison.new_archive(),
     }
 }
 

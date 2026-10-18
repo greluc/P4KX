@@ -3,6 +3,7 @@ use std::time::SystemTime;
 use egui::{Align, Align2, Layout, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
+use p4kx_settings::ExtractionTextures;
 
 use super::{Dialog, Requests, comparison_extraction};
 use crate::extraction::target_naming;
@@ -12,7 +13,7 @@ use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight,
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
-use crate::widgets::toggle;
+use crate::widgets::{number, toggle};
 use crate::{
     Extraction, ExtractionScope, ExtractionSetup, ExtractionText as T, Model, TargetKind, Texts,
     format,
@@ -35,6 +36,8 @@ const POLICIES: [(ConflictPolicy, T); 3] = [
     (ConflictPolicy::Overwrite, T::PolicyOverwrite),
     (ConflictPolicy::IfChanged, T::PolicyIfChanged),
 ];
+
+const MAX_MIP_LEVEL: u32 = 15;
 
 enum Action {
     Submit,
@@ -171,6 +174,38 @@ fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
     if toggle::checkbox(ui, &mut convert, &texts.get(T::Conversion)).changed() {
         setup.set_convert(convert);
     }
+    if convert {
+        let mut textures = setup.textures();
+        ui.indent("extraction-textures", |ui| {
+            texture_choices(ui, texts, &mut textures);
+        });
+        setup.set_textures(textures);
+    }
+}
+
+/// Shows the texture outputs of a Conversion: merge, PNG with its mip level, raw parts.
+fn texture_choices(ui: &mut Ui, texts: &Texts, textures: &mut ExtractionTextures) {
+    toggle::checkbox(ui, &mut textures.merge, &texts.get(T::TextureMerge));
+    toggle::checkbox(ui, &mut textures.png, &texts.get(T::TexturePng));
+    let png = textures.png;
+    ui.indent("extraction-texture-mip", |ui| {
+        let largest = &texts.get(T::TextureMipLargest);
+        if toggle::radio(ui, textures.mip == 0, largest, png).clicked() {
+            textures.mip = 0;
+        }
+        ui.horizontal(|ui| {
+            let level_text = &texts.get(T::TextureMipLevel);
+            if toggle::radio(ui, textures.mip > 0, level_text, png).clicked() && textures.mip == 0 {
+                textures.mip = 1;
+            }
+            let mut level = textures.mip.max(1);
+            number::number_field(ui, &mut level, 1..=MAX_MIP_LEVEL, png && textures.mip > 0);
+            if textures.mip > 0 {
+                textures.mip = level;
+            }
+        });
+    });
+    toggle::checkbox(ui, &mut textures.keep_raw, &texts.get(T::TextureRaw));
 }
 
 fn folder_field(ui: &mut Ui, texts: &Texts, setup: &ExtractionSetup) {

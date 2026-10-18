@@ -77,7 +77,7 @@ impl EntryWriter<'_> {
             return Ok(Outcome::Cancelled);
         }
         let document = cryxml::parse(data).map_err(ExtractionError::Convert)?;
-        let xml = &mut buffers.xml;
+        let xml = &mut buffers.output;
         xml.clear();
         document
             .write_xml(&mut *xml)

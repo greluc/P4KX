@@ -153,6 +153,7 @@ Toolbar um. Sie öffnen den vorhandenen Dialog „Einträge extrahieren"; statt 
 dort der Bereich als Text, darunter in `color-gray-2-text` der Filter, der ihn einschränkt.
 Ziel, Konfliktregel, Umwandlung, Fortschritt, Abbrechen und Zusammenfassung sind die der
 normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Seite.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -168,8 +169,9 @@ normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Se
 | Modal ohne Slide, nur 200 ms Deckkraft | nur Farb- und Deckkraft-Übergänge |
 | Chevron als gezeichneter Pfad statt `▶` | Lato hat kein `▶`; egui bräuchte eine Fallback-Schrift |
 | Hex in festen Zellen statt Monospace | einzige Schrift Lato; die Zellen halten die Spalten, auch für A–F |
+| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
-| DataForge-Übersicht: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
+| DataForge-Übersicht und Record-Suche: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

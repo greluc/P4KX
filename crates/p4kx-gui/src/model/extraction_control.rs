@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use p4kx_extraction::Entry;
+use p4kx_settings::ExtractionTextures;
 
 use super::Model;
 use crate::extraction::{Confirmation, Source, start};
@@ -31,6 +32,17 @@ impl Model {
         self.extraction_conversion = convert;
     }
 
+    /// Returns what the last Extraction wrote for a texture, the choice a new setup starts with.
+    #[must_use]
+    pub const fn extraction_textures(&self) -> ExtractionTextures {
+        self.extraction_textures
+    }
+
+    /// Replaces the texture outputs an Extraction setup starts with.
+    pub const fn set_extraction_textures(&mut self, textures: ExtractionTextures) {
+        self.extraction_textures = textures;
+    }
+
     /// Opens the Extraction setup for `scope`, unless an Extraction runs or the scope has no
     /// source: no open Archive or one that changed on disk, or no finished Comparison for the
     /// changes of one side; a finished Extraction is dismissed.
@@ -39,7 +51,10 @@ impl Model {
             return;
         }
         let ready = match scope {
-            ExtractionScope::Changes(_) => self.comparison.view().is_some(),
+            ExtractionScope::Changes(_) => self
+                .comparison
+                .view()
+                .is_some_and(|view| !view.is_filtering()),
             _ => self.browser.is_some() && !self.check_archive(),
         };
         if !ready {
@@ -50,6 +65,7 @@ impl Model {
             scope,
             self.extraction_folder.clone(),
             self.extraction_conversion,
+            self.extraction_textures,
         ));
     }
 
@@ -123,6 +139,7 @@ impl Model {
         };
         self.extraction_folder = Some(request.folder.clone());
         self.extraction_conversion = request.convert;
+        self.extraction_textures = request.textures;
         self.extraction = Some(start(request, wake));
         self.extraction_setup = None;
         true
@@ -154,7 +171,10 @@ impl Model {
             });
             return None;
         }
-        Some(Source::Index(Arc::clone(browser.shared_index()), ids))
+        Some(Source::Index {
+            index: Arc::clone(browser.shared_index()),
+            ids,
+        })
     }
 
     /// Returns the running or finished Extraction, or `None` when there is none.

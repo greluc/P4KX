@@ -12,7 +12,9 @@ use p4kx_extraction::{
     create_default_target, extract,
 };
 
-use super::{ExtractionSummary, TargetKind};
+use p4kx_settings::ExtractionTextures;
+
+use super::{ExtractionSummary, TargetKind, texture_conversion};
 use crate::EntryIndex;
 use crate::comparison::ChangeSelection;
 use crate::model::describe;
@@ -20,8 +22,13 @@ use crate::model::describe;
 /// The Entries an Extraction writes and the Archive they are read from.
 #[derive(Debug, Clone)]
 pub(crate) enum Source {
-    /// The Entries with these ids of the open Archive.
-    Index(Arc<EntryIndex>, Vec<u32>),
+    /// The Entries with the ids `ids` of the open Archive `index`.
+    Index {
+        /// The open Archive.
+        index: Arc<EntryIndex>,
+        /// The ids of the Entries.
+        ids: Vec<u32>,
+    },
     /// The added and changed Entries of one side of a Comparison.
     Changes(ChangeSelection),
 }
@@ -30,7 +37,7 @@ impl Source {
     /// Returns the Archive the Entries are read from.
     pub(crate) fn archive(&self) -> &Archive {
         match self {
-            Self::Index(index, _) => index.archive(),
+            Self::Index { index, .. } => index.archive(),
             Self::Changes(selection) => selection.archive(),
         }
     }
@@ -38,7 +45,7 @@ impl Source {
     /// Returns the number of Entries.
     pub(crate) const fn len(&self) -> usize {
         match self {
-            Self::Index(_, ids) => ids.len(),
+            Self::Index { ids, .. } => ids.len(),
             Self::Changes(selection) => selection.len(),
         }
     }
@@ -52,6 +59,7 @@ pub(crate) struct Request {
     pub(crate) folder: PathBuf,
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
+    pub(crate) textures: ExtractionTextures,
 }
 
 type RunResult = Result<ExtractionSummary, String>;
@@ -202,7 +210,7 @@ pub(crate) fn start(request: Request, wake: impl Fn() + Send + 'static) -> Extra
 
 fn run(request: &Request, cancel: &CancelToken, progress: &Mutex<Progress>) -> RunResult {
     match &request.source {
-        Source::Index(index, ids) => {
+        Source::Index { index, ids } => {
             let mut ids = ids.clone();
             ids.sort_unstable();
             let entries: Vec<_> = ids.iter().filter_map(|&id| index.entry(id)).collect();
@@ -235,6 +243,7 @@ fn write(
     let options = ExtractOptions {
         policy: request.policy,
         convert: request.convert,
+        textures: texture_conversion(request.textures),
         cancel: Some(cancel),
         progress: Some(&on_progress),
         watch: Some(watch),

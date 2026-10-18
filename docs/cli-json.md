@@ -85,6 +85,29 @@ order. `error_values` counts the values written as errors (see
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty.
 
+## `p4kx dcb query <archive> <query> --json`
+
+Without `--out`, the line is the Query result itself in its JSON format, as `--format json`
+writes it ([query.md](query.md#json)):
+
+```json
+[{"record path":"libs/foundry/records/ships/avenger","mass":25000.5,"size":"Large"},…]
+```
+
+One object per row in record-path order, keyed by `record path` and then by each `select` path
+in column order, with typed values. `--json` with `--format table` or `--format csv` and
+without `--out` exits with code 2, because stdout would not hold JSON.
+
+With `--out <file>`, the result in `--format` (`json` by default) goes to the file and stdout
+gets the summary:
+
+```json
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+```
+
+`records` counts the rows written and `failed` the Records whose layout cannot be read; each of
+them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+
 ## `p4kx channels --json`
 
 ```json
@@ -223,8 +246,13 @@ failures are not repeated on stderr. The exit code is 1 when `failed` is not emp
  "cancelled": ["Data\\large.bin"], "archive_changed": false}
 ```
 
-With `--convert` the report also holds `"converted": 1`, the number of CryXml Entries written as
-XML; they count among `extracted`. Without `--convert` the field is absent.
+With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
+(CryXml Entries as XML and the Entries of converted textures); they count among `extracted`. It
+also holds `"unconverted": [{"path": "Data\\Textures\\hull_ddna.dds", "error": "cannot convert
+the texture: …"}]`, the textures by their header Entry that could not be converted, whose raw
+Entries were written instead (except a header whose path the merged DDS already took); the exit
+code is then 1. Without `--convert` both fields are
+absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled. All three are in

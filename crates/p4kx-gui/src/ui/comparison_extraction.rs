@@ -2,6 +2,7 @@ use egui::{Id, Rect, Ui};
 use p4kx_extraction::Archive;
 
 use super::extraction::number;
+use crate::comparison::side_archive;
 use crate::theme::desktop::{SEARCH_WIDTH, TOOLBAR_PADDING};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
@@ -69,9 +70,6 @@ pub(super) fn scope(ui: &mut Ui, model: &Model, side: ComparisonSide) {
 
 /// Returns the Archive of `side` of the finished Comparison.
 pub(super) fn archive(model: &Model, side: ComparisonSide) -> Option<&Archive> {
-    let comparison = model.comparison().view()?.comparison();
-    Some(match side {
-        ComparisonSide::Old => comparison.old_archive(),
-        ComparisonSide::New => comparison.new_archive(),
-    })
+    let view = model.comparison().view()?;
+    Some(side_archive(view.comparison(), side))
 }

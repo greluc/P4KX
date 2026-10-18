@@ -252,6 +252,36 @@ fn the_conversion_switch_of_the_setup_applies_and_is_remembered() -> TestResult 
 }
 
 #[test]
+fn a_cancelled_extraction_accounts_for_every_selected_entry() -> TestResult {
+    let pair = pair()?;
+    let mut model = compared(&pair, "")?;
+    let out = pair.dir.path().join("out-cancelled");
+
+    model.begin_extraction(ExtractionScope::Changes(ComparisonSide::New));
+    let setup = model.extraction_setup_mut().ok_or("no setup")?;
+    setup.set_kind(TargetKind::ExistingFolder);
+    setup.set_folder(out);
+    if !model.submit_extraction(|| {}) {
+        return Err("the Extraction did not start".into());
+    }
+    model.cancel_extraction();
+    poll_until(&mut model, |model| {
+        !model.extraction().is_some_and(Extraction::is_running)
+    })?;
+
+    let Some(ExtractionStatus::Finished(summary)) = model.extraction().map(Extraction::status)
+    else {
+        return Err("no summary".into());
+    };
+    assert_eq!(
+        summary.extracted() + summary.skipped().len() + summary.cancelled().len(),
+        3,
+        "written or reported as cancelled"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_side_that_changed_on_disk_stops_the_extraction() -> TestResult {
     let pair = pair()?;
     let mut model = compared(&pair, "")?;

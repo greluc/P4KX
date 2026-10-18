@@ -1,3 +1,7 @@
+mod search_text;
+
+pub use search_text::RecordSearchText;
+
 /// A text of the DataForge node and the DataForge tab, looked up in the Fluent file of the
 /// current language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,11 +36,13 @@ pub enum DataForgeText {
     ColumnType,
     /// The record path column.
     ColumnRecordPath,
+    /// A text of the Record search.
+    Search(RecordSearchText),
 }
 
 impl DataForgeText {
     /// Every DataForge text.
-    pub(crate) const ALL: [Self; 15] = [
+    pub(crate) const ALL: [Self; 20] = [
         Self::Node,
         Self::NodeLoading,
         Self::Tab,
@@ -52,6 +58,11 @@ impl DataForgeText {
         Self::FirstRecords,
         Self::ColumnType,
         Self::ColumnRecordPath,
+        Self::Search(RecordSearchText::Label),
+        Self::Search(RecordSearchText::Hint),
+        Self::Search(RecordSearchText::Prompt),
+        Self::Search(RecordSearchText::NoMatches),
+        Self::Search(RecordSearchText::Matches),
     ];
 
     /// Returns the Fluent message id.
@@ -73,6 +84,7 @@ impl DataForgeText {
             Self::FirstRecords => "dataforge-first-records",
             Self::ColumnType => "column-type",
             Self::ColumnRecordPath => "column-record-path",
+            Self::Search(text) => text.id(),
         }
     }
 }

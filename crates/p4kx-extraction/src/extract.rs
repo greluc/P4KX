@@ -4,10 +4,25 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::buffers::Buffers;
-use crate::dependent::split_dependent;
+use crate::dependent::Collisions;
+use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{EntryFailure, ExtractOptions, ExtractionReport};
+
+/// The outcome of one Entry of an Extraction: its position, its path and how it ended.
+pub(crate) type EntryEnded = (usize, String, Outcome);
+
+/// How one item of an Extraction ended.
+pub(crate) enum Ended {
+    /// An Entry written on its own.
+    Entry(EntryEnded),
+    /// The Entries of a texture, and its failure by position when it was not fully converted.
+    Texture {
+        entries: Vec<EntryEnded>,
+        unconverted: Option<(usize, EntryFailure)>,
+    },
+}
 
 /// Runs an Extraction of `entries` from `archive` into the existing folder `target`.
 ///
@@ -17,6 +32,11 @@ use crate::{EntryFailure, ExtractOptions, ExtractionReport};
 /// rejected, and existing links below `target` are never followed. A failed or cancelled Entry
 /// leaves no partial file and keeps an existing one; once the token of `options` is cancelled,
 /// the Entries not yet complete are reported as cancelled.
+///
+/// With Conversion on, each requested `.dds` header and its requested parts are converted once
+/// as one texture as [`TextureConversion`](crate::TextureConversion) says, its parts read from
+/// the Archive whether requested or not. A texture that cannot be converted is reported among
+/// the [`unconverted`](ExtractionReport::unconverted) ones and its raw Entries are written.
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -45,28 +65,60 @@ pub fn extract(
         target,
         policy: options.policy,
         convert: options.convert,
+        textures: options.textures,
         tracker: &tracker,
     };
-    let (independent, dependent) = split_dependent(entries.iter().map(|entry| entry.path()));
-    let indexed = |indices: Vec<usize>| -> Vec<(usize, &Entry)> {
-        indices
-            .into_iter()
-            .filter_map(|index| entries.get(index).map(|entry| (index, *entry)))
+    let items = if options.convert && options.textures.converts() {
+        group_textures(archive, entries)
+    } else {
+        entries
+            .iter()
+            .copied()
+            .enumerate()
+            .map(Item::Entry)
             .collect()
     };
-    let (independent, dependent) = (indexed(independent), indexed(dependent));
-    let run = |buffers: &mut Buffers, (index, entry): (usize, &Entry)| {
-        (index, entry.path().to_owned(), writer.write(entry, buffers))
+    let (independent, dependent) = split_dependent(items);
+    let run = |buffers: &mut Buffers, item: Item<'_>| match item {
+        Item::Entry((index, entry)) => {
+            Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
+        }
+        Item::Texture(job) => writer.write_texture(&job, buffers),
     };
-    let mut outcomes: Vec<_> = independent
+    let mut ended: Vec<_> = independent
         .into_par_iter()
         .map_init(Buffers::new, run)
         .collect();
     let mut buffers = Buffers::new();
-    outcomes.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let mut report = report(ended, options.convert);
+    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
+    report
+}
+
+fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
+    let mut outcomes = Vec::with_capacity(ended.len());
+    let mut unconverted = Vec::new();
+    for item in ended {
+        match item {
+            Ended::Entry(outcome) => outcomes.push(outcome),
+            Ended::Texture {
+                entries,
+                unconverted: failure,
+            } => {
+                outcomes.extend(entries);
+                unconverted.extend(failure);
+            }
+        }
+    }
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
+    unconverted.sort_unstable_by_key(|(index, _)| *index);
     let mut report = ExtractionReport {
-        converted: options.convert.then_some(0),
+        converted: convert.then_some(0),
+        unconverted: unconverted
+            .into_iter()
+            .map(|(_, failure)| failure)
+            .collect(),
         ..ExtractionReport::default()
     };
     for (_, path, outcome) in outcomes {
@@ -81,6 +133,16 @@ pub fn extract(
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
-    report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
+}
+
+/// Splits `items` into those that may run in parallel and, in order, those that write a path
+/// colliding with an earlier one by name or as a file where a folder is needed.
+fn split_dependent(items: Vec<Item<'_>>) -> (Vec<Item<'_>>, Vec<Item<'_>>) {
+    let mut collisions = Collisions::default();
+    items.into_iter().partition(|item| {
+        let mut free = true;
+        item.output_paths(|path| free &= collisions.claim(path));
+        free
+    })
 }

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use p4kx_extraction::Filter;
 
+use crate::record_search::RecordSearch;
 use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{
     EntryIndex, ExtractionScope, FolderId, Preview, RecordTree, Sort, SortColumn, SortDirection,
@@ -38,6 +39,7 @@ pub struct Browser {
     shown_checked_count: usize,
     preview: Option<Preview>,
     records: Option<RecordTree>,
+    record_search: RecordSearch,
 }
 
 impl Browser {
@@ -64,6 +66,7 @@ impl Browser {
             shown_checked_count: 0,
             preview: None,
             records,
+            record_search: RecordSearch::default(),
         };
         browser.refresh_tree();
         browser.refresh_shown();
@@ -290,7 +293,8 @@ impl Browser {
     pub fn poll(&mut self) -> bool {
         let previewed = self.preview.as_mut().is_some_and(Preview::poll);
         let loaded = self.records.as_mut().is_some_and(RecordTree::poll);
-        self.poll_search() || previewed || loaded
+        let found = self.poll_record_search(loaded);
+        self.poll_search() || previewed || loaded || found
     }
 
     fn poll_search(&mut self) -> bool {

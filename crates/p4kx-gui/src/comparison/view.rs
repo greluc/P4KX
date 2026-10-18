@@ -152,7 +152,7 @@ impl ComparisonView {
     }
 
     /// Returns the number of added and changed Entries of `side` the Filter selects, the ones
-    /// extracting the changes of that side writes; none while a Filter is applied.
+    /// extracting the changes of that side writes; none while a Filter is being applied.
     #[must_use]
     pub fn change_count(&self, side: ComparisonSide) -> usize {
         if self.is_filtering() {
@@ -162,7 +162,7 @@ impl ComparisonView {
     }
 
     /// Returns the added and changed Entries of `side` the Filter selects, or `None` while a
-    /// Filter is applied.
+    /// Filter is being applied.
     pub(crate) fn selection(&self, side: ComparisonSide) -> Option<ChangeSelection> {
         (!self.is_filtering()).then(|| {
             ChangeSelection::new(

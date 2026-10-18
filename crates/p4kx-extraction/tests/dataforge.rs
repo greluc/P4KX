@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_extraction::{Archive, DataForgeEntry, DataForgeLoadError};
+use p4kx_extraction::{Archive, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -103,6 +103,47 @@ fn corrupt_entry_data_is_a_read_error() -> TestResult {
     assert!(
         matches!(result, Err(DataForgeLoadError::Read { .. })),
         "the Entry cannot be decompressed: {result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_size_above_the_limit_is_rejected_before_reading() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(
+        dir.path(),
+        vec![
+            TestEntry::stored("Data\\Game2.dcb", database(1))
+                .with_uncompressed_size(MAX_DATAFORGE_SIZE + 1),
+        ],
+    )?;
+
+    let result = DataForgeEntry::read(&archive);
+
+    assert!(
+        matches!(
+            result,
+            Err(DataForgeLoadError::TooLarge { size, limit, .. })
+                if size == MAX_DATAFORGE_SIZE + 1 && limit == MAX_DATAFORGE_SIZE
+        ),
+        "the forged size is rejected: {result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_forged_size_below_the_limit_fails_on_the_missing_data() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(
+        dir.path(),
+        vec![TestEntry::stored("Data\\Game2.dcb", database(1)).with_uncompressed_size(1 << 30)],
+    )?;
+
+    let result = DataForgeEntry::read(&archive);
+
+    assert!(
+        matches!(result, Err(DataForgeLoadError::Read { .. })),
+        "the Entry ends before its claimed size: {result:?}"
     );
     Ok(())
 }

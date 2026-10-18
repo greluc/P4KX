@@ -7,6 +7,11 @@ use thiserror::Error;
 /// The Entries that may hold DataForge, the preferred one first.
 pub const DATAFORGE_ENTRIES: [&str; 2] = ["Data\\Game2.dcb", "Data\\Game.dcb"];
 
+/// The largest uncompressed DataForge Entry that is read, 2 GiB; larger sizes are rejected.
+pub const MAX_DATAFORGE_SIZE: u64 = 2 << 30;
+
+const INITIAL_RESERVE: u64 = 64 << 20;
+
 /// The bytes of an Archive's DataForge Entry, read into memory.
 #[derive(Debug)]
 pub struct DataForgeEntry {
@@ -20,34 +25,39 @@ impl DataForgeEntry {
     ///
     /// # Errors
     ///
-    /// Returns [`DataForgeLoadError::Missing`] when the Archive holds neither Entry, and another
+    /// Returns [`DataForgeLoadError::Missing`] when the Archive holds neither Entry,
+    /// [`DataForgeLoadError::TooLarge`] when its size exceeds [`MAX_DATAFORGE_SIZE`], and another
     /// [`DataForgeLoadError`] when the Entry cannot be read.
     pub fn read(archive: &Archive) -> Result<Self, DataForgeLoadError> {
         let entry = find_entry(archive).ok_or(DataForgeLoadError::Missing)?;
         let path = entry.path().to_owned();
-        let size = usize::try_from(entry.uncompressed_size()).map_err(|_| {
-            DataForgeLoadError::TooLarge {
-                path: path.clone(),
-                size: entry.uncompressed_size(),
-            }
-        })?;
-        let mut bytes = Vec::new();
-        if bytes.try_reserve_exact(size).is_err() {
+        let size = entry.uncompressed_size();
+        if size > MAX_DATAFORGE_SIZE {
             return Err(DataForgeLoadError::TooLarge {
                 path,
-                size: entry.uncompressed_size(),
+                size,
+                limit: MAX_DATAFORGE_SIZE,
+            });
+        }
+        let mut bytes = Vec::new();
+        let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
+        if bytes.try_reserve_exact(reserve).is_err() {
+            return Err(DataForgeLoadError::TooLarge {
+                path,
+                size,
+                limit: MAX_DATAFORGE_SIZE,
             });
         }
         let read = archive
             .open_entry(entry)
             .map_err(DataForgeLoadError::Archive)
-            .and_then(|mut reader| {
-                reader
-                    .read_to_end(&mut bytes)
-                    .map_err(|source| DataForgeLoadError::Read {
+            .and_then(|reader| {
+                reader.take(size).read_to_end(&mut bytes).map_err(|source| {
+                    DataForgeLoadError::Read {
                         path: path.clone(),
                         source,
-                    })
+                    }
+                })
             });
         read.map(|_| Self { path, bytes })
     }
@@ -75,13 +85,15 @@ pub enum DataForgeLoadError {
     /// The Archive holds neither `Data\Game2.dcb` nor `Data\Game.dcb`.
     #[error("the Archive holds no DataForge: neither Data\\Game2.dcb nor Data\\Game.dcb")]
     Missing,
-    /// The Entry is larger than the memory that can be reserved for it.
-    #[error("the DataForge Entry {path} of {size} bytes does not fit into memory")]
+    /// The Entry is larger than [`MAX_DATAFORGE_SIZE`] or than the memory that can be reserved.
+    #[error("the DataForge Entry {path} claims {size} bytes, more than the limit of {limit} bytes")]
     TooLarge {
         /// The Entry path.
         path: String,
         /// The uncompressed size the Archive gives.
         size: u64,
+        /// The largest size that is read.
+        limit: u64,
     },
     /// The Entry cannot be opened in the Archive.
     #[error(transparent)]

@@ -12,7 +12,7 @@ mod tracker;
 mod watch;
 mod write;
 
-pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError};
+pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress};

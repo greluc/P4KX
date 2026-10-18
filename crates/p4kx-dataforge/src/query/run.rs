@@ -169,7 +169,7 @@ impl<'f> CompiledQuery<'f> {
             Plan::Read { columns, .. } => self.instance_of(index).map(|bytes| {
                 columns
                     .iter()
-                    .map(|column| column.as_ref()?.read(self.forge, bytes))
+                    .map(|column| column.as_ref()?.cell(self.forge, bytes))
                     .collect()
             }),
         };

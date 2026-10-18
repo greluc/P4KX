@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_paths.rs
+expression: "error(\"from Ship select tags[-1]\")?"
+---
+error: an index is a whole number from 0 to 4294967295
+  from Ship select tags[-1]
+                        ^^

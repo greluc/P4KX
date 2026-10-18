@@ -1,8 +1,7 @@
 use crate::dataforge::out_of_range;
 use crate::rows::PropertyDef;
-use crate::scalar::read_scalar;
 use crate::schema::CONVERSION_ATTRIBUTE;
-use crate::{DataForge, DataForgeError, DataType, Value};
+use crate::{DataForge, DataForgeError, DataType};
 
 const ARRAY_LEN: u64 = 8;
 
@@ -41,6 +40,12 @@ impl Slot {
     /// Returns the type of the field's values.
     pub(crate) const fn data_type(&self) -> DataType {
         self.data_type
+    }
+
+    /// Returns the struct or enum the field's values belong to, for a class, a pointer or an
+    /// enum.
+    pub(crate) const fn target(&self) -> u16 {
+        self.def.target
     }
 
     /// Returns whether the field holds an array.
@@ -83,14 +88,5 @@ impl Slot {
                     out_of_range("property", self.property, "struct", self.def.target.into())
                 })?,
         })
-    }
-
-    /// Reads the scalar value from `bytes`, the field's bytes of exactly [`Slot::size`]; a field
-    /// that holds no single scalar reads as null.
-    pub(crate) fn read<'f>(&self, forge: &'f DataForge<'f>, bytes: &[u8]) -> Value<'f> {
-        if self.array {
-            return Value::Null;
-        }
-        read_scalar(forge, self.data_type, self.def.target, bytes).unwrap_or(Value::Null)
     }
 }

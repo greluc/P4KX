@@ -87,6 +87,24 @@ pub enum ValueError {
         /// The GUID of the missing Record.
         guid: Guid,
     },
+    /// A strong pointer refers to an instance of a struct that neither is nor derives from the
+    /// struct the field declares.
+    #[error(
+        "the pointer refers to struct {struct_index}, which does not derive from struct {declared}, the type of the field"
+    )]
+    UnexpectedPointerType {
+        /// The struct index of the pointer.
+        struct_index: u32,
+        /// The struct the field declares.
+        declared: u32,
+    },
+    /// A Query path reaches more array elements in one Record than
+    /// [`MAX_PATH_VALUES`](crate::query::MAX_PATH_VALUES).
+    #[error("the path reaches more than {limit} array elements")]
+    PathTooWide {
+        /// The most elements a path may reach.
+        limit: usize,
+    },
     /// A weak pointer refers to an instance that is neither inside the Record nor a Record.
     #[error(
         "the weak pointer refers to instance {instance_index} of struct {struct_index}, which lies outside the Record"

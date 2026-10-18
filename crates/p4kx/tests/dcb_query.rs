@@ -199,8 +199,8 @@ fn a_field_without_from_must_exist_somewhere() -> TestResult {
 }
 
 #[test]
-fn a_struct_field_cannot_be_selected() -> TestResult {
-    insta::assert_snapshot!(error("from Item select origin.x")?);
+fn a_path_cannot_end_at_a_struct() -> TestResult {
+    insta::assert_snapshot!(error("from Item select origin")?);
     Ok(())
 }
 

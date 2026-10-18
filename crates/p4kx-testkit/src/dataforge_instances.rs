@@ -214,6 +214,7 @@ impl Writer<'_> {
     fn own(&mut self, instances: &mut Instances, instance: &TestInstance) -> Vec<u8> {
         let index = self.lookup(&instance.type_name);
         let at = self.allocate(instances, index, 1);
+        self.register(instance, index, at);
         let bytes = self.encode_struct(instances, index, &instance.values);
         store(instances, index, at, &bytes);
         pointer(index, at)
@@ -236,6 +237,7 @@ impl Writer<'_> {
             let first = self.allocate(instances, index, items.len());
             for (at, value) in (first..).zip(items) {
                 if let TestValue::Struct(instance) = value {
+                    self.register(instance, index, at);
                     let bytes = self.encode_struct(instances, index, &instance.values);
                     store(instances, index, at, &bytes);
                 }
@@ -260,6 +262,12 @@ impl Writer<'_> {
             first
         };
         pointer(count, first)
+    }
+
+    fn register(&mut self, instance: &TestInstance, index: u32, at: u32) {
+        if let Some(name) = &instance.name {
+            self.names.insert(name.clone(), (index, at));
+        }
     }
 
     fn lookup(&self, name: &str) -> u32 {

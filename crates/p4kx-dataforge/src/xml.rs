@@ -23,7 +23,7 @@ pub struct RecordXml {
 /// The start of a struct element: the root of a Record or a nested struct.
 #[derive(Clone, Copy)]
 enum Head<'t, 'f> {
-    Record(&'t RecordTree<'f>),
+    Record(&'t RecordTree<'f>, bool),
     Nested(&'f str),
 }
 
@@ -58,7 +58,24 @@ impl RecordXml {
         out: &mut W,
     ) -> io::Result<()> {
         self.attribute.clear();
-        self.write_struct(out, Head::Record(tree), tree.fields(), depth)
+        self.write_struct(out, Head::Record(tree, true), tree.fields(), depth)
+    }
+
+    /// Writes the root element of `tree` like [`RecordXml::write_element`], but without the
+    /// `xmlns:p4kx` declaration, for a wrapper element that declares [`RECORD_XML_NAMESPACE`]
+    /// itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_wrapped_element<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        depth: usize,
+        out: &mut W,
+    ) -> io::Result<()> {
+        self.attribute.clear();
+        self.write_struct(out, Head::Record(tree, false), tree.fields(), depth)
     }
 
     fn write_struct(
@@ -73,14 +90,14 @@ impl RecordXml {
         let flags = self.attribute.get(base..).unwrap_or_default();
         let children = flags.iter().filter(|attribute| !**attribute).count();
         let (type_name, fallback) = match head {
-            Head::Record(tree) => (tree.type_name(), "p4kx:record"),
+            Head::Record(tree, _) => (tree.type_name(), "p4kx:record"),
             Head::Nested(type_name) => (type_name, "p4kx:struct"),
         };
         let plain = is_plain_name(type_name);
         indent(out, depth)?;
         out.write_all(b"<")?;
         out.write_all(if plain { type_name } else { fallback }.as_bytes())?;
-        if let Head::Record(_) = head
+        if let Head::Record(_, true) = head
             && (!plain || children > 0)
         {
             attribute(out, "xmlns:p4kx", RECORD_XML_NAMESPACE)?;
@@ -88,7 +105,7 @@ impl RecordXml {
         if !plain {
             attribute(out, "type", type_name)?;
         }
-        if let Head::Record(tree) = head {
+        if let Head::Record(tree, _) = head {
             out.write_all(b" guid=\"")?;
             write!(out, "{}", tree.guid())?;
             out.write_all(b"\"")?;
@@ -284,7 +301,7 @@ fn write_reference(out: &mut impl Write, reference: &Reference<'_>) -> io::Resul
     attribute(out, "path", reference.record_path())?;
     attribute(out, "type", reference.type_name())?;
     if let Some(location) = reference.location() {
-        attribute(out, "at", location)?;
+        attribute(out, "at", location.as_str())?;
     }
     out.write_all(b"/>\n")
 }

@@ -112,16 +112,20 @@ impl<'f> Record<'f> {
 
     /// Returns a Reference to this Record as a value, or the error that keeps it from being one.
     pub(crate) fn link(&self) -> Value<'f> {
-        self.reference().map_or_else(Value::Error, Value::Reference)
+        self.reference().map_or_else(Value::Error, |reference| {
+            Value::Reference(Box::new(reference))
+        })
     }
 
     fn reference(&self) -> Result<Reference<'f>, ValueError> {
         let forge = self.forge;
         let guid = self.guid();
-        let def = forge
-            .structs
-            .get(self.def.struct_index as usize)
-            .ok_or(ValueError::DanglingReference { guid })?;
+        let def = forge.structs.get(self.def.struct_index as usize);
+        debug_assert!(
+            def.is_some(),
+            "the struct of every Record is checked on opening"
+        );
+        let def = def.ok_or(ValueError::DanglingReference { guid })?;
         Ok(Reference {
             guid,
             record_path: forge.text.value(self.def.file_name).map(strip_xml)?,

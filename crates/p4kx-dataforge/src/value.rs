@@ -43,7 +43,7 @@ pub enum Value<'f> {
     /// The elements of an array field in stored order.
     Array(Box<[Self]>),
     /// A link to a Record, or to an instance inside the Record for a weak pointer.
-    Reference(Reference<'f>),
+    Reference(Box<Reference<'f>>),
     /// A null pointer or a null Reference.
     Null,
     /// A value that cannot be read, with the reason.

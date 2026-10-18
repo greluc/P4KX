@@ -6,15 +6,15 @@ use crate::dataforge::out_of_range;
 use crate::layout::{FieldSlot, Layout, Layouts};
 use crate::scalar::{first_bytes, read_scalar};
 use crate::{
-    DataForge, DataForgeError, DataType, Field, Guid, Record, RecordTree, StructValue, Value,
-    ValueError, ValueKind,
+    DataForge, DataForgeError, DataType, Field, Guid, Location, Record, RecordTree, Step,
+    StructValue, Value, ValueError, ValueKind,
 };
 
 /// The deepest nesting of owned structs inside a Record that is read; deeper ones are errors.
 pub const MAX_NESTING_DEPTH: usize = 64;
 
 /// The most values, fields and array elements together, that one Record tree may hold.
-pub const MAX_RECORD_VALUES: usize = 1 << 22;
+pub const MAX_RECORD_VALUES: usize = 1 << 20;
 
 const NULL: u32 = u32::MAX;
 
@@ -44,8 +44,8 @@ pub struct TreeBuilder<'f> {
     pub(crate) positions: Vec<u32>,
     stack: Vec<u32>,
     pub(crate) weak: Vec<Pending>,
-    pub(crate) locations: HashMap<(u32, u32), Arc<str>>,
-    pub(crate) text: String,
+    pub(crate) locations: HashMap<(u32, u32), Arc<Location<'f>>>,
+    pub(crate) steps: Vec<Step<'f>>,
     value_count: usize,
 }
 
@@ -75,11 +75,13 @@ impl<'f> TreeBuilder<'f> {
         self.claim(def.struct_index, instance)?;
         let fields = self.fields(forge, &layout, bytes, 0)?;
         let mut tree = RecordTree {
-            type_name: layout.type_name,
             guid: Guid::from_stored(def.guid),
             record_path,
             name,
-            fields,
+            root: StructValue {
+                type_name: layout.type_name,
+                fields,
+            },
         };
         self.resolve_weak(forge, &mut tree);
         Ok(tree)

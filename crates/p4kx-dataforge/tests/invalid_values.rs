@@ -187,6 +187,16 @@ fn an_instance_owned_twice_is_an_error_and_ends_a_cycle() -> TestResult {
         )],
         "the loop back to a is cut, nested errors are counted"
     );
+    let located: Vec<_> = tree
+        .located_errors()
+        .map(|(location, _)| location.to_string())
+        .collect();
+    assert_eq!(
+        located,
+        ["next.next.next"],
+        "the full location of the nested error"
+    );
+    assert_eq!(tree.error_count(), 1, "counted without collecting");
     assert_eq!(value(&tree, "mark")?, &Value::Int8(1), "the Record builds");
     Ok(())
 }
@@ -271,6 +281,11 @@ fn an_array_larger_than_the_value_limit_is_an_error_at_its_field() -> TestResult
         }),
         "rejected before it is read"
     );
+    let located: Vec<_> = tree
+        .located_errors()
+        .map(|(location, _)| location.to_string())
+        .collect();
+    assert_eq!(located, ["bytes"], "the field itself");
     Ok(())
 }
 

@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::{DataForge, TreeBuilder};
+use p4kx_dataforge::{DataForge, MAX_RECORD_VALUES, TreeBuilder, Value};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -50,4 +50,35 @@ fn a_record_knows_its_dataforge() -> TestResult {
     assert!(record.is_from(&ships), "its own DataForge");
     assert!(!record.is_from(&items), "another DataForge");
     Ok(())
+}
+
+#[test]
+fn the_root_is_walked_like_a_nested_struct() -> TestResult {
+    let ships = database("Ship", "crew");
+    let ships = DataForge::open(&ships)?;
+
+    let tree = ships.records().next().ok_or("no Record")?.tree()?;
+
+    assert_eq!(tree.root().type_name(), "Ship", "the type");
+    assert_eq!(tree.root().fields(), tree.fields(), "the same fields");
+    assert_eq!(tree.field("crew"), Some(&Value::Int32(1)), "by name");
+    assert_eq!(
+        tree.root().field("crew"),
+        Some(&Value::Int32(1)),
+        "on the root"
+    );
+    assert_eq!(tree.field("missing"), None, "no such field");
+    Ok(())
+}
+
+#[test]
+fn a_full_record_tree_stays_small_per_worker() {
+    let value = size_of::<Value<'_>>();
+
+    assert!(value <= 48, "one value takes {value} bytes");
+    assert!(
+        MAX_RECORD_VALUES * value <= 64 << 20,
+        "the largest tree takes {} MiB",
+        (MAX_RECORD_VALUES * value) >> 20
+    );
 }

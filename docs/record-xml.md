@@ -116,12 +116,12 @@ A value that cannot be read becomes an error at its place and the rest of the Re
 written. Errors are a string offset outside the text table, an enum or struct that does not
 exist, a bool byte other than 0 and 1, a pointer to a struct or instance that does not exist, an
 array outside the values stored for its type, a Reference to a Record that does not exist, a weak
-pointer outside the Record, an array with more elements than a Record may hold, an instance owned twice in one Record (which also cuts a cycle of
-strong pointers) and structs nested deeper than 64 levels. The reason is English text for people,
-not a stable code.
+pointer outside the Record, an array with more elements than a Record may hold, an instance owned
+twice in one Record (which also cuts a cycle of strong pointers) and structs nested deeper than 64
+levels. The reason is English text for people, not a stable code.
 
-A Record whose struct layouts cannot be read, or whose tree would hold more than 4,194,304 values,
-is not written at all.
+A Record whose struct layouts cannot be read, or whose tree would hold more than 1,048,576 values,
+is not written at all. The largest Record of the game data holds fewer than 80,000.
 
 ## Names
 

@@ -62,6 +62,7 @@ impl TestValue {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TestInstance {
     pub(crate) type_name: String,
+    pub(crate) name: Option<String>,
     pub(crate) values: Vec<(String, TestValue)>,
 }
 
@@ -71,8 +72,17 @@ impl TestInstance {
     pub fn new(type_name: impl Into<String>) -> Self {
         Self {
             type_name: type_name.into(),
+            name: None,
             values: Vec::new(),
         }
+    }
+
+    /// Names the instance a struct value creates, so that a later
+    /// [`TestValue::Pointer`] in the order values are written can point to it.
+    #[must_use]
+    pub fn named(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
     }
 
     /// Sets the field `name` to `value`.

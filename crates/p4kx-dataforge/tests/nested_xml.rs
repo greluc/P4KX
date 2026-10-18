@@ -75,21 +75,37 @@ fn car() -> DataForgeBuilder {
         ))
 }
 
-fn first_xml(builder: &DataForgeBuilder, depth: Option<usize>) -> Result<String, Box<dyn Error>> {
-    let bytes = builder.build();
-    let forge = DataForge::open(&bytes)?;
-    let tree = forge.records().next().ok_or("no Record")?.tree()?;
-    let mut out = Vec::new();
-    match depth {
-        None => RecordXml::new().write(&tree, &mut out)?,
-        Some(depth) => RecordXml::new().write_element(&tree, depth, &mut out)?,
+#[derive(Clone, Copy)]
+enum Mode {
+    Document,
+    Element(usize),
+    Wrapped(usize),
+}
+
+/// Returns the XML of the first Record, checking that versions 6 and 8 give the same bytes.
+fn first_xml(builder: &DataForgeBuilder, mode: Mode) -> Result<String, Box<dyn Error>> {
+    let mut texts = Vec::new();
+    for version in [6, 8] {
+        let bytes = builder.clone().version(version).build();
+        let forge = DataForge::open(&bytes)?;
+        let tree = forge.records().next().ok_or("no Record")?.tree()?;
+        let mut out = Vec::new();
+        let mut xml = RecordXml::new();
+        match mode {
+            Mode::Document => xml.write(&tree, &mut out)?,
+            Mode::Element(depth) => xml.write_element(&tree, depth, &mut out)?,
+            Mode::Wrapped(depth) => xml.write_wrapped_element(&tree, depth, &mut out)?,
+        }
+        texts.push(String::from_utf8(out)?);
     }
-    Ok(String::from_utf8(out)?)
+    let [six, eight] = <[String; 2]>::try_from(texts).map_err(|_| "two versions")?;
+    assert_eq!(six, eight, "versions 6 and 8 give the same XML");
+    Ok(six)
 }
 
 #[test]
 fn nested_values_are_child_elements_in_declaration_order() -> TestResult {
-    let xml = first_xml(&car(), None)?;
+    let xml = first_xml(&car(), Mode::Document)?;
 
     assert_eq!(
         xml,
@@ -167,7 +183,7 @@ fn a_struct_type_that_is_no_plain_name_and_errors_in_arrays_are_written() -> Tes
                 ),
         );
 
-    let xml = first_xml(&builder, Some(1))?;
+    let xml = first_xml(&builder, Mode::Element(1))?;
 
     assert_eq!(
         xml,
@@ -192,9 +208,24 @@ fn a_struct_type_that_is_no_plain_name_and_errors_in_arrays_are_written() -> Tes
 #[test]
 fn nested_records_give_byte_identical_xml_every_time() -> TestResult {
     assert_eq!(
-        first_xml(&car(), None)?,
-        first_xml(&car(), None)?,
+        first_xml(&car(), Mode::Document)?,
+        first_xml(&car(), Mode::Document)?,
         "deterministic"
     );
+    Ok(())
+}
+
+#[test]
+fn a_wrapped_element_leaves_the_namespace_to_its_wrapper() -> TestResult {
+    let xml = first_xml(&car(), Mode::Wrapped(1))?;
+
+    assert!(
+        xml.starts_with("  <Car guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" name=\"Avenger\">\n"),
+        "no xmlns:p4kx: {xml}"
+    );
+    let wrapped = format!(
+        "<records xmlns:p4kx=\"https://github.com/krt-profit/p4k-extractor/record-xml\">\n{xml}</records>\n"
+    );
+    roxmltree::Document::parse(&wrapped)?;
     Ok(())
 }

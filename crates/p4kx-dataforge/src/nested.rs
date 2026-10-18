@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::{Field, Guid};
+use crate::{Field, Guid, Location, Value};
 
-/// An owned struct inside a Record: an inline class or the target of a strong pointer.
+/// A struct inside a Record, or the Record's own fields: an inline class, the target of a strong
+/// pointer, or the root of a [`RecordTree`](crate::RecordTree).
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructValue<'f> {
     pub(crate) type_name: &'f str,
@@ -22,6 +23,15 @@ impl<'f> StructValue<'f> {
     pub fn fields(&self) -> &[Field<'f>] {
         &self.fields
     }
+
+    /// Returns the value of the first field called `name`, or `None` when there is none.
+    #[must_use]
+    pub fn field(&self, name: &str) -> Option<&Value<'f>> {
+        self.fields
+            .iter()
+            .find(|field| field.name == name)
+            .map(Field::value)
+    }
 }
 
 /// A link to a Record by GUID, never its content (ADR-0004).
@@ -33,7 +43,7 @@ pub struct Reference<'f> {
     pub(crate) guid: Guid,
     pub(crate) record_path: &'f str,
     pub(crate) type_name: &'f str,
-    pub(crate) location: Option<Arc<str>>,
+    pub(crate) location: Option<Arc<Location<'f>>>,
 }
 
 impl<'f> Reference<'f> {
@@ -57,11 +67,8 @@ impl<'f> Reference<'f> {
     }
 
     /// Returns where inside the target Record the link points, or `None` for the Record itself.
-    ///
-    /// The location names the fields from the Record down to the instance, separated by `.`,
-    /// with `[index]` after an array field, e.g. `scene[1].preview`.
     #[must_use]
-    pub fn location(&self) -> Option<&str> {
+    pub fn location(&self) -> Option<&Location<'f>> {
         self.location.as_deref()
     }
 }

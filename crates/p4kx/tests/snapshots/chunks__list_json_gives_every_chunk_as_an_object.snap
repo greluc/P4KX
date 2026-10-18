@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/chunks.rs
+expression: "String::from_utf8(output.stdout)?"
+---
+{"file":"Data\\Objects\\Test\\cube.cgf","container":"#ivo","version":2304,"chunks":[{"index":0,"type":"AssetMetadata","type_id":3193850174,"known":true,"version":2304,"id":null,"byte_order":"little","offset":80,"size":16},{"index":1,"type":"MtlName320","type_id":2201301811,"known":true,"version":2304,"id":null,"byte_order":"little","offset":96,"size":16},{"index":2,"type":"Mesh","type_id":2459154904,"known":true,"version":2305,"id":null,"byte_order":"little","offset":112,"size":40},{"index":3,"type":null,"type_id":170165686,"known":false,"version":2304,"id":null,"byte_order":"little","offset":152,"size":8}]}

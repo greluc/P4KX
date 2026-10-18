@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_condition.rs
+expression: stderr
+---
+error: the DataForge schema cannot be read: struct 2 of the DataForge declares 9 bytes per instance, but its fields take 4
+  from Broken
+       ^^^^^^

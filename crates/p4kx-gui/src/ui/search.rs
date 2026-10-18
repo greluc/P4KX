@@ -63,11 +63,11 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-fn eyebrow(text: &str) -> egui::RichText {
+pub(super) fn eyebrow(text: &str) -> egui::RichText {
     caps(text, FS_2XS, Weight::Bold, TRACKING_OVERLINE).color(palette::GRAY_2_TEXT)
 }
 
-fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
+pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
     let glow = ui.painter().add(Shape::Noop);
     let edit = TextEdit::singleline(text)
         .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())

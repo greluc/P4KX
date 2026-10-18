@@ -14,6 +14,16 @@ pub(crate) fn relative_path(entry_path: &str) -> Option<PathBuf> {
     Some(relative)
 }
 
+/// Returns whether two Entry paths are equal when ASCII case and the separator kind are ignored.
+pub(crate) fn same_entry_path(left: &str, right: &str) -> bool {
+    let separator = |byte: u8| byte == b'\\' || byte == b'/';
+    left.len() == right.len()
+        && left
+            .bytes()
+            .zip(right.bytes())
+            .all(|(a, b)| a.eq_ignore_ascii_case(&b) || (separator(a) && separator(b)))
+}
+
 fn is_plain_name(part: &str) -> bool {
     let mut components = Path::new(part).components();
     !part.is_empty()

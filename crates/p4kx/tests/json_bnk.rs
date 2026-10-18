@@ -21,6 +21,14 @@ fn write_bank(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
             TestWem::encoded(TestCodec::Vorbis, 1, 44_100, 88_200).bytes(),
         )
         .wem(400, b"RIFF\x04\0\0\0WAVE".to_vec())
+        .wem(
+            500,
+            TestWem::encoded(TestCodec::Vorbis, 1, 44_100, 88_200)
+                .bytes()
+                .get(..120)
+                .unwrap_or_default()
+                .to_vec(),
+        )
         .bytes();
     std::fs::write(&file, bank)?;
     Ok(file)

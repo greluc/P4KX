@@ -36,6 +36,16 @@ expression: json
       "prefetch": false,
       "sample_count": null,
       "size": 12
+    },
+    {
+      "codec": null,
+      "codec_name": null,
+      "duration_seconds": null,
+      "error": null,
+      "id": 500,
+      "prefetch": true,
+      "sample_count": null,
+      "size": 120
     }
   ]
 }

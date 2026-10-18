@@ -7,17 +7,26 @@ expression: json
     {
       "file": "[DIR]/out/100.wem",
       "id": 100,
+      "prefetch": false,
       "size": 4852
     },
     {
       "file": "[DIR]/out/300.wem",
       "id": 300,
+      "prefetch": false,
       "size": 350
     },
     {
       "file": "[DIR]/out/400.wem",
       "id": 400,
+      "prefetch": false,
       "size": 12
+    },
+    {
+      "file": "[DIR]/out/500.wem",
+      "id": 500,
+      "prefetch": true,
+      "size": 120
     }
   ],
   "failed": [],

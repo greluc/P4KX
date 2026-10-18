@@ -75,6 +75,11 @@ sind keine neuen Farben.
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 | Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
+| Abfrage-Editor | `textarea` | 4 Zeilen (112), wächst bis 12 Zeilen (304), dann Scrollleiste | x 12, y 8 | Label darüber (Eyebrow), Aktionen darunter 12 | 16 / 400, Zeilenhöhe 1,5; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Fehlerstelle bg `rgba(163,0,10,0.2)` | 1 `control-border`; Fokus `color-primary`; Fehlerstelle unterstrichen 2 `color-danger` | Fokus `glow-primary` | Rahmen + Glow; Strg+Enter führt aus |
+| Fehlerhinweis | `.alert.alert-danger` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(163,0,10,0.2)`, Text `color-gray-1` | 1 `color-danger`, links 4 | – | – |
+| Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
+| Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
+| Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
 
 ## Entscheidungen
 
@@ -180,6 +185,18 @@ größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (
 hat eine Textur kein solches Mip, sagt der Tab das. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
 Farben hat; Alpha wird auf `surface-panel` gemischt.
 
+**D.15 Abfrage als dritter Tab im Arbeitsbereich.** „Abfrage" folgt auf „Durchsuchen" und
+„Vergleich". Oben steht der Editor als `textarea` mit „Abfrage ausführen" als der einen CTA des
+Tabs; „Abbrechen" ist Ghost, Fortschritt wie beim Vergleich (Spinner, dann Balken bis 320 px). Eine
+Abfrage, die nicht läuft, steht als `.alert.alert-danger` unter dem Editor mit Zeile und Spalte,
+die betroffene Stelle ist im Editor rot hinterlegt und unterstrichen. Darunter die Listenfläche
+mit „CSV/JSON exportieren …" (Ghost, während des Exports „Export abbrechen") und der
+Ergebnistabelle; Anzahl und Seitenwahl stehen im `.list-panel__footer` unter der Tabelle, wie in
+der Listenfläche des Design-Systems. Die Köpfe der
+`select`-Pfade bleiben wie geschrieben (D.6): Feldnamen unterscheiden Groß- und Kleinschreibung,
+Versalien würden `Size` und `size` gleich aussehen lassen. Nur der Kopf „Record-Pfad" ist ein
+Label in Versalien.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -199,6 +216,9 @@ Farben hat; Alpha wird auf `surface-panel` gemischt.
 | Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
 | DataForge-Übersicht und Record-Suche: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
+| Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |
+| Zahlenspalten der Abfrage rechtsbündig ohne tabellarische Ziffern | egui kann OpenType-Merkmale wie `tnum` nicht einschalten; rechtsbündig stehen gleich lange Zahlen trotzdem untereinander |
+| Abfrage-Editor 4 Zeilen statt `textarea`-Standardhöhe, Fehlerstelle als Hinterlegung mit Unterstrich | egui kennt keine `rows`-Vorgabe mit eigener Zeilenhöhe; DS hat keine Fehlermarkierung im Text, Farben aus `.alert-danger` |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

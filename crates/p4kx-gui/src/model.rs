@@ -17,7 +17,7 @@ pub use work_tab::WorkTab;
 
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
-    ExtractionSetup, Language, PreviewTab, Texts,
+    ExtractionSetup, Language, PreviewTab, QueryTab, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -56,6 +56,7 @@ pub struct Model {
     stopped_by_change: bool,
     audio_output: Box<dyn AudioOutput>,
     audio_volume: f32,
+    query: QueryTab,
 }
 
 impl std::fmt::Debug for Model {
@@ -78,6 +79,7 @@ impl std::fmt::Debug for Model {
             .field("work_tab", &self.work_tab)
             .field("comparison", &self.comparison)
             .field("stopped_by_change", &self.stopped_by_change)
+            .field("query", &self.query)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -107,6 +109,7 @@ impl Model {
             stopped_by_change: false,
             audio_output: Box::new(DeviceOutput),
             audio_volume: 1.0,
+            query: QueryTab::default(),
         }
     }
 
@@ -195,6 +198,7 @@ impl Model {
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
                 self.stopped_by_change = false;
+                self.query.archive_opened();
             }
             Err(error) => self.fail(opening.path, &error),
         }

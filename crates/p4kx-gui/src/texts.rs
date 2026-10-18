@@ -62,6 +62,10 @@ pub enum Text {
     ExpandFolder,
     /// Collapses a folder; takes `name`.
     CollapseFolder,
+    /// The label of the search field.
+    SearchLabel,
+    /// The hint inside the empty search field.
+    SearchHint,
     /// Shown while a file is dragged over the window.
     DropHint,
     /// The status bar before an Archive is opened.
@@ -78,6 +82,10 @@ pub enum Text {
     StatusShown,
     /// The number of selected Entries; takes `number`.
     StatusSelected,
+    /// The number of selected Entries when some are not shown; takes `number` and `hidden`.
+    StatusSelectedHidden,
+    /// The status bar while a search runs.
+    StatusSearching,
     /// The Build; takes `build`.
     StatusBuild,
     /// The Build is unknown.
@@ -86,7 +94,7 @@ pub enum Text {
 
 impl Text {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 43] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -116,6 +124,8 @@ impl Text {
         Self::EncryptedNo,
         Self::ExpandFolder,
         Self::CollapseFolder,
+        Self::SearchLabel,
+        Self::SearchHint,
         Self::DropHint,
         Self::StatusEmpty,
         Self::StatusOpening,
@@ -124,6 +134,8 @@ impl Text {
         Self::StatusEntries,
         Self::StatusShown,
         Self::StatusSelected,
+        Self::StatusSelectedHidden,
+        Self::StatusSearching,
         Self::StatusBuild,
         Self::StatusBuildUnknown,
     ];
@@ -161,6 +173,8 @@ impl Text {
             Self::EncryptedNo => "encrypted-no",
             Self::ExpandFolder => "expand-folder",
             Self::CollapseFolder => "collapse-folder",
+            Self::SearchLabel => "search-label",
+            Self::SearchHint => "search-hint",
             Self::DropHint => "drop-hint",
             Self::StatusEmpty => "status-empty",
             Self::StatusOpening => "status-opening",
@@ -169,6 +183,8 @@ impl Text {
             Self::StatusEntries => "status-entries",
             Self::StatusShown => "status-shown",
             Self::StatusSelected => "status-selected",
+            Self::StatusSelectedHidden => "status-selected-hidden",
+            Self::StatusSearching => "status-searching",
             Self::StatusBuild => "status-build",
             Self::StatusBuildUnknown => "status-build-unknown",
         }

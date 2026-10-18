@@ -1,6 +1,10 @@
 use std::collections::HashSet;
 use std::ops::Range;
+use std::sync::Arc;
 
+use p4kx_extraction::Filter;
+
+use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{EntryIndex, FolderId, Sort, SortColumn, SortDirection};
 
 /// One visible row of the path tree.
@@ -12,11 +16,14 @@ pub struct TreeRow {
     pub depth: usize,
 }
 
-/// The browsing state of an opened Archive: the selected and expanded folders, the sorted
-/// Entries of the selected folder and the checked Entries.
+/// The browsing state of an opened Archive: the selected and expanded folders, the search, the
+/// sorted Entries of the selected folder or of the search, and the checked Entries.
 #[derive(Debug)]
 pub struct Browser {
-    index: EntryIndex,
+    index: Arc<EntryIndex>,
+    search_text: String,
+    matches: Option<Matches>,
+    pending: Option<Pending>,
     folder: FolderId,
     expanded: HashSet<FolderId>,
     tree_rows: Vec<TreeRow>,
@@ -34,7 +41,10 @@ impl Browser {
         let root = index.root();
         let checked = vec![false; index.len()];
         let mut browser = Self {
-            index,
+            index: Arc::new(index),
+            search_text: String::new(),
+            matches: None,
+            pending: None,
             folder: root,
             expanded: HashSet::from([root]),
             tree_rows: Vec::new(),
@@ -51,7 +61,7 @@ impl Browser {
 
     /// Returns the index of the opened Archive.
     #[must_use]
-    pub const fn index(&self) -> &EntryIndex {
+    pub fn index(&self) -> &EntryIndex {
         &self.index
     }
 
@@ -61,9 +71,12 @@ impl Browser {
         self.folder
     }
 
-    /// Shows the Entries of `folder` and below, and expands it.
+    /// Shows the Entries of `folder` and below, ending the search, and expands it.
     pub fn select_folder(&mut self, folder: FolderId) {
         self.folder = folder;
+        self.search_text.clear();
+        self.pending = None;
+        self.matches = None;
         if self.expanded.insert(folder) {
             self.refresh_tree();
         }
@@ -126,7 +139,7 @@ impl Browser {
 
     /// Checks or unchecks the Entry `id`.
     pub fn set_checked(&mut self, id: u32, checked: bool) {
-        let shown = self.shown_range().contains(&id);
+        let shown = self.is_in_view(id);
         let Some(slot) = self.checked.get_mut(id as usize) else {
             return;
         };
@@ -151,9 +164,11 @@ impl Browser {
 
     /// Checks or unchecks every shown Entry.
     pub fn set_all_shown_checked(&mut self, checked: bool) {
-        for id in self.shown_range() {
+        let shown = std::mem::take(&mut self.shown);
+        for &id in &shown {
             self.set_checked(id, checked);
         }
+        self.shown = shown;
     }
 
     /// Returns the number of checked Entries in the whole Archive.
@@ -162,15 +177,99 @@ impl Browser {
         self.checked_count
     }
 
-    fn shown_range(&self) -> Range<u32> {
+    /// Returns the number of checked Entries that are not shown.
+    #[must_use]
+    pub const fn hidden_checked_count(&self) -> usize {
+        self.checked_count - self.shown_checked_count
+    }
+
+    /// Returns the text of the search field.
+    #[must_use]
+    pub fn search_text(&self) -> &str {
+        &self.search_text
+    }
+
+    /// Returns whether the matches of a search are shown rather than the selected folder.
+    #[must_use]
+    pub const fn shows_search(&self) -> bool {
+        self.matches.is_some()
+    }
+
+    /// Returns whether a search runs in the background.
+    #[must_use]
+    pub const fn is_searching(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    /// Searches the whole Archive for `text` as a Filter on a background thread, replacing a
+    /// search still running; `wake` is called from that thread once the result is ready. The
+    /// shown Entries change when [`Browser::poll`] takes the result; empty text shows the
+    /// selected folder again at once.
+    pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
+        text.clone_into(&mut self.search_text);
+        self.pending = None;
+        if text.is_empty() {
+            self.matches = None;
+            self.refresh_shown();
+            return;
+        }
+        match search::start(&self.index, &Filter::new(text), wake) {
+            Started::Running(pending) => self.pending = Some(pending),
+            Started::Finished(matches) => self.show_matches(matches),
+        }
+    }
+
+    /// Takes the result of a finished search; returns whether one finished.
+    pub fn poll(&mut self) -> bool {
+        let Some(pending) = &self.pending else {
+            return false;
+        };
+        match pending.poll() {
+            Outcome::Running => false,
+            Outcome::Finished(matches) => {
+                self.pending = None;
+                self.show_matches(matches);
+                true
+            }
+            Outcome::Lost => {
+                self.pending = None;
+                true
+            }
+        }
+    }
+
+    fn show_matches(&mut self, matches: Matches) {
+        self.matches = Some(matches);
+        self.refresh_shown();
+    }
+
+    fn folder_range(&self) -> Range<u32> {
         self.index.folder(self.folder).entries()
     }
 
+    fn is_in_view(&self, id: u32) -> bool {
+        self.matches.as_ref().map_or_else(
+            || self.folder_range().contains(&id),
+            |matches| matches.contains(id),
+        )
+    }
+
     fn refresh_shown(&mut self) {
-        self.shown = self.index.entries_in(self.folder, self.sort);
-        let range = self.shown_range();
-        let checked = self.checked.get(range.start as usize..range.end as usize);
-        self.shown_checked_count = checked.map_or(0, |slots| slots.iter().filter(|&&c| c).count());
+        if let Some(matches) = &self.matches {
+            self.shown = self.index.entries_matching(matches.mask(), self.sort);
+            self.shown_checked_count = matches
+                .mask()
+                .iter()
+                .zip(&self.checked)
+                .filter(|&(&matched, &checked)| matched && checked)
+                .count();
+        } else {
+            self.shown = self.index.entries_in(self.folder, self.sort);
+            let range = self.folder_range();
+            let checked = self.checked.get(range.start as usize..range.end as usize);
+            self.shown_checked_count =
+                checked.map_or(0, |slots| slots.iter().filter(|&&c| c).count());
+        }
     }
 
     fn refresh_tree(&mut self) {

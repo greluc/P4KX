@@ -13,6 +13,7 @@ mod folder_tree;
 mod format;
 mod language;
 mod model;
+mod search;
 mod sort;
 mod texts;
 pub mod theme;

@@ -27,6 +27,8 @@ encrypted-yes = Ja
 encrypted-no = Nein
 expand-folder = { $name } aufklappen
 collapse-folder = { $name } zuklappen
+search-label = Suche
+search-hint = Nach Pfad filtern: Glob mit * oder ?, sonst ein beliebiger Teil des Pfads
 drop-hint = Data.p4k hier ablegen, um sie zu öffnen
 status-empty = Öffne ein Archiv oder ziehe eine Data.p4k in das Fenster.
 status-opening = Öffne { $path } …
@@ -39,5 +41,7 @@ status-entries =
     }
 status-shown = { $number } angezeigt
 status-selected = { $number } ausgewählt
+status-selected-hidden = { $number } ausgewählt, davon { $hidden } nicht angezeigt
+status-searching = Suche …
 status-build = Build { $build }
 status-build-unknown = Build unbekannt

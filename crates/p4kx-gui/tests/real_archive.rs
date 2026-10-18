@@ -2,13 +2,14 @@
 //!
 //! The time limits assume a release build.
 
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
-use p4kx_extraction::Archive;
-use p4kx_gui::{EntryIndex, Language, Model, Sort, SortColumn, SortDirection, ui};
+use p4kx_extraction::{Archive, Entry, Filter};
+use p4kx_gui::{Browser, EntryIndex, Language, Model, Sort, SortColumn, SortDirection, ui};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -43,25 +44,7 @@ fn sorting_every_entry_of_a_real_archive_takes_milliseconds() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult {
-    let mut harness = Harness::builder()
-        .with_size([1400.0, 900.0])
-        .with_accessibility_check(false)
-        .build_ui_state(
-            |ui, model: &mut Model| {
-                ui::show(ui, model);
-            },
-            Model::new(Language::BritishEnglish),
-        );
-    harness.state_mut().open(real_archive_path()?, || {});
-    let deadline = Instant::now() + Duration::from_secs(120);
-    while harness.state().browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", harness.state().failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(20));
-        harness.step();
-    }
-    harness.run_steps(2);
+    let mut harness = opened()?;
     assert!(
         harness
             .state()
@@ -91,6 +74,100 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
     harness.run_steps(2);
     assert_ne!(top_row_name(&harness), first_row, "the table scrolled");
     Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn searching_a_real_archive_finds_what_p4kx_search_finds() -> TestResult {
+    let path = real_archive_path()?;
+    let archive = Archive::open(&path)?;
+    let mut browser = Browser::new(EntryIndex::build(Archive::open(&path)?));
+
+    for text in [
+        "*.xml",
+        "*.dds",
+        "*.dcb",
+        "Game2.dcb",
+        "aurora",
+        "Data/Libs/*.xml",
+    ] {
+        browser.search(text, || {});
+        while browser.is_searching() {
+            std::thread::sleep(Duration::from_millis(5));
+            browser.poll();
+        }
+        let selected = Filter::new(text).select(&archive);
+        let expected: BTreeSet<&str> = selected.iter().map(|entry| entry.path()).collect();
+        let shown: BTreeSet<&str> = browser
+            .shown()
+            .iter()
+            .filter_map(|&id| browser.index().entry(id).map(Entry::path))
+            .collect();
+
+        assert_eq!(shown, expected, "{text:?} matches as in p4kx search");
+        assert_eq!(
+            browser.shown().len(),
+            selected.len(),
+            "{text:?} shows each match once"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
+    let mut harness = opened()?;
+    harness
+        .get_by_role(egui::accesskit::Role::TextInput)
+        .click();
+    harness.run_steps(2);
+
+    for character in ["a", "u", "r", "o", "r", "a"] {
+        harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .type_text(character);
+        let took = timed_step(&mut harness);
+        assert!(took < FRAME_LIMIT, "typing {character:?} took {took:?}");
+    }
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while harness.state().browser().is_some_and(Browser::is_searching) {
+        assert!(Instant::now() < deadline, "the search did not finish");
+        std::thread::sleep(Duration::from_millis(2));
+        let took = timed_step(&mut harness);
+        assert!(took < FRAME_LIMIT, "a frame while searching took {took:?}");
+    }
+    let took = timed_step(&mut harness);
+    assert!(
+        took < FRAME_LIMIT,
+        "the frame after the search took {took:?}"
+    );
+    let shown = harness.state().browser().map_or(0, |b| b.shown().len());
+    assert!(shown > 0, "aurora matches Entries");
+    Ok(())
+}
+
+fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {
+    let mut harness = Harness::builder()
+        .with_size([1400.0, 900.0])
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            Model::new(Language::BritishEnglish),
+        );
+    harness.state_mut().open(real_archive_path()?, || {});
+    let deadline = Instant::now() + Duration::from_secs(120);
+    while harness.state().browser().is_none() {
+        if Instant::now() > deadline {
+            return Err(format!("not opened: {:?}", harness.state().failure()).into());
+        }
+        std::thread::sleep(Duration::from_millis(20));
+        harness.step();
+    }
+    harness.run_steps(2);
+    Ok(harness)
 }
 
 fn top_row_name(harness: &Harness<'_, Model>) -> Option<String> {

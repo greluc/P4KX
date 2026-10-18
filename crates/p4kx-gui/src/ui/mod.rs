@@ -3,6 +3,7 @@
 mod channels;
 mod licence;
 mod menu;
+mod search;
 mod status;
 mod table;
 mod tree;
@@ -41,6 +42,9 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
     };
+    if let Some(browser) = model.browser_mut() {
+        browser.poll();
+    }
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -62,6 +66,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         if is_dragging_file(ui) || model.browser().is_none() {
             ui.centered_and_justified(|ui| ui.label(model.texts().get(Text::DropHint)));
         } else {
+            search::show(ui, model);
             table::show(ui, model);
         }
     });

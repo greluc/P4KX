@@ -73,6 +73,7 @@ sind keine neuen Farben.
 | Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
 | Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
+| Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 
 ## Entscheidungen
 
@@ -142,6 +143,19 @@ Schwarz zugelassen). In den Zähler-Kacheln steht der Chip an der Stelle des `.k
 Chip in `.kpi-card`; der Akzentbalken bleibt Orange. Die Farbe ist nie der einzige Hinweis, der
 Chip trägt immer das Wort.
 
+**D.12 Zeilenvergleich als Vorschau-Panel unter der Änderungsliste.** Sobald eine Änderung
+gewählt ist, öffnet sich darunter ein Panel mit den Maßen des Vorschau-Panels: die Pfadzeile mit
+Änderungs-Chip, rechts „Vorherige Änderung" und „Nächste Änderung" als Ghost `btn-xs` und die
+Position („Änderung 2 von 5") in `color-gray-2-text`; darunter ein Tabellenkopf „Alt" | „Neu"
+und die Zeilen beider Seiten nebeneinander in der Dichte der Hex-Zeile (20 px, 12,8 px). Zeilen
+tragen die Füllung und den Text-Tint der Änderungs-Chips aus D.11 (Hinzugefügt `success`,
+Entfernt `danger`); Text bleibt `color-gray-1`, damit langer Code lesbar bleibt. Farbe ist nie
+der einzige Hinweis: Marker „+" bzw. „−" und die Zeilennummer stehen vor jeder geänderten Zeile.
+Ein Hunk beginnt mit einer Kopfzeile in `color-surface-input` („Zeilen 10–16" je Seite); der
+angesprungene Hunk trägt den aktiven Balken links (3 `color-primary`) wie die aktive Zeile.
+Lange Zeilen werden je Seite abgeschnitten und laufen mit einer gemeinsamen horizontalen
+Scrollleiste. Binäre und zu große Einträge zeigen statt des Vergleichs den Hinweis im Panel-Körper.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -157,6 +171,7 @@ Chip trägt immer das Wort.
 | Modal ohne Slide, nur 200 ms Deckkraft | nur Farb- und Deckkraft-Übergänge |
 | Chevron als gezeichneter Pfad statt `▶` | Lato hat kein `▶`; egui bräuchte eine Fallback-Schrift |
 | Hex in festen Zellen statt Monospace | einzige Schrift Lato; die Zellen halten die Spalten, auch für A–F |
+| Zeilenvergleich in Lato statt Monospace, Tabs als vier Leerzeichen | einzige Schrift Lato; beide Seiten richten sich an den Zeilen aus, nicht an Spalten |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
 | DataForge-Übersicht: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |

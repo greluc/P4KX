@@ -40,6 +40,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &ComparisonView) -> Option<
         .striped(true)
         .resizable(true)
         .auto_shrink(false)
+        .min_scrolled_height(0.0)
         .sense(Sense::click())
         .cell_layout(Layout::left_to_right(Align::Center))
         .column(Column::exact(CHANGE_COLUMN))

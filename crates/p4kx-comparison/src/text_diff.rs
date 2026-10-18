@@ -146,6 +146,30 @@ impl TextDiff {
     pub fn new_bytes(&self) -> &[u8] {
         &self.new.bytes
     }
+
+    /// Returns the number of lines of the old text.
+    #[must_use]
+    pub const fn old_line_count(&self) -> usize {
+        self.old.len()
+    }
+
+    /// Returns the number of lines of the new text.
+    #[must_use]
+    pub const fn new_line_count(&self) -> usize {
+        self.new.len()
+    }
+
+    /// Returns the old line at the zero-based `index` with its terminator, empty past the end.
+    #[must_use]
+    pub fn old_line(&self, index: usize) -> &[u8] {
+        self.old.line(index)
+    }
+
+    /// Returns the new line at the zero-based `index` with its terminator, empty past the end.
+    #[must_use]
+    pub fn new_line(&self, index: usize) -> &[u8] {
+        self.new.line(index)
+    }
 }
 
 /// Interns the lines of both sides and returns the runs of removed and added lines.

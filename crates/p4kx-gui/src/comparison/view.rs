@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_comparison::{CancelToken, Comparison, EntryChange, EntryCounts, Filter, OwnedComparison};
 
+use super::diff::EntryDiff;
 use super::filter_job::{self, FilterJob, Matched, Polled, Started};
 use super::orders::{ChangeColumn, ChangeOrders, ChangeSort};
 use super::report::{self, ReportJob, ReportStatus};
@@ -60,6 +61,7 @@ pub struct ComparisonView {
     sort: ChangeSort,
     shown: Vec<u32>,
     selected: Option<u32>,
+    diff: Option<EntryDiff>,
     report: Option<ReportJob>,
 }
 
@@ -84,6 +86,7 @@ impl ComparisonView {
             sort: ChangeSort::default(),
             shown: Vec::new(),
             selected: None,
+            diff: None,
             report: None,
         };
         view.refresh_shown();
@@ -173,9 +176,41 @@ impl ComparisonView {
         self.selected
     }
 
-    /// Selects the change `id`.
-    pub const fn select(&mut self, id: u32) {
+    /// Selects the change `id`, dropping the line diff of another change.
+    pub fn select(&mut self, id: u32) {
         self.selected = Some(id);
+        if self.diff.as_ref().is_some_and(|diff| diff.change() != id) {
+            self.diff = None;
+        }
+    }
+
+    /// Starts the line diff of the selected change on a background thread unless it is made
+    /// already, calling `wake` from it once it ended; a diff still being made for another change
+    /// is cancelled.
+    pub fn load_diff(&mut self, wake: impl Fn() + Send + 'static) {
+        let Some(id) = self.selected else {
+            self.diff = None;
+            return;
+        };
+        if self.diff.as_ref().is_some_and(|diff| diff.change() == id) {
+            return;
+        }
+        self.diff = None;
+        self.diff = self
+            .change(id)
+            .map(|change| change.path().to_owned())
+            .map(|path| EntryDiff::start(&self.comparison, (id, &path), wake));
+    }
+
+    /// Returns the line diff of the selected change, `None` before [`Self::load_diff`].
+    #[must_use]
+    pub const fn diff(&self) -> Option<&EntryDiff> {
+        self.diff.as_ref()
+    }
+
+    /// Returns the line diff of the selected change for navigation.
+    pub const fn diff_mut(&mut self) -> Option<&mut EntryDiff> {
+        self.diff.as_mut()
     }
 
     /// Writes the JSON report of the shown changes to `path` on a background thread, the same
@@ -203,7 +238,8 @@ impl ComparisonView {
 
     /// Takes the results of a finished filter and report; returns whether one finished.
     pub(crate) fn poll(&mut self) -> bool {
-        let saved = self.report.as_mut().is_some_and(ReportJob::poll);
+        let saved = self.report.as_mut().is_some_and(ReportJob::poll)
+            | self.diff.as_mut().is_some_and(EntryDiff::poll);
         let Some(job) = &self.pending else {
             return saved;
         };

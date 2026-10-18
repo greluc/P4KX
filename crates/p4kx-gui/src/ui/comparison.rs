@@ -1,12 +1,14 @@
-use egui::{Align, CornerRadius, Frame, Layout, Margin, Role, Ui, WidgetInfo, vec2};
+use egui::{
+    Align, CornerRadius, Frame, Layout, Margin, Panel, Role, Ui, UiBuilder, WidgetInfo, vec2,
+};
 use fluent_bundle::FluentValue;
 
 use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
-use super::{Dialog, Requests, comparison_summary, comparison_table};
+use super::{Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_summary, comparison_table};
 use crate::theme::desktop::{
-    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, SPINNER, TITLE_SIZE, TITLE_TRACKING,
-    TOOLBAR_PADDING,
+    COMPARISON_PROGRESS_WIDTH, EMPTY_ICON, EMPTY_PADDING, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT,
+    SPINNER, TITLE_SIZE, TITLE_TRACKING, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, SPACE_3, Weight};
@@ -30,9 +32,24 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| setup(ui, model, requests));
     hairline_below(ui, toolbar.response.rect);
-    if model.comparison().view().is_some() {
+    if let Some(view) = model.comparison().view() {
         comparison_summary::show(ui, model);
-        frames::panel().show(ui, |ui| comparison_table::show(ui, model, requests));
+        let mut list = ui.available_rect_before_wrap();
+        if view.selected().is_some() {
+            let diff = Panel::bottom("comparison-diff")
+                .frame(frames::panel().outer_margin(Margin {
+                    top: RESIZE_GAP,
+                    ..Margin::ZERO
+                }))
+                .resizable(true)
+                .default_size(PREVIEW_HEIGHT)
+                .min_size(PREVIEW_MIN_HEIGHT)
+                .show(ui, |ui| comparison_diff::show(ui, model));
+            list.max.y = list.max.y.min(diff.response.rect.top());
+        }
+        ui.scope_builder(UiBuilder::new().max_rect(list), |ui| {
+            frames::panel().show(ui, |ui| comparison_table::show(ui, model, requests));
+        });
     } else {
         empty(ui, model.texts());
     }

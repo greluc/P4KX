@@ -7,10 +7,11 @@ use crate::{Archive, ChangeKind, Entry, LineDiffError, TextDiff};
 /// Why an Entry pair has no line diff.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NotText {
-    /// A side holds a NUL byte, so it is binary.
+    /// A side holds a NUL byte, or UTF-16 that does not decode, so it is binary.
     Binary,
     /// A side, or the XML converted from it, is larger than
-    /// [`MAX_DIFF_LEN`](crate::MAX_DIFF_LEN).
+    /// [`MAX_DIFF_LEN`](crate::MAX_DIFF_LEN) or has more than
+    /// [`MAX_DIFF_LINES`](crate::MAX_DIFF_LINES) lines.
     TooLarge,
 }
 
@@ -84,15 +85,13 @@ impl<'a> LineDiff<'a> {
         &self.body
     }
 
-    /// Returns whether the Entry differs: added, removed, with differing lines, or not text and
-    /// changed.
+    /// Returns whether the Entry differs: added, removed, changed in size or CRC-32C, or with
+    /// differing lines; an Entry whose lines are equal after conversion still differs when its
+    /// bytes changed.
     #[must_use]
     pub fn has_differences(&self) -> bool {
-        match (&self.body, self.kind()) {
-            (_, Some(ChangeKind::Added | ChangeKind::Removed)) => true,
-            (DiffBody::Text(text), _) => text.has_differences(),
-            (DiffBody::NotText(_), kind) => kind.is_some(),
-        }
+        self.kind().is_some()
+            || matches!(&self.body, DiffBody::Text(text) if text.has_differences())
     }
 }
 
@@ -100,8 +99,11 @@ impl<'a> LineDiff<'a> {
 /// `context` unchanged lines around each change.
 ///
 /// The path matches with either separator and ignoring ASCII case. `CryXml` is converted to XML
-/// first, UTF-16 text with a byte order mark is decoded, and other text is read as UTF-8; a side
-/// with a NUL byte is binary. A missing side is diffed as empty text. The patience diff falls back
+/// first, UTF-16 text with a byte order mark is decoded strictly, and other text is compared byte
+/// for byte; a side with a NUL byte, or UTF-16 that does not decode, is binary. A side larger than
+/// [`MAX_DIFF_LEN`](crate::MAX_DIFF_LEN) or with more than
+/// [`MAX_DIFF_LINES`](crate::MAX_DIFF_LINES) lines is too large. A missing side is diffed as empty
+/// text. The patience diff falls back
 /// to Myers where no line is unique; a region needing more than 1024 edits there, or any region
 /// once a fixed work budget is spent, is shown as replaced as a whole, so the work stays bounded.
 ///
@@ -151,10 +153,10 @@ pub fn line_diff<'a>(
     })
 }
 
-fn text_of(side: Option<Decoded>) -> String {
+fn text_of(side: Option<Decoded>) -> Vec<u8> {
     match side {
         Some(Decoded::Text(text, _)) => text,
-        _ => String::new(),
+        _ => Vec::new(),
     }
 }
 

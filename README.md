@@ -80,11 +80,13 @@ Early development (milestone M1). Available today:
   JSON (see [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is
   compared when none is given. The exit code is 0 without and 1 with differences.
 - `p4kx compare <old> <new> --diff <entry>` prints the line diff of one Entry between both Archives
-  as a unified diff: CryXml is converted to XML first, text and text XML are diffed as they are, and
-  an Entry on one side only is diffed against an empty side. A binary Entry, or one larger than
-  128 MiB, gets a note saying whether it changed. `--json` prints the hunks as JSON (see
+  as a unified diff: CryXml is converted to XML first, UTF-16 with a byte order mark is decoded,
+  other text and text XML are compared byte for byte, and an Entry on one side only is diffed
+  against an empty side. A binary Entry, or one larger than 128 MiB or 4 194 304 lines, gets a note
+  saying whether it changed. `--json` prints the hunks as JSON (see
   [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---diff-entry---json)). The exit code is
-  0 without and 1 with differences.
+  0 when the Entry is unchanged and 1 when it was added, removed or changed, also when its lines are
+  equal after conversion.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

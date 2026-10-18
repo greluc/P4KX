@@ -177,11 +177,11 @@ fn an_unchanged_binary_entry_says_so_and_exits_with_code_0() -> TestResult {
 }
 
 #[test]
-fn a_cryxml_entry_with_the_same_xml_says_so_and_exits_with_code_0() -> TestResult {
+fn a_cryxml_entry_with_the_same_xml_says_so_and_exits_with_code_1() -> TestResult {
     let dir = pair()?;
 
     assert_eq!(
-        diff(dir.path(), "Data\\reencoded.xml", false, 0)?,
+        diff(dir.path(), "Data\\reencoded.xml", false, 1)?,
         "Data\\reencoded.xml changed, but its text is the same line by line\n",
         "the note"
     );

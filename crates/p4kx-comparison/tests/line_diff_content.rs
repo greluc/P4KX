@@ -4,8 +4,8 @@ mod common;
 
 use common::{TestResult, pair, rendered};
 use p4kx_comparison::{
-    DEFAULT_CONTEXT, DiffBody, Encoding, LineDiffError, LineKind, MAX_DIFF_LEN, NotText, Signature,
-    line_diff,
+    DEFAULT_CONTEXT, DiffBody, Encoding, LineDiffError, LineKind, MAX_DIFF_LEN, MAX_DIFF_LINES,
+    NotText, Signature, line_diff,
 };
 use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement, TestEntry};
 
@@ -108,6 +108,110 @@ fn utf16_text_with_a_byte_order_mark_is_decoded() -> TestResult {
             (LineKind::Added, "k=2\n".to_owned()),
         ]],
         "decoded lines"
+    );
+    assert_eq!(diff.old_encoding(), Some(Encoding::Utf16Le), "encoding");
+    Ok(())
+}
+
+#[test]
+fn a_byte_order_mark_before_binary_data_is_binary() -> TestResult {
+    let (_dir, old, new) = pair(
+        vec![TestEntry::stored("a.bin", b"\xFF\xFEa\0\0\0".to_vec())],
+        vec![TestEntry::stored("a.bin", b"\xFF\xFE\x00\xD8x".to_vec())],
+    )?;
+
+    let diff = line_diff(&old, &new, "a.bin", DEFAULT_CONTEXT)?;
+
+    assert_eq!(
+        diff.body(),
+        &DiffBody::NotText(NotText::Binary),
+        "a NUL or an unpaired surrogate is not text"
+    );
+    Ok(())
+}
+
+#[test]
+fn lines_that_differ_only_in_invalid_utf8_bytes_differ() -> TestResult {
+    let (_dir, old, new) = pair(
+        vec![TestEntry::stored("a.cfg", b"name=caf\xE9\nx=1\n".to_vec())],
+        vec![TestEntry::stored("a.cfg", b"name=caf\xE8\nx=1\n".to_vec())],
+    )?;
+
+    let diff = line_diff(&old, &new, "a.cfg", DEFAULT_CONTEXT)?;
+
+    let DiffBody::Text(text) = diff.body() else {
+        return Err("text expected".into());
+    };
+    let lines: Vec<(LineKind, Vec<u8>)> = text
+        .hunks()
+        .flat_map(|hunk| hunk.lines())
+        .map(|line| (line.kind(), line.bytes().to_vec()))
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            (LineKind::Removed, b"name=caf\xE9\n".to_vec()),
+            (LineKind::Added, b"name=caf\xE8\n".to_vec()),
+            (LineKind::Context, b"x=1\n".to_vec()),
+        ],
+        "the raw bytes are compared"
+    );
+    assert!(diff.has_differences(), "differs");
+    Ok(())
+}
+
+#[test]
+fn cryxml_with_the_same_xml_still_differs_when_its_bytes_changed() -> TestResult {
+    let (_dir, old, new) = pair(
+        vec![TestEntry::stored(
+            "v.xml",
+            vehicle("1").to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little),
+        )],
+        vec![TestEntry::stored(
+            "v.xml",
+            vehicle("1").to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Big),
+        )],
+    )?;
+
+    let diff = line_diff(&old, &new, "v.xml", DEFAULT_CONTEXT)?;
+
+    assert!(rendered(&diff).is_empty(), "no hunks");
+    assert!(diff.has_differences(), "the bytes changed");
+    Ok(())
+}
+
+#[test]
+fn a_side_with_more_lines_than_the_limit_is_too_large() -> TestResult {
+    let (_dir, old, new) = pair(
+        vec![TestEntry::stored("a.txt", vec![b'\n'; MAX_DIFF_LINES + 1])],
+        vec![TestEntry::stored("a.txt", "a\n")],
+    )?;
+
+    let diff = line_diff(&old, &new, "a.txt", DEFAULT_CONTEXT)?;
+
+    assert_eq!(
+        diff.body(),
+        &DiffBody::NotText(NotText::TooLarge),
+        "too many lines"
+    );
+    Ok(())
+}
+
+#[test]
+fn data_shorter_than_its_stated_size_is_an_error() -> TestResult {
+    let (_dir, old, new) = pair(
+        vec![TestEntry::stored("a.txt", "abc").with_uncompressed_size(10)],
+        vec![TestEntry::stored("a.txt", "abc")],
+    )?;
+
+    let error = line_diff(&old, &new, "a.txt", DEFAULT_CONTEXT);
+
+    assert!(
+        matches!(
+            error,
+            Err(LineDiffError::SizeMismatch { .. } | LineDiffError::Read { .. })
+        ),
+        "typed error: {error:?}"
     );
     Ok(())
 }

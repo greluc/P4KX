@@ -17,7 +17,7 @@ mod text_diff;
 
 pub use compare::compare;
 pub use comparison::{Comparison, Side};
-pub use decode::{Encoding, MAX_DIFF_LEN};
+pub use decode::{Encoding, MAX_DIFF_LEN, MAX_DIFF_LINES};
 pub use entry_change::{ChangeKind, DirectoryCounts, EntryChange, EntryCounts};
 pub use error::{ComparisonError, LineDiffError};
 pub use line_diff::{DiffBody, LineDiff, NotText, line_diff};

@@ -39,7 +39,7 @@ pub(crate) fn rendered(diff: &LineDiff<'_>) -> Vec<Vec<(LineKind, String)>> {
     text.hunks()
         .map(|hunk| {
             hunk.lines()
-                .map(|line| (line.kind(), line.text().to_owned()))
+                .map(|line| (line.kind(), line.text().into_owned()))
                 .collect()
         })
         .collect()

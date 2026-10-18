@@ -53,8 +53,8 @@ impl Marks {
 struct Count {
     old: u32,
     new: u32,
-    old_at: usize,
-    new_at: usize,
+    old_at: u32,
+    new_at: u32,
 }
 
 struct Matcher<'t> {
@@ -122,13 +122,13 @@ impl Matcher<'_> {
         for (at, &token) in old.get(a.clone()).unwrap_or_default().iter().enumerate() {
             if let Some(count) = self.count(token) {
                 count.old = count.old.saturating_add(1);
-                count.old_at = a.start + at;
+                count.old_at = position(a.start + at);
             }
         }
         for (at, &token) in new.get(b.clone()).unwrap_or_default().iter().enumerate() {
             if let Some(count) = self.count(token) {
                 count.new = count.new.saturating_add(1);
-                count.new_at = b.start + at;
+                count.new_at = position(b.start + at);
             }
         }
         let unique: Vec<(usize, usize)> = old
@@ -137,7 +137,8 @@ impl Matcher<'_> {
             .iter()
             .filter_map(|&token| {
                 let count = self.counts.get(token as usize)?;
-                (count.old == 1 && count.new == 1).then_some((count.old_at, count.new_at))
+                (count.old == 1 && count.new == 1)
+                    .then_some((count.old_at as usize, count.new_at as usize))
             })
             .collect();
         for token in self.touched.drain(..) {
@@ -301,4 +302,9 @@ fn longest_increasing(pairs: &[(usize, usize)]) -> Vec<(usize, usize)> {
     }
     run.reverse();
     run
+}
+
+/// Returns a line index as stored in [`Count`]; line counts stay far below `u32::MAX`.
+fn position(index: usize) -> u32 {
+    u32::try_from(index).unwrap_or(u32::MAX)
 }

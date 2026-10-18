@@ -32,6 +32,14 @@ pub enum LineDiffError {
         #[source]
         source: std::io::Error,
     },
+    /// The data of an Entry is longer or shorter than its central-directory size.
+    #[error("the Entry {path} does not hold the {declared} bytes its central directory states")]
+    SizeMismatch {
+        /// The Entry path.
+        path: String,
+        /// The uncompressed size the central directory states.
+        declared: u64,
+    },
     /// The `CryXml` of an Entry is truncated or corrupt.
     #[error("cannot convert the CryXml Entry {path}")]
     CryXml {

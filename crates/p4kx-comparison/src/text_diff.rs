@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -25,7 +26,7 @@ pub enum LineKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DiffLine<'a> {
     kind: LineKind,
-    text: &'a str,
+    bytes: &'a [u8],
 }
 
 impl<'a> DiffLine<'a> {
@@ -35,45 +36,51 @@ impl<'a> DiffLine<'a> {
         self.kind
     }
 
-    /// Returns the line with its line terminator; the last line of a side may have none.
+    /// Returns the line as compared, with its line terminator; the last line of a side may have
+    /// none.
     #[must_use]
-    pub const fn text(&self) -> &'a str {
-        self.text
+    pub const fn bytes(&self) -> &'a [u8] {
+        self.bytes
+    }
+
+    /// Returns the line for display, with invalid UTF-8 sequences replaced.
+    #[must_use]
+    pub fn text(&self) -> Cow<'a, str> {
+        String::from_utf8_lossy(self.bytes)
     }
 }
 
 /// One side of a text diff split into lines.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Lines {
-    text: String,
-    ends: Vec<usize>,
+    bytes: Vec<u8>,
+    ends: Vec<u32>,
 }
 
 impl Lines {
-    fn new(text: String) -> Self {
-        let ends = text
-            .split_inclusive('\n')
-            .scan(0, |end, line| {
+    fn new(bytes: Vec<u8>) -> Self {
+        let ends = bytes
+            .split_inclusive(|&byte| byte == b'\n')
+            .scan(0_usize, |end, line| {
                 *end += line.len();
-                Some(*end)
+                Some(u32::try_from(*end).unwrap_or(u32::MAX))
             })
             .collect();
-        Self { text, ends }
+        Self { bytes, ends }
     }
 
     const fn len(&self) -> usize {
         self.ends.len()
     }
 
-    fn line(&self, index: usize) -> &str {
+    fn line(&self, index: usize) -> &[u8] {
         let start = index
             .checked_sub(1)
             .and_then(|previous| self.ends.get(previous))
-            .copied()
-            .unwrap_or(0);
+            .map_or(0, |&end| end as usize);
         self.ends
             .get(index)
-            .and_then(|&end| self.text.get(start..end))
+            .and_then(|&end| self.bytes.get(start..end as usize))
             .unwrap_or_default()
     }
 }
@@ -105,7 +112,7 @@ pub struct TextDiff {
 impl TextDiff {
     /// Diffs `old` against `new` line by line with the patience algorithm, keeping `context`
     /// unchanged lines around each change.
-    pub(crate) fn new(old: String, new: String, context: usize) -> Self {
+    pub(crate) fn new(old: Vec<u8>, new: Vec<u8>, context: usize) -> Self {
         let (old, new) = (Lines::new(old), Lines::new(new));
         let changes = changes(&old, &new);
         let hunks = group(&changes, context, old.len());
@@ -128,22 +135,22 @@ impl TextDiff {
         !self.changes.is_empty()
     }
 
-    /// Returns the old text.
+    /// Returns the old text as compared.
     #[must_use]
-    pub fn old_text(&self) -> &str {
-        &self.old.text
+    pub fn old_bytes(&self) -> &[u8] {
+        &self.old.bytes
     }
 
-    /// Returns the new text.
+    /// Returns the new text as compared.
     #[must_use]
-    pub fn new_text(&self) -> &str {
-        &self.new.text
+    pub fn new_bytes(&self) -> &[u8] {
+        &self.new.bytes
     }
 }
 
 /// Interns the lines of both sides and returns the runs of removed and added lines.
 fn changes(old: &Lines, new: &Lines) -> Vec<Change> {
-    let mut ids: HashMap<&str, u32> = HashMap::with_capacity(old.len().max(new.len()));
+    let mut ids: HashMap<&[u8], u32> = HashMap::with_capacity(old.len().max(new.len()));
     let (old_tokens, new_tokens) = (intern(&mut ids, old), intern(&mut ids, new));
     let marks = mark_changes(&old_tokens, &new_tokens, ids.len());
     let mut changes = Vec::new();
@@ -170,7 +177,7 @@ fn changes(old: &Lines, new: &Lines) -> Vec<Change> {
 }
 
 /// Returns the token of every line, giving each distinct line the next free token.
-fn intern<'t>(ids: &mut HashMap<&'t str, u32>, lines: &'t Lines) -> Vec<u32> {
+fn intern<'t>(ids: &mut HashMap<&'t [u8], u32>, lines: &'t Lines) -> Vec<u32> {
     (0..lines.len())
         .map(|index| {
             let next = u32::try_from(ids.len()).unwrap_or(u32::MAX);
@@ -250,7 +257,7 @@ impl<'a> Hunk<'a> {
         let old = move |kind| {
             move |index| DiffLine {
                 kind,
-                text: diff.old.line(index),
+                bytes: diff.old.line(index),
             }
         };
         changes
@@ -262,7 +269,7 @@ impl<'a> Hunk<'a> {
                     .chain(change.old.clone().map(old(LineKind::Removed)))
                     .chain(change.new.clone().map(move |index| DiffLine {
                         kind: LineKind::Added,
-                        text: diff.new.line(index),
+                        bytes: diff.new.line(index),
                     }))
             })
             .chain(tail.map(old(LineKind::Context)))

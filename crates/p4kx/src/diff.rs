@@ -1,7 +1,8 @@
 use std::io::{self, BufWriter, Write};
 
 use p4kx_comparison::{
-    Archive, ChangeKind, DiffBody, Encoding, LineDiff, LineKind, MAX_DIFF_LEN, NotText, TextDiff,
+    Archive, ChangeKind, DiffBody, Encoding, LineDiff, LineKind, MAX_DIFF_LEN, MAX_DIFF_LINES,
+    NotText, TextDiff,
 };
 
 use crate::json;
@@ -22,7 +23,9 @@ pub(crate) fn print(
     let mut out = BufWriter::new(io::stdout().lock());
     match diff.body() {
         DiffBody::Text(text) => {
-            if diff.has_differences() {
+            if text.has_differences()
+                || matches!(diff.kind(), Some(ChangeKind::Added | ChangeKind::Removed))
+            {
                 write_unified(&mut out, diff, text, old, new)?;
             } else if diff.kind().is_some() {
                 writeln!(
@@ -35,9 +38,10 @@ pub(crate) fn print(
         DiffBody::NotText(reason) => {
             let what = match reason {
                 NotText::Binary => "is binary".to_owned(),
-                NotText::TooLarge => {
-                    format!("is larger than {} MiB and not diffed", MAX_DIFF_LEN / MIB)
-                }
+                NotText::TooLarge => format!(
+                    "is too large to diff (over {} MiB or {MAX_DIFF_LINES} lines)",
+                    MAX_DIFF_LEN / MIB
+                ),
             };
             let change = match diff.kind() {
                 Some(ChangeKind::Added) => "was added",
@@ -85,8 +89,8 @@ fn write_unified(
                 LineKind::Added => b"+",
             };
             out.write_all(marker)?;
-            out.write_all(line.text().as_bytes())?;
-            if !line.text().ends_with('\n') {
+            out.write_all(line.bytes())?;
+            if !line.bytes().ends_with(b"\n") {
                 out.write_all(b"\n\\ No newline at end of file\n")?;
             }
         }
@@ -110,6 +114,11 @@ fn write_header(
                 "{marker} {path}\t{archive} ({signature} converted to XML)"
             )
         }
+        (Some(path), Some(encoding @ (Encoding::Utf16Le | Encoding::Utf16Be))) => writeln!(
+            out,
+            "{marker} {path}\t{archive} ({} decoded)",
+            encoding.as_str()
+        ),
         (Some(path), _) => writeln!(out, "{marker} {path}\t{archive}"),
     }
 }

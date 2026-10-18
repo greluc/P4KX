@@ -41,13 +41,7 @@ impl Serialize for Side<'_> {
         let mut out = serializer.serialize_struct("Side", 3)?;
         out.serialize_field("size", &self.0.uncompressed_size())?;
         out.serialize_field("crc32c", &self.0.crc32c())?;
-        out.serialize_field(
-            "encoding",
-            &self.1.map(|encoding| match encoding {
-                Encoding::Text => "text",
-                Encoding::CryXml(signature) => signature.as_str(),
-            }),
-        )?;
+        out.serialize_field("encoding", &self.1.map(Encoding::as_str))?;
         out.end()
     }
 }
@@ -87,7 +81,7 @@ impl Serialize for DiffLine<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut out = serializer.serialize_struct("DiffLine", 2)?;
         out.serialize_field("kind", &self.kind())?;
-        out.serialize_field("text", self.text())?;
+        out.serialize_field("text", &self.text())?;
         out.end()
     }
 }

@@ -129,6 +129,11 @@ fn print_summary(comparison: &Comparison<'_>) -> io::Result<()> {
         write_line(&mut out, "Records removed", &counts.removed.to_string())?;
         write_line(&mut out, "Records moved", &counts.moved.to_string())?;
         write_line(&mut out, "Records changed", &counts.changed.to_string())?;
+        write_line(
+            &mut out,
+            "Records unreadable",
+            &counts.unreadable.to_string(),
+        )?;
     }
     let directories = comparison.directory_counts();
     if !directories.is_empty() {

@@ -5,21 +5,21 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Serialize, Serializer};
 
 use crate::{
-    Comparison, FieldChange, Guid, RecordChange, RecordChangeKind, RecordCounts, RecordState,
-    Value, ValueError,
+    Comparison, FieldChange, Guid, RecordChange, RecordChangeKind, RecordCounts, RecordError,
+    RecordSide, RecordState, Value, ValueError,
 };
 
-/// The Records added, removed, moved and changed.
+/// The Records added, removed, moved, changed and unreadable.
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct RecordLevel<'a> {
     /// The number of Records per change kind.
     counts: RecordCounts,
-    /// Every added, removed, moved or changed Record, ordered by record path ignoring case and
-    /// separator kind, then by GUID.
+    /// Every added, removed, moved, changed or unreadable Record, ordered by record path ignoring
+    /// case and separator kind, then by GUID.
     changes: Vec<RecordChangeReport<'a>>,
 }
 
-/// One added, removed, moved or changed Record.
+/// One added, removed, moved, changed or unreadable Record.
 #[derive(Debug, Serialize, JsonSchema)]
 struct RecordChangeReport<'a> {
     /// The GUID that joins both sides.
@@ -28,15 +28,36 @@ struct RecordChangeReport<'a> {
     guid: Guid,
     /// How the Record differs.
     change: RecordChangeKind,
-    /// The Record on the old side, absent when it was added.
+    /// The Record on the old side, absent when it was added or cannot be read.
     #[serde(skip_serializing_if = "Option::is_none")]
     old: Option<RecordStateReport<'a>>,
-    /// The Record on the new side, absent when it was removed.
+    /// The Record on the new side, absent when it was removed or cannot be read.
     #[serde(skip_serializing_if = "Option::is_none")]
     new: Option<RecordStateReport<'a>>,
     /// The changed fields in field order of the new side, the fields only the old side has
-    /// last; empty for an added or removed Record.
+    /// last; empty for an added, removed or unreadable Record.
     fields: Vec<FieldChangeReport<'a>>,
+    /// Why the Record cannot be read, one entry per side; absent unless it is unreadable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    errors: Vec<RecordErrorReport>,
+}
+
+/// Why a Record cannot be read on one side.
+#[derive(Debug, Serialize, JsonSchema)]
+struct RecordErrorReport {
+    /// The side whose Record cannot be read.
+    side: RecordSide,
+    /// What cannot be read.
+    reason: String,
+}
+
+impl From<&RecordError> for RecordErrorReport {
+    fn from(error: &RecordError) -> Self {
+        Self {
+            side: error.side(),
+            reason: error.error().to_string(),
+        }
+    }
 }
 
 /// What identifies a Record on one side.
@@ -253,6 +274,11 @@ impl<'a> From<&RecordChange<'a>> for RecordChangeReport<'a> {
                 .fields()
                 .iter()
                 .map(FieldChangeReport::from)
+                .collect(),
+            errors: change
+                .errors()
+                .iter()
+                .map(RecordErrorReport::from)
                 .collect(),
         }
     }

@@ -89,7 +89,8 @@ Early development (milestone M1). Available today:
   level joins the Records of both DataForges by GUID and lists them as added, removed, moved (same
   GUID at another record path) or changed, with every changed scalar field and its old and new
   value; enum fields show the option names, and a value that cannot be read is a change with the
-  reason. It prints both sides (Channel and Build) and the counts per change kind, for Entries
+  reason. A Record that cannot be read at all is listed as unreadable with the reason, and the
+  other Records are still compared. It prints both sides (Channel and Build) and the counts per change kind, for Entries
   also per top-level directory. `--filter` selects Entries by path and Records by record path
   with the rules of `search`; `--report` writes the full Comparison as JSON (see
   [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is compared when

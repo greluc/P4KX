@@ -153,7 +153,9 @@ fn without_a_level_flag_both_levels_run() -> TestResult {
     );
     assert_eq!(
         report.pointer("/records/counts"),
-        Some(&serde_json::json!({"added": 1, "removed": 1, "moved": 1, "changed": 1})),
+        Some(
+            &serde_json::json!({"added": 1, "removed": 1, "moved": 1, "changed": 1, "unreadable": 0})
+        ),
         "Record counts"
     );
     Ok(())
@@ -195,7 +197,9 @@ fn the_filter_selects_records_by_record_path() -> TestResult {
     let report: serde_json::Value = serde_json::from_str(&line)?;
     assert_eq!(
         report.pointer("/records/counts"),
-        Some(&serde_json::json!({"added": 0, "removed": 0, "moved": 1, "changed": 0})),
+        Some(
+            &serde_json::json!({"added": 0, "removed": 0, "moved": 1, "changed": 0, "unreadable": 0})
+        ),
         "only the Record moved away from the matching path: {report}"
     );
     Ok(())
@@ -226,5 +230,47 @@ fn a_corrupt_dataforge_exits_with_code_5() -> TestResult {
     let dir = pair(Some(old_database()), Some(b"not a DataForge".to_vec()))?;
 
     stdout(p4kx(dir.path())?.args([OLD, NEW, "--records"]), 5)?;
+    Ok(())
+}
+
+fn with_hull(declared_size: u32) -> Vec<u8> {
+    DataForgeBuilder::new()
+        .enumeration("Size", ["Small", "Large"])
+        .structure(ship())
+        .structure(
+            TestStruct::new("Hull")
+                .field("armor", TestType::Int32)
+                .declared_size(declared_size),
+        )
+        .record(TestRecord::new(
+            GONE,
+            "Hull",
+            "Hull.Broken",
+            "libs/ships/hull.xml",
+        ))
+        .record(ship_record(SAME, "Same", "libs/ships/same.xml"))
+        .build()
+}
+
+#[test]
+fn a_record_that_cannot_be_read_is_reported_with_the_reason() -> TestResult {
+    let dir = pair(Some(with_hull(4)), Some(with_hull(8)))?;
+
+    let line = stdout(p4kx(dir.path())?.args(["--json", OLD, NEW, "--records"]), 1)?;
+
+    let report: serde_json::Value = serde_json::from_str(&line)?;
+    assert_eq!(
+        report.pointer("/records/counts/unreadable"),
+        Some(&serde_json::json!(1)),
+        "one unreadable Record: {report}"
+    );
+    assert_eq!(
+        report.pointer("/records/changes/0/errors"),
+        Some(&serde_json::json!([{
+            "side": "new",
+            "reason": "struct 1 of the DataForge declares 8 bytes per instance, but its fields take 4"
+        }])),
+        "the side and the reason: {report}"
+    );
     Ok(())
 }

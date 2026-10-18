@@ -267,18 +267,30 @@
           "const": "changed",
           "description": "Both sides have the GUID at the same record path, with a different name, type or field.",
           "type": "string"
+        },
+        {
+          "const": "unreadable",
+          "description": "The Record cannot be read on at least one side, so it was not compared.",
+          "type": "string"
         }
       ]
     },
     "RecordChangeReport": {
-      "description": "One added, removed, moved or changed Record.",
+      "description": "One added, removed, moved, changed or unreadable Record.",
       "properties": {
         "change": {
           "$ref": "#/$defs/RecordChangeKind",
           "description": "How the Record differs."
         },
+        "errors": {
+          "description": "Why the Record cannot be read, one entry per side; absent unless it is unreadable.",
+          "items": {
+            "$ref": "#/$defs/RecordErrorReport"
+          },
+          "type": "array"
+        },
         "fields": {
-          "description": "The changed fields in field order of the new side, the fields only the old side has\nlast; empty for an added or removed Record.",
+          "description": "The changed fields in field order of the new side, the fields only the old side has\nlast; empty for an added, removed or unreadable Record.",
           "items": {
             "$ref": "#/$defs/FieldChangeReport"
           },
@@ -297,7 +309,7 @@
               "type": "null"
             }
           ],
-          "description": "The Record on the new side, absent when it was removed."
+          "description": "The Record on the new side, absent when it was removed or cannot be read."
         },
         "old": {
           "anyOf": [
@@ -308,7 +320,7 @@
               "type": "null"
             }
           ],
-          "description": "The Record on the old side, absent when it was added."
+          "description": "The Record on the old side, absent when it was added or cannot be read."
         }
       },
       "required": [
@@ -344,21 +356,46 @@
           "format": "uint",
           "minimum": 0,
           "type": "integer"
+        },
+        "unreadable": {
+          "description": "Records that cannot be read on at least one side.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
         "added",
         "removed",
         "moved",
-        "changed"
+        "changed",
+        "unreadable"
+      ],
+      "type": "object"
+    },
+    "RecordErrorReport": {
+      "description": "Why a Record cannot be read on one side.",
+      "properties": {
+        "reason": {
+          "description": "What cannot be read.",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/RecordSide",
+          "description": "The side whose Record cannot be read."
+        }
+      },
+      "required": [
+        "side",
+        "reason"
       ],
       "type": "object"
     },
     "RecordLevel": {
-      "description": "The Records added, removed, moved and changed.",
+      "description": "The Records added, removed, moved, changed and unreadable.",
       "properties": {
         "changes": {
-          "description": "Every added, removed, moved or changed Record, ordered by record path ignoring case and\nseparator kind, then by GUID.",
+          "description": "Every added, removed, moved, changed or unreadable Record, ordered by record path ignoring\ncase and separator kind, then by GUID.",
           "items": {
             "$ref": "#/$defs/RecordChangeReport"
           },
@@ -374,6 +411,21 @@
         "changes"
       ],
       "type": "object"
+    },
+    "RecordSide": {
+      "description": "One side of a Comparison.",
+      "oneOf": [
+        {
+          "const": "old",
+          "description": "The old Archive.",
+          "type": "string"
+        },
+        {
+          "const": "new",
+          "description": "The new Archive.",
+          "type": "string"
+        }
+      ]
     },
     "RecordStateReport": {
       "description": "What identifies a Record on one side.",

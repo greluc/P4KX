@@ -30,6 +30,8 @@ pub use p4kx_archive::{Archive, ArchiveError, Build, Entry};
 pub use p4kx_cryxml::Signature;
 pub use p4kx_dataforge::{DataForge, DataForgeError, Field, Guid, Record, Value, ValueError};
 pub use p4kx_extraction::{CancelToken, DataForgeEntry, DataForgeLoadError, Filter};
-pub use record_change::{FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordState};
+pub use record_change::{
+    FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordError, RecordSide, RecordState,
+};
 pub use report::{REPORT_FORMAT_VERSION, Report, report_schema};
 pub use text_diff::{DEFAULT_CONTEXT, DiffLine, Hunk, LineKind, TextDiff};

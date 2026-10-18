@@ -204,16 +204,18 @@ code is 0 without and 1 with differences on any compared level.
 | `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
-| `records.counts` | object | `added`, `removed`, `moved` and `changed` Record counts |
-| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved` or `changed`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it, and `fields` |
-| `records.changes[].fields` | array | One object per changed field: `path` (the field name), and `old` and `new` values for the sides that have the field; empty for an added or removed Record |
+| `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
+| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
+| `records.changes[].fields` | array | One object per changed field: `path` (the field name), and `old` and `new` values for the sides that have the field; empty for an added, removed or unreadable Record |
+| `records.changes[].errors` | array | One object per side whose Record cannot be read: `side` (`old` or `new`) and `reason`; absent for every other Record |
 
 `entries` is absent when the Entry level was not compared, `records` when the Record level was
 not compared.
 
 Records are joined by GUID. A Record is `moved` when its record path differs, ignoring case and
 separator kind; its changed fields are listed as well. It is `changed` when its name, its type
-or a field differs. Fields are joined by name, so a field only one side has is listed with only
+or a field differs. It is `unreadable` when its record path, name, type or fields cannot be read
+on a side; it is then not compared, and the Comparison goes on with the other Records. Fields are joined by name, so a field only one side has is listed with only
 `old` or only `new`. Each value is an object with `type` (`bool`, `int8` … `int64`, `uint8` …
 `uint64`, `single`, `double`, `string`, `locale`, `guid`, `enum` or `error`) and `value`: a
 number for integers and floats, `NaN`, `INF` or `-INF` as a string for a float that is not

@@ -8,12 +8,10 @@ use crate::field_diff::diff_fields;
 use crate::path_key::cmp_normalised;
 use crate::{
     CompareOptions, ComparisonError, ComparisonProgress, DataForge, DataForgeError, DataForges,
-    Record, RecordChange, RecordChangeKind, RecordState,
+    Record, RecordChange, RecordChangeKind, RecordError, RecordSide, RecordState,
 };
 
 const PROGRESS_STEP: usize = 1 << 12;
-const OLD: &str = "old";
-const NEW: &str = "new";
 
 /// The Records of one GUID: on one side only, or on both.
 #[derive(Clone, Copy)]
@@ -60,7 +58,7 @@ pub(crate) fn compare_records<'a>(
                     report(finished);
                 }
             }
-            change
+            Ok(change)
         })
         .collect();
     let mut changes: Vec<RecordChange<'a>> = changes?.into_iter().flatten().collect();
@@ -114,80 +112,68 @@ fn join<'a>(old: &[Record<'a>], new: &[Record<'a>]) -> Vec<Joined<'a>> {
     joined
 }
 
-fn diff<'a>(
-    pair: Joined<'a>,
-    options: &CompareOptions<'_>,
-) -> Result<Option<RecordChange<'a>>, ComparisonError> {
+fn diff<'a>(pair: Joined<'a>, options: &CompareOptions<'_>) -> Option<RecordChange<'a>> {
     let (old, new) = match pair {
         Joined::Removed(old) => (Some(old), None),
         Joined::Added(new) => (None, Some(new)),
         Joined::Both(old, new) => (Some(old), Some(new)),
     };
-    let old_path = old.map(|record| path(record, OLD)).transpose()?;
-    let new_path = new.map(|record| path(record, NEW)).transpose()?;
+    let mut errors = Vec::new();
+    let old_path = old.and_then(|record| read(record.record_path(), RecordSide::Old, &mut errors));
+    let new_path = new.and_then(|record| read(record.record_path(), RecordSide::New, &mut errors));
+    let mut paths = old_path.into_iter().chain(new_path).peekable();
     if let Some(filter) = options.filter
-        && !old_path
-            .into_iter()
-            .chain(new_path)
-            .any(|path| filter.matches(path))
+        && paths.peek().is_some()
+        && !paths.any(|path| filter.matches(path))
     {
-        return Ok(None);
+        return None;
     }
-    let guid = new.or(old).map(|record| record.guid()).unwrap_or_default();
+    let old_state = old
+        .zip(old_path)
+        .and_then(|(record, path)| read(state(record, path), RecordSide::Old, &mut errors));
+    let new_state = new
+        .zip(new_path)
+        .and_then(|(record, path)| read(state(record, path), RecordSide::New, &mut errors));
     let mut change = RecordChange {
-        guid,
-        old: old
-            .zip(old_path)
-            .map(|(record, path)| state(record, path, OLD))
-            .transpose()?,
-        new: new
-            .zip(new_path)
-            .map(|(record, path)| state(record, path, NEW))
-            .transpose()?,
+        guid: new.or(old).map(|record| record.guid()).unwrap_or_default(),
+        old: old_state,
+        new: new_state,
         fields: Vec::new(),
+        errors,
     };
-    let (Some(old), Some(new), Some(before), Some(after)) = (old, new, change.old, change.new)
+    let (Some(old), Some(new), Some(before), Some(after), true) =
+        (old, new, old_state, new_state, change.errors.is_empty())
     else {
-        return Ok(Some(change));
+        return Some(change);
     };
-    let old_tree = old.tree().map_err(|source| unreadable(old, OLD, source))?;
-    let new_tree = new.tree().map_err(|source| unreadable(new, NEW, source))?;
+    let old_tree = read(old.tree(), RecordSide::Old, &mut change.errors);
+    let new_tree = read(new.tree(), RecordSide::New, &mut change.errors);
+    let (Some(old_tree), Some(new_tree)) = (old_tree, new_tree) else {
+        return Some(change);
+    };
     change.fields = diff_fields(old_tree.fields(), new_tree.fields());
     let differs = !change.fields.is_empty()
         || before.name != after.name
         || before.type_name != after.type_name
         || change.kind() == RecordChangeKind::Moved;
-    Ok(differs.then_some(change))
+    differs.then_some(change)
 }
 
-fn path<'a>(record: Record<'a>, side: &'static str) -> Result<&'a str, ComparisonError> {
-    record
-        .record_path()
-        .map_err(|source| unreadable(record, side, source))
+fn state<'a>(record: Record<'a>, record_path: &'a str) -> Result<RecordState<'a>, DataForgeError> {
+    Ok(RecordState {
+        record_path,
+        name: record.name()?,
+        type_name: record.type_name()?,
+    })
 }
 
-fn state<'a>(
-    record: Record<'a>,
-    record_path: &'a str,
-    side: &'static str,
-) -> Result<RecordState<'a>, ComparisonError> {
-    let read = || {
-        Ok::<_, DataForgeError>(RecordState {
-            record_path,
-            name: record.name()?,
-            type_name: record.type_name()?,
-        })
-    };
-    read().map_err(|source| unreadable(record, side, source))
-}
-const fn unreadable(
-    record: Record<'_>,
-    side: &'static str,
-    source: DataForgeError,
-) -> ComparisonError {
-    ComparisonError::Record {
-        side,
-        guid: record.guid(),
-        source,
-    }
+/// Returns the value, or records the error for `side` and returns `None`.
+fn read<T>(
+    result: Result<T, DataForgeError>,
+    side: RecordSide,
+    errors: &mut Vec<RecordError>,
+) -> Option<T> {
+    result
+        .map_err(|error| errors.push(RecordError { side, error }))
+        .ok()
 }

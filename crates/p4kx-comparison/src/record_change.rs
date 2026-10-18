@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::{Guid, Value};
+use crate::{DataForgeError, Guid, Value};
 
 /// How a Record differs between the two sides of a Comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
@@ -16,6 +16,39 @@ pub enum RecordChangeKind {
     Moved,
     /// Both sides have the GUID at the same record path, with a different name, type or field.
     Changed,
+    /// The Record cannot be read on at least one side, so it was not compared.
+    Unreadable,
+}
+
+/// One side of a Comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordSide {
+    /// The old Archive.
+    Old,
+    /// The new Archive.
+    New,
+}
+
+/// Why a Record cannot be read on one side.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordError {
+    pub(crate) side: RecordSide,
+    pub(crate) error: DataForgeError,
+}
+
+impl RecordError {
+    /// Returns the side whose Record cannot be read.
+    #[must_use]
+    pub const fn side(&self) -> RecordSide {
+        self.side
+    }
+
+    /// Returns what cannot be read.
+    #[must_use]
+    pub const fn error(&self) -> &DataForgeError {
+        &self.error
+    }
 }
 
 /// What identifies a Record on one side: its record path, name and type.
@@ -81,12 +114,16 @@ pub struct RecordChange<'a> {
     pub(crate) old: Option<RecordState<'a>>,
     pub(crate) new: Option<RecordState<'a>>,
     pub(crate) fields: Vec<FieldChange<'a>>,
+    pub(crate) errors: Vec<RecordError>,
 }
 
 impl<'a> RecordChange<'a> {
     /// Returns how the Record differs.
     #[must_use]
     pub fn kind(&self) -> RecordChangeKind {
+        if !self.errors.is_empty() {
+            return RecordChangeKind::Unreadable;
+        }
         match (self.old, self.new) {
             (Some(old), Some(new))
                 if !crate::path_key::eq_normalised(old.record_path, new.record_path) =>
@@ -105,19 +142,20 @@ impl<'a> RecordChange<'a> {
         self.guid
     }
 
-    /// Returns the record path of the new side, or of the old side for a removed Record.
+    /// Returns the record path of the new side, or of the old side when the new side has none;
+    /// empty when neither record path can be read.
     #[must_use]
     pub fn path(&self) -> &'a str {
         self.new.or(self.old).map_or("", |side| side.record_path)
     }
 
-    /// Returns the Record on the old side, `None` when it was added.
+    /// Returns the Record on the old side, `None` when it was added or cannot be read.
     #[must_use]
     pub const fn old_record(&self) -> Option<RecordState<'a>> {
         self.old
     }
 
-    /// Returns the Record on the new side, `None` when it was removed.
+    /// Returns the Record on the new side, `None` when it was removed or cannot be read.
     #[must_use]
     pub const fn new_record(&self) -> Option<RecordState<'a>> {
         self.new
@@ -128,6 +166,12 @@ impl<'a> RecordChange<'a> {
     #[must_use]
     pub fn fields(&self) -> &[FieldChange<'a>] {
         &self.fields
+    }
+
+    /// Returns why the Record cannot be read, one entry per side; empty unless it is unreadable.
+    #[must_use]
+    pub fn errors(&self) -> &[RecordError] {
+        &self.errors
     }
 }
 
@@ -143,6 +187,8 @@ pub struct RecordCounts {
     pub moved: usize,
     /// Records at the same record path with a different name, type or field.
     pub changed: usize,
+    /// Records that cannot be read on at least one side.
+    pub unreadable: usize,
 }
 
 impl RecordCounts {
@@ -155,6 +201,7 @@ impl RecordCounts {
                 RecordChangeKind::Removed => &mut counts.removed,
                 RecordChangeKind::Moved => &mut counts.moved,
                 RecordChangeKind::Changed => &mut counts.changed,
+                RecordChangeKind::Unreadable => &mut counts.unreadable,
             };
             *count += 1;
         }
@@ -164,6 +211,6 @@ impl RecordCounts {
     /// Returns the number of Records of every change kind.
     #[must_use]
     pub const fn total(&self) -> usize {
-        self.added + self.removed + self.moved + self.changed
+        self.added + self.removed + self.moved + self.changed + self.unreadable
     }
 }

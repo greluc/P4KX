@@ -236,20 +236,6 @@ fn a_format_of_unknown_size_cannot_be_merged() {
 }
 
 #[test]
-fn a_split_cubemap_is_not_merged_yet() {
-    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8)
-        .cubemap()
-        .split(1);
-
-    let result = merge_with(&dds, &Parts::of(&dds));
-
-    assert!(
-        matches!(result, Err(TextureError::UnsupportedLayout { surfaces: 6 })),
-        "{result:?}"
-    );
-}
-
-#[test]
 fn the_part_count_follows_from_the_header_tail() -> Result<(), TextureError> {
     let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4);
     let header = dds.header_bytes();

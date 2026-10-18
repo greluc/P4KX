@@ -2,7 +2,7 @@ use std::io::{self, Read, Write};
 
 use p4kx_cryxml::{Format, Signature, detect, parse};
 
-use crate::{Archive, Entry, LineDiffError};
+use crate::{Archive, CancelToken, Entry, LineDiffError};
 
 /// The largest Entry, and the largest XML converted from `CryXml`, a line diff reads.
 pub const MAX_DIFF_LEN: u64 = 128 * 1024 * 1024;
@@ -52,22 +52,36 @@ pub(crate) enum Decoded {
     TooLarge,
 }
 
-/// Reads `entry` of `archive` as text, converting `CryXml` to XML and decoding UTF-16.
-pub(crate) fn decode(archive: &Archive, entry: &Entry) -> Result<Decoded, LineDiffError> {
+/// Reads `entry` of `archive` as text, converting `CryXml` to XML and decoding UTF-16; stops
+/// once `cancel` is set.
+pub(crate) fn decode(
+    archive: &Archive,
+    entry: &Entry,
+    cancel: Option<&CancelToken>,
+) -> Result<Decoded, LineDiffError> {
     let declared = entry.uncompressed_size();
     if declared > MAX_DIFF_LEN {
         return Ok(Decoded::TooLarge);
     }
     let path = || entry.path().to_owned();
     let mut bytes = Vec::with_capacity(initial_capacity(declared));
-    archive
-        .open_entry(entry)?
-        .take(declared.saturating_add(1))
-        .read_to_end(&mut bytes)
-        .map_err(|source| LineDiffError::Read {
-            path: path(),
-            source,
-        })?;
+    let cancelled = || cancel.is_some_and(CancelToken::is_cancelled);
+    Watched {
+        inner: archive.open_entry(entry)?,
+        cancel,
+    }
+    .take(declared.saturating_add(1))
+    .read_to_end(&mut bytes)
+    .map_err(|source| {
+        if cancelled() {
+            LineDiffError::Cancelled
+        } else {
+            LineDiffError::Read {
+                path: path(),
+                source,
+            }
+        }
+    })?;
     if bytes.len() as u64 != declared {
         return Err(LineDiffError::SizeMismatch {
             path: path(),
@@ -75,7 +89,7 @@ pub(crate) fn decode(archive: &Archive, entry: &Entry) -> Result<Decoded, LineDi
         });
     }
     let decoded = match detect(&bytes) {
-        Some(Format::CryXml(signature)) => convert(&bytes, signature, entry)?,
+        Some(Format::CryXml(signature)) => convert(&bytes, signature, entry, cancel)?,
         _ => text(bytes),
     };
     Ok(match decoded {
@@ -84,16 +98,23 @@ pub(crate) fn decode(archive: &Archive, entry: &Entry) -> Result<Decoded, LineDi
     })
 }
 
-fn convert(bytes: &[u8], signature: Signature, entry: &Entry) -> Result<Decoded, LineDiffError> {
+fn convert(
+    bytes: &[u8],
+    signature: Signature,
+    entry: &Entry,
+    cancel: Option<&CancelToken>,
+) -> Result<Decoded, LineDiffError> {
     let document = parse(bytes).map_err(|source| LineDiffError::CryXml {
         path: entry.path().to_owned(),
         source,
     })?;
-    let mut out = Capped(Vec::with_capacity(initial_capacity(
-        (bytes.len() as u64).saturating_mul(2),
-    )));
+    let mut out = Capped {
+        bytes: Vec::with_capacity(initial_capacity((bytes.len() as u64).saturating_mul(2))),
+        cancel,
+    };
     match document.write_xml(&mut out) {
-        Ok(()) => Ok(Decoded::Text(out.0, Encoding::CryXml(signature))),
+        Ok(()) => Ok(Decoded::Text(out.bytes, Encoding::CryXml(signature))),
+        Err(_) if cancel.is_some_and(CancelToken::is_cancelled) => Err(LineDiffError::Cancelled),
         Err(error) if error.kind() == io::ErrorKind::FileTooLarge => Ok(Decoded::TooLarge),
         Err(source) => Err(LineDiffError::Read {
             path: entry.path().to_owned(),
@@ -141,18 +162,39 @@ fn initial_capacity(expected: u64) -> usize {
     usize::try_from(expected.min(MAX_INITIAL_CAPACITY)).unwrap_or(0)
 }
 
-/// Collects written bytes up to [`MAX_DIFF_LEN`] and fails with
-/// [`io::ErrorKind::FileTooLarge`] beyond it.
-struct Capped(Vec<u8>);
+/// Fails a read once the token is set.
+struct Watched<'c, R> {
+    inner: R,
+    cancel: Option<&'c CancelToken>,
+}
 
-impl Write for Capped {
+impl<R: Read> Read for Watched<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.cancel.is_some_and(CancelToken::is_cancelled) {
+            return Err(io::Error::other(LineDiffError::Cancelled));
+        }
+        self.inner.read(buf)
+    }
+}
+
+/// Collects written bytes up to [`MAX_DIFF_LEN`] and fails with
+/// [`io::ErrorKind::FileTooLarge`] beyond it, or once the token is set.
+struct Capped<'c> {
+    bytes: Vec<u8>,
+    cancel: Option<&'c CancelToken>,
+}
+
+impl Write for Capped<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let fits = u64::try_from(self.0.len().saturating_add(buf.len()))
+        if self.cancel.is_some_and(CancelToken::is_cancelled) {
+            return Err(io::Error::other(LineDiffError::Cancelled));
+        }
+        let fits = u64::try_from(self.bytes.len().saturating_add(buf.len()))
             .is_ok_and(|len| len <= MAX_DIFF_LEN);
         if !fits {
             return Err(io::ErrorKind::FileTooLarge.into());
         }
-        self.0.extend_from_slice(buf);
+        self.bytes.extend_from_slice(buf);
         Ok(buf.len())
     }
 

@@ -23,6 +23,11 @@ impl Guid {
     pub const fn stored(&self) -> [u8; 16] {
         self.0
     }
+
+    /// Returns the bytes in the order the text form prints them, so they sort as the text does.
+    pub(crate) fn text_order(&self) -> [u8; 16] {
+        TEXT_ORDER.map(|index| self.0.get(index).copied().unwrap_or_default())
+    }
 }
 
 impl fmt::Display for Guid {

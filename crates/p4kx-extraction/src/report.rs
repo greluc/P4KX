@@ -25,6 +25,15 @@ pub enum ExtractionError {
         #[source]
         source: io::Error,
     },
+    /// The file already in the target could not be read to compare it with the Entry.
+    #[error("cannot read the existing file {path}")]
+    ReadExisting {
+        /// The existing file.
+        path: PathBuf,
+        /// Underlying I/O error.
+        #[source]
+        source: io::Error,
+    },
 }
 
 /// One Entry that an Extraction did not write.
@@ -54,7 +63,7 @@ pub struct ExtractionReport {
     pub(crate) extracted: usize,
     pub(crate) skipped: Vec<String>,
     pub(crate) failures: Vec<EntryFailure>,
-    pub(crate) cancelled: usize,
+    pub(crate) cancelled: Vec<String>,
 }
 
 impl ExtractionReport {
@@ -64,7 +73,7 @@ impl ExtractionReport {
         self.extracted
     }
 
-    /// Returns the paths of Entries whose file already existed in the target and was kept.
+    /// Returns the paths of Entries whose existing file in the target was kept.
     #[must_use]
     pub fn skipped(&self) -> &[String] {
         &self.skipped
@@ -76,15 +85,15 @@ impl ExtractionReport {
         &self.failures
     }
 
-    /// Returns the number of Entries not started because the run was cancelled.
+    /// Returns the paths of Entries not written because the run was cancelled.
     #[must_use]
-    pub const fn cancelled(&self) -> usize {
-        self.cancelled
+    pub fn cancelled(&self) -> &[String] {
+        &self.cancelled
     }
 
     /// Returns whether no Entry failed and the run was not cancelled.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty() && self.cancelled == 0
+        self.failures.is_empty() && self.cancelled.is_empty()
     }
 }

@@ -2,22 +2,22 @@ use std::error::Error;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
-use std::sync::atomic::AtomicBool;
+use std::process::{self, ExitCode};
 use std::time::SystemTime;
 
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, Build, Entry, EntryFailure, ExtractionReport, Filter, create_default_target, extract,
-    select_entries,
+    Archive, Build, CancelToken, ConflictPolicy, Entry, EntryFailure, ExtractOptions,
+    ExtractionReport, Filter, Progress, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::ExtractArgs;
+use crate::cli::{Conflict, ExtractArgs};
 use crate::exit;
 use crate::json;
+use crate::progress::ProgressLine;
 
 /// A Filter that matches no Entry of the Archive.
 #[derive(Debug, Error)]
@@ -30,7 +30,7 @@ struct ReportJson<'a> {
     extracted: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
-    cancelled: usize,
+    cancelled: &'a [String],
 }
 
 #[derive(Serialize)]
@@ -39,17 +39,44 @@ struct FailureJson<'a> {
     error: String,
 }
 
-/// Extracts the requested Entries and prints the report: as JSON, or the skipped Entries and a
-/// summary to stdout and the failed Entries to stderr.
+/// Extracts the requested Entries, showing progress, stopping on Ctrl+C and quitting on a second
+/// Ctrl+C, and prints the
+/// report: as JSON, or the skipped and cancelled Entries and a summary to stdout and the failed
+/// Entries to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
     let entries = requested_entries(args, &archive)?;
     let target = prepare_target(args, &archive)?;
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+    let cancel = CancelToken::new();
+    let on_interrupt = cancel.clone();
+    ctrlc::set_handler(move || {
+        if on_interrupt.is_cancelled() {
+            process::exit(exit::INTERRUPTED.into());
+        }
+        on_interrupt.cancel();
+    })
+    .context("cannot install the Ctrl+C handler")?;
+    let line = ProgressLine::new();
+    let on_progress = |progress: Progress| {
+        if args
+            .cancel_after
+            .is_some_and(|count| progress.entries_done >= count)
+        {
+            cancel.cancel();
+        }
+        line.show(progress);
+    };
+    let options = ExtractOptions {
+        policy: policy(args.conflict),
+        cancel: Some(&cancel),
+        progress: Some(&on_progress),
+    };
+    let report = extract(&archive, &entries, &target, &options);
+    line.finish();
     let printed = if as_json {
         json::print(&report_json(&report, &target))
     } else {
-        print_report(&report, &target)
+        print_report(&report, &target, args.conflict)
     };
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
@@ -61,6 +88,14 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     } else {
         exit::PARTIAL_FAILURE
     }))
+}
+
+const fn policy(conflict: Conflict) -> ConflictPolicy {
+    match conflict {
+        Conflict::Skip => ConflictPolicy::Skip,
+        Conflict::Overwrite => ConflictPolicy::Overwrite,
+        Conflict::IfChanged => ConflictPolicy::IfChanged,
+    }
 }
 
 fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec<&'a Entry>> {
@@ -115,14 +150,22 @@ fn reason(failure: &EntryFailure) -> String {
     reason
 }
 
-fn print_report(report: &ExtractionReport, target: &Path) -> io::Result<()> {
+fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for failure in report.failures() {
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
     let mut out = io::stdout().lock();
+    let kept = if conflict == Conflict::IfChanged {
+        "unchanged"
+    } else {
+        "already exists"
+    };
     for path in report.skipped() {
-        writeln!(out, "skipped {path}: already exists")?;
+        writeln!(out, "skipped {path}: {kept}")?;
+    }
+    for path in report.cancelled() {
+        writeln!(out, "cancelled {path}")?;
     }
     writeln!(
         out,
@@ -130,7 +173,7 @@ fn print_report(report: &ExtractionReport, target: &Path) -> io::Result<()> {
         report.extracted(),
         report.skipped().len(),
         report.failures().len(),
-        report.cancelled(),
+        report.cancelled().len(),
         target.display()
     )
 }

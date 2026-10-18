@@ -13,6 +13,8 @@ layer = "service"
 
 [dependencies]
 p4kx-archive.workspace = true
+crc32c.workspace = true
+rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

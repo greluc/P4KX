@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use p4kx_archive::{Archive, Compression};
+use p4kx_archive::{Archive, Compression, Entry};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -73,9 +73,32 @@ fn lists_more_entries_than_a_16_bit_count_can_hold() -> TestResult {
         "all Entries beyond 65535 are listed"
     );
     assert_eq!(
-        archive.entries().last().map(p4kx_archive::Entry::path),
+        archive.entries().last().map(Entry::path),
         Some("Data\\Many\\69999.txt"),
         "the last Entry is read from the ZIP64 central directory"
     );
+    Ok(())
+}
+
+#[test]
+fn every_entry_carries_the_crc32c_of_its_uncompressed_data_in_both_layouts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    for (name, builder) in [("v1", ArchiveBuilder::new()), ("v2", ArchiveBuilder::v2())] {
+        let path = dir.path().join(format!("{name}.p4k"));
+        builder
+            .entry(TestEntry::stored("Data\\check.txt", b"123456789".to_vec()))
+            .entry(TestEntry::zstd("Data\\secret.txt", b"123456789".to_vec()).encrypted())
+            .entry(TestEntry::stored("Data\\empty.txt", Vec::new()))
+            .write_to(&path)?;
+
+        let archive = Archive::open(&path)?;
+
+        let crcs: Vec<_> = archive.entries().iter().map(Entry::crc32c).collect();
+        assert_eq!(
+            crcs,
+            vec![0xE306_9283, 0xE306_9283, 0],
+            "{name}: the CRC-32C of the data after decoding"
+        );
+    }
     Ok(())
 }

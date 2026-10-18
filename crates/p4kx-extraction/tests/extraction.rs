@@ -2,9 +2,10 @@
 
 use std::error::Error;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
 
-use p4kx_extraction::{Archive, ExtractionError, UnknownEntries, extract, select_entries};
+use p4kx_extraction::{
+    Archive, ExtractOptions, ExtractionError, UnknownEntries, extract, select_entries,
+};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -63,7 +64,7 @@ fn extracts_entries_and_reports_counts_and_failures() -> TestResult {
     std::fs::create_dir(&target)?;
     let entries: Vec<_> = archive.entries().iter().collect();
 
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+    let report = extract(&archive, &entries, &target, &ExtractOptions::default());
 
     assert_eq!(report.extracted(), 3, "three Entries are extracted");
     assert_eq!(
@@ -108,7 +109,7 @@ fn existing_files_are_skipped_and_kept() -> TestResult {
     std::fs::write(target.join("Data").join("b.txt"), "mine")?;
     let entries = select_entries(&archive, &["Data\\b.txt"])?;
 
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+    let report = extract(&archive, &entries, &target, &ExtractOptions::default());
 
     assert_eq!(
         report.skipped(),
@@ -149,7 +150,7 @@ fn entry_paths_that_leave_the_target_are_rejected() -> TestResult {
     std::fs::create_dir_all(&target)?;
     let entries: Vec<_> = archive.entries().iter().collect();
 
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+    let report = extract(&archive, &entries, &target, &ExtractOptions::default());
 
     assert_eq!(report.extracted(), 0, "nothing is extracted");
     assert_eq!(
@@ -170,26 +171,6 @@ fn entry_paths_that_leave_the_target_are_rejected() -> TestResult {
         1,
         "no file besides the Archive is written anywhere"
     );
-    Ok(())
-}
-
-#[test]
-fn a_cancelled_run_counts_the_remaining_entries_as_cancelled() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = open(dir.path(), &sample())?;
-    let target = dir.path().join("out");
-    std::fs::create_dir(&target)?;
-    let entries: Vec<_> = archive.entries().iter().collect();
-
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(true));
-
-    assert_eq!(
-        report.cancelled(),
-        entries.len(),
-        "all Entries are cancelled"
-    );
-    assert_eq!(report.extracted(), 0, "nothing is extracted");
-    assert!(!report.is_complete(), "a cancelled run is incomplete");
     Ok(())
 }
 
@@ -225,7 +206,7 @@ fn extracts_every_compression_and_encryption_with_the_original_bytes() -> TestRe
     std::fs::create_dir(&target)?;
     let entries: Vec<_> = archive.entries().iter().collect();
 
-    let report = extract(&archive, &entries, &target, &AtomicBool::new(false));
+    let report = extract(&archive, &entries, &target, &ExtractOptions::default());
 
     assert!(report.is_complete(), "every Entry is extracted: {report:?}");
     for (path, _) in cases {

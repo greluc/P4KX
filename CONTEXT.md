@@ -99,6 +99,11 @@ The `where` part of a Query: comparisons of a Record's values joined by `and`, `
 a Record has to meet to be selected.
 _Avoid_: filter (a Filter selects Entries)
 
+**Component selector**:
+The `[TypeName]` segment of a Query path: it selects the elements of a struct array whose struct
+is that type or derives from it, e.g. `Components[VehicleComponentParams]`.
+_Avoid_: type filter, cast
+
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML

@@ -1,8 +1,10 @@
 mod condition;
 
-use crate::query::lexer::{Keyword, Lexer, Token};
+use crate::query::lexer::{Keyword, Lexer, Symbol, Token};
 use crate::query::syntax::{Glob, Name, Path, Query, Segment};
-use crate::query::{Expected, Found, MAX_QUERY_LEN, QueryError, QueryErrorKind, Span};
+use crate::query::{
+    Expected, Found, MAX_PATH_SEGMENTS, MAX_QUERY_LEN, QueryError, QueryErrorKind, Span,
+};
 
 impl Query {
     /// Parses the text of a Query.
@@ -155,15 +157,61 @@ impl<'q> Parser<'q> {
         let head = self.field()?;
         let start = head.span();
         let mut tail = Vec::new();
-        while self.token == Token::Dot {
-            self.advance()?;
-            tail.push(Segment::Field(self.field()?));
+        loop {
+            let segment = match self.token {
+                Token::Dot => {
+                    self.advance()?;
+                    Segment::Field(self.field()?)
+                }
+                Token::Symbol(Symbol::OpenBracket) => self.bracket()?,
+                _ => break,
+            };
+            if tail.len() == MAX_PATH_SEGMENTS {
+                return Err(QueryError::new(
+                    QueryErrorKind::PathTooLong {
+                        limit: MAX_PATH_SEGMENTS,
+                    },
+                    segment.span(),
+                ));
+            }
+            tail.push(segment);
         }
         let end = tail.last().map_or(start, Segment::span);
         Ok(Path {
             head,
             tail,
             span: start.to(end),
+        })
+    }
+
+    /// Parses `[n]`, `[*]` or `[TypeName]`, starting at `[`.
+    fn bracket(&mut self) -> Result<Segment, QueryError> {
+        let (_, open) = self.advance()?;
+        let selector = match self.token {
+            Token::Symbol(Symbol::Star) => {
+                self.advance()?;
+                None
+            }
+            Token::Number(text) => {
+                let (_, span) = self.advance()?;
+                let index = Some(text)
+                    .filter(|text| text.bytes().all(|byte| byte.is_ascii_digit()))
+                    .and_then(|text| text.parse::<u32>().ok())
+                    .ok_or_else(|| QueryError::new(QueryErrorKind::InvalidIndex, span))?;
+                Some(Ok(index))
+            }
+            Token::Name(_) | Token::Quoted(_) => Some(Err(self.name(Expected::Index)?)),
+            _ => return Err(self.expected(Expected::Index)),
+        };
+        if self.token != Token::Symbol(Symbol::CloseBracket) {
+            return Err(self.expected(Expected::CloseBracket));
+        }
+        let (_, close) = self.advance()?;
+        let span = open.to(close);
+        Ok(match selector {
+            None => Segment::All(span),
+            Some(Ok(index)) => Segment::Index { index, span },
+            Some(Err(name)) => Segment::Type { name, span },
         })
     }
 

@@ -40,7 +40,8 @@ impl Serialize for Side<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut out = serializer.serialize_struct("Side", 3)?;
         out.serialize_field("size", &self.0.uncompressed_size())?;
-        out.serialize_field("crc32c", &self.0.crc32c())?;
+        let checksum = self.0.checksum();
+        out.serialize_field(checksum.name(), &checksum.value())?;
         out.serialize_field("encoding", &self.1.map(Encoding::as_str))?;
         out.end()
     }

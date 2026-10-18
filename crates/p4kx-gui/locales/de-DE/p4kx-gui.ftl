@@ -260,6 +260,39 @@ dataforge-enums = Enums
 dataforge-first-records = Erste Records
 column-type = Typ
 column-record-path = Record-Pfad
+record-change-progress = { $done } von { $total } Records, { $percent } %
+record-change-moved = Verschoben
+record-change-unreadable = Unlesbar
+record-change-moved-path = { $old } zu { $new }
+record-change-no-differences = Kein Record unterscheidet sich zwischen den DataForges.
+record-change-head-field = Feld
+record-change-field-count =
+    { $count ->
+        [one] { $number } Änderung
+       *[other] { $number } Änderungen
+    }
+record-change-loading = Die Felder von { $path } werden verglichen …
+record-change-failed = Die Felder von { $path } lassen sich nicht vergleichen: { $reason }
+record-change-stopped = Der Feldvergleich von { $path } endete ohne Ergebnis.
+record-change-only-new = Den Record gibt es nur im neuen Archiv.
+record-change-only-old = Den Record gibt es nur im alten Archiv.
+record-change-only-path = Nur der Record-Pfad hat sich geändert; die Felder sind gleich.
+record-change-no-field-changes = Kein Feld unterscheidet sich.
+record-change-unreadable-old = Der alte Record lässt sich nicht lesen: { $reason }
+record-change-unreadable-new = Der neue Record lässt sich nicht lesen: { $reason }
+record-change-record-name = Record-Name
+record-change-record-type = Record-Typ
+record-change-value-missing = –
+record-change-value-null = null
+record-change-value-struct = { $type } (Struct)
+record-change-value-array =
+    { $count ->
+        [one] { $number } Element
+       *[other] { $number } Elemente
+    }
+record-change-value-reference-at = { $path } · { $at }
+record-change-value-error = Fehler: { $reason }
+record-change-field-row = { $field }: { $old } zu { $new }
 change-extraction-action-old = Alt extrahieren ({ $number }) …
 change-extraction-action-new = Neu extrahieren ({ $number }) …
 change-extraction-scope-old = Geänderte Einträge des alten Archivs, in ihrer alten Fassung ({ $number })

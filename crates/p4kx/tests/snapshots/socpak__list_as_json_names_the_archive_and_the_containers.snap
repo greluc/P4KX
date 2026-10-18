@@ -1,0 +1,27 @@
+---
+source: crates/p4kx/tests/socpak.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "[DIR]/Data.p4k",
+  "containers": [
+    "Data\\ObjectContainers\\Ships\\AEGS\\ship_interior.socpak",
+    "ship_interior\\modules\\cockpit.socpak"
+  ],
+  "entries": [
+    {
+      "compressed_size": 23,
+      "compression": "deflate",
+      "encrypted": false,
+      "path": "cockpit\\entdata\\1001.entxml",
+      "size": 21
+    },
+    {
+      "compressed_size": 18,
+      "compression": "store",
+      "encrypted": false,
+      "path": "cockpit\\cockpit.xml",
+      "size": 18
+    }
+  ]
+}

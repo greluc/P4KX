@@ -8,6 +8,7 @@ mod diff_text;
 mod extraction_text;
 mod image_text;
 mod query_text;
+mod record_change_text;
 mod text_ids;
 
 pub use change_extraction_text::ChangeExtractionText;
@@ -17,6 +18,7 @@ pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 pub use image_text::ImageText;
 pub use query_text::QueryText;
+pub use record_change_text::RecordChangeText;
 
 use crate::Language;
 
@@ -158,6 +160,8 @@ pub enum Text {
     ChangeExtraction(ChangeExtractionText),
     /// A text of the line diff of the Comparison tab.
     Diff(DiffText),
+    /// A text of the Record list of the Comparison tab.
+    RecordChange(RecordChangeText),
     /// A text of the image preview.
     Image(ImageText),
     /// A text of the Query tab.

@@ -4,11 +4,13 @@ use unic_langid::LanguageIdentifier;
 mod comparison_text;
 mod dataforge_text;
 mod extraction_text;
+mod image_text;
 mod text_ids;
 
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use extraction_text::ExtractionText;
+pub use image_text::ImageText;
 
 use crate::Language;
 
@@ -145,6 +147,8 @@ pub enum Text {
     Comparison(ComparisonText),
     /// A text of the DataForge node and tab.
     DataForge(DataForgeText),
+    /// A text of the image preview.
+    Image(ImageText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

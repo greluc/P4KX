@@ -12,6 +12,7 @@ mod dataforge_summary;
 mod empty;
 mod extraction;
 mod extraction_outcome;
+mod image_preview;
 mod licence;
 mod menu;
 mod preview;

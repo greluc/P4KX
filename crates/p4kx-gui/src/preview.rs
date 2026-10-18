@@ -1,14 +1,18 @@
 mod contents;
+mod image;
+mod texture_info;
 
 use std::io::Read;
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::Entry;
+use p4kx_extraction::{Entry, Texture};
 
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
+pub use image::{ImagePreview, ImageStatus, MipStatus};
+pub use texture_info::TextureInfo;
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -27,6 +31,8 @@ pub enum PreviewTab {
     Text,
     /// The data as offsets, hexadecimal bytes and printable characters.
     Hex,
+    /// A texture decoded as an image, one mip at a time.
+    Image,
     /// The summary of the Archive's DataForge instead of the selected Entry.
     DataForge,
 }
@@ -68,31 +74,57 @@ enum State {
 pub struct Preview {
     entry: u32,
     state: State,
+    image: Option<ImagePreview>,
 }
 
 impl Preview {
     /// Starts reading the Entry `id` of `index` on a background thread, calling `wake` from it
-    /// once the data is ready; reads on the calling thread when no thread can be started.
+    /// once the data is ready; reads on the calling thread when no thread can be started. A
+    /// texture's header also starts its [`ImagePreview`] on a thread of its own.
     ///
     /// Nothing is read from an Archive that changed on disk, and data read while it changed is
     /// dropped.
     pub(crate) fn start(
         index: &Arc<EntryIndex>,
         id: u32,
-        wake: impl Fn() + Send + 'static,
+        wake: impl Fn() + Send + Sync + 'static,
     ) -> Self {
         if index.watch().check().is_err() {
             return Self {
                 entry: id,
                 state: State::ArchiveChanged,
+                image: None,
             };
         }
+        let wake = Arc::new(wake);
+        let image = index
+            .entry(id)
+            .filter(|entry| Texture::is_header_path(entry.path()))
+            .map(|_| {
+                let wake = Arc::clone(&wake);
+                ImagePreview::start(index, id, move || wake())
+            });
         let state = match index.entry(id) {
             None => State::Failed(None),
             Some(entry) if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT => State::TooLarge,
-            Some(_) => spawn(index, id, wake),
+            Some(_) => spawn(index, id, move || wake()),
         };
-        Self { entry: id, state }
+        Self {
+            entry: id,
+            state,
+            image,
+        }
+    }
+
+    /// Returns the image preview when the Entry is the header of a texture.
+    #[must_use]
+    pub const fn image(&self) -> Option<&ImagePreview> {
+        self.image.as_ref()
+    }
+
+    /// Returns the image preview for choosing its mip, when the Entry is the header of a texture.
+    pub const fn image_mut(&mut self) -> Option<&mut ImagePreview> {
+        self.image.as_mut()
     }
 
     /// Returns the id of the previewed Entry.
@@ -128,8 +160,14 @@ impl Preview {
         }
     }
 
-    /// Takes the data once it was read; returns whether reading finished.
+    /// Takes the data once it was read and the results of the image preview; returns whether
+    /// one arrived.
     pub(crate) fn poll(&mut self) -> bool {
+        let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
+        self.poll_data() || imaged
+    }
+
+    fn poll_data(&mut self) -> bool {
         let State::Loading(result) = &self.state else {
             return false;
         };

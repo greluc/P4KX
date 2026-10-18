@@ -186,3 +186,16 @@ dataforge-enums = Enums
 dataforge-first-records = First Records
 column-type = Type
 column-record-path = Record path
+
+preview-tab-image = Image
+image-mip = Mip
+image-format = Format
+image-size = Size
+image-mips = Mips
+image-faces = Cubemap faces
+image-dimensions = { $width } × { $height }
+image-none = –
+image-shown = Mip { $level }: { $width } × { $height } pixels
+image-decoding = Decoding mip { $level } of { $path }…
+image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
+image-failed = Cannot decode { $path }: { $reason }

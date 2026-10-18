@@ -73,6 +73,7 @@ sind keine neuen Farben.
 | Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
 | Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
+| Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
 
 ## Entscheidungen
 
@@ -141,6 +142,16 @@ Geändert `warning`, immer als `.chip` mit Text im Text-Tint (Warning ist selbst
 Schwarz zugelassen). In den Zähler-Kacheln steht der Chip an der Stelle des `.kpi-label`, wie der
 Chip in `.kpi-card`; der Akzentbalken bleibt Orange. Die Farbe ist nie der einzige Hinweis, der
 Chip trägt immer das Wort.
+
+**D.12 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
+Vorschau den Tab „Bild"; andere Einträge kehren zu „Text" zurück. Format, Größe, Mip-Anzahl und
+Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des Vergleichs. Die
+Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
+„1024" …): jede Stufe ist eindeutig, einen Klick entfernt und per Tastatur erreichbar. Gezeigt
+wird anfangs das größte Mip, das in die Vorschau passt, ein Texel je Gerätepixel ohne Skalierung;
+größere Mips scrollen. Mips über der größten Texturgröße des Grafiktreibers werden nicht
+angeboten. Einen Schachbrett-Hintergrund für Transparenz gibt es nicht, weil das DS dafür keine
+Farben hat; Alpha wird auf `surface-panel` gemischt.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

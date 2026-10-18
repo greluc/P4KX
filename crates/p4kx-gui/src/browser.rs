@@ -9,7 +9,8 @@ use p4kx_extraction::Filter;
 use crate::record_search::RecordSearch;
 use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{
-    EntryIndex, ExtractionScope, FolderId, Preview, RecordTree, Sort, SortColumn, SortDirection,
+    EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort, SortColumn,
+    SortDirection,
 };
 
 /// One visible row of the path tree.
@@ -278,9 +279,14 @@ impl Browser {
         self.preview.as_ref()
     }
 
+    /// Returns the image preview of the selected Entry when it is the header of a texture.
+    pub fn image_mut(&mut self) -> Option<&mut ImagePreview> {
+        self.preview.as_mut().and_then(Preview::image_mut)
+    }
+
     /// Selects the Entry `id` and reads its preview on a background thread, unless it is
     /// selected already; `wake` is called from that thread once the data is ready.
-    pub fn select_entry(&mut self, id: u32, wake: impl Fn() + Send + 'static) {
+    pub fn select_entry(&mut self, id: u32, wake: impl Fn() + Send + Sync + 'static) {
         if self.selected_entry() != Some(id) {
             self.preview = Some(Preview::start(&self.index, id, wake));
         }

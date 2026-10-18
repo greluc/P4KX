@@ -157,7 +157,7 @@ fn a_changed_record_lists_the_changed_field_with_old_and_new_value() -> TestResu
                         .iter()
                         .map(|field| {
                             (
-                                field.path().to_owned(),
+                                field.path().to_string(),
                                 field.old_value().cloned(),
                                 field.new_value().cloned(),
                             )
@@ -170,7 +170,7 @@ fn a_changed_record_lists_the_changed_field_with_old_and_new_value() -> TestResu
 
     assert_eq!(
         fields,
-        ["speed: Some(Int32(4)) -> Some(Int32(40))"],
+        ["speed: Some(Value(Int32(4))) -> Some(Value(Int32(40)))"],
         "only the changed field"
     );
     Ok(())

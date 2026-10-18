@@ -193,6 +193,9 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
+    /// Converts CryXml Entries to UTF-8 XML; text XML and every other Entry are written unchanged.
+    #[arg(long)]
+    pub(crate) convert: bool,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,

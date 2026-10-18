@@ -59,6 +59,8 @@ pub struct Progress {
 pub struct ExtractOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
+    /// Converts `CryXml` Entries to UTF-8 XML; text XML and every other Entry stay unchanged.
+    pub convert: bool,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
@@ -71,6 +73,7 @@ impl fmt::Debug for ExtractOptions<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExtractOptions")
             .field("policy", &self.policy)
+            .field("convert", &self.convert)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("watch", &self.watch)

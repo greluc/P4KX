@@ -132,7 +132,7 @@ fn the_alpha_tail_of_an_entry_is_found_and_merged_into_alpha() -> TestResult {
     let texture = Texture::from_archive(&archive, HEADER)?;
     let tail = dds.alpha_tail().ok_or("an alpha tail")?;
 
-    let found = texture.alpha_tail().ok_or("the alpha tail is found")?;
+    let found = texture.alpha_tail().ok_or("the alpha tail is found")??;
     assert_eq!(found.name(), format!("{HEADER}.a"), "the tail's Entry");
     assert_eq!(
         found.header().format().to_string(),
@@ -251,6 +251,74 @@ fn an_alpha_tail_of_another_size_is_named() -> TestResult {
         ),
         "{result:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn an_alpha_tail_with_fewer_mips_fails_the_missing_mip_by_name() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = with_alpha().write_files(dir.path(), "glass.dds")?;
+    let short = SplitDds::new(TestTextureFormat::LegacyBgra8, 8, 4)
+        .mips(2)
+        .alpha(TestTextureFormat::R8)
+        .alpha_tail()
+        .ok_or("an alpha tail")?;
+    std::fs::write(dir.path().join("glass.dds.a"), short.header_bytes())?;
+    for index in 1..=2 {
+        std::fs::remove_file(dir.path().join(format!("glass.dds.{index}a")))?;
+    }
+    let texture = Texture::from_file(&header)?;
+
+    let present = texture.decode_mip(1)?;
+    let missing = texture.decode_mip(3);
+
+    assert_eq!(
+        present.pixels().get(3),
+        short.surface_mip(0, 1).first(),
+        "mip 1 still gets its alpha"
+    );
+    let Err(ConversionError::Texture { texture, source }) = &missing else {
+        panic!("mip 3 has no alpha: {missing:?}");
+    };
+    assert!(
+        texture.ends_with("glass.dds.a"),
+        "the tail is named: {texture}"
+    );
+    assert!(
+        matches!(
+            source,
+            TextureError::AlphaTailMips {
+                level: 3,
+                mip_count: 2
+            }
+        ),
+        "{source:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_broken_alpha_tail_only_fails_where_it_is_used() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = with_alpha().write_files(dir.path(), "glass.dds")?;
+    std::fs::write(dir.path().join("glass.dds.a"), b"not a texture")?;
+    let texture = Texture::from_file(&header)?;
+
+    let tail = texture.alpha_tail();
+    let merged = texture.merge_to_file(&dir.path().join("merged.dds"));
+    let png = texture.png_to_file(&dir.path().join("glass.png"), 0);
+
+    assert!(texture.has_alpha_tail(), "the tail is there");
+    assert!(matches!(tail, Some(Err(_))), "but broken: {tail:?}");
+    assert!(merged.is_ok(), "the colour still merges: {merged:?}");
+    let Err(ConversionError::Texture { texture, .. }) = &png else {
+        panic!("the PNG needs the tail: {png:?}");
+    };
+    assert!(
+        texture.ends_with("glass.dds.a"),
+        "the tail is named: {texture}"
+    );
+    assert!(!dir.path().join("glass.png").exists(), "nothing is written");
     Ok(())
 }
 

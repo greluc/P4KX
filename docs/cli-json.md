@@ -89,7 +89,8 @@ Also `p4kx texture info <file> --json` for a header file on disk.
 ```json
 {"texture": "Data\\Textures\\hull_ddna.dds", "format": "BC7_UNORM_SRGB", "width": 64,
  "height": 32, "depth": 1, "mip_count": 7, "array_size": 1, "faces": 1, "cubemap": false,
- "parts": 4, "alpha_tail": {"format": "BC4_UNORM", "parts": 4}}
+ "parts": 4, "alpha_tail": {"format": "BC4_UNORM", "parts": 4,
+ "error": null}}
 ```
 
 `texture` is the Entry path, or the path of the file on disk. `format` is the DXGI name of the
@@ -98,7 +99,8 @@ this version does not know is described by its DXGI code, `FourCC` or bit masks.
 unless the texture is a volume, `faces` is 6 for a cubemap and 1 otherwise. `parts` is the number
 of mip parts `.1` … `.N` the header needs, or `null` when the format's size is unknown.
 `alpha_tail` is `null` without an alpha or smoothness tail `.a`; otherwise it gives the tail's
-`format` and its number of `parts` `.1a` … `.Na`.
+`format` and its number of `parts` `.1a` … `.Na`. A tail that cannot be read keeps the command
+working: `format` and `parts` are then `null` and `error` says what is wrong.
 
 ## `p4kx texture merge <archive> <entry> --out <file> --json`
 

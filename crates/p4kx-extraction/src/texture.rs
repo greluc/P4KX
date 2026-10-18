@@ -20,19 +20,18 @@ pub struct Texture<'a> {
     header_size: u64,
     header: DdsHeader,
     parts: Parts<'a>,
-    alpha: Option<Box<Self>>,
+    alpha: Option<Parts<'a>>,
 }
 
 impl<'a> Texture<'a> {
     /// Opens the texture whose header is the Entry at `path`, matched with either separator and
     /// ignoring ASCII case, with its alpha tail when the Archive has one; a path ending in `.a`
-    /// opens an alpha tail on its own.
+    /// opens an alpha tail on its own. The alpha tail is only read where it is used.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::UnknownEntry`] when no Entry has that path, and another
-    /// [`ConversionError`] when the Entry or its alpha tail cannot be read or holds no DDS
-    /// header.
+    /// [`ConversionError`] when the Entry cannot be read or holds no DDS header.
     pub fn from_archive(archive: &'a Archive, path: &str) -> Result<Self, ConversionError> {
         let found = Parts::in_archive(archive, path)
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
@@ -40,14 +39,10 @@ impl<'a> Texture<'a> {
     }
 
     fn from_found(found: Found<'a>) -> Result<Self, ConversionError> {
-        let alpha = found
-            .alpha
-            .map(|parts| Self::from_parts(parts, None).map(Box::new))
-            .transpose()?;
-        Self::from_parts(found.colour, alpha)
+        Self::from_parts(found.colour, found.alpha)
     }
 
-    fn from_parts(parts: Parts<'a>, alpha: Option<Box<Self>>) -> Result<Self, ConversionError> {
+    fn from_parts(parts: Parts<'a>, alpha: Option<Parts<'a>>) -> Result<Self, ConversionError> {
         let (name, header_size, header) = match &parts {
             Parts::Archive {
                 archive, header, ..
@@ -91,10 +86,24 @@ impl<'a> Texture<'a> {
         &self.header
     }
 
-    /// Returns the alpha or smoothness tail, a texture of its own, or `None` when there is none.
+    /// Returns whether the texture has an alpha or smoothness tail, without reading it.
     #[must_use]
-    pub fn alpha_tail(&self) -> Option<&Self> {
-        self.alpha.as_deref()
+    pub const fn has_alpha_tail(&self) -> bool {
+        self.alpha.is_some()
+    }
+
+    /// Opens the alpha or smoothness tail as a texture of its own, or returns `None` when there
+    /// is none.
+    ///
+    /// # Errors
+    ///
+    /// The inner result is a [`ConversionError`] naming the tail when it cannot be read or holds
+    /// no DDS header; the texture itself stays usable.
+    #[must_use]
+    pub fn alpha_tail(&self) -> Option<Result<Self, ConversionError>> {
+        self.alpha
+            .clone()
+            .map(|parts| Self::from_parts(parts, None))
     }
 
     /// Returns the number of sibling parts the header needs.
@@ -177,19 +186,31 @@ impl<'a> Texture<'a> {
     /// # Errors
     ///
     /// Returns a [`ConversionError`] wrapping [`TextureError::UnsupportedDecode`] before reading
-    /// anything when the format of the texture or its alpha tail has no decoder,
-    /// [`TextureError::AlphaTailSize`] when the alpha tail does not fit the texture, and the
-    /// errors of [`Texture::read_mip`].
+    /// any mip when the format of the texture or its alpha tail has no decoder, the error of
+    /// opening the alpha tail when it is broken, [`TextureError::AlphaTailMips`] when the tail
+    /// lacks the level, [`TextureError::AlphaTailSize`] when the tail does not fit the texture,
+    /// and the errors of [`Texture::read_mip`]. A tail that cannot be used is an error, never
+    /// silently dropped.
     pub fn decode_surfaces(&self, level: u32) -> Result<Vec<RgbaImage>, ConversionError> {
         self.check_decodable()?;
-        if let Some(alpha) = self.alpha_tail() {
+        let alpha = self.alpha_tail().transpose()?;
+        if let Some(alpha) = &alpha {
             alpha.check_decodable()?;
+            if level >= alpha.header.mip_count() && level < self.header.mip_count() {
+                return Err(ConversionError::of_texture(
+                    &alpha.name,
+                    TextureError::AlphaTailMips {
+                        level,
+                        mip_count: alpha.header.mip_count(),
+                    },
+                ));
+            }
         }
         let mut images = self
             .read_mip(level)?
             .decode_surfaces()
             .map_err(|error| ConversionError::of_texture(&self.name, error))?;
-        let Some(alpha) = self.alpha_tail() else {
+        let Some(alpha) = alpha else {
             return Ok(images);
         };
         let tails = alpha.decode_surfaces(level)?;
@@ -250,7 +271,11 @@ impl<'a> Texture<'a> {
                     .collect()
             }
         };
-        let alpha = self.alpha_tail().map(Self::input_files).unwrap_or_default();
+        let alpha = match (self.alpha_tail(), &self.alpha) {
+            (Some(Ok(tail)), _) => tail.input_files(),
+            (Some(Err(_)), Some(Parts::Files { header, .. })) => vec![header.clone()],
+            _ => Vec::new(),
+        };
         own.into_iter().chain(alpha).collect()
     }
 }
@@ -262,7 +287,7 @@ impl Texture<'static> {
     /// # Errors
     ///
     /// Returns [`ConversionError::NoSuchFile`] when the file does not exist, and another
-    /// [`ConversionError`] when it or its alpha tail cannot be read or holds no DDS header.
+    /// [`ConversionError`] when it cannot be read or holds no DDS header.
     pub fn from_file(path: &Path) -> Result<Self, ConversionError> {
         if let Err(source) = std::fs::metadata(path) {
             return Err(if source.kind() == io::ErrorKind::NotFound {

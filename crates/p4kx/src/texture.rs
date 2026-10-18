@@ -28,8 +28,45 @@ struct InfoJson<'a> {
 
 #[derive(Serialize)]
 struct AlphaTailJson {
-    format: String,
+    format: Option<String>,
     parts: Option<u32>,
+    error: Option<String>,
+}
+
+impl AlphaTailJson {
+    fn of(tail: Result<Texture<'_>, ConversionError>) -> Self {
+        match tail {
+            Ok(tail) => Self {
+                format: Some(tail.header().format().to_string()),
+                parts: tail.part_count().ok(),
+                error: None,
+            },
+            Err(error) => Self {
+                format: None,
+                parts: None,
+                error: Some(error_chain(&error)),
+            },
+        }
+    }
+
+    fn describe(&self) -> String {
+        match (&self.format, &self.error) {
+            (_, Some(error)) => format!("broken: {error}"),
+            (Some(format), None) => format!("{format}, {} parts", count(self.parts)),
+            (None, None) => UNKNOWN.to_owned(),
+        }
+    }
+}
+
+fn error_chain(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 #[derive(Serialize)]
@@ -100,10 +137,7 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         faces: header.faces(),
         cubemap: header.is_cubemap(),
         parts: texture.part_count().ok(),
-        alpha_tail: texture.alpha_tail().map(|tail| AlphaTailJson {
-            format: tail.header().format().to_string(),
-            parts: tail.part_count().ok(),
-        }),
+        alpha_tail: texture.alpha_tail().map(AlphaTailJson::of),
     };
     if as_json {
         json::print(&info)?;
@@ -120,10 +154,9 @@ fn info(texture: &Texture<'_>, as_json: bool) -> Result<()> {
         ("Parts", count(info.parts)),
         (
             "Alpha tail",
-            info.alpha_tail.map_or_else(
-                || NONE.to_owned(),
-                |tail| format!("{}, {} parts", tail.format, count(tail.parts)),
-            ),
+            info.alpha_tail
+                .as_ref()
+                .map_or_else(|| NONE.to_owned(), AlphaTailJson::describe),
         ),
     ];
     let mut out = io::stdout().lock();

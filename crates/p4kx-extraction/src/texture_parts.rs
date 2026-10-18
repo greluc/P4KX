@@ -11,7 +11,7 @@ use rayon::prelude::*;
 const ALPHA_SUFFIX: &str = "a";
 
 /// Where the header and the parts of one split texture are stored.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Parts<'a> {
     /// Entries of an Archive, by part number.
     Archive {

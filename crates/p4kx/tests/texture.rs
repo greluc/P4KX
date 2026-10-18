@@ -128,9 +128,45 @@ fn info_of_a_file_prints_json() -> TestResult {
             "faces": 6,
             "cubemap": true,
             "parts": 2,
-            "alpha_tail": {"format": "R8_UNORM", "parts": 2},
+            "alpha_tail": {"format": "R8_UNORM", "parts": 2, "error": null},
         }),
         "the JSON shape"
+    );
+    Ok(())
+}
+
+#[test]
+fn info_reports_a_broken_alpha_tail_instead_of_failing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8)
+        .alpha(TestTextureFormat::R8)
+        .write_files(dir.path(), "glass.dds")?;
+    std::fs::write(dir.path().join("glass.dds.a"), b"not a texture")?;
+
+    p4kx()?
+        .args(["texture", "info"])
+        .arg(&header)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"(?m)^Format: +BC1_UNORM$")?)
+        .stdout(predicate::str::is_match(
+            r"(?m)^Alpha tail: +broken: .*glass\.dds\.a.*not a DDS texture",
+        )?);
+    let output = p4kx()?
+        .args(["--json", "texture", "info"])
+        .arg(&header)
+        .output()?;
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        json["alpha_tail"]["format"],
+        serde_json::Value::Null,
+        "no format"
+    );
+    assert!(
+        json["alpha_tail"]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("not a DDS texture")),
+        "the error: {json}"
     );
     Ok(())
 }

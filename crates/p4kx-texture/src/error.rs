@@ -102,6 +102,14 @@ pub enum TextureError {
         /// The number of images given.
         faces: usize,
     },
+    /// The alpha tail has fewer mips than the texture and lacks the requested one.
+    #[error("the alpha tail has no mip {level}: it has {mip_count} mips, 0 being the largest")]
+    AlphaTailMips {
+        /// The requested level.
+        level: u32,
+        /// The number of mips of the alpha tail.
+        mip_count: u32,
+    },
     /// The alpha tail's mip is not the size of the colour mip it belongs to.
     #[error(
         "the alpha tail is {width} x {height}, but the texture is {expected_width} x {expected_height}"

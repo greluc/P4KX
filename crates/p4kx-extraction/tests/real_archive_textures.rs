@@ -148,7 +148,7 @@ fn check_alpha_tail(
     let texture = Texture::from_archive(archive, colour_path)?;
     let found = texture
         .alpha_tail()
-        .ok_or_else(|| format!("{colour_path}: the alpha tail is not found"))?;
+        .ok_or_else(|| format!("{colour_path}: the alpha tail is not found"))??;
     let (colour, alpha) = (texture.header(), found.header());
     if (alpha.width(), alpha.height()) != (colour.width(), colour.height()) {
         return Err(format!("{colour_path}: the alpha tail has another size").into());

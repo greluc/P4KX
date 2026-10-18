@@ -103,7 +103,7 @@ impl Texture<'_> {
             width,
             height,
             files,
-            alpha_tail: self.alpha_tail().is_some(),
+            alpha_tail: self.has_alpha_tail(),
         })
     }
 

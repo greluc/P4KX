@@ -43,8 +43,14 @@ function Invoke-Msiexec([string[]] $Arguments, [string] $Name) {
     }
 }
 
+function Get-ComProperty($Target, [string] $Name, [object[]] $Arguments) {
+    , [System.__ComObject].InvokeMember($Name, [System.Reflection.BindingFlags]::GetProperty, $null, $Target, $Arguments)
+}
+
 function Get-Installed {
-    @($installer.RelatedProducts("{$UpgradeCode}"))
+    $related = Get-ComProperty $installer 'RelatedProducts' @("{$UpgradeCode}")
+    $count = Get-ComProperty $related 'Count' $null
+    , @(for ($index = 0; $index -lt $count; $index++) { Get-ComProperty $related 'Item' @($index) })
 }
 
 Invoke-Msiexec @('/i', $Msi) 'install.log'
@@ -56,7 +62,7 @@ if ((Get-Installed).Count -ne 1) { throw 'the install is not registered once' }
 Invoke-Msiexec @('/i', $NextMsi) 'upgrade.log'
 $installed = Get-Installed
 if ($installed.Count -ne 1) { throw "the upgrade left $($installed.Count) installations" }
-$version = $installer.ProductInfo($installed[0], 'VersionString')
+$version = Get-ComProperty $installer 'ProductInfo' @($installed[0], 'VersionString')
 if ($version -ne $NextVersion) { throw "the upgrade installed $version instead of $NextVersion" }
 
 Invoke-Msiexec @('/x', $installed[0]) 'uninstall.log'

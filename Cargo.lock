@@ -3031,6 +3031,7 @@ dependencies = [
  "ctrlc",
  "exr",
  "insta",
+ "jsonschema",
  "lewton",
  "p4kx-assembly",
  "p4kx-channels",
@@ -3148,11 +3149,15 @@ version = "0.1.0"
 dependencies = [
  "crc32c",
  "jsonschema",
+ "p4kx-channels",
  "p4kx-extraction",
  "p4kx-testkit",
  "rayon",
+ "schemars",
+ "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

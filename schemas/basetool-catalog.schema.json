@@ -1,0 +1,255 @@
+{
+  "$defs": {
+    "BuildSource": {
+      "additionalProperties": false,
+      "description": "The Build of the Archive.",
+      "properties": {
+        "branch": {
+          "description": "The branch, e.g. `sc-alpha-4.4.0`.",
+          "type": "string"
+        },
+        "buildId": {
+          "description": "The `BuildId` of the build manifest.",
+          "type": "string"
+        },
+        "changeNumber": {
+          "description": "The Perforce change number the Build was made from.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The version, e.g. `4.4.162.12345`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branch",
+        "buildId",
+        "changeNumber",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Completeness": {
+      "additionalProperties": false,
+      "description": "The completeness of every kind.",
+      "properties": {
+        "manufacturers": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `manufacturers`."
+        }
+      },
+      "required": [
+        "manufacturers"
+      ],
+      "type": "object"
+    },
+    "Guid": {
+      "description": "A GUID as canonical lower-case UUID text.",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "KindCompleteness": {
+      "description": "Whether a kind holds every Record of the Build or only those a Filter selected.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Every Record of the kind is listed; one missing from the catalog was removed from the game.",
+          "properties": {
+            "status": {
+              "const": "complete",
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Only the Records the Filter selected are listed.",
+          "properties": {
+            "filter": {
+              "description": "The Filter text.",
+              "type": "string"
+            },
+            "status": {
+              "const": "partial",
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "filter"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "LocalisedText": {
+      "additionalProperties": false,
+      "description": "A text the game localises: its localisation key and the resolved English and German texts.",
+      "properties": {
+        "de": {
+          "description": "The German text, `null` when the key is not resolved.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "en": {
+          "description": "The English text, `null` when the key is not resolved.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "key": {
+          "description": "The localisation key, e.g. `@manufacturer_NameACAS`, `null` when it is unknown.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "de",
+        "en",
+        "key"
+      ],
+      "type": "object"
+    },
+    "Manufacturer": {
+      "additionalProperties": false,
+      "description": "A manufacturer: an `SCItemManufacturer` Record.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ACAS` for `SCItemManufacturer.ACAS`.",
+          "type": "string"
+        },
+        "code": {
+          "description": "The manufacturer code, e.g. `ACAS`, `null` when it cannot be read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The description."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "code",
+        "description",
+        "guid",
+        "name",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where a catalog came from.",
+      "properties": {
+        "archiveModified": {
+          "description": "The modification time of the Archive file, UTC in RFC 3339 form, `null` when unknown.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "archiveSize": {
+          "description": "The size of the Archive file in bytes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "build": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BuildSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Build from the Channel's build manifest, `null` when it is unknown."
+        },
+        "channel": {
+          "description": "The Channel: the name of the folder holding the Archive, `null` when there is none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exportedAt": {
+          "description": "When the catalog was written, UTC in RFC 3339 form.",
+          "type": "string"
+        },
+        "toolVersion": {
+          "description": "The version of P4K-Extractor that wrote the catalog.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "archiveModified",
+        "archiveSize",
+        "build",
+        "channel",
+        "exportedAt",
+        "toolVersion"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The Basetool catalog: the game data the basetool's P4K import reads.",
+  "properties": {
+    "completeness": {
+      "$ref": "#/$defs/Completeness",
+      "description": "Whether each kind is a complete snapshot of the Build."
+    },
+    "manufacturers": {
+      "description": "The manufacturers, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Manufacturer"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "description": "The version of the catalog shape; an import rejects a version it does not know.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/Source",
+      "description": "The Archive and Build the catalog was made from."
+    }
+  },
+  "required": [
+    "completeness",
+    "manufacturers",
+    "schemaVersion",
+    "source"
+  ],
+  "title": "P4K-Extractor Basetool catalog",
+  "type": "object"
+}

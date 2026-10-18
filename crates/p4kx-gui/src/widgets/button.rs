@@ -138,20 +138,34 @@ impl Look {
     }
 }
 
+const fn metrics(size: Size) -> (f32, f32, f32) {
+    match size {
+        Size::Normal => (BUTTON_HEIGHT, BUTTON_PADDING_X, FS_XS),
+        Size::Compact => (BUTTON_XS_HEIGHT, BUTTON_XS_PADDING_X, BUTTON_XS_SIZE),
+    }
+}
+
+fn label_galley(ui: &Ui, size: Size, label: &str) -> std::sync::Arc<egui::Galley> {
+    let (_, _, font_size) = metrics(size);
+    WidgetText::from(caps(label, font_size, Weight::Bold, BUTTON_TRACKING)).into_galley(
+        ui,
+        Some(TextWrapMode::Extend),
+        f32::INFINITY,
+        TextStyle::Button,
+    )
+}
+
+/// Returns the width of a button of `size` with `label`.
+pub(crate) fn width(ui: &Ui, size: Size, label: &str) -> f32 {
+    let (_, padding, _) = metrics(size);
+    padding.mul_add(2.0, label_galley(ui, size, label).size().x)
+}
+
 /// Shows a button of `kind` and `size` with `label` set in upper case; its accessible name stays
 /// `label`. A disabled button senses no click.
 pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: bool) -> Response {
-    let (height, padding, font_size) = match size {
-        Size::Normal => (BUTTON_HEIGHT, BUTTON_PADDING_X, FS_XS),
-        Size::Compact => (BUTTON_XS_HEIGHT, BUTTON_XS_PADDING_X, BUTTON_XS_SIZE),
-    };
-    let galley = WidgetText::from(caps(label, font_size, Weight::Bold, BUTTON_TRACKING))
-        .into_galley(
-            ui,
-            Some(TextWrapMode::Extend),
-            f32::INFINITY,
-            TextStyle::Button,
-        );
+    let (height, padding, _) = metrics(size);
+    let galley = label_galley(ui, size, label);
     let desired = vec2(padding.mul_add(2.0, galley.size().x), height);
     let sense = if enabled {
         Sense::click()

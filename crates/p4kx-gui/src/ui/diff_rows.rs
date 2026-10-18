@@ -1,0 +1,383 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use egui::{
+    Color32, CornerRadius, Galley, Id, Painter, Rect, Role, ScrollArea, Sense, Stroke, Ui,
+    WidgetInfo, pos2, vec2,
+};
+use fluent_bundle::FluentValue;
+use p4kx_comparison::LineKind;
+
+use super::diff_line::display;
+use crate::theme::desktop::{
+    ACTIVE_BAR, DIFF_ADDED_FILL, DIFF_FONT, DIFF_GUTTER_PADDING_X, DIFF_MARKER_GAP,
+    DIFF_REMOVED_FILL, DIFF_ROW_HEIGHT,
+};
+use crate::theme::palette;
+use crate::theme::tokens::{Weight, font};
+use crate::{ComparisonSide, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffText, Texts};
+
+const MAX_ROWS: usize = 512;
+const SIDES: [ComparisonSide; 2] = [ComparisonSide::Old, ComparisonSide::New];
+
+/// The part of a row that names the hunk head for assistive technology; sides are 0 and 1.
+const HUNK_PART: usize = 2;
+
+/// The laid-out texts of one row.
+#[derive(Clone)]
+enum RowGalleys {
+    /// The lines a hunk covers, per side, in regular and in bold for the current hunk.
+    Hunk {
+        regular: [Arc<Galley>; 2],
+        bold: [Arc<Galley>; 2],
+    },
+    /// The line number and the line, per side that has one.
+    Lines([Option<(Arc<Galley>, Arc<Galley>)>; 2]),
+}
+
+/// The laid-out texts of the rows shown recently, kept across frames until the diff, the
+/// language or the scale changes.
+#[derive(Clone, Default)]
+struct RowCache {
+    key: Option<Id>,
+    gutter: f32,
+    marker: f32,
+    widest: f32,
+    markers: Option<[Arc<Galley>; 2]>,
+    rows: HashMap<u32, RowGalleys>,
+}
+
+/// What the rows need besides the document: the texts, the diff's generation and the hunk
+/// navigated to.
+pub(super) struct Rows<'a> {
+    pub(super) texts: &'a Texts,
+    pub(super) document: &'a DiffDocument,
+    pub(super) generation: u64,
+    pub(super) current: Option<usize>,
+    pub(super) scroll_to: Option<u32>,
+}
+
+/// Shows the virtual side-by-side rows of `rows.document`; only the visible rows are laid out,
+/// once.
+pub(super) fn show(ui: &mut Ui, rows: &Rows<'_>) {
+    let mut cache = RowCache::load(ui, rows);
+    let total = rows.document.rows().len();
+    let mut area = ScrollArea::both()
+        .id_salt(("comparison-diff-rows", rows.generation))
+        .auto_shrink(false);
+    if let Some(row) = rows.scroll_to {
+        area = area.vertical_scroll_offset(row_top(row as usize));
+    }
+    area.show_viewport(ui, |ui, viewport| {
+        let origin = ui.max_rect().min;
+        let half = (viewport.width() / 2.0).floor();
+        let text_left = cache.gutter + cache.marker + DIFF_MARKER_GAP;
+        let extra = (cache.widest - (half - text_left)).max(0.0);
+        ui.allocate_rect(
+            Rect::from_min_size(origin, vec2(viewport.width() + extra, row_top(total))),
+            Sense::hover(),
+        );
+        ui.data_mut(|data| data.insert_temp(split_id(), half));
+        let left = origin.x + viewport.min.x;
+        let first = row_at(viewport.min.y.floor());
+        let last = row_at(viewport.max.y + DIFF_ROW_HEIGHT - 1.0).min(total);
+        let frame = Frame {
+            left,
+            half,
+            text_left,
+            scroll: viewport.min.x,
+        };
+        for index in first..last {
+            let top = origin.y + row_top(index);
+            paint_row(ui, rows, &mut cache, &frame, (index, top));
+        }
+        let x = left + half;
+        ui.painter().vline(
+            x,
+            (origin.y + viewport.min.y)..=(origin.y + viewport.max.y),
+            Stroke::new(1.0, palette::GRAY_3),
+        );
+    });
+    cache.store(ui);
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "a row count fits the precision of a scroll offset"
+)]
+fn row_top(index: usize) -> f32 {
+    index as f32 * DIFF_ROW_HEIGHT
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a non-negative row position saturates into a row index"
+)]
+fn row_at(y: f32) -> usize {
+    (y / DIFF_ROW_HEIGHT).floor().max(0.0) as usize
+}
+
+struct Frame {
+    left: f32,
+    half: f32,
+    text_left: f32,
+    scroll: f32,
+}
+
+impl Frame {
+    fn column(&self, side: usize, top: f32) -> Rect {
+        let left = if side == 0 {
+            self.left
+        } else {
+            self.left + self.half
+        };
+        Rect::from_min_size(pos2(left, top), vec2(self.half, DIFF_ROW_HEIGHT))
+    }
+}
+
+fn paint_row(
+    ui: &Ui,
+    rows: &Rows<'_>,
+    cache: &mut RowCache,
+    frame: &Frame,
+    (index, top): (usize, f32),
+) {
+    let Some(&row) = rows.document.rows().get(index) else {
+        return;
+    };
+    let id = u32::try_from(index).unwrap_or(u32::MAX);
+    let galleys = cache.row(ui, rows, id, row);
+    let painter = ui.painter();
+    match (row, galleys) {
+        (DiffRow::Hunk(hunk), RowGalleys::Hunk { regular, bold }) => {
+            let rect = frame.column(0, top).union(frame.column(1, top));
+            painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
+            let current = rows.current == Some(hunk as usize);
+            if current {
+                let bar = rect.with_max_x(rect.left() + ACTIVE_BAR);
+                painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+            }
+            let (ranges, colour) = if current {
+                (bold, palette::WHITE)
+            } else {
+                (regular, palette::GRAY_2_TEXT)
+            };
+            for (side, range) in ranges.iter().enumerate() {
+                let cell = frame.column(side, top);
+                let at = pos2(cell.left() + DIFF_GUTTER_PADDING_X, centre(cell, range));
+                painter
+                    .with_clip_rect(cell)
+                    .galley(at, Arc::clone(range), colour);
+            }
+            label(ui, rect, (id, HUNK_PART), || {
+                let names: Vec<String> = SIDES
+                    .iter()
+                    .map(|&side| hunk_text(rows, hunk, side))
+                    .collect();
+                names.join(" | ")
+            });
+        }
+        (DiffRow::Lines { old, new }, RowGalleys::Lines(lines)) => {
+            for (side, cell) in [old, new].into_iter().enumerate() {
+                let (Some(cell), Some(Some((number, text)))) = (cell, lines.get(side)) else {
+                    continue;
+                };
+                let rect = frame.column(side, top);
+                paint_cell(
+                    &painter.with_clip_rect(rect),
+                    cache,
+                    frame,
+                    cell,
+                    (rect, number, text),
+                );
+                let which = SIDES.get(side).copied().unwrap_or(ComparisonSide::Old);
+                label(ui, rect, (id, side), || line_name(rows, which, cell));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn paint_cell(
+    painter: &Painter,
+    cache: &RowCache,
+    frame: &Frame,
+    cell: DiffCell,
+    (rect, number, text): (Rect, &Arc<Galley>, &Arc<Galley>),
+) {
+    let (fill, tint, marker) = match cell.kind {
+        LineKind::Context => (None, palette::GRAY_2_TEXT, None),
+        LineKind::Removed => (Some(DIFF_REMOVED_FILL), palette::DANGER_TEXT, Some(0)),
+        LineKind::Added => (Some(DIFF_ADDED_FILL), palette::SUCCESS_TEXT, Some(1)),
+    };
+    if let Some(fill) = fill {
+        painter.rect_filled(rect, CornerRadius::ZERO, fill);
+    }
+    let number_right = rect.left() + cache.gutter - DIFF_GUTTER_PADDING_X;
+    painter.galley(
+        pos2(number_right - number.size().x, centre(rect, number)),
+        Arc::clone(number),
+        palette::GRAY_2_TEXT,
+    );
+    if let (Some(marker), Some(markers)) = (marker, &cache.markers)
+        && let Some(galley) = markers.get(marker)
+    {
+        let at = pos2(rect.left() + cache.gutter, centre(rect, galley));
+        painter.galley(at, Arc::clone(galley), tint);
+    }
+    let text_rect = rect.with_min_x(rect.left() + frame.text_left);
+    let at = pos2(text_rect.left() - frame.scroll, centre(rect, text));
+    painter
+        .with_clip_rect(text_rect.intersect(painter.clip_rect()))
+        .galley(at, Arc::clone(text), palette::GRAY_1);
+}
+
+fn centre(rect: Rect, galley: &Galley) -> f32 {
+    rect.center().y - galley.size().y / 2.0
+}
+
+fn label(ui: &Ui, rect: Rect, (row, part): (u32, usize), name: impl Fn() -> String) {
+    let response = ui.interact(
+        rect,
+        ui.scope_id().with(("diff-row", row, part)),
+        Sense::hover(),
+    );
+    response.widget_info(|| WidgetInfo::labeled(Role::Label, true, name()));
+}
+
+fn line_name(rows: &Rows<'_>, side: ComparisonSide, cell: DiffCell) -> String {
+    let text = match cell.kind {
+        LineKind::Context => DiffText::LineContext,
+        LineKind::Removed => DiffText::LineRemoved,
+        LineKind::Added => DiffText::LineAdded,
+    };
+    rows.texts.format(
+        text,
+        &[
+            (
+                "line",
+                FluentValue::from(cell.line.saturating_add(1).to_string()),
+            ),
+            (
+                "text",
+                display(rows.document.line(side, cell.line)).text.into(),
+            ),
+        ],
+    )
+}
+
+fn hunk_text(rows: &Rows<'_>, hunk: u32, side: ComparisonSide) -> String {
+    let Some(DiffHunk { old, new, .. }) = rows.document.hunks().get(hunk as usize) else {
+        return String::new();
+    };
+    let lines = if side == ComparisonSide::Old {
+        old
+    } else {
+        new
+    };
+    if lines.is_empty() {
+        return rows.texts.get(DiffText::HunkEmpty);
+    }
+    rows.texts.format(
+        DiffText::Hunk,
+        &[
+            ("first", lines.start.saturating_add(1).to_string().into()),
+            ("last", lines.end.to_string().into()),
+        ],
+    )
+}
+
+fn layout(ui: &Ui, text: String) -> Arc<Galley> {
+    layout_in(ui, text, Weight::Regular)
+}
+
+fn layout_in(ui: &Ui, text: String, weight: Weight) -> Arc<Galley> {
+    ui.fonts_mut(|fonts| fonts.layout_no_wrap(text, font(DIFF_FONT, weight), Color32::PLACEHOLDER))
+}
+
+fn layout_line(ui: &Ui, bytes: &[u8]) -> Arc<Galley> {
+    let job = display(bytes).job(&font(DIFF_FONT, Weight::Regular));
+    ui.fonts_mut(|fonts| fonts.layout_job(job))
+}
+
+impl RowCache {
+    fn load(ui: &Ui, rows: &Rows<'_>) -> Self {
+        let key = Id::unique((
+            rows.texts.language(),
+            rows.generation,
+            ui.ctx().pixels_per_point().to_bits(),
+        ));
+        let mut cache: Self =
+            ui.data_mut(|data| std::mem::take(data.get_temp_mut_or_default::<Self>(cache_id())));
+        if cache.key != Some(key) {
+            let digits = rows.document.line_count().max(1).ilog10().saturating_add(1);
+            let digit = layout(ui, "0".to_owned()).size().x;
+            let markers = [DiffText::MarkerRemoved, DiffText::MarkerAdded]
+                .map(|text| layout(ui, rows.texts.get(text)));
+            let (side, line) = rows.document.widest();
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "a digit count fits an f32 exactly"
+            )]
+            let numbers = digits as f32 * digit;
+            cache = Self {
+                key: Some(key),
+                gutter: DIFF_GUTTER_PADDING_X.mul_add(2.0, numbers),
+                marker: markers.iter().map(|m| m.size().x).fold(0.0, f32::max),
+                widest: layout_line(ui, rows.document.line(side, line)).size().x,
+                markers: Some(markers),
+                rows: HashMap::new(),
+            };
+        }
+        cache
+    }
+
+    fn store(self, ui: &Ui) {
+        ui.data_mut(|data| *data.get_temp_mut_or_default::<Self>(cache_id()) = self);
+    }
+
+    fn row(&mut self, ui: &Ui, rows: &Rows<'_>, id: u32, row: DiffRow) -> RowGalleys {
+        if let Some(cached) = self.rows.get(&id) {
+            return cached.clone();
+        }
+        if self.rows.len() >= MAX_ROWS {
+            self.rows.clear();
+        }
+        let galleys = match row {
+            DiffRow::Hunk(hunk) => RowGalleys::Hunk {
+                regular: SIDES.map(|side| layout(ui, hunk_text(rows, hunk, side))),
+                bold: SIDES.map(|side| layout_in(ui, hunk_text(rows, hunk, side), Weight::Bold)),
+            },
+            DiffRow::Lines { old, new } => {
+                let side = |side: ComparisonSide, cell: Option<DiffCell>| {
+                    cell.map(|cell| {
+                        let number = layout(ui, cell.line.saturating_add(1).to_string());
+                        let text = layout_line(ui, rows.document.line(side, cell.line));
+                        (number, text)
+                    })
+                };
+                RowGalleys::Lines([
+                    side(ComparisonSide::Old, old),
+                    side(ComparisonSide::New, new),
+                ])
+            }
+        };
+        self.rows.insert(id, galleys.clone());
+        galleys
+    }
+}
+
+/// Returns where the rows split into the old and the new side, measured from their left edge in
+/// the last frame, for the head above them.
+pub(super) fn split(ui: &Ui) -> Option<f32> {
+    ui.data(|data| data.get_temp::<f32>(split_id()))
+}
+
+fn split_id() -> Id {
+    Id::unique("comparison-diff-split")
+}
+
+fn cache_id() -> Id {
+    Id::unique("comparison-diff-row-cache")
+}

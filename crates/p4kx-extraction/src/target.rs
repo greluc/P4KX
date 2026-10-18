@@ -68,17 +68,34 @@ fn sanitise(part: &str) -> String {
 }
 
 fn utc_timestamp(at: SystemTime) -> String {
-    let seconds = at
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |since| since.as_secs());
-    let (year, month, day) = civil_from_days(seconds / SECONDS_PER_DAY);
-    let time = seconds % SECONDS_PER_DAY;
+    let (year, month, day, time) = utc_parts(at);
     format!(
         "{year:04}{month:02}{day:02}T{:02}{:02}{:02}Z",
         time / 3600,
         time / 60 % 60,
         time % 60
     )
+}
+
+/// Returns the UTC time `at` in RFC 3339 form to the second, e.g. `2026-10-18T15:30:12Z`; a time
+/// before 1970 is given as `1970-01-01T00:00:00Z`.
+#[must_use]
+pub fn utc_rfc3339(at: SystemTime) -> String {
+    let (year, month, day, time) = utc_parts(at);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        time / 3600,
+        time / 60 % 60,
+        time % 60
+    )
+}
+
+fn utc_parts(at: SystemTime) -> (u64, u64, u64, u64) {
+    let seconds = at
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs());
+    let (year, month, day) = civil_from_days(seconds / SECONDS_PER_DAY);
+    (year, month, day, seconds % SECONDS_PER_DAY)
 }
 
 /// Converts days since 1970-01-01 to a proleptic Gregorian `(year, month, day)`.

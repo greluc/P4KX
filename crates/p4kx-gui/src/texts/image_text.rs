@@ -26,7 +26,7 @@ pub enum ImageText {
     Unsupported,
     /// Shown when the texture or a mip cannot be decoded; takes `path` and `reason`.
     Failed,
-    /// Shown when every mip is larger than the window can show; takes `path`.
+    /// Shown when every mip is larger than the preview can show; takes `path`.
     Unshowable,
 }
 

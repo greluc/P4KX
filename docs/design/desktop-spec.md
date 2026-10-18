@@ -75,6 +75,8 @@ sind keine neuen Farben.
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 | Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
+| Tonvorschau (Tab „Audio") | Vorschau-Panel + `.facts-bar` + `.btn-outline.btn-xs` + Schieberegler | füllt | Inhalt x 16 y 8 | Bedienelemente 12; Lautstärke 160 breit; Position füllt, min. 160 | Faktenleiste wie oben; Zeit 12,8 / 400; Lautstärke-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel, Button und Label ja, Codec und Zeit nein | Zeit `color-gray-1`; unbekannte Dauer „–"; Meldungen `color-danger-text` | wie Faktenleiste | – | Button 2 / +2 |
+| Schieberegler | `.attendance-meter` als Bedienelement | Zeile 32, Balken 8 mittig | – | – | – | – | Spur `color-surface-input`, Füllung `color-primary` | 1 `color-gray-3`; Hover und Ziehen `color-primary` | – | 2 / +2 um den Balken; Pfeiltasten, Pos1, Ende |
 | Abfrage-Editor | `textarea` | 4 Zeilen (112), wächst bis 12 Zeilen (304), dann Scrollleiste | x 12, y 8 | Label darüber (Eyebrow), Aktionen darunter 12 | 16 / 400, Zeilenhöhe 1,5; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Fehlerstelle bg `rgba(163,0,10,0.2)` | 1 `control-border`; Fokus `color-primary`; Fehlerstelle unterstrichen 2 `color-danger` | Fokus `glow-primary` | Rahmen + Glow; Strg+Enter führt aus |
 | Fehlerhinweis | `.alert.alert-danger` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(163,0,10,0.2)`, Text `color-gray-1` | 1 `color-danger`, links 4 | – | – |
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
@@ -197,6 +199,19 @@ der Listenfläche des Design-Systems. Die Köpfe der
 Versalien würden `Size` und `size` gleich aussehen lassen. Nur der Kopf „Record-Pfad" ist ein
 Label in Versalien.
 
+**D.16 Töne im Tab „Audio".** Wählt man eine WEM (`.wem`), öffnet die Vorschau den Tab „Audio";
+andere Einträge kehren zu „Text" zurück. Codec, Kanäle, Abtastrate und Dauer stehen als
+`.facts-bar` über den Bedienelementen, wie beim Tab „Bild" (D.14). Darunter eine Zeile:
+„Abspielen"/„Pause" als Outline `btn-xs` (D.7: keine CTA im Hauptfenster, Abspielen ist die
+betonte Aktion des Tabs), die Zeit („0:03 / 1:12") in `color-gray-1`, die Position als
+Schieberegler über die restliche Breite und „Lautstärke" als Eyebrow mit einem Schieberegler von
+160 px. Das Design-System hat keinen Schieberegler; er ist der Fortschrittsbalken (D.5), den man
+klicken, ziehen und per Pfeiltasten, Pos1 und Ende bedienen kann, in einer 32 px hohen Zeile wie
+`btn-xs`, damit er sich treffen lässt. Hover und Ziehen färben den Rand `color-primary` wie bei
+Bedienelementen, der Fokusring liegt 2 px um den Balken. Ein Codec ohne Decoder, ein zu langer
+Ton und ein Fehler beim Dekodieren oder am Audiogerät stehen als Text in `color-danger-text` im
+Panel; Text und Hex bleiben erreichbar.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -219,6 +234,7 @@ Label in Versalien.
 | Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |
 | Zahlenspalten der Abfrage rechtsbündig ohne tabellarische Ziffern | egui kann OpenType-Merkmale wie `tnum` nicht einschalten; rechtsbündig stehen gleich lange Zahlen trotzdem untereinander |
 | Abfrage-Editor 4 Zeilen statt `textarea`-Standardhöhe, Fehlerstelle als Hinterlegung mit Unterstrich | egui kennt keine `rows`-Vorgabe mit eigener Zeilenhöhe; DS hat keine Fehlermarkierung im Text, Farben aus `.alert-danger` |
+| Schieberegler (Position und Lautstärke der Tonvorschau) als bedienbarer `.attendance-meter`, 32 px hohe Trefferzeile, Rand bei Hover und Ziehen `color-primary` | DS hat keinen Schieberegler; Farben, Höhe und Füllung sind die des Fortschrittsbalkens, Trefferhöhe und Fokus die von `btn-xs` (D.16) |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

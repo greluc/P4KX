@@ -774,6 +774,33 @@
     "focusRingOffset": -3,
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
+  "slider": {
+    "dsClass": "attendance-meter",
+    "metrics": "progressBar",
+    "hitHeight": 32,
+    "borderHover": "color-primary",
+    "focusRing": {"width": 2, "offset": 2, "color": "color-primary"},
+    "keys": "ArrowLeft, ArrowRight, Home, End"
+  },
+  "audioPreview": {
+    "dsClass": "previewPanel + facts-bar + btn btn-outline btn-xs + slider",
+    "paddingX": 16,
+    "paddingY": 8,
+    "controlGap": 12,
+    "volumeWidth": 160,
+    "positionMinWidth": 160,
+    "timeFontSize": 12.8,
+    "timeColor": "color-gray-1",
+    "labelFontSize": 11.2,
+    "labelFontWeight": "fw-bold",
+    "labelLetterSpacingEm": 0.15,
+    "labelUppercase": true,
+    "labelColor": "color-gray-2-text",
+    "background": "surface-panel",
+    "facts": "factsBar without direction: codec, channels, sample rate, duration",
+    "toggle": "outline btn-xs, play or pause",
+    "messages": "unsupported codec, too long, decoding and output failure color-danger-text"
+  },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},
     "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},

@@ -3,7 +3,9 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::query::{Glob, MAX_QUERY_LEN, Name, Query, QueryError, QueryErrorKind};
+use p4kx_dataforge::query::{
+    Condition, Glob, MAX_QUERY_LEN, Name, Query, QueryError, QueryErrorKind,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -90,7 +92,7 @@ fn random_query(random: &mut Random) -> String {
         text.push_str(&name(random));
     }
     if !has_from || random.chance(50) {
-        let glob = random.pick(&["*/ships/*", "", "libs\\foundry", "?a*", "Größe ö"]);
+        let glob = random.pick(&["*/ships/*", "", "libs\\foundry", "?a*", "Größe ö", "a\"\"b"]);
         text.push_str(random.pick(&SPACES));
         text.push_str(&keyword(random, "at"));
         text.push_str(random.pick(&SPACES));
@@ -114,9 +116,83 @@ fn random_query(random: &mut Random) -> String {
             }
         }
     }
+    if random.chance(60) {
+        text.push_str(random.pick(&SPACES));
+        text.push_str(&keyword(random, "where"));
+        text.push_str(random.pick(&SPACES));
+        text.push_str(&random_condition(random, 0));
+    }
     text.push_str(random.pick(&SPACES));
     text
 }
+
+/// Writes a random valid condition nested at most three levels.
+fn random_condition(random: &mut Random, depth: usize) -> String {
+    let space = |random: &mut Random| random.pick(&SPACES).to_owned();
+    let mut text = String::new();
+    for part in 0..=random.below(3) {
+        if part > 0 {
+            let joint = if random.chance(50) { "and" } else { "or" };
+            text += &space(random);
+            text += &keyword(random, joint);
+            text += &space(random);
+        }
+        if random.chance(20) {
+            text += &keyword(random, "not");
+            text += &space(random);
+        }
+        if depth < 3 && random.chance(25) {
+            text.push('(');
+            text += &random_condition(random, depth + 1);
+            text.push(')');
+            continue;
+        }
+        text += &name(random);
+        let operator = random.pick(&[
+            "=",
+            "!=",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "contains",
+            "starts with",
+            "like",
+        ]);
+        let literal = if ["contains", "starts with", "like"].contains(&operator) {
+            random.pick(&["\"x\"", "\"\"", "\"a\"\"b\"", "\"*?\""])
+        } else {
+            random.pick(&["0", "-12", "1.5", "2e-3", "1E+9", "\"s\"", "true", "FALSE"])
+        };
+        let operator = keyword(random, operator).replace(' ', &space(random));
+        text += &space(random);
+        text += &operator;
+        text += &space(random);
+        text += literal;
+    }
+    text
+}
+
+/// Writes the structure of a condition with every group in parentheses.
+fn shape(condition: &Condition) -> String {
+    let joined = |parts: &[Condition], joint: &str| {
+        let parts: Vec<String> = parts.iter().map(shape).collect();
+        format!("({joint} {})", parts.join(" "))
+    };
+    match condition {
+        Condition::Compare(comparison) => format!(
+            "[{} {:?} {:?}]",
+            comparison.path(),
+            comparison.operator(),
+            comparison.literal().value()
+        ),
+        Condition::Not(inner) => format!("(not {})", shape(inner)),
+        Condition::And(parts) => joined(parts, "and"),
+        Condition::Or(parts) => joined(parts, "or"),
+        _ => "?".to_owned(),
+    }
+}
+
 #[test]
 fn printing_and_reparsing_a_parsed_query_is_stable() -> TestResult {
     let mut random = Random(0x9e37_79b9_7f4a_7c15);
@@ -136,6 +212,11 @@ fn printing_and_reparsing_a_parsed_query_is_stable() -> TestResult {
         assert_eq!(
             reparsed.at().map(Glob::as_str),
             parsed.at().map(Glob::as_str),
+            "{text:?}"
+        );
+        assert_eq!(
+            reparsed.condition().map(shape),
+            parsed.condition().map(shape),
             "{text:?}"
         );
     }
@@ -178,7 +259,9 @@ fn random_text_never_panics_and_errors_stay_inside_the_query() {
     let mut random = Random(0x2545_f491_4f6c_dd1d);
     let pieces = [
         "from", "at", "select", "where", "`", "\"", ".", ",", " ", "\n", "mass", "*", "ö", "\u{0}",
-        "->", "[", "]", "😀", "\r\n", "\t", "x",
+        "->", "[", "]", "😀", "\r\n", "\t", "x", "=", "!", "!=", "<", "<=", ">=", "(", ")", "-",
+        "-1.5e3", "1e", "1.", "and", "or", "not", "contains", "starts", "with", "like", "true",
+        "\"\"", "0",
     ];
     for _ in 0..20_000 {
         let mut text = String::new();

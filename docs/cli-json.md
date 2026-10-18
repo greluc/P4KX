@@ -126,17 +126,20 @@ Also `p4kx texture merge <file> --out <file> --json` for a header file on disk.
 
 `parts` is the number of mip parts merged and `size` the size of the written DDS file.
 
-## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] --json`
+## `p4kx texture png <archive> <entry> --out <file> [--mip <level>] [--tone-map] --json`
 
-Also `p4kx texture png <file> --out <file> [--mip <level>] --json` for a header file on disk.
+Also `p4kx texture png <file> --out <file> [--mip <level>] [--tone-map] --json` for a header file
+on disk.
 
 ```json
-{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "mip": 1, "width": 32,
- "height": 16}
+{"texture": "…\\hull_diff.dds", "output": "…\\hull_diff.png", "format": "png", "mip": 1,
+ "width": 32, "height": 16}
 ```
 
 `mip` is the exported level, 0 being the largest and the default; `width` and `height` are the
-size of the written 8-bit RGBA PNG. A format without a decoder fails with exit code 1 and a
+size of the written image. `format` is `png` for an 8-bit RGBA PNG and `exr` for an OpenEXR file
+with 32-bit float RGB, which a high-range BC6H texture is written as without `--tone-map`;
+`output` then names `<file>` with the extension `.exr`. A format without a decoder fails with exit code 1 and a
 message naming the format; a level the texture does not have fails with exit code 2.
 
 ## `p4kx extract … --json`

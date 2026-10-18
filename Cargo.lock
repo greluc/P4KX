@@ -2799,6 +2799,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "ctrlc",
+ "exr",
  "insta",
  "p4kx-channels",
  "p4kx-comparison",
@@ -2884,6 +2885,7 @@ name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "crc32c",
+ "exr",
  "p4kx-archive",
  "p4kx-cryxml",
  "p4kx-dataforge",

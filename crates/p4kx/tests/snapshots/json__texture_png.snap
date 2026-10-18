@@ -3,6 +3,7 @@ source: crates/p4kx/tests/json.rs
 expression: json
 ---
 {
+  "format": "png",
   "height": 16,
   "mip": 1,
   "output": "[DIR]/hull_diff.png",

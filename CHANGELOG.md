@@ -12,6 +12,9 @@ fails while its section is missing.
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
   decoders and write it as an 8-bit PNG; the largest mip by default, another with `--mip`.
+- High-range BC6H textures, signed and unsigned: `p4kx texture png` decodes them with a pure-Rust
+  decoder to floating-point RGB and writes OpenEXR (`.exr`, 32-bit float RGB) instead of a PNG, so
+  their range is not clipped; `--tone-map` writes a Reinhard tone-mapped 8-bit PNG instead.
 - `p4kx compare <old> <new> [--entries] [--filter] [--report <file>]`: the Entries added, removed
   and changed between two Archives, from their central directories without decompressing, with
   counts per top-level directory, a JSON report with a checked-in schema, and exit code 1 when the

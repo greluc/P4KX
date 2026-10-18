@@ -139,7 +139,7 @@ impl<'a> Texture<'a> {
     }
 
     /// Decodes mip `level`, 0 being the largest, and writes it to the file `out` as an 8-bit RGBA
-    /// PNG, replacing it; a failed export leaves nothing behind.
+    /// PNG, a high-range texture tone-mapped, replacing it; a failed export leaves nothing behind.
     ///
     /// # Errors
     ///
@@ -160,7 +160,7 @@ impl<'a> Texture<'a> {
         })
     }
 
-    fn refuse_input(&self, out: &Path) -> Result<(), ConversionError> {
+    pub(crate) fn refuse_input(&self, out: &Path) -> Result<(), ConversionError> {
         if is_same_file(out, self.input_files()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),

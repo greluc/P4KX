@@ -138,7 +138,8 @@ pub(crate) enum TextureAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG.
+    /// Decodes one mip of a texture and writes it as an 8-bit RGBA PNG; a high-range BC6H texture
+    /// is written as OpenEXR with 32-bit float RGB to FILE with the extension .exr instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {
         /// The texture.
@@ -150,6 +151,10 @@ pub(crate) enum TextureAction {
         /// The mip level to export, 0 being the largest.
         #[arg(long, value_name = "LEVEL", default_value_t = 0)]
         mip: u32,
+        /// Writes a high-range texture as an 8-bit PNG too, tone-mapped: Reinhard per channel,
+        /// then sRGB.
+        #[arg(long)]
+        tone_map: bool,
     },
 }
 

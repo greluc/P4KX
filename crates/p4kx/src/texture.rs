@@ -36,6 +36,7 @@ struct MergeJson<'a> {
 struct PngJson<'a> {
     texture: &'a str,
     output: String,
+    format: &'a str,
     mip: u32,
     width: u32,
     height: u32,
@@ -48,9 +49,14 @@ pub(crate) fn run(args: &TextureArgs, as_json: bool) -> Result<()> {
         TextureAction::Merge { source, out } => {
             with_texture(source, |texture| merge(texture, out, as_json))
         }
-        TextureAction::Png { source, out, mip } => {
-            with_texture(source, |texture| png(texture, out, *mip, as_json))
-        }
+        TextureAction::Png {
+            source,
+            out,
+            mip,
+            tone_map,
+        } => with_texture(source, |texture| {
+            png(texture, out, *mip, *tone_map, as_json)
+        }),
     }
 }
 
@@ -128,26 +134,53 @@ fn merge(texture: &Texture<'_>, out: &Path, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn png(texture: &Texture<'_>, out: &Path, mip: u32, as_json: bool) -> Result<()> {
-    let report = texture.png_to_file(out, mip)?;
+fn png(texture: &Texture<'_>, out: &Path, mip: u32, tone_map: bool, as_json: bool) -> Result<()> {
+    let format = texture.header().format();
+    let high_range = format.is_high_range();
+    let (output, kind, report) = if high_range && !tone_map {
+        let output = out.with_extension("exr");
+        let report = texture.exr_to_file(&output, mip)?;
+        (output, "exr", (report.level, report.width, report.height))
+    } else {
+        let report = texture.png_to_file(out, mip)?;
+        (
+            out.to_path_buf(),
+            "png",
+            (report.level, report.width, report.height),
+        )
+    };
+    let (level, width, height) = report;
     if as_json {
         json::print(&PngJson {
             texture: texture.name(),
-            output: json::path(out),
-            mip: report.level,
-            width: report.width,
-            height: report.height,
+            output: json::path(&output),
+            format: kind,
+            mip: level,
+            width,
+            height,
         })?;
-    } else {
+        return Ok(());
+    }
+    let mut stdout = io::stdout().lock();
+    let written = format!(
+        "wrote mip {level} of {}, {width} x {height}",
+        texture.name()
+    );
+    if kind == "exr" {
         writeln!(
-            io::stdout().lock(),
-            "wrote mip {} of {}, {} x {}, to {}",
-            report.level,
-            texture.name(),
-            report.width,
-            report.height,
-            out.display()
+            stdout,
+            "{written}, as OpenEXR to {}: {format} is a high-range format; --tone-map writes an \
+             8-bit PNG",
+            output.display()
         )?;
+    } else if high_range {
+        writeln!(
+            stdout,
+            "{written}, tone-mapped to 8 bits, to {}",
+            output.display()
+        )?;
+    } else {
+        writeln!(stdout, "{written}, to {}", output.display())?;
     }
     Ok(())
 }

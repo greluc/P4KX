@@ -13,6 +13,7 @@ use rayon::prelude::*;
 
 mod records;
 mod texture;
+mod texture_hdr;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;

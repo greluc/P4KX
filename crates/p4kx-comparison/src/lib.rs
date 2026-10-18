@@ -28,7 +28,7 @@ pub use comparison::{Comparison, Side};
 pub use decode::{Encoding, MAX_DIFF_LEN, MAX_DIFF_LINES};
 pub use entry_change::{ChangeKind, DirectoryCounts, EntryChange, EntryCounts};
 pub use error::{ComparisonError, LineDiffError};
-pub use line_diff::{DiffBody, LineDiff, NotText, line_diff};
+pub use line_diff::{DiffBody, LineDiff, NotText, line_diff, line_diff_cancellable};
 pub use options::{CompareOptions, ComparisonProgress, DataForges, Level, Levels};
 pub use owned::{OwnedComparison, OwnedDataForges, RecompareError};
 pub use p4kx_archive::{Archive, ArchiveError, Build, Entry};

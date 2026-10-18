@@ -53,4 +53,7 @@ pub enum LineDiffError {
         #[source]
         source: p4kx_cryxml::CryXmlError,
     },
+    /// The line diff was cancelled through its [`CancelToken`](crate::CancelToken).
+    #[error("the line diff was cancelled")]
+    Cancelled,
 }

@@ -106,7 +106,8 @@ impl Labels {
     }
 }
 
-const fn status_code(status: RecordTreeStatus<'_>) -> u8 {
+/// Returns a number for each kind of `status`, for cache keys.
+pub(super) const fn status_code(status: RecordTreeStatus<'_>) -> u8 {
     match status {
         RecordTreeStatus::NotLoaded => 0,
         RecordTreeStatus::Loading => 1,

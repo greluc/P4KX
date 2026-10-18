@@ -59,11 +59,11 @@ struct Stream<'a> {
 }
 
 /// A Wwise Vorbis WEM with its Vorbis headers rebuilt and every audio packet checked.
-pub(crate) struct Rebuild<'a> {
+pub(crate) struct RebuiltSound<'a> {
     stream: Stream<'a>,
     ident: [u8; 30],
     comment: Vec<u8>,
-    setup_packet: Vec<u8>,
+    setup_header: Vec<u8>,
     setup: Setup,
     codebooks: Codebooks,
     sample_count: u64,
@@ -88,37 +88,33 @@ impl<B: AsRef<[u8]>> Wem<B> {
         if self.codec() != Codec::Vorbis {
             return Err(AudioError::UnsupportedOggCodec(self.codec()));
         }
-        let rebuild = self.rebuild_vorbis()?;
-        let stream = &rebuild.stream;
-        let headers = [
-            rebuild.ident.as_slice(),
-            &rebuild.comment,
-            &rebuild.setup_packet,
-        ];
-        let (sample_count, size) = stream.write(headers, &rebuild.setup, out)?;
+        let sound = self.rebuild_vorbis()?;
+        let stream = &sound.stream;
+        let headers = [sound.ident.as_slice(), &sound.comment, &sound.setup_header];
+        let (sample_count, size) = stream.write(headers, &sound.setup, out)?;
         Ok(OggReport {
             channels: u16::from(stream.header.channels),
             sample_rate: stream.header.sample_rate,
             sample_count,
             size,
-            codebooks: rebuild.codebooks,
+            codebooks: sound.codebooks,
         })
     }
 
     /// Rebuilds the Vorbis headers of a Wwise Vorbis WEM and checks every audio packet.
-    pub(crate) fn rebuild_vorbis(&self) -> Result<Rebuild<'_>, AudioError> {
+    pub(crate) fn rebuild_vorbis(&self) -> Result<RebuiltSound<'_>, AudioError> {
         let stream = self.vorbis_stream()?;
         let ident = stream.header.ident_packet();
         let mut comment = Vec::new();
         header::comment_packet(&mut comment);
-        let mut setup_packet = Vec::new();
-        let (codebooks, setup) = stream.choose_codebooks(&ident, &comment, &mut setup_packet)?;
+        let mut setup_header = Vec::new();
+        let (codebooks, setup) = stream.choose_codebooks(&ident, &comment, &mut setup_header)?;
         let sample_count = stream.sample_count(&setup)?;
-        Ok(Rebuild {
+        Ok(RebuiltSound {
             stream,
             ident,
             comment,
-            setup_packet,
+            setup_header,
             setup,
             codebooks,
             sample_count,
@@ -254,12 +250,12 @@ impl Stream<'_> {
         setup: &Setup,
         out: &mut impl Write,
     ) -> Result<(u64, u64), AudioError> {
-        let [ident, comment, setup_packet] = headers;
+        let [ident, comment, setup_header] = headers;
         let mut ogg = OggWriter::new(out, SERIAL);
         ogg.write_packet(ident, 0).map_err(AudioError::Write)?;
         ogg.end_page().map_err(AudioError::Write)?;
         ogg.write_packet(comment, 0).map_err(AudioError::Write)?;
-        ogg.write_packet(setup_packet, 0)
+        ogg.write_packet(setup_header, 0)
             .map_err(AudioError::Write)?;
         ogg.end_page().map_err(AudioError::Write)?;
         let mut audio = self.audio(setup);

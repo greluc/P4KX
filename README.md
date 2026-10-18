@@ -137,11 +137,12 @@ Early development (milestone M1). Available today:
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
   Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
-  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a
-  Wwise Vorbis WEM as a standard Ogg Vorbis file without re-encoding. All three also take a WEM
-  file on disk instead of an Archive and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and
-  the console codecs are detected; a conversion the codec does not support yet fails with an
-  error naming it, and a corrupt or truncated WEM fails with the reason.
+  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
+  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
+  detected; a conversion the codec does not support yet fails with an error naming it, and a
+  corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.

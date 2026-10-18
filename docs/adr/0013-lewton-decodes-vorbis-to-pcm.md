@@ -16,9 +16,9 @@ packets below 64 KiB. Decided for issue #93.
   undoes channel coupling in the order the steps are stored, while the Vorbis specification,
   libvorbis and lewton go from the last step to the first, which changes the result whenever
   two steps share a channel. All four 4-channel sounds in a sample of 2019 WEMs of the LIVE
-  Archive decode differently from lewton, by up to 42 % of full scale. It also rejects residues that use codebook 0, which the specification allows, sorts
-  the channels into its own speaker order, and adds an MPL-2.0 dependency tree with a complex
-  number crate to a format crate.
+  Archive decode differently from lewton, by up to 42 % of full scale. It also rejects residues
+  that use codebook 0, which the specification allows, sorts the channels into its own speaker
+  order, and adds an MPL-2.0 dependency tree with a complex number crate to a format crate.
 - Writing the Ogg file and decoding it through lewton's Ogg reader: reuses a tested path, but
   builds the whole Ogg in memory for nothing and pulls the `ogg` crate into the runtime.
 - The C libvorbis: the reference decoder, but C code on untrusted input and a C toolchain in the

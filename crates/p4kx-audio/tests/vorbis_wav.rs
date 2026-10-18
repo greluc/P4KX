@@ -1,12 +1,9 @@
 //! Decoding Wwise Vorbis WEMs to PCM WAV: the known signal, the length, the format and corrupt
 //! input.
 
-use std::f64::consts::PI;
-
-use p4kx_audio::{AudioError, WavReport, Wem};
+use p4kx_audio::{AudioError, VorbisError, WavReport, Wem};
 use p4kx_testkit::{TestCodebook, TestVorbis};
 
-const SHORT: u32 = 256;
 const HOP: usize = 128;
 const BIN: u8 = 10;
 const TOLERANCE: f64 = 2.0 / 32_768.0;
@@ -45,31 +42,17 @@ fn samples(wav: &[u8]) -> Vec<i16> {
         .collect()
 }
 
-/// Returns how far channel `channel` of `samples` strays from the tone of spectral line `bin`.
-fn deviation(samples: &[i16], channels: usize, channel: usize, bin: u8) -> f64 {
+/// Returns how far channel `channel` of `samples` strays from the tone of spectral line `line`
+/// in short blocks of 256 samples.
+fn deviation(samples: &[i16], channels: usize, channel: usize, line: u8) -> f64 {
+    let hop = TestVorbis::new(1, 48_000, &[]).tone_hop(line);
     samples
         .iter()
         .skip(channel)
         .step_by(channels)
-        .zip(tone_hop(bin).iter().cycle())
+        .zip(hop.iter().cycle())
         .map(|(&sample, &expected)| (f64::from(sample) / 32_768.0 - expected).abs())
         .fold(0.0, f64::max)
-}
-
-/// Returns one hop of the steady tone a decoder gives for spectral line `bin` at the tone level
-/// in every short block: the overlap-add of the windowed inverse MDCT of the line with itself.
-fn tone_hop(bin: u8) -> Vec<f64> {
-    let n = f64::from(SHORT);
-    let block: Vec<f64> = (0..SHORT)
-        .map(|i| {
-            let i = f64::from(i);
-            let window = (PI / 2.0 * ((i + 0.5) / n * PI).sin().powi(2)).sin();
-            let phase = 2.0 * PI / n * (i + 0.5 + n / 4.0) * (f64::from(bin) + 0.5);
-            window * TestVorbis::tone_level() * phase.cos()
-        })
-        .collect();
-    let (first, second) = block.split_at(HOP);
-    first.iter().zip(second).map(|(a, b)| a + b).collect()
 }
 #[test]
 fn a_vorbis_tone_decodes_to_the_known_signal() {
@@ -177,6 +160,46 @@ fn a_vorbis_sound_without_usable_codebooks_is_a_typed_error() {
     );
 }
 
+/// Returns the `data` chunk of `sound` with `packets` as its audio packets.
+fn with_packets(sound: &TestVorbis, packets: &[Vec<u8>]) -> Vec<u8> {
+    let setup = sound.setup();
+    let mut data = u16::try_from(setup.len())
+        .unwrap_or(u16::MAX)
+        .to_le_bytes()
+        .to_vec();
+    data.extend_from_slice(&setup);
+    for packet in packets {
+        data.extend_from_slice(
+            &u16::try_from(packet.len())
+                .unwrap_or(u16::MAX)
+                .to_le_bytes(),
+        );
+        data.extend_from_slice(packet);
+    }
+    data
+}
+
+#[test]
+fn a_late_packet_the_decoder_rejects_is_a_typed_error_naming_its_offset() {
+    let mut flags = [false; 24];
+    flags[18] = true;
+    flags[19] = true;
+    let sound = TestVorbis::new(1, 48_000, &flags).native_packets();
+    let mut packets = sound.packets();
+    packets[19] = vec![0b0010];
+
+    let error = convert(sound.wem().data(with_packets(&sound, &packets)).bytes()).err();
+
+    let offset = 2 + sound.setup().len() + 19 * 3;
+    assert!(
+        matches!(
+            &error,
+            Some(AudioError::InvalidVorbis(VorbisError::Undecodable { offset: at, .. }))
+                if *at == offset as u64
+        ),
+        "{error:?}"
+    );
+}
 #[test]
 fn damaged_vorbis_wems_never_panic() {
     let wem = TestVorbis::new(1, 48_000, &[false, true, false, true, false])

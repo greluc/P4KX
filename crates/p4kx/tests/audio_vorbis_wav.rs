@@ -1,7 +1,6 @@
 //! `p4kx audio wav` and `p4kx bnk extract --format wav` for Wwise Vorbis WEMs end to end.
 
 use std::error::Error;
-use std::f64::consts::PI;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -12,7 +11,6 @@ use predicates::prelude::predicate;
 type TestResult = Result<(), Box<dyn Error>>;
 
 const VORBIS_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\500.wem";
-const SHORT: u32 = 256;
 const PACKETS: usize = 376;
 const BIN: u8 = 6;
 const TOLERANCE: f64 = 2.0 / 32_768.0;
@@ -47,27 +45,11 @@ fn wav_samples(wav: &[u8]) -> Vec<i16> {
         .collect()
 }
 
-/// Returns one hop of the steady tone of spectral line `bin` in every short block: the
-/// overlap-add of its windowed inverse MDCT with itself.
-fn tone_hop(bin: u8) -> Vec<f64> {
-    let n = f64::from(SHORT);
-    let block: Vec<f64> = (0..SHORT)
-        .map(|i| {
-            let i = f64::from(i);
-            let window = (PI / 2.0 * ((i + 0.5) / n * PI).sin().powi(2)).sin();
-            let phase = 2.0 * PI / n * (i + 0.5 + n / 4.0) * (f64::from(bin) + 0.5);
-            window * TestVorbis::tone_level() * phase.cos()
-        })
-        .collect();
-    let (first, second) = block.split_at(block.len() / 2);
-    first.iter().zip(second).map(|(a, b)| a + b).collect()
-}
-
 /// Asserts that both channels of a stereo WAV are the known tones, line `BIN` and `BIN + 1`.
 #[track_caller]
 fn assert_known_tone(samples: &[i16]) {
     for channel in 0..2 {
-        let hop = tone_hop(BIN + u8::try_from(channel).unwrap_or(0));
+        let hop = tone().tone_hop(BIN + u8::try_from(channel).unwrap_or(0));
         let worst = samples
             .iter()
             .skip(channel)

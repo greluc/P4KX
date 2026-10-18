@@ -1,7 +1,8 @@
 //! Reads the Wwise sounds of Star Citizen Archives from bytes: parses WEMs (the RIFF or RIFX
-//! structure and the Wwise `fmt` variants), detects the codec, writes PCM sounds as WAV and
-//! rebuilds Wwise Vorbis sounds as Ogg Vorbis into a writer the caller supplies; parses BNK
-//! soundbanks with their sections, their `HIRC` objects and the WEMs they embed.
+//! structure and the Wwise `fmt` variants), detects the codec, writes PCM, ADPCM and Wwise Vorbis
+//! sounds as WAV and rebuilds Wwise Vorbis sounds as Ogg Vorbis into a writer the caller
+//! supplies; parses BNK soundbanks with their sections, their `HIRC` objects and the WEMs they
+//! embed.
 
 mod adpcm;
 mod bank_error;

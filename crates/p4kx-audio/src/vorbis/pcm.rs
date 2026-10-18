@@ -6,11 +6,9 @@ use lewton::audio::{PreviousWindowRight, read_audio_packet_generic};
 use lewton::header::{IdentHeader, SetupHeader, read_header_ident, read_header_setup};
 use lewton::samples::InterleavedSamples;
 
-use super::{Rebuild, VorbisError};
-use crate::wav::wav_block_align;
+use super::{RebuiltSound, VorbisError};
 use crate::{AudioError, WavReport, Wem};
 
-const ZEROS: [u8; 4096] = [0; 4096];
 const PANICKED: &str = "the decoder failed";
 
 /// The Vorbis headers parsed by the decoder.
@@ -22,24 +20,12 @@ struct Decoder {
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Rebuilds a Wwise Vorbis sound, decodes it and writes it as a 16-bit PCM WAV to `out`.
     pub(crate) fn write_vorbis_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
-        let rebuild = self.rebuild_vorbis()?;
-        let channels = self.channels();
-        let block_align = wav_block_align(channels)?;
-        let frames = rebuild.sample_count;
-        let data_len = frames
-            .checked_mul(u64::from(block_align))
-            .and_then(|len| usize::try_from(len).ok())
-            .ok_or(AudioError::WavTooLarge)?;
-        let header = self.wav_header(block_align, data_len)?;
-        let decoder = rebuild.decoder()?;
+        let sound = self.rebuild_vorbis()?;
+        let (header, report) = self.decoded_wav_header(sound.sample_count)?;
+        let decoder = sound.decoder()?;
         out.write_all(&header).map_err(AudioError::Write)?;
-        rebuild.write_pcm(&decoder, block_align, out)?;
-        Ok(WavReport {
-            channels,
-            sample_rate: self.sample_rate(),
-            sample_count: frames,
-            size: (header.len() + data_len) as u64,
-        })
+        sound.write_pcm(&decoder, usize::from(self.channels()).max(1), out)?;
+        Ok(report)
     }
 }
 
@@ -47,27 +33,26 @@ fn rejected(error: &dyn Display) -> AudioError {
     AudioError::InvalidVorbis(VorbisError::Rejected(error.to_string()))
 }
 
-impl Rebuild<'_> {
+impl RebuiltSound<'_> {
     fn decoder(&self) -> Result<Decoder, AudioError> {
         panic::catch_unwind(|| {
             let ident = read_header_ident(&self.ident).map_err(|error| rejected(&error))?;
             let blocksizes = (ident.blocksize_0, ident.blocksize_1);
-            let setup = read_header_setup(&self.setup_packet, ident.audio_channels, blocksizes)
+            let setup = read_header_setup(&self.setup_header, ident.audio_channels, blocksizes)
                 .map_err(|error| rejected(&error))?;
             Ok(Decoder { ident, setup })
         })
         .unwrap_or_else(|_| Err(rejected(&PANICKED)))
     }
 
-    /// Decodes the audio packets and writes exactly the sample count's frames of interleaved
-    /// little-endian 16-bit samples, padding with silence when the decoder gives fewer.
+    /// Decodes the audio packets and writes the sample count's frames of interleaved
+    /// little-endian 16-bit samples.
     fn write_pcm(
         &self,
         decoder: &Decoder,
-        block_align: u16,
+        channels: usize,
         out: &mut impl Write,
     ) -> Result<(), AudioError> {
-        let frame_len = usize::from(block_align);
         let mut audio = self.stream.audio(&self.setup);
         let mut window = PreviousWindowRight::new();
         let mut packet = Vec::new();
@@ -86,24 +71,22 @@ impl Rebuild<'_> {
             }))
             .unwrap_or_else(|_| Err(PANICKED.to_owned()))
             .map_err(undecodable)?;
-            let available = pcm.samples.len() * 2 / frame_len;
+            let available = pcm.samples.len().checked_div(channels).unwrap_or_default();
             let take = usize::try_from(remaining).map_or(available, |left| available.min(left));
             bytes.clear();
-            bytes.extend(
-                pcm.samples
-                    .iter()
-                    .take(take * frame_len / 2)
-                    .flat_map(|sample| sample.to_le_bytes()),
-            );
+            for frame in pcm.samples.chunks_exact(channels).take(take) {
+                for sample in frame {
+                    bytes.extend_from_slice(&sample.to_le_bytes());
+                }
+            }
             out.write_all(&bytes).map_err(AudioError::Write)?;
             remaining -= take as u64;
         }
-        let mut padding = remaining.saturating_mul(u64::from(block_align));
-        while padding > 0 {
-            let len = usize::try_from(padding).map_or(ZEROS.len(), |len| len.min(ZEROS.len()));
-            out.write_all(ZEROS.get(..len).unwrap_or_default())
-                .map_err(AudioError::Write)?;
-            padding -= len as u64;
+        if remaining > 0 {
+            return Err(AudioError::InvalidVorbis(VorbisError::MissingSamples {
+                expected: self.sample_count,
+                decoded: self.sample_count - remaining,
+            }));
         }
         Ok(())
     }

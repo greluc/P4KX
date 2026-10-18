@@ -1,9 +1,11 @@
+use std::f64::consts::PI;
+
 use crate::{TestCodec, TestWem};
 
 const MODIFIED_PACKETS_SIGNAL: u32 = 0x0001_0000;
 const NATIVE_PACKETS_SIGNAL: u32 = 0x4A;
 const FIELDS_LEN: usize = 0x26;
-const ONE: u32 = 0x6280_0001;
+const VORBIS_FLOAT_ONE: u32 = 0x6280_0001;
 const TONE_FLOOR: u32 = 110;
 const TONE_BINS: u32 = 16;
 
@@ -114,6 +116,25 @@ impl TestVorbis {
         0.110_399_93
     }
 
+    /// Returns one hop of the steady tone a spec-conformant decoder gives for spectral `line`
+    /// at [`TestVorbis::tone_level`] in every short block: the overlap-add of the windowed
+    /// inverse MDCT of the line with itself, as full-scale fractions.
+    #[must_use]
+    pub fn tone_hop(&self, line: u8) -> Vec<f64> {
+        let size = 1_u32 << self.block_bits.0;
+        let n = f64::from(size);
+        let block: Vec<f64> = (0..size)
+            .map(|i| {
+                let i = f64::from(i);
+                let window = (PI / 2.0 * ((i + 0.5) / n * PI).sin().powi(2)).sin();
+                let phase = 2.0 * PI / n * (i + 0.5 + n / 4.0) * (f64::from(line) + 0.5);
+                window * Self::tone_level() * phase.cos()
+            })
+            .collect();
+        let (first, second) = block.split_at(block.len() / 2);
+        first.iter().zip(second).map(|(a, b)| a + b).collect()
+    }
+
     /// Returns the samples per channel the packets decode to.
     #[must_use]
     pub fn decoded_samples(&self) -> u32 {
@@ -147,9 +168,15 @@ impl TestVorbis {
                     {
                         bits.put(value, width);
                     }
-                    for (value, width) in
-                        [(1, 1), (0, 32), (ONE, 32), (0, 4), (0, 1), (0, 1), (1, 1)]
-                    {
+                    for (value, width) in [
+                        (1, 1),
+                        (0, 32),
+                        (VORBIS_FLOAT_ONE, 32),
+                        (0, 4),
+                        (0, 1),
+                        (0, 1),
+                        (1, 1),
+                    ] {
                         bits.put(value, width);
                     }
                 }

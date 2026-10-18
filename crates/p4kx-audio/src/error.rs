@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::Codec;
+use crate::{Codec, VorbisError};
 
 /// A failure to read or convert a WEM.
 #[derive(Debug, Error)]
@@ -30,10 +30,28 @@ pub enum AudioError {
     /// The codec has no decoder to convert it to WAV yet.
     #[error("converting {0} to WAV is not supported")]
     UnsupportedCodec(Codec),
+    /// The codec cannot be converted to Ogg yet.
+    #[error("converting {0} to Ogg is not supported")]
+    UnsupportedOggCodec(Codec),
+    /// The Wwise Vorbis header or packet layout is malformed.
+    #[error("the Wwise Vorbis data is invalid: {0}")]
+    InvalidVorbis(VorbisError),
+    /// No codebooks give a Vorbis stream a decoder accepts.
+    #[error(
+        "the Wwise Vorbis setup fits no codebooks: default: {default}; aoTuV: {aotuv}; inline: {inline}"
+    )]
+    CodebooksRejected {
+        /// Why the default codebook library failed.
+        default: VorbisError,
+        /// Why the aoTuV codebook library failed.
+        aotuv: VorbisError,
+        /// Why inline codebooks failed.
+        inline: VorbisError,
+    },
     /// The WAV is larger than the 4 GiB a RIFF size field can describe.
     #[error("the WAV would exceed 4 GiB")]
     WavTooLarge,
-    /// The WAV could not be written.
-    #[error("cannot write the WAV")]
+    /// The converted sound could not be written.
+    #[error("cannot write the converted sound")]
     Write(#[source] io::Error),
 }

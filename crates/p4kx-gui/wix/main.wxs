@@ -23,6 +23,7 @@
             <File Id="CliExe" Name="p4kx.exe" Source="$(var.BinaryFolder)\p4kx.exe" />
             <File Id="LicenceMit" Name="LICENSE-MIT" Source="$(var.RepositoryFolder)\LICENSE-MIT" />
             <File Id="LicenceApache" Name="LICENSE-APACHE" Source="$(var.RepositoryFolder)\LICENSE-APACHE" />
+            <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES" />
             <RegistryValue
                 Root="HKCU"
                 Key="Software\KRT\P4K-Extractor"

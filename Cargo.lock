@@ -3139,6 +3139,7 @@ dependencies = [
  "p4kx-testkit",
  "rayon",
  "roxmltree",
+ "serde",
  "serde_json",
  "thiserror 2.0.21",
 ]
@@ -3147,6 +3148,7 @@ dependencies = [
 name = "p4kx-export"
 version = "0.1.0"
 dependencies = [
+ "crc32c",
  "jsonschema",
  "p4kx-channels",
  "p4kx-extraction",

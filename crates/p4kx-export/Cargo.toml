@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-export"
-description = "Export service of P4K-Extractor: the Basetool catalog."
+description = "Record export and Basetool catalog"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,10 +14,12 @@ layer = "service"
 [dependencies]
 p4kx-channels.workspace = true
 p4kx-extraction.workspace = true
+crc32c.workspace = true
 rayon.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

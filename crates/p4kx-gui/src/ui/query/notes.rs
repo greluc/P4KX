@@ -26,6 +26,7 @@ pub(super) struct Notes {
     pub(super) cancel: Arc<str>,
     pub(super) export_csv: Arc<str>,
     pub(super) export_json: Arc<str>,
+    pub(super) export_cancel: Arc<str>,
     pub(super) status: Option<Arc<Galley>>,
     pub(super) fraction: Option<f32>,
     pub(super) alert: Option<Arc<Galley>>,
@@ -100,11 +101,15 @@ fn make(ui: &Ui, texts: &Texts, query: &QueryTab, key: u64) -> Notes {
         cancel: shared(QueryText::Cancel),
         export_csv: shared(QueryText::ExportCsv),
         export_json: shared(QueryText::ExportJson),
+        export_cancel: shared(QueryText::ExportCancel),
         status,
         fraction,
         alert,
         prompt,
-        count: result.map(|result| note(ui, count(texts, result), palette::GRAY_2_TEXT)),
+        count: result.map(|result| {
+            let text = plain(count(texts, result), FS_SM, Weight::Regular);
+            line(ui, text.color(palette::GRAY_2_TEXT), f32::INFINITY)
+        }),
         export: query
             .export_status()
             .map(|export| export_note(texts, export))
@@ -233,6 +238,10 @@ fn export_note(texts: &Texts, export: &QueryExportStatus) -> (String, Color32) {
                 &[path(at), ("reason", reason.clone().into())],
             ),
             palette::DANGER_TEXT,
+        ),
+        QueryExportStatus::Cancelled(at) => (
+            texts.format(QueryText::ExportCancelled, &[path(at)]),
+            palette::GRAY_2_TEXT,
         ),
     }
 }

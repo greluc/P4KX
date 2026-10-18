@@ -3,12 +3,13 @@ use std::sync::Arc;
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    CornerRadius, Galley, Id, Key, Margin, Modifiers, Shape, Stroke, TextBuffer, TextEdit, Ui, vec2,
+    CornerRadius, Galley, Id, Key, Margin, Modifiers, ScrollArea, Shape, Stroke, TextBuffer,
+    TextEdit, Ui, vec2,
 };
 
 use crate::theme::desktop::{
-    ALERT_DANGER_FILL, ERROR_UNDERLINE, QUERY_EDITOR_ROWS, TEXTAREA_LINE_HEIGHT,
-    TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
+    ALERT_DANGER_FILL, ERROR_UNDERLINE, QUERY_EDITOR_MAX_ROWS, QUERY_EDITOR_ROWS,
+    TEXTAREA_LINE_HEIGHT, TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_BODY, GLOW_PRIMARY, Weight, font};
@@ -24,12 +25,13 @@ pub(super) struct Edited {
     pub(super) submitted: bool,
 }
 
-/// The last laid-out text, kept until the text, the mark or the width change.
+/// The last laid-out text, kept until the text, the mark, the width or the scale change.
 #[derive(Clone, Default)]
 struct Laid {
     text: String,
     mark: Option<Range<usize>>,
     width: u32,
+    pixels_per_point: u32,
     galley: Option<Arc<Galley>>,
 }
 
@@ -45,11 +47,14 @@ pub(super) fn show(
     let submitted = ui.memory(|memory| memory.has_focus(id))
         && ui.input_mut(|input| input.consume_key(Modifiers::COMMAND, Key::Enter));
     let glow = ui.painter().add(Shape::Noop);
-    let line_height = FS_BODY * TEXTAREA_LINE_HEIGHT;
-    let height = line_height.mul_add(
-        f32::from(u8::try_from(QUERY_EDITOR_ROWS).unwrap_or(u8::MAX)),
-        2.0 * TEXTAREA_PADDING_Y,
-    );
+    let rows = |rows: usize| {
+        let line_height = FS_BODY * TEXTAREA_LINE_HEIGHT;
+        line_height.mul_add(
+            f32::from(u8::try_from(rows).unwrap_or(u8::MAX)),
+            2.0 * TEXTAREA_PADDING_Y,
+        )
+    };
+    let height = rows(QUERY_EDITOR_ROWS);
     let mut layouter =
         |ui: &Ui, buffer: &dyn TextBuffer, width: f32| laid_out(ui, buffer.as_str(), mark, width);
     let edit = TextEdit::multiline(text)
@@ -63,7 +68,12 @@ pub(super) fn show(
         .min_size(vec2(0.0, height))
         .desired_width(f32::INFINITY)
         .layouter(&mut layouter);
-    let response = ui.add(edit).labelled_by(label);
+    let response = ScrollArea::vertical()
+        .id_salt("p4kx-query-editor-scroll")
+        .max_height(rows(QUERY_EDITOR_MAX_ROWS))
+        .auto_shrink([false, true])
+        .show(ui, |ui| ui.add(edit).labelled_by(label))
+        .inner;
     if response.has_focus() {
         ui.painter().set(
             glow,
@@ -79,9 +89,13 @@ pub(super) fn show(
 fn laid_out(ui: &Ui, text: &str, mark: Option<&Range<usize>>, width: f32) -> Arc<Galley> {
     let id = Id::unique("p4kx-query-editor-galley");
     let width_key = width.to_bits();
+    let scale = ui.ctx().pixels_per_point().to_bits();
     let known = ui.data_mut(|data| {
         let laid = data.get_temp_mut_or_default::<Laid>(id);
-        (laid.text == text && laid.mark.as_ref() == mark && laid.width == width_key)
+        (laid.text == text
+            && laid.mark.as_ref() == mark
+            && laid.width == width_key
+            && laid.pixels_per_point == scale)
             .then(|| laid.galley.clone())
             .flatten()
     });
@@ -120,6 +134,7 @@ fn laid_out(ui: &Ui, text: &str, mark: Option<&Range<usize>>, width: f32) -> Arc
         text.clone_into(&mut laid.text);
         laid.mark = mark.cloned();
         laid.width = width_key;
+        laid.pixels_per_point = scale;
         laid.galley = Some(Arc::clone(&galley));
     });
     galley

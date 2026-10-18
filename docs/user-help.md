@@ -81,17 +81,27 @@ The **Query** tab runs Queries ([query.md](query.md)) over the DataForge of the 
 example `from AmmoParams select speed, lifetime where speed >= 1500`. Write the Query into the
 editor and press **Run Query** or Ctrl+Enter. DataForge is read in the background the first time
 and kept for the next Query of the same Archive; a spinner and then a progress bar show how far
-the Query has come, and **Cancel** stops it at once.
+the Query has come. **Cancel** shows the Query as cancelled at once; a DataForge that is still
+being read is read to the end in the background and kept, so the next Query starts without
+reading it again.
 
 A Query that cannot run is explained below the editor with its line and column, and the part of
 the Query it concerns is underlined in red, e.g. a mistyped field with the name it probably meant.
+The mark goes away as soon as you change the Query.
 
 The result is a table with the record path first and one column per path of `select`, in record
-path order. Click a column head to sort by it, numbers by value and text ignoring case; click
-again to reverse. Large results are shown 500 rows per page with the page buttons above the table.
+path order. Numbers stand right-aligned; a path through `[*]` or `[TypeName]` shows its list of
+values in brackets, more than eight as the first eight and how many more; `null` is grey and a
+value that cannot be read red. Click a column head to sort by it: numbers by value, text ignoring
+case and lists by their first value and then their length; click again to reverse. Values that
+cannot be read, nulls and missing values stay at the end either way. Large results are shown
+500 rows per page; the number of Records and the page buttons are below the table.
+
 **Export CSV…** and **Export JSON…** write the whole result in the order of `docs/query.md`,
-exactly as `p4kx dcb query --format csv|json --out <file>` writes it, whatever the table is sorted
-by. The file is written in the background and only replaces an existing file once complete.
+byte for byte as `p4kx dcb query --format csv|json --out <file>` writes it, whatever the table is
+sorted by. The file is written in the background and only replaces an existing file once
+complete; **Cancel export** stops it and leaves any existing file as it was. The open Archive
+itself is never overwritten.
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

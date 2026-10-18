@@ -2,18 +2,21 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
-use p4kx_extraction::DataForgeEntry;
 use p4kx_extraction::query::{Query, QueryError};
 
+mod cell;
 mod export;
+mod forge_slot;
 mod result;
 mod run;
 
+pub use cell::CellLook;
 pub use export::{QueryExportFormat, QueryExportStatus};
-pub use result::{QUERY_PAGE_ROWS, QueryResult};
+pub use result::{QUERY_PAGE_ROWS, QueryResult, ResultColumn};
 
 use crate::EntryIndex;
 use export::ExportJob;
+use forge_slot::ForgeSlot;
 use run::{Job, Outcome, Run};
 
 /// How far a running Query has come.
@@ -116,6 +119,17 @@ pub enum QueryStatus<'a> {
     Finished(&'a QueryResult),
 }
 
+impl QueryStatus<'_> {
+    /// Returns how far a running Query has come, or `None` when none runs.
+    #[must_use]
+    pub const fn stage(self) -> Option<QueryStage> {
+        match self {
+            Self::Running(stage) => Some(stage),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 enum State {
     #[default]
@@ -133,8 +147,7 @@ enum State {
 pub struct QueryTab {
     text: String,
     state: State,
-    forge: Option<(Weak<EntryIndex>, Arc<DataForgeEntry>)>,
-    running_on: Weak<EntryIndex>,
+    forge: Option<(Weak<EntryIndex>, Arc<ForgeSlot>)>,
     export: Option<ExportJob>,
 }
 
@@ -179,14 +192,7 @@ impl QueryTab {
                 return false;
             }
         };
-        let forge = self
-            .forge
-            .as_ref()
-            .filter(|(of, _)| of.upgrade().is_some_and(|of| Arc::ptr_eq(&of, index)))
-            .map(|(_, forge)| Arc::clone(forge));
-        if forge.is_none() {
-            self.forge = None;
-        }
+        let forge = self.slot_of(index);
         let job = Job {
             index: Arc::clone(index),
             query,
@@ -197,8 +203,30 @@ impl QueryTab {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };
-        self.running_on = Arc::downgrade(index);
         true
+    }
+
+    /// Returns the DataForge slot of `index`, a new one when the slot kept is of another
+    /// Archive.
+    fn slot_of(&mut self, index: &Arc<EntryIndex>) -> Arc<ForgeSlot> {
+        if let Some((of, slot)) = &self.forge
+            && of.upgrade().is_some_and(|of| Arc::ptr_eq(&of, index))
+        {
+            return Arc::clone(slot);
+        }
+        let slot = Arc::new(ForgeSlot::default());
+        self.forge = Some((Arc::downgrade(index), Arc::clone(&slot)));
+        slot
+    }
+
+    /// Returns the bytes of the Query text to mark as an error: the span of the error of the
+    /// last run while the text is still the text it was found in.
+    #[must_use]
+    pub fn mark(&self) -> Option<Range<usize>> {
+        match &self.state {
+            State::Invalid(invalid) if invalid.query() == self.text => Some(invalid.span()),
+            _ => None,
+        }
     }
 
     /// Forgets the result, the running Query, its export and the DataForge read for it,
@@ -223,12 +251,9 @@ impl QueryTab {
         let State::Running(run) = &self.state else {
             return exported;
         };
-        let Some((outcome, forge)) = run.poll() else {
+        let Some(outcome) = run.poll() else {
             return exported;
         };
-        if let Some(forge) = forge {
-            self.forge = Some((Weak::clone(&self.running_on), forge));
-        }
         self.state = match outcome {
             Outcome::Finished(result) => State::Finished(result),
             Outcome::Invalid(invalid) => State::Invalid(invalid),
@@ -284,9 +309,17 @@ impl QueryTab {
         let Some(result) = self.result() else {
             return false;
         };
-        let job = export::start(result.forge(), result.query(), (path, format), wake);
+        let source = (result.forge(), result.archive());
+        let job = export::start(source, result.query(), (path, format), wake);
         self.export = Some(job);
         true
+    }
+
+    /// Stops the running export; the file it writes is not created or replaced.
+    pub fn cancel_export(&mut self) {
+        if let Some(export) = &mut self.export {
+            export.cancel();
+        }
     }
 
     /// Returns whether an export runs.

@@ -39,6 +39,39 @@ pub(crate) fn database() -> DataForgeBuilder {
         )
 }
 
+/// Items with a list of tags, a mass and a null owner.
+pub(crate) fn listed() -> DataForgeBuilder {
+    let tags = |values: std::ops::RangeInclusive<i32>| {
+        TestValue::Array(values.map(TestValue::Int32).collect())
+    };
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Part").field("mass", TestType::Single))
+        .structure(
+            TestStruct::new("Item")
+                .array("tags", TestType::Int32)
+                .field("mass", TestType::Single)
+                .field("owner", TestType::StrongPointer("Part".to_owned())),
+        )
+        .record(
+            TestRecord::new(1, "Item", "Item.A", "libs/items/a.xml")
+                .value("tags", tags(1..=2))
+                .value("mass", TestValue::Single(1.0))
+                .value("owner", TestValue::Null),
+        )
+        .record(
+            TestRecord::new(2, "Item", "Item.B", "libs/items/b.xml")
+                .value("tags", TestValue::Array(Vec::new()))
+                .value("mass", TestValue::Single(2.0))
+                .value("owner", TestValue::Null),
+        )
+        .record(
+            TestRecord::new(3, "Item", "Item.C", "libs/items/c.xml")
+                .value("tags", tags(3..=12))
+                .value("mass", TestValue::Single(3.0))
+                .value("owner", TestValue::Null),
+        )
+}
+
 /// `count` Items numbered from 0, with the number as mass.
 pub(crate) fn numbered(count: u16) -> DataForgeBuilder {
     (0..count).fold(

@@ -339,3 +339,12 @@ pub const PAGE_DISABLED_OPACITY: f32 = 0.4;
 pub const QUERY_COLUMN_WIDTH: f32 = 200.0;
 /// The narrowest a column of the Query result gets.
 pub const QUERY_COLUMN_MIN_WIDTH: f32 = 80.0;
+
+/// The horizontal padding of a `.list-panel__footer`.
+pub const LIST_FOOTER_PADDING_X: f32 = SPACE_4;
+/// The vertical padding of a `.list-panel__footer`.
+pub const LIST_FOOTER_PADDING_Y: f32 = SPACE_3;
+/// The size of a chevron icon in a page button, `1.1em` of the control font.
+pub const PAGE_CHEVRON: f32 = 1.1 * REM;
+/// The rows of text the Query editor grows to before it scrolls.
+pub const QUERY_EDITOR_MAX_ROWS: usize = 12;

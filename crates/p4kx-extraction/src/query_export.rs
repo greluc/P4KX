@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process;
 
-use p4kx_dataforge::query::{CompiledQuery, QueryRun, ResultFormat, ResultWriter};
+use p4kx_dataforge::query::{CompiledQuery, QueryRun, ResultFormat, ResultWriter, Row};
 use thiserror::Error;
 
 use crate::CancelToken;
@@ -24,6 +24,8 @@ pub struct QueryExportOptions<'a> {
     pub cancel: Option<&'a CancelToken>,
     /// Called after every page with the number of rows written so far.
     pub progress: Option<&'a (dyn Fn(u64) + Sync)>,
+    /// Called with each row whose Record's values cannot be read; it gives no row.
+    pub failed: Option<&'a (dyn Fn(&Row<'_>) + Sync)>,
 }
 
 impl std::fmt::Debug for QueryExportOptions<'_> {
@@ -31,6 +33,7 @@ impl std::fmt::Debug for QueryExportOptions<'_> {
         f.debug_struct("QueryExportOptions")
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("failed", &self.failed.is_some())
             .finish()
     }
 }
@@ -51,6 +54,9 @@ pub enum QueryExportError {
     /// The export was cancelled; the target is unchanged.
     #[error("the export was cancelled")]
     Cancelled,
+    /// The target is the Archive the Query reads; nothing is written.
+    #[error("{} is the Archive the Query reads", .0.display())]
+    OutputIsArchive(PathBuf),
     /// The file cannot be written; the target is unchanged.
     #[error("cannot write {}", path.display())]
     Write {
@@ -62,8 +68,8 @@ pub enum QueryExportError {
     },
 }
 
-/// Writes the result of `run`, selected by `query`, to the file `out` in `format`, page by page
-/// as `p4kx dcb query --out` does (`docs/query.md`).
+/// Writes the result of `run`, selected by `query` over the Archive at `archive`, to the file
+/// `out` in `format`, page by page, as `p4kx dcb query --out` does (`docs/query.md`).
 ///
 /// The rows go to `<file>.p4kx-<process id>.part` next to `out`, which replaces `out` once
 /// complete, so `out` is never half written. A Record whose values cannot be read gives no row
@@ -71,16 +77,19 @@ pub enum QueryExportError {
 ///
 /// # Errors
 ///
-/// Returns [`QueryExportError::Cancelled`] once `options.cancel` is set and
-/// [`QueryExportError::Write`] when the file cannot be written; either way the temporary file is
-/// removed.
+/// Returns [`QueryExportError::OutputIsArchive`] when `out` is the file at `archive`,
+/// [`QueryExportError::Cancelled`] once `options.cancel` is set and [`QueryExportError::Write`]
+/// when the file cannot be written; the temporary file is removed in every case.
 pub fn export_query(
     query: &CompiledQuery<'_>,
     run: &QueryRun<'_, '_>,
-    out: &Path,
-    format: ResultFormat,
+    (out, format): (&Path, ResultFormat),
+    archive: &Path,
     options: &QueryExportOptions<'_>,
 ) -> Result<QueryExport, QueryExportError> {
+    if is_same_file(out, archive) {
+        return Err(QueryExportError::OutputIsArchive(out.to_path_buf()));
+    }
     let write_error = |source| QueryExportError::Write {
         path: out.to_path_buf(),
         source,
@@ -133,12 +142,14 @@ fn write_rows(
             return Err(Stop::Cancelled);
         }
         for row in &page {
-            match row.cells() {
-                Ok(cells) => {
-                    writer.write_row(row.record_path(), cells)?;
-                    export.records = export.records.saturating_add(1);
+            if let Ok(cells) = row.cells() {
+                writer.write_row(row.record_path(), cells)?;
+                export.records = export.records.saturating_add(1);
+            } else {
+                export.failed = export.failed.saturating_add(1);
+                if let Some(failed) = options.failed {
+                    failed(row);
                 }
-                Err(_) => export.failed = export.failed.saturating_add(1),
             }
         }
         if let Some(progress) = options.progress {
@@ -163,4 +174,14 @@ fn temporary_path(out: &Path) -> io::Result<PathBuf> {
     let mut name = name.to_os_string();
     name.push(format!(".p4kx-{}.part", process::id()));
     Ok(out.with_file_name(name))
+}
+
+/// Returns whether `path` names an existing file that is the file at `other`, after resolving
+/// links and relative parts.
+#[must_use]
+pub fn is_same_file(path: &Path, other: &Path) -> bool {
+    match (fs::canonicalize(path), fs::canonicalize(other)) {
+        (Ok(path), Ok(other)) => path == other,
+        _ => false,
+    }
 }

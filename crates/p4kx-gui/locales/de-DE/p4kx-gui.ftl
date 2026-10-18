@@ -223,6 +223,8 @@ query-exported =
        *[other] { $number } Records nach { $path } exportiert
     }
 query-export-failed = Das Ergebnis kann nicht nach { $path } exportiert werden: { $reason }
+query-export-cancel = Export abbrechen
+query-export-cancelled = Der Export nach { $path } wurde abgebrochen.
 query-page = Seite { $page } von { $pages }
 query-page-first = Erste Seite
 query-page-previous = Vorherige Seite

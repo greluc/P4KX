@@ -3,6 +3,7 @@
 
 use std::error::Error;
 use std::fs;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_dataforge::DataForge;
@@ -11,6 +12,10 @@ use p4kx_extraction::{CancelToken, QueryExportError, QueryExportOptions, export_
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+fn no_archive() -> PathBuf {
+    PathBuf::from("no-such-archive.p4k")
+}
 
 fn database() -> Vec<u8> {
     DataForgeBuilder::new()
@@ -43,8 +48,8 @@ fn csv_is_written_like_the_cli_writes_it() -> TestResult {
     let written = export_query(
         &compiled,
         &compiled.run(),
-        &out,
-        ResultFormat::Csv,
+        (&out, ResultFormat::Csv),
+        &no_archive(),
         &QueryExportOptions::default(),
     )?;
 
@@ -69,8 +74,8 @@ fn json_is_one_array_of_typed_objects() -> TestResult {
     export_query(
         &compiled,
         &compiled.run(),
-        &out,
-        ResultFormat::Json,
+        (&out, ResultFormat::Json),
+        &no_archive(),
         &QueryExportOptions::default(),
     )?;
 
@@ -94,11 +99,12 @@ fn progress_counts_the_rows_written() -> TestResult {
     export_query(
         &compiled,
         &compiled.run(),
-        &dir.path().join("result.csv"),
-        ResultFormat::Csv,
+        (&dir.path().join("result.csv"), ResultFormat::Csv),
+        &no_archive(),
         &QueryExportOptions {
             cancel: None,
             progress: Some(&progress),
+            failed: None,
         },
     )?;
 
@@ -120,11 +126,12 @@ fn a_cancelled_export_keeps_the_existing_file_and_leaves_no_part_file() -> TestR
     let result = export_query(
         &compiled,
         &compiled.run(),
-        &out,
-        ResultFormat::Csv,
+        (&out, ResultFormat::Csv),
+        &no_archive(),
         &QueryExportOptions {
             cancel: Some(&cancel),
             progress: None,
+            failed: None,
         },
     );
 
@@ -148,8 +155,8 @@ fn a_folder_that_does_not_exist_is_a_write_error_naming_the_file() -> TestResult
     let result = export_query(
         &compiled,
         &compiled.run(),
-        &out,
-        ResultFormat::Csv,
+        (&out, ResultFormat::Csv),
+        &no_archive(),
         &QueryExportOptions::default(),
     );
 
@@ -157,5 +164,32 @@ fn a_folder_that_does_not_exist_is_a_write_error_naming_the_file() -> TestResult
         Err(QueryExportError::Write { path, .. }) => assert_eq!(path, out, "path"),
         other => return Err(format!("expected a write error: {other:?}").into()),
     }
+    Ok(())
+}
+
+#[test]
+fn an_export_over_the_open_archive_is_refused() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let compiled = Query::parse("from Item")?.compile(&forge)?;
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    fs::write(&archive, "archive")?;
+    let out = dir.path().join(".").join("Data.p4k");
+
+    let result = export_query(
+        &compiled,
+        &compiled.run(),
+        (&out, ResultFormat::Csv),
+        &archive,
+        &QueryExportOptions::default(),
+    );
+
+    assert!(
+        matches!(result, Err(QueryExportError::OutputIsArchive(_))),
+        "{result:?}"
+    );
+    assert_eq!(fs::read_to_string(&archive)?, "archive", "untouched");
+    assert_eq!(fs::read_dir(dir.path())?.count(), 1, "no part file");
     Ok(())
 }

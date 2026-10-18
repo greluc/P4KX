@@ -1,13 +1,14 @@
 use std::cmp::Ordering;
-use std::fmt::Write as _;
 use std::ops::Range;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
-use p4kx_extraction::query::Row;
-use p4kx_extraction::{DataForgeEntry, Value};
+use p4kx_extraction::query::{ColumnKind, Row};
+use p4kx_extraction::{DataForgeEntry, DataType};
 use rayon::slice::ParallelSliceMut;
 
+use super::cell::{Cell, CellLook};
 use crate::SortDirection;
 use crate::sort::compare_ignoring_case;
 
@@ -16,77 +17,58 @@ pub const QUERY_PAGE_ROWS: usize = 500;
 
 static GENERATIONS: AtomicU64 = AtomicU64::new(1);
 
-/// One cell of a Query result, as text with what it sorts by.
-#[derive(Debug, Clone, PartialEq)]
-enum Cell {
-    Number(Box<str>, f64),
-    Text(Box<str>),
-    Error(Box<str>),
-    Empty,
+/// One column of a Query result after the record path: its heading and what its cells hold.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultColumn {
+    heading: String,
+    list: bool,
+    numeric: bool,
 }
 
-impl Cell {
-    fn of(value: Option<&Value<'_>>, buffer: &mut String) -> Self {
-        let Some(value) = value else {
-            return Self::Empty;
-        };
-        buffer.clear();
-        let _infallible = write!(buffer, "{value}");
-        let text = Box::from(buffer.as_str());
-        match number(value) {
-            Some(number) => Self::Number(text, number),
-            None if matches!(value, Value::Error(_)) => Self::Error(text),
-            None => Self::Text(text),
+impl ResultColumn {
+    pub(crate) fn new(heading: &str, kind: &ColumnKind) -> Self {
+        let numeric = !kind.is_multi_valued()
+            && !kind.data_types().is_empty()
+            && kind.data_types().iter().all(|data_type| {
+                matches!(
+                    data_type,
+                    DataType::Int8
+                        | DataType::Int16
+                        | DataType::Int32
+                        | DataType::Int64
+                        | DataType::UInt8
+                        | DataType::UInt16
+                        | DataType::UInt32
+                        | DataType::UInt64
+                        | DataType::Single
+                        | DataType::Double
+                )
+            });
+        Self {
+            heading: heading.to_owned(),
+            list: kind.is_multi_valued(),
+            numeric,
         }
     }
 
-    fn text(&self) -> &str {
-        match self {
-            Self::Number(text, _) | Self::Text(text) | Self::Error(text) => text,
-            Self::Empty => "",
-        }
+    /// Returns the heading, the path in canonical form.
+    #[must_use]
+    pub fn heading(&self) -> &str {
+        &self.heading
     }
 
-    const fn rank(&self) -> u8 {
-        match self {
-            Self::Number(..) => 0,
-            Self::Text(_) => 1,
-            Self::Error(_) => 2,
-            Self::Empty => 3,
-        }
+    /// Returns whether every cell is a list, for a path through `[*]` or `[TypeName]`.
+    #[must_use]
+    pub const fn is_list(&self) -> bool {
+        self.list
     }
 
-    fn compare(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Self::Number(_, left), Self::Number(_, right)) => left.total_cmp(right),
-            (Self::Text(left), Self::Text(right)) | (Self::Error(left), Self::Error(right)) => {
-                compare_ignoring_case(left, right)
-            }
-            _ => self.rank().cmp(&other.rank()),
-        }
+    /// Returns whether every value is a number, so the column is aligned to the right.
+    #[must_use]
+    pub const fn is_numeric(&self) -> bool {
+        self.numeric
     }
 }
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "sorting needs the order of magnitude, not every digit of a 64-bit integer"
-)]
-fn number(value: &Value<'_>) -> Option<f64> {
-    Some(match *value {
-        Value::Int8(value) => value.into(),
-        Value::Int16(value) => value.into(),
-        Value::Int32(value) => value.into(),
-        Value::Int64(value) => value as f64,
-        Value::UInt8(value) => value.into(),
-        Value::UInt16(value) => value.into(),
-        Value::UInt32(value) => value.into(),
-        Value::UInt64(value) => value as f64,
-        Value::Single(value) => value.into(),
-        Value::Double(value) => value,
-        _ => return None,
-    })
-}
-
 /// One row of a Query result: the record path and one cell per selected path.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ResultRow {
@@ -96,23 +78,33 @@ pub(crate) struct ResultRow {
 
 impl ResultRow {
     /// Returns the row of `row`, or `None` when the Record's values cannot be read.
-    pub(crate) fn of(row: &Row<'_>, buffer: &mut String) -> Option<Self> {
+    /// Returns the row of `row` with its cells of the `lists` columns as lists, or `None` when
+    /// the Record's values cannot be read.
+    pub(crate) fn of(row: &Row<'_>, lists: &[bool], buffer: &mut String) -> Option<Self> {
         let cells = row.cells().ok()?;
         Some(Self {
             record_path: row.record_path().into(),
             cells: cells
                 .iter()
-                .map(|value| Cell::of(value.as_ref(), buffer))
+                .enumerate()
+                .map(|(index, value)| {
+                    let list = lists.get(index).copied().unwrap_or(false);
+                    Cell::of(value.as_ref(), list, buffer)
+                })
                 .collect(),
         })
     }
 
-    fn compare(&self, other: &Self, column: usize) -> Ordering {
+    fn compare(&self, other: &Self, column: usize, direction: SortDirection) -> Ordering {
         let Some(index) = column.checked_sub(1) else {
-            return compare_ignoring_case(&self.record_path, &other.record_path);
+            let order = compare_ignoring_case(&self.record_path, &other.record_path);
+            return match direction {
+                SortDirection::Ascending => order,
+                SortDirection::Descending => order.reverse(),
+            };
         };
         match (self.cells.get(index), other.cells.get(index)) {
-            (Some(left), Some(right)) => left.compare(right),
+            (Some(left), Some(right)) => left.compare(right, direction),
             (left, right) => left.is_none().cmp(&right.is_none()),
         }
     }
@@ -122,13 +114,14 @@ impl ResultRow {
 /// sorted for display and the page shown.
 pub struct QueryResult {
     query: String,
-    columns: Vec<String>,
+    columns: Vec<ResultColumn>,
     rows: Vec<ResultRow>,
     failed: u64,
     order: Vec<u32>,
     sort: Option<(usize, SortDirection)>,
     page: usize,
     forge: Arc<DataForgeEntry>,
+    archive: PathBuf,
     generation: u64,
 }
 
@@ -147,11 +140,10 @@ impl std::fmt::Debug for QueryResult {
 
 impl QueryResult {
     pub(crate) fn new(
-        query: String,
-        columns: Vec<String>,
+        (query, columns): (String, Vec<ResultColumn>),
         rows: Vec<ResultRow>,
         failed: u64,
-        forge: Arc<DataForgeEntry>,
+        (forge, archive): (Arc<DataForgeEntry>, PathBuf),
     ) -> Self {
         let order = (0..rows.len())
             .filter_map(|index| u32::try_from(index).ok())
@@ -165,6 +157,7 @@ impl QueryResult {
             sort: None,
             page: 0,
             forge,
+            archive,
             generation: GENERATIONS.fetch_add(1, AtomicOrdering::Relaxed),
         }
     }
@@ -175,9 +168,9 @@ impl QueryResult {
         &self.query
     }
 
-    /// Returns the headings of the selected paths, the columns after the record path.
+    /// Returns the columns of the selected paths, after the record path.
     #[must_use]
-    pub fn columns(&self) -> &[String] {
+    pub fn columns(&self) -> &[ResultColumn] {
         &self.columns
     }
 
@@ -210,13 +203,13 @@ impl QueryResult {
         row.cells.get(index).map(Cell::text)
     }
 
-    /// Returns whether the cell at `position` and `column` holds a value that cannot be read.
+    /// Returns how the cell at `position` and `column` is shown.
     #[must_use]
-    pub fn is_error(&self, position: usize, column: usize) -> bool {
+    pub fn look(&self, position: usize, column: usize) -> CellLook {
         column
             .checked_sub(1)
             .and_then(|index| self.row(position)?.cells.get(index))
-            .is_some_and(|cell| matches!(cell, Cell::Error(_)))
+            .map_or(CellLook::Value, Cell::look)
     }
 
     fn row(&self, position: usize) -> Option<&ResultRow> {
@@ -243,12 +236,8 @@ impl QueryResult {
         let at = |index: u32| rows.get(index as usize);
         self.order.par_sort_by(|&a, &b| {
             let order = match (at(a), at(b)) {
-                (Some(left), Some(right)) => left.compare(right, column),
+                (Some(left), Some(right)) => left.compare(right, column, direction),
                 _ => Ordering::Equal,
-            };
-            let order = match direction {
-                SortDirection::Ascending => order,
-                SortDirection::Descending => order.reverse(),
             };
             order.then(a.cmp(&b))
         });
@@ -291,6 +280,11 @@ impl QueryResult {
     /// Returns a number that changes whenever the shown rows change, for caches.
     pub(crate) const fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// Returns the Archive the Query ran over.
+    pub(crate) fn archive(&self) -> &Path {
+        &self.archive
     }
 
     /// Returns the DataForge the Query ran over.

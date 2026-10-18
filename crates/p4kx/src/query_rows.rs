@@ -40,22 +40,27 @@ pub(crate) fn for_each_row(
 ) -> io::Result<()> {
     for page in run.pages(QUERY_PAGE_SIZE) {
         for row in &page {
-            match row.cells() {
-                Ok(cells) => {
-                    write(row, cells)?;
-                    counts.records = counts.records.saturating_add(1);
-                }
-                Err(error) => {
-                    counts.failed = counts.failed.saturating_add(1);
-                    let _unreported = writeln!(
-                        io::stderr().lock(),
-                        "failed {} ({}): {error}",
-                        row.record_path(),
-                        row.record().guid()
-                    );
-                }
+            if let Ok(cells) = row.cells() {
+                write(row, cells)?;
+                counts.records = counts.records.saturating_add(1);
+            } else {
+                counts.failed = counts.failed.saturating_add(1);
+                report_failed(row);
             }
         }
     }
     Ok(())
+}
+
+/// Reports on stderr that the values of `row`'s Record cannot be read; a report that cannot be
+/// written is dropped.
+pub(crate) fn report_failed(row: &Row<'_>) {
+    if let Err(error) = row.cells() {
+        let _unreported = writeln!(
+            io::stderr().lock(),
+            "failed {} ({}): {error}",
+            row.record_path(),
+            row.record().guid()
+        );
+    }
 }

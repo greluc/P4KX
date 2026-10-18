@@ -664,6 +664,7 @@
   "queryEditor": {
     "dsClass": "textarea",
     "rows": 4,
+    "maxRows": 12,
     "paddingX": 12,
     "paddingY": 8,
     "fontSize": 16,
@@ -702,7 +703,7 @@
     "buttonBorder": {"width": 1, "color": "control-border"},
     "buttonHover": "border and chevron color-primary",
     "disabledOpacity": 0.4,
-    "chevron": {"size": 12, "strokeWidth": 3},
+    "chevron": {"size": 17.6, "path": "M15 6l-6 6 6 6 on a 24 grid", "strokeWidth": "2 of 24", "doubleOverlap": 6},
     "statusPaddingX": 12,
     "statusFontSize": 12.8,
     "statusColor": "color-gray-1",
@@ -714,7 +715,19 @@
     "columnWidth": 200,
     "columnMinWidth": 80,
     "pageRows": 500,
-    "errorValue": "color-danger-text"
+    "errorValue": "color-danger-text, also a list holding one",
+    "nullValue": "null in color-gray-2-text, sorted with missing values",
+    "numberColumns": "right-aligned",
+    "listCells": "the values in brackets, the first 8 and then the number of more",
+    "footer": "listFooter with the number of Records left and the pagination right"
+  },
+  "listFooter": {
+    "dsClass": "list-panel__footer",
+    "paddingX": 16,
+    "paddingY": 12,
+    "fontSize": 14.4,
+    "color": "color-gray-2-text",
+    "borderTop": {"width": 1, "color": "color-gray-3"}
   },
   "lineDiff": {
     "panel": "previewPanel below the change list once a change is selected, opening at half the remaining height (at least previewPanel minHeight), with resizeHandle; the selected row scrolls back into view",

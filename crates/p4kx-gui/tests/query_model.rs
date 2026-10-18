@@ -1,81 +1,17 @@
 //! The Query tab driven headless: running off the UI thread, the result table, sorting,
-//! paging, errors with their place, cancelling and exporting.
+//! paging, errors with their place, cancelling and reading DataForge once.
 
+#[path = "querying/model.rs"]
+mod model;
 mod querying;
 
-use std::error::Error;
-use std::fs;
-use std::path::Path;
 use std::time::{Duration, Instant};
 
+use model::{column, finished, opened, run, settled};
 use p4kx_gui::{
-    Language, Model, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryResult,
-    QueryStatus, SortDirection,
+    Language, Model, QUERY_PAGE_ROWS, QueryStage, QueryStatus, ResultColumn, SortDirection,
 };
-use querying::{TestResult, archive, database, numbered};
-
-/// Opens the Archive at `path` in a headless model.
-pub(crate) fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
-    let mut model = Model::new(Language::BritishEnglish);
-    model.open(path.to_path_buf(), || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", model.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
-    Ok(model)
-}
-
-/// Waits until the Query of the tab ended.
-pub(crate) fn settled(model: &mut Model) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while matches!(model.query().status(), QueryStatus::Running(_)) {
-        if Instant::now() > deadline {
-            return Err("the Query did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.query_mut().poll();
-    }
-    Ok(())
-}
-
-/// Waits until the export of the tab ended.
-pub(crate) fn exported(model: &mut Model) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while model.query().is_exporting() {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.query_mut().poll();
-    }
-    Ok(())
-}
-
-/// Runs `text` in the Query tab of `model` and waits until it ended.
-pub(crate) fn run(model: &mut Model, text: &str) -> TestResult {
-    model.query_mut().set_text(text);
-    model.run_query(|| {});
-    settled(model)
-}
-
-fn finished(model: &Model) -> Result<&QueryResult, String> {
-    match model.query().status() {
-        QueryStatus::Finished(result) => Ok(result),
-        other => Err(format!("not finished: {other:?}")),
-    }
-}
-
-fn column(result: &QueryResult, column: usize) -> Vec<String> {
-    result
-        .page_rows()
-        .filter_map(|row| result.cell(row, column).map(str::to_owned))
-        .collect()
-}
-
+use querying::{TestResult, archive, database, listed, numbered};
 #[test]
 fn a_query_lists_one_row_per_record_with_one_column_per_selected_path() -> TestResult {
     let dir = tempfile::tempdir()?;
@@ -84,7 +20,8 @@ fn a_query_lists_one_row_per_record_with_one_column_per_selected_path() -> TestR
     run(&mut model, "at \"*\" select name, crew, mass")?;
 
     let result = finished(&model)?;
-    assert_eq!(result.columns(), ["name", "crew", "mass"], "columns");
+    let headings: Vec<&str> = result.columns().iter().map(ResultColumn::heading).collect();
+    assert_eq!(headings, ["name", "crew", "mass"], "columns");
     assert_eq!(result.len(), 3, "rows");
     assert_eq!(
         column(result, 0),
@@ -265,84 +202,6 @@ fn a_second_run_reuses_the_dataforge_read_by_the_first() -> TestResult {
 }
 
 #[test]
-fn export_writes_csv_like_the_cli() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let mut model = opened(&archive(dir.path(), &database())?)?;
-    run(&mut model, "at \"*\" select name, crew, mass")?;
-    let out = dir.path().join("result.csv");
-
-    let started = model
-        .query_mut()
-        .export(out.clone(), QueryExportFormat::Csv, || {});
-    exported(&mut model)?;
-
-    assert!(started, "started");
-    assert_eq!(
-        model.query().export_status(),
-        Some(&QueryExportStatus::Exported {
-            path: out.clone(),
-            records: 3,
-            failed: 0
-        }),
-        "status"
-    );
-    assert_eq!(
-        fs::read_to_string(&out)?,
-        "record path,name,crew,mass\r\n\
-         libs/items/box,Box,,-0.25\r\n\
-         libs/items/crate,Crate,,100\r\n\
-         libs/ships/avenger,\"Avenger, \"\"Titan\"\"\",2,25000.5\r\n",
-        "CSV"
-    );
-    Ok(())
-}
-
-#[test]
-fn export_writes_json_like_the_cli_whatever_the_table_is_sorted_by() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let mut model = opened(&archive(dir.path(), &database())?)?;
-    run(&mut model, "from Ship select crew, mass")?;
-    if let Some(result) = model.query_mut().result_mut() {
-        result.sort_by(2);
-    }
-    let out = dir.path().join("result.json");
-
-    model
-        .query_mut()
-        .export(out.clone(), QueryExportFormat::Json, || {});
-    exported(&mut model)?;
-
-    assert_eq!(
-        fs::read_to_string(&out)?,
-        "[{\"record path\":\"libs/ships/avenger\",\"crew\":2,\"mass\":25000.5}]\n",
-        "JSON"
-    );
-    Ok(())
-}
-
-#[test]
-fn an_export_that_cannot_be_written_reports_why() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let mut model = opened(&archive(dir.path(), &database())?)?;
-    run(&mut model, "from Item")?;
-    let out = dir.path().join("missing").join("result.csv");
-
-    model
-        .query_mut()
-        .export(out.clone(), QueryExportFormat::Csv, || {});
-    exported(&mut model)?;
-
-    match model.query().export_status() {
-        Some(QueryExportStatus::Failed(path, reason)) => {
-            assert_eq!(path, &out, "path");
-            assert!(reason.contains("cannot write"), "{reason}");
-        }
-        other => return Err(format!("not failed: {other:?}").into()),
-    }
-    Ok(())
-}
-
-#[test]
 fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut model = opened(&archive(dir.path(), &database())?)?;
@@ -362,5 +221,65 @@ fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResul
     assert!(idle, "the old result is gone");
     assert_eq!(model.query().text(), "from Item select mass", "kept");
     assert_eq!(finished(&model)?.len(), 2, "the new Archive's Records");
+    Ok(())
+}
+
+#[test]
+fn a_second_run_does_not_read_dataforge_again() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &database())?)?;
+    model.query_mut().set_text("from Item");
+    model.run_query(|| {});
+    let first = model.query().status().stage();
+    settled(&mut model)?;
+
+    model.run_query(|| {});
+    let second = model.query().status().stage();
+    settled(&mut model)?;
+
+    assert_eq!(
+        first,
+        Some(QueryStage::Loading),
+        "the first run reads DataForge"
+    );
+    assert_eq!(second, Some(QueryStage::Selecting), "the second does not");
+    Ok(())
+}
+
+#[test]
+fn the_mark_shows_the_error_until_the_text_changes() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &database())?)?;
+    run(&mut model, "from Item select mas")?;
+
+    let shown = model.query().mark();
+    model.query_mut().set_text("from Item select mass");
+
+    assert_eq!(shown, Some(17..20), "marked");
+    assert_eq!(model.query().mark(), None, "cleared once edited");
+    Ok(())
+}
+
+#[test]
+fn list_columns_show_the_short_list_and_sort_by_first_value() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &listed())?)?;
+    run(&mut model, "from Item select tags[*], mass")?;
+
+    let result = model.query_mut().result_mut().ok_or("no result")?;
+    let list = result.columns().first().is_some_and(ResultColumn::is_list);
+    let numeric = result
+        .columns()
+        .get(1)
+        .is_some_and(ResultColumn::is_numeric);
+    result.sort_by(1);
+
+    assert!(list, "a list column");
+    assert!(numeric, "a number column");
+    assert_eq!(
+        column(result, 1),
+        ["[]", "[1, 2]", "[3, 4, 5, 6, 7, 8, 9, 10, … 2 more]"],
+        "by first value"
+    );
     Ok(())
 }

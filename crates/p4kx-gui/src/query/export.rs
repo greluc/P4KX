@@ -53,6 +53,8 @@ pub enum QueryExportStatus {
     },
     /// The result could not be written to the path, for the reason given.
     Failed(PathBuf, String),
+    /// The export to the path was cancelled; the file was not created or replaced.
+    Cancelled(PathBuf),
 }
 
 /// Exporting a result on a background thread, or its outcome.
@@ -60,7 +62,7 @@ pub enum QueryExportStatus {
 pub(crate) struct ExportJob {
     status: QueryExportStatus,
     cancel: CancelToken,
-    result: Option<Receiver<Result<QueryExport, String>>>,
+    result: Option<Receiver<Result<QueryExport, Stopped>>>,
 }
 
 impl Drop for ExportJob {
@@ -73,6 +75,11 @@ impl ExportJob {
     /// Returns where exporting stands.
     pub(crate) const fn status(&self) -> &QueryExportStatus {
         &self.status
+    }
+
+    /// Asks the export to stop at its next page.
+    pub(crate) fn cancel(&self) {
+        self.cancel.cancel();
     }
 
     /// Returns whether the export still runs.
@@ -88,7 +95,7 @@ impl ExportJob {
         let outcome = match result.try_recv() {
             Ok(outcome) => outcome,
             Err(TryRecvError::Empty) => return false,
-            Err(TryRecvError::Disconnected) => Err(String::new()),
+            Err(TryRecvError::Disconnected) => Err(Stopped::Failed(String::new())),
         };
         self.result = None;
         let path = path_of(&self.status).to_path_buf();
@@ -98,7 +105,8 @@ impl ExportJob {
                 records: export.records,
                 failed: export.failed,
             },
-            Err(reason) => QueryExportStatus::Failed(path, reason),
+            Err(Stopped::Failed(reason)) => QueryExportStatus::Failed(path, reason),
+            Err(Stopped::Cancelled) => QueryExportStatus::Cancelled(path),
         };
         true
     }
@@ -108,14 +116,22 @@ fn path_of(status: &QueryExportStatus) -> &Path {
     match status {
         QueryExportStatus::Exporting(path)
         | QueryExportStatus::Exported { path, .. }
-        | QueryExportStatus::Failed(path, _) => path,
+        | QueryExportStatus::Failed(path, _)
+        | QueryExportStatus::Cancelled(path) => path,
     }
 }
 
-/// Runs `query` over `forge` again and writes its result to `path` in `format` on a background
-/// thread, calling `wake` from it once it ended.
+/// Why an export ended without a file.
+#[derive(Debug)]
+enum Stopped {
+    Cancelled,
+    Failed(String),
+}
+
+/// Runs `query` again over `forge`, read from the Archive at `archive`, and writes its result to
+/// `path` in `format` on a background thread, calling `wake` from it once it ended.
 pub(crate) fn start(
-    forge: &Arc<DataForgeEntry>,
+    (forge, archive): (&Arc<DataForgeEntry>, &Path),
     query: &str,
     (path, format): (PathBuf, QueryExportFormat),
     wake: impl Fn() + Send + 'static,
@@ -123,6 +139,7 @@ pub(crate) fn start(
     let (sender, result) = mpsc::channel();
     let cancel = CancelToken::new();
     let thread_forge = Arc::clone(forge);
+    let thread_archive = archive.to_path_buf();
     let thread_query = query.to_owned();
     let thread_path = path.clone();
     let thread_cancel = cancel.clone();
@@ -130,10 +147,9 @@ pub(crate) fn start(
         .name("query-export".to_owned())
         .spawn(move || {
             let written = export(
-                &thread_forge,
+                (&thread_forge, &thread_archive),
                 &thread_query,
-                &thread_path,
-                format.service(),
+                (&thread_path, format.service()),
                 &thread_cancel,
             );
             if sender.send(written).is_ok() {
@@ -155,20 +171,23 @@ pub(crate) fn start(
 }
 
 fn export(
-    forge: &DataForgeEntry,
+    (forge, archive): (&DataForgeEntry, &Path),
     query: &str,
-    path: &Path,
-    format: ResultFormat,
+    out: (&Path, ResultFormat),
     cancel: &CancelToken,
-) -> Result<QueryExport, String> {
-    let forge = forge.open().map_err(|error| describe(&error))?;
+) -> Result<QueryExport, Stopped> {
+    let failed = |reason: String| Stopped::Failed(reason);
+    let forge = forge.open().map_err(|error| failed(describe(&error)))?;
     let compiled = Query::parse(query)
         .and_then(|query| query.compile(&forge))
-        .map_err(|error| describe(&error))?;
+        .map_err(|error| failed(describe(&error)))?;
     let options = QueryExportOptions {
         cancel: Some(cancel),
-        progress: None,
+        ..QueryExportOptions::default()
     };
-    export_query(&compiled, &compiled.run(), path, format, &options)
-        .map_err(|error: QueryExportError| describe(&error))
+    match export_query(&compiled, &compiled.run(), out, archive, &options) {
+        Ok(export) => Ok(export),
+        Err(QueryExportError::Cancelled) => Err(Stopped::Cancelled),
+        Err(error) => Err(failed(describe(&error))),
+    }
 }

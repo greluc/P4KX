@@ -12,8 +12,8 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{RowState, paint_divider, paint_row};
-use crate::widgets::text::{caps, line, paint_left, plain};
-use crate::{DataForgeText, Language, QueryResult, Texts};
+use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
+use crate::{CellLook, DataForgeText, Language, QueryResult, ResultColumn, Texts};
 
 const MAX_CACHED: usize = 8192;
 
@@ -107,8 +107,8 @@ fn heads(ui: &Ui, texts: &Texts, result: &QueryResult) -> Vec<Labelled> {
     );
     std::iter::once((record_path.into(), line(ui, first, f32::INFINITY)))
         .chain(result.columns().iter().map(|column| {
-            let text = plain(column.as_str(), TABLE_HEAD_SIZE, Weight::Bold);
-            (Arc::from(column.as_str()), line(ui, text, f32::INFINITY))
+            let text = plain(column.heading(), TABLE_HEAD_SIZE, Weight::Bold);
+            (Arc::from(column.heading()), line(ui, text, f32::INFINITY))
         }))
         .collect()
 }
@@ -195,6 +195,7 @@ fn head_cell(ui: &Ui, (result, laid): (&QueryResult, &Laid), column: usize, left
     laid.head(column)
         .is_some_and(|(name, galley)| sort_head(ui, sorted, &name, &galley))
 }
+
 fn show_row(
     mut row: TableRow<'_, '_>,
     (result, laid): (&QueryResult, &Laid),
@@ -219,12 +220,20 @@ fn show_row(
             );
             response.widget_info(|| WidgetInfo::labeled(Role::Label, true, text));
             let galley = laid.cell(ui, (position, column), text, inner.width());
-            let colour = if result.is_error(position, column) {
-                palette::DANGER_TEXT
-            } else {
-                colour
+            let colour = match result.look(position, column) {
+                CellLook::Value => colour,
+                CellLook::Error => palette::DANGER_TEXT,
+                CellLook::Null => palette::GRAY_2_TEXT,
             };
-            paint_left(ui, inner, galley, colour);
+            let numeric = column
+                .checked_sub(1)
+                .and_then(|index| result.columns().get(index))
+                .is_some_and(ResultColumn::is_numeric);
+            if numeric {
+                paint_right(ui, inner, galley, colour);
+            } else {
+                paint_left(ui, inner, galley, colour);
+            }
         });
     }
     row.response().hovered()

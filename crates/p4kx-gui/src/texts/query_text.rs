@@ -53,6 +53,10 @@ pub enum QueryText {
     Exported,
     /// Shown when the export failed; takes `path` and `reason`.
     ExportFailed,
+    /// The action that stops the running export.
+    ExportCancel,
+    /// Shown once the export was cancelled; takes `path`.
+    ExportCancelled,
     /// The page shown; takes `page` and `pages`.
     Page,
     /// The button that shows the first page.
@@ -67,7 +71,7 @@ pub enum QueryText {
 
 impl QueryText {
     /// Every Query text.
-    pub(crate) const ALL: [Self; 31] = [
+    pub(crate) const ALL: [Self; 33] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -94,6 +98,8 @@ impl QueryText {
         Self::Exporting,
         Self::Exported,
         Self::ExportFailed,
+        Self::ExportCancel,
+        Self::ExportCancelled,
         Self::Page,
         Self::PageFirst,
         Self::PagePrevious,
@@ -131,6 +137,8 @@ impl QueryText {
             Self::Exporting => "query-exporting",
             Self::Exported => "query-exported",
             Self::ExportFailed => "query-export-failed",
+            Self::ExportCancel => "query-export-cancel",
+            Self::ExportCancelled => "query-export-cancelled",
             Self::Page => "query-page",
             Self::PageFirst => "query-page-first",
             Self::PagePrevious => "query-page-previous",

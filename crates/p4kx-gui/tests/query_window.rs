@@ -12,7 +12,7 @@ use egui_kittest::kittest::Queryable;
 use p4kx_gui::ui::{self, Dialog};
 use p4kx_gui::{Language, Model, QueryExportFormat, QueryStatus, SortDirection, WorkTab};
 use p4kx_testkit::DataForgeBuilder;
-use querying::{TestResult, archive, database, numbered};
+use querying::{TestResult, archive, database, listed, numbered};
 use tempfile::TempDir;
 
 struct Window {
@@ -245,6 +245,26 @@ fn the_tab_speaks_german() -> TestResult {
             .query_by_role_and_label(Role::Button, "CSV exportieren …")
             .is_some(),
         "export"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_list_column_shows_its_short_form_and_a_null_its_name() -> TestResult {
+    let (_dir, mut harness) = opened(&listed(), Language::BritishEnglish)?;
+
+    run(&mut harness, "from Item select tags[*], owner.mass")?;
+
+    assert!(
+        harness
+            .query_by_label("[3, 4, 5, 6, 7, 8, 9, 10, … 2 more]")
+            .is_some(),
+        "short list"
+    );
+    assert_eq!(
+        harness.query_all_by_label("null").count(),
+        3,
+        "one null per Record"
     );
     Ok(())
 }

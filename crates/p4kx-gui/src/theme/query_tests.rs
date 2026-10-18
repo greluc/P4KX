@@ -6,7 +6,7 @@ use super::tokens::{FS_BODY, FS_SM, FS_XS, TOUCH_TARGET};
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
 
-const METRICS: [(&str, &str, f32); 17] = [
+const METRICS: [(&str, &str, f32); 20] = [
     ("queryEditor", "paddingX", d::TEXTAREA_PADDING_X),
     ("queryEditor", "paddingY", d::TEXTAREA_PADDING_Y),
     ("queryEditor", "fontSize", FS_BODY),
@@ -20,7 +20,10 @@ const METRICS: [(&str, &str, f32); 17] = [
     ("pagination", "disabledOpacity", d::PAGE_DISABLED_OPACITY),
     ("pagination", "statusPaddingX", d::PAGE_STATUS_PADDING_X),
     ("pagination", "statusFontSize", FS_XS),
-    ("pagination", "chevron", d::CHEVRON),
+    ("pagination", "chevron", d::PAGE_CHEVRON),
+    ("listFooter", "paddingX", d::LIST_FOOTER_PADDING_X),
+    ("listFooter", "paddingY", d::LIST_FOOTER_PADDING_Y),
+    ("listFooter", "fontSize", FS_SM),
     ("queryTable", "columnWidth", d::QUERY_COLUMN_WIDTH),
     ("queryTable", "columnMinWidth", d::QUERY_COLUMN_MIN_WIDTH),
     ("errorAlert", "borderLeft", d::ACCENT_BAR),
@@ -58,6 +61,11 @@ fn the_query_counts_match_the_desktop_spec() {
         json["queryEditor"]["rows"].as_u64(),
         u64::try_from(d::QUERY_EDITOR_ROWS).ok(),
         "editor rows"
+    );
+    assert_eq!(
+        json["queryEditor"]["maxRows"].as_u64(),
+        u64::try_from(d::QUERY_EDITOR_MAX_ROWS).ok(),
+        "editor rows before it scrolls"
     );
     assert_eq!(
         json["queryTable"]["pageRows"].as_u64(),

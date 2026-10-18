@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use egui::{
-    Align, Color32, CornerRadius, Galley, Layout, Pos2, Response, Role, Sense, Stroke, StrokeKind,
-    Ui, WidgetInfo, pos2, vec2,
+    Align, Color32, CornerRadius, Galley, Layout, Pos2, Rect, Response, Role, Sense, Stroke,
+    StrokeKind, Ui, WidgetInfo, pos2, vec2,
 };
 
 use super::button::focus_ring;
 use crate::theme::desktop::{
-    CHEVRON, CHEVRON_STROKE, FOCUS_OFFSET, PAGE_BUTTON_PADDING_X, PAGE_DISABLED_OPACITY, PAGE_GAP,
+    FOCUS_OFFSET, PAGE_BUTTON_PADDING_X, PAGE_CHEVRON, PAGE_DISABLED_OPACITY, PAGE_GAP,
     PAGE_STATUS_PADDING_X, TRANSITION,
 };
 use crate::theme::palette;
@@ -78,13 +78,22 @@ pub(crate) fn pagination(
     asked
 }
 
-fn button_width(step: Step) -> f32 {
-    let icon = if matches!(step, Step::First | Step::Last) {
-        CHEVRON * 1.5
+/// The overlap of the two chevrons of the first and last page buttons, `margin-left: -6px`.
+const DOUBLE_OVERLAP: f32 = 6.0;
+
+/// Returns the width of the icon of `step`: one chevron, or two overlapping ones.
+fn icon_width(step: Step) -> f32 {
+    if matches!(step, Step::First | Step::Last) {
+        2.0f32.mul_add(PAGE_CHEVRON, -DOUBLE_OVERLAP)
     } else {
-        CHEVRON
-    };
-    PAGE_BUTTON_PADDING_X.mul_add(2.0, icon).max(TOUCH_TARGET)
+        PAGE_CHEVRON
+    }
+}
+
+fn button_width(step: Step) -> f32 {
+    PAGE_BUTTON_PADDING_X
+        .mul_add(2.0, icon_width(step))
+        .max(TOUCH_TARGET)
 }
 
 fn page_button(ui: &mut Ui, step: Step, name: &str, enabled: bool) -> Response {
@@ -121,13 +130,11 @@ fn page_button(ui: &mut Ui, step: Step, name: &str, enabled: bool) -> Response {
         StrokeKind::Inside,
     );
     let left = matches!(step, Step::First | Step::Previous);
-    let centre = rect.center();
+    let icon = Rect::from_center_size(rect.center(), vec2(icon_width(step), PAGE_CHEVRON));
+    chevron(ui, icon.min, left, colour);
     if double {
-        let offset = CHEVRON / 4.0;
-        chevron(ui, pos2(centre.x - offset, centre.y), left, colour);
-        chevron(ui, pos2(centre.x + offset, centre.y), left, colour);
-    } else {
-        chevron(ui, centre, left, colour);
+        let second = pos2(icon.min.x + PAGE_CHEVRON - DOUBLE_OVERLAP, icon.min.y);
+        chevron(ui, second, left, colour);
     }
     if response.has_focus() {
         focus_ring(ui, rect, palette::PRIMARY, FOCUS_OFFSET);
@@ -135,14 +142,16 @@ fn page_button(ui: &mut Ui, step: Step, name: &str, enabled: bool) -> Response {
     response
 }
 
-/// Paints a chevron of the chevron size centred on `centre`, pointing left or right.
-fn chevron(ui: &Ui, centre: Pos2, left: bool, colour: Color32) {
-    let (quarter, half) = (CHEVRON / 4.0, CHEVRON / 2.0);
-    let tip = if left { -quarter } else { quarter };
-    let stroke = Stroke::new(CHEVRON_STROKE.min(quarter), colour);
-    let top = pos2(centre.x - tip, centre.y - half);
-    let point = pos2(centre.x + tip, centre.y);
-    let bottom = pos2(centre.x - tip, centre.y + half);
-    ui.painter().line_segment([top, point], stroke);
-    ui.painter().line_segment([point, bottom], stroke);
+/// Paints the design system's chevron icon, `M15 6l-6 6 6 6` or its mirror on a 24 grid
+/// stroked 2, at the icon size with its top left at `at`.
+fn chevron(ui: &Ui, at: Pos2, left: bool, colour: Color32) {
+    let unit = PAGE_CHEVRON / 24.0;
+    let point = |x: f32, y: f32| pos2(x.mul_add(unit, at.x), y.mul_add(unit, at.y));
+    let (outer, tip) = if left { (15.0, 9.0) } else { (9.0, 15.0) };
+    let stroke = Stroke::new(2.0 * unit, colour);
+    let middle = point(tip, 12.0);
+    ui.painter()
+        .line_segment([point(outer, 6.0), middle], stroke);
+    ui.painter()
+        .line_segment([middle, point(outer, 18.0)], stroke);
 }

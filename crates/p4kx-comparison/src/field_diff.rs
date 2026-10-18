@@ -93,29 +93,15 @@ fn same(old: &Value<'_>, new: &Value<'_>) -> bool {
 }
 
 /// Returns whether `value` is a scalar or a scalar that cannot be read, the kinds this level
-/// compares; values that are not read yet are left out.
+/// compares; nested structs, arrays, References and nulls are left out.
 const fn is_scalar(value: &Value<'_>) -> bool {
-    matches!(
-        value,
-        Value::Bool(_)
-            | Value::Int8(_)
-            | Value::Int16(_)
-            | Value::Int32(_)
-            | Value::Int64(_)
-            | Value::UInt8(_)
-            | Value::UInt16(_)
-            | Value::UInt32(_)
-            | Value::UInt64(_)
-            | Value::Single(_)
-            | Value::Double(_)
-            | Value::String(_)
-            | Value::Locale(_)
-            | Value::Guid(_)
-            | Value::Enum(_)
-            | Value::Error(
+    value.is_scalar()
+        || matches!(
+            value,
+            Value::Error(
                 ValueError::InvalidString { .. }
                     | ValueError::UnknownEnum { .. }
                     | ValueError::InvalidBool { .. }
             )
-    )
+        )
 }

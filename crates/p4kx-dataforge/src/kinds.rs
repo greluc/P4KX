@@ -113,6 +113,32 @@ impl ValueKind {
         }
     }
 
+    /// Returns the pool that holds array elements of `data_type`, or `None` for a class, whose
+    /// elements are instances.
+    pub(crate) const fn of(data_type: DataType) -> Option<Self> {
+        Some(match data_type {
+            DataType::Bool => Self::Bool,
+            DataType::Int8 => Self::Int8,
+            DataType::Int16 => Self::Int16,
+            DataType::Int32 => Self::Int32,
+            DataType::Int64 => Self::Int64,
+            DataType::UInt8 => Self::UInt8,
+            DataType::UInt16 => Self::UInt16,
+            DataType::UInt32 => Self::UInt32,
+            DataType::UInt64 => Self::UInt64,
+            DataType::String => Self::String,
+            DataType::Single => Self::Single,
+            DataType::Double => Self::Double,
+            DataType::Locale => Self::Locale,
+            DataType::Guid => Self::Guid,
+            DataType::Enum => Self::Enum,
+            DataType::StrongPointer => Self::StrongPointer,
+            DataType::WeakPointer => Self::WeakPointer,
+            DataType::Reference => Self::Reference,
+            DataType::Class => return None,
+        })
+    }
+
     pub(crate) const fn index(self) -> usize {
         self as usize
     }

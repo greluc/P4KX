@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use p4kx_archive::Checksum;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -99,15 +100,30 @@ struct EntryChangeReport<'a> {
 struct EntryState {
     /// The uncompressed size in bytes.
     size: u64,
-    /// The CRC-32C of the uncompressed data.
-    crc32c: u32,
+    /// The checksum of the uncompressed data, keyed by its kind.
+    #[serde(flatten)]
+    checksum: ChecksumReport,
+}
+
+/// A checksum as one field named by its kind.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+enum ChecksumReport {
+    /// The CRC-32C (Castagnoli), which Archives store.
+    Crc32c(u32),
+    /// The plain ZIP CRC-32, which plain ZIP archives store.
+    Crc32(u32),
 }
 
 impl From<&Entry> for EntryState {
     fn from(entry: &Entry) -> Self {
+        let checksum = match entry.checksum() {
+            Checksum::Crc32(value) => ChecksumReport::Crc32(value),
+            other => ChecksumReport::Crc32c(other.value()),
+        };
         Self {
             size: entry.uncompressed_size(),
-            crc32c: entry.checksum().value(),
+            checksum,
         }
     }
 }

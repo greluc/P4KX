@@ -57,7 +57,8 @@ impl Entry {
     }
 
     /// Returns the CRC-32C (Castagnoli) checksum of the Entry's data after decryption and
-    /// decompression, or `None` when its directory states a CRC-32 instead, as containers do.
+    /// decompression, or `None` when its directory states another checksum, as the plain ZIP CRC-32
+    /// of containers.
     #[must_use]
     pub const fn crc32c(&self) -> Option<u32> {
         match self.checksum {

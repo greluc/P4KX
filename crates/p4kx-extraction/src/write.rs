@@ -195,8 +195,11 @@ impl EntryWriter<'_> {
                 if metadata.len() != len {
                     return Ok(None);
                 }
+                let Some(hasher) = ChecksumHasher::of_kind(checksum) else {
+                    return Ok(None);
+                };
                 Ok(
-                    match self.file_checksum(&destination.file, checksum, buffer)? {
+                    match self.file_checksum(&destination.file, hasher, buffer)? {
                         Some(existing) if existing == checksum => Some(Outcome::Kept),
                         Some(_) => None,
                         None => Some(Outcome::Cancelled),
@@ -210,30 +213,17 @@ impl EntryWriter<'_> {
     fn file_checksum(
         &self,
         path: &Path,
-        kind: Checksum,
+        mut hasher: ChecksumHasher,
         buffer: &mut [u8],
     ) -> Result<Option<Checksum>, ExtractionError> {
         let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
-        let mut crc32c = 0;
-        let mut crc32 = crc32fast::Hasher::new();
         loop {
             match self
                 .read_chunk(&mut file, buffer)
                 .map_err(|source| read_existing_error(path, source))?
             {
-                Chunk::Data(count) => {
-                    let data = buffer.get(..count).unwrap_or_default();
-                    match kind {
-                        Checksum::Crc32c(_) => crc32c = crc32c::crc32c_append(crc32c, data),
-                        Checksum::Crc32(_) => crc32.update(data),
-                    }
-                }
-                Chunk::End => {
-                    return Ok(Some(match kind {
-                        Checksum::Crc32c(_) => Checksum::Crc32c(crc32c),
-                        Checksum::Crc32(_) => Checksum::Crc32(crc32.finalize()),
-                    }));
-                }
+                Chunk::Data(count) => hasher.update(buffer.get(..count).unwrap_or_default()),
+                Chunk::End => return Ok(Some(hasher.finish())),
                 Chunk::Cancelled => return Ok(None),
             }
         }
@@ -331,5 +321,36 @@ pub(crate) fn read_existing_error(path: &Path, source: io::Error) -> ExtractionE
     ExtractionError::ReadExisting {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+/// Computes the checksum of a file in the kind an Entry states.
+enum ChecksumHasher {
+    Crc32c(u32),
+    Crc32(crc32fast::Hasher),
+}
+
+impl ChecksumHasher {
+    /// Returns a hasher for the kind of `checksum`, or `None` for a kind it cannot compute.
+    fn of_kind(checksum: Checksum) -> Option<Self> {
+        match checksum {
+            Checksum::Crc32c(_) => Some(Self::Crc32c(0)),
+            Checksum::Crc32(_) => Some(Self::Crc32(crc32fast::Hasher::new())),
+            _ => None,
+        }
+    }
+
+    fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Crc32c(crc) => *crc = crc32c::crc32c_append(*crc, data),
+            Self::Crc32(hasher) => hasher.update(data),
+        }
+    }
+
+    fn finish(self) -> Checksum {
+        match self {
+            Self::Crc32c(crc) => Checksum::Crc32c(crc),
+            Self::Crc32(hasher) => Checksum::Crc32(hasher.finalize()),
+        }
     }
 }

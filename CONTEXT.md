@@ -195,7 +195,8 @@ _Avoid_: unpack, export (an Export is something else)
 
 **Conflict policy**:
 What an Extraction does with a file already in the target folder: skip it, overwrite it, or
-overwrite it only if changed (size or CRC-32C differs from the Entry or the converted Record).
+overwrite it only if changed (its size or the Entry's checksum differs from the Entry, or its size or
+CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Conversion**:

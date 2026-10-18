@@ -23,6 +23,7 @@ pub(crate) struct DirectoryLocation {
     pub(crate) entry_count: u64,
     pub(crate) offset: u64,
     pub(crate) size: u64,
+    pub(crate) zip64: bool,
 }
 
 /// Reads the end-of-central-directory record and the ZIP64 records it points to, if any.
@@ -71,6 +72,7 @@ fn read_plain_end(end: &[u8], offset: u64) -> Result<DirectoryLocation, FormatEr
         entry_count: u64::from(entry_count),
         offset: u64::from(directory_offset),
         size: u64::from(size),
+        zip64: false,
     };
     check_before(location, offset)
 }
@@ -98,6 +100,7 @@ fn read_zip64_end(source: &Source, offset: u64) -> Result<DirectoryLocation, For
         entry_count: reader.read_u64()?,
         size: reader.read_u64()?,
         offset: reader.read_u64()?,
+        zip64: true,
     };
     check_before(location, offset)
 }

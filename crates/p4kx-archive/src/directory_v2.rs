@@ -3,7 +3,7 @@ use p4kx_foundation::ByteReader;
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
 use crate::source::Source;
-use crate::{Checksum, Compression, Entry};
+use crate::{Checksum, Compression, Entry, layout};
 
 const TRAILER_LEN: usize = 175;
 const RECORD_LEN: usize = 204;
@@ -19,13 +19,17 @@ struct Trailer {
     names_size: u64,
 }
 
-/// Reads the Entries of a v2 Archive from its trailer, directory records and name table.
-pub(crate) fn read_entries(source: &Source) -> Result<Vec<Entry>, FormatError> {
+/// Reads the Entries of a v2 Archive from its trailer, directory records and name table, refusing
+/// more than `max_entries` before the directory is read.
+pub(crate) fn read_entries(
+    source: &Source,
+    max_entries: Option<u64>,
+) -> Result<Vec<Entry>, FormatError> {
     let trailer_offset = source
         .len()
         .checked_sub(TRAILER_LEN as u64)
         .ok_or_else(|| FormatError::corrupt(0, "v2 trailer is cut off"))?;
-    let trailer = read_trailer(source, trailer_offset)?;
+    let trailer = read_trailer(source, trailer_offset, max_entries)?;
     let directory = read_range(
         source,
         trailer.directory_offset,
@@ -49,7 +53,11 @@ pub(crate) fn read_entries(source: &Source) -> Result<Vec<Entry>, FormatError> {
     Ok(entries)
 }
 
-fn read_trailer(source: &Source, offset: u64) -> Result<Trailer, FormatError> {
+fn read_trailer(
+    source: &Source,
+    offset: u64,
+    max_entries: Option<u64>,
+) -> Result<Trailer, FormatError> {
     let bytes = source.read_at(offset, TRAILER_LEN)?;
     let mut reader = ByteReader::with_base(&bytes, offset);
     let entry_count = reader.read_u64()?;
@@ -59,6 +67,7 @@ fn read_trailer(source: &Source, offset: u64) -> Result<Trailer, FormatError> {
     reader.skip(TRAILER_EXTENSION_SIZE_LEN)?;
     let names_offset = reader.read_u64()?;
     let names_size = reader.read_u64()?;
+    layout::check_entry_count(entry_count, max_entries)?;
     if entry_count.checked_mul(RECORD_LEN as u64) != Some(directory_size) {
         return Err(FormatError::corrupt(
             offset,

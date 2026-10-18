@@ -38,8 +38,9 @@ pub(crate) enum SocpakAction {
         /// What to do with a file that already exists in the target.
         #[arg(long, value_enum, default_value_t = Conflict::Skip)]
         conflict: Conflict,
-        /// Converts CryXml Entries to UTF-8 XML and DDS textures as `p4kx extract --convert`
-        /// does by default; every other Entry is written unchanged.
+        /// Converts CryXml Entries to UTF-8 XML and DDS textures with fixed settings, those of
+        /// `p4kx extract --convert --textures merge,png --mip 0`: one merged DDS and a PNG of the
+        /// largest mip per texture. Every other Entry is written unchanged.
         #[arg(long)]
         convert: bool,
     },

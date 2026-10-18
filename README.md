@@ -27,7 +27,7 @@ Early development (milestone M1). Available today:
   UTC), or into `--out`. Entry paths match with `\` or `/` and ignore case.
   `--conflict` decides what happens to a file that already exists in the target: `skip` (the
   default) keeps it, `overwrite` replaces it, and `if-changed` replaces it only when its size or
-  CRC-32C differs from the Entry; kept files are reported as skipped. Entries are written in
+  checksum differs from the Entry (CRC-32C for Archive Entries, CRC-32 for the Entries of socpak containers); kept files are reported as skipped. Entries are written in
   parallel, each to a temporary file that replaces the destination once complete. Entry paths
   that are absolute, carry a drive prefix, contain `..` or name a Windows device are rejected,
   and nothing is written outside the target. A corrupt Entry fails alone and is named with the
@@ -173,7 +173,7 @@ Early development (milestone M1). Available today:
   those the Filter matches, with the rules of `extract`; `if-changed` compares with the CRC-32
   containers store. Containers nest at most 8 deep; a container whose Entries overlap, whose
   stored sizes disagree or which declares more than 2048 times its stored size for an Entry is
-  refused, as is a compressed container decoding to more than 512 MiB. A container that cannot be
+  refused, as are compressed containers that together decode to more than 512 MiB along one chain. A container that cannot be
   opened fails with exit code 3 and an error naming its Entry.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).

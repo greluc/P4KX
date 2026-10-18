@@ -216,9 +216,8 @@ fn sorted_selection<'a>(
     entries
 }
 
-const fn differs(old: &Entry, new: &Entry) -> bool {
-    old.uncompressed_size() != new.uncompressed_size()
-        || old.checksum().value() != new.checksum().value()
+fn differs(old: &Entry, new: &Entry) -> bool {
+    old.uncompressed_size() != new.uncompressed_size() || old.checksum() != new.checksum()
 }
 
 pub(crate) fn check_cancel(options: &CompareOptions<'_>) -> Result<(), ComparisonError> {

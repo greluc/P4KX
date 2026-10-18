@@ -280,3 +280,31 @@ fn an_unknown_container_or_a_filter_without_match_exits_with_code_2() -> TestRes
         .stderr(predicate::str::contains("no Entry matches *.dds"));
     Ok(())
 }
+
+#[test]
+fn extract_as_json_prints_the_report_of_p4kx_extract() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let container = ship().entry(TestEntry::stored("..\\escaped.txt", "outside"));
+    let archive = write_archive(dir.path(), &container)?;
+    let out = dir.path().join("out");
+
+    let output = p4kx()?
+        .args(["--json", "socpak", "extract"])
+        .arg(&archive)
+        .arg(SHIP)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1), "one Entry fails: {output:?}");
+    let stdout = String::from_utf8(output.stdout)?;
+    assert_eq!(stdout.lines().count(), 1, "one line of JSON: {stdout}");
+    let mut value: Value = serde_json::from_str(&stdout)?;
+    if let Some(Value::String(target)) = value.get_mut("target") {
+        *target = target
+            .replace(&dir.path().display().to_string(), "[DIR]")
+            .replace('\\', "/");
+    }
+    insta::assert_snapshot!(serde_json::to_string_pretty(&value)?);
+    Ok(())
+}

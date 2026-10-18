@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::path::{MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::container::{self, MAX_CONTAINER_DEPTH};
+use crate::container::{self, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN};
 use crate::format_error::FormatError;
 use crate::source::Source;
 use crate::{ArchiveError, Build, Entry, EntryReader, entry_reader, layout};
@@ -15,6 +15,7 @@ pub struct Archive {
     file_len: u64,
     file_modified: Option<SystemTime>,
     depth: usize,
+    decoded_budget: u64,
     source: Source,
     entries: Vec<Entry>,
     build: Option<Build>,
@@ -33,7 +34,7 @@ impl Archive {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
         let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
-        let entries = layout::read_entries(&source).map_err(|error| error.at(path))?;
+        let entries = layout::read_entries(&source, None).map_err(|error| error.at(path))?;
         let build = path
             .parent()
             .and_then(|folder| Build::read_from(folder).ok().flatten());
@@ -43,6 +44,7 @@ impl Archive {
             file_len: source.len(),
             file_modified: source.modified(),
             depth: 0,
+            decoded_budget: MAX_CONTAINER_LEN,
             source,
             entries,
             build,
@@ -54,8 +56,9 @@ impl Archive {
     ///
     /// A stored container is read in place; a compressed or encrypted one is decoded into memory.
     /// The container shares the file, its size, modification time and Build with this Archive.
-    /// Containers open up to [`MAX_CONTAINER_DEPTH`] deep, and their Entries are checked against
-    /// the other container limits of this crate.
+    /// Containers open up to [`MAX_CONTAINER_DEPTH`] deep, the compressed ones of a chain decode
+    /// to at most [`MAX_CONTAINER_LEN`] bytes together, and their Entries are checked against the
+    /// other container limits of this crate.
     ///
     /// # Errors
     ///
@@ -66,12 +69,13 @@ impl Archive {
         location.push(&entry.path);
         let location = PathBuf::from(location);
         match self.read_container(entry) {
-            Ok((source, entries)) => Ok(Self {
+            Ok((source, decoded_budget, entries)) => Ok(Self {
                 path: self.path.clone(),
                 location,
                 file_len: self.file_len,
                 file_modified: self.file_modified,
                 depth: self.depth + 1,
+                decoded_budget,
                 source,
                 entries,
                 build: self.build.clone(),
@@ -84,15 +88,16 @@ impl Archive {
         }
     }
 
-    fn read_container(&self, entry: &Entry) -> Result<(Source, Vec<Entry>), FormatError> {
+    fn read_container(&self, entry: &Entry) -> Result<(Source, u64, Vec<Entry>), FormatError> {
         if self.depth >= MAX_CONTAINER_DEPTH {
             return Err(FormatError::LimitExceeded(format!(
                 "containers nest deeper than {MAX_CONTAINER_DEPTH} levels"
             )));
         }
-        let source = container::source_of(&self.source, entry)?;
-        let entries = container::admit(layout::read_entries(&source)?, source.len())?;
-        Ok((source, entries))
+        let (source, budget) = container::source_of(&self.source, entry, self.decoded_budget)?;
+        let max_entries = Some(MAX_CONTAINER_ENTRIES as u64);
+        let entries = container::admit(layout::read_entries(&source, max_entries)?, &source)?;
+        Ok((source, budget, entries))
     }
 
     /// Returns the path of the Archive file, also for a container opened from it.

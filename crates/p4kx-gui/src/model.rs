@@ -4,8 +4,9 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_extraction::{Archive, ArchiveError};
+use p4kx_settings::RecentArchives;
 
-use crate::{Browser, EntryIndex, Language, Texts};
+use crate::{Browser, ChannelList, EntryIndex, Language, Texts};
 
 /// Why an Archive could not be opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +26,8 @@ struct Opening {
 /// The whole state of the window, independent of how it is drawn.
 pub struct Model {
     texts: Texts,
+    channels: ChannelList,
+    recent: RecentArchives,
     browser: Option<Browser>,
     opening: Option<Opening>,
     failure: Option<Failure>,
@@ -35,6 +38,8 @@ impl std::fmt::Debug for Model {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Model")
             .field("texts", &self.texts)
+            .field("channels", &self.channels)
+            .field("recent", &self.recent)
             .field("browser", &self.browser)
             .field("opening", &self.opening_path())
             .field("failure", &self.failure)
@@ -49,6 +54,8 @@ impl Model {
     pub fn new(language: Language) -> Self {
         Self {
             texts: Texts::new(language),
+            channels: ChannelList::default(),
+            recent: RecentArchives::default(),
             browser: None,
             opening: None,
             failure: None,
@@ -65,6 +72,33 @@ impl Model {
     /// Switches the interface language.
     pub const fn set_language(&mut self, language: Language) {
         self.texts.set_language(language);
+    }
+
+    /// Returns the Channels the picker offers.
+    #[must_use]
+    pub const fn channels(&self) -> &ChannelList {
+        &self.channels
+    }
+
+    /// Replaces the Channels the picker offers.
+    pub fn set_channels(&mut self, channels: ChannelList) {
+        self.channels = channels;
+    }
+
+    /// Adds `path` as a manual entry; returns whether it was not listed yet.
+    pub fn add_manual(&mut self, path: PathBuf) -> bool {
+        self.channels.add(path)
+    }
+
+    /// Returns the recently opened Archives.
+    #[must_use]
+    pub const fn recent(&self) -> &RecentArchives {
+        &self.recent
+    }
+
+    /// Replaces the recently opened Archives.
+    pub fn set_recent(&mut self, recent: RecentArchives) {
+        self.recent = recent;
     }
 
     /// Starts opening the Archive at `path` on a background thread, replacing an opening that
@@ -109,7 +143,11 @@ impl Model {
             return false;
         };
         match received {
-            Ok(index) => self.browser = Some(Browser::new(index)),
+            Ok(index) => {
+                let path = opening.path;
+                self.recent.push(std::path::absolute(&path).unwrap_or(path));
+                self.browser = Some(Browser::new(index));
+            }
             Err(error) => self.fail(opening.path, &error),
         }
         true

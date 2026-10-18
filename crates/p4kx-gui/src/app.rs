@@ -4,7 +4,8 @@ use std::thread;
 
 use p4kx_settings::{Settings, WindowGeometry};
 
-use crate::{Language, Model, Text, ui, window};
+use crate::ui::Dialog;
+use crate::{Model, Text, ui, window};
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
 /// settings file around it.
@@ -14,11 +15,12 @@ pub struct App {
     settings_file: Option<PathBuf>,
     window: Option<WindowGeometry>,
     language_chosen: bool,
-    dialog: Option<Receiver<Option<PathBuf>>>,
+    dialog: Option<(Dialog, Receiver<Option<PathBuf>>)>,
 }
 
 impl App {
-    /// Wraps `model`, remembering language and window geometry in `settings_file`.
+    /// Wraps `model`, remembering language, window geometry, recent Archives and manual entries
+    /// in `settings_file`.
     #[must_use]
     pub const fn new(
         model: Model,
@@ -40,7 +42,7 @@ impl App {
         &self.model
     }
 
-    fn start_dialog(&mut self, ctx: &egui::Context) {
+    fn start_dialog(&mut self, ctx: &egui::Context, dialog: Dialog) {
         if self.dialog.is_some() {
             return;
         }
@@ -48,26 +50,32 @@ impl App {
         let filter = self.model.texts().get(Text::DialogArchiveFilter);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
-            .name("open-dialog".to_owned())
+            .name("file-dialog".to_owned())
             .spawn(move || {
-                let path = rfd::FileDialog::new()
-                    .add_filter(filter, &["p4k"])
-                    .pick_file();
+                let picker = rfd::FileDialog::new();
+                let path = match dialog {
+                    Dialog::AddFolder => picker.pick_folder(),
+                    Dialog::OpenArchive | Dialog::AddArchive => {
+                        picker.add_filter(filter, &["p4k"]).pick_file()
+                    }
+                };
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
                 }
             });
         if spawned.is_ok() {
-            self.dialog = Some(receiver);
+            self.dialog = Some((dialog, receiver));
         }
     }
 
-    fn take_dialog_result(&mut self) -> Option<PathBuf> {
-        let picked = self.dialog.as_ref()?.try_recv();
+    fn take_dialog_result(&mut self) -> Option<(Dialog, PathBuf)> {
+        let (dialog, receiver) = self.dialog.as_ref()?;
+        let dialog = *dialog;
+        let picked = receiver.try_recv();
         match picked {
             Ok(path) => {
                 self.dialog = None;
-                path
+                path.map(|path| (dialog, path))
             }
             Err(mpsc::TryRecvError::Empty) => None,
             Err(mpsc::TryRecvError::Disconnected) => {
@@ -86,7 +94,7 @@ impl App {
         };
         remember(
             &mut settings,
-            self.model.texts().language(),
+            &self.model,
             self.language_chosen,
             self.window,
         );
@@ -96,15 +104,22 @@ impl App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        if let Some(path) = self.take_dialog_result() {
-            ui::open(ui, &mut self.model, path);
+        let mut settings_changed = false;
+        match self.take_dialog_result() {
+            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
+            Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
+                settings_changed = self.model.add_manual(path);
+            }
+            None => {}
         }
         let requests = ui::show(ui, &mut self.model);
-        if requests.open_dialog {
-            self.start_dialog(ui.ctx());
+        if let Some(dialog) = requests.dialog {
+            self.start_dialog(ui.ctx(), dialog);
         }
         if requests.language_changed {
             self.language_chosen = true;
+        }
+        if settings_changed || requests.settings_changed || requests.language_changed {
             self.save_settings();
         }
         self.window = ui.input(|input| window::geometry(self.window, input.viewport()));
@@ -115,36 +130,65 @@ impl eframe::App for App {
     }
 }
 
-/// Stores the window geometry and the language, which stays unset to follow the system until the
-/// user chooses one.
-fn remember(
-    settings: &mut Settings,
-    language: Language,
-    chosen: bool,
-    window: Option<WindowGeometry>,
-) {
+/// Stores the window geometry, the recent Archives, the manual entries next to those already in
+/// `settings`, and the language, which stays unset to follow the system until the user chooses
+/// one.
+fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option<WindowGeometry>) {
     if chosen || settings.language.is_some() {
-        settings.language = Some(language.tag().to_owned());
+        settings.language = Some(model.texts().language().tag().to_owned());
     }
     settings.window = window;
+    settings.recent = model.recent().clone();
+    let manual = model.channels().manual();
+    for folder in &manual.folders {
+        settings.channels.add_folder(folder.clone());
+    }
+    for archive in &manual.archives {
+        settings.channels.add_archive(archive.clone());
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use p4kx_settings::Settings;
 
     use super::remember;
-    use crate::Language;
+    use crate::{Language, Model};
 
     #[test]
     fn the_language_stays_unset_until_the_user_chooses_one() {
         let mut settings = Settings::default();
 
-        remember(&mut settings, Language::German, false, None);
+        remember(&mut settings, &Model::new(Language::German), false, None);
         let unchosen = settings.language.clone();
-        remember(&mut settings, Language::BritishEnglish, true, None);
+        remember(
+            &mut settings,
+            &Model::new(Language::BritishEnglish),
+            true,
+            None,
+        );
 
         assert_eq!(unchosen, None, "follows the system");
         assert_eq!(settings.language.as_deref(), Some("en-GB"), "chosen");
+    }
+
+    #[test]
+    fn manual_entries_join_those_already_in_the_settings() -> Result<(), std::io::Error> {
+        let folder = tempfile::tempdir()?;
+        let mut settings = Settings::default();
+        settings.channels.add_folder(PathBuf::from(r"D:\Elsewhere"));
+        let mut model = Model::new(Language::German);
+        model.add_manual(folder.path().to_path_buf());
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(
+            settings.channels.folders,
+            [PathBuf::from(r"D:\Elsewhere"), folder.path().to_path_buf()],
+            "both folders are kept"
+        );
+        Ok(())
     }
 }

@@ -17,6 +17,15 @@ A folder holding Channel folders, e.g. `C:\Program Files\Roberts Space Industrie
 RSI Launcher installs every Channel into one.
 _Avoid_: install folder, game folder
 
+**Manual entry**:
+A Channel folder, Library folder or Archive the user added by hand, searched in addition to the
+detected places.
+_Avoid_: custom path, bookmark
+
+**Recent Archive**:
+One of the last Archives opened in the window, the latest first.
+_Avoid_: history, MRU
+
 **Build**:
 The game version an Archive belongs to, as stated in the Channel's build manifest (branch, version,
 change number).

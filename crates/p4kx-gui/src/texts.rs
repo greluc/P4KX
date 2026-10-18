@@ -12,6 +12,18 @@ pub enum Text {
     MenuArchive,
     /// The action that opens an Archive through a file dialog.
     ActionOpen,
+    /// The action that adds a manual folder through a folder dialog.
+    ActionAddFolder,
+    /// The action that adds a manual Archive through a file dialog.
+    ActionAddArchive,
+    /// The submenu of recently opened Archives.
+    MenuRecent,
+    /// Shown in that submenu when no Archive was opened yet.
+    RecentNone,
+    /// The heading of the Channel picker.
+    ChannelsHeading,
+    /// Shown in the Channel picker when no Channel was found.
+    ChannelsNone,
     /// The language menu.
     MenuLanguage,
     /// The name of a language, in that language.
@@ -74,10 +86,16 @@ pub enum Text {
 
 impl Text {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 39] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
+        Self::ActionAddFolder,
+        Self::ActionAddArchive,
+        Self::MenuRecent,
+        Self::RecentNone,
+        Self::ChannelsHeading,
+        Self::ChannelsNone,
         Self::MenuLanguage,
         Self::LanguageName(Language::German),
         Self::LanguageName(Language::BritishEnglish),
@@ -117,6 +135,12 @@ impl Text {
             Self::AppTitle => "app-title",
             Self::MenuArchive => "menu-archive",
             Self::ActionOpen => "action-open",
+            Self::ActionAddFolder => "action-add-folder",
+            Self::ActionAddArchive => "action-add-archive",
+            Self::MenuRecent => "menu-recent",
+            Self::RecentNone => "recent-none",
+            Self::ChannelsHeading => "channels-heading",
+            Self::ChannelsNone => "channels-none",
             Self::MenuLanguage => "menu-language",
             Self::LanguageName(Language::German) => "language-de-DE",
             Self::LanguageName(Language::BritishEnglish) => "language-en-GB",

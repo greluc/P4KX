@@ -1,6 +1,12 @@
 app-title = P4K-Extractor
 menu-archive = Archive
 action-open = Open Archive…
+action-add-folder = Add folder…
+action-add-archive = Add Archive…
+menu-recent = Recent Archives
+recent-none = No recent Archives
+channels-heading = Channels
+channels-none = No Channels found. Add a folder or an Archive through the Archive menu.
 menu-language = Language
 language-de-DE = Deutsch
 language-en-GB = English (UK)

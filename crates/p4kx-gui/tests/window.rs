@@ -229,7 +229,7 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
         .build_ui_state(
             |ui, (model, requests): &mut (Model, ui::Requests)| {
                 let frame = ui::show(ui, model);
-                requests.open_dialog |= frame.open_dialog;
+                requests.dialog = requests.dialog.or(frame.dialog);
                 requests.language_changed |= frame.language_changed;
             },
             (Model::new(Language::German), ui::Requests::default()),
@@ -245,7 +245,11 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() {
     harness.run();
 
     let (model, requests) = harness.state();
-    assert!(requests.open_dialog, "the open dialog is requested");
+    assert_eq!(
+        requests.dialog,
+        Some(ui::Dialog::OpenArchive),
+        "the open dialog is requested"
+    );
     assert!(requests.language_changed, "the language is to be stored");
     assert_eq!(
         model.texts().language(),

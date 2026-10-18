@@ -16,6 +16,7 @@ name = "p4kx-gui"
 path = "src/main.rs"
 
 [dependencies]
+p4kx-channels.workspace = true
 p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
 anyhow.workspace = true

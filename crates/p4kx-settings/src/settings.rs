@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::RecentArchives;
+
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
 
@@ -14,6 +16,9 @@ pub struct Settings {
     /// The interface language as a BCP 47 tag such as `de-DE`, or `None` to follow the system.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// The recently opened Archives.
+    #[serde(skip_serializing_if = "RecentArchives::is_empty")]
+    pub recent: RecentArchives,
     /// The manually added Channel sources.
     pub channels: ManualChannels,
     /// The last position and size of the main window, or `None` for the default placement.

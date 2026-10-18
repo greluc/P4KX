@@ -1,25 +1,22 @@
+use std::path::PathBuf;
+
 use egui::{MenuBar, Ui};
 
-use super::Requests;
-use crate::{Language, Model, Text};
+use super::{Dialog, Requests};
+use crate::{Language, Model, Text, Texts};
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let texts = model.texts();
     let current = texts.language();
-    let archive_menu = texts.get(Text::MenuArchive);
-    let open = texts.get(Text::ActionOpen);
     let language_menu = texts.get(Text::MenuLanguage);
     let names = Language::ALL.map(|language| (language, texts.get(Text::LanguageName(language))));
     let help_menu = texts.get(Text::MenuHelp);
     let licence = texts.get(Text::FontLicence);
     let mut chosen = None;
     let mut show_licence = false;
+    let mut reopen = None;
     MenuBar::new().ui(ui, |ui| {
-        ui.menu_button(archive_menu, |ui| {
-            if ui.button(open).clicked() {
-                requests.open_dialog = true;
-            }
-        });
+        reopen = archive_menu(ui, model, requests);
         ui.menu_button(language_menu, |ui| {
             for (language, name) in names {
                 if ui.radio(language == current, name).clicked() {
@@ -31,6 +28,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             show_licence = ui.button(licence).clicked();
         });
     });
+    if let Some(path) = reopen {
+        super::open(ui, model, path);
+    }
     if show_licence {
         model.set_licence_shown(true);
     }
@@ -38,4 +38,38 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         model.set_language(language);
         requests.language_changed = true;
     }
+}
+
+fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<PathBuf> {
+    let texts = model.texts();
+    let mut reopen = None;
+    ui.menu_button(texts.get(Text::MenuArchive), |ui| {
+        for (text, dialog) in [
+            (Text::ActionOpen, Dialog::OpenArchive),
+            (Text::ActionAddFolder, Dialog::AddFolder),
+            (Text::ActionAddArchive, Dialog::AddArchive),
+        ] {
+            if ui.button(texts.get(text)).clicked() {
+                requests.dialog = Some(dialog);
+            }
+        }
+        ui.separator();
+        ui.menu_button(texts.get(Text::MenuRecent), |ui| {
+            reopen = recent_menu(ui, texts, model);
+        });
+    });
+    reopen
+}
+
+fn recent_menu(ui: &mut Ui, texts: &Texts, model: &Model) -> Option<PathBuf> {
+    if model.recent().is_empty() {
+        ui.weak(texts.get(Text::RecentNone));
+    }
+    let mut reopen = None;
+    for path in model.recent() {
+        if ui.button(path.display().to_string()).clicked() {
+            reopen = Some(path.clone());
+        }
+    }
+    reopen
 }

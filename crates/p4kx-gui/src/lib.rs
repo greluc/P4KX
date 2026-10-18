@@ -5,6 +5,7 @@
 
 mod app;
 mod browser;
+mod channel_list;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_index;
@@ -20,6 +21,7 @@ pub mod window;
 
 pub use app::App;
 pub use browser::{Browser, TreeRow};
+pub use channel_list::ChannelList;
 pub use entry_index::EntryIndex;
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;

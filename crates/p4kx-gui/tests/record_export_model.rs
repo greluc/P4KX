@@ -273,3 +273,25 @@ fn only_one_record_export_runs_at_a_time() -> TestResult {
     );
     wait_until(&mut model, p4kx_gui::Model::record_export_available)
 }
+
+#[test]
+fn a_cancelled_export_still_keeps_dataforge_for_the_next_one() -> TestResult {
+    let (_dir, mut model, out) = opened(&many(4000))?;
+    model.begin_record_export();
+    choose(&mut model, &out, RecordForm::Json)?;
+    model
+        .record_export_setup_mut()
+        .ok_or("no setup")?
+        .set_filter("items");
+    model.submit_record_export(|| {});
+
+    model.cancel_record_export();
+    let RecordExportStatus::Finished(summary) = ended(&mut model)? else {
+        return Err("no summary".into());
+    };
+    let cancelled = summary.was_cancelled();
+    wait_until(&mut model, p4kx_gui::Model::record_export_keeps_dataforge)?;
+
+    assert!(cancelled, "the summary says so");
+    Ok(())
+}

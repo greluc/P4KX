@@ -1,4 +1,5 @@
 mod job;
+mod progress;
 mod selection;
 mod source;
 mod summary;
@@ -9,8 +10,9 @@ use std::sync::Arc;
 use p4kx_export::RecordForm;
 use p4kx_extraction::ConflictPolicy;
 
-pub use job::{RecordExport, RecordExportProgress, RecordExportStage, RecordExportStatus};
+pub use job::{RecordExport, RecordExportStatus};
 pub(crate) use job::{Request, Selection, start};
+pub use progress::{RecordExportProgress, RecordExportStage};
 pub(crate) use selection::records_below;
 pub(crate) use source::ForgeCache;
 pub use summary::{FailedRecord, RecordExportSummary};

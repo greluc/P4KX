@@ -1,7 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::{Arc, OnceLock};
 use std::thread;
@@ -14,6 +14,7 @@ use p4kx_extraction::{DataForgeEntry, Filter, Record, create_default_target};
 use rayon::prelude::*;
 
 use super::RecordExportSummary;
+use super::progress::{RecordExportProgress, RecordExportStage, Shared};
 use super::source::ForgeSource;
 use crate::extraction::target_naming;
 use crate::model::describe;
@@ -38,28 +39,6 @@ pub(crate) struct Request {
     pub(crate) policy: ConflictPolicy,
 }
 
-/// The step a running Record export is at.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RecordExportStage {
-    /// DataForge is read from the Archive.
-    Reading,
-    /// The Records to write are chosen.
-    Selecting,
-    /// The Records are written.
-    Writing,
-}
-
-/// How far a running Record export has come.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecordExportProgress {
-    /// The step it is at.
-    pub stage: RecordExportStage,
-    /// Records written, kept or failed so far.
-    pub done: usize,
-    /// Records to write, known once writing starts.
-    pub total: usize,
-}
-
 /// Where a Record export stands.
 #[derive(Debug, Clone, Copy)]
 pub enum RecordExportStatus<'a> {
@@ -70,32 +49,6 @@ pub enum RecordExportStatus<'a> {
     /// DataForge or the target could not be prepared, for the reason given, or the export
     /// stopped without a result.
     Failed(Option<&'a str>),
-}
-
-#[derive(Debug, Default)]
-struct Shared {
-    stage: AtomicU8,
-    done: AtomicUsize,
-    total: AtomicUsize,
-}
-
-impl Shared {
-    fn enter(&self, stage: RecordExportStage) {
-        self.stage.store(stage as u8, Ordering::Relaxed);
-    }
-
-    fn progress(&self) -> RecordExportProgress {
-        let stage = match self.stage.load(Ordering::Relaxed) {
-            0 => RecordExportStage::Reading,
-            1 => RecordExportStage::Selecting,
-            _ => RecordExportStage::Writing,
-        };
-        RecordExportProgress {
-            stage,
-            done: self.done.load(Ordering::Relaxed),
-            total: self.total.load(Ordering::Relaxed),
-        }
-    }
 }
 
 type RunResult = Result<RecordExportSummary, String>;
@@ -111,6 +64,7 @@ enum State {
 #[derive(Debug)]
 pub struct RecordExport {
     folder: PathBuf,
+    form: RecordForm,
     cancel: CancelToken,
     shared: Arc<Shared>,
     state: State,
@@ -157,7 +111,7 @@ impl RecordExport {
         };
         self.state = match result.try_recv() {
             Ok(outcome) => ended(Some(outcome)),
-            Err(TryRecvError::Empty) => return false,
+            Err(TryRecvError::Empty) => return self.cancel.is_cancelled() && self.give_up(),
             Err(TryRecvError::Disconnected) => ended(None),
         };
         true
@@ -165,11 +119,29 @@ impl RecordExport {
 
     /// Cancels the export and waits until it ended, partial files removed.
     pub(crate) fn stop(&mut self) {
+        self.cancel.cancel();
+        if self.give_up() {
+            return;
+        }
         let State::Running(result) = &self.state else {
             return;
         };
-        self.cancel.cancel();
         self.state = ended(result.recv().ok());
+    }
+
+    /// Ends a cancelled export at once while it still reads DataForge, which writes nothing; the
+    /// thread finishes reading and keeps DataForge for the next export. Returns whether it ended.
+    fn give_up(&mut self) -> bool {
+        if !matches!(self.state, State::Running(_)) || !self.shared.give_up() {
+            return false;
+        }
+        self.state = State::Finished(RecordExportSummary::nothing_written(
+            self.form,
+            self.folder.clone(),
+            0,
+            true,
+        ));
+        true
     }
 }
 
@@ -193,6 +165,7 @@ pub(crate) fn start(
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
     let folder = request.folder.clone();
+    let form = request.form;
     let (sender, result) = mpsc::channel();
     let thread_index = Arc::clone(index);
     let thread_cancel = cancel.clone();
@@ -216,6 +189,7 @@ pub(crate) fn start(
     };
     RecordExport {
         folder,
+        form,
         cancel,
         shared,
         state,
@@ -232,6 +206,9 @@ struct Job<'a> {
 impl Job<'_> {
     fn run(&self, slot: &OnceLock<ForgeSource>) -> RunResult {
         let source = self.source(slot)?;
+        if !self.shared.leave_reading() {
+            return Err(String::new());
+        }
         let forge = source.entry.open().map_err(|error| describe(&error))?;
         self.shared.enter(RecordExportStage::Selecting);
         let all: Vec<Record<'_>> = forge.records().collect();

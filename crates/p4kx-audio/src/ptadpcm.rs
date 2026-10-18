@@ -1,11 +1,14 @@
 //! The Platinum ADPCM frame decoder Wwise uses for PTADPCM WEMs.
 
+use crate::adpcm::{clamp16, nibbles, sample_bytes};
+
 /// Bytes of the header in front of every channel's frame: two history samples and a step index.
 pub(crate) const HEADER_LEN: usize = 5;
 
-const MAX_STEP_INDEX: u8 = 12;
+const MAX_HEADER_INDEX: u8 = 12;
 
-/// The step and the next step index for every step index and nibble; index 12 has neither.
+/// The step and the next step index for the step indexes 0 to 11 and every nibble; a header
+/// index of 12 or more adds no step and leads to index 0.
 #[rustfmt::skip]
 const STEPS: [[(i32, u8); 16]; 12] = [
     [
@@ -70,7 +73,7 @@ pub(crate) const fn samples_per_frame(len: usize) -> usize {
 /// Decodes one channel's frame into `out`, one sample per slot.
 ///
 /// The header is little-endian in every WEM; the frame must be longer than [`HEADER_LEN`].
-pub(crate) fn decode<'a>(frame: &[u8], out: impl Iterator<Item = &'a mut [u8; 2]>) {
+pub(crate) fn decode<'a>(frame: &[u8], mut out: impl Iterator<Item = &'a mut [u8; 2]>) {
     let sample_at = |offset: usize| {
         frame
             .get(offset..)
@@ -79,32 +82,22 @@ pub(crate) fn decode<'a>(frame: &[u8], out: impl Iterator<Item = &'a mut [u8; 2]
     };
     let mut older = sample_at(0);
     let mut newer = sample_at(2);
-    let mut index = frame.get(4).copied().unwrap_or(0).min(MAX_STEP_INDEX);
-    let nibbles = frame
-        .get(HEADER_LEN..)
-        .unwrap_or_default()
-        .iter()
-        .flat_map(|&byte| [byte & 0x0F, byte >> 4]);
-    let mut out = out;
+    let mut index = frame.get(4).copied().unwrap_or(0).min(MAX_HEADER_INDEX);
     for history in [older, newer] {
         if let Some(slot) = out.next() {
-            *slot = to_bytes(history);
+            *slot = sample_bytes(history);
         }
     }
-    for (slot, nibble) in out.zip(nibbles) {
+    for (slot, nibble) in out.zip(nibbles(frame, HEADER_LEN)) {
         let (step, next) = STEPS
             .get(usize::from(index))
             .and_then(|row| row.get(usize::from(nibble)))
             .copied()
             .unwrap_or((0, 0));
-        let sample = (step + 2 * newer - older).clamp(i32::from(i16::MIN), i32::from(i16::MAX));
+        let sample = clamp16(step + 2 * newer - older);
         older = newer;
         newer = sample;
         index = next;
-        *slot = to_bytes(sample);
+        *slot = sample_bytes(sample);
     }
-}
-
-fn to_bytes(sample: i32) -> [u8; 2] {
-    i16::try_from(sample).unwrap_or_default().to_le_bytes()
 }

@@ -51,9 +51,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             AudioError::InvalidFormat("the ADPCM block alignment does not fit the channels"),
         )?;
         let channels = self.channels();
-        let block_align = channels
-            .checked_mul(BITS_PER_SAMPLE / 8)
-            .ok_or(AudioError::InvalidFormat("too many channels"))?;
+        let block_align = wav_block_align(channels)?;
         let frames = layout.frames(self.data().len() as u64);
         let data_len = frames
             .checked_mul(u64::from(block_align))
@@ -72,9 +70,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
 
     fn write_pcm_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
         let channels = self.channels();
-        let block_align = channels
-            .checked_mul(BITS_PER_SAMPLE / 8)
-            .ok_or(AudioError::InvalidFormat("too many channels"))?;
+        let block_align = wav_block_align(channels)?;
         let frames = self.data().len() / usize::from(block_align);
         let data = self
             .data()
@@ -157,4 +153,10 @@ fn write_swapped(data: &[u8], out: &mut impl Write) -> Result<(), AudioError> {
             .map_err(AudioError::Write)?;
     }
     Ok(())
+}
+
+fn wav_block_align(channels: u16) -> Result<u16, AudioError> {
+    channels
+        .checked_mul(BITS_PER_SAMPLE / 8)
+        .ok_or(AudioError::InvalidFormat("too many channels"))
 }

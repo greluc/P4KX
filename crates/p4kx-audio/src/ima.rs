@@ -1,6 +1,7 @@
 //! The Wwise IMA ADPCM block decoder: XBOX IMA with one sub-block per channel.
 
 use crate::ByteOrder;
+use crate::adpcm::{clamp16, nibbles, sample_bytes};
 
 /// Bytes of the header in front of every channel's sub-block.
 pub(crate) const HEADER_LEN: usize = 4;
@@ -29,7 +30,7 @@ pub(crate) const fn samples_per_sub_block(len: usize) -> usize {
 pub(crate) fn decode<'a>(
     sub_block: &[u8],
     order: ByteOrder,
-    out: impl Iterator<Item = &'a mut [u8; 2]>,
+    mut out: impl Iterator<Item = &'a mut [u8; 2]>,
 ) {
     let mut history = order
         .u16_at(sub_block, 0)
@@ -38,31 +39,23 @@ pub(crate) fn decode<'a>(
         .get(2)
         .map_or(0, |&index| i32::from(index.cast_signed()))
         .clamp(0, MAX_STEP_INDEX);
-    let nibbles = sub_block
-        .get(HEADER_LEN..)
-        .unwrap_or_default()
-        .iter()
-        .flat_map(|&byte| [byte & 0x0F, byte >> 4]);
-    let mut out = out;
     if let Some(first) = out.next() {
-        *first = to_bytes(history);
+        *first = sample_bytes(history);
     }
-    for (slot, nibble) in out.zip(nibbles) {
+    for (slot, nibble) in out.zip(nibbles(sub_block, HEADER_LEN)) {
         let step = usize::try_from(step_index)
             .ok()
             .and_then(|index| STEP_SIZES.get(index))
             .copied()
             .unwrap_or(0);
-        let magnitude = usize::from(nibble & 0x07);
-        let delta = ((i32::from(nibble & 0x07) * 2 + 1) * step) >> 3;
-        history += if nibble & 0x08 == 0 { delta } else { -delta };
-        history = history.clamp(i32::from(i16::MIN), i32::from(i16::MAX));
-        step_index = (step_index + INDEX_STEPS.get(magnitude).copied().unwrap_or(0))
-            .clamp(0, MAX_STEP_INDEX);
-        *slot = to_bytes(history);
+        let magnitude = nibble & 0x07;
+        let delta = ((i32::from(magnitude) * 2 + 1) * step) >> 3;
+        history = clamp16(history + if nibble & 0x08 == 0 { delta } else { -delta });
+        let index_step = INDEX_STEPS
+            .get(usize::from(magnitude))
+            .copied()
+            .unwrap_or(0);
+        step_index = (step_index + index_step).clamp(0, MAX_STEP_INDEX);
+        *slot = sample_bytes(history);
     }
-}
-
-fn to_bytes(sample: i32) -> [u8; 2] {
-    i16::try_from(sample).unwrap_or_default().to_le_bytes()
 }

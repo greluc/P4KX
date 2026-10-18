@@ -189,6 +189,7 @@ fn closest<I: Copy>(target: i32, decode: impl Fn(u8) -> (i32, I, i32)) -> (u8, i
     });
     (nibble, sample, next)
 }
+
 fn pack(nibbles: &[u8]) -> impl Iterator<Item = u8> {
     nibbles
         .chunks(2)

@@ -16,7 +16,7 @@ pub use error::VorbisError;
 use self::header::Header;
 use self::packets::{AudioPackets, Packets, Rebuilt};
 use self::setup::Setup;
-use self::validate::Fit;
+use self::validate::{Decoder, Fit};
 use crate::riff::{Chunk, Chunks};
 use crate::wem::playing_time;
 use crate::{AudioError, ByteOrder, Codec, OggWriter, Wem};
@@ -65,6 +65,7 @@ pub(crate) struct RebuiltSound<'a> {
     comment: Vec<u8>,
     setup_header: Vec<u8>,
     setup: Setup,
+    decoder: Decoder,
     codebooks: Codebooks,
     sample_count: u64,
 }
@@ -108,7 +109,8 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let mut comment = Vec::new();
         header::comment_packet(&mut comment);
         let mut setup_header = Vec::new();
-        let (codebooks, setup) = stream.choose_codebooks(&ident, &comment, &mut setup_header)?;
+        let (codebooks, setup, decoder) =
+            stream.choose_codebooks(&ident, &comment, &mut setup_header)?;
         let sample_count = stream.sample_count(&setup)?;
         Ok(RebuiltSound {
             stream,
@@ -116,6 +118,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             comment,
             setup_header,
             setup,
+            decoder,
             codebooks,
             sample_count,
         })
@@ -174,7 +177,7 @@ impl Stream<'_> {
         ident: &[u8],
         comment: &[u8],
         setup: &mut Vec<u8>,
-    ) -> Result<(Codebooks, Setup), AudioError> {
+    ) -> Result<(Codebooks, Setup, Decoder), AudioError> {
         let mut clipped = None;
         let (mut default, mut aotuv, mut inline) = (None, None, None);
         for codebooks in ATTEMPTS {
@@ -184,8 +187,8 @@ impl Stream<'_> {
                 Codebooks::Inline => &mut inline,
             };
             match self.rebuild_setup(codebooks, ident, comment, setup) {
-                Ok((rebuilt, Fit::Clean)) => return Ok((codebooks, rebuilt)),
-                Ok((_, Fit::Clipped)) => {
+                Ok((rebuilt, Fit::Clean, decoder)) => return Ok((codebooks, rebuilt, decoder)),
+                Ok((_, Fit::Clipped, _)) => {
                     clipped.get_or_insert(codebooks);
                 }
                 Err(error) => *reason = Some(error),
@@ -193,10 +196,10 @@ impl Stream<'_> {
         }
         match (clipped, default, aotuv, inline) {
             (Some(codebooks), ..) => {
-                let (rebuilt, _) = self
+                let (rebuilt, _, decoder) = self
                     .rebuild_setup(codebooks, ident, comment, setup)
                     .map_err(AudioError::InvalidVorbis)?;
-                Ok((codebooks, rebuilt))
+                Ok((codebooks, rebuilt, decoder))
             }
             (None, Some(default), Some(aotuv), Some(inline)) => {
                 Err(AudioError::CodebooksRejected {
@@ -210,17 +213,18 @@ impl Stream<'_> {
             ))),
         }
     }
+
     fn rebuild_setup(
         &self,
         codebooks: Codebooks,
         ident: &[u8],
         comment: &[u8],
         out: &mut Vec<u8>,
-    ) -> Result<(Setup, Fit), VorbisError> {
+    ) -> Result<(Setup, Fit, Decoder), VorbisError> {
         let channels = u32::from(self.header.channels);
         let rebuilt = setup::rebuild(self.setup, channels, codebooks, out)?;
-        let fit = validate::validate(ident, comment, out, self.audio(&rebuilt))?;
-        Ok((rebuilt, fit))
+        let (fit, decoder) = validate::validate(ident, comment, out, self.audio(&rebuilt))?;
+        Ok((rebuilt, fit, decoder))
     }
 
     fn sample_count(&self, setup: &Setup) -> Result<u64, AudioError> {

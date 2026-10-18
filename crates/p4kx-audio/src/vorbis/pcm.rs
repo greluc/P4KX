@@ -1,9 +1,7 @@
-use std::fmt::Display;
 use std::io::Write;
 use std::panic::{self, AssertUnwindSafe};
 
 use lewton::audio::{PreviousWindowRight, read_audio_packet_generic};
-use lewton::header::{IdentHeader, SetupHeader, read_header_ident, read_header_setup};
 use lewton::samples::InterleavedSamples;
 
 use super::{RebuiltSound, VorbisError};
@@ -11,48 +9,22 @@ use crate::{AudioError, WavReport, Wem};
 
 const PANICKED: &str = "the decoder failed";
 
-/// The Vorbis headers parsed by the decoder.
-struct Decoder {
-    ident: IdentHeader,
-    setup: SetupHeader,
-}
-
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Rebuilds a Wwise Vorbis sound, decodes it and writes it as a 16-bit PCM WAV to `out`.
     pub(crate) fn write_vorbis_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
         let sound = self.rebuild_vorbis()?;
         let (header, report) = self.decoded_wav_header(sound.sample_count)?;
-        let decoder = sound.decoder()?;
         out.write_all(&header).map_err(AudioError::Write)?;
-        sound.write_pcm(&decoder, usize::from(self.channels()).max(1), out)?;
+        sound.write_pcm(usize::from(self.channels()).max(1), out)?;
         Ok(report)
     }
 }
 
-fn rejected(error: &dyn Display) -> AudioError {
-    AudioError::InvalidVorbis(VorbisError::Rejected(error.to_string()))
-}
-
 impl RebuiltSound<'_> {
-    fn decoder(&self) -> Result<Decoder, AudioError> {
-        panic::catch_unwind(|| {
-            let ident = read_header_ident(&self.ident).map_err(|error| rejected(&error))?;
-            let blocksizes = (ident.blocksize_0, ident.blocksize_1);
-            let setup = read_header_setup(&self.setup_header, ident.audio_channels, blocksizes)
-                .map_err(|error| rejected(&error))?;
-            Ok(Decoder { ident, setup })
-        })
-        .unwrap_or_else(|_| Err(rejected(&PANICKED)))
-    }
-
     /// Decodes the audio packets and writes the sample count's frames of interleaved
     /// little-endian 16-bit samples.
-    fn write_pcm(
-        &self,
-        decoder: &Decoder,
-        channels: usize,
-        out: &mut impl Write,
-    ) -> Result<(), AudioError> {
+    fn write_pcm(&self, channels: usize, out: &mut impl Write) -> Result<(), AudioError> {
+        let decoder = &self.decoder;
         let mut audio = self.stream.audio(&self.setup);
         let mut window = PreviousWindowRight::new();
         let mut packet = Vec::new();

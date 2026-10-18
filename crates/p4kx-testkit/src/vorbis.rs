@@ -17,6 +17,9 @@ pub enum TestCodebook {
     /// A codebook stored in the setup packet: one dimension, two one-bit entries, a value
     /// lookup giving 0.0 and 1.0.
     Inline,
+    /// The most a setup can declare: 256 inline codebooks of 15 dimensions and 16383 ordered
+    /// entries, each with a value lookup.
+    InlineMaximal,
 }
 
 /// A synthetic Wwise Vorbis WEM of silent packets, or of a steady tone.
@@ -159,29 +162,7 @@ impl TestVorbis {
     #[must_use]
     pub fn setup(&self) -> Vec<u8> {
         let mut bits = Bits::default();
-        bits.put(1, 8);
-        for _ in 0..2 {
-            match self.codebook {
-                TestCodebook::Library(id) => bits.put(u32::from(id), 10),
-                TestCodebook::Inline => {
-                    for (value, width) in [(1, 4), (2, 14), (0, 1), (1, 3), (0, 1), (0, 1), (0, 1)]
-                    {
-                        bits.put(value, width);
-                    }
-                    for (value, width) in [
-                        (1, 1),
-                        (0, 32),
-                        (VORBIS_FLOAT_ONE, 32),
-                        (0, 4),
-                        (0, 1),
-                        (0, 1),
-                        (1, 1),
-                    ] {
-                        bits.put(value, width);
-                    }
-                }
-            }
-        }
+        self.put_codebooks(&mut bits);
         let floor = [
             (0, 6),
             (1, 5),
@@ -217,6 +198,45 @@ impl TestVorbis {
             bits.put(value, width);
         }
         bits.bytes()
+    }
+
+    fn put_codebooks(&self, bits: &mut Bits) {
+        match self.codebook {
+            TestCodebook::Library(id) => {
+                bits.put(0, 8);
+                bits.put(u32::from(id), 10);
+            }
+            TestCodebook::Inline => {
+                bits.put(0, 8);
+                for (value, width) in [(1, 4), (2, 14), (0, 1), (1, 3), (0, 1), (0, 1), (0, 1)] {
+                    bits.put(value, width);
+                }
+                for (value, width) in [
+                    (1, 1),
+                    (0, 32),
+                    (VORBIS_FLOAT_ONE, 32),
+                    (0, 4),
+                    (0, 1),
+                    (0, 1),
+                    (1, 1),
+                ] {
+                    bits.put(value, width);
+                }
+            }
+            TestCodebook::InlineMaximal => {
+                bits.put(255, 8);
+                for _ in 0..256 {
+                    for (value, width) in [(15, 4), (16_383, 14), (1, 1), (0, 5), (16_383, 14)] {
+                        bits.put(value, width);
+                    }
+                    for (value, width) in [(1, 1), (0, 32), (VORBIS_FLOAT_ONE, 32), (0, 4), (0, 1)]
+                    {
+                        bits.put(value, width);
+                    }
+                    bits.put(0, 1);
+                }
+            }
+        }
     }
 
     /// Returns the audio packets as Wwise stores them.

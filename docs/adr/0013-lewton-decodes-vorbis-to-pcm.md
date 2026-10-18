@@ -5,9 +5,16 @@ decodes the rebuilt audio packets one by one with lewton (MIT OR Apache-2.0), th
 already validates the codebooks, and streams the 16-bit samples through the WAV writer of the
 other codecs. No Ogg container is built in between. The channels stay in the order of the
 stream, which Wwise writes in the speaker order of the WEM's channel mask, as vgmstream reads
-them, and the WAV carries that mask. lewton runs inside `catch_unwind`, and it only ever sees
-headers our rebuild wrote, with codebooks of at most 16383 entries and 15 dimensions, and audio
-packets below 64 KiB. Decided for issue #93.
+them, and the WAV carries that mask. lewton runs inside `catch_unwind`, which `cargo xtask
+lints` keeps working by rejecting `panic = "abort"` in every profile. It only ever sees headers
+our rebuild wrote and audio packets below 64 KiB. lewton expands the value lookup of every
+codebook to entries × dimensions floats, so a setup of up to 256 inline codebooks of 16383
+entries and 15 dimensions would cost about 250 MB per parse; the rebuild rejects a setup whose
+lookup codebooks sum to more than 2^20 values (4 MiB). The largest setup the embedded libraries
+allow, their 256 biggest lookup codebooks, sums to 961,182 values, and the largest in a sample of
+2019 WEMs of the LIVE Archive to 121,606. The headers lewton parsed while validating the chosen
+codebooks are kept for the full decode, so a setup is parsed once per candidate. Decided for
+issue #93.
 
 ## Considered Options
 

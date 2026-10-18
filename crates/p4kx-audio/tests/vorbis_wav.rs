@@ -54,6 +54,7 @@ fn deviation(samples: &[i16], channels: usize, channel: usize, line: u8) -> f64 
         .map(|(&sample, &expected)| (f64::from(sample) / 32_768.0 - expected).abs())
         .fold(0.0, f64::max)
 }
+
 #[test]
 fn a_vorbis_tone_decodes_to_the_known_signal() {
     let sound = TestVorbis::new(1, 48_000, &[false; 400]).tone(BIN);
@@ -119,6 +120,11 @@ fn surround_channels_keep_the_order_of_the_wem() {
 
     assert_eq!(report.channels, 6, "5.1");
     assert_eq!(u16_at(&wav, 20), Some(0xFFFE), "WAVE_FORMAT_EXTENSIBLE");
+    assert_eq!(
+        wav.get(40..44),
+        Some(&0x3F_u32.to_le_bytes()[..]),
+        "dwChannelMask: the 5.1 mask of the WEM"
+    );
     let decoded = samples(&wav);
     assert_eq!(decoded.len(), 6 * 49 * HOP, "six samples a frame");
     for channel in 0..6 {
@@ -200,6 +206,7 @@ fn a_late_packet_the_decoder_rejects_is_a_typed_error_naming_its_offset() {
         "{error:?}"
     );
 }
+
 #[test]
 fn damaged_vorbis_wems_never_panic() {
     let wem = TestVorbis::new(1, 48_000, &[false, true, false, true, false])

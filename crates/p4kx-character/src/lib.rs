@@ -17,7 +17,7 @@ mod material;
 pub use character::{Character, FEMALE_VERSIONS, MALE_VERSIONS, Versions};
 pub use chf::{Chf, ChfContainer};
 pub use container::{CHF_MAGIC, CHF_SIZE, MAX_BODY_LEN};
-pub use dna::{DNA_MAGIC, Dna, DnaBlend, face_part_name};
+pub use dna::{DNA_MAGIC, Dna, DnaBlend, MAX_FACE_PARTS, face_part_name};
 pub use error::ChfError;
 pub use guid::{Guid, InvalidGuid};
 pub use item_port::{ItemPort, MAX_PORT_DEPTH};

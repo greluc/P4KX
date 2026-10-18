@@ -31,6 +31,7 @@ fn every_chf_of_the_archive_round_trips_through_json_byte_exactly() -> TestResul
             Err(error) => failures.push(format!("{}: {error}", entry.path())),
         }
     }
+    assert!(checked > 0, "the Archive holds CHF files");
     assert!(
         failures.is_empty(),
         "{checked} round-tripped, failures: {failures:#?}"

@@ -7,6 +7,9 @@ use crate::body_writer::{Put, count_as};
 /// The value every DNA block starts with.
 pub const DNA_MAGIC: u32 = 0xfcd0_9394;
 
+/// The most face parts a DNA block may hold; the game uses 12 or 13.
+pub const MAX_FACE_PARTS: usize = 64;
+
 const DNA_HEADER_LEN: usize = 24;
 const BLEND_LEN: usize = 4;
 
@@ -82,7 +85,16 @@ impl Dna {
         let gender_hash = dna.u32()?;
         let variant_hash = dna.u32()?;
         dna.expect_u32("DNA reserved field", 0)?;
+        let part_count_offset = dna.offset();
         let part_count = usize::from(dna.u16()?);
+        if part_count > MAX_FACE_PARTS {
+            return Err(unexpected(
+                part_count_offset,
+                "DNA face part count at most",
+                MAX_FACE_PARTS as u128,
+                part_count as u128,
+            ));
+        }
         let blends_per_part = dna.u16()?;
         let header_unknown = dna.u16()?;
         let max_head_id = dna.u16()?;
@@ -126,6 +138,14 @@ impl Dna {
     }
 
     fn write_block(&self, out: &mut Vec<u8>) -> Result<(), ChfError> {
+        if self.face_parts.len() > MAX_FACE_PARTS {
+            return Err(ChfError::Unwritable {
+                reason: format!(
+                    "{} DNA face parts, at most {MAX_FACE_PARTS} are supported",
+                    self.face_parts.len()
+                ),
+            });
+        }
         let part_count: u16 = count_as(self.face_parts.len(), "DNA face parts")?;
         let per_part = usize::from(self.blends_per_part);
         if let Some(index) = self

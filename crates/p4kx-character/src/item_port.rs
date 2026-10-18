@@ -73,7 +73,13 @@ impl ItemPort {
     /// Returns the number of ports in this tree, this one included.
     #[must_use]
     pub fn count(&self) -> u64 {
-        1 + self.children.iter().map(Self::count).sum::<u64>()
+        let mut count = 0_u64;
+        let mut pending = vec![self];
+        while let Some(port) = pending.pop() {
+            count += 1;
+            pending.extend(&port.children);
+        }
+        count
     }
 
     /// Writes the port count, the tail count behind it and the tree.

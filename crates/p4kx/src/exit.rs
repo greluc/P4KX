@@ -53,10 +53,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound or soundbank file that does not
      exist, a mip level the texture does not have, an output that is one of its inputs,
-     --json without --out for cryxml or chf to-json, an invalid Query, --json with another --format and
-     without --out for dcb query, an Entity that no Record or several Records match, or a
-     CHF JSON file that is invalid, has an unknown version or holds values a CHF file cannot
-     store
+     --json without --out for cryxml or chf to-json, an invalid Query, --json with another
+     --format and without --out for dcb query, an Entity that no Record or several Records
+     match, or a CHF JSON file that is invalid, has an unknown version or holds values a CHF
+     file cannot store
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml or CHF,
      corrupt, with a CRC-32C mismatch, an unknown CHF version or unreadable Entry data, also a
      --diff Entry that cannot be read or holds corrupt CryXml; a missing texture, sound or

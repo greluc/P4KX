@@ -51,7 +51,7 @@ pub use dataforge::DataForge;
 pub use error::DataForgeError;
 pub use guid::{Guid, InvalidGuid};
 pub use header::SUPPORTED_VERSIONS;
-pub use issues::{DataForgeIssue, MAX_ISSUES};
+pub use issues::{DataForgeIssue, MAX_DATAFORGE_ISSUES};
 pub use json::{JsonLayout, RecordJson};
 pub use kinds::{DataType, ValueKind};
 pub use layout::{MAX_INHERITANCE_DEPTH, MAX_RECORD_FIELDS};

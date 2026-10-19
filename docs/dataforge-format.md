@@ -3,7 +3,7 @@
 What `p4kx-dataforge` assumes about details of `Data\Game2.dcb` that no tool documents, what it
 tolerates when they drift, and what the installed Channels show. The reader reads versions 6 and
 8; every byte is untrusted, so a deviation is a typed error, an error value at its place or an
-issue, never a panic and never silently wrong data (ADR-0004).
+issue, never a panic and never silently wrong data.
 
 The findings below come from the real-Archive canary
 (`crates/p4kx-extraction/tests/real_archive/dataforge_canary.rs`, run with `--ignored` and
@@ -58,6 +58,7 @@ Any other string offset that is not the start of a terminated UTF-8 string stays
 | Pointers to an instance below 65536 | 3,208,390 | 3,185,105 | 3,172,969 | 3,208,390 | 3,332,112 |
 | Pointers to an instance at or above 65536 | 659,270 | 635,441 | 625,245 | 659,270 | 780,894 |
 | Pointers that name no instance | 0 | 0 | 0 | 0 | 0 |
+
 The pointer row corrects the review the canary was written from: the high 16 bits of the
 instance index are not always zero. Several hundred thousand pointers address instances beyond
 65535, so masking or truncating the index to 16 bits, as unforge does, would read wrong data.

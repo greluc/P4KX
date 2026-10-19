@@ -128,11 +128,17 @@ impl TestStruct {
     }
 
     /// Sets the bits above the low byte of the conversion type of the field added last.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the struct has no field yet.
     #[must_use]
     pub fn conversion_flags(mut self, flags: u8) -> Self {
-        if let Some(property) = self.properties.last_mut() {
-            property.flags = flags;
-        }
+        let property = self
+            .properties
+            .last_mut()
+            .unwrap_or_else(|| panic!("conversion_flags needs a field added before it"));
+        property.flags = flags;
         self
     }
 

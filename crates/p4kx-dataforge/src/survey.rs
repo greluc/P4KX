@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use rayon::prelude::*;
 
 use crate::build::words;
@@ -121,68 +124,97 @@ impl DataForge<'_> {
                 .for_each(|bytes| pools.add(self, bytes));
         }
         let count = u32::try_from(self.structs.len()).unwrap_or(u32::MAX);
-        let (instances, unreadable) = (0..count)
-            .into_par_iter()
-            .map(|struct_index| self.survey_struct(struct_index))
-            .reduce(
-                || (PointerSurvey::default(), 0),
-                |left, right| (left.0.merge(right.0), left.1 + right.1),
-            );
+        let mut offsets = PointerOffsets::default();
+        let mut unreadable = 0;
+        let mut work = Vec::new();
+        for struct_index in 0..count {
+            if self.instance_count_of(struct_index) == 0 {
+                continue;
+            }
+            match offsets.of(self, struct_index, 0) {
+                Some(list) if !list.is_empty() => work.push((struct_index, list)),
+                Some(_) => {}
+                None => unreadable += 1,
+            }
+        }
+        let instances = work
+            .par_iter()
+            .map(|(struct_index, list)| self.survey_struct(*struct_index, list))
+            .reduce(PointerSurvey::default, PointerSurvey::merge);
         (pools.merge(instances), unreadable)
     }
 
-    fn survey_struct(&self, struct_index: u32) -> (PointerSurvey, usize) {
-        let mut found = PointerSurvey::default();
-        let count = self
-            .instance_counts
+    fn instance_count_of(&self, struct_index: u32) -> u32 {
+        self.instance_counts
             .get(struct_index as usize)
             .copied()
-            .unwrap_or_default();
-        if count == 0 {
-            return (found, 0);
-        }
-        let mut layouts = Layouts::default();
-        let mut offsets = Vec::new();
-        if self
-            .pointer_offsets(&mut layouts, struct_index, 0, 0, &mut offsets)
-            .is_err()
-        {
-            return (found, 1);
-        }
-        for instance in 0..count {
+            .unwrap_or_default()
+    }
+
+    fn survey_struct(&self, struct_index: u32, offsets: &[usize]) -> PointerSurvey {
+        let mut found = PointerSurvey::default();
+        for instance in 0..self.instance_count_of(struct_index) {
             let bytes = self.instance(struct_index, instance).unwrap_or_default();
-            for &offset in &offsets {
+            for &offset in offsets {
                 found.add(self, bytes.get(offset..).unwrap_or_default());
             }
         }
-        (found, 0)
+        found
+    }
+}
+
+/// The most pointer offsets one struct may have for the survey to read it.
+const MAX_STRUCT_POINTERS: usize = 1 << 16;
+
+/// The offsets of the non-array pointers inside every struct, found once per struct.
+#[derive(Default)]
+struct PointerOffsets<'f> {
+    layouts: Layouts<'f>,
+    done: HashMap<u32, Option<Arc<[usize]>>>,
+}
+
+impl<'f> PointerOffsets<'f> {
+    /// Returns the offsets of the pointers of a struct, inline structs included, or `None` when
+    /// its layout cannot be read, it nests too deep or it holds too many pointers.
+    fn of(
+        &mut self,
+        forge: &'f DataForge<'f>,
+        struct_index: u32,
+        depth: usize,
+    ) -> Option<Arc<[usize]>> {
+        if let Some(known) = self.done.get(&struct_index) {
+            return known.clone();
+        }
+        if depth > MAX_NESTING_DEPTH {
+            return None;
+        }
+        self.done.insert(struct_index, None);
+        let found = self.collect(forge, struct_index, depth);
+        self.done.insert(struct_index, found.clone());
+        found
     }
 
-    fn pointer_offsets<'f>(
-        &'f self,
-        layouts: &mut Layouts<'f>,
+    fn collect(
+        &mut self,
+        forge: &'f DataForge<'f>,
         struct_index: u32,
-        base: usize,
         depth: usize,
-        offsets: &mut Vec<usize>,
-    ) -> Result<(), crate::DataForgeError> {
-        if depth > MAX_NESTING_DEPTH {
-            return Ok(());
-        }
-        let layout = layouts.get(self, struct_index)?;
+    ) -> Option<Arc<[usize]>> {
+        let layout = self.layouts.get(forge, struct_index).ok()?;
+        let mut offsets = Vec::new();
         for slot in layout.fields.iter().filter(|slot| !slot.array) {
             match slot.data_type {
-                DataType::StrongPointer | DataType::WeakPointer => offsets.push(base + slot.start),
-                DataType::Class => self.pointer_offsets(
-                    layouts,
-                    u32::from(slot.target),
-                    base + slot.start,
-                    depth + 1,
-                    offsets,
-                )?,
+                DataType::StrongPointer | DataType::WeakPointer => offsets.push(slot.start),
+                DataType::Class if slot.end > slot.start => {
+                    let inner = self.of(forge, u32::from(slot.target), depth + 1)?;
+                    offsets.extend(inner.iter().map(|offset| slot.start + offset));
+                }
                 _ => {}
             }
+            if offsets.len() > MAX_STRUCT_POINTERS {
+                return None;
+            }
         }
-        Ok(())
+        Some(offsets.into())
     }
 }

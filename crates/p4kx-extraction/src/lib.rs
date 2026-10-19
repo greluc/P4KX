@@ -88,7 +88,7 @@ pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FormatSurvey, Guid,
-    InvalidGuid, JsonLayout, MAX_ISSUES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES, PointerSurvey,
+    InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES, PointerSurvey,
     Property, RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml, Reference,
     Resolution, Struct, StructValue, TextResolver, TrailingSurvey, TreeBuilder, Value, ValueError,
     ValueKind,

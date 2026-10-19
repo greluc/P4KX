@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::{DataForge, DataForgeIssue, Field, MAX_ISSUES, RecordTree, Value, ValueError};
+use p4kx_dataforge::{DataForge, DataForgeIssue, Field, MAX_DATAFORGE_ISSUES, RecordTree, Value, ValueError};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -142,7 +142,7 @@ fn a_nameless_record_does_not_keep_its_siblings_from_building() -> TestResult {
 
 #[test]
 fn the_issue_list_is_capped_but_counts_every_issue() -> TestResult {
-    let total = MAX_ISSUES + 30;
+    let total = MAX_DATAFORGE_ISSUES + 30;
     let bytes = (0..total)
         .fold(
             DataForgeBuilder::new().structure(TestStruct::new("Ship")),
@@ -157,7 +157,7 @@ fn the_issue_list_is_capped_but_counts_every_issue() -> TestResult {
 
     let forge = DataForge::open(&bytes)?;
 
-    assert_eq!(forge.issues().len(), MAX_ISSUES);
+    assert_eq!(forge.issues().len(), MAX_DATAFORGE_ISSUES);
     assert_eq!(forge.issue_count(), total);
     Ok(())
 }

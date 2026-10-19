@@ -6,7 +6,7 @@ use crate::rows::{NO_STRING, PropertyDef};
 use crate::table::Table;
 
 /// The most issues a [`DataForge`] keeps; [`DataForge::issue_count`] counts all of them.
-pub const MAX_ISSUES: usize = 1024;
+pub const MAX_DATAFORGE_ISSUES: usize = 1024;
 
 /// A deviation from the known layout that the reader tolerates and reports instead of failing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -36,7 +36,7 @@ pub enum DataForgeIssue {
     },
 }
 
-/// The issues found on opening, the first [`MAX_ISSUES`] of them, and how many there are.
+/// The issues found on opening, the first [`MAX_DATAFORGE_ISSUES`] of them, and how many there are.
 #[derive(Debug, Default)]
 pub(crate) struct Issues {
     pub(crate) list: Vec<DataForgeIssue>,
@@ -46,7 +46,7 @@ pub(crate) struct Issues {
 impl Issues {
     fn push(&mut self, issue: DataForgeIssue) {
         self.total = self.total.saturating_add(1);
-        if self.list.len() < MAX_ISSUES {
+        if self.list.len() < MAX_DATAFORGE_ISSUES {
             self.list.push(issue);
         }
     }
@@ -75,7 +75,7 @@ impl Issues {
 }
 
 impl DataForge<'_> {
-    /// Returns the first [`MAX_ISSUES`] deviations from the known layout that opening tolerated, in
+    /// Returns the first [`MAX_DATAFORGE_ISSUES`] deviations from the known layout that opening tolerated, in
     /// table order.
     #[must_use]
     pub fn issues(&self) -> &[DataForgeIssue] {
@@ -83,7 +83,7 @@ impl DataForge<'_> {
     }
 
     /// Returns the number of deviations that opening tolerated, which may exceed
-    /// [`MAX_ISSUES`].
+    /// [`MAX_DATAFORGE_ISSUES`].
     #[must_use]
     pub const fn issue_count(&self) -> usize {
         self.issues.total

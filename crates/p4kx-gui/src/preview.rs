@@ -1,7 +1,11 @@
+#[cfg(test)]
+mod archive_change_tests;
 mod audio;
 mod contents;
 mod image;
 mod texture_info;
+mod xml;
+mod xml_document;
 
 use std::io::Read;
 use std::sync::Arc;
@@ -15,6 +19,9 @@ pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
 pub use texture_info::{MAX_PREVIEW_PIXELS, TextureInfo};
+use xml::is_cryxml;
+pub use xml::{XML_SIZE_LIMIT, XmlPreview, XmlStatus};
+pub use xml_document::{XML_TEXT_LIMIT, XmlDocument};
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -33,6 +40,8 @@ pub enum PreviewTab {
     Text,
     /// The data as offsets, hexadecimal bytes and printable characters.
     Hex,
+    /// A `CryXml` Entry converted to XML.
+    Xml,
     /// A texture decoded as an image, one mip at a time.
     Image,
     /// The summary of the Archive's DataForge instead of the selected Entry.
@@ -62,7 +71,13 @@ enum Unread {
     ArchiveChanged,
 }
 
-type ReadResult = Result<PreviewContents, Unread>;
+#[derive(Debug)]
+struct Loaded {
+    contents: PreviewContents,
+    xml: Option<XmlPreview>,
+}
+
+type ReadResult = Result<Loaded, Unread>;
 
 #[derive(Debug)]
 enum State {
@@ -80,6 +95,8 @@ pub struct Preview {
     state: State,
     image: Option<ImagePreview>,
     audio: Option<AudioPreview>,
+    xml: Option<XmlPreview>,
+    xml_arrived: bool,
 }
 
 impl Preview {
@@ -101,6 +118,8 @@ impl Preview {
                 state: State::ArchiveChanged,
                 image: None,
                 audio: None,
+                xml: None,
+                xml_arrived: false,
             };
         }
         let wake = Arc::new(wake);
@@ -118,17 +137,34 @@ impl Preview {
                 let wake = Arc::clone(&wake);
                 AudioPreview::start(index, id, move || wake())
             });
-        let state = match index.entry(id) {
-            None => State::Failed(None),
-            Some(entry) if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT => State::TooLarge,
-            Some(_) => spawn(index, id, move || wake()),
-        };
-        Self {
+        let mut preview = Self {
             entry: id,
-            state,
+            state: State::Failed(None),
             image,
             audio,
-        }
+            xml: None,
+            xml_arrived: false,
+        };
+        preview.state = match index.entry(id) {
+            None => State::Failed(None),
+            Some(entry) if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT => State::TooLarge,
+            Some(_) => match spawn(index, id, move || wake()) {
+                Spawned::Running(result) => State::Loading(result),
+                Spawned::Finished(read) => preview.settle(read),
+            },
+        };
+        preview
+    }
+
+    /// Returns the XML preview when the Entry is `CryXml`, known once its start was read.
+    #[must_use]
+    pub const fn xml(&self) -> Option<&XmlPreview> {
+        self.xml.as_ref()
+    }
+
+    /// Returns whether the Entry turned out to be `CryXml` since the last call.
+    pub(crate) const fn take_xml_arrival(&mut self) -> bool {
+        std::mem::replace(&mut self.xml_arrived, false)
     }
 
     /// Returns the audio preview when the Entry is a WEM.
@@ -186,70 +222,140 @@ impl Preview {
         }
     }
 
-    /// Takes the data once it was read and the results of the image and audio previews;
+    /// Takes the data once it was read and the results of the image, audio and XML previews;
     /// returns whether one arrived.
     pub(crate) fn poll(&mut self) -> bool {
         let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
         let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll);
-        self.poll_data() || imaged || sounded
+        let read = self.poll_data();
+        let converted = self.xml.as_mut().is_some_and(XmlPreview::poll);
+        read || imaged || converted || sounded
     }
 
     fn poll_data(&mut self) -> bool {
         let State::Loading(result) = &self.state else {
             return false;
         };
-        self.state = match result.try_recv() {
-            Ok(read) => settled(read),
+        let read = match result.try_recv() {
+            Ok(read) => read,
             Err(TryRecvError::Empty) => return false,
-            Err(TryRecvError::Disconnected) => State::Failed(None),
+            Err(TryRecvError::Disconnected) => Err(Unread::Failed(None)),
         };
+        self.state = self.settle(read);
         true
     }
-}
 
-fn settled(read: ReadResult) -> State {
-    match read {
-        Ok(contents) => State::Ready(contents),
-        Err(Unread::Failed(reason)) => State::Failed(reason),
-        Err(Unread::ArchiveChanged) => State::ArchiveChanged,
+    fn settle(&mut self, read: ReadResult) -> State {
+        match read {
+            Ok(Loaded { contents, xml }) => {
+                self.xml_arrived = xml.is_some();
+                self.xml = xml;
+                State::Ready(contents)
+            }
+            Err(Unread::Failed(reason)) => State::Failed(reason),
+            Err(Unread::ArchiveChanged) => State::ArchiveChanged,
+        }
     }
 }
 
-fn spawn(index: &Arc<EntryIndex>, id: u32, wake: impl Fn() + Send + 'static) -> State {
+enum Spawned {
+    Running(Receiver<ReadResult>),
+    Finished(ReadResult),
+}
+
+fn spawn(index: &Arc<EntryIndex>, id: u32, wake: impl Fn() + Send + 'static) -> Spawned {
     let (sender, result) = mpsc::channel();
     let thread_index = Arc::clone(index);
     let spawned = thread::Builder::new()
         .name("preview".to_owned())
         .spawn(move || {
-            if sender.send(read(&thread_index, id)).is_ok() {
-                wake();
-            }
+            read(
+                &thread_index,
+                id,
+                |loaded| sender.send(loaded).is_ok(),
+                &wake,
+            );
         });
     match spawned {
-        Ok(_handle) => State::Loading(result),
-        Err(_ignored) => settled(read(index, id)),
+        Ok(_handle) => Spawned::Running(result),
+        Err(_ignored) => {
+            let mut finished = None;
+            read(
+                index,
+                id,
+                |loaded| {
+                    finished = Some(loaded);
+                    true
+                },
+                &|| {},
+            );
+            Spawned::Finished(finished.unwrap_or(Err(Unread::Failed(None))))
+        }
     }
 }
 
-fn read(index: &EntryIndex, id: u32) -> ReadResult {
-    let entry = index.entry(id).ok_or(Unread::Failed(None))?;
-    let bytes = read_start(index, entry);
-    if index.watch().check().is_err() {
-        return Err(Unread::ArchiveChanged);
-    }
-    let bytes = bytes.map_err(|reason| Unread::Failed(Some(reason)))?;
-    Ok(PreviewContents::new(bytes, entry.uncompressed_size()))
-}
-
-fn read_start(index: &EntryIndex, entry: &Entry) -> Result<Vec<u8>, String> {
-    let reader = index
+/// Reads the start of the Entry `id` and hands it to `deliver`, which returns whether the
+/// preview still wants it; converts a `CryXml` Entry afterwards. Calls `wake` after each result.
+fn read(index: &EntryIndex, id: u32, deliver: impl FnOnce(ReadResult) -> bool, wake: &dyn Fn()) {
+    let Some(entry) = index.entry(id) else {
+        if deliver(Err(Unread::Failed(None))) {
+            wake();
+        }
+        return;
+    };
+    let opened = index
         .archive()
         .open_entry(entry)
-        .map_err(|error| describe(&error))?;
+        .map_err(|error| describe(&error));
+    let mut reader = match opened {
+        Ok(reader) => reader,
+        Err(reason) => {
+            let unread = if index.watch().check().is_err() {
+                Unread::ArchiveChanged
+            } else {
+                Unread::Failed(Some(reason))
+            };
+            if deliver(Err(unread)) {
+                wake();
+            }
+            return;
+        }
+    };
+    let bytes = read_start(&mut reader, entry);
+    let read = if index.watch().check().is_err() {
+        Err(Unread::ArchiveChanged)
+    } else {
+        bytes.map_err(|reason| Unread::Failed(Some(reason)))
+    };
+    let (read, job) = match read {
+        Ok(bytes) => {
+            let (xml, job) = is_cryxml(&bytes).then(XmlPreview::pending).unzip();
+            let start = job.as_ref().map(|_| bytes.clone());
+            let contents = PreviewContents::new(bytes, entry.uncompressed_size());
+            (Ok(Loaded { contents, xml }), job.zip(start))
+        }
+        Err(unread) => (Err(unread), None),
+    };
+    if !deliver(read) {
+        return;
+    }
+    wake();
+    if let Some((job, start)) = job {
+        job.run(
+            index,
+            (&start, entry.uncompressed_size()),
+            &mut reader,
+            wake,
+        );
+    }
+}
+
+fn read_start(reader: &mut impl Read, entry: &Entry) -> Result<Vec<u8>, String> {
     let limit = u64::try_from(PREVIEW_READ_LIMIT).unwrap_or(u64::MAX);
     let capacity = usize::try_from(entry.uncompressed_size().min(limit)).unwrap_or(0);
     let mut bytes = Vec::with_capacity(capacity);
     reader
+        .by_ref()
         .take(limit)
         .read_to_end(&mut bytes)
         .map_err(|error| describe(&error))?;

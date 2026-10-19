@@ -57,7 +57,8 @@ pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
-    SoundInfo, SoundStatus, TextureInfo, is_wem_path,
+    SoundInfo, SoundStatus, TextureInfo, XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlDocument, XmlPreview,
+    XmlStatus, is_wem_path,
 };
 pub use query::{
     CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
@@ -75,4 +76,5 @@ pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
     ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
+    XmlText,
 };

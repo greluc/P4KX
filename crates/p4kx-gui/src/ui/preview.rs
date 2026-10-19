@@ -3,7 +3,7 @@ use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview::{self, AudioAction};
-use super::{dataforge_summary, hex_view, image_preview};
+use super::{dataforge_summary, hex_view, image_preview, xml_preview};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
@@ -13,12 +13,14 @@ use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
-    PreviewContents, PreviewStatus, PreviewTab, Text, Texts, format, is_wem_path,
+    PreviewContents, PreviewStatus, PreviewTab, Text, Texts, XmlPreview, XmlText, format,
+    is_wem_path,
 };
 
-const TABS: [(PreviewTab, Text); 5] = [
+const TABS: [(PreviewTab, Text); 6] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
+    (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
@@ -30,8 +32,9 @@ enum Asked {
     Audio(AudioAction),
 }
 
-/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM, and
-/// leaves the Image, Audio and DataForge tabs for the Text tab after selecting another Entry.
+/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM,
+/// and leaves the XML, Image, Audio and DataForge tabs for the Text tab after selecting another
+/// Entry; the XML tab opens once the Entry turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
         .browser()
@@ -43,7 +46,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
         model.set_preview_tab(PreviewTab::Audio);
     } else if matches!(
         model.preview_tab(),
-        PreviewTab::Image | PreviewTab::Audio | PreviewTab::DataForge
+        PreviewTab::Xml | PreviewTab::Image | PreviewTab::Audio | PreviewTab::DataForge
     ) {
         model.set_preview_tab(PreviewTab::Text);
     }
@@ -52,6 +55,13 @@ pub(super) fn select(model: &mut Model, id: u32) {
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
         image.upload(ui.ctx());
+    }
+    if model
+        .browser_mut()
+        .and_then(Browser::preview_mut)
+        .is_some_and(Preview::take_xml_arrival)
+    {
+        model.set_preview_tab(PreviewTab::Xml);
     }
     let Some(browser) = model.browser() else {
         return;
@@ -90,8 +100,10 @@ fn tab_bar(
 ) -> (PreviewTab, Option<String>) {
     let image = browser.preview().and_then(Preview::image);
     let audio = browser.preview().and_then(Preview::audio);
+    let xml = browser.preview().and_then(Preview::xml);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
+        PreviewTab::Xml => xml.is_some(),
         PreviewTab::Image => image.is_some(),
         PreviewTab::Audio => audio.is_some(),
         PreviewTab::DataForge => records.is_some(),
@@ -119,15 +131,21 @@ fn tab_bar(
         .preview()
         .and_then(|preview| preview.contents())
         .filter(|_| matches!(tab, PreviewTab::Text | PreviewTab::Hex));
+    let document = xml
+        .and_then(XmlPreview::text)
+        .filter(|_| tab == PreviewTab::Xml);
     let copy_label = texts.get(Text::PreviewCopy);
     let mut copy = None;
     ui.scope_builder(
         egui::UiBuilder::new().max_rect(bar.shrink2(vec2(SPACE_2, 0.0))),
         |ui| {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let enabled = contents.is_some();
+                let enabled = contents.is_some() || document.is_some();
                 if button::button(ui, Kind::Ghost, Size::Compact, &copy_label, enabled).clicked() {
-                    copy = contents.map(|contents| contents.copied(tab));
+                    copy = contents.map(|contents| contents.copied(tab)).or_else(|| {
+                        document
+                            .map(|document| String::from_utf8_lossy(document.bytes()).into_owned())
+                    });
                 }
             });
         },
@@ -184,6 +202,10 @@ fn body(
     if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
         return audio_preview::show(ui, texts, (path, size), audio, volume).map(Asked::Audio);
     }
+    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
+        xml_preview::show(ui, texts, (path, size), xml);
+        return None;
+    }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
     frames::preview_body().show(ui, |ui| match preview.status() {
@@ -194,7 +216,6 @@ fn body(
             });
         }
         PreviewStatus::TooLarge => {
-            let size = entry.map_or(0, Entry::uncompressed_size);
             ui.label(texts.format(
                 Text::PreviewTooLarge,
                 &[

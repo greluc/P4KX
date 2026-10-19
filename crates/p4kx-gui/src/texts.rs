@@ -12,6 +12,7 @@ mod query_text;
 mod record_change_text;
 mod record_export_text;
 mod text_ids;
+mod xml_text;
 
 pub use audio_text::AudioText;
 pub use change_extraction_text::ChangeExtractionText;
@@ -23,6 +24,7 @@ pub use image_text::ImageText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
+pub use xml_text::XmlText;
 
 use crate::Language;
 
@@ -170,6 +172,8 @@ pub enum Text {
     Image(ImageText),
     /// A text of the audio preview.
     Audio(AudioText),
+    /// A text of the XML preview.
+    Xml(XmlText),
     /// A text of the Query tab.
     Query(QueryText),
     /// A text of the Export menu and the Record export windows.

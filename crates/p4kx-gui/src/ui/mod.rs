@@ -42,6 +42,8 @@ mod shortcuts;
 mod status;
 mod table;
 mod tree;
+mod xml_preview;
+mod xml_view;
 
 use std::path::PathBuf;
 

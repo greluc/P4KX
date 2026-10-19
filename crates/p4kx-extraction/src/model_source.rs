@@ -43,7 +43,7 @@ impl ModelSource {
         })?;
         Ok(Self {
             name,
-            inputs: Vec::new(),
+            inputs: vec![index.archive().path().to_path_buf()],
             model,
         })
     }
@@ -106,7 +106,8 @@ impl ModelSource {
     ///
     /// # Errors
     ///
-    /// Returns [`ConversionError::OutputIsInput`] when `out` is one of the model's files,
+    /// Returns [`ConversionError::OutputIsInput`] when `out` is one of the model's files or
+    /// the Archive it was read from,
     /// [`ConversionError::Glb`] when the model cannot be exported with `options`, and
     /// [`ConversionError::Write`] when the file cannot be written.
     pub fn write_glb(

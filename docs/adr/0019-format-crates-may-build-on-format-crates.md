@@ -4,9 +4,12 @@ ADR-0003 lets format crates depend only on `p4kx-foundation`. The M7 spec splits
 container (`p4kx-chunks`) from its interpretation (`p4kx-model`), both format crates, so that new
 chunk types need no change in the export code, and `p4kx-model` reads `.mtl` files that may be
 CryXml. The model crate therefore depends on `p4kx-chunks` and later on `p4kx-cryxml`. A format
-crate may now depend on `p4kx-foundation` and on other format crates; Cargo rejects cycles, and
-format crates still never depend on services or front-ends. `cargo xtask layers` checks the new
-rule. Decided for issue #102.
+crate may now depend on `p4kx-foundation` and on other format crates, but only on those it names
+in `[package.metadata.p4kx] builds-on = [...]` (`p4kx-model`: `["p4kx-chunks"]`), and never on
+`p4kx-archive`: formats read bytes, they do not open the Archive. Cargo rejects cycles, and format
+crates still never depend on services or front-ends. `cargo xtask layers` enforces the rule: an
+undeclared format-to-format edge, an edge to `p4kx-archive`, a `builds-on` entry that is not a
+dependency and a `builds-on` outside a format crate all fail CI. Decided for issue #102.
 
 ## Considered Options
 

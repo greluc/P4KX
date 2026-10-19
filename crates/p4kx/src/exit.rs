@@ -28,9 +28,10 @@ pub(crate) const PARTIAL_FAILURE: u8 = 1;
 pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
-/// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no Entry or Record, names an output that is
-/// one of its inputs, has an invalid Query or a Query output that does not fit --json, or gives
-/// CHF JSON that is invalid or cannot be written as CHF.
+/// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
+/// Entry or Record, names an output that is one of its inputs, has an invalid Query or a Query
+/// output that does not fit --json, or gives CHF JSON that is invalid or cannot be written as
+/// CHF.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.

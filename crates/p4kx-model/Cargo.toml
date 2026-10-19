@@ -10,6 +10,7 @@ publish.workspace = true
 
 [package.metadata.p4kx]
 layer = "format"
+builds-on = ["p4kx-chunks"]
 
 [dependencies]
 half.workspace = true

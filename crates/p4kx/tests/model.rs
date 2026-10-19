@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestEntry, TestModel, check_glb};
+use p4kx_testkit::{ArchiveBuilder, TestChunkFile, TestEntry, TestModel, check_glb};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -253,5 +253,46 @@ fn the_output_may_not_be_a_file_of_the_model() -> TestResult {
         cube().cgfm(),
         "untouched"
     );
+    Ok(())
+}
+
+#[test]
+fn the_output_may_not_be_the_open_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let before = fs::read(&archive)?;
+
+    let output = p4kx()?
+        .args(["model", "glb"])
+        .arg(&archive)
+        .arg(MODEL_ENTRY)
+        .arg("--out")
+        .arg(&archive)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "invalid input: {output:?}");
+    assert_eq!(fs::read(&archive)?, before, "the Archive is untouched");
+    Ok(())
+}
+
+#[test]
+fn a_crch_model_cannot_be_exported() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let crch = TestChunkFile::crch().chunk(0x100B, 0x824, *b"node").bytes();
+    fs::write(dir.path().join("old.cgf"), crch)?;
+
+    let output = p4kx()?
+        .current_dir(dir.path())
+        .args(["model", "glb", "old.cgf", "--out", "old.glb"])
+        .output()?;
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "cannot be exported: {output:?}"
+    );
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("CrCh"), "names the container: {stderr}");
+    assert!(!dir.path().join("old.glb").exists(), "nothing is written");
     Ok(())
 }

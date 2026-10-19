@@ -1,6 +1,7 @@
 //! A headless window over an Archive of the fixtures, and the helpers to drive it.
 
 use std::error::Error;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -115,6 +116,16 @@ pub(crate) fn choose(harness: &mut Harness<'_, Model>, entry: &str) {
 
 pub(crate) fn has_row(harness: &Harness<'_, Model>, label: &str) -> bool {
     harness.query_by_role_and_label(Role::Row, label).is_some()
+}
+
+pub(crate) fn key_text<'v>(
+    view: &'v RecordView,
+    name: &str,
+) -> Option<(&'v str, &'v [Range<usize>])> {
+    match key_line(view, name)? {
+        KeyText::Text { text, escapes } => Some((text, escapes)),
+        _ => None,
+    }
 }
 
 pub(crate) fn key_line<'v>(view: &'v RecordView, name: &str) -> Option<&'v KeyText> {

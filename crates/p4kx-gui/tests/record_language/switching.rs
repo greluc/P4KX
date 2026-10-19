@@ -1,18 +1,22 @@
 //! Choosing the language and switching it in the open preview.
 
+use std::error::Error;
+use std::path::Path;
 use std::sync::atomic::Ordering;
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use p4kx_extraction::{Archive, DataForgeEntry, LanguageTexts, LocalizationSet, RecordXml};
 use p4kx_gui::{
     Browser, KeyText, Model, PreviewTab, RecordPreview, RecordPreviewStatus, RecordTextChoice,
     TextLanguage,
 };
 
-use crate::fixtures::{ENGLISH_AND_GERMAN, TestResult};
+use crate::fixtures::{ENGLISH_AND_GERMAN, TestResult, archive};
 use crate::window::{
-    Window, choose, english_window, has_row, key_line, open_record, preview, read_in, wait_until,
+    Window, choose, english_window, has_row, key_line, key_text, open_record, preview, read_in,
+    wait_until, window,
 };
 
 #[test]
@@ -94,8 +98,8 @@ fn choosing_a_language_resolves_the_keys_and_marks_the_missing_translations() ->
     );
     let view = preview(harness.state()).ok_or("no view")?;
     assert_eq!(
-        key_line(view, "[0]"),
-        Some(&KeyText::Text("Karren".into())),
+        key_text(view, "[0]"),
+        Some(("Karren", &[][..])),
         "a list item"
     );
     assert_eq!(
@@ -190,7 +194,68 @@ fn the_xml_tab_carries_the_texts_of_the_chosen_language() -> TestResult {
     assert!(xml.contains("missing=\"true\""), "a missing mark: {xml}");
     harness.state_mut().set_preview_tab(PreviewTab::Xml);
     harness.run_steps(3);
+
+    assert!(
+        harness.query_by_label_contains("text=\"Karren\"").is_some(),
+        "the XML view shows the German text"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("missing=\"true\"")
+            .is_some(),
+        "the XML view marks the missing text"
+    );
     Ok(())
+}
+
+#[test]
+fn the_xml_of_the_window_is_what_the_export_writes_for_the_same_language() -> TestResult {
+    let (dir, path) = archive()?;
+    let Window {
+        mut harness, _dir, ..
+    } = window(p4kx_gui::Language::BritishEnglish, Ok((dir, path.clone())))?;
+    open_record(&mut harness, "cart")?;
+
+    for language in [
+        None,
+        Some(TextLanguage::German),
+        Some(TextLanguage::English),
+    ] {
+        let choice = language.map_or(RecordTextChoice::KeysOnly, RecordTextChoice::Language);
+        harness.state_mut().set_record_text_choice(Some(choice));
+        harness.get_by_role_and_label(Role::Button, "cart").click();
+        wait_until(&mut harness, read_in(language))?;
+        let view = preview(harness.state()).ok_or("no view")?;
+
+        assert_eq!(
+            view.xml().bytes(),
+            exported(&path, view.guid(), language)?.as_slice(),
+            "{language:?}"
+        );
+    }
+    Ok(())
+}
+
+fn exported(
+    path: &Path,
+    guid: p4kx_extraction::Guid,
+    language: Option<TextLanguage>,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let archive = Archive::open(path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let tree = forge.record_by_guid(guid).ok_or("no such Record")?.tree()?;
+    let mut out = Vec::new();
+    match language {
+        None => RecordXml::new().write_with(&tree, None, &mut out)?,
+        Some(language) => {
+            let set = LocalizationSet::read(&archive, &[language])?;
+            let texts = set.index()?;
+            let resolver = LanguageTexts::new(&texts, language);
+            RecordXml::new().write_with(&tree, Some(&resolver), &mut out)?;
+        }
+    }
+    Ok(out)
 }
 
 #[test]

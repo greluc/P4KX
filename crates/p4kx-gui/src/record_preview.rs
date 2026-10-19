@@ -2,6 +2,8 @@ mod lines;
 mod navigation;
 mod worker;
 
+use std::ops::Range;
+
 use p4kx_extraction::Guid;
 
 pub(crate) use navigation::Navigation;
@@ -59,7 +61,12 @@ pub enum KeyText {
     None,
     /// The key's text in the chosen language, on one line: line feeds, control characters and
     /// bidirectional formatting characters as escapes, cut after 1,024 characters.
-    Text(Box<str>),
+    Text {
+        /// The text as shown.
+        text: Box<str>,
+        /// The byte ranges of `text` that are escapes.
+        escapes: Box<[Range<usize>]>,
+    },
     /// The chosen language has no text for the key.
     Missing,
 }

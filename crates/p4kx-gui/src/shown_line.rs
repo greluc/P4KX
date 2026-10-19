@@ -22,29 +22,40 @@ impl ShownLine {
     /// Returns the line as a layout job in `font`: escapes in `color-gray-2-text`, the rest in
     /// the colour the painter passes.
     pub(crate) fn job(&self, font: &FontId) -> LayoutJob {
-        let mut job = LayoutJob::default();
-        let mut at = 0;
-        let format = |color| TextFormat::simple(font.clone(), color);
-        for escape in &self.escapes {
-            job.append(
-                self.text.get(at..escape.start).unwrap_or_default(),
-                0.0,
-                format(Color32::PLACEHOLDER),
-            );
-            job.append(
-                self.text.get(escape.clone()).unwrap_or_default(),
-                0.0,
-                format(palette::GRAY_2_TEXT),
-            );
-            at = escape.end;
-        }
+        escaped_job(&self.text, &self.escapes, font)
+    }
+
+    /// Returns the byte ranges of the text that are escapes.
+    pub(crate) fn escapes(&self) -> &[Range<usize>] {
+        &self.escapes
+    }
+}
+
+/// Returns `text` as a layout job in `font` with the byte ranges `escapes` in `color-gray-2-text`
+/// and the rest in the colour the painter passes.
+pub(crate) fn escaped_job(text: &str, escapes: &[Range<usize>], font: &FontId) -> LayoutJob {
+    let mut job = LayoutJob::default();
+    let mut at = 0;
+    let format = |color| TextFormat::simple(font.clone(), color);
+    for escape in escapes {
         job.append(
-            self.text.get(at..).unwrap_or_default(),
+            text.get(at..escape.start).unwrap_or_default(),
             0.0,
             format(Color32::PLACEHOLDER),
         );
-        job
+        job.append(
+            text.get(escape.clone()).unwrap_or_default(),
+            0.0,
+            format(palette::GRAY_2_TEXT),
+        );
+        at = escape.end;
     }
+    job.append(
+        text.get(at..).unwrap_or_default(),
+        0.0,
+        format(Color32::PLACEHOLDER),
+    );
+    job
 }
 
 /// Returns `bytes` as one line for display: without its terminator, tabs as spaces, control and

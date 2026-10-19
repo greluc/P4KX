@@ -34,23 +34,32 @@ impl RecordTextChoice {
     }
 }
 
-/// Returns the language whose texts previews show: the choice, or the language of the
-/// interface when nothing was chosen, provided the Archive holds it; `None` shows the keys alone.
+/// Returns the language whose texts previews would show: the choice, or the language of the
+/// interface when nothing was chosen; `None` when the keys alone were chosen.
+#[must_use]
+pub(crate) const fn wanted(
+    choice: Option<RecordTextChoice>,
+    interface: Language,
+) -> Option<TextLanguage> {
+    match choice {
+        Some(RecordTextChoice::KeysOnly) => None,
+        Some(RecordTextChoice::Language(language)) => Some(language),
+        None => Some(match interface {
+            Language::German => TextLanguage::German,
+            Language::BritishEnglish => TextLanguage::English,
+        }),
+    }
+}
+
+/// Returns the language whose texts previews show: the wanted one, provided the Archive holds
+/// it; `None` shows the keys alone.
 #[must_use]
 pub(crate) fn effective(
     choice: Option<RecordTextChoice>,
     interface: Language,
     present: &[TextLanguage],
 ) -> Option<TextLanguage> {
-    let wanted = match choice {
-        Some(RecordTextChoice::KeysOnly) => return None,
-        Some(RecordTextChoice::Language(language)) => language,
-        None => match interface {
-            Language::German => TextLanguage::German,
-            Language::BritishEnglish => TextLanguage::English,
-        },
-    };
-    present.contains(&wanted).then_some(wanted)
+    wanted(choice, interface).filter(|language| present.contains(language))
 }
 
 #[cfg(test)]

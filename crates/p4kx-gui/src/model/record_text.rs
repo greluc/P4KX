@@ -1,5 +1,5 @@
 use super::Model;
-use crate::record_language::effective;
+use crate::record_language::{effective, wanted};
 use crate::{RecordTextChoice, TextLanguage};
 
 impl Model {
@@ -37,6 +37,14 @@ impl Model {
             self.texts.language(),
             self.record_text_languages(),
         )
+    }
+
+    /// Returns the language the user wants Record texts in when the open Archive holds no
+    /// `global.ini` for it, so that only the keys are shown; `None` otherwise.
+    #[must_use]
+    pub fn record_text_unavailable(&self) -> Option<TextLanguage> {
+        wanted(self.record_text_choice, self.texts.language())
+            .filter(|language| !self.record_text_languages().contains(language))
     }
 
     pub(crate) fn apply_record_language(&mut self) {

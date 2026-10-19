@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use egui::{Button, MenuBar, Response, Role, Ui, WidgetInfo};
 
 use super::{Dialog, Requests, shortcuts};
+use crate::texts::language_name;
 use crate::theme::desktop::{
     BRAND_PADDING_RIGHT, DROPDOWN_ITEM_PADDING_X, DROPDOWN_MIN_WIDTH, MENU_LINK_PADDING_X,
     MENU_LINK_SIZE,
 };
-use crate::texts::language_name;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, TOUCH_TARGET, TRACKING_DISPLAY, Weight, font};
 use crate::widgets::indicator::brand;
@@ -129,7 +129,7 @@ fn indented<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 }
 
 fn label(response: &Response, text: &str) {
-    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, text));
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, response.enabled(), text));
 }
 
 /// What the user picked in the Archive menu besides a dialog.
@@ -225,14 +225,16 @@ fn record_text_menu(ui: &mut Ui, model: &Model) -> Option<RecordTextChoice> {
     let title = texts.get(RecordLanguageText::Menu);
     let languages = model.record_text_languages();
     let current = model.record_text_language();
+    let keys_only = model.record_text_choice() == Some(RecordTextChoice::KeysOnly);
+    let unavailable = model.record_text_unavailable();
     let mut picked = None;
     let response = ui
         .add_enabled_ui(!languages.is_empty(), |ui| {
             ui.menu_button(link(&title), |ui| {
                 dropdown(ui);
-                let keys_only = texts.get(RecordLanguageText::KeysOnly);
+                let keys_only_name = texts.get(RecordLanguageText::KeysOnly);
                 if indented(ui, |ui| {
-                    toggle::radio(ui, current.is_none(), &keys_only, true).clicked()
+                    toggle::radio(ui, keys_only, &keys_only_name, true).clicked()
                 }) {
                     picked = Some(RecordTextChoice::KeysOnly);
                 }
@@ -243,6 +245,18 @@ fn record_text_menu(ui: &mut Ui, model: &Model) -> Option<RecordTextChoice> {
                     }) {
                         picked = Some(RecordTextChoice::Language(language));
                     }
+                }
+                if let Some(language) = unavailable {
+                    ui.separator();
+                    let args = [("language", language_name(texts, language).into())];
+                    let note = texts.format(RecordLanguageText::Unavailable, &args);
+                    ui.scope(|ui| {
+                        ui.set_max_width(DROPDOWN_MIN_WIDTH);
+                        ui.horizontal_wrapped(|ui| {
+                            ui.add_space(DROPDOWN_ITEM_PADDING_X - ui.spacing().item_spacing.x);
+                            ui.label(entry(&note).color(palette::GRAY_2_TEXT));
+                        });
+                    });
                 }
             })
         })

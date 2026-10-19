@@ -44,6 +44,7 @@ mod record_results;
 mod record_rows;
 mod record_search;
 mod record_tree;
+mod record_value;
 mod search;
 mod shortcuts;
 mod status;

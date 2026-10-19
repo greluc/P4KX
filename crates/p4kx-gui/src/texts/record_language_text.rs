@@ -6,6 +6,8 @@ pub enum RecordLanguageText {
     Menu,
     /// The entry that shows the keys alone.
     KeysOnly,
+    /// Shown in the menu when the Archive holds no texts in the wanted language; takes language.
+    Unavailable,
     /// A localisation key and its text for assistive technology and the tooltip; takes `key` and
     /// `text`.
     KeyRow,
@@ -17,9 +19,10 @@ pub enum RecordLanguageText {
 
 impl RecordLanguageText {
     /// Every text of the language selection.
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 6] = [
         Self::Menu,
         Self::KeysOnly,
+        Self::Unavailable,
         Self::KeyRow,
         Self::KeyRowMissing,
         Self::LoadFailed,
@@ -31,6 +34,7 @@ impl RecordLanguageText {
         match self {
             Self::Menu => "record-language-menu",
             Self::KeysOnly => "record-language-keys-only",
+            Self::Unavailable => "record-language-unavailable",
             Self::KeyRow => "record-language-key-row",
             Self::KeyRowMissing => "record-language-key-row-missing",
             Self::LoadFailed => "record-language-load-failed",

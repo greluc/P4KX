@@ -109,7 +109,13 @@ impl Lines<'_, '_> {
     fn key(&self, key: &str) -> LineValue {
         let text = match self.texts {
             Some(texts) if !key.is_empty() => match texts.resolve(key) {
-                Resolution::Text(text) => KeyText::Text(display_text(&text).text.into()),
+                Resolution::Text(text) => {
+                    let shown = display_text(&text);
+                    KeyText::Text {
+                        escapes: shown.escapes().into(),
+                        text: shown.text.into(),
+                    }
+                }
                 Resolution::Missing => KeyText::Missing,
                 _ => KeyText::None,
             },

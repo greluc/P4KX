@@ -1,14 +1,15 @@
 //! Interface languages, hostile texts and Archives without usable texts.
 
-use egui::accesskit::Role;
-use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Browser, KeyText, Language, RecordTextChoice, TextLanguage};
+use egui::accesskit::{Role, Toggled};
+use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
+use p4kx_gui::{Browser, Language, Model, RecordTextChoice, TextLanguage};
 
 use crate::fixtures::{
     TRUCK_PATH, TestResult, archive, archive_with_broken_french, archive_without_texts,
 };
 use crate::window::{
-    Window, choose, english_window, has_row, key_line, open_record, preview, read_in, wait_until,
+    Window, choose, english_window, has_row, key_text, open_record, preview, read_in, wait_until,
     window,
 };
 
@@ -66,9 +67,9 @@ fn line_breaks_control_and_bidirectional_characters_are_shown_as_escapes() -> Te
     open_record(&mut harness, "cart")?;
     let english = preview(harness.state()).ok_or("no view")?;
     assert_eq!(
-        key_line(english, "description"),
-        Some(&KeyText::Text("Rolls.\\nSlowly.".into())),
-        "a line break"
+        key_text(english, "description"),
+        Some(("Rolls.\\nSlowly.", std::slice::from_ref(&(6..8)))),
+        "a line break is an escape"
     );
     harness
         .state_mut()
@@ -81,8 +82,8 @@ fn line_breaks_control_and_bidirectional_characters_are_shown_as_escapes() -> Te
 
     let view = preview(harness.state()).ok_or("no view")?;
     assert_eq!(
-        key_line(view, "name"),
-        Some(&KeyText::Text("Laster\\u{202E}\\x1Bx".into())),
+        key_text(view, "name"),
+        Some(("Laster\\u{202E}\\x1Bx", &[6..14, 14..18][..])),
         "no raw control or bidirectional character reaches the screen"
     );
     Ok(())
@@ -104,6 +105,61 @@ fn a_stored_language_the_archive_lacks_shows_the_keys_alone() -> TestResult {
     );
     open_record(&mut harness, "cart")?;
     assert!(has_row(&harness, "name: @vehicle_Cart"), "keys alone");
+
+    harness.get_by_label("Record texts").click();
+    harness.run_steps(2);
+    let selected = |harness: &Harness<'_, Model>, entry: &str| {
+        harness
+            .get_by_role_and_label(Role::RadioButton, entry)
+            .accesskit_node()
+            .toggled()
+            == Some(Toggled::True)
+    };
+    assert!(
+        !selected(&harness, "Keys only"),
+        "the user never chose to see the keys alone"
+    );
+    assert!(!selected(&harness, "English") && !selected(&harness, "German"));
+    assert!(
+        harness
+            .query_by_label_contains("holds no texts in French")
+            .is_some(),
+        "the menu says why only the keys are shown"
+    );
+    Ok(())
+}
+
+#[test]
+fn keys_only_chosen_stays_selected_and_needs_no_note() -> TestResult {
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
+    choose(&mut harness, "Keys only");
+    harness.get_by_label("Record texts").click();
+    harness.run_steps(2);
+
+    assert_eq!(
+        harness
+            .get_by_role_and_label(Role::RadioButton, "Keys only")
+            .accesskit_node()
+            .toggled(),
+        Some(Toggled::True)
+    );
+    assert!(harness.query_by_label_contains("holds no texts").is_none());
+    Ok(())
+}
+
+#[test]
+fn a_menu_without_languages_is_reported_as_disabled() -> TestResult {
+    let Window { harness, _dir, .. } = window(Language::BritishEnglish, archive_without_texts())?;
+
+    assert!(
+        harness
+            .get_by_role_and_label(Role::Button, "Record texts")
+            .accesskit_node()
+            .is_disabled(),
+        "assistive technology hears a disabled menu"
+    );
     Ok(())
 }
 

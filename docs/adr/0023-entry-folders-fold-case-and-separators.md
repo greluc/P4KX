@@ -22,6 +22,11 @@ Archive, with one rule:
 Non-ASCII case is not folded, as nowhere else in the Archive API; Unicode case folding would make
 the order depend on a case table.
 
+Split textures (D.26): a texture whose parts are spelled with a folder of another case than its
+header (`Data\tex\wall.dds` and `data\tex\WALL.DDS.2a`) now has header and parts in one folder, so
+the folder shows one row and counts the group once. Only parts in a genuinely different folder
+still belong to the view of the header.
+
 ## Considered Options
 
 - Keep case-different folders apart in both views: faithful to the bytes, but a folder lookup by

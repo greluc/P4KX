@@ -5,7 +5,12 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
-/// The version of the catalog shape; it grows with every change of the shape.
+pub(crate) use crate::contract_entities::{Item, Ship};
+
+/// The version of the catalog shape.
+///
+/// Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
+/// until M3 is complete; from then on every change of the shape raises it.
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// The Basetool catalog: the game data the basetool's P4K import reads.
@@ -23,6 +28,10 @@ pub(crate) struct Catalog<'a> {
     pub(crate) completeness: Completeness<'a>,
     /// The manufacturers, ordered by GUID.
     pub(crate) manufacturers: Vec<Manufacturer<'a>>,
+    /// The items, ordered by GUID.
+    pub(crate) items: Vec<Item<'a>>,
+    /// The ships, ordered by GUID.
+    pub(crate) ships: Vec<Ship<'a>>,
 }
 
 /// Where a catalog came from.
@@ -66,6 +75,10 @@ pub(crate) struct BuildSource<'a> {
 pub(crate) struct Completeness<'a> {
     /// The completeness of `manufacturers`.
     pub(crate) manufacturers: KindCompleteness<'a>,
+    /// The completeness of `items`.
+    pub(crate) items: KindCompleteness<'a>,
+    /// The completeness of `ships`.
+    pub(crate) ships: KindCompleteness<'a>,
 }
 
 /// Whether a kind holds every Record of the Build or only those a Filter selected.
@@ -117,7 +130,7 @@ pub(crate) struct LocalisedText<'a> {
 }
 
 /// Makes every property of an object schema required: the catalog writes `null`, never omits.
-fn every_field_required(schema: &mut Schema) {
+pub(crate) fn every_field_required(schema: &mut Schema) {
     let Some(object) = schema.as_object_mut() else {
         return;
     };

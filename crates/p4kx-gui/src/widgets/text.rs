@@ -63,7 +63,7 @@ pub(crate) fn link(ui: &mut Ui, text: &str, url: &str) -> Response {
         );
     }
     if response.has_focus() {
-        super::button::focus_ring(ui, rect, palette::PRIMARY, FOCUS_OFFSET);
+        super::focus::focus_ring_square(ui, rect, palette::PRIMARY, FOCUS_OFFSET);
     }
     let response = response.on_hover_cursor(CursorIcon::PointingHand);
     if response.clicked() {

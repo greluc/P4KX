@@ -5,7 +5,8 @@ use egui::{
     Ui, WidgetInfo, WidgetText, pos2, vec2,
 };
 
-use super::button::focus_ring_square;
+use super::focus::focus_ring_square;
+use super::frames::accent_edge;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
     ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_FOCUS_OFFSET, SEGMENT_HEIGHT, SEGMENT_PADDING_X,
@@ -172,16 +173,6 @@ impl Place {
             se: if self.last { INNER_RADIUS } else { 0 },
         }
     }
-
-    /// Returns the corners of the underline, rounded at the group's outer bottom corners.
-    const fn underline_corner(self) -> CornerRadius {
-        CornerRadius {
-            nw: 0,
-            ne: 0,
-            sw: if self.first { INNER_RADIUS } else { 0 },
-            se: if self.last { INNER_RADIUS } else { 0 },
-        }
-    }
 }
 
 fn segment(ui: &mut Ui, item: &str, pressed: bool, place: Place) -> Response {
@@ -224,7 +215,7 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, place: Place) -> Response {
             StrokeKind::Inside,
         );
         let underline = Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
-        painter.rect_filled(underline, place.underline_corner(), border);
+        accent_edge(painter, (rect, place.corner()), underline, border);
     }
     paint_left(ui, rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0)), galley, text);
     if response.has_focus() {

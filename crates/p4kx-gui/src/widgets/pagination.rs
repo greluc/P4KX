@@ -5,7 +5,7 @@ use egui::{
     WidgetInfo, pos2, vec2,
 };
 
-use super::button::focus_ring;
+use super::focus::focus_ring;
 use crate::theme::desktop::{
     FOCUS_OFFSET, PAGE_BUTTON_PADDING_X, PAGE_CHEVRON, PAGE_DISABLED_OPACITY, PAGE_GAP,
     PAGE_STATUS_PADDING_X, TRANSITION,

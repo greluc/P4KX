@@ -15,10 +15,12 @@ its machine-readable [p4kx-desktop-spec.json](../design/p4kx-desktop-spec.json).
   changes, the fixture is replaced and the theme follows until the tests pass.
 - The window ships Lato Light, Regular and Bold. Text below 16 points is Regular, Light only
   prose from 16 points, Bold labels, buttons and headings. Controls and free-standing surfaces
-  take `radius-sm` (4 points); table cells, accent bars and gauges stay square, a checkbox has
-  2 points, the radio and the range thumb are round. Header, status bar, tab bar, sidebar, list
-  panel and preview are docked to the window edges and to each other, so they stay square: a
-  corner would only show canvas wedges.
+  take `radius-sm` (4 points); table cells, accent bars, gauges, tooltips and the scrollbar stay
+  square, a checkbox has 2 points, the radio and the range thumb are round. The list panel and
+  the preview take `radius-sm` and sit as cards on the canvas, 12 points (`space-3`) from the
+  tab bar and the window edge, 6 points (the resize grip) apart. Header, status bar, tab bar and sidebar have no radius in the
+  design system and stay square. Accent edges are clipped to the rounded frame they sit on, and a
+  focus ring follows the radius of its control.
 - `p4kx_gui::widgets` draws the components after the contracts of `krt-components.css`: the
   action hierarchy (one filled CTA per context, outline, ghost), checkbox, radio, tab nav,
   segmented quick filters, data rows, panel-header, modal and window frames with the orange top
@@ -48,17 +50,20 @@ Each is forced by egui 0.37 or Windows; colour, form and type stay as the design
 | Resize grip: 6 point canvas strip with a Grau 2 grip, accent-light on hover | A hairline separator that turns orange on hover and while dragging | egui draws the panel resize line itself |
 | Menu link open: selected tint plus 3 point orange underline | Selected tint and white text, no underline | egui's menu bar draws its own buttons |
 | Dropdown entry hover: Grau 3 and orange text; keyboard-active entry filled orange | Grau 3 and orange text on hover; keyboard focus outlined | egui's menu entries share the button visuals |
-| Tooltip on `rgba(0,0,0,0.95)` with an orange `0 0 10px` glow | Tooltip on Grau 4 with the orange hairline and `shadow-dropdown` | egui gives tooltips the popup frame |
 | `:focus-visible` only for keyboard focus | The focus ring shows while a control has focus, also after a click | egui does not tell keyboard focus from pointer focus |
 | Logo as SVG | The glyph is rasterised from its geometry for the window icon and the header mark | egui and Windows need raster images |
-| Web footer `.krt-footer` 16/32 padding | Status bar 32 points high (desktop spec) | a desktop status line, decided in the desktop spec |
-| `.krt-segmented--sm` items: `fs-2xs` Bold, upper case, 0.05 em | Quick filters 12.8 points Regular (Bold when pressed), as written, no tracking | the filters are glob data (desktop spec D.6 and its quickFilter entry) |
-| `radius-sm` on `.list-panel`, header, footer, tab bar | Docked regions stay square, as above (design decision, not egui) |
-| Scrollbar thumb and track square | egui rounds the scrollbar with the widget corner, so the widget corner stays square and the drawn controls set `radius-sm` themselves |
-| Row hover `control-bg` in tree and channel list (`.master-row`: `rgba(255,255,255,0.03)`) | one hover colour for every row; 3 % white is not visible on a dense list |
-| Tooltip with a 4 point corner | egui frames tooltips like menus (`menu_corner_radius`) |
-| Native `input[type="range"]` | drawn: progress track, round thumb as the native one |
-| Touch target 44 points for data rows | 36 point rows, 44 point controls (desktop spec D.1) | mouse and keyboard tool, decided in the desktop spec |
+| Native `input[type="range"]` | Drawn: progress track, round thumb as the native one | egui has no range input of the design system's look |
+
+## Decisions of the desktop spec
+
+These are not forced by egui or Windows; the owner decided them for a mouse and keyboard tool, and
+the desktop spec records each.
+
+| Design system | Window | Decided in |
+| :-- | :-- | :-- |
+| Web footer `.krt-footer` 16/32 padding | Status bar 32 points high | desktop spec |
+| `.krt-segmented--sm` items: `fs-2xs` Bold, upper case, 0.05 em | Quick filters 12.8 points Regular (Bold when pressed), as written, no tracking, because the filters are glob data | desktop spec D.6 and its quickFilter entry |
+| Touch target 44 points for data rows | 36 point rows, 44 point controls | desktop spec D.1 |
 
 ## Considered Options
 

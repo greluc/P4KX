@@ -3,7 +3,7 @@ use egui::{
     vec2,
 };
 
-use super::button::focus_ring;
+use super::focus::{focus_ring_circle, focus_ring_rounded};
 use super::text::{centred, line, paint_left, plain};
 use crate::theme::desktop::{
     CHECKBOX_RADIUS, DISABLED_OPACITY, FOCUS_OFFSET, RADIO_DOT, ROW_HEIGHT, TOGGLE_GAP, TOGGLE_SIZE,
@@ -38,7 +38,13 @@ pub(crate) fn checkbox_cell(ui: &mut Ui, check: Check, label: &str) -> bool {
     let box_rect = Rect::from_min_size(centred(rect, TOGGLE_SIZE), vec2(TOGGLE_SIZE, TOGGLE_SIZE));
     paint_checkbox(ui, box_rect, check, response.hovered(), true);
     if response.has_focus() {
-        focus_ring(ui, box_rect, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_rounded(
+            ui,
+            box_rect,
+            palette::PRIMARY,
+            FOCUS_OFFSET,
+            CHECKBOX_RADIUS,
+        );
     }
     response.clicked()
 }
@@ -57,7 +63,13 @@ pub(crate) fn checkbox_if(ui: &mut Ui, checked: &mut bool, text: &str, enabled: 
     paint_checkbox(ui, box_rect, check, response.hovered(), enabled);
     label(ui, rect, text, enabled);
     if response.has_focus() {
-        focus_ring(ui, box_rect, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_rounded(
+            ui,
+            box_rect,
+            palette::PRIMARY,
+            FOCUS_OFFSET,
+            CHECKBOX_RADIUS,
+        );
     }
     if response.clicked() {
         *checked = !*checked;
@@ -91,7 +103,13 @@ pub(crate) fn radio(ui: &mut Ui, selected: bool, text: &str, enabled: bool) -> R
     }
     label(ui, rect, text, enabled);
     if response.has_focus() {
-        focus_ring(ui, dot_rect, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_circle(
+            ui,
+            centre,
+            TOGGLE_SIZE / 2.0,
+            palette::PRIMARY,
+            FOCUS_OFFSET,
+        );
     }
     response
 }

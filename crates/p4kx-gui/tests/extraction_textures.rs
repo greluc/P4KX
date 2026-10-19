@@ -77,7 +77,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
 }
 
 fn settle(harness: &mut Harness<'_, Model>) {
-    harness.run_steps(4);
+    harness.run_steps(2);
 }
 
 fn extract_shown(harness: &mut Harness<'_, Model>, clicks: &[&str]) -> TestResult {

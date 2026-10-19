@@ -16,10 +16,11 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
-use crate::widgets::button::focus_ring;
+use crate::widgets::focus::focus_ring_square;
 use crate::widgets::rows::paint_divider;
 use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{
     FieldLine, LineValue, RecordChangeText, RecordText, RecordView, ScrollText, Text, Texts,
 };
@@ -204,7 +205,7 @@ fn row(
     );
     if response.hovered() {
         ui.painter()
-            .rect_filled(rect, CornerRadius::ZERO, palette::GRAY_3);
+            .rect_filled(rect, CornerRadius::ZERO, palette::CONTROL_BG);
     } else if index % 2 == 1 {
         ui.painter().rect_filled(rect, CornerRadius::ZERO, ZEBRA);
     }
@@ -224,7 +225,7 @@ fn row(
         )
     };
     response.widget_info(|| WidgetInfo::labeled(Role::Row, true, described()));
-    response.on_hover_ui(|ui| {
+    tooltip::hover(response, |ui| {
         ui.label(described());
     });
     match field.value() {
@@ -298,7 +299,7 @@ fn link_cell(
             .hline(link.x_range(), link.bottom(), Stroke::new(HAIRLINE, shown));
     }
     if response.has_focus() {
-        focus_ring(ui, link, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_square(ui, link, palette::PRIMARY, FOCUS_OFFSET);
     }
     if let Some(trailer) = &laid.trailer {
         trailer.paint(

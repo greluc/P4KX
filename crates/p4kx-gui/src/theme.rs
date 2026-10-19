@@ -6,7 +6,9 @@ pub mod desktop;
 pub mod logo;
 pub mod palette;
 mod query_metrics;
+mod row_tints;
 pub mod tokens;
+mod tooltip_metrics;
 
 #[cfg(test)]
 mod audio_tests;

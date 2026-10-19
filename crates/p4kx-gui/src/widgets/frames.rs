@@ -1,6 +1,6 @@
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect, Shape,
-    Stroke, Ui, Window, pos2, vec2,
+    Stroke, Ui, Vec2, Window, pos2, vec2,
 };
 
 use super::text::caps;
@@ -11,8 +11,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{
-    CORNER_LEFT, CORNER_SM, CORNER_TOP, GLOW_DANGER_LG, GLOW_PRIMARY_LG, RADIUS_SM, SPACE_3,
-    SPACE_4, Weight,
+    CORNER_SM, GLOW_DANGER_LG, GLOW_PRIMARY_LG, RADIUS_SM, SPACE_3, SPACE_4, Weight,
 };
 
 /// The width of the body of a modal.
@@ -83,11 +82,31 @@ pub(crate) fn canvas() -> Frame {
     Frame::NONE.fill(palette::SURFACE_CANVAS)
 }
 
-/// The frame of a `.list-panel` or the preview: the panel surface with a hairline.
+/// The frame of the work surface under the tab bar: the gap the panels sit in as cards.
+pub(crate) fn inset() -> Frame {
+    Frame::NONE.inner_margin(Margin::same(px(SPACE_3)))
+}
+
+/// The frame of a `.list-panel` or the preview: the panel surface with a hairline and the
+/// `radius-sm` corner.
 pub(crate) fn panel() -> Frame {
     Frame::NONE
         .fill(palette::SURFACE_PANEL)
         .stroke(Stroke::new(1.0, palette::GRAY_3))
+        .corner_radius(CORNER_SM)
+}
+
+/// Paints `colour` over the part of the rounded `shape` that lies in `edge`, so an accent edge
+/// follows the corners of the frame it sits on.
+pub(crate) fn accent_edge(
+    painter: &Painter,
+    (shape, corner): (Rect, CornerRadius),
+    edge: Rect,
+    colour: Color32,
+) {
+    painter
+        .with_clip_rect(edge)
+        .rect_filled(shape, corner, colour);
 }
 
 /// The frame of the preview body.
@@ -119,7 +138,7 @@ fn alert<R>(ui: &mut Ui, (fill, accent): (Color32, Color32), body: impl FnOnce(&
         .show(ui, body);
     let rect = response.response.rect;
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
-    ui.painter().rect_filled(bar, CORNER_LEFT, accent);
+    accent_edge(ui.painter(), (rect, CORNER_SM), bar, accent);
     response.inner
 }
 
@@ -220,12 +239,23 @@ pub(crate) fn modal(id: Id, tone: Tone) -> Modal {
         .backdrop_color(SCRIM)
 }
 
-/// Paints the top edge and the corner brackets of a modal at `rect` on its `layer`.
+/// Paints the top edge and the corner brackets of a modal at `rect` on its `layer`, and has the
+/// frame run again when the modal changed its size, because egui centres a modal from the size
+/// of the last frame.
 pub(crate) fn modal_decoration(ctx: &Context, layer: LayerId, rect: Rect, tone: Tone) {
+    let size_id = layer.id.with("modal-size");
+    let resized = ctx.data_mut(|data| {
+        let last = data.get_temp::<Vec2>(size_id);
+        data.insert_temp(size_id, rect.size());
+        last.is_some_and(|last| (last - rect.size()).abs().max_elem() > 0.5)
+    });
+    if resized {
+        ctx.request_discard("modal resized");
+    }
     let painter = ctx.layer_painter(layer);
     let accent = tone.accent();
     let edge = Rect::from_min_size(rect.min, vec2(rect.width(), MODAL_TOP_EDGE));
-    painter.rect_filled(edge, CORNER_TOP, accent);
+    accent_edge(&painter, (rect, CORNER_SM), edge, accent);
     brackets(&painter, rect.expand(BRACKET_STROKE / 2.0), accent);
 }
 

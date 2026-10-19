@@ -66,28 +66,6 @@ pub const RADIUS_PILL: f32 = 999.0;
 pub const RADIUS_SM_POINTS: u8 = 4;
 /// The `radius-sm` corner as egui stores it.
 pub const CORNER_SM: CornerRadius = CornerRadius::same(RADIUS_SM_POINTS);
-/// The `radius-sm` corner on the left side only, for the accent bar of an alert or panel header
-/// and the first segment of a group.
-pub const CORNER_LEFT: CornerRadius = CornerRadius {
-    nw: RADIUS_SM_POINTS,
-    sw: RADIUS_SM_POINTS,
-    ne: 0,
-    se: 0,
-};
-/// The `radius-sm` corner on the right side only, for the last segment of a group.
-pub const CORNER_RIGHT: CornerRadius = CornerRadius {
-    nw: 0,
-    sw: 0,
-    ne: RADIUS_SM_POINTS,
-    se: RADIUS_SM_POINTS,
-};
-/// The `radius-sm` corner on the top side only, for the top edge of a modal.
-pub const CORNER_TOP: CornerRadius = CornerRadius {
-    nw: RADIUS_SM_POINTS,
-    ne: RADIUS_SM_POINTS,
-    sw: 0,
-    se: 0,
-};
 /// The `radius-none` corner as egui stores it.
 pub const CORNER_NONE: CornerRadius = CornerRadius::ZERO;
 
@@ -106,6 +84,12 @@ pub const GLOW_PRIMARY_LG: Shadow = glow(
 /// `glow-danger-lg`: the red bloom of the danger modal.
 pub const GLOW_DANGER_LG: Shadow =
     glow(0, 20, Color32::from_rgba_unmultiplied_const(163, 0, 10, 51));
+/// The orange glow of a tooltip, `0 0 10px rgb(251 138 40 / 30%)`.
+pub const GLOW_TOOLTIP: Shadow = glow(
+    0,
+    10,
+    Color32::from_rgba_unmultiplied_const(251, 138, 40, 77),
+);
 /// `shadow-drawer`: the separation of a drawer.
 pub const SHADOW_DRAWER: Shadow = Shadow {
     offset: [5, 0],

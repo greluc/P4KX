@@ -1,9 +1,10 @@
 use egui::epaint::Shadow;
 use egui::{
-    Align2, Color32, CornerRadius, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle,
-    TextWrapMode, Ui, WidgetInfo, WidgetText, vec2,
+    Align2, Color32, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode, Ui,
+    WidgetInfo, WidgetText, vec2,
 };
 
+use super::focus::focus_ring;
 use super::text::caps;
 use crate::theme::desktop::{
     ALERT_DANGER_FILL, BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT,
@@ -11,9 +12,7 @@ use crate::theme::desktop::{
     OUTLINE_HOVER, QUIET_DANGER_HOVER, TRANSITION,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{
-    CORNER_NONE, CORNER_SM, FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, RADIUS_SM, Weight,
-};
+use crate::theme::tokens::{CORNER_SM, FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
 
 /// A rung of the design system's action hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -313,36 +312,6 @@ pub(crate) fn paint(ui: &Ui, rect: Rect, look: Look) {
         Stroke::new(1.0, look.border),
         StrokeKind::Inside,
     );
-}
-
-/// Paints the 2 point focus ring `offset` outside `rect`, following the `radius-sm` corner of
-/// the control; a negative offset draws it inside.
-pub(crate) fn focus_ring(ui: &Ui, rect: Rect, colour: Color32, offset: f32) {
-    focus_ring_with(ui, rect, colour, offset, ring_corner(offset));
-}
-
-/// Paints the 2 point focus ring like [`focus_ring`] with square corners, for rows, tabs and
-/// other parts without a radius.
-pub(crate) fn focus_ring_square(ui: &Ui, rect: Rect, colour: Color32, offset: f32) {
-    focus_ring_with(ui, rect, colour, offset, CORNER_NONE);
-}
-
-fn focus_ring_with(ui: &Ui, rect: Rect, colour: Color32, offset: f32, corner: CornerRadius) {
-    ui.painter().rect_stroke(
-        rect.expand(offset),
-        corner,
-        Stroke::new(FOCUS_WIDTH, colour),
-        StrokeKind::Outside,
-    );
-}
-
-#[expect(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    reason = "the corner is clamped to the u8 range first"
-)]
-fn ring_corner(offset: f32) -> CornerRadius {
-    CornerRadius::same((RADIUS_SM + offset).clamp(0.0, f32::from(u8::MAX)).round() as u8)
 }
 
 #[cfg(test)]

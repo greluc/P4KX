@@ -5,7 +5,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 
-use super::button::focus_ring;
+use super::focus::focus_ring;
 use super::indicator::track;
 
 /// How far the keys move a slider: the arrow keys by `step`, Page Up and Page Down by `page`.

@@ -6,8 +6,12 @@ use egui::Color32;
 pub use super::query_metrics::{
     COMBOBOX_NOTICE_PADDING, COMPLETION_MAX_HEIGHT, SAVED_LIST_HEIGHT, SAVED_NAME_MAX_WIDTH,
 };
+pub use super::row_tints::{LIST_ROW_HOVER, ZEBRA};
 use super::tokens::{
     FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
+};
+pub use super::tooltip_metrics::{
+    TOOLTIP_FILL, TOOLTIP_MAX_WIDTH, TOOLTIP_PADDING_X, TOOLTIP_PADDING_Y, TOOLTIP_SIZE,
 };
 
 /// The height of a data row in the table, the tree, the channel list and dropdowns.
@@ -222,8 +226,6 @@ pub const PANEL_TITLE_MARGIN_TOP: f32 = SPACE_8;
 pub const PANEL_TITLE_MARGIN_BOTTOM: f32 = SPACE_4;
 /// The padding between a `.section-title` and its hairline.
 pub const PANEL_TITLE_PADDING_BOTTOM: f32 = SPACE_2;
-/// The widest a tooltip gets.
-pub const TOOLTIP_MAX_WIDTH: f32 = 272.0;
 /// The width of a scrollbar.
 pub const SCROLLBAR: f32 = 12.0;
 /// The width of a thin scrollbar in the sidebar.
@@ -248,8 +250,6 @@ pub const GHOST_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(251, 138,
 pub const OUTLINE_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(251, 138, 40, 31);
 /// The quiet-danger button's hover tint, `rgba(163,0,10,0.12)`.
 pub const QUIET_DANGER_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 31);
-/// The zebra stripe of a table, `rgba(255,255,255,0.02)`.
-pub const ZEBRA: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 5);
 /// The fill of a warning alert, `rgba(255,210,63,0.15)`.
 pub const ALERT_WARNING_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 210, 63, 38);
 /// The fill of the empty state while a file is dragged over it, `rgba(251,138,40,0.10)`.

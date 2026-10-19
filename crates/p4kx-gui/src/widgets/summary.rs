@@ -3,6 +3,7 @@ use std::sync::Arc;
 use egui::{Galley, Rect, Role, Sense, Stroke, StrokeKind, Ui, WidgetInfo, pos2, vec2};
 
 use super::chip::{self, Tone};
+use super::frames::accent_edge;
 use super::rows::chevron;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
@@ -11,7 +12,7 @@ use crate::theme::desktop::{
     KPI_VALUE_SIZE,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{CORNER_LEFT, CORNER_SM, RADIUS_SM, SPACE_1, Weight};
+use crate::theme::tokens::{CORNER_SM, RADIUS_SM, SPACE_1, Weight};
 
 /// One fact of a `.facts-bar`: an upper-case key and a value.
 #[derive(Debug, Clone, Copy)]
@@ -158,7 +159,7 @@ pub(crate) fn kpi_tile(ui: &mut Ui, label: &str, value: &str, tone: Tone, width:
         StrokeKind::Inside,
     );
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
-    painter.rect_filled(bar, CORNER_LEFT, palette::PRIMARY);
+    accent_edge(painter, (rect, CORNER_SM), bar, palette::PRIMARY);
     let inner = rect.shrink2(vec2(KPI_PADDING_X, KPI_PADDING_Y));
     chip::paint(
         ui,

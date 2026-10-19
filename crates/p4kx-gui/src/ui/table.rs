@@ -13,11 +13,11 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
-use crate::widgets::rows::{
-    RowState, focus_inside, paint_divider, paint_row, row_weight, sort_chevron,
-};
+use crate::widgets::rows::{RowState, focus_inside, row_weight, sort_chevron};
+use crate::widgets::table_row::RowSlots;
 use crate::widgets::text::{caps, line, plain};
 use crate::widgets::toggle::{Check, checkbox_cell};
+use crate::widgets::tooltip;
 use crate::{Browser, Model, SortColumn, SortDirection, Text, Texts, format};
 
 const COLUMNS: [(SortColumn, Text); 4] = [
@@ -48,7 +48,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
     TableBuilder::new(ui)
         .id_salt("entries")
-        .striped(true)
+        .striped(false)
         .resizable(true)
         .auto_shrink(false)
         .sense(Sense::click())
@@ -169,11 +169,10 @@ fn show_row(
     let (_, colour) = state.colours();
     let weight = row_weight(active);
     let mut action = None;
+    let index = row.index();
+    let mut slots = None;
     row.col(|ui| {
-        let rect = ui.max_rect();
-        let row_rect = rect.with_max_x(ui.clip_rect().right());
-        paint_row(ui.painter(), row_rect, state);
-        paint_divider(ui.painter(), row_rect);
+        slots = Some(RowSlots::reserve(ui));
         let label = texts.format(Text::SelectEntry, &[("name", name.to_owned().into())]);
         let check = if checked { Check::On } else { Check::Off };
         if checkbox_cell(ui, check, &label) {
@@ -187,17 +186,19 @@ fn show_row(
     });
     data_cells(&mut row, texts, entry, size, (colour, weight));
     let response = row.response();
+    if let Some(slots) = slots {
+        slots.paint(&response, state, index % 2 == 1);
+    }
     let is_hovered = response.hovered();
     focus_inside(
         &response.ctx.layer_painter(response.layer_id),
         response.rect,
         &response,
     );
-    if response
-        .on_hover_ui(|ui| {
-            ui.label(entry.path());
-        })
-        .clicked()
+    if tooltip::hover(response, |ui| {
+        ui.label(entry.path());
+    })
+    .clicked()
         && action.is_none()
     {
         action = Some(Action::Preview(id));

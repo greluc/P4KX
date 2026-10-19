@@ -7,9 +7,10 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::SPACE_2;
-use crate::widgets::button::focus_ring;
+use crate::widgets::focus::focus_ring_square;
 use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{Browser, FolderId, Model, PreviewTab, RecordTree, Text, Texts, TreeRow};
 
 enum Action {
@@ -112,7 +113,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
         && browser.selected_folder() == row.folder
         && browser.records().and_then(RecordTree::selected).is_none();
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of(active, false, response.hovered());
+    let state = RowState::of_list(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let expanded = browser.is_expanded(row.folder);
@@ -131,11 +132,10 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
     );
     paint_left(ui, text_rect, galley, colour);
     focus_inside(ui.painter(), rect, &response);
-    if response
-        .on_hover_ui(|ui| {
-            ui.label(name);
-        })
-        .clicked()
+    if tooltip::hover(response, |ui| {
+        ui.label(name);
+    })
+    .clicked()
         && action.is_none()
     {
         action = Some(Action::Select(row.folder));
@@ -184,7 +184,7 @@ pub(super) fn toggle(
     chevron(ui.painter(), centre, CHEVRON, expanded, palette::PRIMARY);
     if response.has_focus() {
         let mark = Rect::from_center_size(centre, vec2(CHEVRON, CHEVRON));
-        focus_ring(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_square(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
     }
     response.clicked()
 }

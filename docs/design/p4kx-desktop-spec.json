@@ -103,7 +103,7 @@
     "buildFontSize": 12.8,
     "buildFontWeight": "fw-regular",
     "buildColor": "color-gray-2-text",
-    "hoverBackground": "control-bg",
+    "hoverBackground": "rgba(255,255,255,0.03)",
     "activeBackground": "color-surface-input",
     "activeBar": {"width": 3, "color": "color-primary", "side": "left", "inset": true},
     "activeColor": "color-white"
@@ -120,7 +120,7 @@
     "fontSize": 13.76,
     "fontWeight": "fw-regular",
     "color": "color-gray-1",
-    "hoverBackground": "control-bg",
+    "hoverBackground": "rgba(255,255,255,0.03)",
     "activeBackground": "color-surface-input",
     "activeBar": {"width": 3, "color": "color-primary", "side": "left", "inset": true},
     "activeColor": "color-white",
@@ -141,8 +141,9 @@
     "dsClass": "list-panel",
     "background": "surface-panel",
     "border": {"width": 1, "color": "color-gray-3"},
-    "radius": "radius-none",
-    "radiusNote": "docked to the window edges, so the radius-sm corner of the web panel would only show canvas wedges (ADR-0006)"
+    "radius": "radius-sm",
+    "canvasInset": 12,
+    "gapToPreview": 6
   },
   "toolbar": {
     "dsClass": "list-panel__toolbar",
@@ -372,6 +373,7 @@
     "minHeight": 120,
     "background": "surface-panel",
     "border": {"width": 1, "color": "color-gray-3"},
+    "radius": "radius-sm",
     "pathLineHeight": 32,
     "pathLinePaddingX": 16,
     "pathFontSize": 12.8,
@@ -580,6 +582,7 @@
     "paddingY": 8,
     "background": "rgba(0,0,0,0.95)",
     "border": {"width": 1, "color": "color-primary"},
+    "radius": "radius-none",
     "shadow": {"x": 0, "y": 0, "blur": 10, "spread": 0, "color": "rgba(251,138,40,0.3)"},
     "fontSize": 12.48,
     "fontWeight": "fw-regular",

@@ -17,6 +17,7 @@ use crate::theme::tokens::Weight;
 use crate::widgets::rows::{focus_inside, paint_divider};
 use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{
     DiffText, FieldName, FieldRow, FieldValue, RecordChangeText, RecordFields, ScrollText, Text,
     Texts, format,
@@ -235,7 +236,7 @@ fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (
     );
     if response.hovered() {
         ui.painter()
-            .rect_filled(rect, CornerRadius::ZERO, palette::GRAY_3);
+            .rect_filled(rect, CornerRadius::ZERO, palette::CONTROL_BG);
     } else if index % 2 == 1 {
         ui.painter().rect_filled(rect, CornerRadius::ZERO, ZEBRA);
     }
@@ -259,11 +260,11 @@ fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (
     response.widget_info(|| WidgetInfo::labeled(Role::Row, true, described()));
     focus_inside(ui.painter(), rect, &response);
     if response.has_focus() {
-        response.show_tooltip_ui(|ui| {
+        tooltip::show(&response, |ui| {
             ui.label(described());
         });
     } else {
-        response.on_hover_ui(|ui| {
+        tooltip::hover(response, |ui| {
             ui.label(described());
         });
     }

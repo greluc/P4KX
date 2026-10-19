@@ -11,6 +11,7 @@ use crate::theme::tokens::{SPACE_2, Weight};
 use crate::widgets::indicator::spinner;
 use crate::widgets::rows::{RowState, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
+use crate::widgets::tooltip::hover;
 use crate::{
     DataForgeText, Language, RecordNodeId, RecordNodeKind, RecordRow, RecordTree, RecordTreeStatus,
     Texts,
@@ -149,7 +150,7 @@ pub(super) fn show_row(
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let active = tree.selected() == Some(row.node);
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of(active, false, response.hovered());
+    let state = RowState::of_list(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let toggle_id = ui.scope_id().with(("record-toggle", row.node));
@@ -170,9 +171,7 @@ pub(super) fn show_row(
         root_note(ui, (texts, tree, labels), note_rect);
     }
     focus_inside(ui.painter(), rect, &response);
-    let clicked = response
-        .on_hover_ui(|ui| tooltip(ui, texts, tree, row.node))
-        .clicked();
+    let clicked = hover(response, |ui| tooltip(ui, texts, tree, row.node)).clicked();
     if clicked && action.is_none() {
         action = Some(RecordAction::Select(row.node));
     }

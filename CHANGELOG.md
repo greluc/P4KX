@@ -14,6 +14,15 @@ fails while its section is missing.
   or shown Entries. Opened containers are kept per Archive within 1 GiB of memory, closing the
   least recently used collapsed ones first; a corrupt container says so on its row, and a change
   of the Archive on disk closes them.
+- Audio Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch of
+  the window, WEM sounds are written as Ogg (Wwise Vorbis and Opus without re-encoding, WAV for
+  other codecs), as WAV or unchanged (`--audio ogg|wav|raw`, the same choice in the Extraction
+  setup, remembered in the settings file). Each soundbank is written unchanged and unpacked into
+  a folder of the same name, its WEMs named by ID and converted alike. A sound whose codec cannot
+  be decoded is reported with the codec and written unchanged; the Extraction continues. Progress,
+  cancellation and Conflict policies cover every converted file, a cancelled run lists the sounds
+  of a soundbank it did not unpack, a soundbank folder exists only when a sound is written into
+  it, and sounds are converted on their own threads within a memory budget.
 - `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
   transparent|movie|#RRGGBB[AA]]`: renders the first frame of a UI movie with its sprites as a
   PNG, drawn with tiny-skia. Shapes with solid, gradient and bitmap fills (external images and

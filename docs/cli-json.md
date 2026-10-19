@@ -730,19 +730,23 @@ code 2.
 ```
 
 With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
-(CryXml Entries as XML, the Entries of converted textures and the DataForge Entry as Records);
-they count among `extracted`. It also holds `"unconverted": [{"path":
+(CryXml Entries as XML, the Entries of converted textures, sounds, soundbanks with at least one
+converted WEM and the DataForge Entry as Records); they count among `extracted`. It also holds `"unconverted": [{"path":
 "Data\\Textures\\hull_ddna.dds", "error": "cannot convert the texture: …"}]`, the textures by
 their header Entry that could not be converted, whose raw Entries were written instead (except a
-header whose path the merged DDS already took); the exit code is then 1. Without `--convert` both
+header whose path the merged DDS already took), and the sounds that could not be converted, e.g.
+`{"path": "Data\\Sounds\\wwise\\Media\\700.wem", "error": "cannot convert the sound: … converting
+XMA2 to WAV is not supported"}`, written unchanged; a soundbank is listed once for each embedded
+WEM that could not be converted, the error naming `<bank> WEM <ID>`. The exit code is then 1. Without `--convert` both
 fields are absent. When `--convert` converted the DataForge Entry, the report also holds
 `records` with the fields `exported`, `skipped`, `failed`, `cancelled`, `error_values` and
 `records_with_errors` of [`p4kx dcb export`](#p4kx-dcb-export-archive---json); `skipped` lists
 the Record files relative to the folder of the DataForge Entry. Otherwise that field is absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
-`cancelled` lists the Entries not written because the run was cancelled. All three are in
-Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
+`cancelled` lists the Entries not written because the run was cancelled and, once a cancelled run
+had written a soundbank itself, each of its WEMs not unpacked as `<bank> WEM <ID>`, after the
+Entries. The Entries in all three are in Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
 when the Archive changed on disk after it was opened: the Extraction then stops, the Entries not
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
 `failed` or `cancelled` is not empty.

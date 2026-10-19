@@ -5,8 +5,8 @@ use std::path::Path;
 
 use p4kx_gfx::{Assets, Bitmap, BitmapSource, GfxError, MorphShape, RgbaImage, Shape};
 
+use crate::budget::{Budget, Lease};
 use crate::output_file::{write_error, write_replacing};
-use crate::pixel_budget::{Lease, PixelBudget};
 use crate::ui_external::open_external;
 use crate::{ConversionError, Texture, UiAssetKind, UiMovie, WrittenUiAsset};
 
@@ -132,7 +132,7 @@ impl UiMovie<'_> {
         (order, base): (usize, &Bitmap<'_>),
         cuts: &[(usize, &Bitmap<'_>)],
         folder: &Path,
-        budget: &PixelBudget,
+        budget: &Budget,
     ) -> Vec<Outcome> {
         let png = |order, id, image: &RgbaImage| {
             self.write_file(order, folder, UiAssetKind::Bitmap, id, |out| {
@@ -186,7 +186,7 @@ impl UiMovie<'_> {
         &self,
         assets: &Assets<'_>,
         bitmap: &Bitmap<'_>,
-        budget: &'b PixelBudget,
+        budget: &'b Budget,
     ) -> Result<(RgbaImage, Lease<'b>), ConversionError> {
         let gfx = |source| self.asset_error(bitmap.id, source);
         match &bitmap.source {

@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.31
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.32
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -149,8 +149,8 @@ den Container schon. Während er geöffnet wird, stehen hinter dem Namen wie bei
 der Inline-Spinner (14) und „Wird geöffnet …" in `color-gray-2-text`. Lässt er sich nicht öffnen,
 steht dort ein kurzer Hinweis: „Lässt sich nicht öffnen" in `color-danger-text`, weil der Container
 selbst defekt ist; „Nicht geöffnet: Speichergrenze", „Archiv geändert" und „Öffnen abgebrochen"
-in `color-warning` (D.8), weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv neu geladen wird. Der volle
-Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container, der
+in `color-warning` (D.8), weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv
+neu geladen wird. Der volle Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container, der
 sich nicht lesen lässt, und einer nach einer Änderung des Archivs haben keinen Chevron; nach der
 Speichergrenze oder einem abgebrochenen Öffnen bleibt der Chevron, ein erneutes Aufklappen versucht
 es noch einmal. Schließt die Speichergrenze einen Container, klappen er und seine Ordner zu; die
@@ -163,3 +163,16 @@ einem Container. Ein `.socpak`, dessen Ordnerpfad ein leeres Segment hat, steht 
 vorhandenen Ordner darüber, sonst an der Wurzel. Die Statusleiste nennt Pfad und Build weiter des
 Archivs; zeigt die Tabelle einen Container, steht an der Stelle der Eintragszahl des Archivs
 „Container: n Einträge" mit der Zahl seiner Einträge, passend zu „n angezeigt".
+
+**D.32 Tonformat der Extraktion als Radio-Zeile unter den Texturausgaben.** Ist die Umwandlung an,
+steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben eine Zeile „Sounds als"
+(14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,
+unverändert" nebeneinander, 16 voneinander wie die Steuerelement-Zeile im Specimen FormControls
+(`gap: 16px`), Radio↔Label 12 wie bei der Radio-Gruppe. Drei sich ausschließende
+Werte sind Radios wie Konfliktregel und Mip-Stufe, kein `.krt-segmented--sm`: der Schnellfilter
+gehört in Toolbars, im Modal bleiben Formularelemente. Eine Zeile statt einer Spalte, weil die
+Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. Darunter steht in
+12,8 / 400 `color-gray-2-text`, wie der Hinweis auf den neuen Ordnernamen, dass Ogg für Codecs ohne
+Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
+Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
+Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.

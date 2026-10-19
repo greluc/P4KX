@@ -14,7 +14,9 @@ use crate::window::{
 
 #[test]
 fn a_german_interface_shows_the_german_texts() -> TestResult {
-    let Window { mut harness, .. } = window(Language::German, archive())?;
+    let Window {
+        mut harness, _dir, ..
+    } = window(Language::German, archive())?;
     harness.get_by_label("DataForge aufklappen").click();
     wait_until(&mut harness, |model| {
         model
@@ -38,7 +40,9 @@ fn a_german_interface_shows_the_german_texts() -> TestResult {
 
 #[test]
 fn the_menu_of_a_german_window_is_german() -> TestResult {
-    let Window { mut harness, .. } = window(Language::German, archive())?;
+    let Window {
+        mut harness, _dir, ..
+    } = window(Language::German, archive())?;
 
     harness.get_by_label("Record-Texte").click();
     harness.run_steps(2);
@@ -56,7 +60,9 @@ fn the_menu_of_a_german_window_is_german() -> TestResult {
 
 #[test]
 fn line_breaks_control_and_bidirectional_characters_are_shown_as_escapes() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     open_record(&mut harness, "cart")?;
     let english = preview(harness.state()).ok_or("no view")?;
     assert_eq!(
@@ -84,7 +90,9 @@ fn line_breaks_control_and_bidirectional_characters_are_shown_as_escapes() -> Te
 
 #[test]
 fn a_stored_language_the_archive_lacks_shows_the_keys_alone() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     harness
         .state_mut()
         .set_record_text_choice(Some(RecordTextChoice::Language(TextLanguage::French)));
@@ -101,7 +109,9 @@ fn a_stored_language_the_archive_lacks_shows_the_keys_alone() -> TestResult {
 
 #[test]
 fn an_archive_without_texts_shows_the_keys_and_offers_no_language() -> TestResult {
-    let Window { mut harness, .. } = window(Language::BritishEnglish, archive_without_texts())?;
+    let Window {
+        mut harness, _dir, ..
+    } = window(Language::BritishEnglish, archive_without_texts())?;
     open_record(&mut harness, "cart")?;
 
     assert!(harness.state().record_text_languages().is_empty(), "none");
@@ -112,8 +122,9 @@ fn an_archive_without_texts_shows_the_keys_and_offers_no_language() -> TestResul
 
 #[test]
 fn a_language_that_cannot_be_read_is_reported_and_the_keys_stay() -> TestResult {
-    let Window { mut harness, .. } =
-        window(Language::BritishEnglish, archive_with_broken_french())?;
+    let Window {
+        mut harness, _dir, ..
+    } = window(Language::BritishEnglish, archive_with_broken_french())?;
     open_record(&mut harness, "cart")?;
     assert!(
         has_row(&harness, "name: @vehicle_Cart: Cart"),

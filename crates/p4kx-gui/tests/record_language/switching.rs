@@ -17,7 +17,9 @@ use crate::window::{
 
 #[test]
 fn the_menu_lists_the_languages_present_in_the_archive() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
 
     harness.get_by_label("Record texts").click();
     harness.run_steps(2);
@@ -46,7 +48,9 @@ fn the_menu_lists_the_languages_present_in_the_archive() -> TestResult {
 
 #[test]
 fn the_preview_follows_the_language_of_the_interface_until_one_is_chosen() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
 
     open_record(&mut harness, "cart")?;
 
@@ -68,6 +72,7 @@ fn choosing_a_language_resolves_the_keys_and_marks_the_missing_translations() ->
     let Window {
         mut harness,
         settings_changed,
+        _dir,
         ..
     } = english_window()?;
     open_record(&mut harness, "cart")?;
@@ -115,7 +120,9 @@ fn choosing_a_language_resolves_the_keys_and_marks_the_missing_translations() ->
 
 #[test]
 fn switching_the_language_updates_the_open_preview_without_reading_dataforge_again() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     open_record(&mut harness, "cart")?;
     let reads = |harness: &Harness<'_, Model>| {
         harness
@@ -144,7 +151,9 @@ fn switching_the_language_updates_the_open_preview_without_reading_dataforge_aga
 
 #[test]
 fn the_preview_stays_on_screen_while_the_other_language_is_read() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     open_record(&mut harness, "cart")?;
 
     harness
@@ -167,7 +176,9 @@ fn the_preview_stays_on_screen_while_the_other_language_is_read() -> TestResult 
 
 #[test]
 fn the_xml_tab_carries_the_texts_of_the_chosen_language() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     open_record(&mut harness, "cart")?;
     choose(&mut harness, "German");
     wait_until(&mut harness, read_in(Some(TextLanguage::German)))?;
@@ -184,7 +195,9 @@ fn the_xml_tab_carries_the_texts_of_the_chosen_language() -> TestResult {
 
 #[test]
 fn keys_only_leaves_the_xml_free_of_texts() -> TestResult {
-    let Window { mut harness, .. } = english_window()?;
+    let Window {
+        mut harness, _dir, ..
+    } = english_window()?;
     open_record(&mut harness, "cart")?;
     choose(&mut harness, "Keys only");
     wait_until(&mut harness, read_in(None))?;

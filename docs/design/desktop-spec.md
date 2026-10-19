@@ -262,6 +262,7 @@ die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen i
 ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in `color-gray-2-text`) und
 sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt in einem
 `.krt-modal--danger` nach (D.3).
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

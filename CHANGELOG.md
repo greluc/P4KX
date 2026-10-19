@@ -4,6 +4,13 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+## [Unreleased]
+
+### Added
+
+- Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
+  and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

@@ -271,16 +271,18 @@ fn row(
     });
     match field.value() {
         LineValue::Reference(link) => {
-            let label = texts.format(
-                RecordText::Follow,
-                &[("path", link.record_path().to_owned().into())],
-            );
-            let clicked = link_cell(ui, (index, value_cell), &laid, &label);
+            let label = || {
+                texts.format(
+                    RecordText::Follow,
+                    &[("path", link.record_path().to_owned().into())],
+                )
+            };
+            let clicked = link_cell(ui, (index, value_cell), &laid, label);
             clicked.then(|| RecordStep::Follow(link.clone()))
         }
         LineValue::Dangling { guid, .. } => {
-            let label = value_text(texts, field.value()).0;
-            let clicked = link_cell(ui, (index, value_cell), &laid, &label);
+            let label = || value_text(texts, field.value()).0;
+            let clicked = link_cell(ui, (index, value_cell), &laid, label);
             clicked.then_some(RecordStep::Dangling(*guid))
         }
         _ => {
@@ -303,9 +305,14 @@ fn name(ui: &Ui, cell: Rect, depth: u16, galley: &Arc<Galley>) {
     paint_left(ui, text, Arc::clone(galley), palette::GRAY_1);
 }
 
-/// Shows the value of a link line in `cell` as a link named `label`, the target's type after it;
+/// Shows the value of a link line in `cell` as a link named by `label`, the target's type after it;
 /// returns whether it was clicked.
-fn link_cell(ui: &Ui, (index, cell): (usize, Rect), laid: &Laid, label: &str) -> bool {
+fn link_cell(
+    ui: &Ui,
+    (index, cell): (usize, Rect),
+    laid: &Laid,
+    label: impl Fn() -> String,
+) -> bool {
     let (galley, colour) = &laid.value;
     let size = vec2(galley.size().x.min(cell.width()), galley.size().y);
     let link = Rect::from_min_size(pos2(cell.left(), cell.center().y - size.y / 2.0), size);
@@ -316,7 +323,7 @@ fn link_cell(ui: &Ui, (index, cell): (usize, Rect), laid: &Laid, label: &str) ->
             Sense::click(),
         )
         .on_hover_cursor(CursorIcon::PointingHand);
-    response.widget_info(|| WidgetInfo::labeled(Role::Link, true, label));
+    response.widget_info(|| WidgetInfo::labeled(Role::Link, true, label()));
     let hovered = response.hovered();
     let shown = if hovered && *colour == palette::PRIMARY {
         palette::ACCENT_LIGHT

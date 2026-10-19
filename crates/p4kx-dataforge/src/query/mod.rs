@@ -3,8 +3,10 @@
 //! [`Query::parse`] reads the text into a [`Query`], [`Query::compile`] checks it against one
 //! DataForge, and [`CompiledQuery::run`] selects the Records in parallel, keeps those that meet
 //! the condition, and builds the rows page by page from the Records' instances.
+//! [`QuerySchema::complete`] offers the type and field names that fit at a cursor.
 
 mod compile;
+mod complete;
 mod condition;
 mod error;
 mod expected;
@@ -26,6 +28,7 @@ mod syntax;
 mod walk;
 
 pub use compile::{ColumnKind, CompiledQuery};
+pub use complete::{Candidate, Completion, CompletionKind, MAX_COMPLETIONS, QuerySchema};
 pub use condition::{Comparison, Condition, Literal, LiteralValue, MAX_CONDITION_DEPTH, Operator};
 pub use error::{Marked, QueryError, QueryErrorKind};
 pub use expected::{Expected, Found, LiteralKind};

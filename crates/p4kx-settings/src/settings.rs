@@ -1,13 +1,16 @@
-use std::io;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::RecentArchives;
+use crate::{RecentArchives, SavedQueries};
 
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
+
+/// The largest settings file read, in bytes; a larger one is an error.
+pub const MAX_SETTINGS_SIZE: u64 = 16 * 1024 * 1024;
 
 /// The persistent settings of P4K-Extractor.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,6 +37,9 @@ pub struct Settings {
     /// The last position and size of the main window, or `None` for the default placement.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowGeometry>,
+    /// The saved Queries.
+    #[serde(skip_serializing_if = "SavedQueries::is_empty")]
+    pub queries: SavedQueries,
 }
 
 /// What a Conversion writes for a DDS texture; the outputs combine.
@@ -109,6 +115,12 @@ pub enum SettingsError {
         #[source]
         source: toml::de::Error,
     },
+    /// The file is larger than [`MAX_SETTINGS_SIZE`].
+    #[error("the settings file {path} is larger than {MAX_SETTINGS_SIZE} bytes")]
+    TooLarge {
+        /// Path of the settings file.
+        path: PathBuf,
+    },
     /// The settings could not be written as TOML.
     #[error("cannot write the settings as TOML")]
     Serialize(#[from] toml::ser::Error),
@@ -126,13 +138,24 @@ impl Settings {
     ///
     /// # Errors
     ///
-    /// Returns a [`SettingsError`] when the file cannot be read or is malformed.
+    /// Returns a [`SettingsError`] when the file cannot be read, is larger than
+    /// [`MAX_SETTINGS_SIZE`] or is malformed.
     pub fn load(file: &Path) -> Result<Self, SettingsError> {
-        let text = match std::fs::read_to_string(file) {
-            Ok(text) => text,
+        let opened = match std::fs::File::open(file) {
+            Ok(opened) => opened,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Self::default()),
             Err(source) => return Err(io_error(file, source)),
         };
+        let mut text = String::new();
+        opened
+            .take(MAX_SETTINGS_SIZE + 1)
+            .read_to_string(&mut text)
+            .map_err(|source| io_error(file, source))?;
+        if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_SETTINGS_SIZE {
+            return Err(SettingsError::TooLarge {
+                path: file.to_path_buf(),
+            });
+        }
         toml::from_str(&text).map_err(|source| SettingsError::Malformed {
             path: file.to_path_buf(),
             source,

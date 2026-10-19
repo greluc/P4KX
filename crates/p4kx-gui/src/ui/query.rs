@@ -1,8 +1,10 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 use egui::{Align, Frame, Label, Layout, Margin, Panel, Stroke, Ui, vec2};
 
 use super::{Dialog, Requests, empty, query_editor, query_table};
+use crate::query::Trigger;
 use crate::theme::desktop::{
     COMPARISON_PROGRESS_WIDTH, LIST_FOOTER_PADDING_X, LIST_FOOTER_PADDING_Y, SPINNER_INLINE,
     TOOLBAR_PADDING,
@@ -15,9 +17,14 @@ use crate::widgets::pagination::pagination;
 use crate::widgets::text::hairline_below;
 use crate::{Model, QueryExportFormat, QueryResult, QueryStatus, QueryTab, QueryText};
 
+mod completion_list;
 mod notes;
+mod saved_dialog;
+mod saved_list;
 
 use notes::Notes;
+pub(super) use saved_dialog::show as saved_dialog;
+use saved_list::SavedAction;
 
 /// Shows the Query tab: the editor with its actions and progress, the error of a Query that
 /// cannot run, and the result with its export and pages.
@@ -32,7 +39,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let notes = Notes::get(ui, model.texts(), model.query());
     let toolbar = frames::panel()
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-        .show(ui, |ui| editor(ui, model, &notes));
+        .show(ui, |ui| {
+            editor(ui, model, &notes);
+            saved(ui, model);
+        });
     hairline_below(ui, toolbar.response.rect);
     frames::panel().show(ui, |ui| {
         ui.set_min_size(ui.available_size());
@@ -47,10 +57,11 @@ fn editor(ui: &mut Ui, model: &mut Model, notes: &Notes) {
 
     let edited = query_editor::show(
         ui,
-        model.query_mut().text_mut(),
+        model.query_mut().editing(),
         (&notes.hint, label.id),
         mark.as_ref(),
     );
+    complete(ui, model, &edited);
     if let Some(alert) = &notes.alert {
         frames::danger_alert(ui, |ui| {
             ui.set_min_width(ui.available_width());
@@ -59,25 +70,87 @@ fn editor(ui: &mut Ui, model: &mut Model, notes: &Notes) {
     }
     let mut run = edited.submitted;
     let mut cancel = false;
+    let mut save = false;
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let enabled = !model.query().text().trim().is_empty();
             if model.query().is_running() {
                 cancel =
                     button::button(ui, Kind::Ghost, Size::Normal, &notes.cancel, true).clicked();
             } else {
-                let enabled = !model.query().text().trim().is_empty();
                 run |= button::button(ui, Kind::Cta, Size::Normal, &notes.run, enabled).clicked();
             }
+            save = button::button(ui, Kind::Ghost, Size::Normal, &notes.save, enabled).clicked();
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 progress(ui, model.query(), notes);
             });
         });
     });
+    if save {
+        model.query_mut().begin_save();
+    }
     if cancel {
         model.query_mut().cancel();
     } else if run {
         let ctx = ui.ctx().clone();
         model.run_query(move || ctx.request_repaint());
+    }
+}
+
+/// Reads the completion schema once the editor has focus, keeps the list in step with the
+/// text and the cursor, and shows it.
+fn complete(ui: &Ui, model: &mut Model, edited: &query_editor::Edited) {
+    let Some(cursor) = edited.cursor else {
+        return;
+    };
+    let ctx = ui.ctx().clone();
+    model.prepare_query_completion(move || ctx.request_repaint());
+    let trigger = if edited.asked {
+        Trigger::Asked
+    } else if edited.changed {
+        Trigger::Typed
+    } else {
+        Trigger::Moved
+    };
+    model.update_query_completion(cursor, trigger);
+    let (Some(shown), Some(caret)) = (model.query().completion_shown(), edited.caret) else {
+        return;
+    };
+    let generation = model.query().completion().generation();
+    let clicked = completion_list::show(
+        ui,
+        &edited.response,
+        shown,
+        (caret, generation),
+        model.texts(),
+    );
+    if let Some(index) = clicked {
+        let (text, completion) = model.query_mut().editing();
+        completion.choose(index);
+        if let Some(end) = completion.accept(text) {
+            query_editor::place_cursor(ui.ctx(), text, end);
+            ui.memory_mut(|memory| memory.request_focus(query_editor::editor_id()));
+        }
+    }
+}
+
+/// Shows the saved Queries under the editor and carries out what was done with them.
+fn saved(ui: &mut Ui, model: &mut Model) {
+    let key = {
+        let mut hasher = DefaultHasher::new();
+        model.texts().language().hash(&mut hasher);
+        model.query().saved_revision().hash(&mut hasher);
+        hasher.finish()
+    };
+    let action = saved_list::show(ui, model.query().saved(), (model.texts(), key));
+    match action {
+        Some(SavedAction::Run(index)) => {
+            let ctx = ui.ctx().clone();
+            model.run_saved(index, move || ctx.request_repaint());
+        }
+        Some(SavedAction::Rename(index)) => model.query_mut().begin_rename(index),
+        Some(SavedAction::Delete(index)) => model.query_mut().begin_delete(index),
+        None => {}
     }
 }
 

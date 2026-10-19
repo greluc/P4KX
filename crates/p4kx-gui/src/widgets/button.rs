@@ -6,9 +6,9 @@ use egui::{
 
 use super::text::caps;
 use crate::theme::desktop::{
-    BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT, BUTTON_XS_PADDING_X,
-    BUTTON_XS_SIZE, DISABLED_OPACITY, FOCUS_OFFSET, FOCUS_WIDTH, GHOST_HOVER, OUTLINE_HOVER,
-    TRANSITION,
+    ALERT_DANGER_FILL, BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT,
+    BUTTON_XS_PADDING_X, BUTTON_XS_SIZE, DISABLED_OPACITY, FOCUS_OFFSET, FOCUS_WIDTH, GHOST_HOVER,
+    OUTLINE_HOVER, QUIET_DANGER_HOVER, TRANSITION,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
@@ -22,6 +22,8 @@ pub(crate) enum Kind {
     Outline,
     /// `.btn-ghost`, a routine action.
     Ghost,
+    /// `.btn-quiet-danger`, a destructive action that only turns red on hover.
+    QuietDanger,
 }
 
 /// The size of a button.
@@ -104,11 +106,40 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             text: palette::PRIMARY,
             glow: None,
         },
+        (Kind::QuietDanger, phase) => quiet_danger(phase),
         (Kind::Outline | Kind::Ghost, Phase::Pressed) => Look {
             fill: palette::CONTROL_BG,
             tint: palette::CONTROL_SELECTED_BG,
             border: palette::PRIMARY,
             text: palette::PRIMARY,
+            glow: None,
+        },
+    }
+}
+
+/// Returns the colours of `.btn-quiet-danger` in `phase`.
+const fn quiet_danger(phase: Phase) -> Look {
+    let none = Color32::TRANSPARENT;
+    match phase {
+        Phase::Rest => Look {
+            fill: palette::CONTROL_BG,
+            tint: none,
+            border: palette::CONTROL_BORDER,
+            text: palette::GRAY_2_TEXT,
+            glow: None,
+        },
+        Phase::Hover => Look {
+            fill: palette::CONTROL_BG,
+            tint: QUIET_DANGER_HOVER,
+            border: palette::DANGER,
+            text: palette::DANGER_TEXT,
+            glow: None,
+        },
+        Phase::Pressed => Look {
+            fill: palette::CONTROL_BG,
+            tint: ALERT_DANGER_FILL,
+            border: palette::DANGER,
+            text: palette::DANGER_TEXT,
             glow: None,
         },
     }

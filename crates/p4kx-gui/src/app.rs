@@ -184,6 +184,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_textures = model.extraction_textures();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
+    settings.queries = model.query().saved().clone();
 }
 
 #[cfg(test)]
@@ -191,7 +192,9 @@ mod tests {
     use std::path::PathBuf;
 
     use p4kx_channels::SearchPaths;
-    use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
+    use p4kx_settings::{
+        ExtractionTextures, ManualChannels, RecentArchives, SavedQueries, Settings,
+    };
 
     use super::remember;
     use crate::{ChannelList, Language, Model};
@@ -300,5 +303,19 @@ mod tests {
 
         assert!(settings.channels.folders.is_empty(), "stays removed");
         assert_eq!(settings.recent, recent, "the recent Archives are stored");
+    }
+
+    #[test]
+    fn the_saved_queries_are_stored() -> Result<(), p4kx_settings::NameProblem> {
+        let mut model = Model::new(Language::German);
+        let mut saved = SavedQueries::default();
+        saved.save("Ships", "from Ship select mass")?;
+        model.query_mut().set_saved(saved.clone());
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(settings.queries, saved, "stored");
+        Ok(())
     }
 }

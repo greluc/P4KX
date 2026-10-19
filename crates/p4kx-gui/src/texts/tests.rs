@@ -67,6 +67,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),
+        ("max", "120".into()),
     ]
 }
 

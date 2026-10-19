@@ -1,12 +1,15 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use egui::text::{LayoutJob, TextFormat};
+use egui::text::{CCursor, CCursorRange, CharIndex, LayoutJob, TextFormat};
+use egui::text_edit::{TextEditOutput, TextEditState};
 use egui::{
-    CornerRadius, Galley, Id, Key, Margin, Modifiers, ScrollArea, Shape, Stroke, TextBuffer,
-    TextEdit, Ui, vec2,
+    CornerRadius, Event, EventFilter, Galley, Id, InputState, Key, LayerId, Margin, Modifiers,
+    PopupKind, Rect, Response, ScrollArea, Shape, Stroke, SurrenderFocusOn, TextBuffer, TextEdit,
+    Ui, vec2,
 };
 
+use crate::query::CompletionState;
 use crate::theme::desktop::{
     ALERT_DANGER_FILL, ERROR_UNDERLINE, QUERY_EDITOR_MAX_ROWS, QUERY_EDITOR_ROWS,
     TEXTAREA_LINE_HEIGHT, TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
@@ -17,12 +20,20 @@ use crate::widgets::frames::px;
 use crate::widgets::text::plain;
 
 /// What the user did in the editor this frame.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(super) struct Edited {
-    /// The text changed.
+    /// The text changed by typing.
     pub(super) changed: bool,
     /// Ctrl+Enter asked to run the Query.
     pub(super) submitted: bool,
+    /// Ctrl+Space asked for the names at the cursor.
+    pub(super) asked: bool,
+    /// The byte offset of the cursor while the editor has focus.
+    pub(super) cursor: Option<usize>,
+    /// Where the cursor stands on screen, the anchor of the completion list.
+    pub(super) caret: Option<Rect>,
+    /// The editor's response.
+    pub(super) response: Response,
 }
 
 /// The last laid-out text, kept until the text, the mark, the width or the scale change.
@@ -35,18 +46,115 @@ struct Laid {
     galley: Option<Arc<Galley>>,
 }
 
+/// The id of the editor.
+pub(super) fn editor_id() -> Id {
+    Id::unique("p4kx-query-editor")
+}
+
+/// The id of the completion list of the editor.
+pub(super) fn popup_id() -> Id {
+    editor_id().with("completion")
+}
+
 /// Shows the Query editor, a `textarea` labelled by `label`, with the bytes `mark` of the text
-/// underlined as an error; Ctrl+Enter submits instead of breaking the line.
+/// underlined as an error; Ctrl+Enter submits instead of breaking the line. While the
+/// completion list is open, the arrow keys move in it, Enter and Tab accept and Escape closes
+/// it.
 pub(super) fn show(
     ui: &mut Ui,
-    text: &mut String,
+    (text, completion): (&mut String, &mut CompletionState),
     (hint, label): (&str, Id),
     mark: Option<&Range<usize>>,
 ) -> Edited {
-    let id = Id::unique("p4kx-query-editor");
-    let submitted = ui.memory(|memory| memory.has_focus(id))
-        && ui.input_mut(|input| input.consume_key(Modifiers::COMMAND, Key::Enter));
+    let open = completion.shown().is_some();
+    let (submitted, asked) = keys(ui, completion, text);
+    let (on_popup, surrender) = hold_focus_on_popup(ui, open);
     let glow = ui.painter().add(Shape::Noop);
+    let open = completion.shown().is_some();
+    let output = text_area(ui, text, hint, mark, open);
+    ui.ctx()
+        .options_mut(|options| options.input_options.surrender_focus_on = surrender);
+    let response = output.response.response.clone().labelled_by(label);
+    if response.has_focus() {
+        ui.painter().set(
+            glow,
+            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
+        );
+    }
+    let char_cursor = output
+        .cursor_range
+        .filter(|_| response.has_focus())
+        .map(|range| range.primary);
+    let caret = char_cursor.map(|cursor| {
+        output
+            .galley
+            .pos_from_cursor(cursor)
+            .translate(output.galley_pos.to_vec2())
+    });
+    let cursor = char_cursor.map(|cursor| byte_of(text, cursor.index.0));
+    if !response.has_focus() && !on_popup {
+        completion.close();
+    }
+    Edited {
+        changed: response.changed(),
+        submitted,
+        asked,
+        cursor,
+        caret,
+        response,
+    }
+}
+
+/// Takes Ctrl+Enter, Ctrl+Space and the keys of the open completion list before the editor
+/// sees them; returns whether Ctrl+Enter and Ctrl+Space were pressed.
+fn keys(ui: &Ui, completion: &mut CompletionState, text: &mut String) -> (bool, bool) {
+    if !ui.memory(|memory| memory.has_focus(editor_id())) {
+        return (false, false);
+    }
+    let open = completion.shown().is_some();
+    let (mut submitted, mut asked, mut accepted) = (false, false, None);
+    ui.input_mut(|input| {
+        submitted = input.consume_key(Modifiers::COMMAND, Key::Enter);
+        asked = input.consume_key(Modifiers::COMMAND, Key::Space);
+        if open {
+            accepted = popup_keys(input, completion, text);
+        }
+    });
+    if let Some(end) = accepted {
+        place_cursor(ui.ctx(), text, end);
+    }
+    (submitted, asked)
+}
+
+/// Keeps the editor focused while the pointer is on the open completion list, so a click on
+/// it lands; returns whether it is there and the setting to restore after the editor.
+fn hold_focus_on_popup(ui: &Ui, open: bool) -> (bool, SurrenderFocusOn) {
+    let popup_layer = LayerId::new(PopupKind::Popup.order(), popup_id());
+    let on_popup = open
+        && ui
+            .ctx()
+            .pointer_interact_pos()
+            .and_then(|pos| ui.ctx().layer_id_at(pos))
+            == Some(popup_layer);
+    let surrender = ui
+        .ctx()
+        .options(|options| options.input_options.surrender_focus_on);
+    if on_popup {
+        ui.ctx().options_mut(|options| {
+            options.input_options.surrender_focus_on = SurrenderFocusOn::Never;
+        });
+    }
+    (on_popup, surrender)
+}
+
+/// Shows the text area, keeping Tab and Escape while the completion list is `open`.
+fn text_area(
+    ui: &mut Ui,
+    text: &mut String,
+    hint: &str,
+    mark: Option<&Range<usize>>,
+    open: bool,
+) -> TextEditOutput {
     let rows = |rows: usize| {
         let line_height = FS_BODY * TEXTAREA_LINE_HEIGHT;
         line_height.mul_add(
@@ -58,7 +166,7 @@ pub(super) fn show(
     let mut layouter =
         |ui: &Ui, buffer: &dyn TextBuffer, width: f32| laid_out(ui, buffer.as_str(), mark, width);
     let edit = TextEdit::multiline(text)
-        .id(id)
+        .id(editor_id())
         .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
         .margin(Margin::symmetric(
@@ -67,23 +175,78 @@ pub(super) fn show(
         ))
         .min_size(vec2(0.0, height))
         .desired_width(f32::INFINITY)
+        .event_filter(EventFilter {
+            tab: open,
+            escape: open,
+            horizontal_arrows: true,
+            vertical_arrows: true,
+        })
         .layouter(&mut layouter);
-    let response = ScrollArea::vertical()
+    ScrollArea::vertical()
         .id_salt("p4kx-query-editor-scroll")
         .max_height(rows(QUERY_EDITOR_MAX_ROWS))
         .auto_shrink([false, true])
-        .show(ui, |ui| ui.add(edit).labelled_by(label))
-        .inner;
-    if response.has_focus() {
-        ui.painter().set(
-            glow,
-            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
+        .show(ui, |ui| edit.show(ui))
+        .inner
+}
+/// Handles the keys of the open completion list before the editor sees them.
+/// Returns the byte offset behind an accepted name.
+fn popup_keys(
+    input: &mut InputState,
+    completion: &mut CompletionState,
+    text: &mut String,
+) -> Option<usize> {
+    let down = consume_plain(input, Key::ArrowDown);
+    let up = consume_plain(input, Key::ArrowUp);
+    let accept = consume_plain(input, Key::Enter) + consume_plain(input, Key::Tab) > 0;
+    let dismiss = consume_plain(input, Key::Escape) > 0;
+    let steps = isize::try_from(down).unwrap_or(0) - isize::try_from(up).unwrap_or(0);
+    if steps != 0 {
+        completion.step(steps);
+    }
+    if dismiss {
+        completion.dismiss();
+        None
+    } else if accept {
+        completion.accept(text)
+    } else {
+        None
+    }
+}
+
+/// Puts the cursor of the editor at byte `end` of `text`.
+pub(super) fn place_cursor(ctx: &egui::Context, text: &str, end: usize) {
+    let id = editor_id();
+    let index = text.get(..end).map_or(0, |before| before.chars().count());
+    let mut state = TextEditState::load(ctx, id).unwrap_or_default();
+    state
+        .cursor
+        .set_char_range(Some(CCursorRange::one(CCursor::new(CharIndex(index)))));
+    state.store(ctx, id);
+}
+
+fn consume_plain(input: &mut InputState, key: Key) -> usize {
+    let mut count = 0;
+    input.events.retain(|event| {
+        let hit = matches!(
+            event,
+            Event::Key {
+                key: pressed,
+                modifiers,
+                pressed: true,
+                ..
+            } if *pressed == key && modifiers.is_none()
         );
-    }
-    Edited {
-        changed: response.changed(),
-        submitted,
-    }
+        count += usize::from(hit);
+        !hit
+    });
+    count
+}
+
+fn byte_of(text: &str, chars: usize) -> usize {
+    text.char_indices()
+        .nth(chars)
+        .map_or(text.len(), |(byte, _)| byte)
 }
 
 fn laid_out(ui: &Ui, text: &str, mark: Option<&Range<usize>>, width: f32) -> Arc<Galley> {

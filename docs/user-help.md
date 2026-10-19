@@ -97,6 +97,21 @@ A Query that cannot run is explained below the editor with its line and column, 
 the Query it concerns is underlined in red, e.g. a mistyped field with the name it probably meant.
 The mark goes away as soon as you change the Query.
 
+While you type, the editor lists the names that fit at the cursor from the DataForge schema: the
+struct names after `from` and inside `[…]` (the struct of the array's elements and every struct
+deriving from it), and the field names at the start of a path, after `.` and after `->`, each
+with its type. The list starts with the names that begin with the word typed so far, ignoring
+case; ↑ and ↓ choose a name, Enter, Tab or a click writes it (in backticks when it needs them),
+Escape closes the list and Ctrl+Space opens it again. The names are read once per Archive in the
+background when the editor first gets the focus.
+
+**Save Query…** keeps the Query of the editor under a name in the settings, so it is there again
+after a restart; saving under a name already taken replaces that Query. The saved Queries are
+listed under the editor: a click on one puts it into the editor and runs it, **Rename** and
+**Delete** change the list. A settings file larger than 16 MiB is not read, and saved Queries
+in it that are damaged, nameless, empty, longer than 65,536 bytes or beyond the 200th are left
+out.
+
 The result is a table with the record path first and one column per path of `select`, in record
 path order. Numbers stand right-aligned; a path through `[*]` or `[TypeName]` shows its list of
 values in brackets, more than eight as the first eight and how many more; `null` is grey and a
@@ -110,6 +125,7 @@ byte for byte as `p4kx dcb query --format csv|json --out <file>` writes it, what
 sorted by. The file is written in the background and only replaces an existing file once
 complete; **Cancel export** stops it and leaves any existing file as it was. The open Archive
 itself is never overwritten.
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

@@ -239,6 +239,8 @@ pub const TRANSITION: f32 = 0.2;
 pub const GHOST_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 18);
 /// The outline button's hover tint and the chip tint, `rgba(231,126,35,0.12)`.
 pub const OUTLINE_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 31);
+/// The quiet-danger button's hover tint, `rgba(163,0,10,0.12)`.
+pub const QUIET_DANGER_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 31);
 /// The zebra stripe of a table, `rgba(255,255,255,0.02)`.
 pub const ZEBRA: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 5);
 /// The fill of a warning alert, `rgba(255,210,63,0.15)`.
@@ -367,3 +369,11 @@ pub const LIST_FOOTER_PADDING_Y: f32 = SPACE_3;
 pub const PAGE_CHEVRON: f32 = 1.1 * REM;
 /// The rows of text the Query editor grows to before it scrolls.
 pub const QUERY_EDITOR_MAX_ROWS: usize = 12;
+/// The tallest the completion list of the Query editor gets before it scrolls, the
+/// `.krt-combobox__listbox` `max-height` of 18 rem.
+pub const COMPLETION_MAX_HEIGHT: f32 = 18.0 * REM;
+/// The padding of a `.krt-combobox__notice`.
+pub const COMBOBOX_NOTICE_PADDING: f32 = 0.75 * REM;
+/// The tallest the list of saved Queries gets before it scrolls, the list height of a
+/// collapsible section.
+pub const SAVED_LIST_HEIGHT: f32 = SECTION_LIST_HEIGHT;

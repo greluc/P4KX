@@ -1,6 +1,8 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, TryLockError};
 
 use p4kx_extraction::DataForgeEntry;
+use p4kx_extraction::query::QuerySchema;
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -20,6 +22,8 @@ pub(crate) enum ReadFailure {
 #[derive(Debug, Default)]
 pub(crate) struct ForgeSlot {
     entry: Mutex<Option<Arc<DataForgeEntry>>>,
+    schema: Mutex<Option<Arc<QuerySchema>>>,
+    schema_asked: AtomicBool,
 }
 
 impl ForgeSlot {
@@ -58,8 +62,35 @@ impl ForgeSlot {
         Ok(read)
     }
 
-    /// Forgets the DataForge read, because the Archive changed on disk.
+    /// Forgets the DataForge read and its schema, because the Archive changed on disk.
     pub(crate) fn clear(&self) {
         *self.entry.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        *self.schema.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        self.schema_asked.store(false, Ordering::Release);
+    }
+
+    /// Returns the completion schema once it was read.
+    pub(crate) fn schema(&self) -> Option<Arc<QuerySchema>> {
+        self.schema
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Returns whether this is the first call since the slot was made or cleared, so that the
+    /// schema is read once.
+    pub(crate) fn ask_schema(&self) -> bool {
+        !self.schema_asked.swap(true, Ordering::AcqRel)
+    }
+
+    /// Reads the completion schema of `index`, reading its DataForge unless it was read before.
+    pub(crate) fn read_schema(&self, index: &EntryIndex) -> Result<(), ReadFailure> {
+        let entry = self.read(index, || {})?;
+        let forge = entry
+            .open()
+            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        let schema = Arc::new(QuerySchema::of(&forge));
+        *self.schema.lock().unwrap_or_else(PoisonError::into_inner) = Some(schema);
+        Ok(())
     }
 }

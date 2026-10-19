@@ -8,6 +8,9 @@ fails while its section is missing.
 
 ### Added
 
+- Query tab: completion of struct and field names from the DataForge schema while typing, after
+  `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
+  settings, run with one click, renamed and deleted.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.

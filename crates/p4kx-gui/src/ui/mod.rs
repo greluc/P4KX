@@ -128,6 +128,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
     licence::show(ui, model);
+    query::saved_dialog(ui, model, &mut requests);
     requests
 }
 

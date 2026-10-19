@@ -69,11 +69,55 @@ pub enum QueryText {
     PageNext,
     /// The button that shows the last page.
     PageLast,
+    /// The names a completion does not list; takes `count` and `number`.
+    CompletionMore,
+    /// The action that saves the Query of the editor.
+    Save,
+    /// The heading of the saved Queries.
+    SavedTitle,
+    /// Shown while no Query is saved.
+    SavedNone,
+    /// The accessible name of a saved Query that runs it; takes `name`.
+    SavedRun,
+    /// The action that renames a saved Query.
+    SavedRename,
+    /// The action that deletes a saved Query.
+    SavedDelete,
+    /// The title of the dialog that saves the Query.
+    SaveTitle,
+    /// The title of the dialog that renames a saved Query.
+    RenameTitle,
+    /// The title of the question before a saved Query is deleted.
+    DeleteTitle,
+    /// The label of the name of a saved Query.
+    NameLabel,
+    /// The placeholder of the empty name.
+    NameHint,
+    /// The action that saves under the name.
+    SaveAction,
+    /// The action that renames to the name.
+    RenameAction,
+    /// The action that deletes the saved Query.
+    DeleteAction,
+    /// The question before a saved Query is deleted; takes `name`.
+    DeleteQuestion,
+    /// Shown when saving replaces the Query saved under the name.
+    NameReplaces,
+    /// Shown while the name is empty.
+    NameEmpty,
+    /// Shown when the name is too long; takes `max`.
+    NameTooLong,
+    /// Shown when another saved Query has the name.
+    NameTaken,
+    /// Shown when no more Queries can be saved; takes `max`.
+    NameFull,
+    /// Shown when the Query of the editor cannot be saved.
+    NameBadText,
 }
 
 impl QueryText {
     /// Every Query text.
-    pub(crate) const ALL: [Self; 34] = [
+    pub(crate) const ALL: [Self; 56] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -108,6 +152,28 @@ impl QueryText {
         Self::PagePrevious,
         Self::PageNext,
         Self::PageLast,
+        Self::CompletionMore,
+        Self::Save,
+        Self::SavedTitle,
+        Self::SavedNone,
+        Self::SavedRun,
+        Self::SavedRename,
+        Self::SavedDelete,
+        Self::SaveTitle,
+        Self::RenameTitle,
+        Self::DeleteTitle,
+        Self::NameLabel,
+        Self::NameHint,
+        Self::SaveAction,
+        Self::RenameAction,
+        Self::DeleteAction,
+        Self::DeleteQuestion,
+        Self::NameReplaces,
+        Self::NameEmpty,
+        Self::NameTooLong,
+        Self::NameTaken,
+        Self::NameFull,
+        Self::NameBadText,
     ];
 
     /// Returns the Fluent message id.
@@ -148,6 +214,28 @@ impl QueryText {
             Self::PagePrevious => "query-page-previous",
             Self::PageNext => "query-page-next",
             Self::PageLast => "query-page-last",
+            Self::CompletionMore => "query-completion-more",
+            Self::Save => "query-save",
+            Self::SavedTitle => "query-saved-title",
+            Self::SavedNone => "query-saved-none",
+            Self::SavedRun => "query-saved-run",
+            Self::SavedRename => "query-saved-rename",
+            Self::SavedDelete => "query-saved-delete",
+            Self::SaveTitle => "query-save-title",
+            Self::RenameTitle => "query-rename-title",
+            Self::DeleteTitle => "query-delete-title",
+            Self::NameLabel => "query-name-label",
+            Self::NameHint => "query-name-hint",
+            Self::SaveAction => "query-save-action",
+            Self::RenameAction => "query-rename-action",
+            Self::DeleteAction => "query-delete-action",
+            Self::DeleteQuestion => "query-delete-question",
+            Self::NameReplaces => "query-name-replaces",
+            Self::NameEmpty => "query-name-empty",
+            Self::NameTooLong => "query-name-too-long",
+            Self::NameTaken => "query-name-taken",
+            Self::NameFull => "query-name-full",
+            Self::NameBadText => "query-name-bad-text",
         }
     }
 }

@@ -2,17 +2,22 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
-use p4kx_extraction::query::{Query, QueryError};
+use p4kx_extraction::query::{Query, QueryError, QuerySchema};
+use p4kx_settings::SavedQueries;
 
 mod cell;
+mod completion;
 mod export;
 mod forge_slot;
 mod result;
 mod run;
+mod saved;
 
 pub use cell::CellLook;
+pub(crate) use completion::{CompletionState, Trigger};
 pub use export::{QueryExportFormat, QueryExportStatus};
 pub use result::{QUERY_PAGE_ROWS, QueryResult, ResultColumn};
+pub use saved::{NameNote, SavedDialog};
 
 use crate::EntryIndex;
 use export::ExportJob;
@@ -149,6 +154,11 @@ pub struct QueryTab {
     state: State,
     forge: Option<(Weak<EntryIndex>, Arc<ForgeSlot>)>,
     export: Option<ExportJob>,
+    completion: CompletionState,
+    saved: SavedQueries,
+    saved_dialog: Option<SavedDialog>,
+    saved_revision: u64,
+    loaded: Option<String>,
 }
 
 impl QueryTab {
@@ -158,14 +168,47 @@ impl QueryTab {
         &self.text
     }
 
-    /// Returns the Query text of the editor for editing.
-    pub(crate) const fn text_mut(&mut self) -> &mut String {
-        &mut self.text
-    }
-
     /// Replaces the Query text of the editor.
     pub fn set_text(&mut self, text: &str) {
         text.clone_into(&mut self.text);
+        self.completion.close();
+    }
+
+    /// Returns the text and the completion of the editor for editing.
+    pub(crate) const fn editing(&mut self) -> (&mut String, &mut CompletionState) {
+        (&mut self.text, &mut self.completion)
+    }
+
+    /// Returns the completion of the editor.
+    pub(crate) const fn completion(&self) -> &CompletionState {
+        &self.completion
+    }
+
+    /// Returns the names the editor offers at the cursor, the index of the active one first;
+    /// `None` while no list is shown.
+    #[must_use]
+    pub fn completion_shown(&self) -> Option<(&p4kx_extraction::query::Completion, usize)> {
+        self.completion.shown()
+    }
+
+    /// Starts reading the completion schema of `index` off the UI thread unless it was asked
+    /// for before; `wake` is called once it is read.
+    pub(crate) fn prepare_completion(
+        &mut self,
+        index: &Arc<EntryIndex>,
+        wake: impl Fn() + Send + 'static,
+    ) {
+        let slot = self.slot_of(index);
+        completion::prepare(&slot, index, wake);
+    }
+
+    /// Returns the completion schema of `index` once it was read.
+    pub(crate) fn schema(&self, index: &Arc<EntryIndex>) -> Option<Arc<QuerySchema>> {
+        let (of, slot) = self.forge.as_ref()?;
+        of.upgrade()
+            .is_some_and(|of| Arc::ptr_eq(&of, index))
+            .then(|| slot.schema())
+            .flatten()
     }
 
     /// Returns whether a Query runs.
@@ -235,6 +278,7 @@ impl QueryTab {
         self.state = State::Idle;
         self.forge = None;
         self.export = None;
+        self.completion.reset();
     }
 
     /// Stops the running Query; the tab shows it as cancelled at once.

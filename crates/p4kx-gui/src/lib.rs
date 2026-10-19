@@ -52,8 +52,8 @@ pub use preview::{
     PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
 };
 pub use query::{
-    CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
-    QueryStage, QueryStatus, QueryTab, ResultColumn,
+    CellLook, NameNote, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid,
+    QueryResult, QueryStage, QueryStatus, QueryTab, ResultColumn, SavedDialog,
 };
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,

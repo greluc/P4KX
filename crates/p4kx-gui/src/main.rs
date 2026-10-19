@@ -25,6 +25,7 @@ fn main() -> Result<()> {
     model.set_extraction_conversion(settings.extraction_conversion);
     model.set_extraction_textures(settings.extraction_textures);
     model.set_update_check(settings.update_check);
+    model.query_mut().set_saved(settings.queries.clone());
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),

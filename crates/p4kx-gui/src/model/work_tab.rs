@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use super::Model;
+use crate::query::Trigger;
 use crate::{ComparisonTab, QueryTab};
 
 /// A tab of the work surface.
@@ -55,5 +58,33 @@ impl Model {
             return false;
         };
         self.query.run(browser.shared_index(), wake)
+    }
+
+    /// Puts the saved Query at `index` into the editor and runs it, as [`Self::run_query`] does;
+    /// returns whether it started. Nothing changes while a Query runs.
+    pub fn run_saved(&mut self, index: usize, wake: impl Fn() + Send + Sync + 'static) -> bool {
+        if self.query.is_running() || !self.query.load_saved(index) {
+            return false;
+        }
+        self.run_query(wake)
+    }
+
+    /// Starts reading the names the Query editor completes from the DataForge of the open
+    /// Archive, once per Archive, calling `wake` once they are read.
+    pub fn prepare_query_completion(&mut self, wake: impl Fn() + Send + 'static) {
+        if let Some(browser) = &self.browser {
+            let index = Arc::clone(browser.shared_index());
+            self.query.prepare_completion(&index, wake);
+        }
+    }
+
+    /// Works out the names the Query editor offers at byte `cursor` of its text.
+    pub(crate) fn update_query_completion(&mut self, cursor: usize, trigger: Trigger) {
+        let schema = self
+            .browser
+            .as_ref()
+            .and_then(|browser| self.query.schema(browser.shared_index()));
+        let (text, completion) = self.query.editing();
+        completion.update(schema.as_deref(), (text, cursor), trigger);
     }
 }

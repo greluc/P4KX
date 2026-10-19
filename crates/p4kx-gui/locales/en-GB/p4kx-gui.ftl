@@ -235,6 +235,32 @@ query-page-first = First page
 query-page-previous = Previous page
 query-page-next = Next page
 query-page-last = Last page
+query-completion-more =
+    { $count ->
+        [one] { $number } more name, keep typing
+       *[other] { $number } more names, keep typing
+    }
+query-save = Save Query…
+query-saved-title = Saved Queries
+query-saved-none = No saved Queries yet. Save the Query in the editor to rerun it with one click.
+query-saved-run = Run the saved Query { $name }
+query-saved-rename = Rename
+query-saved-delete = Delete
+query-save-title = Save Query
+query-rename-title = Rename saved Query
+query-delete-title = Delete saved Query
+query-name-label = Name
+query-name-hint = e.g. Heavy ships
+query-save-action = Save
+query-rename-action = Rename
+query-delete-action = Delete
+query-delete-question = The saved Query “{ $name }” is deleted. The Query in the editor stays.
+query-name-replaces = Replaces the saved Query of this name.
+query-name-empty = Enter a name.
+query-name-too-long = The name is longer than { $max } characters.
+query-name-taken = Another saved Query has this name.
+query-name-full = { $max } Queries are saved already. Delete one first.
+query-name-bad-text = The Query in the editor is empty or too long to save.
 
 dataforge-node = DataForge
 dataforge-node-loading = Loading…

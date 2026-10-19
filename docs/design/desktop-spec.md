@@ -82,6 +82,9 @@ sind keine neuen Farben.
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
 | Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
+| Abfrage-Vervollständigung | `.krt-combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
+| Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
+| Abfrage speichern / umbenennen / löschen | `.krt-modal` / `.krt-modal--danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
 
 ## Entscheidungen
 
@@ -226,6 +229,25 @@ zeigen statt der Zeilen einen Satz im Panel-Körper, unlesbare den Grund je Seit
 verglichen, von einem Arbeits-Thread je Vergleich, der beide DataForges offen hält und nur die
 neueste Anfrage beantwortet; die Liste hält nur Pfade und Typen.
 
+**D.21 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
+öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
+Struct-Namen nach `from` und in `[…]` (der Typ der Elemente und alles, was davon erbt), Feldnamen
+am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in `color-gray-2-text`. Die
+Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der Editor mehrzeilig ist und
+ein Name mitten im Text ergänzt wird; Farben, Einträge und Rahmen sind die der Combobox. Der
+getippte Anfang ist fett wie `<mark>`, der per Tastatur gewählte Eintrag orange gefüllt, Hover
+wie im Dropdown. Der Fokus bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen,
+Esc schließt, Strg+Leertaste öffnet wieder. Höchstens 50 Namen stehen in der Liste, darunter
+„n weitere Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-
+Thread, sobald der Editor den Fokus bekommt, einmal je Archiv; bis dahin bleibt die Liste zu.
+„Abfrage speichern …" ist Ghost neben der CTA „Abfrage ausführen" (D.7, D.15). Die gespeicherten
+Abfragen stehen darunter als aufgeklappter `.panel-header` mit 36-px-Zeilen: Name fett, dahinter
+die Abfrage einzeilig in `color-gray-2-text`. Ein Klick auf die Zeile lädt und startet sie;
+„Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
+die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem `.krt-modal`
+ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in `color-gray-2-text`) und
+sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt in einem
+`.krt-modal--danger` nach (D.3).
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -250,6 +272,7 @@ neueste Anfrage beantwortet; die Liste hält nur Pfade und Typen.
 | Abfrage-Editor 4 Zeilen statt `textarea`-Standardhöhe, Fehlerstelle als Hinterlegung mit Unterstrich | egui kennt keine `rows`-Vorgabe mit eigener Zeilenhöhe; DS hat keine Fehlermarkierung im Text, Farben aus `.alert-danger` |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
+| Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.21) |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte

@@ -4,13 +4,13 @@ use std::time::SystemTime;
 use egui::{Align, Align2, Frame, Layout, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
-use p4kx_settings::ExtractionTextures;
+use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::{Dialog, Requests, comparison_extraction};
 use crate::extraction::target_naming;
 use crate::theme::desktop::{BUTTON_HEIGHT, MODAL_GROUP_GAP};
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight, font};
+use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, SPACE_4, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
@@ -36,6 +36,12 @@ pub(super) const POLICIES: [(ConflictPolicy, T); 3] = [
     (ConflictPolicy::Skip, T::PolicySkip),
     (ConflictPolicy::Overwrite, T::PolicyOverwrite),
     (ConflictPolicy::IfChanged, T::PolicyIfChanged),
+];
+
+const AUDIO: [(ExtractionAudio, T); 3] = [
+    (ExtractionAudio::Ogg, T::AudioOgg),
+    (ExtractionAudio::Wav, T::AudioWav),
+    (ExtractionAudio::Raw, T::AudioRaw),
 ];
 
 const MAX_MIP_LEVEL: u32 = 15;
@@ -177,11 +183,30 @@ fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
     }
     if convert {
         let mut textures = setup.textures();
+        let mut audio = setup.audio();
         ui.indent("extraction-textures", |ui| {
             texture_choices(ui, texts, &mut textures);
+            audio_choices(ui, texts, &mut audio);
         });
         setup.set_textures(textures);
+        setup.set_audio(audio);
     }
+}
+
+/// Shows the sound formats of a Conversion and the note that soundbanks are unpacked.
+fn audio_choices(ui: &mut Ui, texts: &Texts, audio: &mut ExtractionAudio) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACE_4;
+        let label = texts.get(T::AudioLabel);
+        ui.label(plain(label, FS_SM, Weight::Regular).color(palette::GRAY_1));
+        for (choice, text) in AUDIO {
+            if toggle::radio(ui, *audio == choice, &texts.get(text), true).clicked() {
+                *audio = choice;
+            }
+        }
+    });
+    let note = texts.get(T::AudioBanks);
+    ui.label(plain(note, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
 }
 
 /// Shows the texture outputs of a Conversion: merge, PNG with its mip level, raw parts.

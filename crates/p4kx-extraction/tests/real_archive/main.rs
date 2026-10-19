@@ -17,6 +17,7 @@ mod combined;
 mod cubemap_alpha;
 mod records;
 mod sound;
+mod sound_extraction;
 mod soundbank;
 mod texture;
 mod texture_conversion;

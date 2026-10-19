@@ -8,14 +8,14 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, DataForgeEntry, Entry, EntryFailure,
-    ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, TextureGroups,
-    create_default_target, extract, select_entries,
+    Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
+    Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion,
+    TextureGroups, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::{Conflict, ExtractArgs, TextureOutput};
+use crate::cli::{AudioOutput, Conflict, ExtractArgs, TextureOutput};
 use crate::dcb_export;
 use crate::exit;
 use crate::json;
@@ -71,6 +71,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         conflict: args.conflict,
         convert: args.convert,
         textures: textures(args),
+        audio: audio(args.audio),
         cancel_after: args.cancel_after,
     };
     execute(&archive, &entries, &settings, as_json)
@@ -82,10 +83,12 @@ pub(crate) struct Settings<'a> {
     pub(crate) out: Option<&'a Path>,
     /// What to do with a file that already exists.
     pub(crate) conflict: Conflict,
-    /// Whether CryXml and textures are converted.
+    /// Whether CryXml, textures, sounds and the DataForge are converted.
     pub(crate) convert: bool,
     /// What a texture conversion writes.
     pub(crate) textures: TextureConversion,
+    /// What a sound conversion writes.
+    pub(crate) audio: AudioConversion,
     /// Cancels the run once this many Entries have ended.
     pub(crate) cancel_after: Option<usize>,
 }
@@ -115,6 +118,7 @@ pub(crate) fn execute(
         policy: policy(settings.conflict),
         convert: settings.convert,
         textures: settings.textures,
+        audio: settings.audio,
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),
@@ -176,6 +180,14 @@ fn textures(args: &ExtractArgs) -> TextureConversion {
             .contains(&TextureOutput::Png)
             .then_some(args.mip),
         keep_raw: args.textures.contains(&TextureOutput::Raw),
+    }
+}
+
+const fn audio(output: AudioOutput) -> AudioConversion {
+    match output {
+        AudioOutput::Ogg => AudioConversion::Ogg,
+        AudioOutput::Wav => AudioConversion::Wav,
+        AudioOutput::Raw => AudioConversion::Raw,
     }
 }
 
@@ -288,8 +300,13 @@ fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) ->
     for failure in report.failures() {
         writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
     }
-    for texture in report.unconverted() {
-        writeln!(err, "not converted {}: {}", texture.path(), reason(texture))?;
+    for unconverted in report.unconverted() {
+        writeln!(
+            err,
+            "not converted {}: {}",
+            unconverted.path(),
+            reason(unconverted)
+        )?;
     }
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {

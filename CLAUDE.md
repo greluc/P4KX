@@ -60,7 +60,8 @@ when the variable is unset.
   `p4kx-foundation` and the format crates they declare in `builds-on` (never `p4kx-archive`),
   service crates on format crates, front-ends (`p4kx`, `p4kx-gui`, `p4kx-mcp`) only on services.
   Never add a dependency against this direction.
-- Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.
+- Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`. The one
+  exception is Sound Conversion during Extraction, which runs on plain worker threads (ADR-0022).
 - `thiserror` in libraries, `anyhow` only in binaries; no `unwrap` / `expect` outside tests.
 - `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
   manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks

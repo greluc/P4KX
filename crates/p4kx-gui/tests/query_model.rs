@@ -228,21 +228,23 @@ fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResul
 fn a_second_run_does_not_read_dataforge_again() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut model = opened(&archive(dir.path(), &database())?)?;
-    model.query_mut().set_text("from Item");
-    model.run_query(|| {});
-    let first = model.query().status().stage();
-    settled(&mut model)?;
+    let before = model.query().dataforge_reads();
+    run(&mut model, "from Item")?;
+    let first = model.query().dataforge_reads();
 
+    model.query_mut().set_text("from Ship select crew");
     model.run_query(|| {});
     let second = model.query().status().stage();
     settled(&mut model)?;
 
-    assert_eq!(
-        first,
-        Some(QueryStage::Loading),
-        "the first run reads DataForge"
+    assert_eq!(before, 0, "nothing read before a run");
+    assert!(
+        second.is_some_and(|stage| stage != QueryStage::Loading),
+        "the second never shows Loading: {second:?}"
     );
-    assert_eq!(second, Some(QueryStage::Selecting), "the second does not");
+    assert_eq!(first, 1, "the first run reads DataForge");
+    assert_eq!(model.query().dataforge_reads(), 1, "the second does not");
+    assert_eq!(column(finished(&model)?, 1), ["2"], "the second finished");
     Ok(())
 }
 

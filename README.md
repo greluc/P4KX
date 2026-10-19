@@ -96,10 +96,11 @@ Early development (milestone M1). Available today:
   listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
-  schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
-  with test, template and dummy Records left out and counted as skipped, and names and
-  descriptions resolved in English and German. `--filter` marks the catalog partial. It prints
-  the counts per kind and the unresolved texts per language and warns when the catalog nears or exceeds the
+  schema version, Channel and Build, completeness per kind and the manufacturers, items (with
+  their item class) and ships with ground vehicles, ordered by GUID, with test, template and dummy Records left out and
+  counted as skipped, and names and descriptions resolved in English and German. `--filter` marks
+  the catalog partial. It prints the counts per kind, the item classes read and the unresolved
+  texts per language and warns when the catalog nears or exceeds the
   64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
@@ -213,6 +214,12 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
+- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
+  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
+  counts, the material library and material IDs, its bones and every chunk with whether it was
+  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file>` writes it as one
+  glTF 2.0 binary file (GLB), Y up and in metres, and lists the unknown chunks it skipped. Both
+  also take a model file on disk with its companion next to it.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

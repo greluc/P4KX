@@ -79,8 +79,9 @@ fails while its section is missing.
   block of another length than 6 bytes is reported; a v2 Entry whose data lies outside the file is
   reported when the directory is read and fails only when it is read. `p4kx info`, `list` and
   `extract` print the issues to stderr, `p4kx info` counts them, and `archive_info` of `p4kx-mcp`
-  lists them. A ZIP64 locator that does not stand right before the end record is found by
-  searching backwards.
+  lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
+  stand right before the end record is found by searching backwards. Extraction now also rejects
+  the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
 
 ## [0.2.0]
 

@@ -51,7 +51,7 @@ fn defective_entries_are_announced_with_their_number() -> TestResult {
 
     harness.step();
 
-    harness.get_by_label_contains("2 Entries of the Archive have defects");
+    harness.get_by_label_contains("has 2 defects in its Entries");
     Ok(())
 }
 

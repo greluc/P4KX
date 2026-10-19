@@ -8,11 +8,12 @@ use crate::widgets::indicator::warning_icon;
 use crate::widgets::text::plain;
 use crate::{Model, Text};
 
-/// Shows the warning notice that Entries of the open Archive have defects, with their number.
+/// Shows the warning notice that the directory of the open Archive has defects in its Entries,
+/// with their number.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
     let count = model
         .browser()
-        .map_or(0, |browser| browser.index().archive().issues().len());
+        .map_or(0, |browser| browser.index().archive().issue_count());
     if count == 0 || model.opening_path().is_some() {
         return;
     }

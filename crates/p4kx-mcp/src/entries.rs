@@ -28,7 +28,7 @@ pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
         build: archive.build().map(BuildShape::from),
         entry_count: entries.len(),
         encrypted_count,
-        issue_count: archive.issues().len(),
+        issue_count: archive.issue_count(),
         issues: archive
             .issues()
             .iter()

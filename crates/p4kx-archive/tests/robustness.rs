@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::Read;
 use std::path::Path;
 
-use p4kx_archive::{Archive, ArchiveError, Entry, EntryIssue};
+use p4kx_archive::{Archive, ArchiveError, Entry, EntryIssue, MAX_ENTRY_ISSUES};
 use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -163,7 +163,7 @@ fn a_v2_entry_whose_data_leaves_the_file_is_reported_and_fails_only_when_read() 
 }
 
 #[test]
-fn a_v2_entry_whose_data_overlaps_the_directory_is_reported() -> TestResult {
+fn a_v2_entry_whose_data_size_overflows_is_reported() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut bytes = v2(TestEntry::stored("Data\\a.xml", b"<a/>".to_vec()));
     let directory = usize::try_from(u64::from_le_bytes(
@@ -188,16 +188,8 @@ fn a_v1_path_that_is_not_utf8_is_decoded_lossily_and_reported_with_its_bytes() -
 
     let listed = archive.entries().first().ok_or("Entry missing")?;
     assert_eq!(listed.path(), "Data\\caf\u{FFFD}.txt");
-    assert_eq!(
-        archive.issues(),
-        [(
-            0,
-            EntryIssue::PathNotUtf8 {
-                raw: raw.clone().into()
-            }
-        )]
-    );
-    assert_eq!(archive.raw_path(listed), Some(raw.as_slice()));
+    assert_eq!(archive.issues(), [(0, EntryIssue::PathNotUtf8)]);
+    assert_eq!(archive.raw_path(listed.index()), Some(raw.as_slice()));
     assert_eq!(read_all(&archive, 0)?, b"<a/>", "the Entry reads");
     Ok(())
 }
@@ -212,7 +204,7 @@ fn a_v2_path_that_is_not_utf8_is_decoded_lossily_and_reported() -> TestResult {
 
     let listed = archive.entries().first().ok_or("Entry missing")?;
     assert_eq!(listed.path(), "Data\\\u{FFFD}\u{FFFD}.txt");
-    assert_eq!(archive.raw_path(listed), Some(raw.as_slice()));
+    assert_eq!(archive.raw_path(listed.index()), Some(raw.as_slice()));
     Ok(())
 }
 
@@ -229,9 +221,15 @@ fn entries_whose_lossy_paths_are_equal_keep_their_own_raw_bytes() -> TestResult 
 
     let entries = archive.entries();
     assert_eq!(entries[0].path(), entries[2].path());
-    assert_eq!(archive.raw_path(&entries[0]), Some(b"a\xE9".as_slice()));
-    assert_eq!(archive.raw_path(&entries[1]), None);
-    assert_eq!(archive.raw_path(&entries[2]), Some(b"a\xE8".as_slice()));
+    assert_eq!(
+        archive.raw_path(entries[0].index()),
+        Some(b"a\xE9".as_slice())
+    );
+    assert_eq!(archive.raw_path(entries[1].index()), None);
+    assert_eq!(
+        archive.raw_path(entries[2].index()),
+        Some(b"a\xE8".as_slice())
+    );
     let positions: Vec<usize> = archive.issues().iter().map(|(index, _)| *index).collect();
     assert_eq!(positions, [0, 2]);
     Ok(())
@@ -259,8 +257,8 @@ fn container_issues_follow_their_entries_past_skipped_folders() -> TestResult {
         0,
         "the issue moved to the first Entry"
     );
-    assert!(opened.raw_path(&opened.entries()[0]).is_some());
-    assert!(opened.raw_path(&opened.entries()[1]).is_none());
+    assert!(opened.raw_path(opened.entries()[0].index()).is_some());
+    assert!(opened.raw_path(opened.entries()[1].index()).is_none());
     Ok(())
 }
 
@@ -293,5 +291,83 @@ fn a_locator_pointing_at_no_zip64_end_record_is_ignored() -> TestResult {
         matches!(result, Err(ref error) if error.to_string().contains("ZIP64")),
         "the markers of the end record have no ZIP64 locator to follow: {result:?}"
     );
+    Ok(())
+}
+
+#[test]
+fn a_v2_entry_whose_data_runs_into_the_directory_is_reported() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut bytes = v2(TestEntry::stored("Data\\a.xml", b"<a/>".to_vec()));
+    let directory = usize::try_from(u64::from_le_bytes(
+        bytes[bytes.len() - V2_TRAILER_LEN + 16..][..8].try_into()?,
+    ))?;
+    put_u64(&mut bytes, directory + 0x0A, 1000)?;
+
+    let archive = open_bytes(dir.path(), &bytes)?;
+
+    assert_eq!(archive.issues(), [(0, EntryIssue::DataOutsideFile)]);
+    Ok(())
+}
+
+#[test]
+fn many_encryption_blocks_in_one_record_give_one_issue() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let entry =
+        TestEntry::stored("Data\\a.xml", b"<a/>".to_vec()).with_empty_encryption_blocks(10_000);
+
+    let archive = open_bytes(dir.path(), &v1(entry))?;
+
+    assert_eq!(archive.issue_count(), 1, "one issue per kind and Entry");
+    assert_eq!(
+        archive.issues(),
+        [(0, EntryIssue::EncryptionBlockSize { size: 4 })]
+    );
+    Ok(())
+}
+
+#[test]
+fn the_issue_list_is_capped_but_the_count_and_raw_paths_are_not() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let defective = MAX_ENTRY_ISSUES + 476;
+    let mut builder = (0..defective).fold(ArchiveBuilder::new(), |builder, index| {
+        builder.entry(
+            TestEntry::stored(format!("Data\\{index}.txt"), Vec::new()).with_encryption_field(3),
+        )
+    });
+    builder =
+        builder.entry(TestEntry::stored("x", Vec::new()).with_path_bytes(b"late\xFF".to_vec()));
+
+    let archive = open_bytes(dir.path(), &builder.build())?;
+
+    assert_eq!(
+        archive.issue_count(),
+        defective + 1,
+        "every issue is counted"
+    );
+    assert_eq!(
+        archive.issues().len(),
+        MAX_ENTRY_ISSUES,
+        "the list is capped"
+    );
+    assert_eq!(
+        archive.raw_path(defective),
+        Some(b"late\xFF".as_slice()),
+        "the raw path of an issue past the cap is kept"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_forged_zip64_locator_does_not_open_the_archive_or_panic() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    for target in [u64::MAX, 1 << 40, 3] {
+        let mut bytes = v1(TestEntry::stored("Data\\a.xml", b"<a/>".to_vec()));
+        let end = last_position(&bytes, &END_SIGNATURE)?;
+        put_u64(&mut bytes, end - 20 + 8, target)?;
+
+        let result = open_bytes(dir.path(), &bytes);
+
+        assert!(result.is_err(), "target {target} is no ZIP64 end record");
+    }
     Ok(())
 }

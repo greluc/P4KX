@@ -70,8 +70,8 @@ archive-changed =
     }
 archive-issues =
     { $kind ->
-        [one] Ein Eintrag des Archivs hat einen Fehler. Er bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; `p4kx info` nennt ihn.
-       *[other] { $count } Einträge des Archivs haben Fehler. Sie bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; `p4kx info` nennt sie.
+        [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
+       *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …

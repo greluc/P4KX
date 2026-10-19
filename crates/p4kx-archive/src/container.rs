@@ -2,7 +2,7 @@ use std::io::Read;
 
 use crate::entry_reader;
 use crate::format_error::FormatError;
-use crate::issue::{Directory, Issues};
+use crate::issue::{Directory, IssueLog};
 use crate::source::Source;
 use crate::{Compression, Entry};
 
@@ -52,28 +52,42 @@ pub(crate) fn source_of(
 /// Checks the Entries of the container in `source` against the limits, leaves out folder
 /// Entries and writes their paths with backslashes.
 pub(crate) fn admit(directory: Directory, source: &Source) -> Result<Directory, FormatError> {
-    let mut admitted = Vec::with_capacity(directory.entries.len());
-    let mut issues = Issues::with_capacity(directory.issues.len());
-    let mut pending = directory.issues.into_iter().peekable();
-    for (position, mut entry) in directory.entries.into_iter().enumerate() {
+    let Directory { entries, log } = directory;
+    let mut admitted = Vec::with_capacity(entries.len());
+    let mut kept = IssueLog::default();
+    let mut dropped = 0;
+    let mut listed = log.listed.into_iter().peekable();
+    let mut raw_paths = log.raw_paths.into_iter().peekable();
+    for (position, mut entry) in entries.into_iter().enumerate() {
         let index = admitted.len();
-        while let Some((_, issue)) = pending.next_if(|(at, _)| *at == position) {
-            issues.push((index, issue));
+        let folder = entry.path.ends_with(['\\', '/']) && entry.uncompressed_size == 0;
+        while let Some((_, issue)) = listed.next_if(|(at, _)| *at == position) {
+            if folder {
+                dropped += 1;
+            } else {
+                kept.listed.push((index, issue));
+            }
         }
-        if entry.path.ends_with(['\\', '/']) && entry.uncompressed_size == 0 {
-            issues.retain(|(at, _)| *at != index);
+        while let Some((_, raw)) = raw_paths.next_if(|(at, _)| *at == position) {
+            if !folder {
+                kept.raw_paths.push((index, raw));
+            }
+        }
+        if folder {
             continue;
         }
         check_sizes(&entry)?;
         if entry.path.contains('/') {
             entry.path = entry.path.replace('/', "\\");
         }
+        entry.index = u32::try_from(index).unwrap_or(u32::MAX);
         admitted.push(entry);
     }
+    kept.count = log.count.saturating_sub(dropped);
     check_disjoint(&admitted, source)?;
     Ok(Directory {
         entries: admitted,
-        issues,
+        log: kept,
     })
 }
 
@@ -82,7 +96,7 @@ fn check_sizes(entry: &Entry) -> Result<(), FormatError> {
         && !entry.encrypted
         && entry.compressed_size != entry.uncompressed_size
     {
-        return Err(stored_sizes_differ(entry.data.offset(), entry));
+        return Err(stored_sizes_differ(entry.data_offset, entry));
     }
     if entry.uncompressed_size > entry.compressed_size.saturating_mul(MAX_COMPRESSION_RATIO) {
         return Err(FormatError::LimitExceeded(format!(
@@ -100,7 +114,7 @@ fn check_disjoint(entries: &[Entry], source: &Source) -> Result<(), FormatError>
     let mut ranges = Vec::with_capacity(entries.len());
     for entry in entries {
         let data_offset = entry_reader::data_offset(source, entry)?;
-        ranges.push((entry.data.offset(), data_offset + entry.compressed_size));
+        ranges.push((entry.data_offset, data_offset + entry.compressed_size));
     }
     ranges.sort_unstable();
     let mut free_from = 0_u64;

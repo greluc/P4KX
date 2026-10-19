@@ -26,6 +26,7 @@ pub struct TestEntry {
     pub(crate) path_bytes: Option<Vec<u8>>,
     pub(crate) encryption_field: Option<u16>,
     pub(crate) encryption_block: Option<Vec<u8>>,
+    pub(crate) extra_blocks: Vec<u8>,
 }
 
 impl TestEntry {
@@ -117,6 +118,16 @@ impl TestEntry {
         self
     }
 
+    /// Appends `count` empty CIG encryption blocks, 4 bytes each, to the v1 directory record.
+    #[must_use]
+    pub fn with_empty_encryption_blocks(mut self, count: usize) -> Self {
+        for _ in 0..count {
+            self.extra_blocks
+                .extend_from_slice(&[0x02, 0x50, 0x04, 0x00]);
+        }
+        self
+    }
+
     pub(crate) fn path_bytes(&self) -> &[u8] {
         self.path_bytes.as_deref().unwrap_or(self.path.as_bytes())
     }
@@ -144,6 +155,7 @@ impl TestEntry {
             path_bytes: None,
             encryption_field: None,
             encryption_block: None,
+            extra_blocks: Vec::new(),
         }
     }
 }

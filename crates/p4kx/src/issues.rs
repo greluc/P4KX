@@ -9,7 +9,7 @@ const SHOWN: usize = 10;
 /// and a line for the rest.
 pub(crate) fn warn(archive: &Archive) -> io::Result<()> {
     let issues = archive.issues();
-    if issues.is_empty() {
+    if archive.issue_count() == 0 {
         return Ok(());
     }
     let mut err = io::stderr().lock();
@@ -20,11 +20,12 @@ pub(crate) fn warn(archive: &Archive) -> io::Result<()> {
             .map_or("", |entry| entry.path());
         writeln!(err, "warning: Entry {path}: {issue}")?;
     }
-    if issues.len() > SHOWN {
+    let shown = issues.len().min(SHOWN);
+    if archive.issue_count() > shown {
         writeln!(
             err,
             "warning: {} more Entry issues not shown",
-            issues.len() - SHOWN
+            archive.issue_count() - shown
         )?;
     }
     Ok(())

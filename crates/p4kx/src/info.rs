@@ -36,7 +36,7 @@ pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
         build: archive.build().map(BuildJson::from),
         entry_count: entries.len(),
         encrypted_count: entries.iter().filter(|entry| entry.is_encrypted()).count(),
-        issue_count: archive.issues().len(),
+        issue_count: archive.issue_count(),
         compressed_size: entries.iter().map(Entry::compressed_size).sum(),
         size: entries.iter().map(Entry::uncompressed_size).sum(),
     };

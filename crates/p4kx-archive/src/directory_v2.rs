@@ -1,8 +1,7 @@
 use p4kx_foundation::ByteReader;
 
-use crate::entry::DataStart;
 use crate::format_error::FormatError;
-use crate::issue::{Directory, Issues, decode_path};
+use crate::issue::{Directory, IssueLog, decode_path};
 use crate::source::Source;
 use crate::{Checksum, Compression, Entry, EntryIssue, layout};
 
@@ -46,20 +45,21 @@ pub(crate) fn read_entries(
         "name table",
     )?;
     let mut entries = Vec::with_capacity(directory.len() / RECORD_LEN);
-    let mut issues = Issues::new();
+    let mut log = IssueLog::default();
+    let data_limit = trailer.directory_offset.min(trailer.names_offset);
     let mut record_offset = trailer.directory_offset;
     for record in directory.as_chunks::<RECORD_LEN>().0 {
         let entry = parse_record(
             record,
             record_offset,
             &names,
-            (entries.len(), trailer_offset),
-            &mut issues,
+            (entries.len(), data_limit),
+            &mut log,
         )?;
         entries.push(entry);
         record_offset += RECORD_LEN as u64;
     }
-    Ok(Directory { entries, issues })
+    Ok(Directory { entries, log })
 }
 
 fn read_trailer(
@@ -112,16 +112,16 @@ fn read_range(
     Ok(source.read_at(offset, size)?)
 }
 
-/// Parses the record at file `offset`; `at` is the Entry's position and the offset of the trailer,
-/// which its data must end before.
+/// Parses the record at file `offset`; `at` is the Entry's position and the offset of the central
+/// directory or the name table, whichever comes first, which its data must end before.
 fn parse_record(
     record: &[u8],
     offset: u64,
     names: &[u8],
     at: (usize, u64),
-    issues: &mut Issues,
+    log: &mut IssueLog,
 ) -> Result<Entry, FormatError> {
-    let (index, trailer_offset) = at;
+    let (index, data_limit) = at;
     let mut reader = ByteReader::with_base(record, offset);
     let method = reader.read_u16()?;
     reader.skip(RECORD_TIME_AND_DATE_LEN)?;
@@ -134,22 +134,42 @@ fn parse_record(
     let encryption = reader.read_u16()?;
     if data_offset
         .checked_add(compressed_size)
-        .is_none_or(|end| end > trailer_offset)
+        .is_none_or(|end| end > data_limit)
+        || encryption > 1
     {
-        issues.push((index, EntryIssue::DataOutsideFile));
-    }
-    if encryption > 1 {
-        issues.push((index, EntryIssue::UnknownEncryption { value: encryption }));
+        record_defects(
+            log,
+            index,
+            (data_offset, compressed_size, data_limit),
+            encryption,
+        );
     }
     Ok(Entry {
-        path: read_name(names, name_offset, offset, index, issues)?,
+        path: read_name(names, name_offset, offset, index, log)?,
         compressed_size,
         uncompressed_size,
         checksum: Checksum::Crc32c(crc32c),
-        data: DataStart::Direct(data_offset),
+        data_offset,
         compression: Compression::from_method(method),
+        index: u32::try_from(index).unwrap_or(u32::MAX),
         encrypted: encryption != 0,
+        local_header: false,
     })
+}
+
+#[cold]
+#[inline(never)]
+fn record_defects(log: &mut IssueLog, index: usize, data: (u64, u64, u64), encryption: u16) {
+    let (data_offset, compressed_size, data_limit) = data;
+    if data_offset
+        .checked_add(compressed_size)
+        .is_none_or(|end| end > data_limit)
+    {
+        log.record(index, EntryIssue::DataOutsideFile);
+    }
+    if encryption > 1 {
+        log.record(index, EntryIssue::UnknownEncryption { value: encryption });
+    }
 }
 
 fn read_name(
@@ -157,7 +177,7 @@ fn read_name(
     name_offset: u64,
     record_offset: u64,
     index: usize,
-    issues: &mut Issues,
+    log: &mut IssueLog,
 ) -> Result<String, FormatError> {
     let name = usize::try_from(name_offset)
         .ok()
@@ -173,5 +193,10 @@ fn read_name(
     if name.is_empty() {
         return Err(FormatError::corrupt(record_offset, "Entry path is empty"));
     }
-    Ok(decode_path(name, index, issues).replace('/', "\\"))
+    let path = decode_path(name, index, log);
+    Ok(if path.contains('/') {
+        path.replace('/', "\\")
+    } else {
+        path.into_owned()
+    })
 }

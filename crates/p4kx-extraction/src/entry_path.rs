@@ -68,11 +68,22 @@ fn is_plain_name(part: &str) -> bool {
 fn is_device_name(part: &str) -> bool {
     let stem = part.split('.').next().unwrap_or(part).trim_end();
     let upper = stem.to_ascii_uppercase();
-    match upper.as_bytes() {
-        b"CON" | b"PRN" | b"AUX" | b"NUL" | b"CONIN$" | b"CONOUT$" => true,
-        [b'C', b'O', b'M', digit] | [b'L', b'P', b'T', digit] => digit.is_ascii_digit(),
-        _ => false,
+    if matches!(
+        upper.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) {
+        return true;
     }
+    let numbered = upper
+        .strip_prefix("COM")
+        .or_else(|| upper.strip_prefix("LPT"));
+    numbered.is_some_and(|number| {
+        let mut characters = number.chars();
+        matches!(
+            (characters.next(), characters.next()),
+            (Some('0'..='9' | '\u{B9}' | '\u{B2}' | '\u{B3}'), None)
+        )
+    })
 }
 
 #[cfg(test)]
@@ -138,6 +149,9 @@ mod tests {
             "nul.txt",
             "a\\Com1.log",
             "lpt9",
+            "COM\u{B9}",
+            "a\\com\u{B2}.txt",
+            "LPT\u{B3}",
             "CONOUT$",
             "",
         ] {

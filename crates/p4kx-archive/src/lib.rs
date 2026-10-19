@@ -35,4 +35,4 @@ pub use data_error::DataError;
 pub use entry::Entry;
 pub use entry_reader::EntryReader;
 pub use error::ArchiveError;
-pub use issue::EntryIssue;
+pub use issue::{EntryIssue, MAX_ENTRY_ISSUES};

@@ -9,15 +9,6 @@ pub(crate) enum DataStart {
     Direct(u64),
 }
 
-impl DataStart {
-    /// Returns the offset of the local header or of the data.
-    pub(crate) const fn offset(self) -> u64 {
-        match self {
-            Self::LocalHeader(offset) | Self::Direct(offset) => offset,
-        }
-    }
-}
-
 /// One file inside an Archive, as described by the central directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
@@ -25,12 +16,30 @@ pub struct Entry {
     pub(crate) compressed_size: u64,
     pub(crate) uncompressed_size: u64,
     pub(crate) checksum: Checksum,
-    pub(crate) data: DataStart,
+    pub(crate) data_offset: u64,
     pub(crate) compression: Compression,
+    pub(crate) index: u32,
     pub(crate) encrypted: bool,
+    pub(crate) local_header: bool,
 }
 
 impl Entry {
+    /// Returns where the stored data begins.
+    pub(crate) const fn data(&self) -> DataStart {
+        if self.local_header {
+            DataStart::LocalHeader(self.data_offset)
+        } else {
+            DataStart::Direct(self.data_offset)
+        }
+    }
+
+    /// Returns the position of the Entry in [`Archive::entries`](crate::Archive::entries) of the
+    /// Archive or container it was read from.
+    #[must_use]
+    pub const fn index(&self) -> usize {
+        self.index as usize
+    }
+
     /// Returns the path of the Entry inside the Archive, with backslash separators as stored; the
     /// Entries of a container always use backslashes.
     #[must_use]

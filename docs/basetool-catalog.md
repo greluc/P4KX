@@ -156,7 +156,10 @@ is `null`. `en` and `de` are its texts from the Archive's `global.ini` of that l
 | `de` | `Data\Localization\german_(germany)\global.ini` |
 
 Each line `key=value` of a `global.ini` holds one text. Keys match without the leading `@` and
-ignoring case; a suffix after a comma (`ASD_01,P`) is not part of the key. The text is the rest of
+ignoring case; a suffix after a comma (`ASD_01,P`) is not part of the key. When a `global.ini`
+holds both `key=` and `key,P=`, the lookup keeps both lines and uses the text of the plain key,
+unless that is empty and the suffixed one is not (the Archive's LIVE `global.ini` files hold no
+such pair; English has 13,504 `,P` keys, all without a plain twin). The text is the rest of
 the line as the game stores it, except that the escape `\n` becomes a line feed; markup, a lone
 carriage return and every other sequence stay as they are.
 
@@ -170,7 +173,8 @@ A key the language's `global.ini` lacks or holds with an empty text (`key=`), or
 Archive holds no `global.ini` for, leaves that text `null` and keeps the key, so the basetool can
 resolve it later; it counts as unresolved.
 
-The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` (ignoring case,
+The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and `@blank_space`
+(the game's filler for an empty line, which Records use 372 times; ignoring case,
 `PLACEHOLDER_KEYS` in `crates/p4kx-localization/src/lookup.rs`) mean "no text": the key stays,
 `en` and `de` are `null` even where the `global.ini` holds a text for them such as
 `<= PLACEHOLDER =>`, and they count as placeholders, neither resolved nor unresolved.

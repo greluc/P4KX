@@ -333,8 +333,8 @@ unresolved texts of every language.
 ```
 
 `key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
-`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
-`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER`,
+`@LOC_UNINITIALIZED` and `@blank_space`, which stand for no text) or `missing`. `text_language` and `text` are `null`
 for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
 the command with exit code 2.
 

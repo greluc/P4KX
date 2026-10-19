@@ -11,15 +11,34 @@ pub const MAX_GLOBAL_INI_KEYS: usize = 1 << 20;
 
 const BYTES_PER_KEY_ESTIMATE: usize = 128;
 
+/// The texts of one key: the line `key=` and the line `key,suffix=`.
+#[derive(Debug, Clone, Copy, Default)]
+struct Texts<'a> {
+    plain: Option<&'a str>,
+    suffixed: Option<&'a str>,
+}
+
+impl<'a> Texts<'a> {
+    fn preferred(self) -> Option<&'a str> {
+        match (self.plain, self.suffixed) {
+            (Some(plain), _) if !plain.is_empty() => Some(plain),
+            (_, Some(suffixed)) if !suffixed.is_empty() => Some(suffixed),
+            (plain, suffixed) => plain.or(suffixed),
+        }
+    }
+}
+
 /// The texts of one language's `global.ini`, indexed by localisation key.
 ///
 /// Every line `key=value` holds one text; the key ends at the first `=` or `,` (so `ASD_01,P`
 /// is the key `ASD_01`) and the value is the rest of the line, kept as the game stores it. Lines
 /// without `=` or with an empty key are skipped without ending the read, and of two lines with
-/// the same key the later one wins. Texts are borrowed from the parsed text.
+/// the same key the later one wins. A key with a comma suffix keeps its own text beside the
+/// plain key's: [`GlobalIni::resolve`] prefers the plain key's text and
+/// [`GlobalIni::resolve_suffixed`] returns the other. Texts are borrowed from the parsed text.
 #[derive(Debug, Clone)]
 pub struct GlobalIni<'a> {
-    texts: HashMap<Key<'a>, &'a str>,
+    texts: HashMap<Key<'a>, Texts<'a>>,
     skipped: usize,
 }
 
@@ -52,10 +71,13 @@ impl<'a> GlobalIni<'a> {
         for line in text.split('\n') {
             let line = line.strip_suffix('\r').unwrap_or(line);
             let key = line.split_once('=').and_then(|(key, value)| {
-                let key = key.split_once(',').map_or(key, |(key, _)| key).trim();
-                (!key.is_empty()).then_some((key, value))
+                let (key, suffixed) = key
+                    .split_once(',')
+                    .map_or((key, false), |(key, _)| (key, true));
+                let key = key.trim();
+                (!key.is_empty()).then_some((key, value, suffixed))
             });
-            let Some((key, value)) = key else {
+            let Some((key, value, suffixed)) = key else {
                 skipped += usize::from(!line.trim().is_empty());
                 continue;
             };
@@ -64,17 +86,36 @@ impl<'a> GlobalIni<'a> {
                     limit: MAX_GLOBAL_INI_KEYS,
                 });
             }
-            texts.insert(Key(key), value);
+            let slot: &mut Texts<'a> = texts.entry(Key(key)).or_default();
+            if suffixed {
+                slot.suffixed = Some(value);
+            } else {
+                slot.plain = Some(value);
+            }
         }
         Ok(Self { texts, skipped })
     }
 
     /// Returns the text of the localisation `key`, with or without its leading `@`, ignoring
     /// ASCII case; `None` when the file has no such key.
+    ///
+    /// When the file holds both `key=` and `key,P=`, the plain key's text is returned, unless it
+    /// is empty and the suffixed one is not.
     #[must_use]
     pub fn resolve(&self, key: &str) -> Option<&'a str> {
+        self.texts_of(key)?.preferred()
+    }
+
+    /// Returns the text of the line `key,suffix=` of the localisation `key`, with or without its
+    /// leading `@`, ignoring ASCII case; `None` when the file has no such line.
+    #[must_use]
+    pub fn resolve_suffixed(&self, key: &str) -> Option<&'a str> {
+        self.texts_of(key)?.suffixed
+    }
+
+    fn texts_of(&self, key: &str) -> Option<Texts<'a>> {
         let key = key.strip_prefix('@').unwrap_or(key);
-        let texts: &HashMap<Key<'_>, &'a str> = &self.texts;
+        let texts: &HashMap<Key<'_>, Texts<'a>> = &self.texts;
         texts.get(&Key(key)).copied()
     }
 
@@ -85,7 +126,9 @@ impl<'a> GlobalIni<'a> {
     /// Returns every key with its text, in no particular order; a key is spelled as its first
     /// line spells it.
     pub fn iter(&self) -> impl Iterator<Item = (&'a str, &'a str)> {
-        self.texts.iter().map(|(key, &text)| (key.0, text))
+        self.texts
+            .iter()
+            .filter_map(|(key, texts)| Some((key.0, texts.preferred()?)))
     }
 
     /// Returns the number of keys.

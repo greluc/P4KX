@@ -60,6 +60,15 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

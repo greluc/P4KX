@@ -814,6 +814,23 @@
     "focusRingOffset": -3,
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
+  "xmlPreview": {
+    "dsClass": "previewPanel + hexRow",
+    "rowHeight": 20,
+    "fontSize": 12.8,
+    "fontWeight": "fw-regular",
+    "tabular": false,
+    "textColor": "color-gray-1",
+    "lineNumberColor": "color-gray-2-text",
+    "escapeColor": "color-gray-2-text",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the lines; arrows, Page Up, Page Down, Home and End scroll",
+    "gutterPaddingX": 12.8,
+    "background": "surface-panel",
+    "longLines": "cut after 1024 characters with an ellipsis, one horizontal scroll",
+    "truncated": "note in color-warning above the lines, like the truncated Text tab",
+    "messages": "converting with the inline spinner, too large color-gray-1, failure color-danger-text"
+  },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},
     "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},

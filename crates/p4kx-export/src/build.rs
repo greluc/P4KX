@@ -8,26 +8,25 @@ use p4kx_extraction::{
 };
 use rayon::prelude::*;
 
+use crate::collected::{Collected, Picked};
 use crate::contract::{
-    BuildSource, Catalog, Completeness, KindCompleteness, Manufacturer, SCHEMA_VERSION, Source,
+    BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
-use crate::manufacturer::manufacturer;
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
-use crate::{
-    BuiltCatalog, CatalogError, CatalogOptions, CatalogProgress, CatalogSummary, Kind, KindSummary,
-};
+use crate::{BuiltCatalog, CatalogError, CatalogOptions, CatalogProgress, CatalogSummary, Kind};
 
 const PROGRESS_STEP: usize = 1024;
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
 ///
-/// Every Record is checked in parallel: a kind takes the Records under its record-path prefix
-/// whose struct is its type and, with a Filter, whose record path the Filter matches; of those,
-/// development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)) are counted as skipped.
-/// Names and descriptions resolve in the English and German `global.ini`; a key or a language
-/// the Archive lacks leaves that text `null` and is counted in the summary. Entities are ordered
-/// by the text of their GUID, so equal input and export time give byte-identical JSON.
+/// Every Record is checked in parallel: a kind takes the Records under one of its record-path
+/// prefixes whose struct is its type and, with a Filter, whose record path the Filter matches;
+/// of those, development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)) are counted as
+/// skipped. Names and descriptions resolve in the English and German `global.ini`; a key or a
+/// language the Archive lacks leaves that text `null` and is counted in the summary. An item's
+/// class is read from the `Class:` line of its English description. Entities are ordered by the
+/// text of their GUID, so equal input and export time give byte-identical JSON.
 ///
 /// # Errors
 ///
@@ -64,44 +63,36 @@ pub fn build_catalog_from(
     let forge = entry.open().map_err(CatalogError::DataForge)?;
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;
-    let picked = Scan::run(&forge, options, &texts)?;
+    let collected = Collected::new(Scan::run(&forge, options, &texts)?);
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
-    let mut manufacturers = Vec::new();
-    let mut skipped = 0_usize;
-    for pick in picked {
-        match pick {
-            Picked::Manufacturer(entity) => manufacturers.push(entity),
-            Picked::Skipped => skipped += 1,
-        }
-    }
-    manufacturers.sort_by_cached_key(|entity| entity.guid.text());
     let completeness = options.filter.map_or(KindCompleteness::Complete, |filter| {
         KindCompleteness::Partial {
             filter: filter.as_str(),
         }
     });
-    let summary = vec![KindSummary {
-        kind: Kind::Manufacturers,
-        count: manufacturers.len(),
-        skipped,
-        complete: matches!(completeness, KindCompleteness::Complete),
-    }];
+    let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
+    let item_classes = collected.item_classes;
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
         completeness: Completeness {
             manufacturers: completeness,
+            items: completeness,
+            ships: completeness,
         },
-        manufacturers,
+        manufacturers: collected.manufacturers,
+        items: collected.items,
+        ships: collected.ships,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
     json.push(b'\n');
     Ok(BuiltCatalog {
         summary: CatalogSummary {
-            kinds: summary,
+            kinds,
             texts: texts.summary(),
+            item_classes,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
         json,
@@ -122,12 +113,6 @@ fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
         tool_version: env!("CARGO_PKG_VERSION"),
         exported_at: utc_rfc3339(exported_at),
     }
-}
-
-/// A Record a kind selected.
-enum Picked<'f> {
-    Manufacturer(Manufacturer<'f>),
-    Skipped,
 }
 
 /// The parallel check of every Record, with its progress.
@@ -172,22 +157,25 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             guid: record.guid(),
             source,
         };
-        let rule = Kind::Manufacturers.rule();
         let path = record.record_path().map_err(failed)?;
-        let selected = rule.matches_path(path)
-            && self
-                .options
-                .filter
-                .is_none_or(|filter| filter.matches(path))
-            && record.type_name().map_err(failed)? == rule.type_name;
-        if !selected {
+        let Some(kind) = Kind::by_path(path) else {
+            return Ok(None);
+        };
+        if record.type_name().map_err(failed)? != kind.rule().type_name {
+            return Ok(None);
+        }
+        if self
+            .options
+            .filter
+            .is_some_and(|filter| !filter.matches(path))
+        {
             return Ok(None);
         }
         if is_leftover(path, record.name().map_err(failed)?) {
-            return Ok(Some(Picked::Skipped));
+            return Ok(Some(Picked::Skipped(kind)));
         }
         let tree = trees.build(record).map_err(failed)?;
-        Ok(Some(Picked::Manufacturer(manufacturer(&tree, self.texts))))
+        Ok(Some(Picked::entity(kind, &tree, self.texts)))
     }
 
     fn tick(&self) {

@@ -1,14 +1,28 @@
 use std::collections::{BTreeMap, HashMap};
 
 use crate::GfxError;
-use crate::assets::{Assets, TagCount, TagFailure, UnknownTag};
+use crate::assets::{Assets, OtherDefinition, TagCount, TagFailure, UnknownTag};
 use crate::bitmap::{read_external, read_jpeg, read_lossless, read_sub_image};
 use crate::font::{FontFormat, read_compacted_font, read_font1, read_font2};
 use crate::font_info::{FontInfo, read_font_info, read_font_name, read_font4};
 use crate::morph::read_morph_shape;
+use crate::place::read_place;
 use crate::shape::{RecordBudget, read_shape};
 use crate::tag::{Tag, TagStream, tag_name};
-use crate::timeline::{Sprite, Timeline, placed_id, read_exporter_info, read_exports};
+use crate::timeline::{DisplayList, Sprite, Timeline, placed_id, read_exporter_info, read_exports};
+
+/// The definition tags that a placement may name but that are not read: buttons, texts and video.
+const OTHER_DEFINITIONS: [u16; 6] = [7, 11, 33, 34, 37, 60];
+
+/// Applies a `PlaceObject` or `RemoveObject` tag of the first frame to its display list.
+fn read_display_tag(tag: &Tag<'_>, display_list: &mut DisplayList) -> Result<(), GfxError> {
+    match tag.code {
+        4 | 26 | 70 => display_list.place(read_place(tag)?),
+        5 | 28 => display_list.remove(tag)?,
+        _ => {}
+    }
+    Ok(())
+}
 
 /// The deepest nesting of sprites read; a sprite deeper than this is reported as a failure.
 pub const MAX_SPRITE_DEPTH: u32 = 16;
@@ -67,6 +81,7 @@ impl<'a> Walker<'a> {
 
     fn walk(&mut self, data: &'a [u8], base: usize, depth: u32) -> Timeline {
         let mut timeline = Timeline::default();
+        let mut display_list = DisplayList::default();
         let mut stream = TagStream::new(data, base);
         while let Some(next) = stream.next_tag() {
             let tag = match next {
@@ -84,9 +99,13 @@ impl<'a> Walker<'a> {
             timeline.tag_count += 1;
             if let Err(error) = self.read_tag(&tag, &mut timeline, depth) {
                 self.fail(tag.code, tag.offset, error);
+            } else if timeline.frames == 0
+                && let Err(error) = read_display_tag(&tag, &mut display_list)
+            {
+                self.fail(tag.code, tag.offset, error);
             }
         }
-        timeline.finish();
+        timeline.finish(display_list);
         timeline
     }
 
@@ -145,6 +164,15 @@ impl<'a> Walker<'a> {
             56 => assets.exports.extend(read_exports(tag)?),
             1000 => assets.exporter_info = Some(read_exporter_info(tag)?),
             39 => self.read_sprite(tag, depth)?,
+            9 => {
+                assets.background.get_or_insert(tag.reader().rgb()?);
+            }
+            code if OTHER_DEFINITIONS.contains(&code) => {
+                assets.other_definitions.push(OtherDefinition {
+                    id: tag.reader().u16()?,
+                    code,
+                });
+            }
             code if tag_name(code).is_none() => assets.unknown_tags.push(UnknownTag {
                 code,
                 offset: tag.offset,

@@ -44,6 +44,10 @@ so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::re
 and returns early when it gives `None`. A timing test that must not share the cores with other tests
 gets its own test file.
 
+The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
+of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
+when the variable is unset.
+
 ## Plan and decisions
 
 - [docs/ROADMAP.md](docs/ROADMAP.md): product decisions and milestones M1–M14.

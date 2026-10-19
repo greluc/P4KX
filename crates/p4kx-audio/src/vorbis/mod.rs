@@ -19,7 +19,7 @@ use self::setup::Setup;
 use self::validate::{Decoder, Fit};
 use crate::riff::{Chunk, Chunks};
 use crate::wem::playing_time;
-use crate::{AudioError, ByteOrder, Codec, OggWriter, Wem};
+use crate::{AudioError, ByteOrder, Codec, Loop, OggWriter, Wem};
 
 pub(crate) const HEADER_IDENT: u8 = 1;
 pub(crate) const HEADER_COMMENT: u8 = 3;
@@ -43,6 +43,9 @@ pub struct OggReport {
     pub size: u64,
     /// The codebooks the Vorbis setup header was rebuilt with; `None` for Opus.
     pub codebooks: Option<Codebooks>,
+    /// The loop the `LOOPSTART` and `LOOPLENGTH` comments hold, `None` for a sound without a
+    /// loop that fits the stream.
+    pub loop_points: Option<Loop>,
 }
 
 impl OggReport {
@@ -66,6 +69,7 @@ pub(crate) struct RebuiltSound<'a> {
     stream: Stream<'a>,
     ident: [u8; 30],
     comment: Vec<u8>,
+    loop_points: Option<Loop>,
     setup_header: Vec<u8>,
     setup: Setup,
     decoder: Decoder,
@@ -86,6 +90,9 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// every candidate that decodes gives mostly clipped samples, the first of them is taken.
     /// Granule positions count the samples of every packet, the first audio packet ends its own
     /// page at granule 0, and the last page is trimmed to the sample count of the WEM.
+    ///
+    /// The loop of a looping sound that fits the stream becomes the `LOOPSTART` and `LOOPLENGTH`
+    /// comments, in frames after the Opus pre-skip; the sound is written once.
     ///
     /// # Errors
     ///
@@ -114,6 +121,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             sample_count,
             size,
             codebooks: Some(sound.codebooks),
+            loop_points: sound.loop_points,
         })
     }
 
@@ -122,15 +130,22 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let stream = self.vorbis_stream()?;
         let ident = stream.header.ident_packet();
         let mut comment = Vec::new();
-        header::comment_packet(&mut comment);
+        header::comment_packet(None, &mut comment);
         let mut setup_header = Vec::new();
         let (codebooks, setup, decoder) =
             stream.choose_codebooks(&ident, &comment, &mut setup_header)?;
         let sample_count = stream.sample_count(&setup)?;
+        let loop_points = self
+            .loop_points()
+            .filter(|points| points.fits(sample_count));
+        if loop_points.is_some() {
+            header::comment_packet(loop_points, &mut comment);
+        }
         Ok(RebuiltSound {
             stream,
             ident,
             comment,
+            loop_points,
             setup_header,
             setup,
             decoder,

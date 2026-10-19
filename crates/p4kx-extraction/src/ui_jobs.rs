@@ -8,7 +8,7 @@ use p4kx_gfx::{Assets, Bitmap, BitmapSource, GfxError, MorphShape, RgbaImage, Sh
 use crate::budget::{Budget, Lease};
 use crate::output_file::{write_error, write_replacing};
 use crate::ui_external::open_external;
-use crate::{ConversionError, UiAssetKind, UiMovie, WrittenUiAsset};
+use crate::{ConversionError, Texture, UiAssetKind, UiMovie, WrittenUiAsset};
 
 /// A definition, or a bitmap with the sub-images that cut it, written by one parallel job.
 pub(crate) enum Job<'b, 'c> {
@@ -170,6 +170,18 @@ impl UiMovie<'_> {
         outcomes
     }
 
+    /// Decodes the first mip of the texture of the external image `id`.
+    pub(crate) fn texture_image(
+        &self,
+        id: u16,
+        texture: &Texture<'_>,
+    ) -> Result<RgbaImage, ConversionError> {
+        let decoded = texture.decode_mip(0)?;
+        let (width, height) = (decoded.width(), decoded.height());
+        RgbaImage::from_pixels(width, height, decoded.into_pixels())
+            .map_err(|source| self.asset_error(id, source))
+    }
+
     fn decode_bitmap<'b>(
         &self,
         assets: &Assets<'_>,
@@ -182,11 +194,7 @@ impl UiMovie<'_> {
                 let texture = open_external(self, bitmap.id, image)?;
                 let header = texture.header();
                 let lease = budget.take(u64::from(header.width()) * u64::from(header.height()));
-                let decoded = texture.decode_mip(0)?;
-                let (width, height) = (decoded.width(), decoded.height());
-                let image =
-                    RgbaImage::from_pixels(width, height, decoded.into_pixels()).map_err(gfx)?;
-                Ok((image, lease))
+                Ok((self.texture_image(bitmap.id, &texture)?, lease))
             }
             BitmapSource::SubImage(_) => Err(self.cut_error(bitmap)),
             BitmapSource::Lossless(_) | BitmapSource::Jpeg(_) => {

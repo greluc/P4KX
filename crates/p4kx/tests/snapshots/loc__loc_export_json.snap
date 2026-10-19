@@ -1,0 +1,11 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: text
+---
+{"languages":["en","de","ja"],"entries":[
+{"key":"item_DescRifle","texts":{"en":"Shoots.\nWell, \"very\" well.","de":"Schießt.\nGut.","ja":null}},
+{"key":"item_EmptyGerman","texts":{"en":"Filled","de":"","ja":null}},
+{"key":"item_NameRifle","texts":{"en":"Rifle","de":"Gewehr","ja":"ライフル"}},
+{"key":"item_OnlyEnglish","texts":{"en":"Only in English","de":null,"ja":null}},
+{"key":"LOC_EMPTY","texts":{"en":"","de":null,"ja":null}}
+]}

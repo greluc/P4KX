@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: json
+---
+{"key":"item_OnlyEnglish","language":"de","fallback":"en","status":"fallback","text_language":"en","text":"Only in English"}

@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 
 use p4kx_archive::{Archive, ArchiveError, Entry};
-use p4kx_localization::{GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_SIZE};
+use p4kx_localization::{GlobalIni, IniText, Language, LocalizationError, MAX_GLOBAL_INI_SIZE};
 use rayon::prelude::*;
 use thiserror::Error;
 
@@ -9,12 +9,12 @@ use crate::entry_path::same_entry_path;
 
 const INITIAL_RESERVE: u64 = 16 << 20;
 
-/// The bytes of a language's `global.ini` Entry, read into memory.
+/// The text of a language's `global.ini` Entry, read into memory and decoded to UTF-8.
 #[derive(Debug)]
 pub struct LocalizationEntry {
     language: Language,
     path: String,
-    bytes: Vec<u8>,
+    text: IniText<'static>,
 }
 
 impl LocalizationEntry {
@@ -29,6 +29,14 @@ impl LocalizationEntry {
     pub fn read(archive: &Archive, language: Language) -> Result<Self, LocalizationLoadError> {
         let entry =
             Self::locate(archive, language).ok_or(LocalizationLoadError::Missing { language })?;
+        Self::read_entry(archive, language, entry)
+    }
+
+    pub(crate) fn read_entry(
+        archive: &Archive,
+        language: Language,
+        entry: &Entry,
+    ) -> Result<Self, LocalizationLoadError> {
         let path = entry.path().to_owned();
         let size = entry.uncompressed_size();
         if size > MAX_GLOBAL_INI_SIZE {
@@ -51,10 +59,14 @@ impl LocalizationEntry {
         if let Err(source) = read {
             return Err(LocalizationLoadError::Read { path, source });
         }
+        let text = IniText::decode_vec(bytes).map_err(|source| LocalizationLoadError::Decode {
+            path: path.clone(),
+            source,
+        })?;
         Ok(Self {
             language,
             path,
-            bytes,
+            text,
         })
     }
 
@@ -66,6 +78,21 @@ impl LocalizationEntry {
             .entries()
             .par_iter()
             .find_first(|entry| same_entry_path(entry.path(), wanted))
+    }
+
+    /// Returns the languages the Archive holds a `global.ini` Entry for, in the order of
+    /// [`Language::ALL`].
+    #[must_use]
+    pub fn languages(archive: &Archive) -> Vec<Language> {
+        let found: Vec<Language> = archive
+            .entries()
+            .par_iter()
+            .filter_map(|entry| Language::from_global_ini_path(entry.path()))
+            .collect();
+        Language::ALL
+            .into_iter()
+            .filter(|language| found.contains(language))
+            .collect()
     }
 
     /// Returns the language.
@@ -80,13 +107,19 @@ impl LocalizationEntry {
         &self.path
     }
 
+    /// Returns the decoded text of the file.
+    #[must_use]
+    pub const fn text(&self) -> &IniText<'static> {
+        &self.text
+    }
+
     /// Indexes the file's texts by localisation key.
     ///
     /// # Errors
     ///
-    /// Returns a [`LocalizationError`] when the file is not UTF-8 or exceeds a limit.
+    /// Returns a [`LocalizationError`] when the file exceeds a limit.
     pub fn parse(&self) -> Result<GlobalIni<'_>, LocalizationError> {
-        GlobalIni::parse(&self.bytes)
+        self.text.index()
     }
 }
 
@@ -117,6 +150,24 @@ pub enum LocalizationLoadError {
         path: String,
         /// The uncompressed size the Archive gives.
         size: u64,
+    },
+    /// The Entry's bytes cannot be decoded to text.
+    #[error("cannot decode the Entry {path}")]
+    Decode {
+        /// The Entry path.
+        path: String,
+        /// The failed decoding.
+        #[source]
+        source: LocalizationError,
+    },
+    /// The Entry's text cannot be indexed.
+    #[error("cannot index the Entry {path}")]
+    Index {
+        /// The Entry path.
+        path: String,
+        /// The failed indexing.
+        #[source]
+        source: LocalizationError,
     },
     /// The Entry cannot be opened in the Archive.
     #[error(transparent)]

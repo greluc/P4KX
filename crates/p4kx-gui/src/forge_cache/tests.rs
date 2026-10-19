@@ -99,3 +99,91 @@ fn checking_the_archive_does_not_wait_for_a_read_of_dataforge_and_the_read_is_dr
     assert_eq!(again.1, 2, "the next read is counted");
     Ok(())
 }
+
+#[test]
+fn a_schema_built_after_the_cache_was_cleared_is_not_stored_for_the_new_state() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    let source = index
+        .forge()
+        .read(&index, || {})
+        .map_err(ReadFailure::into_reason)?;
+
+    index.forge().clear();
+    let built = source.schema().map_err(ReadFailure::into_reason)?;
+
+    assert!(source.schema_if_built().is_some(), "the old copy keeps it");
+    assert!(
+        index.forge().schema().is_none(),
+        "nothing for the new state"
+    );
+    assert_eq!(
+        index.forge().schema_builds(),
+        0,
+        "no build is counted for it"
+    );
+    assert!(!index.forge().is_read(), "the cache stays empty");
+    drop(built);
+    Ok(())
+}
+
+#[test]
+fn the_schema_is_built_once_when_threads_ask_at_the_same_moment() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    let barrier = std::sync::Barrier::new(8);
+
+    thread::scope(|scope| {
+        for _ in 0..8 {
+            scope.spawn(|| {
+                barrier.wait();
+                super::ForgeCache::prepare_schema(&index, || {});
+            });
+        }
+    });
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while index.forge().schema().is_none() {
+        if Instant::now() > deadline {
+            return Err("the schema was not built".into());
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    thread::sleep(Duration::from_millis(100));
+
+    assert_eq!(index.forge().schema_builds(), 1, "built once");
+    assert_eq!(index.forge().reads(), 1, "read once");
+    Ok(())
+}
+
+#[test]
+fn the_schema_is_tried_once_per_generation_of_the_cache() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    assert!(index.forge().schema_unattempted(), "never tried");
+
+    super::ForgeCache::prepare_schema(&index, || {});
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while index.forge().schema().is_none() {
+        if Instant::now() > deadline {
+            return Err("the schema was not built".into());
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(!index.forge().schema_unattempted(), "built");
+
+    index.forge().clear();
+    assert!(
+        index.forge().schema_unattempted(),
+        "cleared, so tried again"
+    );
+    Ok(())
+}

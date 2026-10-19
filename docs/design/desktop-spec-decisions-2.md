@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.29
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.30
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -106,3 +106,36 @@ Zelle abgeschnitten, wenn sie zu schmal ist. Platzhalter und leere Schlüssel bl
 über der Faktenleiste den Grund, und die Vorschau zeigt nur Schlüssel. Ein Sprachwechsel lässt die
 Vorschau stehen, bis die neue Fassung fertig ist. Keine neuen Maße (`recordPreview.keyText` im JSON
 der Spec).
+
+**D.30 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
+öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
+Struct-Namen nach `from` und in `[…]` (der Typ der Elemente, seine Basen und alles, was davon
+erbt), Feldnamen am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in
+`color-gray-2-text`. Die Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der
+Editor mehrzeilig ist und ein Name mitten im Text ergänzt wird; reicht der Platz darunter nicht,
+klappt sie über die Zeile. Weil sie nicht am Feld hängt, trägt sie den 1-px-Rand in
+`color-primary` auf allen vier Seiten, nicht `border-top: none` der Combobox unter einem Feld;
+sonst sind Farben, Einträge und Schatten die der Combobox. Der getippte Anfang ist fett wie
+`<mark>`, der per Tastatur gewählte Eintrag orange gefüllt, Hover wie im Dropdown. Der Fokus
+bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen das ganze Wort um die
+Schreibmarke, Esc schließt, Strg+Leertaste öffnet wieder; steht der gewählte Name schon so da,
+bricht Enter die Zeile wie ohne Liste. Höchstens 50 Namen stehen in der Liste, darunter „n weitere
+Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
+der Editor den Fokus bekommt, einmal je Archiv, und einmal je Cache-Stand noch einmal, wenn der
+Editor den Fokus hat und kein Schema da ist (nach einem Fehler oder „Neu laden"); bis dahin, und
+wo kein Name passt, bleibt die Liste zu, statt einen leeren Zustand zu zeigen. Sie öffnet sich
+nicht von selbst, wenn das Schema ankommt, außer Tippen oder Strg+Leertaste fanden es fehlend;
+bei geschlossener Liste bewegt Tab den Fokus weiter. „Abfrage speichern …" ist Ghost neben der CTA
+„Abfrage ausführen" (D.7, D.15). Die gespeicherten Abfragen stehen darunter als aufgeklappter
+`.panel-header` mit 36-px-Zeilen: Name fett, nach 240 px mit Auslassung, dahinter die Abfrage
+einzeilig in `color-gray-2-text`. Die Liste ist eine fokussierbare Rollfläche („Gespeicherte
+Abfragen", D.27), ihre Zeilen bleiben eigene Tabulatorziele; die Vervollständigungsliste nimmt nie
+den Fokus, der gewählte Eintrag rollt mit ↑ und ↓ in Sicht. Ohne gespeicherte Abfrage steht
+unter dem Kopf ein Satz in `color-gray-2-text`, der sagt, wie man eine speichert, kein `.empty-state`: der Abschnitt ist
+klein und der Editor darüber die Aktion. Ein Klick auf die Zeile lädt und startet sie;
+„Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
+die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem
+`.krt-modal` ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in
+`color-gray-2-text`) und sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt
+in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
+und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.

@@ -1,11 +1,16 @@
 use std::ops::Range;
 
 use crate::bank_reader::SectionReader;
+use crate::hirc_node::{self, Container};
 use crate::{BankError, SectionId};
 
 const OBJECT_HEADER_LEN: usize = 5;
 const ID_LEN: usize = 4;
 const FIRST_SOUND_CACHE_ID_VERSION: u32 = 150;
+const CONTAINER_VERSION: u32 = 154;
+const PLUGIN_TYPE_MASK: u32 = 0x0F;
+const SOURCE_PLUGIN_TYPE: u32 = 2;
+const PLAY_ACTION_GROUP: u16 = 0x04;
 const LAST_FIXED_EVENT_COUNT_VERSION: u32 = 122;
 
 /// The type of a `HIRC` object, from its type byte.
@@ -128,6 +133,15 @@ pub struct SoundSource {
     pub in_memory_size: u32,
 }
 
+impl SoundSource {
+    /// Returns whether the source is a plug-in that generates the sound, e.g. silence or a tone,
+    /// so that no WEM holds it.
+    #[must_use]
+    pub const fn is_source_plugin(&self) -> bool {
+        self.plugin_id & PLUGIN_TYPE_MASK == SOURCE_PLUGIN_TYPE
+    }
+}
+
 /// The action of an Action object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ActionTarget {
@@ -135,6 +149,14 @@ pub struct ActionTarget {
     pub action_type: u16,
     /// The ID of the object the action is aimed at.
     pub target_id: u32,
+}
+
+impl ActionTarget {
+    /// Returns whether the action plays its target, action types `0x04xx`.
+    #[must_use]
+    pub const fn is_play(&self) -> bool {
+        self.action_type >> 8 == PLAY_ACTION_GROUP
+    }
 }
 
 /// What this reader decodes from the body of a `HIRC` object.
@@ -146,9 +168,12 @@ pub enum HircValue {
     Action(ActionTarget),
     /// An Event object's actions, in order.
     Event(Vec<u32>),
-    /// Any other object, or a Sound of an older bank version; its body is kept raw.
+    /// A random, sequence, switch or blend container's children, in bank version 154.
+    Container(Container),
+    /// Any other object, or a Sound or container of another bank version; its body is kept raw.
     Raw,
-    /// A Sound, Action or Event whose body does not hold its fields; its body is kept raw.
+    /// A Sound, Action, Event or container whose body does not hold its fields; its body is kept
+    /// raw.
     Malformed(BankError),
 }
 
@@ -254,6 +279,13 @@ fn value(
                 actions.push(fields.u32()?);
             }
             HircValue::Event(actions)
+        }
+        HircKind::RandomSequenceContainer
+        | HircKind::SwitchContainer
+        | HircKind::LayerContainer
+            if version == CONTAINER_VERSION =>
+        {
+            HircValue::Container(hirc_node::container(kind, fields)?)
         }
         _ => HircValue::Raw,
     })

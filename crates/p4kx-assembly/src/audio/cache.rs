@@ -28,8 +28,13 @@ impl<'a> ArchiveAudio<'a> {
     }
 
     /// Returns the audio index, building it on the first call; later calls, from any thread,
-    /// return the same index.
+    /// return the same index. Callers racing the first call may each build one; the first
+    /// stored wins and the others are dropped.
     pub fn index(&self) -> &AudioIndex {
-        self.index.get_or_init(|| AudioIndex::build(self.archive))
+        if let Some(index) = self.index.get() {
+            return index;
+        }
+        let built = AudioIndex::build(self.archive);
+        self.index.get_or_init(|| built)
     }
 }

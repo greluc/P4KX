@@ -8,6 +8,17 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
+  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
+  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
+  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
+  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
+  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
+  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
+  children.
+- Query tab: completion of struct and field names from the DataForge schema while typing, after
+  `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
+  settings, run with one click, renamed and deleted.
 - Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
   and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
 

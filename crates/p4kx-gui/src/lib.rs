@@ -76,8 +76,8 @@ pub use preview::{
     XmlStatus, is_wem_path,
 };
 pub use query::{
-    CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
-    QueryStage, QueryStatus, QueryTab, ResultColumn,
+    CellLook, NameNote, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid,
+    QueryResult, QueryStage, QueryStatus, QueryTab, ResultColumn, SavedDialog,
 };
 pub use record_export::{
     FailedRecord, RECORD_FORMS, RecordExport, RecordExportProgress, RecordExportSetup,

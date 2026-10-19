@@ -104,6 +104,10 @@ _Avoid_: broken link, missing Reference
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
 
+**Saved Query**:
+A Query kept under a unique name in the settings file, rerun from the Query tab with one click.
+_Avoid_: favourite, bookmark, preset
+
 **Condition**:
 The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
 a Record has to meet to be selected.
@@ -210,6 +214,18 @@ _Avoid_: trigger (an Audio trigger is the game's name for it)
 The Audio triggers of every ATL definition and the Wwise events of every Soundbank of one
 Archive, read once while the Archive is open and joined by Wwise short ID.
 _Avoid_: sound database, audio cache
+
+**Sound variant**:
+One Sound object an Audio trigger may play, reached from a Wwise event through Play actions and
+random, sequence, switch and blend containers; it has a WEM ID, a source (embedded, prefetched,
+streamed or a plug-in) and a container path from the Event object to the Sound object.
+_Avoid_: sound file, variation
+
+**Broken link**:
+A place where the way from a Wwise event to a WEM ends without a sound: an object the soundbank
+lacks, cannot read or does not follow, a cycle, or a limit of the walk; named by the object where
+it breaks.
+_Avoid_: missing sound, unresolved trigger
 
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.

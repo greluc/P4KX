@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use crate::bytes::put_u32;
-use crate::dataforge_builder::{Writer, guid_bytes};
+use crate::dataforge_builder::Writer;
 use crate::dataforge_schema::{TestPool, TestProperty, TestType};
+use crate::dataforge_strings::guid_bytes;
 use crate::{TestInstance, TestValue};
 
 const NULL: u32 = u32::MAX;
@@ -104,7 +105,7 @@ impl Writer<'_> {
     fn defaults(&self, index: u32, depth: usize) -> Vec<u8> {
         let size = self.sizes.get(index as usize).copied().unwrap_or(0) as usize;
         let mut bytes = vec![0; size];
-        let Some(depth) = depth.checked_sub(1) else {
+        let Some(depth) = depth.checked_sub(1).filter(|_| size > 0) else {
             return bytes;
         };
         for slot in self.slots(index as usize) {
@@ -231,6 +232,7 @@ impl Writer<'_> {
             name: String::new(),
             ty: ty.clone(),
             array: false,
+            flags: 0,
         };
         let first = if let TestType::Class(name) = ty {
             let index = self.lookup(name);

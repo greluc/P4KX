@@ -32,7 +32,8 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// for one or two channels, `WAVE_FORMAT_EXTENSIBLE` with the channel mask for more. PCM is
     /// copied, IMA ADPCM and PTADPCM are decoded. A trailing partial frame or block is dropped.
     /// Wwise Vorbis is rebuilt as for [`Wem::write_ogg`] and decoded to the same sample count,
-    /// the channels in the order of the WEM.
+    /// the channels in the order of the WEM. Opus is decoded at 48 kHz, its pre-skip dropped and
+    /// its streams mapped to the speaker order of the WEM's channel mask.
     ///
     /// # Errors
     ///
@@ -43,12 +44,15 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// [`Wem::write_ogg`] before writing anything, and [`AudioError::InvalidVorbis`] with
     /// [`VorbisError::Undecodable`](crate::VorbisError::Undecodable) when the decoder fails on a
     /// packet or [`VorbisError::MissingSamples`](crate::VorbisError::MissingSamples) when it
-    /// gives fewer frames than the stream counts, after part of the WAV is written.
+    /// gives fewer frames than the stream counts, after part of the WAV is written. For Opus it
+    /// returns [`AudioError::InvalidOpus`] for a malformed header or packet before writing
+    /// anything, and for a packet the decoder fails on after part of the WAV is written.
     pub fn write_wav(&self, out: &mut impl Write) -> Result<WavReport, AudioError> {
         match self.codec() {
             Codec::Pcm => self.write_pcm_wav(out),
             Codec::ImaAdpcm | Codec::PtAdpcm => self.write_adpcm_wav(out),
             Codec::Vorbis => self.write_vorbis_wav(out),
+            Codec::Opus => self.write_opus_wav(out),
             codec => Err(AudioError::UnsupportedCodec(codec)),
         }
     }

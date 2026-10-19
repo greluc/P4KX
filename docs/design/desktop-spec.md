@@ -82,6 +82,7 @@ sind keine neuen Farben.
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
 | Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
+| XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 
 ## Entscheidungen
 
@@ -239,6 +240,22 @@ Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht 
 und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" als CTA. Der Balken
 zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
 bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
+
+**D.19 CryXml im Tab „XML".** Ist der gewählte Eintrag CryXml (erkannt an der Signatur, nicht an
+der Endung), bietet die Vorschau den Tab „XML" hinter „Hex" an und öffnet ihn, sobald der Anfang
+gelesen ist; andere Einträge, auch Text-XML, bekommen den Tab nicht und kehren zu „Text" zurück.
+Das umgewandelte XML steht in der Dichte der Hex-Zeile (20 px, 12,8 px, Lato-Standardziffern nach
+ADR-0006, weil egui keine tabellarischen Ziffern schalten kann) mit Zeilennummern in
+`color-gray-2-text` wie der Zeilenvergleich (D.12), ohne Syntaxfarben, weil das DS keine
+Code-Farben kennt. Steuerzeichen erscheinen als Escapes in `color-gray-2-text`, Zeilen enden nach
+1024 Zeichen mit Auslassung und laufen mit einer horizontalen Scrollleiste; gezeichnet werden nur
+die sichtbaren Zeilen. Mit Tab erhält die Zeilenfläche den Fokus (Ring innen −2) und rollt dann mit
+den Pfeiltasten, Bild auf/ab, Pos1 und Ende. Umgewandelt wird im Hintergrund, für Einträge bis
+64 MiB; größere zeigen im Tab den Hinweis mit beiden Größen. Einträge über 256 MiB liest die
+Vorschau gar nicht (Hinweis im Panel-Körper), sie bekommen deshalb auch keinen Tab „XML". Das XML wird
+nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis in `color-warning`
+wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
+„Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

@@ -5,7 +5,7 @@ use std::io::{Cursor, Read, Write};
 
 use lewton::inside_ogg::OggStreamReader;
 
-use p4kx_extraction::{Archive, AudioError, Codec, ConversionError, Entry, Sound, Wem};
+use p4kx_extraction::{Archive, AudioError, Codebooks, Codec, ConversionError, Entry, Sound, Wem};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
@@ -119,6 +119,18 @@ fn convert_sound(archive: &Archive, entry: &Entry) -> Result<String, String> {
                 }
                 return Ok(format!("{ogg} and WAV"));
             }
+            if wem.codec() == Codec::Opus {
+                let ogg = wem
+                    .write_ogg(&mut Vec::new())
+                    .map_err(|error| error.to_string())?;
+                if ogg.sample_count != report.sample_count {
+                    return Err(format!(
+                        "the Ogg plays {} frames, the WAV holds {}",
+                        ogg.sample_count, report.sample_count
+                    ));
+                }
+                return Ok("Opus: Ogg and WAV".to_owned());
+            }
             Ok(format!("{}: WAV", wem.codec()))
         }
         Err(AudioError::UnsupportedCodec(codec)) if codec != Codec::Pcm => {
@@ -182,6 +194,6 @@ fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry, wav: Option<&[u8]>) -> Result<St
     Ok(format!(
         "{}: Ogg with {} codebooks",
         wem.codec(),
-        report.codebooks.id()
+        report.codebooks.map_or("no", Codebooks::id)
     ))
 }

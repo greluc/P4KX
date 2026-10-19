@@ -67,6 +67,28 @@ fn containers_in_folders_that_differ_by_case_or_separator_share_one_folder() -> 
 }
 
 #[test]
+fn a_container_in_a_path_with_an_empty_segment_still_shows_in_the_tree() -> TestResult {
+    let archive = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\\\Odd.socpak", TestContainer::new().build()))
+        .entry(TestEntry::stored("Data\\Even.xml", "x"));
+    let (_dir, _, mut model) = opened(&archive)?;
+    let data = node(&model, "Data")?;
+    browser_mut(&mut model)?.toggle_expanded(data);
+
+    let browser = browser(&model)?;
+    let names: Vec<&str> = browser
+        .tree_rows()
+        .iter()
+        .map(|row| browser.node_name(row.node))
+        .collect();
+    assert!(
+        names.contains(&"Odd.socpak"),
+        "the container sits in the nearest valid folder: {names:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn folders_inside_a_container_fold_case_and_separators() -> TestResult {
     let (_dir, _, mut model) = opened(&archive())?;
     for name in ["data", "objects"] {

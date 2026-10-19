@@ -148,8 +148,8 @@ Symbol gibt es nicht, weil das Icon-Set des DS keines für Archive hat; die Endu
 den Container schon. Während er geöffnet wird, stehen hinter dem Namen wie beim DataForge-Knoten
 der Inline-Spinner (14) und „Wird geöffnet …" in `color-gray-2-text`. Lässt er sich nicht öffnen,
 steht dort ein kurzer Hinweis: „Lässt sich nicht öffnen" in `color-danger-text`, weil der Container
-selbst defekt ist; „Nicht geöffnet: Speichergrenze" und „Archiv geändert" in `color-warning` (D.8),
-weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv neu geladen wird. Der volle
+selbst defekt ist; „Nicht geöffnet: Speichergrenze", „Archiv geändert" und „Öffnen abgebrochen"
+in `color-warning` (D.8), weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv neu geladen wird. Der volle
 Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container, der
 sich nicht lesen lässt, und einer nach einer Änderung des Archivs haben keinen Chevron; nach der
 Speichergrenze oder einem abgebrochenen Öffnen bleibt der Chevron, ein erneutes Aufklappen versucht

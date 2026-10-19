@@ -25,7 +25,7 @@ pub(super) fn build(sorted: &[&Entry], tree: &EntryTree) -> Vec<(FolderId, u32)>
         .iter()
         .enumerate()
         .filter(|(_, entry)| is_container(entry.path()))
-        .filter_map(|(id, entry)| Some((folder_of(tree, entry.path())?, u32::try_from(id).ok()?)))
+        .filter_map(|(id, entry)| Some((folder_of(tree, entry.path()), u32::try_from(id).ok()?)))
         .collect();
     let name = |id: u32| {
         sorted
@@ -46,11 +46,19 @@ pub(super) fn directly_in(containers: &[(FolderId, u32)], folder: FolderId) -> &
     containers.get(start..end).unwrap_or_default()
 }
 
-fn folder_of(tree: &EntryTree, path: &str) -> Option<FolderId> {
-    let parent = path
+/// Returns the nearest folder of `tree` on the way to the parent of `path`, the root at worst.
+fn folder_of(tree: &EntryTree, path: &str) -> FolderId {
+    let mut parent = path
         .rfind(['\\', '/'])
         .map_or("", |end| path.get(..end).unwrap_or_default());
-    tree.find_folder(parent)
+    loop {
+        if let Some(folder) = tree.find_folder(parent) {
+            return folder;
+        }
+        parent = parent
+            .rfind(['\\', '/'])
+            .map_or("", |end| parent.get(..end).unwrap_or_default());
+    }
 }
 
 #[cfg(test)]

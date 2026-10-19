@@ -118,9 +118,12 @@ pub(crate) fn compare_ignoring_case(a: &str, b: &str) -> Ordering {
         .cmp(b.bytes().map(|byte| byte.to_ascii_lowercase()))
 }
 
-/// Returns the file name of an Entry path, the part after the last backslash.
+/// Returns the file name of an Entry path, the part after the last backslash or slash.
 pub(crate) fn file_name(path: &str) -> &str {
-    path.rsplit(['\\', '/']).next().unwrap_or(path)
+    path.bytes()
+        .rposition(|byte| byte == b'\\' || byte == b'/')
+        .and_then(|separator| path.get(separator + 1..))
+        .unwrap_or(path)
 }
 
 fn compare_names(a: Option<&Entry>, b: Option<&Entry>) -> Ordering {

@@ -123,14 +123,15 @@ impl Sound {
         })
     }
 
-    /// Rebuilds a Wwise Vorbis sound as an Ogg Vorbis file at `out`, replacing it; the file is
-    /// written under a temporary name first, so a failed conversion leaves nothing behind.
+    /// Rebuilds a Wwise Vorbis sound as an Ogg Vorbis file or an Opus sound as an Ogg Opus file at
+    /// `out`, replacing it; the file is written under a temporary name first, so a failed
+    /// conversion leaves nothing behind.
     ///
     /// # Errors
     ///
-    /// Returns [`ConversionError::Audio`] naming the codec when it is not Wwise Vorbis or the
-    /// stream cannot be rebuilt, [`ConversionError::OutputIsInput`] when `out` is the WEM file
-    /// itself, and [`ConversionError::Write`] when the file cannot be written.
+    /// Returns [`ConversionError::Audio`] naming the codec when it is neither Wwise Vorbis nor
+    /// Opus or the stream cannot be rebuilt, [`ConversionError::OutputIsInput`] when `out` is the
+    /// WEM file itself, and [`ConversionError::Write`] when the file cannot be written.
     pub fn write_ogg_to_file(&self, out: &Path) -> Result<OggReport, ConversionError> {
         self.refuse_input_as_output(out)?;
         write_replacing(out, |writer| {

@@ -12,7 +12,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const PCM_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\100.wem";
 const VORBIS_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\200.wem";
-const OPUS_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\300.wem";
+const AAC_ENTRY: &str = "Data\\Sounds\\wwise\\Media\\300.wem";
 const FRAMES: u32 = 24_000;
 
 fn pcm_wem() -> TestWem {
@@ -28,8 +28,8 @@ fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
             TestWem::encoded(TestCodec::Vorbis, 1, 48_000, 72_000).bytes(),
         ))
         .entry(TestEntry::stored(
-            OPUS_ENTRY,
-            TestWem::encoded(TestCodec::Tag(0x3041), 1, 48_000, 960).bytes(),
+            AAC_ENTRY,
+            TestWem::encoded(TestCodec::Tag(0xAAC0), 1, 48_000, 960).bytes(),
         ))
         .write_to(&path)?;
     Ok(path)
@@ -174,13 +174,13 @@ fn wav_of_another_codec_names_it_and_fails() -> TestResult {
     p4kx()?
         .args(["audio", "wav"])
         .arg(&archive)
-        .arg(OPUS_ENTRY)
+        .arg(AAC_ENTRY)
         .arg("--out")
         .arg(&out)
         .assert()
         .code(1)
         .stderr(predicate::str::contains(
-            "converting Opus to WAV is not supported",
+            "converting AAC to WAV is not supported",
         ));
 
     assert!(!out.exists(), "no WAV is written");

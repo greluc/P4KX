@@ -4,6 +4,7 @@
 //! tests can drive it headless.
 
 mod app;
+mod audio;
 mod browser;
 mod channel_list;
 mod comparison;
@@ -29,6 +30,10 @@ mod widgets;
 pub mod window;
 
 pub use app::App;
+pub use audio::{
+    AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
+    StreamGuard,
+};
 pub use browser::{Browser, TreeRow};
 pub use channel_list::ChannelList;
 pub use comparison::{
@@ -49,8 +54,10 @@ pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::{Folder, FolderId};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus, PREVIEW_READ_LIMIT,
-    PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, TextureInfo,
+    AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
+    PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
+    SoundInfo, SoundStatus, TextureInfo, XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlDocument, XmlPreview,
+    XmlStatus, is_wem_path,
 };
 pub use query::{
     CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
@@ -66,6 +73,7 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
+    AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
+    ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
+    XmlText,
 };

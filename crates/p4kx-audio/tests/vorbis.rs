@@ -63,7 +63,7 @@ fn a_vorbis_wem_with_default_codebooks_becomes_a_playable_ogg_of_the_right_lengt
 
     let (ogg, report) = convert(sound.wem().bytes()).unwrap();
 
-    assert_eq!(report.codebooks, Codebooks::Default, "codebooks");
+    assert_eq!(report.codebooks, Some(Codebooks::Default), "codebooks");
     assert_eq!((report.channels, report.sample_rate), (2, 48_000), "format");
     assert_eq!(
         report.sample_count, 4_900,
@@ -112,7 +112,7 @@ fn codebooks_that_fail_validation_fall_back_to_aotuv() {
 
     let (ogg, report) = convert(sound.wem().bytes()).unwrap();
 
-    assert_eq!(report.codebooks, Codebooks::AoTuV, "codebooks");
+    assert_eq!(report.codebooks, Some(Codebooks::AoTuV), "codebooks");
     assert_eq!(
         decode(&ogg).frames,
         64 + 512 + 1024 + 512 + 64,
@@ -126,7 +126,7 @@ fn inline_codebooks_are_used_when_no_library_fits() {
 
     let (ogg, report) = convert(sound.wem().bytes()).unwrap();
 
-    assert_eq!(report.codebooks, Codebooks::Inline, "codebooks");
+    assert_eq!(report.codebooks, Some(Codebooks::Inline), "codebooks");
     assert_eq!(decode(&ogg).frames, 4 * 128, "decoded samples");
 }
 

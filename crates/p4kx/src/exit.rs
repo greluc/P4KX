@@ -71,7 +71,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
-     is corrupt, or the Record of the Entity whose Loadout is shown cannot be read
+     is corrupt, or the Record of the Entity whose Loadout or audio is shown cannot be read
   6  compare: the report or the output cannot be written
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 

@@ -164,6 +164,47 @@ defines and no Loadout names, in definition order. An entry names its Entity by 
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
+## `p4kx entity audio <archive> <entity> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb",
+ "entity": {"guid": "…", "record_path": "…", "name": "EntityClassDefinition.ORIG_890Jump",
+            "class_name": "ORIG_890Jump"},
+ "triggers": [Trigger, …], "counts": {"triggers": 47, "matched": 47, "unmatched": 0},
+ "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. The command reads
+every ATL definition below `Data\Libs\GameAudio\` (text XML or CryXml) and every `.bnk`
+soundbank of the Archive once. `triggers` lists the audio triggers the Entity's Record names
+through `GlobalResourceAudio.audioTrigger` fields, each once (names ignoring ASCII case) in the
+order the Record first names them. `matched` counts the triggers one of whose Wwise events a
+soundbank holds; triggers that reach no soundbank do not change the exit code.
+
+A **Trigger**:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `name` | string | The trigger name as the Record first writes it |
+| `location` | string | The first field naming it, e.g. `Components[3].triggers[0].audioTrigger` |
+| `references` | number | How many fields of the Record name it |
+| `definition` | string or `null` | Path of the ATL definition Entry; `null` when no definition has the trigger |
+| `events` | array | One Event per `WwiseEvent` of the definition, in order |
+| `unmatched` | object or `null` | Why the trigger reaches no soundbank: `kind` and `message` |
+
+An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
+case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
+definition's `wwise_localised`) and `soundbanks`, each with `path` and `language` (the language
+folder below `Sounds\wwise\`, e.g. `English(US)`, or `null`), in path order. `events` holds at most
+the first 256 `WwiseEvent`s of a definition; further ones are left out without an issue.
+
+The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
+definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
+**Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
+(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+`soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
+`--json` each issue is a warning on stderr. New kinds may be added in later versions.
+
 ## `p4kx dcb query <archive> <query> --json`
 
 Without `--out`, the line is the Query result itself in its JSON format, as `--format json`
@@ -311,16 +352,18 @@ codec without a decoder prints no JSON; it fails with exit code 1 and an error n
 Also `p4kx audio ogg <file> --out <file> --json` for a WEM file on disk.
 
 ```json
-{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "channels": 2,
- "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0, "codebooks": "aotuv",
- "size": 9876}
+{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "codec": "vorbis",
+ "channels": 2, "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0,
+ "codebooks": "aotuv", "size": 9876}
 ```
 
-`sample_count` is the number of frames of the Ogg Vorbis stream, the granule position of its last
-page, and `duration_seconds` its playing time. `codebooks` names the codebooks the setup header was
-rebuilt with: `default`, `aotuv` or `inline`. `size` is the size of the written Ogg file. A codec
-other than Wwise Vorbis, or a Vorbis WEM that no codebooks fit, prints no JSON; it fails with exit
-code 1 and an error giving the reason.
+`codec` is `vorbis` for an Ogg Vorbis file rebuilt from Wwise Vorbis and `opus` for an Ogg Opus
+file repackaged from an Opus WEM. `sample_count` is the number of frames the stream plays, the
+granule position of its last page less the pre-skip for Opus, and `duration_seconds` its playing
+time; Opus always plays at 48000 Hz. `codebooks` names the codebooks the Vorbis setup header was
+rebuilt with: `default`, `aotuv` or `inline`; it is `null` for Opus. `size` is the size of the
+written Ogg file. A codec other than Wwise Vorbis and Opus, a Vorbis WEM that no codebooks fit or
+a malformed Opus WEM prints no JSON; it fails with exit code 1 and an error giving the reason.
 
 ## `p4kx bnk list <archive> <entry> --json`
 

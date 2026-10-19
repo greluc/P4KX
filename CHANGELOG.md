@@ -4,7 +4,11 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
-## [Unreleased]
+## [0.2.0]
+
+The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the
+Basetool catalog, the Comparison of two Archives, textures and localisation, and first commands
+for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server.
 
 ### Added
 
@@ -255,7 +259,6 @@ fails while its section is missing.
   is reloaded or changes on disk; an unsupported version or a load error is named on the node. The
   new DataForge tab of the preview shows the version, the numbers of Records, structs and enums and
   the first Records.
-
 - Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
   shortcuts working anywhere in the window.
 - Texture groups in the window: a split texture (`.dds` with `.dds.N` parts and an Alpha tail)

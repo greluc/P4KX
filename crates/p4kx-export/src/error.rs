@@ -1,4 +1,6 @@
-use p4kx_extraction::{DataForgeError, DataForgeLoadError, Guid};
+use p4kx_extraction::{
+    DataForgeError, DataForgeLoadError, Guid, LocalizationError, LocalizationLoadError,
+};
 use thiserror::Error;
 
 /// A Basetool catalog cannot be built.
@@ -19,6 +21,18 @@ pub enum CatalogError {
         /// Why it cannot be read.
         #[source]
         source: DataForgeError,
+    },
+    /// A `global.ini` the Archive holds cannot be read.
+    #[error(transparent)]
+    LoadTexts(LocalizationLoadError),
+    /// A `global.ini` is corrupt or exceeds a limit.
+    #[error("cannot read the localisation file {path}")]
+    Texts {
+        /// The Entry path.
+        path: String,
+        /// Why it cannot be read.
+        #[source]
+        source: LocalizationError,
     },
     /// The catalog cannot be written as JSON.
     #[error("cannot write the catalog as JSON")]

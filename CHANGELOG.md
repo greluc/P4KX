@@ -14,6 +14,17 @@ fails while its section is missing.
   per model node with its transform, one primitive per submesh with positions, normals and
   texture coordinates, and one material per material ID. Unknown chunks are skipped and listed.
   Both commands also take a model file on disk with its companion next to it.
+- `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
+  socpak containers, also nested ones, are read from the Archive without extracting them first,
+  listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
+  Nesting depth, Entry count, decoded size, compression ratio and overlapping Entry data are
+  bounded; a corrupt container fails with exit code 3 and an error naming its Entry.
+- `p4kx chf to-json <file> [--out <file>]` and `p4kx chf from-json <file> --out <file>`: CHF
+  character files as JSON and back. The new `p4kx-character` crate checks magic, size and
+  CRC-32C, decompresses the zstd body and reads its inner versions (7 and 8), body type, face DNA,
+  item ports and material choices; an unchanged JSON gives back the original file byte for byte,
+  an edited one a new file with a correct CRC-32C. Unknown versions and CRC-32C mismatches are
+  errors that name them.
 - `p4kx-mcp`: a read-only MCP server over stdio for AI clients, with the tools `list_channels`,
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
@@ -22,6 +33,19 @@ fails while its section is missing.
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.
+- The Record changes of a Comparison in the window: a Records tab lists every added, removed,
+  moved, changed and unreadable Record with its record path and type, sorted and filtered like the
+  Entries, and a selected Record shows its field changes with old and new value, links by the
+  record path of their target and unreadable values with their reason.
+- The Export menu of the window with **Record export…**: the Records selected in the Record tree
+  or matching a record-path filter as Record JSON, one file per Record or one NDJSON file, into a
+  new or an existing folder with a Conflict policy, in the background with progress, cancel and a
+  summary of the Records written and those with error values. DataForge and the planned files are
+  read once per open Archive and reused by every later export.
+- `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
+  `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
+  the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record
+  as it ends.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -45,11 +69,22 @@ fails while its section is missing.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
   list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
   values holds.
+- `->` in Query paths follows a Reference to the Record it links to, or a weak pointer to its
+  instance, in `select` and `where`, chained and behind array elements, e.g.
+  `AttachDef.Manufacturer->Code` or `escorts[*]->name`. A null or dangling Reference gives null
+  and is counted as unresolved in the result summary; `->` where no Reference stands is marked
+  as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
   the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
+- English and German names and descriptions in the Basetool catalog, resolved from the Archive's
+  `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or
+  language the Archive lacks or an empty text leaves that text `null`, the placeholder keys
+  `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` give no text, and `p4kx catalog`
+  counts resolved, unresolved and placeholder texts per language. A corrupt `global.ini` ends
+  `p4kx catalog` with exit code 3.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust

@@ -71,8 +71,10 @@ sind keine neuen Farben.
 | Archiv-Auswahl | `select` + `.krt-combobox__listbox` | 44 | links 12, rechts 32; min. 260 breit | Beschriftung darüber (Eyebrow); Chevron 10,4 vom rechten Rand | 16 / 400; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Chevron `color-primary` 12; leere Liste `.krt-combobox__notice` kursiv | 1 `control-border`; Fokus und offen `color-primary` | Fokus und offen `glow-primary` | Rahmen + Glow |
 | Faktenleiste | `.facts-bar` | ~32 | x 16, y 8 | 16; Schlüssel→Wert 5 | Schlüssel 9,92 / 700 / 0,08 em; Wert 12,48 / 700 | Schlüssel ja | bg `color-surface-input`, Schlüssel `color-gray-2-text`, Wert `color-white`; Richtungs-Chevron `color-primary` | unten 1 `color-gray-3` | – | – |
 | Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
-| Änderungs-Chip | `.chip--success` / `--danger` / `--warning` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)` | 1 im Farbton, Radius 0 | – | – |
+| Änderungs-Chip | `.chip--success` / `--danger` / `--warning` / `--info` / `--muted` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)`; Verschoben: `color-info`, `color-info-text`, `rgba(53,93,220,0.15)`; Unlesbar: `color-gray-3`, `color-gray-2-text`, transparent | 1 im Farbton, Radius 0 | – | – |
 | Änderungsliste | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Pfad Rest, alte/neue Größe je 150; Verzeichnis-Zähler je 110 | wie Tabelle | Kopf ja | wie Tabelle; fehlende Größe „–" in `color-gray-2-text` | wie Tabelle | – | innen −2 |
+| Record-Liste | Tab-Leiste + Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Record-Pfad Rest, Typ 260 | wie Tabelle | Kopf ja | wie Tabelle; verschoben alter und neuer Pfad mit `chevron-right` 12 `color-primary` dazwischen, Abstand 8 | wie Tabelle | – | innen −2 |
+| Feldänderungen | Vorschau-Panel + Tabellenkopf + Tabellenzeile | 36 | Zelle x 12,8 | drei gleiche Spalten Feld, Alt, Neu | wie Tabelle | Kopf ja | Text `color-gray-1`; Zebra und Hover wie Tabelle; fehlend „–" `color-gray-2-text`; Fehlerwert `color-danger-text`; Anzahl `color-gray-2-text` | unten 1 `color-gray-3` | – | innen −2; Tooltip bei Fokus |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 | Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
 | Abfrage-Editor | `textarea` | 4 Zeilen (112), wächst bis 12 Zeilen (304), dann Scrollleiste | x 12, y 8 | Label darüber (Eyebrow), Aktionen darunter 12 | 16 / 400, Zeilenhöhe 1,5; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Fehlerstelle bg `rgba(163,0,10,0.2)` | 1 `control-border`; Fokus `color-primary`; Fehlerstelle unterstrichen 2 `color-danger` | Fokus `glow-primary` | Rahmen + Glow; Strg+Enter führt aus |
@@ -197,6 +199,47 @@ der Listenfläche des Design-Systems. Die Köpfe der
 Versalien würden `Size` und `size` gleich aussehen lassen. Nur der Kopf „Record-Pfad" ist ein
 Label in Versalien.
 
+**D.16 Record-Änderungen als zweite Liste mit Feldänderungen im Vorschau-Panel.** Wurde die
+Record-Ebene verglichen, steht zwischen Zähler-Kacheln und Listenfläche eine `.tab-nav` mit
+„Einträge" und „Records", jeder Tab mit der Zahl seiner angezeigten Zeilen als `.tab-count`
+(`color-gray-1`, im aktiven Tab `color-accent-light`, 4 px nach dem Label); nur mit der
+Record-Ebene beginnt sie bei „Records". Suchfeld, Anzahl und „Bericht speichern …" bleiben in der
+Toolbar, der Filter wirkt auf beide Listen und trifft einen Record über den Record-Pfad einer der
+beiden Seiten. Die Aktionen „Alt extrahieren" und „Neu extrahieren" aus D.13 gehören zur
+Einträge-Liste: sie extrahieren Einträge, keine Records, und stehen nur, solange „Einträge"
+gewählt ist. Die Record-Liste hat die Spalten Änderung (130), Record-Pfad (Rest) und Typ (260),
+sortierbar wie die Änderungsliste. Verschoben ist `.chip--info` (Text `color-info-text`), Unlesbar
+`.chip--muted`: es ist kein Fehler des Patches, sondern ein Record, der nicht verglichen werden
+konnte, und Danger bleibt Entfernt (D.11). Ein verschobener Record zeigt alten und neuen Pfad mit
+dem orangen `chevron-right` der Faktenleiste dazwischen; für Screenreader heißt es „alt zu neu".
+Passen beide Pfade nicht, enden sie mit Auslassung, der kürzere behält seine Länge. Ein gewählter
+Record öffnet darunter das Panel aus D.12: Pfadzeile mit Chip, rechts die Zahl der Änderungen in
+`color-gray-2-text`, darunter der Tabellenkopf „Feld" | „Alt" | „Neu" in drei gleich breiten
+Spalten und die Feldänderungen als 36-px-Tabellenzeilen mit Zebra und Hover wie die Tabelle, ohne
+Auswahl. Jede Zeile ist per Tab erreichbar, trägt dann den Fokusring (innen −2) und zeigt den vollen
+Text im Tooltip, wie beim Überfahren. Referenzen stehen als Record-Pfad des Ziels, eine Reference
+auf eine Stelle im Record als „Pfad · Stelle"; ein fehlender Wert ist „–" in `color-gray-2-text`,
+ein unlesbarer Wert „Fehler: Grund" in `color-danger-text`. Ein geänderter Name oder Typ des
+Records steht als eigene Zeile vor den Feldern. Hinzugefügte, entfernte und nur verschobene Records
+zeigen statt der Zeilen einen Satz im Panel-Körper, unlesbare den Grund je Seite in
+`color-danger-text`. Die Feldänderungen werden erst für den gewählten Record im Hintergrund erneut
+verglichen, von einem Arbeits-Thread je Vergleich, der beide DataForges offen hält und nur die
+neueste Anfrage beantwortet; die Liste hält nur Pfade und Typen.
+
+**D.17 Export-Menü und Record-Export-Dialog.** Ein eigenes Menü „Export" rechts von „Archiv"
+sammelt die Exporte aus DataForge; ein Export ist keine Extraktion von Einträgen (CONTEXT.md),
+deshalb steht er nicht im Archiv-Menü. „Record-Export …" ist gesperrt, solange das Archiv kein
+DataForge hat oder DataForge nicht geladen werden konnte, und während ein Record-Export läuft.
+Der Dialog ist wie „Einträge extrahieren" ein breites Modal (D.3) mit drei Gruppen: Records
+(Auswahl im Record-Baum mit Name und Anzahl, oder Filter nach Record-Pfad im Suchfeld-Muster;
+Tippen in das Feld wählt den Filter), Form (JSON oder NDJSON als Radios) und Ziel (wie bei der
+Extraktion, mit Konfliktregel für einen vorhandenen Ordner). Die eine CTA heißt „Export
+starten", nicht „Exportieren", damit sie sich vom Menü „Export" unterscheidet, auch für
+Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht modal (D.3, D.7)
+und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" als CTA. Der Balken
+zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
+bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |
@@ -215,7 +258,7 @@ Label in Versalien.
 | Zeilenvergleich in Lato statt Monospace, Tabs als vier Leerzeichen | einzige Schrift Lato; beide Seiten richten sich an den Zeilen aus, nicht an Spalten |
 | Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
-| DataForge-Übersicht und Record-Suche: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
+| DataForge-Übersicht, Record-Suche und Feldänderungen des Vergleichs: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |
 | Zahlenspalten der Abfrage rechtsbündig ohne tabellarische Ziffern | egui kann OpenType-Merkmale wie `tnum` nicht einschalten; rechtsbündig stehen gleich lange Zahlen trotzdem untereinander |
 | Abfrage-Editor 4 Zeilen statt `textarea`-Standardhöhe, Fehlerstelle als Hinterlegung mit Unterstrich | egui kennt keine `rows`-Vorgabe mit eigener Zeilenhöhe; DS hat keine Fehlermarkierung im Text, Farben aus `.alert-danger` |

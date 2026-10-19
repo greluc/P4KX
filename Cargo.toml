@@ -18,12 +18,14 @@ p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
 p4kx-channels = { path = "crates/p4kx-channels" }
+p4kx-character = { path = "crates/p4kx-character" }
 p4kx-chunks = { path = "crates/p4kx-chunks" }
 p4kx-dataforge = { path = "crates/p4kx-dataforge" }
 p4kx-comparison = { path = "crates/p4kx-comparison" }
 p4kx-cryxml = { path = "crates/p4kx-cryxml" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-export = { path = "crates/p4kx-export" }
+p4kx-localization = { path = "crates/p4kx-localization" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
 p4kx-texture = { path = "crates/p4kx-texture" }
@@ -34,6 +36,7 @@ assert_cmd = "2.2.2"
 bcdec_rs = "0.2.0"
 cbc = "0.2.1"
 crc32c = "0.6.8"
+crc32fast = "1.5.2"
 ctrlc = "3.5.2"
 clap = { version = "4.6.7", features = ["derive"] }
 dirs = "7.0.0"

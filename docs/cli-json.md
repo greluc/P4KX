@@ -181,25 +181,36 @@ With `--out <file>`, the result in `--format` (`json` by default) goes to the fi
 gets the summary:
 
 ```json
-{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0,
+ "unresolved_references": 2}
 ```
 
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+`unresolved_references` counts the null or dangling links that `->` met in the `select` paths
+ of the rows written, each link once per row ([query.md](query.md#following-references)); they
+reach `null` and change no exit code.
 
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 1061001, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}], "skipped": 2}
+ "complete": true}], "skipped": 2, "texts": [{"language": "en", "available": true,
+ "resolved": 2240, "unresolved": 8, "placeholder": 154}, {"language": "de", "available": true,
+ "resolved": 2132, "unresolved": 116, "placeholder": 154}], "unresolved": 124}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them.
+them. `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+counts per text occurrence, so a key that several names or descriptions share counts once for
+each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
+language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
+for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
+unresolved texts of every language.
 
 ## `p4kx channels --json`
 
@@ -347,6 +358,23 @@ fail; with `--format wem` a prefetched start is written as the bank holds it and
 `"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
+## `p4kx socpak list <archive> <container…> --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k",
+ "containers": ["Data\\ObjectContainers\\Ships\\AEGS\\ship_interior.socpak",
+                "ship_interior\\modules\\cockpit.socpak"],
+ "entries": [Entry, …]}
+```
+
+`containers` names the container Entry in the Archive, then each container inside the one before,
+with the paths as they are stored. `entries` holds the Entries of the last container in directory
+order; folder Entries are left out.
+
+## `p4kx socpak extract <archive> <container…> --json`
+
+The report of `p4kx extract … --json`, for the Entries of the last container.
+
 ## `p4kx chunks list <archive> <entry> --json`
 
 Also `p4kx chunks list <file> --json` for a chunk file on disk.
@@ -481,7 +509,7 @@ code is 0 without and 1 with differences on any compared level.
 | `filter` | string or `null` | The Filter that selected the Entries by path and the Records by the record path of either side |
 | `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
-| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and `crc32c` for the sides that have it |
+| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
 | `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
 | `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
@@ -543,10 +571,10 @@ The line diff of one Entry, with three unchanged lines of context around each ch
 | Field | Type | Meaning |
 |-------|------|---------|
 | `path` | string | The Entry path as the new side stores it, the old side for a removed Entry |
-| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and CRC-32C from the central directories |
-| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or CRC-32C, or with differing lines; it decides the exit code |
+| `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and checksum from the central directories |
+| `differs` | boolean | Whether the Entry differs: added, removed, changed in size or checksum, or with differing lines; it decides the exit code |
 | `content` | string | `text`; `binary` when a side holds a NUL byte, or starts with a UTF-16 byte order mark but does not decode as UTF-16 without NUL characters; `too_large` when a side, or the XML converted from it, is larger than 128 MiB or has more than 4 194 304 lines |
-| `old`, `new` | object or `null` | `size`, `crc32c` and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
+| `old`, `new` | object or `null` | `size`, the checksum (`crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive) and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
 | `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator, for display with invalid UTF-8 replaced by U+FFFD; the last line of a side may have none) |
 
 A missing side is diffed as empty text. Lines are compared by their bytes, so a change in bytes
@@ -568,3 +596,38 @@ side holds at most 128 MiB of text and about 9 bytes of bookkeeping per line.
 `format` is the signature, `CryXmlB`, `CryXml` or `CRY3SDK`, or `text` for text XML written
 unchanged; `byte_order` is `little`, `big`, or `null` for text XML. `--json` needs `--out`,
 because the XML would otherwise share stdout with the JSON; without it the exit code is 2.
+
+## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
+
+```json
+{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934}
+```
+
+`versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
+JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
+the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
+
+### The CHF JSON
+
+`to-json` writes, and `from-json` reads, one indented object. `from-json` of an unchanged
+`to-json` output gives back the original file byte for byte (ADR-0014); any other value gives a
+new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
+code 2; a JSON file larger than 1 MiB is not read (exit code 3).
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `character.versions` | object | `female` (supported: 2) and `male` (supported: 7, 8); from 8 on the body ends with a zero `u32` |
+| `character.body_type`, `character.voice` | string | GUIDs in the form DataForge prints them; the voice is all zeros when none is chosen |
+| `character.dna` | object or `null` | `null` in a CHF that holds only materials, as the game's presets do; otherwise `gender_hash`, `variant_hash`, `blends_per_part`, `header_unknown`, `max_head_id` and `face_parts`: one object per face part in stored order, `part` naming it (`eyebrow_left`, `eyebrow_right`, `eye_left`, `eye_right`, `nose`, `ear_left`, `ear_right`, `cheek_left`, `cheek_right`, `mouth`, `jaw`, `crown`, `neck`, then `part_<n>`) and `blends` with exactly `blends_per_part` objects `{value, head_id}` |
+| `character.item_ports` | object or `null` | `null` when the CHF holds no ports; otherwise the root port: `port` (name hash), `item` (GUID), `tail_count` (a count the layout keeps, as read) and `children`, the same objects, omitted when empty; at most 32 levels |
+| `character.item_port_tail` | number | The `u32` the layout keeps behind the port count, in a CHF without ports the number of materials; omitted when 0 |
+| `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
+| `container.flags` | number | The two header bytes behind the magic |
+| `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+
+Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
+hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is
+written back with exactly the bits it was read with. `container` and each of its fields may be
+left out; without `frame` the body is always compressed anew.
+

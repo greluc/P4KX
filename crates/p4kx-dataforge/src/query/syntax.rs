@@ -147,15 +147,24 @@ pub enum Segment {
         /// Where the brackets stand in the Query.
         span: Span,
     },
+    /// `->` and a field by name: the field of the Record or instance a Reference or weak pointer
+    /// links to.
+    Follow {
+        /// Where the `->` stands in the Query.
+        arrow: Span,
+        /// The field name.
+        name: Name,
+    },
 }
 
 impl Segment {
-    /// Returns where the segment stands in the Query: the name of a field, the brackets of the
-    /// others.
+    /// Returns where the segment stands in the Query: the name of a field, `->` with its name, the
+    /// brackets of the others.
     #[must_use]
     pub const fn span(&self) -> Span {
         match self {
             Self::Field(name) => name.span,
+            Self::Follow { arrow, name } => arrow.to(name.span),
             Self::Index { span, .. } | Self::All(span) | Self::Type { span, .. } => *span,
         }
     }
@@ -173,6 +182,7 @@ impl Segment {
             Self::Index { index, .. } => format!("[{index}]"),
             Self::All(_) => "[*]".to_owned(),
             Self::Type { name, .. } => format!("[{}]", name.text),
+            Self::Follow { name, .. } => format!("->{}", name.text),
         }
     }
 }
@@ -229,6 +239,7 @@ impl fmt::Display for Path {
                 Segment::Index { index, .. } => write!(f, "[{index}]")?,
                 Segment::All(_) => f.write_str("[*]")?,
                 Segment::Type { name, .. } => write!(f, "[{name}]")?,
+                Segment::Follow { name, .. } => write!(f, "->{name}")?,
             }
         }
         Ok(())

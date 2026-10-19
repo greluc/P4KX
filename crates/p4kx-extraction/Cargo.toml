@@ -20,8 +20,10 @@ p4kx-gltf.workspace = true
 p4kx-model.workspace = true
 p4kx-dataforge.workspace = true
 p4kx-cryxml.workspace = true
+p4kx-localization.workspace = true
 p4kx-texture.workspace = true
 crc32c.workspace = true
+crc32fast.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 

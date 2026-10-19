@@ -140,3 +140,25 @@ fn closing_the_summary_dismisses_the_extraction() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn the_summary_window_ends_below_its_close_button() -> TestResult {
+    let (_dir, _out, mut harness) = opened()?;
+    harness.get_by_label("Extract shown…").click();
+    settle(&mut harness);
+    harness.get_by_label("Existing folder").click();
+    settle(&mut harness);
+    harness.get_by_label("Extract").click();
+    settle(&mut harness);
+    harness.get_by_label("Extract whole Archive").click();
+    wait_until(&mut harness, ended)?;
+
+    let window = harness.get_by_label("Extraction finished").rect();
+    let close = harness.get_by_label("Close").rect();
+
+    assert!(
+        window.max.y - close.max.y < 40.0,
+        "no empty space under the foot: window {window:?}, Close {close:?}"
+    );
+    Ok(())
+}

@@ -39,6 +39,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Container**:
+An Entry that is itself a plain ZIP archive, e.g. a `.socpak`, opened in place and read like an
+Archive; it may hold further containers.
+_Avoid_: nested archive, sub-archive, pak
+
 **Filter**:
 Text that selects Entries by path: a glob over the full path when it holds `*` or `?`, otherwise
 a substring anywhere in the path; case and separator kind do not matter.
@@ -90,6 +95,11 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Unresolved Reference**:
+A null or dangling link that a Query path follows with `->`; it reaches null and is counted
+ once per row in the Query result, however many paths of the row meet it.
+_Avoid_: broken link, missing Reference
+
 **Query**:
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
@@ -107,6 +117,12 @@ _Avoid_: type filter, cast
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML
+
+**Localisation key**:
+The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
+resolves to one text per language in that language's `global.ini` Entry
+(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+_Avoid_: loc string, text id
 
 ### Assets
 
@@ -172,6 +188,15 @@ _Avoid_: sound package, audio archive
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
 
+**CHF**:
+A 4096-byte character file holding a Character's body type, face DNA, worn item ports and
+material choices, saved by the character customiser or shipped in the Archive.
+_Avoid_: character preset, head file
+
+**DNA**:
+The face of a Character in a CHF: for every face part, weighted blends of stock heads.
+_Avoid_: face data, morph values
+
 **Cubemap face**:
 One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as
 `posx` … `negz`.
@@ -205,7 +230,8 @@ _Avoid_: unpack, export (an Export is something else)
 
 **Conflict policy**:
 What an Extraction does with a file already in the target folder: skip it, overwrite it, or
-overwrite it only if changed (size or CRC-32C differs from the Entry or the converted Record).
+overwrite it only if changed (its size or the Entry's checksum differs from the Entry, or its size or
+CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Conversion**:

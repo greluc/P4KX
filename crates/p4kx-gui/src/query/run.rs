@@ -3,7 +3,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 
-use p4kx_extraction::query::{ColumnKind, Query};
+use p4kx_extraction::query::{ColumnKind, Query, QueryRun};
 use p4kx_extraction::{CancelToken, DataForgeEntry, QUERY_PAGE_SIZE};
 use rayon::prelude::*;
 
@@ -146,35 +146,9 @@ fn query_over(
         .iter()
         .map(ColumnKind::is_multi_valued)
         .collect();
-    let run = compiled.run();
-    let total = run.len();
-    let mut rows = Vec::with_capacity(total);
-    let mut failed = 0_u64;
-    set(QueryStage::Reading { done: 0, total });
-    for page in run.pages(QUERY_PAGE_SIZE) {
-        if cancel.is_cancelled() {
-            return Outcome::Cancelled;
-        }
-        let built: Vec<Option<ResultRow>> = page
-            .par_iter()
-            .map_init(String::new, |buffer, row| {
-                ResultRow::of(row, &lists, buffer)
-            })
-            .collect();
-        for row in built {
-            match row {
-                Some(row) => rows.push(row),
-                None => failed = failed.saturating_add(1),
-            }
-        }
-        let done = rows
-            .len()
-            .saturating_add(usize::try_from(failed).unwrap_or(usize::MAX));
-        set(QueryStage::Reading { done, total });
-    }
-    if cancel.is_cancelled() {
+    let Some(read) = read_rows(&compiled.run(), &lists, cancel, set) else {
         return Outcome::Cancelled;
-    }
+    };
     let columns = compiled
         .columns()
         .iter()
@@ -183,8 +157,60 @@ fn query_over(
         .collect();
     Outcome::Finished(Box::new(QueryResult::new(
         (text, columns),
-        rows,
-        failed,
+        read.rows,
+        (read.failed, read.unresolved),
         (Arc::clone(source.entry), source.archive.to_path_buf()),
     )))
+}
+
+/// The rows a run built, the Records that gave none and the unresolved References in the rows.
+struct Read {
+    rows: Vec<ResultRow>,
+    failed: u64,
+    unresolved: u64,
+}
+
+/// Builds the rows of `run` page by page, `lists` telling which columns hold lists; `None` once
+/// cancelled.
+fn read_rows(
+    run: &QueryRun<'_, '_>,
+    lists: &[bool],
+    cancel: &CancelToken,
+    set: &impl Fn(QueryStage),
+) -> Option<Read> {
+    let total = run.len();
+    let mut read = Read {
+        rows: Vec::with_capacity(total),
+        failed: 0,
+        unresolved: 0,
+    };
+    set(QueryStage::Reading { done: 0, total });
+    for page in run.pages(QUERY_PAGE_SIZE) {
+        if cancel.is_cancelled() {
+            return None;
+        }
+        let built: Vec<Option<(ResultRow, usize)>> = page
+            .par_iter()
+            .map_init(String::new, |buffer, row| {
+                ResultRow::of(row, lists, buffer).map(|built| (built, row.unresolved_references()))
+            })
+            .collect();
+        for row in built {
+            match row {
+                Some((row, links)) => {
+                    read.rows.push(row);
+                    read.unresolved = read
+                        .unresolved
+                        .saturating_add(u64::try_from(links).unwrap_or(u64::MAX));
+                }
+                None => read.failed = read.failed.saturating_add(1),
+            }
+        }
+        let done = read
+            .rows
+            .len()
+            .saturating_add(usize::try_from(read.failed).unwrap_or(usize::MAX));
+        set(QueryStage::Reading { done, total });
+    }
+    (!cancel.is_cancelled()).then_some(read)
 }

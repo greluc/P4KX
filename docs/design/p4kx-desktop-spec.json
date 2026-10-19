@@ -609,6 +609,13 @@
     "position": "list-panel toolbar, left of the shown count and Save report; wraps onto its own right-aligned toolbar row when the search field would get less than 260",
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
+  },
+  "recordExport": {
+    "menu": "Export menu link after Archive, metrics menuLink, its entry dropdownItem; disabled without a DataForge and while a Record export runs",
+    "setup": "modal wide: groups Records (radio tree selection with name and count, radio Record path filter over a searchField), Form (radio JSON, radio NDJSON), Target (as the Extraction setup); bodyGroupGap between groups",
+    "cta": "buttonCta Start export; Close is buttonGhost",
+    "progress": "non-modal modal frame, width 440: spinner while DataForge is read and Records are chosen, then progressBar with done of total; Cancel buttonGhost alone in the foot",
+    "summary": "non-modal modal frame, width 600: cancel note in color-warning, counts and target in color-gray-1, failed Records as collapsibleSection rows with the reason in color-danger-text; Close buttonCta alone in the foot; no target line when none was created"
   },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
@@ -642,7 +649,7 @@
     "valueColor": "color-white"
   },
   "changeChip": {
-    "dsClass": "chip chip--success / chip--danger / chip--warning",
+    "dsClass": "chip chip--success / chip--danger / chip--warning / chip--info / chip--muted",
     "paddingX": 8,
     "paddingY": 2.4,
     "fontSize": 11.2,
@@ -652,7 +659,9 @@
     "radius": "radius-none",
     "added": {"border": "color-success", "text": "color-success-text", "fill": "rgba(35,158,51,0.12)"},
     "removed": {"border": "color-danger", "text": "color-danger-text", "fill": "rgba(163,0,10,0.15)"},
-    "changed": {"border": "color-warning", "text": "color-warning", "fill": "rgba(255,210,63,0.12)"}
+    "changed": {"border": "color-warning", "text": "color-warning", "fill": "rgba(255,210,63,0.12)"},
+    "moved": {"border": "color-info", "text": "color-info-text", "fill": "rgba(53,93,220,0.15)"},
+    "unreadable": {"border": "color-gray-3", "text": "color-gray-2-text", "fill": "transparent"}
   },
   "changeTable": {
     "rows": "tableRow",
@@ -660,6 +669,31 @@
     "columns": {"change": 130, "path": "fill", "oldSize": 150, "newSize": 150},
     "directoryColumns": {"directory": "fill", "count": 110},
     "missingSize": "– in color-gray-2-text"
+  },
+  "listTabs": {
+    "dsClass": "tab-nav",
+    "position": "between the summary and the list panel, only once the Record level was compared",
+    "metrics": "tabBar",
+    "tabs": ["Entries", "Records"],
+    "tabCount": {"dsClass": "tab-count", "gap": 4, "color": "color-gray-1", "activeColor": "color-accent-light", "value": "shown rows of the list"},
+    "entryActions": "the changeExtraction actions only while Entries is shown"
+  },
+  "recordTable": {
+    "rows": "tableRow",
+    "header": "tableHeader + sortIndicator",
+    "columns": {"change": 130, "path": "fill", "type": 260},
+    "movedPath": "old and new record path with the facts bar chevron-right (12, color-primary) between them, gap 8; read as old to new",
+    "chips": "changeChip: added, removed, moved, changed, unreadable"
+  },
+  "recordFields": {
+    "panel": "previewPanel below the Record list once a Record is selected, as lineDiff",
+    "pathLine": "previewPanel pathLine with the changeChip after the record path; the number of changes right in color-gray-2-text",
+    "header": "tableHeader Field | Old | New",
+    "columns": "three equal columns",
+    "rows": "tableRow with zebra and hover, without selection; focusable with focusRing offsetRow, the full text as tooltip on hover and focus",
+    "missingValue": "– in color-gray-2-text",
+    "errorValue": "Error: reason in color-danger-text",
+    "messages": "previewPanel body: added, removed, moved and equal in color-gray-1, unreadable sides and failures in color-danger-text"
   },
   "queryEditor": {
     "dsClass": "textarea",

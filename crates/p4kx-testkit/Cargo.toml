@@ -15,6 +15,7 @@ layer = "testkit"
 aes.workspace = true
 cbc.workspace = true
 crc32c.workspace = true
+crc32fast.workspace = true
 flate2.workspace = true
 gltf = { workspace = true, features = ["names"] }
 half.workspace = true

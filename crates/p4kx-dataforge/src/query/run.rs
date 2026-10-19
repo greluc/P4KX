@@ -133,6 +133,7 @@ pub struct Row<'f> {
     record: Record<'f>,
     record_path: &'f str,
     cells: Result<Vec<Option<Value<'f>>>, DataForgeError>,
+    unresolved: usize,
 }
 
 impl<'f> Row<'f> {
@@ -158,17 +159,25 @@ impl<'f> Row<'f> {
     pub fn cells(&self) -> Result<&[Option<Value<'f>>], &DataForgeError> {
         self.cells.as_deref()
     }
+
+    /// Returns how many distinct links the columns followed with `->` to no Record or instance:
+    /// null or dangling References and null weak pointers, each counted once however many
+    /// columns reach it.
+    #[must_use]
+    pub const fn unresolved_references(&self) -> usize {
+        self.unresolved
+    }
 }
 
 impl<'f> CompiledQuery<'f> {
     fn row(&self, index: u32) -> Option<Row<'f>> {
         let record = self.forge.record(index)?;
         let record_path = self.forge.path_of(index)?;
+        let mut state = WalkState::new();
         let cells = match self.plan_of(index)? {
             _ if self.columns.is_empty() && self.predicate.is_none() => Ok(Vec::new()),
             Plan::Broken(error) => Err(error.clone()),
             Plan::Read { columns, .. } => self.instance_of(index).map(|place| {
-                let mut state = WalkState::new();
                 columns
                     .iter()
                     .map(|column| Some(column.as_ref()?.cell(self.forge, place, &mut state)))
@@ -179,6 +188,7 @@ impl<'f> CompiledQuery<'f> {
             record,
             record_path,
             cells,
+            unresolved: state.unresolved(),
         })
     }
 

@@ -41,7 +41,10 @@ fn loadout_structs() -> Vec<TestStruct> {
         TestStruct::new("SItemPortLoadoutEntryParams")
             .field("itemPortName", TestType::String)
             .field("entityClassName", TestType::String)
-            .field("entityClassReference", TestType::Reference)
+            .field(
+                "entityClassReference",
+                TestType::ReferenceTo("EntityClassDefinition".to_owned()),
+            )
             .field("loadout", pointer("SItemPortLoadoutBaseParams")),
     ]
 }
@@ -69,7 +72,10 @@ fn port_structs() -> Vec<TestStruct> {
                 "AttachmentImplementation",
                 pointer("SItemPortDefAttachmentImplementationBase"),
             ),
-        TestStruct::new("SItemPortDefaultItemDef").field("entityClass", TestType::Reference),
+        TestStruct::new("SItemPortDefaultItemDef").field(
+            "entityClass",
+            TestType::ReferenceTo("EntityClassDefinition".to_owned()),
+        ),
         TestStruct::new("SItemPortDefTypes")
             .field("Type", TestType::String)
             .array("SubTypes", TestType::String),

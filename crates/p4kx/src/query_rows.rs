@@ -3,15 +3,18 @@ use std::io::{self, Write};
 use p4kx_extraction::query::{QueryRun, Row};
 use p4kx_extraction::{QUERY_PAGE_SIZE, Value};
 
-/// The number of rows written and of Records whose row failed.
+/// The number of rows written, of Records whose row failed and of the unresolved References in
+/// the rows written.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct Counts {
     pub(crate) records: u64,
     pub(crate) failed: u64,
+    pub(crate) unresolved: u64,
 }
 
 impl Counts {
-    /// Returns `<n> Records<after>`, followed by `, <m> failed` when a Record failed.
+    /// Returns `<n> Records<after>`, followed by `, <m> failed` when a Record failed and by
+    /// `, <k> unresolved References` when `->` met a null or dangling Reference.
     pub(crate) fn line(&self, after: &str) -> String {
         let noun = if self.records == 1 {
             "Record"
@@ -23,7 +26,12 @@ impl Counts {
         } else {
             format!(", {} failed", self.failed)
         };
-        format!("{} {noun}{after}{failed}", self.records)
+        let unresolved = match self.unresolved {
+            0 => String::new(),
+            1 => ", 1 unresolved Reference".to_owned(),
+            count => format!(", {count} unresolved References"),
+        };
+        format!("{} {noun}{after}{failed}{unresolved}", self.records)
     }
 }
 
@@ -43,6 +51,9 @@ pub(crate) fn for_each_row(
             if let Ok(cells) = row.cells() {
                 write(row, cells)?;
                 counts.records = counts.records.saturating_add(1);
+                counts.unresolved = counts
+                    .unresolved
+                    .saturating_add(u64::try_from(row.unresolved_references()).unwrap_or(u64::MAX));
             } else {
                 counts.failed = counts.failed.saturating_add(1);
                 report_failed(row);

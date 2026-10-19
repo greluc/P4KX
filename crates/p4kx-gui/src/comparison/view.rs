@@ -8,6 +8,8 @@ use super::ComparisonSide;
 use super::diff::EntryDiff;
 use super::filter_job::{self, FilterJob, Matched, Polled, Started};
 use super::orders::{ChangeColumn, ChangeOrders, ChangeSort};
+use super::record_list::RecordChangeList;
+use super::record_view::{ComparisonList, RecordChangeView};
 use super::report::{self, ReportJob, ReportStatus};
 use super::selection::{ChangeSelection, selected_len};
 use crate::SortDirection;
@@ -66,18 +68,32 @@ pub struct ComparisonView {
     diff: Option<EntryDiff>,
     reveal: bool,
     report: Option<ReportJob>,
+    records: Option<RecordChangeView>,
+    list: ComparisonList,
 }
 
 impl ComparisonView {
-    /// Prepares `comparison` for display, or returns `None` once `cancel` is set; this sorts
-    /// every change several times and belongs on a background thread.
-    pub(crate) fn new(comparison: Arc<OwnedComparison>, cancel: &CancelToken) -> Option<Self> {
+    /// Prepares `comparison` and its Record changes `records` for display, or returns `None`
+    /// once `cancel` is set; this sorts every change several times and belongs on a background
+    /// thread.
+    pub(crate) fn new(
+        comparison: Arc<OwnedComparison>,
+        records: Option<RecordChangeList>,
+        cancel: &CancelToken,
+    ) -> Option<Self> {
         let orders = ChangeOrders::build(&comparison);
         if cancel.is_cancelled() {
             return None;
         }
         let totals = Summary::of(&comparison.comparison());
+        let list = if comparison.levels().entries || records.is_none() {
+            ComparisonList::Entries
+        } else {
+            ComparisonList::Records
+        };
         let mut view = Self {
+            records: records.map(RecordChangeView::new),
+            list,
             generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
             revision: 0,
             comparison,
@@ -141,8 +157,11 @@ impl ComparisonView {
 
     /// Filters the list by `text` with the rules of the search on a background thread, calling
     /// `wake` from it once the result is ready; empty text shows every change at once.
-    pub fn set_filter(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
+    pub fn set_filter(&mut self, text: &str, wake: impl Fn() + Clone + Send + 'static) {
         text.clone_into(&mut self.filter_text);
+        if let Some(records) = &mut self.records {
+            records.set_filter((!text.is_empty()).then(|| Filter::new(text)), wake.clone());
+        }
         self.pending = None;
         if text.is_empty() {
             self.matched = None;
@@ -276,7 +295,8 @@ impl ComparisonView {
     /// Takes the results of a finished filter and report; returns whether one finished.
     pub(crate) fn poll(&mut self) -> bool {
         let saved = self.report.as_mut().is_some_and(ReportJob::poll)
-            | self.diff.as_mut().is_some_and(EntryDiff::poll);
+            | self.diff.as_mut().is_some_and(EntryDiff::poll)
+            | self.records.as_mut().is_some_and(RecordChangeView::poll);
         let Some(job) = &self.pending else {
             return saved;
         };
@@ -295,6 +315,47 @@ impl ComparisonView {
                 self.refresh_shown();
                 true
             }
+        }
+    }
+
+    /// Returns the Record changes, `None` when the Record level was not compared.
+    #[must_use]
+    pub const fn records(&self) -> Option<&RecordChangeView> {
+        self.records.as_ref()
+    }
+
+    /// Returns the Record changes to change them, `None` when the Record level was not compared.
+    pub const fn records_mut(&mut self) -> Option<&mut RecordChangeView> {
+        self.records.as_mut()
+    }
+
+    /// Returns the list shown.
+    #[must_use]
+    pub const fn list(&self) -> ComparisonList {
+        self.list
+    }
+
+    /// Shows `list`; the Record list only when the Record level was compared.
+    pub const fn show_list(&mut self, list: ComparisonList) {
+        if matches!(list, ComparisonList::Entries) || self.records.is_some() {
+            self.list = list;
+        }
+    }
+
+    /// Returns the number of rows the shown list holds.
+    #[must_use]
+    pub fn shown_len(&self) -> usize {
+        match (self.list, &self.records) {
+            (ComparisonList::Records, Some(records)) => records.shown().len(),
+            _ => self.shown.len(),
+        }
+    }
+
+    /// Starts comparing the fields of the selected Record on a background thread unless that is
+    /// done already, calling `wake` from it once it ended.
+    pub fn load_record_detail(&mut self, wake: impl Fn() + Send + 'static) {
+        if let Some(records) = &mut self.records {
+            records.load_detail(&self.comparison, wake);
         }
     }
 

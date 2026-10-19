@@ -1,5 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio, chunk
-//! file and model APIs front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
+//! texture, audio, chunk file and model APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -12,6 +12,7 @@ mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
+mod localization;
 mod model_companions;
 mod model_source;
 mod options;
@@ -22,6 +23,7 @@ mod record_combined;
 mod record_export;
 mod record_files;
 mod record_format;
+mod record_plan;
 mod record_report;
 mod report;
 mod selection;
@@ -47,9 +49,13 @@ pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
+pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
-pub use p4kx_archive::{Archive, ArchiveError, Build, BuildError, Compression, Entry, EntryReader};
+pub use p4kx_archive::{
+    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
+    MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
+};
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, EmbeddedWem, HircKind, HircObject, HircValue,
     MediaStorage, Section, SectionId, SoundSource, Soundbank,
@@ -67,6 +73,9 @@ pub use p4kx_dataforge::{
     ValueKind,
 };
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
+pub use p4kx_localization::{
+    GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
+};
 pub use p4kx_model as model;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
@@ -77,8 +86,9 @@ pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };
 pub use record_combined::export_combined;
-pub use record_export::{export_record_files, export_records};
+pub use record_export::{export_planned_record_files, export_record_files, export_records};
 pub use record_format::RecordFileFormat;
+pub use record_plan::RecordFilePlan;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };

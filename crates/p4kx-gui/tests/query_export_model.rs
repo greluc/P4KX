@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use model::{column, finished, opened, run};
 use p4kx_gui::{CellLook, Model, QueryExportFormat, QueryExportStatus, QueryStatus};
-use querying::{TestResult, archive, database, listed, numbered};
+use querying::{REFERENCING, TestResult, archive, database, listed, numbered, referencing};
 fn exported(model: &mut Model) -> TestResult {
     let deadline = Instant::now() + Duration::from_secs(30);
     while model.query().is_exporting() {
@@ -158,6 +158,28 @@ fn a_query_after_the_archive_changed_on_disk_reports_it() -> TestResult {
         matches!(model.query().status(), QueryStatus::ArchiveChanged),
         "{:?}",
         model.query().status()
+    );
+    Ok(())
+}
+
+#[test]
+fn export_writes_the_values_of_referenced_records() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut model = opened(&archive(dir.path(), &referencing())?)?;
+    run(&mut model, REFERENCING)?;
+    let out = dir.path().join("result.csv");
+
+    model
+        .query_mut()
+        .export(out.clone(), QueryExportFormat::Csv, || {});
+    exported(&mut model)?;
+
+    assert_eq!(
+        fs::read_to_string(&out)?,
+        "record path,name,maker->name,escorts[*]->name\r\n\
+         libs/ships/alpha,Alpha,Aegis,\"[\"\"Beta\"\",null]\"\r\n\
+         libs/ships/beta,Beta,null,[]\r\n",
+        "CSV"
     );
     Ok(())
 }

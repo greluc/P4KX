@@ -3296,6 +3296,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "p4kx-foundation",
  "p4kx-testkit",
@@ -3311,6 +3312,7 @@ name = "p4kx-assembly"
 version = "0.1.0"
 dependencies = [
  "p4kx-archive",
+ "p4kx-character",
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",
@@ -3340,6 +3342,20 @@ dependencies = [
  "p4kx-testkit",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "p4kx-character"
+version = "0.1.0"
+dependencies = [
+ "crc32c",
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "proptest",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3415,6 +3431,7 @@ name = "p4kx-extraction"
 version = "0.1.0"
 dependencies = [
  "crc32c",
+ "crc32fast",
  "exr",
  "lewton",
  "p4kx-archive",
@@ -3424,6 +3441,7 @@ dependencies = [
  "p4kx-dataforge",
  "p4kx-foundation",
  "p4kx-gltf",
+ "p4kx-localization",
  "p4kx-model",
  "p4kx-testkit",
  "p4kx-texture",
@@ -3466,6 +3484,7 @@ dependencies = [
  "fluent-syntax",
  "p4kx-channels",
  "p4kx-comparison",
+ "p4kx-export",
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",
@@ -3478,6 +3497,14 @@ dependencies = [
  "tempfile",
  "unic-langid",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "p4kx-localization"
+version = "0.1.0"
+dependencies = [
+ "p4kx-testkit",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3529,6 +3556,7 @@ dependencies = [
  "aes",
  "cbc",
  "crc32c",
+ "crc32fast",
  "flate2",
  "gltf",
  "half",

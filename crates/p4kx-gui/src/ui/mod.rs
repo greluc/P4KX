@@ -7,6 +7,7 @@ mod comparison;
 mod comparison_diff;
 mod comparison_extraction;
 mod comparison_list;
+mod comparison_lists;
 mod comparison_rows;
 mod comparison_summary;
 mod comparison_table;
@@ -16,14 +17,21 @@ mod diff_rows;
 mod empty;
 mod extraction;
 mod extraction_outcome;
+mod field_rows;
 mod image_preview;
 mod licence;
 mod menu;
+mod moved_path;
 mod preview;
 mod query;
 mod query_editor;
 mod query_table;
+mod record_export;
+mod record_export_outcome;
+mod record_fields;
+mod record_list;
 mod record_results;
+mod record_rows;
 mod record_search;
 mod record_tree;
 mod search;
@@ -62,6 +70,8 @@ pub enum Dialog {
     ComparisonReport,
     /// Picks the file the Query result is exported to.
     QueryExport(QueryExportFormat),
+    /// Picks the folder of a Record export.
+    RecordExportFolder,
 }
 
 /// What the window asks of its host after a frame.
@@ -85,6 +95,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         browser.poll();
     }
     model.poll_extraction();
+    model.poll_record_export();
     model.poll_update();
     model.comparison_mut().poll();
     model.query_mut().poll();
@@ -121,6 +132,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .show(ui, |ui| work_surface(ui, model, &mut requests));
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
+    record_export::setup(ui, model, &mut requests);
+    record_export_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }

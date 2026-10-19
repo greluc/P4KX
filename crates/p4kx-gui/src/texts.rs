@@ -10,6 +10,7 @@ mod diff_text;
 mod extraction_text;
 mod group_text;
 mod image_text;
+mod localization_text;
 mod query_text;
 mod record_change_text;
 mod record_export_text;
@@ -28,6 +29,8 @@ pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
+pub(crate) use localization_text::language_name;
+pub use localization_text::LocalizationText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
@@ -198,6 +201,8 @@ pub enum Text {
     Record(RecordText),
     /// A text of the language selection for Record previews.
     RecordLanguage(RecordLanguageText),
+    /// A text of the localisation tab.
+    Localization(LocalizationText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

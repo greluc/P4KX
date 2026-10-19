@@ -183,6 +183,31 @@ fn an_owned_set_resolves_like_the_borrowed_one_and_outlives_it() -> TestResult {
 }
 
 #[test]
+fn an_owned_set_lists_the_texts_of_a_language_sorted_ignoring_case() -> TestResult {
+    let (english, german) = (english(), german());
+    let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);
+    let owned = TextSet::new([
+        (Language::English, en.index()?),
+        (Language::German, de.index()?),
+    ])
+    .to_owned_set();
+
+    let german: Vec<_> = owned.iter(Language::German).collect();
+
+    assert_eq!(
+        german,
+        [
+            ("empty_in_german", ""),
+            ("ITEM_NAME_RIFLE", "Gewehr"),
+            ("only_german", "Nur Deutsch"),
+        ],
+        "sorted, empty kept"
+    );
+    assert_eq!(owned.iter(Language::French).count(), 0, "no French file");
+    Ok(())
+}
+
+#[test]
 fn keys_lists_each_key_once_sorted_ignoring_case() -> TestResult {
     let (english, german) = (english(), german());
     let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);

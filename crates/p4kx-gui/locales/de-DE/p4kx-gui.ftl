@@ -405,6 +405,7 @@ scroll-image = Bildansicht
 scroll-diff = Zeilenunterschiede
 scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
+scroll-localization = Lokalisierungszeilen
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -451,18 +452,45 @@ record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: 
 
 record-language-menu = Record-Texte
 record-language-keys-only = Nur Schlüssel
-record-language-en = Englisch
-record-language-de = Deutsch
-record-language-fr = Französisch
-record-language-it = Italienisch
-record-language-es-es = Spanisch (Spanien)
-record-language-es-419 = Spanisch (Lateinamerika)
-record-language-pt-br = Portugiesisch (Brasilien)
-record-language-ja = Japanisch
-record-language-ko = Koreanisch
-record-language-zh-hans = Chinesisch (vereinfacht)
-record-language-zh-hant = Chinesisch (traditionell)
-record-language-missing = Fehlt
 record-language-key-row = { $key }: { $text }
 record-language-key-row-missing = { $key } (kein Text in dieser Sprache)
 record-language-load-failed = Die Texte auf { $language } können nicht gelesen werden, deshalb stehen nur die Schlüssel da: { $reason }
+localization-tab = Lokalisierung
+localization-label = Suche
+localization-hint = Schlüssel oder Text, z. B. item_Name oder Aurora
+localization-loading = Die Lokalisierungsdateien werden gelesen …
+localization-no-texts = Das Archiv enthält keine global.ini.
+localization-failed = Die Lokalisierungsdateien können nicht gelesen werden: { $reason }
+localization-stopped = Das Lesen der Lokalisierungsdateien wurde ohne Ergebnis beendet.
+localization-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Lokalisierungsdateien zu lesen.
+localization-empty-title = Kein Archiv geöffnet
+localization-empty-hint = Öffnen Sie ein Archiv, um seine Lokalisierungsschlüssel und Texte nachzuschlagen.
+localization-column-key = Schlüssel
+localization-language-en = Englisch
+localization-language-de = Deutsch
+localization-language-fr = Französisch
+localization-language-it = Italienisch
+localization-language-es-ES = Spanisch (Spanien)
+localization-language-es-419 = Spanisch (Lateinamerika)
+localization-language-pt-BR = Portugiesisch (Brasilien)
+localization-language-ja = Japanisch
+localization-language-ko = Koreanisch
+localization-language-zh-Hans = Chinesisch (vereinfacht)
+localization-language-zh-Hant = Chinesisch (traditionell)
+localization-language-other = Andere Sprache
+localization-missing = Fehlt
+localization-keys =
+    { $count ->
+        [one] { $number } Schlüssel
+       *[other] { $number } Schlüssel
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } von { $total } Schlüsseln
+       *[other] { $number } von { $total } Schlüsseln
+    }
+localization-searching = Suche läuft …
+localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
+localization-copy-key = Schlüssel kopieren
+localization-copy-text = Text kopieren
+localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:

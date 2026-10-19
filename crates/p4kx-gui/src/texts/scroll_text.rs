@@ -14,17 +14,20 @@ pub enum ScrollText {
     Fields,
     /// The field lines of the Record preview.
     Lines,
+    /// The rows of the Localisation table.
+    Localization,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 6] = [
+    pub(crate) const ALL: [Self; 7] = [
         Self::Text,
         Self::Hex,
         Self::Image,
         Self::Diff,
         Self::Fields,
         Self::Lines,
+        Self::Localization,
     ];
 
     /// Returns the Fluent message id.
@@ -37,6 +40,7 @@ impl ScrollText {
             Self::Diff => "scroll-diff",
             Self::Fields => "scroll-fields",
             Self::Lines => "scroll-lines",
+            Self::Localization => "scroll-localization",
         }
     }
 }

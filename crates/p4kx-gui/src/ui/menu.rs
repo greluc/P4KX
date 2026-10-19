@@ -7,6 +7,7 @@ use crate::theme::desktop::{
     BRAND_PADDING_RIGHT, DROPDOWN_ITEM_PADDING_X, DROPDOWN_MIN_WIDTH, MENU_LINK_PADDING_X,
     MENU_LINK_SIZE,
 };
+use crate::texts::language_name;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, TOUCH_TARGET, TRACKING_DISPLAY, Weight, font};
 use crate::widgets::indicator::brand;
@@ -236,7 +237,7 @@ fn record_text_menu(ui: &mut Ui, model: &Model) -> Option<RecordTextChoice> {
                     picked = Some(RecordTextChoice::KeysOnly);
                 }
                 for &language in languages {
-                    let name = texts.get(RecordLanguageText::Name(language));
+                    let name = language_name(texts, language);
                     if indented(ui, |ui| {
                         toggle::radio(ui, current == Some(language), &name, true).clicked()
                     }) {

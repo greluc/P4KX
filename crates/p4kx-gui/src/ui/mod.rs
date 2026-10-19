@@ -23,6 +23,10 @@ mod field_rows;
 mod hex_view;
 mod image_preview;
 mod licence;
+mod list_footer;
+mod localization;
+mod localization_laid;
+mod localization_table;
 mod menu;
 mod moved_path;
 mod preview;
@@ -60,7 +64,10 @@ use crate::theme::desktop::{
 use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
-use crate::{ComparisonSide, ComparisonText, Model, QueryExportFormat, QueryText, Text, WorkTab};
+use crate::{
+    ComparisonSide, ComparisonText, LocalizationText, Model, QueryExportFormat, QueryText, Text,
+    WorkTab,
+};
 
 /// A dialog the host shows for the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,6 +118,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model.poll_update();
     model.comparison_mut().poll();
     model.query_mut().poll();
+    model.localization_mut().poll();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -157,6 +165,7 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     match model.work_tab() {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),
+        WorkTab::Localization => return localization::show(ui, model),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -183,7 +192,7 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 3] = [
+const WORK_TABS: [(WorkTab, Text); 4] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -193,6 +202,10 @@ const WORK_TABS: [(WorkTab, Text); 3] = [
         Text::Comparison(ComparisonText::TabComparison),
     ),
     (WorkTab::Query, Text::Query(QueryText::Tab)),
+    (
+        WorkTab::Localization,
+        Text::Localization(LocalizationText::Tab),
+    ),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

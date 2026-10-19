@@ -7,7 +7,7 @@ use crate::theme::palette;
 use crate::theme::tokens::Weight;
 use crate::widgets::chip::{self, Tone};
 use crate::widgets::text::{line, paint_left, plain};
-use crate::{KeyText, RecordLanguageText, Texts};
+use crate::{KeyText, LocalizationText, Texts};
 
 /// What follows the value of a line of the Record preview in its cell.
 #[derive(Clone)]
@@ -38,7 +38,7 @@ impl Trailer {
             ))),
             KeyText::Missing => Some(Self::Missing(chip::galley(
                 ui,
-                &texts.get(RecordLanguageText::Missing),
+                &texts.get(LocalizationText::Missing),
             ))),
         }
     }

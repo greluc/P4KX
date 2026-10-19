@@ -6,6 +6,7 @@ use p4kx_extraction::Guid;
 
 use super::preview::path_line;
 use super::{record_lines, xml_view};
+use crate::texts::language_name;
 use crate::theme::desktop::SPINNER_INLINE;
 use crate::theme::palette;
 use crate::widgets::frames;
@@ -97,7 +98,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, browser: &Browser) -> Option<Reco
         });
     }
     if let Some((language, reason)) = ready.texts_failure() {
-        let language = texts.get(RecordLanguageText::Name(language));
+        let language = language_name(texts, language);
         let args = [
             ("language", FluentValue::from(language)),
             ("reason", FluentValue::from(reason.to_owned())),

@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
-use egui::{Align, Frame, Label, Layout, Margin, Panel, Stroke, Ui, vec2};
+use egui::{Align, Frame, Label, Layout, Margin, Ui, vec2};
 
-use super::{Dialog, Requests, empty, query_editor, query_table};
-use crate::theme::desktop::{
-    COMPARISON_PROGRESS_WIDTH, LIST_FOOTER_PADDING_X, LIST_FOOTER_PADDING_Y, SPINNER_INLINE,
-    TOOLBAR_PADDING,
-};
-use crate::theme::palette;
+use super::{Dialog, Requests, empty, list_footer, query_editor, query_table};
+use crate::theme::desktop::{COMPARISON_PROGRESS_WIDTH, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
@@ -182,39 +178,22 @@ fn export_bar(
 /// returns the page asked for.
 fn footer(ui: &mut Ui, result: &QueryResult, notes: &Notes) -> Option<usize> {
     let mut page = None;
-    Panel::bottom("query-footer")
-        .frame(Frame::NONE.inner_margin(Margin::symmetric(
-            px(LIST_FOOTER_PADDING_X),
-            px(LIST_FOOTER_PADDING_Y),
-        )))
-        .show_separator_line(false)
-        .resizable(false)
-        .show(ui, |ui| {
-            let top = ui.max_rect().top() - LIST_FOOTER_PADDING_Y;
-            ui.painter().hline(
-                ui.max_rect()
-                    .expand2(vec2(LIST_FOOTER_PADDING_X, 0.0))
-                    .x_range(),
-                top + 0.5,
-                Stroke::new(1.0, palette::GRAY_3),
-            );
-            ui.horizontal(|ui| {
-                if let Some(count) = &notes.count {
-                    ui.add(Label::new(Arc::clone(count)).selectable(false));
-                }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if result.page_count() > 1
-                        && let Some(status) = &notes.page_status
-                    {
-                        page = pagination(
-                            ui,
-                            (result.page(), result.page_count()),
-                            Arc::clone(status),
-                            notes.page_names(),
-                        );
-                    }
-                });
-            });
+    list_footer::show(ui, "query-footer", |ui| {
+        if let Some(count) = &notes.count {
+            ui.add(Label::new(Arc::clone(count)).selectable(false));
+        }
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            if result.page_count() > 1
+                && let Some(status) = &notes.page_status
+            {
+                page = pagination(
+                    ui,
+                    (result.page(), result.page_count()),
+                    Arc::clone(status),
+                    notes.page_names(),
+                );
+            }
         });
+    });
     page
 }

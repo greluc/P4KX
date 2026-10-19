@@ -1,5 +1,5 @@
 use super::Model;
-use crate::{ComparisonTab, QueryTab};
+use crate::{ComparisonTab, LocalizationTab, QueryTab};
 
 /// A tab of the work surface.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -11,6 +11,8 @@ pub enum WorkTab {
     Comparison,
     /// Running Queries over the DataForge of the open Archive.
     Query,
+    /// Looking up the localisation keys and texts of the open Archive.
+    Localization,
 }
 
 impl Model {
@@ -58,5 +60,26 @@ impl Model {
             return false;
         };
         self.query.run(browser.shared_index(), wake)
+    }
+
+    /// Returns the localisation tab.
+    #[must_use]
+    pub const fn localization(&self) -> &LocalizationTab {
+        &self.localization
+    }
+
+    /// Returns the localisation tab for changes.
+    pub const fn localization_mut(&mut self) -> &mut LocalizationTab {
+        &mut self.localization
+    }
+
+    /// Starts reading the `global.ini` files of the open Archive off the UI thread, calling
+    /// `wake` from it once it ended; returns whether it started. Nothing starts without an
+    /// open Archive or when the texts are read or being read.
+    pub fn load_localization(&mut self, wake: impl Fn() + Send + 'static) -> bool {
+        let Some(browser) = &self.browser else {
+            return false;
+        };
+        self.localization.load(browser.shared_index(), wake)
     }
 }

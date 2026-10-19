@@ -405,6 +405,7 @@ scroll-image = Picture
 scroll-diff = Line differences
 scroll-fields = Changed fields
 scroll-lines = Record fields
+scroll-localization = Localisation rows
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -451,18 +452,45 @@ record-xml-failed = The Record XML of { $path } cannot be written: { $reason }
 
 record-language-menu = Record texts
 record-language-keys-only = Keys only
-record-language-en = English
-record-language-de = German
-record-language-fr = French
-record-language-it = Italian
-record-language-es-es = Spanish (Spain)
-record-language-es-419 = Spanish (Latin America)
-record-language-pt-br = Portuguese (Brazil)
-record-language-ja = Japanese
-record-language-ko = Korean
-record-language-zh-hans = Chinese (simplified)
-record-language-zh-hant = Chinese (traditional)
-record-language-missing = Missing
 record-language-key-row = { $key }: { $text }
 record-language-key-row-missing = { $key } (no text in this language)
 record-language-load-failed = The texts in { $language } cannot be read, so only the keys are shown: { $reason }
+localization-tab = Localisation
+localization-label = Search
+localization-hint = Key or text, e.g. item_Name or Aurora
+localization-loading = Reading the localisation files…
+localization-no-texts = The Archive holds no global.ini.
+localization-failed = The localisation files cannot be read: { $reason }
+localization-stopped = Reading the localisation files stopped without a result.
+localization-archive-changed = The Archive changed on disk. Reload it to read the localisation files.
+localization-empty-title = No Archive open
+localization-empty-hint = Open an Archive to look up its localisation keys and texts.
+localization-column-key = Key
+localization-language-en = English
+localization-language-de = German
+localization-language-fr = French
+localization-language-it = Italian
+localization-language-es-ES = Spanish (Spain)
+localization-language-es-419 = Spanish (Latin America)
+localization-language-pt-BR = Portuguese (Brazil)
+localization-language-ja = Japanese
+localization-language-ko = Korean
+localization-language-zh-Hans = Chinese (simplified)
+localization-language-zh-Hant = Chinese (traditional)
+localization-language-other = Other language
+localization-missing = Missing
+localization-keys =
+    { $count ->
+        [one] { $number } key
+       *[other] { $number } keys
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } of { $total } keys
+       *[other] { $number } of { $total } keys
+    }
+localization-searching = Searching…
+localization-no-match = No key or text matches the search.
+localization-copy-key = Copy key
+localization-copy-text = Copy text
+localization-notes = Some global.ini files were not read cleanly:

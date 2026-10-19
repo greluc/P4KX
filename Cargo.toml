@@ -23,6 +23,7 @@ p4kx-comparison = { path = "crates/p4kx-comparison" }
 p4kx-cryxml = { path = "crates/p4kx-cryxml" }
 p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-export = { path = "crates/p4kx-export" }
+p4kx-gfx = { path = "crates/p4kx-gfx" }
 p4kx-localization = { path = "crates/p4kx-localization" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
@@ -31,6 +32,7 @@ p4kx-update = { path = "crates/p4kx-update" }
 aes = "0.9.3"
 anyhow = "1.0.104"
 assert_cmd = "2.2.2"
+base64 = "0.23.1"
 bcdec_rs = "0.2.0"
 cbc = "0.2.1"
 crc32c = "0.6.8"
@@ -50,6 +52,7 @@ half = "2.7.1"
 insta = "1.49.0"
 jsonschema = { version = "0.59.0", default-features = false }
 lewton = { version = "0.10.2", default-features = false }
+lzma-rs = "0.3.0"
 opus-pure = "=0.2.2"
 png = "0.18.1"
 predicates = "3.1.4"
@@ -72,6 +75,8 @@ toml = "1.1.8"
 unic-langid = "0.9.6"
 ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
+zune-core = "0.5.0"
+zune-jpeg = "0.5.15"
 
 [workspace.lints.rust]
 missing_docs = "deny"

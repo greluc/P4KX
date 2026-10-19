@@ -39,6 +39,8 @@ pub enum QueryText {
     Rows,
     /// The number of rows and failed Records; takes `count`, `number` and `failed`.
     RowsFailed,
+    /// The unresolved References of the rows, after their number; takes `count` and `number`.
+    Unresolved,
     /// The action that exports the result as CSV.
     ExportCsv,
     /// The action that exports the result as JSON.
@@ -71,7 +73,7 @@ pub enum QueryText {
 
 impl QueryText {
     /// Every Query text.
-    pub(crate) const ALL: [Self; 33] = [
+    pub(crate) const ALL: [Self; 34] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -91,6 +93,7 @@ impl QueryText {
         Self::NoRows,
         Self::Rows,
         Self::RowsFailed,
+        Self::Unresolved,
         Self::ExportCsv,
         Self::ExportJson,
         Self::FilterCsv,
@@ -130,6 +133,7 @@ impl QueryText {
             Self::NoRows => "query-no-rows",
             Self::Rows => "query-rows",
             Self::RowsFailed => "query-rows-failed",
+            Self::Unresolved => "query-unresolved",
             Self::ExportCsv => "query-export-csv",
             Self::ExportJson => "query-export-json",
             Self::FilterCsv => "query-filter-csv",

@@ -18,9 +18,11 @@ fn the_tool_list_holds_the_archive_tools_all_read_only() -> TestResult {
             "archive_info",
             "list_channels",
             "list_entries",
+            "read_entry_bytes",
+            "read_entry_text",
             "search_entries"
         ],
-        "the tracer tools"
+        "the Archive tools"
     );
     for tool in &tools {
         let annotations = tool.get("annotations").cloned().unwrap_or_default();

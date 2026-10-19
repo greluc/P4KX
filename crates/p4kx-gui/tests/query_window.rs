@@ -12,7 +12,7 @@ use egui_kittest::kittest::Queryable;
 use p4kx_gui::ui::{self, Dialog};
 use p4kx_gui::{Language, Model, QueryExportFormat, QueryStatus, SortDirection, WorkTab};
 use p4kx_testkit::DataForgeBuilder;
-use querying::{TestResult, archive, database, listed, numbered};
+use querying::{REFERENCING, TestResult, archive, database, listed, numbered, referencing};
 use tempfile::TempDir;
 
 struct Window {
@@ -265,6 +265,27 @@ fn a_list_column_shows_its_short_form_and_a_null_its_name() -> TestResult {
         harness.query_all_by_label("null").count(),
         3,
         "one null per Record"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_count_names_the_unresolved_references() -> TestResult {
+    let (_dir, mut harness) = opened(&referencing(), Language::BritishEnglish)?;
+
+    run(&mut harness, REFERENCING)?;
+
+    assert!(
+        harness
+            .query_by_role_and_label(Role::Button, "maker->name")
+            .is_some(),
+        "column"
+    );
+    assert!(
+        harness
+            .query_by_label("2 Records, 2 unresolved References")
+            .is_some(),
+        "count"
     );
     Ok(())
 }

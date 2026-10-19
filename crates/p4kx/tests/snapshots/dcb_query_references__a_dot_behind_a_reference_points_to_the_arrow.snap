@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "error(\"from Ship where maker.name = \\\"Aegis\\\"\")?"
+---
+error: field `maker` of `Ship` holds a Reference; follow it with `->name` to reach the field `name` of what it links to
+  from Ship where maker.name = "Aegis"
+                        ^^^^

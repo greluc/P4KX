@@ -8,6 +8,13 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
+  <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
+  movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
+  twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
+  counted, a broken tag is reported without failing the movie (exit code 1), and GFx external
+  images are decoded from the DDS textures next to the movie, on disk only inside the movie's
+  `Data` folder. Also for movie files on disk.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
@@ -23,6 +30,12 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- `p4kx-mcp` tools `read_entry_text` and `read_entry_bytes`: read an Entry in ranges from a byte
+  offset, as text (CryXml converted to XML, UTF-16 by its byte order mark, otherwise UTF-8;
+  binary Entries are an error) or as base64. A range is at most 256 KiB of text or 192 KiB of
+  bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
+  Stored Entries, encrypted or not, are read from the offset directly; compressed ones decode at
+  most 1 GiB to reach it. At most four Entries are decoded whole for text at a time.
 - The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
@@ -31,6 +44,15 @@ fails while its section is missing.
   moved, changed and unreadable Record with its record path and type, sorted and filtered like the
   Entries, and a selected Record shows its field changes with old and new value, links by the
   record path of their target and unreadable values with their reason.
+- The Export menu of the window with **Record export…**: the Records selected in the Record tree
+  or matching a record-path filter as Record JSON, one file per Record or one NDJSON file, into a
+  new or an existing folder with a Conflict policy, in the background with progress, cancel and a
+  summary of the Records written and those with error values. DataForge and the planned files are
+  read once per open Archive and reused by every later export.
+- `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
+  `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
+  the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record
+  as it ends.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -54,6 +76,11 @@ fails while its section is missing.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
   list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
   values holds.
+- `->` in Query paths follows a Reference to the Record it links to, or a weak pointer to its
+  instance, in `select` and `where`, chained and behind array elements, e.g.
+  `AttachDef.Manufacturer->Code` or `escorts[*]->name`. A null or dangling Reference gives null
+  and is counted as unresolved in the result summary; `->` where no Reference stands is marked
+  as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before

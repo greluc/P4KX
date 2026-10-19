@@ -1,9 +1,13 @@
 use std::ffi::OsString;
+use std::io::{self, Read};
 use std::path::{MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::container::{self, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN};
 use crate::format_error::FormatError;
+
+/// The most decoded bytes [`Archive::open_entry_at`] skips in a compressed Entry to reach an offset.
+pub const MAX_DECODED_SKIP: u64 = 1 << 30;
 use crate::source::Source;
 use crate::{ArchiveError, Build, Entry, EntryReader, entry_reader, layout};
 
@@ -147,6 +151,51 @@ impl Archive {
     /// deflate and zstd, and another [`ArchiveError`] when the local header is malformed or cannot
     /// be read, or encrypted data is not a whole number of AES blocks.
     pub fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
-        entry_reader::open(&self.source, entry).map_err(|error| error.at(&self.location))
+        self.open_entry_at(entry, 0)
+    }
+
+    /// Opens the decrypted and decompressed data of `entry` from byte `offset` on.
+    ///
+    /// Stored Entries start there directly, encrypted ones at the AES block holding `offset`.
+    /// Compressed Entries are decoded from their start, and the bytes before `offset` are skipped,
+    /// at most [`MAX_DECODED_SKIP`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::OffsetBeyondEnd`] when `offset` exceeds the Entry size,
+    /// [`ArchiveError::SkipTooLong`] when a compressed Entry would decode more than
+    /// [`MAX_DECODED_SKIP`] bytes to reach `offset`, and the errors of [`Archive::open_entry`],
+    /// or [`ArchiveError::Io`] when the skipped data cannot be read or decoded.
+    pub fn open_entry_at(
+        &self,
+        entry: &Entry,
+        offset: u64,
+    ) -> Result<EntryReader<'_>, ArchiveError> {
+        let size = entry.uncompressed_size();
+        if offset > size {
+            return Err(ArchiveError::OffsetBeyondEnd {
+                path: self.location.clone(),
+                entry: entry.path().to_owned(),
+                offset,
+                size,
+            });
+        }
+        let (mut reader, skip) = entry_reader::open_at(&self.source, entry, offset)
+            .map_err(|error| error.at(&self.location))?;
+        if skip > MAX_DECODED_SKIP {
+            return Err(ArchiveError::SkipTooLong {
+                path: self.location.clone(),
+                entry: entry.path().to_owned(),
+                offset,
+                limit: MAX_DECODED_SKIP,
+            });
+        }
+        io::copy(&mut (&mut reader).take(skip), &mut io::sink()).map_err(|source| {
+            ArchiveError::Io {
+                path: self.location.clone(),
+                source,
+            }
+        })?;
+        Ok(reader)
     }
 }

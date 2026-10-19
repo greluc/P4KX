@@ -88,5 +88,5 @@ pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
     ExtractionText, GroupText, ImageText, QueryText, RecordChangeText, RecordExportText,
-    RecordSearchText, RecordText, Text, Texts, XmlText,
+    RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
 };

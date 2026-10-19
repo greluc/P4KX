@@ -18,8 +18,8 @@ use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
 use crate::widgets::text::paint_left;
 use crate::{
-    ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, FailedEntry,
-    Language, Model, Texts,
+    ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, Language,
+    Model, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -190,11 +190,21 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary, comparison_
     }
     let target = summary.target().display().to_string();
     ui.label(texts.format(T::SummaryTarget, &[("path", target.into())]));
+    lists(ui, texts, summary);
+}
+
+fn lists(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary) {
     for (heading, failed) in [
         (T::SummaryFailed, summary.failures()),
         (T::SummaryUnconverted, summary.unconverted()),
     ] {
-        let lines = failure_lines(ui, texts, (summary, heading), failed);
+        let lines = failure_lines(ui, texts, (summary, heading), failed, |failure| {
+            let args = [
+                ("path", failure.path.clone().into()),
+                ("reason", failure.reason.clone().into()),
+            ];
+            (texts.format(T::SummaryFailure, &args), failure.reason.len())
+        });
         list(
             ui,
             texts,
@@ -202,6 +212,30 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &ExtractionSummary, comparison_
             true,
         );
     }
+    let heading = T::SummaryRecordsFailed;
+    let lines = failure_lines(
+        ui,
+        texts,
+        (summary, heading),
+        summary.record_failures(),
+        |failure| {
+            let args = [
+                ("path", failure.record_path.clone().into()),
+                ("guid", failure.guid.clone().into()),
+                ("reason", failure.reason.clone().into()),
+            ];
+            (
+                texts.format(T::SummaryRecordFailure, &args),
+                failure.reason.len(),
+            )
+        },
+    );
+    list(
+        ui,
+        texts,
+        (heading, &lines.lines, Some(&lines.reasons)),
+        true,
+    );
     list(
         ui,
         texts,
@@ -225,12 +259,13 @@ struct FailureLines {
 }
 
 /// Returns the lines of `failed`, the list under `heading` of `summary`, formatted once per
-/// summary and language.
-fn failure_lines(
+/// summary and language; `format` returns a line and the length of the reason it ends with.
+fn failure_lines<F>(
     ui: &Ui,
     texts: &Texts,
     (summary, heading): (&ExtractionSummary, T),
-    failed: &[FailedEntry],
+    failed: &[F],
+    format: impl Fn(&F) -> (String, usize),
 ) -> FailureLines {
     let key = (
         std::ptr::from_ref(summary).addr(),
@@ -243,23 +278,16 @@ fn failure_lines(
     {
         return cached;
     }
-    let lines: Arc<[String]> = failed
+    let (lines, reasons): (Vec<String>, Vec<usize>) = failed
         .iter()
         .map(|failure| {
-            texts.format(
-                T::SummaryFailure,
-                &[
-                    ("path", failure.path.clone().into()),
-                    ("reason", failure.reason.clone().into()),
-                ],
-            )
+            let (line, reason) = format(failure);
+            let start = line.len().saturating_sub(reason);
+            (line, start)
         })
-        .collect();
-    let reasons = lines
-        .iter()
-        .zip(failed)
-        .map(|(line, failure)| line.len().saturating_sub(failure.reason.len()))
-        .collect();
+        .unzip();
+    let lines: Arc<[String]> = lines.into();
+    let reasons: Arc<[usize]> = reasons.into();
     let failures = FailureLines {
         key,
         lines,

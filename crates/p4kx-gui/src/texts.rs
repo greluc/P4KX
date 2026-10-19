@@ -14,6 +14,7 @@ mod query_text;
 mod record_change_text;
 mod record_export_text;
 mod record_text;
+mod scroll_text;
 mod text_ids;
 mod xml_text;
 
@@ -30,6 +31,7 @@ pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
 pub use record_text::RecordText;
+pub use scroll_text::ScrollText;
 pub use xml_text::XmlText;
 
 use crate::Language;
@@ -182,6 +184,8 @@ pub enum Text {
     Audio(AudioText),
     /// A text of the XML preview.
     Xml(XmlText),
+    /// The accessible name of a view the keyboard scrolls.
+    Scroll(ScrollText),
     /// A text of the Query tab.
     Query(QueryText),
     /// A text of the Export menu and the Record export windows.

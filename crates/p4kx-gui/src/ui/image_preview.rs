@@ -6,13 +6,16 @@ use egui::{
 use fluent_bundle::FluentValue;
 
 use super::search::eyebrow;
-use crate::theme::desktop::{IMAGE_LABEL_GAP, IMAGE_SELECTOR_GAP, SPINNER_INLINE};
+use crate::theme::desktop::{IMAGE_LABEL_GAP, IMAGE_SELECTOR_GAP, ROW_HEIGHT, SPINNER_INLINE};
 use crate::theme::palette;
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
+use crate::widgets::scroll_region;
 use crate::widgets::summary::{Fact, FactsStrip};
 use crate::widgets::tab;
-use crate::{ImagePreview, ImageStatus, ImageText, Language, MipStatus, Text, Texts, TextureInfo};
+use crate::{
+    ImagePreview, ImageStatus, ImageText, Language, MipStatus, ScrollText, Text, Texts, TextureInfo,
+};
 
 /// Shows the mip selector of an opened texture: one segment per mip a texture may be on this
 /// display, labelled with the mip's longer side, `level` pressed. Returns the level clicked.
@@ -117,24 +120,33 @@ fn picture(
     texture: TextureId,
 ) {
     let size = vec2(points(width), points(height)) / ui.ctx().pixels_per_point();
-    ScrollArea::both()
+    let scroll = ScrollArea::both()
         .id_salt("preview-image")
-        .auto_shrink(false)
-        .show(ui, |ui| {
-            let area = size.max(ui.available_size());
-            let (rect, response) = ui.allocate_exact_size(area, Sense::hover());
-            response.widget_info(|| {
-                let args = [
-                    ("level", FluentValue::from(level.to_string())),
-                    ("width", FluentValue::from(width.to_string())),
-                    ("height", FluentValue::from(height.to_string())),
-                ];
-                WidgetInfo::labeled(Role::Image, true, texts.format(ImageText::Shown, &args))
-            });
-            let shown = Rect::from_center_size(rect.center(), size);
-            let whole = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
-            ui.painter().image(texture, shown, whole, Color32::WHITE);
-        });
+        .auto_shrink(false);
+    let id = ui.scope_id().with("preview-image");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::Image)),
+        ROW_HEIGHT,
+        scroll,
+        |scroll, ui| {
+            scroll.show(ui, |ui| {
+                let area = size.max(ui.available_size());
+                let (rect, response) = ui.allocate_exact_size(area, Sense::hover());
+                response.widget_info(|| {
+                    let args = [
+                        ("level", FluentValue::from(level.to_string())),
+                        ("width", FluentValue::from(width.to_string())),
+                        ("height", FluentValue::from(height.to_string())),
+                    ];
+                    WidgetInfo::labeled(Role::Image, true, texts.format(ImageText::Shown, &args))
+                });
+                let shown = Rect::from_center_size(rect.center(), size);
+                let whole = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+                ui.painter().image(texture, shown, whole, Color32::WHITE);
+            })
+        },
+    );
 }
 
 /// Claims the space left for the image and returns its size in pixels once it is the same in

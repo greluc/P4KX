@@ -10,12 +10,13 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames;
+use crate::widgets::scroll_region;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
-    PreviewContents, PreviewStatus, PreviewTab, RecordText, Text, Texts, XmlDocument, XmlPreview,
-    XmlText, format, is_wem_path,
+    PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts, XmlDocument,
+    XmlPreview, XmlText, format, is_wem_path,
 };
 
 const TABS: [(PreviewTab, Text); 7] = [
@@ -335,19 +336,28 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Hex => hex_view::hex_rows(ui, contents),
-        _ => text_rows(ui, contents),
+        PreviewTab::Hex => hex_view::hex_rows(ui, texts, contents),
+        _ => text_rows(ui, texts, contents),
     }
 }
 
-fn text_rows(ui: &mut Ui, contents: &PreviewContents) {
-    ScrollArea::both()
+fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents) {
+    let area = ScrollArea::both()
         .id_salt("preview-text")
-        .auto_shrink(false)
-        .show_rows(ui, HEX_ROW_HEIGHT, contents.line_count(), |ui, rows| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            for index in rows {
-                ui.add(Label::new(contents.line(index)).extend());
-            }
-        });
+        .auto_shrink(false);
+    let id = ui.scope_id().with("preview-text");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::Text)),
+        HEX_ROW_HEIGHT + ui.spacing().item_spacing.y,
+        area,
+        |area, ui| {
+            area.show_rows(ui, HEX_ROW_HEIGHT, contents.line_count(), |ui, rows| {
+                ui.spacing_mut().item_spacing.y = 0.0;
+                for index in rows {
+                    ui.add(Label::new(contents.line(index)).extend());
+                }
+            })
+        },
+    );
 }

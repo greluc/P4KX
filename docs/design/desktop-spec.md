@@ -276,6 +276,19 @@ nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis 
 wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
 „Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
+**D.25 Tonformat der Extraktion als Radio-Zeile unter den Texturausgaben.** Ist die Umwandlung an,
+steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben eine Zeile „Sounds als"
+(14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,
+unverändert" nebeneinander, 16 voneinander wie die Steuerelement-Zeile im Specimen FormControls
+(`gap: 16px`), Radio↔Label 12 wie bei der Radio-Gruppe. Drei sich ausschließende
+Werte sind Radios wie Konfliktregel und Mip-Stufe, kein `.krt-segmented--sm`: der Schnellfilter
+gehört in Toolbars, im Modal bleiben Formularelemente. Eine Zeile statt einer Spalte, weil die
+Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. Darunter steht in
+12,8 / 400 `color-gray-2-text`, wie der Hinweis auf den neuen Ordnernamen, dass Ogg für Codecs ohne
+Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
+Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
+Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

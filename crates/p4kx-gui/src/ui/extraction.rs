@@ -10,7 +10,7 @@ use super::{Dialog, Requests, comparison_extraction};
 use crate::extraction::target_naming;
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight, font};
+use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, SPACE_4, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
@@ -196,6 +196,7 @@ fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
 /// Shows the sound formats of a Conversion and the note that soundbanks are unpacked.
 fn audio_choices(ui: &mut Ui, texts: &Texts, audio: &mut ExtractionAudio) {
     ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACE_4;
         let label = texts.get(T::AudioLabel);
         ui.label(plain(label, FS_SM, Weight::Regular).color(palette::GRAY_1));
         for (choice, text) in AUDIO {

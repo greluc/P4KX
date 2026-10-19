@@ -1,5 +1,5 @@
 use p4kx_extraction::{AudioConversion, ConflictPolicy, EntryFailure, ExtractOptions};
-use p4kx_testkit::{TestEntry, test_signal};
+use p4kx_testkit::{TestBank, TestEntry, TestOpus, TestOpusFraming, test_signal};
 
 use crate::fixture::{
     BANK, Fixture, PCM, PCM_FRAMES, TestResult, VORBIS, XMA, bank, ogg_samples, pcm, prefetch,
@@ -223,5 +223,47 @@ fn many_sounds_are_converted_in_parallel_with_one_report_in_entry_order() -> Tes
         .collect();
     let expected: Vec<&str> = paths.iter().step_by(3).map(String::as_str).collect();
     assert_eq!(unconverted, expected, "in Entry order");
+    Ok(())
+}
+
+#[test]
+fn opus_is_repackaged_as_ogg_opus_and_decoded_to_wav_on_request() -> TestResult {
+    const OPUS: &str = "Data\\Sounds\\wwise\\Media\\800.wem";
+    let opus = TestOpus::new(TestOpusFraming::Wwise, 2, 4_800)
+        .wem()?
+        .bytes();
+    let soundbank = TestBank::new(1).wem(50, opus.clone()).bytes();
+    let entries = || {
+        vec![
+            TestEntry::zstd(OPUS, opus.clone()),
+            TestEntry::stored(BANK, soundbank.clone()),
+        ]
+    };
+    let ogg = Fixture::new(entries())?;
+    let wav = Fixture::new(entries())?;
+
+    let ogg_report = ogg.run(AudioConversion::Ogg, ConflictPolicy::Skip);
+    let wav_report = wav.run(AudioConversion::Wav, ConflictPolicy::Skip);
+
+    for path in [
+        "Data\\Sounds\\wwise\\Media\\800.ogg",
+        "Data\\Sounds\\wwise\\Ship\\50.ogg",
+    ] {
+        let written = ogg.read(path)?;
+        assert!(written.starts_with(b"OggS"), "{path} is Ogg");
+        assert!(
+            written.windows(8).any(|window| window == b"OpusHead"),
+            "{path} is Ogg Opus"
+        );
+    }
+    assert_eq!(ogg_report.converted(), Some(2), "both converted");
+    assert!(ogg_report.is_complete(), "{:?}", ogg_report.unconverted());
+    for path in [
+        "Data\\Sounds\\wwise\\Media\\800.wav",
+        "Data\\Sounds\\wwise\\Ship\\50.wav",
+    ] {
+        assert!(wav.read(path)?.starts_with(b"RIFF"), "{path} is WAV");
+    }
+    assert!(wav_report.is_complete(), "{:?}", wav_report.unconverted());
     Ok(())
 }

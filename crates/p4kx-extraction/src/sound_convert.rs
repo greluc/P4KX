@@ -159,6 +159,7 @@ impl EntryWriter<'_> {
         };
         Ok((outcome, end.unconverted.into_iter().collect()))
     }
+
     /// Writes the WEM `bytes` into its folder: as Ogg where the audio option asks for it and the
     /// codec has an Ogg form, else as WAV unless the option keeps sounds unchanged; a sound that
     /// cannot be converted, plug-in media and a prefetched start are written unchanged as `.wem`,

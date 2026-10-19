@@ -120,7 +120,7 @@
     "fontSize": 13.76,
     "fontWeight": "fw-regular",
     "color": "color-gray-1",
-    "hoverBackground": "rgba(255,255,255,0.03)",
+    "hoverBackground": "rgba(255,255,255,0.025)",
     "activeBackground": "color-surface-input",
     "activeBar": {"width": 3, "color": "color-primary", "side": "left", "inset": true},
     "activeColor": "color-white",
@@ -440,7 +440,7 @@
     "textColor": "color-gray-2-text",
     "textMaxWidthCh": 48,
     "dropTargetBorder": "color-primary",
-    "dropTargetBackground": "rgba(231,126,35,0.10)",
+    "dropTargetBackground": "rgba(231,126,35,0.06)",
     "action": "buttonOutline"
   },
   "noticeBar": {

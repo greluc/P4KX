@@ -6,7 +6,7 @@ use egui::Color32;
 pub use super::query_metrics::{
     COMBOBOX_NOTICE_PADDING, COMPLETION_MAX_HEIGHT, SAVED_LIST_HEIGHT, SAVED_NAME_MAX_WIDTH,
 };
-pub use super::row_tints::{LIST_ROW_HOVER, ZEBRA};
+pub use super::row_tints::{LIST_ROW_HOVER, TREE_ROW_HOVER, ZEBRA};
 use super::tokens::{
     FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
 };
@@ -253,8 +253,8 @@ pub const OUTLINE_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(231, 12
 pub const QUIET_DANGER_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 31);
 /// The fill of a warning alert, `rgba(255,210,63,0.15)`.
 pub const ALERT_WARNING_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 210, 63, 38);
-/// The fill of the empty state while a file is dragged over it, `rgba(231,126,35,0.10)`.
-pub const DROP_TARGET_FILL: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 26);
+/// The fill of the empty state while a file is dragged over it, `rgba(231,126,35,0.06)`.
+pub const DROP_TARGET_FILL: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 15);
 /// The track of a spinner, `rgba(231,126,35,0.25)`.
 pub const SPINNER_TRACK: Color32 = Color32::from_rgba_unmultiplied_const(231, 126, 35, 64);
 /// The flat scrim behind a modal, `rgba(0,0,0,0.8)`.

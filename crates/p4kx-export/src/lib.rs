@@ -7,36 +7,56 @@
 //!
 //! [`build_catalog`] reads the DataForge of an open Archive, selects the Records of every kind by
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
-//! descriptions in English and German from the Archive's `global.ini` files and writes the
-//! catalog as deterministic UTF-8 JSON. [`catalog_schema`] returns its JSON Schema, generated from
+//! descriptions in English and German from the Archive's `global.ini` files, reads the crafting
+//! ingredients of blueprints, reads each item's
+//! [`ItemClass`] from its English description and writes the
+//! catalog as deterministic UTF-8 JSON. A selected Record that cannot be read is left out and
+//! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
+//!
+//! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
+//! the chosen languages as JSON or CSV.
 
+mod blueprint;
 mod build;
+mod collected;
+mod commodity;
 mod contract;
+mod contract_crafting;
+mod contract_entities;
 mod error;
+mod failure;
 mod form;
 mod guid_text;
+mod item;
+mod item_class;
+mod localization_table;
 mod manufacturer;
 mod ndjson;
 mod options;
 mod record_export;
+mod record_fields;
 mod record_summary;
 mod selection;
+mod ship;
 mod summary;
 mod texts;
 
-pub use build::build_catalog;
+pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use error::CatalogError;
+pub use failure::CatalogFailure;
 pub use form::{NDJSON_FILE, RecordForm};
+pub use item_class::{ItemClass, ItemClassSummary};
+pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};
 pub use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, RecordExportError,
-    RecordExportOptions, RecordFailure,
+    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, LocalizationNote,
+    PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TextSet,
 };
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
-pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, PLACEHOLDER_KEYS};
+pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use summary::{
     BuiltCatalog, CatalogSummary, KindSummary, SizeWarning, TextSummary, UPLOAD_LIMIT,
     UPLOAD_WARNING_SIZE,

@@ -2,12 +2,14 @@
 //! Archives.
 
 mod diffing;
+mod long_diff;
 
 use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 use diffing::{ADDED, BROKEN, EQUAL, Pair, TOO_LARGE, TestResult, pair};
+use egui::Key;
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_channels::SearchPaths;
@@ -260,7 +262,7 @@ fn next_onto_the_last_hunk_hands_the_focus_to_previous() -> TestResult {
 
     harness.get_by_label("Next difference").focus();
     harness.run();
-    harness.key_press(egui::Key::Enter);
+    harness.key_press(Key::Enter);
     harness.run();
 
     assert!(
@@ -274,5 +276,52 @@ fn next_onto_the_last_hunk_hands_the_focus_to_previous() -> TestResult {
             .is_focused(),
         "the focus moved to Previous"
     );
+    Ok(())
+}
+
+#[test]
+fn the_focused_line_diff_scrolls_with_the_keyboard() -> TestResult {
+    let (dir, pair) = long_diff::pair()?;
+    let mut harness = compared((dir.path(), &pair), Language::BritishEnglish)?;
+    open(&mut harness, "Changed: Data\\long.txt")?;
+    let added = |line: u32| format!("Added line {line}: changed line {line}");
+    let (first, last) = (added(1), added(long_diff::LINES));
+    let head = "Lines 1–300 | Lines 1–300";
+    assert!(harness.query_by_label(&first).is_some(), "the first line");
+    assert!(harness.query_by_label(&last).is_none(), "the last is below");
+
+    harness.get_by_label("Line differences").focus();
+    harness.run();
+    harness.key_press(Key::End);
+    harness.run();
+    assert!(
+        harness.query_by_label(&last).is_some(),
+        "End shows the last"
+    );
+    assert!(
+        harness.query_by_label(&first).is_none(),
+        "the first is gone"
+    );
+
+    harness.key_press(Key::Home);
+    harness.run();
+    assert!(
+        harness.query_by_label(&first).is_some(),
+        "Home shows the first"
+    );
+
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.query_by_label(head).is_none(), "one row down");
+    assert!(harness.query_by_label(&first).is_some(), "only one row");
+
+    harness.key_press(Key::PageDown);
+    harness.run();
+    assert!(harness.query_by_label(&first).is_none(), "a page down");
+
+    harness.key_press(Key::PageUp);
+    harness.key_press(Key::ArrowUp);
+    harness.run();
+    assert!(harness.query_by_label(head).is_some(), "back at the top");
     Ok(())
 }

@@ -16,6 +16,10 @@ pub struct Settings {
     /// The interface language as a BCP 47 tag such as `de-DE`, or `None` to follow the system.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    /// The language Record previews show localisation keys in, as a language code such as `de`,
+    /// or `none` for the keys alone, or `None` to follow the interface language.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record_language: Option<String>,
     /// The folder last chosen for an Extraction, or `None` before the first one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extraction_folder: Option<PathBuf>,

@@ -15,6 +15,10 @@ type TestResult = Result<(), Box<dyn Error>>;
 const KNOWN_RECORD: &str = "libs/foundry/records/entities/spaceships/aegs_avenger_titan";
 const KNOWN_GUID: &str = "0079c5d5-1678-4f8c-85ba-18ca8f642af6";
 
+fn validator() -> Result<jsonschema::Validator, Box<dyn Error>> {
+    Ok(jsonschema::draft202012::new(&schema()?)?)
+}
+
 fn schema() -> Result<Value, Box<dyn Error>> {
     let path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/record-json.schema.json");
@@ -101,9 +105,36 @@ fn ship_records_of_a_real_archive_are_json_files_under_their_record_paths() -> T
 
     assert!(summary.is_complete(), "{:?}", summary.failures().first());
     assert_eq!(summary.written(), records.len(), "one file per Record");
-    let known: Value =
-        serde_json::from_slice(&fs::read(dir.path().join(format!("{KNOWN_RECORD}.json")))?)?;
+    let bytes = fs::read(dir.path().join(format!("{KNOWN_RECORD}.json")))?;
+    let header = format!(
+        "{{
+  \"$type\": \"EntityClassDefinition\",
+  \"$guid\": \"{KNOWN_GUID}\",
+  \"$path\": \"{KNOWN_RECORD}\","
+    );
+    assert!(
+        bytes.starts_with(header.as_bytes()),
+        "the stable header: $type, $guid and $path in this order"
+    );
+    let known: Value = serde_json::from_slice(&bytes)?;
     assert_eq!(known["$guid"], KNOWN_GUID, "the known Record");
     assert_eq!(known["$type"], "EntityClassDefinition", "its type");
+    assert_eq!(known["$path"], KNOWN_RECORD, "its record path");
+    let vehicle = known["Components"]
+        .as_array()
+        .and_then(|components| {
+            components
+                .iter()
+                .find(|component| component["$type"] == "VehicleComponentParams")
+        })
+        .ok_or("the VehicleComponentParams component")?;
+    assert!(
+        vehicle["vehicleName"].is_string() && vehicle["crewSize"].is_number(),
+        "the ship fields of the component"
+    );
+    assert!(
+        validator()?.is_valid(&known),
+        "valid against the Record JSON schema"
+    );
     Ok(())
 }

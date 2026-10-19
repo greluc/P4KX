@@ -124,6 +124,8 @@ extraction-summary-skipped = Skipped ({ $number })
 extraction-summary-cancelled = Cancelled ({ $number })
 extraction-summary-unconverted = Not converted ({ $number })
 extraction-summary-failure = { $path }: { $reason }
+extraction-summary-records-failed = Records not written ({ $number })
+extraction-summary-record-failure = { $path } ({ $guid }): { $reason }
 extraction-failed = Cannot prepare the target in { $path }: { $reason }
 extraction-stopped = The Extraction into { $path } stopped without a result.
 extraction-failed-title = Extraction failed
@@ -350,6 +352,50 @@ record-export-failed-title = Record export failed
 record-export-failed = The Record export into { $path } failed: { $reason }
 record-export-stopped = The Record export into { $path } stopped without a result.
 
+catalog-action = Basetool catalog…
+catalog-file-filter = Basetool catalog
+catalog-running-title = Creating the Basetool catalog
+catalog-reading = Reading DataForge…
+catalog-progress = { $done } of { $total } Records checked, { $percent } %
+catalog-writing = Writing { $path }…
+catalog-summary-title = Basetool catalog created
+catalog-kinds-heading = Kinds
+catalog-summary-kind = { $kind ->
+    [manufacturers] Manufacturers
+    [items] Items
+    [ships] Ships
+    [commodities] Commodities
+    [blueprints] Blueprints
+   *[other] { $kind }
+}: { $written } written, { $skipped } skipped, { $complete ->
+    [yes] complete
+   *[no] partial
+}
+catalog-summary-skipped = Records skipped as development leftovers: { $number }
+catalog-summary-failed = Records that could not be read and were left out ({ $number })
+catalog-summary-failure = { $path } ({ $guid }): { $reason }
+catalog-texts-heading = Texts
+catalog-summary-texts = { $language ->
+    [en] English
+    [de] German
+   *[other] { $language }
+}: { $resolved } resolved, { $missing } missing, { $placeholders } placeholders
+catalog-summary-texts-unavailable = { $language ->
+    [en] English
+    [de] German
+   *[other] { $language }
+}: the Archive holds no global.ini, { $missing } missing
+catalog-summary-missing = Missing texts: { $number }
+catalog-summary-size = Size: { $size } of the upload limit of { $limit }
+catalog-near-limit = The catalog is close to the basetool upload limit of { $limit }.
+catalog-over-limit = The catalog is over the basetool upload limit of { $limit }; the basetool will reject the upload.
+catalog-summary-file = File: { $path }
+catalog-cancelled-title = Basetool catalog cancelled
+catalog-cancelled = The Basetool catalog was cancelled. No file was written.
+catalog-failed-title = Basetool catalog failed
+catalog-failed = The Basetool catalog { $path } could not be created: { $reason }
+catalog-stopped = The Basetool catalog { $path } stopped without a result.
+catalog-output-is-archive = The Basetool catalog cannot be written to { $path }, because that is the open Archive. Choose another file.
 preview-tab-xml = XML
 xml-converting = Converting { $path } to XML…
 xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.
@@ -357,6 +403,14 @@ xml-failed = Cannot convert { $path } to XML: { $reason }
 xml-stopped = Converting { $path } stopped without a result.
 xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.
 xml-view = Converted XML
+
+scroll-text = Text lines
+scroll-hex = Hexadecimal rows
+scroll-image = Picture
+scroll-diff = Line differences
+scroll-fields = Changed fields
+scroll-lines = Record fields
+scroll-localization = Localisation rows
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -375,3 +429,74 @@ audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex 
 audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
 audio-failed = Cannot decode { $path }: { $reason }
 audio-output-failed = The sound cannot be played: { $reason }
+
+texture-parts =
+    { $count ->
+        [one] +{ $number } part
+       *[other] +{ $number } parts
+    }
+texture-expand = Show the parts of { $name }
+texture-collapse = Hide the parts of { $name }
+
+preview-tab-record = Record
+record-back = Back
+record-forward = Forward
+record-type = Type
+record-guid = GUID
+record-name = Name
+record-head-value = Value
+record-loading = Reading the Record { $path }…
+record-failed = Cannot read the Record { $path }: { $reason }
+record-stopped = Reading the Record { $path } stopped without a result.
+record-archive-changed = The Archive changed on disk. Reload it to read the Record.
+record-dangling = The Reference points to the Record { $guid }, which does not exist in this DataForge.
+record-follow = Follow the Reference to { $path }
+record-row = { $field }: { $value }
+record-no-fields = The Record has no fields.
+record-xml-failed = The Record XML of { $path } cannot be written: { $reason }
+
+record-language-menu = Record texts
+record-language-keys-only = Keys only
+record-language-unavailable = The Archive holds no texts in { $language }, so only the keys are shown.
+record-language-key-row = { $key }: { $text }
+record-language-key-row-missing = { $key } (no text in this language)
+record-language-load-failed = The texts in { $language } cannot be read, so only the keys are shown: { $reason }
+localization-tab = Localisation
+localization-label = Search
+localization-hint = Key or text, e.g. item_Name or Aurora
+localization-loading = Reading the localisation files…
+localization-no-texts = The Archive holds no global.ini.
+localization-failed = The localisation files cannot be read: { $reason }
+localization-stopped = Reading the localisation files stopped without a result.
+localization-archive-changed = The Archive changed on disk. Reload it to read the localisation files.
+localization-empty-title = No Archive open
+localization-empty-hint = Open an Archive to look up its localisation keys and texts.
+localization-column-key = Key
+localization-language-en = English
+localization-language-de = German
+localization-language-fr = French
+localization-language-it = Italian
+localization-language-es-ES = Spanish (Spain)
+localization-language-es-419 = Spanish (Latin America)
+localization-language-pt-BR = Portuguese (Brazil)
+localization-language-ja = Japanese
+localization-language-ko = Korean
+localization-language-zh-Hans = Chinese (simplified)
+localization-language-zh-Hant = Chinese (traditional)
+localization-language-other = Other language
+localization-missing = Missing
+localization-keys =
+    { $count ->
+        [one] { $number } key
+       *[other] { $number } keys
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } of { $total } keys
+       *[other] { $number } of { $total } keys
+    }
+localization-searching = Searching…
+localization-no-match = No key or text matches the search.
+localization-copy-key = Copy key
+localization-copy-text = Copy text
+localization-notes = Some global.ini files were not read cleanly:

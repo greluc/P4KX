@@ -45,6 +45,19 @@ pub(crate) struct EntryJson<'a> {
     encrypted: bool,
     compressed_size: u64,
     size: u64,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parts: Vec<&'a str>,
+}
+
+impl<'a> EntryJson<'a> {
+    /// Makes the Entry the row of a split texture: the sizes are those of the whole group, and
+    /// `parts` are the paths of its other Entries.
+    pub(crate) fn grouped(mut self, compressed_size: u64, size: u64, parts: Vec<&'a str>) -> Self {
+        self.compressed_size = compressed_size;
+        self.size = size;
+        self.parts = parts;
+        self
+    }
 }
 
 impl<'a> From<&'a Entry> for EntryJson<'a> {
@@ -55,6 +68,7 @@ impl<'a> From<&'a Entry> for EntryJson<'a> {
             encrypted: entry.is_encrypted(),
             compressed_size: entry.compressed_size(),
             size: entry.uncompressed_size(),
+            parts: Vec::new(),
         }
     }
 }

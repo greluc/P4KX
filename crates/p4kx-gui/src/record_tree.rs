@@ -4,8 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{DataForgeEntry, DataForgeError};
-
+mod load;
 mod reveal;
 
 use crate::EntryIndex;
@@ -13,6 +12,7 @@ use crate::model::describe;
 use crate::record_index::{
     DataForgeSummary, Node, RecordId, RecordIndex, RecordInfo, RecordNodeId, RecordNodeKind,
 };
+use load::{Outcome, load};
 
 const ROOT: RecordNodeId = RecordNodeId(0);
 
@@ -84,12 +84,6 @@ pub enum RecordTreeStatus<'a> {
     ArchiveChanged,
     /// DataForge is loaded.
     Ready(&'a DataForgeSummary),
-}
-
-enum Outcome {
-    Loaded(Arc<RecordIndex>),
-    Failed(DataForgeFailure),
-    ArchiveChanged,
 }
 
 enum State {
@@ -356,29 +350,5 @@ impl RecordTree {
             }
         }
         self.rows = rows;
-    }
-}
-
-fn load(index: &EntryIndex, cancelled: &AtomicBool) -> Outcome {
-    if index.watch().check().is_err() {
-        return Outcome::ArchiveChanged;
-    }
-    let entry = match DataForgeEntry::read(index.archive()) {
-        Ok(entry) => entry,
-        Err(error) => return Outcome::Failed(DataForgeFailure::Unreadable(describe(&error))),
-    };
-    if cancelled.load(Ordering::Relaxed) {
-        return Outcome::Failed(DataForgeFailure::Stopped);
-    }
-    let built = entry.open().map(|forge| RecordIndex::build(&forge));
-    if index.watch().check().is_err() {
-        return Outcome::ArchiveChanged;
-    }
-    match built {
-        Ok(records) => Outcome::Loaded(Arc::new(records)),
-        Err(DataForgeError::UnsupportedVersion { version }) => {
-            Outcome::Failed(DataForgeFailure::Unsupported { version })
-        }
-        Err(error) => Outcome::Failed(DataForgeFailure::Unreadable(describe(&error))),
     }
 }

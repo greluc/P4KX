@@ -1,5 +1,80 @@
 {
   "$defs": {
+    "Blueprint": {
+      "additionalProperties": false,
+      "description": "A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.",
+      "properties": {
+        "categoryGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the category Record, `null` without one."
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`.",
+          "type": "string"
+        },
+        "craftTimeSeconds": {
+          "description": "The craft time of the first tier in seconds, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "ingredients": {
+          "description": "The ingredients of the first tier in stored order.",
+          "items": {
+            "$ref": "#/$defs/Ingredient"
+          },
+          "type": "array"
+        },
+        "key": {
+          "description": "The blueprint key, the Record name.",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `CraftingBlueprint.blueprintName`."
+        },
+        "producedItemGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the entity the blueprint produces, `null` without one or for a Reference to\na Record the DataForge lacks."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "categoryGuid",
+        "className",
+        "craftTimeSeconds",
+        "guid",
+        "ingredients",
+        "key",
+        "name",
+        "producedItemGuid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
     "BuildSource": {
       "additionalProperties": false,
       "description": "The Build of the Archive.",
@@ -29,17 +104,100 @@
       ],
       "type": "object"
     },
+    "Commodity": {
+      "additionalProperties": false,
+      "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a\n`ResourceType` Record a blueprint ingredient uses that no commodity Record carries.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Gold`.",
+          "type": "string"
+        },
+        "description": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity."
+        },
+        "displayType": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record; for a `ResourceType` entry the GUID of the `ResourceType`."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `SCItemPurchasableParams.displayName`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "subtypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record the commodity's default composition holds first,\n`null` without one. The `resourceGuid` of an ingredient equals the\n`subtypeGuid` of exactly one commodity."
+        },
+        "typeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`\nwithout a `ResourceType` or a group."
+        }
+      },
+      "required": [
+        "className",
+        "description",
+        "displayType",
+        "guid",
+        "name",
+        "recordPath",
+        "subtypeGuid",
+        "typeGuid"
+      ],
+      "type": "object"
+    },
     "Completeness": {
       "additionalProperties": false,
       "description": "The completeness of every kind.",
       "properties": {
+        "blueprints": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `blueprints`."
+        },
+        "commodities": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `commodities`."
+        },
+        "items": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `items`."
+        },
         "manufacturers": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
+        },
+        "ships": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `ships`."
         }
       },
       "required": [
-        "manufacturers"
+        "blueprints",
+        "commodities",
+        "items",
+        "manufacturers",
+        "ships"
       ],
       "type": "object"
     },
@@ -48,6 +206,226 @@
       "format": "uuid",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "type": "string"
+    },
+    "Ingredient": {
+      "additionalProperties": false,
+      "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
+      "properties": {
+        "itemGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the entity of an item line, `null` for a resource line."
+        },
+        "minQuality": {
+          "description": "The minimum quality the ingredient must have, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "quantityScu": {
+          "description": "The quantity of a resource line in standard cargo units (SCU), `null` for an item line.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quantityUnits": {
+          "description": "The quantity of an item line in units, `null` for a resource line.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "resourceGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record of a resource line, `null` for an item line."
+        },
+        "slot": {
+          "description": "The debug name of the slot the ingredient fills, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slotKey": {
+          "description": "The localisation key of the slot name, `null` without one or for a placeholder.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "itemGuid",
+        "minQuality",
+        "quantityScu",
+        "quantityUnits",
+        "resourceGuid",
+        "slot",
+        "slotKey"
+      ],
+      "type": "object"
+    },
+    "Item": {
+      "additionalProperties": false,
+      "description": "An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `POWR_ACAS_S01_Lumen`.",
+          "type": "string"
+        },
+        "description": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The description, from `AttachDef.Localization.Description`."
+        },
+        "displayType": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`."
+        },
+        "grade": {
+          "description": "The grade of `AttachDef.Grade`, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "itemClass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The item class from the `Class:` line of the English description, `null` for another\nvalue or without that line."
+        },
+        "manufacturerGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the manufacturer the Reference `AttachDef.Manufacturer` links to, `null` for\na null Reference."
+        },
+        "mass": {
+          "description": "The mass in kilograms of the physics controller, `null` without one.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `AttachDef.Localization.Name`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "size": {
+          "description": "The size of `AttachDef.Size`, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "subType": {
+          "description": "The item subtype of `AttachDef.SubType`, e.g. `Power`, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "description": "The words of `AttachDef.Tags`, in stored order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "description": "The item type of `AttachDef.Type`, e.g. `PowerPlant`, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "className",
+        "description",
+        "displayType",
+        "grade",
+        "guid",
+        "itemClass",
+        "manufacturerGuid",
+        "mass",
+        "name",
+        "recordPath",
+        "size",
+        "subType",
+        "tags",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ItemClass": {
+      "description": "The class of an item: an option of the DataForge enum `EItemClass` other than `UNDEFINED`.\n\nNo DataForge field carries it; it is read from the `Class:` line of the item's English\ndescription.",
+      "oneOf": [
+        {
+          "const": "Civilian",
+          "description": "`Civilian`.",
+          "type": "string"
+        },
+        {
+          "const": "Competition",
+          "description": "`Competition`.",
+          "type": "string"
+        },
+        {
+          "const": "Industrial",
+          "description": "`Industrial`.",
+          "type": "string"
+        },
+        {
+          "const": "Military",
+          "description": "`Military`.",
+          "type": "string"
+        },
+        {
+          "const": "Stealth",
+          "description": "`Stealth`.",
+          "type": "string"
+        }
+      ]
     },
     "KindCompleteness": {
       "description": "Whether a kind holds every Record of the Build or only those a Filter selected.",
@@ -162,6 +540,79 @@
       ],
       "type": "object"
     },
+    "Ship": {
+      "additionalProperties": false,
+      "description": "A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or\n`entities/groundvehicles`.",
+      "properties": {
+        "career": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The career, from `vehicleCareer`, e.g. `@vehicle_focus_transporter`."
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `AEGS_Avenger_Titan`.",
+          "type": "string"
+        },
+        "crewSize": {
+          "description": "The crew size, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "description": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The description, from `vehicleDescription` of the vehicle parameters."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "manufacturerGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the manufacturer the Reference `manufacturer` links to, `null` for a null\nReference."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `vehicleName` of the vehicle parameters."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The role, from `vehicleRole`, e.g. `@vehicle_class_lightfreight`."
+        },
+        "vehicleDefinition": {
+          "description": "The path of the vehicle definition XML, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "career",
+        "className",
+        "crewSize",
+        "description",
+        "guid",
+        "manufacturerGuid",
+        "name",
+        "recordPath",
+        "role",
+        "vehicleDefinition"
+      ],
+      "type": "object"
+    },
     "Source": {
       "additionalProperties": false,
       "description": "Where a catalog came from.",
@@ -221,9 +672,30 @@
   "additionalProperties": false,
   "description": "The Basetool catalog: the game data the basetool's P4K import reads.",
   "properties": {
+    "blueprints": {
+      "description": "The blueprints, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Blueprint"
+      },
+      "type": "array"
+    },
+    "commodities": {
+      "description": "The commodities, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Commodity"
+      },
+      "type": "array"
+    },
     "completeness": {
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
+    },
+    "items": {
+      "description": "The items, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Item"
+      },
+      "type": "array"
     },
     "manufacturers": {
       "description": "The manufacturers, ordered by GUID.",
@@ -239,15 +711,26 @@
       "minimum": 0,
       "type": "integer"
     },
+    "ships": {
+      "description": "The ships, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Ship"
+      },
+      "type": "array"
+    },
     "source": {
       "$ref": "#/$defs/Source",
       "description": "The Archive and Build the catalog was made from."
     }
   },
   "required": [
+    "blueprints",
+    "commodities",
     "completeness",
+    "items",
     "manufacturers",
     "schemaVersion",
+    "ships",
     "source"
   ],
   "title": "P4K-Extractor Basetool catalog",

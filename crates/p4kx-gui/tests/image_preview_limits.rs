@@ -18,6 +18,10 @@ fn an_alpha_tail_opens_in_the_image_tab_on_its_own() -> TestResult {
         .entries(GLASS);
     let (_folder, mut harness) = opened_with(Language::BritishEnglish, glass)?;
 
+    harness
+        .get_by_label("Show the parts of glass_ddna.dds")
+        .click();
+    harness.run();
     select(&mut harness, "glass_ddna.dds.a")?;
 
     assert_eq!(

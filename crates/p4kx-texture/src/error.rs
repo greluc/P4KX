@@ -30,6 +30,12 @@ pub enum TextureError {
         /// Bytes after the header.
         tail: u64,
     },
+    /// The 8 bytes after the last mip are not the CryEngine trailer `CExtCEnd`.
+    #[error("the 8 bytes after the last mip are not the CryEngine trailer: {found:02x?}")]
+    UnknownTrailer {
+        /// The bytes found.
+        found: [u8; 8],
+    },
     /// A sibling part the header needs does not exist.
     #[error("part {index} is missing")]
     MissingPart {

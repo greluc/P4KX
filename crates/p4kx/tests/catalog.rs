@@ -1,133 +1,17 @@
 //! `p4kx catalog` end to end, over a synthetic DataForge and English and German `global.ini`
 //! files.
 
+mod catalog_support;
+
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, UNIX_EPOCH};
 
 use assert_cmd::Command;
-use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
-    TestStruct, TestType, TestValue, write_build_manifest,
-};
+use catalog_support::{EXPORTED_AT, english, write_archive, write_archive_with};
+use p4kx_testkit::TestEntry;
 
 type TestResult = Result<(), Box<dyn Error>>;
-
-const EXPORTED_AT: &str = "1792000000";
-const MODIFIED: Duration = Duration::from_hours(497_500);
-
-fn manufacturer(guid: u128, class: &str, path: &str, code: &str) -> TestRecord {
-    TestRecord::new(
-        guid,
-        "SCItemManufacturer",
-        format!("SCItemManufacturer.{class}"),
-        format!("libs/foundry/records/scitemmanufacturer/{path}.xml"),
-    )
-    .value("Code", TestValue::text(code))
-    .value(
-        "Localization",
-        TestValue::Struct(
-            TestInstance::new("SCItemLocalization")
-                .value(
-                    "Name",
-                    TestValue::text(format!("@manufacturer_Name{class}")),
-                )
-                .value(
-                    "Description",
-                    TestValue::text(format!("@manufacturer_Desc{class}")),
-                ),
-        ),
-    )
-}
-
-fn database() -> DataForgeBuilder {
-    DataForgeBuilder::new()
-        .version(8)
-        .structure(
-            TestStruct::new("SCItemLocalization")
-                .field("Name", TestType::Locale)
-                .field("Description", TestType::Locale),
-        )
-        .structure(
-            TestStruct::new("SCItemManufacturer")
-                .field("Code", TestType::String)
-                .field(
-                    "Localization",
-                    TestType::Class("SCItemLocalization".to_owned()),
-                ),
-        )
-        .record(manufacturer(
-            0xcfc0_122d_5275_415a_a656_3dcb_3346_feb5,
-            "ACAS",
-            "acas",
-            "ACAS",
-        ))
-        .record(manufacturer(
-            0x0a1b_0000_0000_4000_8000_0000_0000_0001,
-            "AEGS",
-            "scitemmanufacturer.aegs",
-            "AEGS",
-        ))
-        .record(manufacturer(
-            0x5555_0000_0000_4000_8000_0000_0000_0002,
-            "Paint_Test_01",
-            "paint_test_01",
-            "",
-        ))
-}
-
-fn english() -> TestEntry {
-    TestEntry::zstd(
-        "Data\\Localization\\english\\global.ini",
-        GlobalIniBuilder::new()
-            .text("manufacturer_NameACAS", "Ace Astrogation")
-            .text("manufacturer_DescACAS", "Power plants.")
-            .text("manufacturer_NameAEGS,P", "Aegis Dynamics")
-            .build(),
-    )
-}
-
-fn german() -> TestEntry {
-    TestEntry::zstd(
-        "Data\\Localization\\german_(germany)\\global.ini",
-        GlobalIniBuilder::new()
-            .text("manufacturer_NameACAS", "Ace Astrogation")
-            .text("manufacturer_DescACAS", "Kraftwerke.")
-            .build(),
-    )
-}
-
-fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
-    write_archive_with(dir, &[english(), german()])
-}
-
-fn write_archive_with(dir: &Path, texts: &[TestEntry]) -> Result<PathBuf, Box<dyn Error>> {
-    let channel = dir.join("LIVE");
-    fs::create_dir(&channel)?;
-    write_build_manifest(
-        &channel,
-        "sc-alpha-4.4.0",
-        "4.4.162.12345",
-        "10012345",
-        "0123456789abcdef",
-    )?;
-    let path = channel.join("Data.p4k");
-    texts
-        .iter()
-        .cloned()
-        .fold(
-            ArchiveBuilder::new()
-                .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted()),
-            ArchiveBuilder::entry,
-        )
-        .write_to(&path)?;
-    File::options()
-        .write(true)
-        .open(&path)?
-        .set_modified(UNIX_EPOCH + MODIFIED)?;
-    Ok(path)
-}
 
 fn p4kx(args: &[&str]) -> Result<Command, Box<dyn Error>> {
     let mut command = Command::cargo_bin("p4kx")?;
@@ -262,22 +146,35 @@ fn catalog_without_a_german_global_ini_leaves_german_null_and_counts_it() -> Tes
 }
 
 #[test]
-fn catalog_with_a_corrupt_german_global_ini_cannot_read_the_archive() -> TestResult {
+fn catalog_reads_a_german_global_ini_with_invalid_bytes_lossily() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let corrupt = TestEntry::zstd(
+    let damaged = TestEntry::zstd(
         "Data\\Localization\\german_(germany)\\global.ini",
-        b"manufacturer_NameACAS=\xff\xfe\r\n".to_vec(),
+        b"manufacturer_NameACAS=Ace\xff\r\nstray line\r\n".to_vec(),
     );
-    let archive = write_archive_with(dir.path(), &[english(), corrupt])?;
+    let archive = write_archive_with(dir.path(), &[english(), damaged])?;
+    let out = dir.path().join("damaged.json");
     let output = p4kx(&["catalog"])?
         .arg(&archive)
         .arg("--out")
-        .arg(dir.path().join("corrupt.json"))
+        .arg(&out)
         .output()?;
-    assert_eq!(output.status.code(), Some(3), "exit code: {output:?}");
+    assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        String::from_utf8(output.stderr)?.contains("german_(germany)"),
-        "names the Entry"
+        stderr.contains(
+            "note: Data\\Localization\\german_(germany)\\global.ini: invalid bytes replaced, 1 line skipped\n"
+        ),
+        "the Entry is named on stderr: {stderr}"
+    );
+    assert!(
+        !stderr.contains("english"),
+        "the clean Entry is not named: {stderr}"
+    );
+    let catalog: serde_json::Value = serde_json::from_str(&fs::read_to_string(out)?)?;
+    assert_eq!(
+        catalog["manufacturers"][1]["name"]["de"], "Ace\u{fffd}",
+        "the bad byte is replaced, the text kept"
     );
     Ok(())
 }

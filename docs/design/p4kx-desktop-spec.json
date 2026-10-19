@@ -300,7 +300,15 @@
     "activeFontWeight": "fw-bold",
     "numericAlign": "right",
     "numericTabular": true,
-    "columns": {"checkbox": 44, "name": "fill", "compression": 160, "encryption": 180, "size": 130}
+    "columns": {"checkbox": 44, "name": "fill", "compression": 160, "encryption": 180, "size": 130},
+    "textureGroup": {
+      "decision": "D.26",
+      "chevronSlot": {"paddingLeft": 8, "size": 12, "gap": 6, "reservedInEveryRow": true},
+      "chevron": {"color": "color-primary", "focusRingOffset": 2},
+      "partIndent": {"perLevel": 12, "levels": 1},
+      "rail": {"width": 1, "color": "color-gray-3"},
+      "count": {"color": "color-gray-2-text", "fontWeight": "fw-regular", "gap": "space-2"}
+    }
   },
   "checkbox": {
     "dsClass": "input[type=checkbox]",
@@ -378,7 +386,10 @@
     "asciiCellWidth": 10,
     "asciiColor": "color-gray-1",
     "asciiNonPrintable": ".",
-    "asciiNonPrintableColor": "color-gray-2-text"
+    "asciiNonPrintableColor": "color-gray-2-text",
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the Text and Hex lines; arrows, Page Up, Page Down, Home and End scroll"
   },
   "statusBar": {
     "dsClass": "krt-footer (desktop density)",
@@ -573,9 +584,25 @@
   },
   "workTabs": {
     "dsClass": "tab-nav / tab",
-    "tabs": ["archive", "comparison", "query"],
+    "tabs": ["archive", "comparison", "query", "localization"],
     "position": "top of the work surface, above the list panel",
     "metrics": "tabBar"
+  },
+  "localizationTable": {
+    "decision": "D.28",
+    "toolbar": "listPanel toolbar: searchField with its eyebrow label, buttonGhost Copy key and Copy text right-aligned",
+    "rows": "tableRow; a language column holds the text on one line, control and bidirectional characters as escapes in color-gray-2-text, cut after 1024 characters",
+    "header": "tableHeader, one column for the key and one per language, labels in upper case, not sortable",
+    "keyColumnWidth": 300,
+    "textColumnWidth": 320,
+    "columnMinWidth": 80,
+    "missing": {"dsClass": "chip chip--warning", "label": "Missing", "metrics": "changeChip"},
+    "selection": "the selected row in controlSelectedBackground, the selected cell as the active row; a search that hides the selected row clears the selection",
+    "search": "keys and the texts shown in the cells; a text shown as Missing is not matched",
+    "focusRingOffset": -2,
+    "keyStep": 36,
+    "keyboard": "Tab focuses the rows (scrollRegion of D.27, name Localisation rows); arrows scroll by one row or column step, Page Up, Page Down, Home and End scroll",
+    "footer": "listFooter with the number of keys shown of all keys; the notes on files read lossily in a warning alert above the table"
   },
   "archivePicker": {
     "dsClass": "select + krt-combobox__listbox",
@@ -610,13 +637,27 @@
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },
+  "extractionAudio": {
+    "decision": "D.32",
+    "row": "radio row Sounds as: Ogg, WAV, WEM unchanged, 16 apart, radio to label 12; indented under the texture outputs; shown only while Conversion is on",
+    "label": "14.4 / fw-regular color-gray-1, as the radio labels",
+    "note": "12.8 / fw-regular color-gray-2-text below the row, like the new folder name hint"
+  },
   "recordExport": {
     "menu": "Export menu link after Archive, metrics menuLink, its entry dropdownItem; disabled without a DataForge and while a Record export runs",
     "setup": "modal wide: groups Records (radio tree selection with name and count, radio Record path filter over a searchField), Form (radio JSON, radio NDJSON), Target (as the Extraction setup); bodyGroupGap between groups",
     "cta": "buttonCta Start export; Close is buttonGhost",
     "progress": "non-modal modal frame, width 440: spinner while DataForge is read and Records are chosen, then progressBar with done of total; Cancel buttonGhost alone in the foot",
     "summary": "non-modal modal frame, width 600: cancel note in color-warning, counts and target in color-gray-1, failed Records as collapsibleSection rows with the reason in color-danger-text; Close buttonCta alone in the foot; no target line when none was created"
-  },  "factsBar": {
+  },
+  "basetoolCatalog": {
+    "menu": "Export menu entry dropdownItem below Record export; disabled without a DataForge and while a catalog is created; opens the system save dialog with basetool-catalog.json",
+    "progress": "non-modal modal frame, width 440: spinner while DataForge is read and while the file is written, progressBar with Records checked of total between; Cancel buttonGhost alone in the foot",
+    "summary": "non-modal modal frame, width 600: alertWarning near the upload limit or alertDanger over it on top; group labels Kinds and Texts with one color-gray-1 line per kind and language, then size in decimal units with the upload limit of 64 MB and the file; Close buttonCta alone in the foot",
+    "cancelled": "non-modal modal frame: note in color-warning, no file written",
+    "failed": "non-modal danger modal frame: the reason in color-danger-text, also when the chosen file is the open Archive, which is never written"
+  },
+  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
     "paddingY": 8,
@@ -693,6 +734,9 @@
     "rows": "tableRow with zebra and hover, without selection; focusable with focusRing offsetRow, the full text as tooltip on hover and focus",
     "missingValue": "– in color-gray-2-text",
     "errorValue": "Error: reason in color-danger-text",
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the field list; arrows, Page Up, Page Down, Home and End scroll",
     "messages": "previewPanel body: added, removed, moved and equal in color-gray-1, unreadable sides and failures in color-danger-text"
   },
   "queryEditor": {
@@ -787,6 +831,9 @@
       "color": "color-gray-2-text",
       "current": {"borderLeft": 3, "borderColor": "color-primary", "color": "color-white"}
     },
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the lines; arrows, Page Up, Page Down, Home and End scroll",
     "longLines": "clipped per side, one horizontal scroll for both sides",
     "messages": "previewPanel body: binary and too large color-gray-1, failure color-danger-text"
   },
@@ -806,6 +853,10 @@
     "facts": "factsBar without direction: format, size, mips, cubemap faces",
     "selector": "quickFilter, one item per mip labelled with its longer side",
     "focusRingOffset": -3,
+    "decision": "D.27",
+    "pictureFocusRingOffset": -2,
+    "pictureKeyStep": 36,
+    "keyboard": "Tab focuses the picture; arrows scroll by pictureKeyStep, Page Up, Page Down, Home and End scroll",
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
   "slider": {
@@ -857,6 +908,35 @@
     "longLines": "cut after 1024 characters with an ellipsis, one horizontal scroll",
     "truncated": "note in color-warning above the lines, like the truncated Text tab",
     "messages": "converting with the inline spinner, too large color-gray-1, failure color-danger-text"
+  },
+  "recordPreview": {
+    "dsClass": "previewPanel + factsBar + tableHead + tableRow + link",
+    "rowHeight": 36,
+    "columns": "two equal columns, field and value",
+    "indentPerLevel": 12,
+    "railColor": "color-gray-3",
+    "pathLine": "record path color-gray-1, Record name color-gray-2-text",
+    "facts": "factsBar without direction: type, GUID, name",
+    "valueColor": "color-gray-1",
+    "nullColor": "color-gray-2-text",
+    "errorColor": "color-danger-text",
+    "link": "12.8 / fw-bold color-primary, hover color-accent-light with underline, target type after 8 in color-gray-2-text",
+    "danglingLink": "error text in color-danger-text, underlined on hover",
+    "danglingNotice": "alertDanger above the facts",
+    "navigation": "Back and Forward as ghost btn-xs left of Copy; Alt+Left, Alt+Right, mouse back and forward",
+    "focusRingOffset": 2,
+    "decision": "D.27",
+    "linesFocusRingOffset": -2,
+    "keyboard": "Tab focuses the field lines; arrows, Page Up, Page Down, Home and End scroll",
+    "keyText": {
+      "decision": "D.29",
+      "menu": "Record texts menu link after Export, metrics menuLink; entries dropdownItem with radio, Keys only first, then the languages the Archive holds; disabled without a global.ini",
+      "key": "color-gray-2-text while a text or the mark follows, else color-gray-1",
+      "text": "after the key 8, 13.76 / fw-regular color-gray-1, cut with an ellipsis; control, bidirectional and line feed characters as escapes",
+      "missing": "chip--warning, label Missing, after the key 8",
+      "placeholder": "placeholder and empty keys stay alone",
+      "failureNotice": "alertWarning above the facts"
+    }
   },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},

@@ -95,7 +95,7 @@ fn check_texts(summary: &CatalogSummary, list: &[Value]) -> TestResult {
             "manufacturer {code} has an English and a German name"
         );
     }
-    for language in Language::ALL {
+    for language in [Language::English, Language::German] {
         let texts = summary.text(language).ok_or("a text summary")?;
         assert!(texts.available, "the Archive holds {language}");
         assert!(

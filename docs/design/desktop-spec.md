@@ -84,6 +84,7 @@ sind keine neuen Farben.
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
 | Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
+| Record-Vorschau (Tab „Record") | Vorschau-Panel + `.facts-bar` + Tabellenkopf + Tabellenzeile + `a` | 36 | Zelle x 12,8; 12 je Ebene | zwei gleiche Spalten Feld, Wert; Typ nach dem Link 8 | Werte 13,76 / 400; Link 12,8 / 700 | Kopf und Schlüssel ja, Daten nein | Wert `color-gray-1`, `null` `color-gray-2-text`, Fehler `color-danger-text`; Link `color-primary`, Hover `color-accent-light` + Unterstrich; Ebenen-Schiene 1 `color-gray-3` | unten 1 `color-gray-3` | – | Link 2 / +2; Alt+←, Alt+→, Maustasten zurück/vor |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 
 ## Entscheidungen
@@ -276,18 +277,25 @@ nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis 
 wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
 „Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
-**D.25 Tonformat der Extraktion als Radio-Zeile unter den Texturausgaben.** Ist die Umwandlung an,
-steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben eine Zeile „Sounds als"
-(14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,
-unverändert" nebeneinander, 16 voneinander wie die Steuerelement-Zeile im Specimen FormControls
-(`gap: 16px`), Radio↔Label 12 wie bei der Radio-Gruppe. Drei sich ausschließende
-Werte sind Radios wie Konfliktregel und Mip-Stufe, kein `.krt-segmented--sm`: der Schnellfilter
-gehört in Toolbars, im Modal bleiben Formularelemente. Eine Zeile statt einer Spalte, weil die
-Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. Darunter steht in
-12,8 / 400 `color-gray-2-text`, wie der Hinweis auf den neuen Ordnernamen, dass Ogg für Codecs ohne
-Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
-Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
-Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
+**D.20 Basetool-Katalog im Export-Menü ohne eigenen Dialog.** „Basetool-Katalog …" steht im
+Menü „Export" unter „Record-Export …" und ist gesperrt, solange das Archiv kein DataForge hat oder
+DataForge nicht geladen werden konnte, und während ein Katalog erstellt wird. Es gibt nichts zu
+entscheiden außer der Zieldatei, deshalb öffnet der Eintrag direkt den Speichern-Dialog des
+Systems mit `basetool-catalog.json` (D.3); erst die gewählte Datei startet den Katalog. Fortschritt
+und Ergebnis sind wie beim Record-Export nicht modal mit je genau einer Aktion im Fuß (D.7, D.17):
+Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit geprüften Records.
+Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
+vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
+aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
+Datei, alles in `color-gray-1`. Größe und Limit stehen in Dezimaleinheiten, das Limit wie in der
+Dokumentation als „64 MB". Nahe am Upload-Limit steht oben `.alert-warning`, darüber
+`.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
+lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Ist die gewählte
+Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
+Der Katalog liest DataForge aus dem einen Cache des offenen Archivs (D.22), also nur einmal.
+
+**D.22 bis D.32** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte, Tonformat der Extraktion)
+stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 
 ## Bewusste Abweichungen von den Web-Specimens
 

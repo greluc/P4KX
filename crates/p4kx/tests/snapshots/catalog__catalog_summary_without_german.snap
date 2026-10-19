@@ -3,6 +3,11 @@ source: crates/p4kx/tests/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete
-en: 3 texts resolved, 1 unresolved, 0 placeholders
-de: 0 texts resolved, 4 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 947 bytes, 1 Records skipped
+items: 1 written, 0 skipped, complete
+ships: 1 written, 0 skipped, complete
+commodities: 2 written, 0 skipped, complete
+blueprints: 1 written, 0 skipped, complete
+item classes: 1 read, 0 other values, 0 without a Class: line or English description
+en: 12 texts resolved, 1 unresolved, 0 placeholders
+de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
+wrote [DIR]/english-only.json: 3500 bytes, 1 Records skipped, 0 failed

@@ -13,38 +13,49 @@ const CUT: char = '…';
 
 /// One line as it is shown: its text and the byte ranges of the text shown as escapes.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(super) struct ShownLine {
-    pub(super) text: String,
+pub(crate) struct ShownLine {
+    pub(crate) text: String,
     escapes: Vec<Range<usize>>,
 }
 
 impl ShownLine {
     /// Returns the line as a layout job in `font`: escapes in `color-gray-2-text`, the rest in
     /// the colour the painter passes.
-    pub(super) fn job(&self, font: &FontId) -> LayoutJob {
-        let mut job = LayoutJob::default();
-        let mut at = 0;
-        let format = |color| TextFormat::simple(font.clone(), color);
-        for escape in &self.escapes {
-            job.append(
-                self.text.get(at..escape.start).unwrap_or_default(),
-                0.0,
-                format(Color32::PLACEHOLDER),
-            );
-            job.append(
-                self.text.get(escape.clone()).unwrap_or_default(),
-                0.0,
-                format(palette::GRAY_2_TEXT),
-            );
-            at = escape.end;
-        }
+    pub(crate) fn job(&self, font: &FontId) -> LayoutJob {
+        escaped_job(&self.text, &self.escapes, font)
+    }
+
+    /// Returns the byte ranges of the text that are escapes.
+    pub(crate) fn escapes(&self) -> &[Range<usize>] {
+        &self.escapes
+    }
+}
+
+/// Returns `text` as a layout job in `font` with the byte ranges `escapes` in `color-gray-2-text`
+/// and the rest in the colour the painter passes.
+pub(crate) fn escaped_job(text: &str, escapes: &[Range<usize>], font: &FontId) -> LayoutJob {
+    let mut job = LayoutJob::default();
+    let mut at = 0;
+    let format = |color| TextFormat::simple(font.clone(), color);
+    for escape in escapes {
         job.append(
-            self.text.get(at..).unwrap_or_default(),
+            text.get(at..escape.start).unwrap_or_default(),
             0.0,
             format(Color32::PLACEHOLDER),
         );
-        job
+        job.append(
+            text.get(escape.clone()).unwrap_or_default(),
+            0.0,
+            format(palette::GRAY_2_TEXT),
+        );
+        at = escape.end;
     }
+    job.append(
+        text.get(at..).unwrap_or_default(),
+        0.0,
+        format(Color32::PLACEHOLDER),
+    );
+    job
 }
 
 /// Returns `bytes` as one line for display: without its terminator, tabs as spaces, control and
@@ -52,7 +63,7 @@ impl ShownLine {
 ///
 /// Only the first [`MAX_LINE_BYTES`] bytes are decoded, so a huge line costs no more than a
 /// short one.
-pub(super) fn display(bytes: &[u8]) -> ShownLine {
+pub(crate) fn display(bytes: &[u8]) -> ShownLine {
     let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
     let bytes = bytes.strip_suffix(b"\r").unwrap_or(bytes);
     let head = bytes.get(..MAX_LINE_BYTES).unwrap_or(bytes);
@@ -66,6 +77,26 @@ pub(super) fn display(bytes: &[u8]) -> ShownLine {
         push(&mut shown, character);
     }
     if cut {
+        shown.text.push(CUT);
+    }
+    shown
+}
+
+/// Returns `text` as one line for display like [`display`], with each line feed as the escape
+/// `\n`, and cut after [`MAX_LINE_CHARS`] characters however long the text is.
+pub(crate) fn display_text(text: &str) -> ShownLine {
+    let mut shown = ShownLine::default();
+    let mut characters = text.chars();
+    for character in characters.by_ref().take(MAX_LINE_CHARS) {
+        if character == '\n' {
+            let start = shown.text.len();
+            shown.text.push_str("\\n");
+            shown.escapes.push(start..shown.text.len());
+        } else {
+            push(&mut shown, character);
+        }
+    }
+    if characters.next().is_some() {
         shown.text.push(CUT);
     }
     shown
@@ -105,7 +136,23 @@ const fn is_hidden(character: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::display;
+    use super::{display, display_text};
+
+    #[test]
+    fn a_text_is_shown_on_one_line_with_its_line_feeds_as_escapes() {
+        let shown = display_text("Rolls.\nSlowly.\u{202E}\u{1B}");
+
+        assert_eq!(shown.text, "Rolls.\\nSlowly.\\u{202E}\\x1B", "escaped");
+        assert_eq!(shown.escapes, [6..8, 15..23, 23..27], "marked as escapes");
+    }
+
+    #[test]
+    fn a_huge_text_is_cut_after_a_bounded_number_of_characters() {
+        let shown = display_text(&"x".repeat(10 * 1024 * 1024));
+
+        assert_eq!(shown.text.chars().count(), 1025, "cut after 1024");
+        assert!(shown.text.ends_with('…'), "ellipsis");
+    }
 
     #[test]
     fn a_line_is_shown_without_its_terminator_and_with_tabs_as_spaces() {

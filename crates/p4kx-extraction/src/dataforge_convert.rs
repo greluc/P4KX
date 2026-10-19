@@ -72,6 +72,7 @@ impl EntryWriter<'_> {
         let share = rest.checked_div(records.len() as u64).unwrap_or_default();
         let run = RecordRun {
             policy: self.policy,
+            texts: None,
             stop: &|| self.tracker.should_stop(),
             ended: &|| {
                 credited.fetch_add(share, Ordering::Relaxed);

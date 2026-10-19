@@ -200,7 +200,7 @@ fn a_manufacturer_carries_guid_class_name_record_path_code_name_and_description(
 fn development_leftovers_are_excluded_by_token_and_counted_as_skipped() -> TestResult {
     assert_eq!(
         EXCLUDED_TOKENS,
-        ["test", "template", "dummy"],
+        ["test", "template", "dummy", "debug", "deprecated", "dev"],
         "documented list"
     );
     let (built, catalog) = catalog_with(&options())?;
@@ -222,8 +222,8 @@ fn development_leftovers_are_excluded_by_token_and_counted_as_skipped() -> TestR
 fn without_a_filter_every_kind_is_complete() -> TestResult {
     let (built, catalog) = catalog_with(&options())?;
     assert_eq!(
-        catalog["completeness"],
-        serde_json::json!({"manufacturers": {"status": "complete"}}),
+        catalog["completeness"]["manufacturers"],
+        serde_json::json!({"status": "complete"}),
         "complete"
     );
     assert!(
@@ -249,8 +249,8 @@ fn a_filter_restricts_the_selection_and_marks_the_kind_partial() -> TestResult {
         "only the filtered Records"
     );
     assert_eq!(
-        catalog["completeness"],
-        serde_json::json!({"manufacturers": {"status": "partial", "filter": "*/paint*"}}),
+        catalog["completeness"]["manufacturers"],
+        serde_json::json!({"status": "partial", "filter": "*/paint*"}),
         "partial with the filter"
     );
     let kind = built.summary().kind(Kind::Manufacturers);

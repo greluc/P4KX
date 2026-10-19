@@ -228,6 +228,8 @@ pub const SCROLL_THUMB_MIN: f32 = 32.0;
 
 /// The width of the focus ring.
 pub const FOCUS_WIDTH: f32 = 2.0;
+/// The thickness of a hairline, e.g. the underline of a hovered link.
+pub const HAIRLINE: f32 = 1.0;
 /// The gap between a control and its focus ring.
 pub const FOCUS_OFFSET: f32 = 2.0;
 /// The opacity of a disabled control.
@@ -258,6 +260,11 @@ pub const PICKER_PADDING_RIGHT: f32 = 2.0 * REM;
 pub const PICKER_CHEVRON_INSET: f32 = 0.65 * REM;
 /// The narrowest an Archive picker gets.
 pub const PICKER_MIN_WIDTH: f32 = SEARCH_WIDTH;
+
+/// The initial width of the key column of the localisation table.
+pub const LOCALIZATION_KEY_WIDTH: f32 = 300.0;
+/// The initial width of a language column of the localisation table.
+pub const LOCALIZATION_TEXT_WIDTH: f32 = 320.0;
 
 /// The widest the progress bar of a Comparison gets.
 pub const COMPARISON_PROGRESS_WIDTH: f32 = 320.0;

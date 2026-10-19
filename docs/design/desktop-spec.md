@@ -240,21 +240,6 @@ Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht 
 und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" als CTA. Der Balken
 zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
 bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
-**D.20 Basetool-Katalog im Export-Menü ohne eigenen Dialog.** „Basetool-Katalog …" steht im
-Menü „Export" unter „Record-Export …" und ist gesperrt, solange das Archiv kein DataForge hat oder
-DataForge nicht geladen werden konnte, und während ein Katalog erstellt wird. Es gibt nichts zu
-entscheiden außer der Zieldatei, deshalb öffnet der Eintrag direkt den Speichern-Dialog des
-Systems mit `basetool-catalog.json` (D.3); erst die gewählte Datei startet den Katalog. Fortschritt
-und Ergebnis sind wie beim Record-Export nicht modal mit je genau einer Aktion im Fuß (D.7, D.17):
-Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit geprüften Records.
-Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
-vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
-aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
-Datei, alles in `color-gray-1`. Nahe am Upload-Limit steht oben `.alert-warning`, darüber
-`.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
-lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Record-Export und
-Katalog teilen sich das einmal gelesene DataForge des offenen Archivs.
-
 **D.19 CryXml im Tab „XML".** Ist der gewählte Eintrag CryXml (erkannt an der Signatur, nicht an
 der Endung), bietet die Vorschau den Tab „XML" hinter „Hex" an und öffnet ihn, sobald der Anfang
 gelesen ist; andere Einträge, auch Text-XML, bekommen den Tab nicht und kehren zu „Text" zurück.
@@ -270,6 +255,21 @@ Vorschau gar nicht (Hinweis im Panel-Körper), sie bekommen deshalb auch keinen 
 nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis in `color-warning`
 wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
 „Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
+
+**D.20 Basetool-Katalog im Export-Menü ohne eigenen Dialog.** „Basetool-Katalog …" steht im
+Menü „Export" unter „Record-Export …" und ist gesperrt, solange das Archiv kein DataForge hat oder
+DataForge nicht geladen werden konnte, und während ein Katalog erstellt wird. Es gibt nichts zu
+entscheiden außer der Zieldatei, deshalb öffnet der Eintrag direkt den Speichern-Dialog des
+Systems mit `basetool-catalog.json` (D.3); erst die gewählte Datei startet den Katalog. Fortschritt
+und Ergebnis sind wie beim Record-Export nicht modal mit je genau einer Aktion im Fuß (D.7, D.17):
+Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit geprüften Records.
+Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
+vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
+aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
+Datei, alles in `color-gray-1`. Nahe am Upload-Limit steht oben `.alert-warning`, darüber
+`.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
+lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Record-Export und
+Katalog teilen sich das einmal gelesene DataForge des offenen Archivs.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

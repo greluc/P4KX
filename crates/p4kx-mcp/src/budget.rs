@@ -140,7 +140,48 @@ impl Write for Capped {
 mod tests {
     use std::io::Write;
 
-    use super::{Budget, Capped, MAX_RESPONSE_LEN, json_len};
+    use super::{Budget, Capped, MAX_RESPONSE_LEN, fill, json_len};
+    use crate::error::ToolError;
+    use crate::page::Page;
+
+    fn texts(lens: &[usize]) -> Vec<Result<String, ToolError>> {
+        lens.iter().map(|&len| Ok("a".repeat(len))).collect()
+    }
+
+    #[test]
+    fn a_listing_page_ends_early_at_the_cap_and_continues_after_it()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(&"listing", None, Some(10))?;
+        let (taken, next) = fill(page, 3, texts(&[100 << 10; 3]), String::clone)?;
+        assert_eq!(taken.len(), 2, "two items fit the cap");
+        let cursor = next.ok_or("a next page")?;
+        let rest = Page::new(&"listing", Some(&cursor), Some(10))?;
+        assert_eq!(
+            rest.offset(),
+            2,
+            "the next page starts at the item left out"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_listing_page_holds_at_most_the_page_size() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(&"listing", None, Some(2))?;
+        let (taken, next) = fill(page, 3, texts(&[1, 1, 1]), String::clone)?;
+        assert_eq!((taken.len(), next.is_some()), (2, true), "two and a cursor");
+        Ok(())
+    }
+
+    #[test]
+    fn a_listing_item_larger_than_the_cap_is_an_error() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(&"listing", None, None)?;
+        let result = fill(page, 1, texts(&[MAX_RESPONSE_LEN]), |_| "item".to_owned());
+        assert!(
+            matches!(result, Err(ToolError::TooLargeItem { .. })),
+            "too large alone"
+        );
+        Ok(())
+    }
 
     #[test]
     fn the_budget_takes_what_fits_and_nothing_else() {

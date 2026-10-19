@@ -69,6 +69,13 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
+  holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
+  is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM
+  and decodes. These are console variants; every Star Citizen WEM is Wwise Vorbis.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

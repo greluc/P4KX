@@ -10,6 +10,7 @@ use crate::{AudioError, ByteOrder, Codec};
 const SAMPLE_COUNT_OFFSET: usize = 0x18;
 const VORBIS_FMT_LEN: usize = 0x42;
 const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
+const EXTRA_LEN_OFFSET: usize = 0x10;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
@@ -36,6 +37,7 @@ struct Format {
     bits: u16,
     channel_mask: u32,
     embedded_sample_count: Option<u32>,
+    extra_len: Option<u16>,
     len: usize,
 }
 
@@ -69,7 +71,12 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let fmt = fmt.ok_or(AudioError::MissingChunk("fmt "))?;
         let data = data.ok_or(AudioError::MissingChunk("data"))?;
         let format = read_format(order, all.get(fmt).unwrap_or_default())?;
-        let codec = Codec::from_tag(format.tag);
+        let codec = Codec::of_format(
+            format.tag,
+            format.channels,
+            format.block_align,
+            format.extra_len,
+        );
         let vorb_sample_count = vorb.and_then(|vorb| order.u32_at(all, vorb.start));
         let sample_count = sample_count(codec, &format, vorb_sample_count, data.len() as u64)?;
         let loop_points = smpl.and_then(|smpl| {
@@ -217,6 +224,7 @@ fn read_format(order: ByteOrder, fmt: &[u8]) -> Result<Format, AudioError> {
         bits,
         channel_mask,
         embedded_sample_count: field32(SAMPLE_COUNT_OFFSET),
+        extra_len: field16(EXTRA_LEN_OFFSET),
         len: fmt.len(),
     })
 }

@@ -29,6 +29,7 @@ egui_extras.workspace = true
 fluent-bundle.workspace = true
 rayon.workspace = true
 rfd.workspace = true
+rodio.workspace = true
 sys-locale.workspace = true
 unic-langid.workspace = true
 

@@ -59,27 +59,7 @@ pub(crate) struct Look {
 pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
     let none = Color32::TRANSPARENT;
     match (kind, phase) {
-        (Kind::Cta, Phase::Rest) => Look {
-            fill: palette::PRIMARY,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: Some(GLOW_PRIMARY),
-        },
-        (Kind::Cta, Phase::Hover) => Look {
-            fill: palette::ACCENT_LIGHT,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: Some(GLOW_PRIMARY_LG),
-        },
-        (Kind::Cta, Phase::Pressed) => Look {
-            fill: palette::ACCENT_DARK,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: None,
-        },
+        (Kind::Cta, phase) => cta(phase),
         (Kind::Outline, Phase::Rest) => Look {
             fill: none,
             tint: none,
@@ -117,6 +97,22 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             text: palette::PRIMARY,
             glow: None,
         },
+    }
+}
+
+/// Returns the colours of `.btn-cta` in `phase`.
+const fn cta(phase: Phase) -> Look {
+    let (fill, glow) = match phase {
+        Phase::Rest => (palette::PRIMARY, Some(GLOW_PRIMARY)),
+        Phase::Hover => (palette::ACCENT_LIGHT, Some(GLOW_PRIMARY_LG)),
+        Phase::Pressed => (palette::ACCENT_DARK, None),
+    };
+    Look {
+        fill,
+        tint: Color32::TRANSPARENT,
+        border: Color32::TRANSPARENT,
+        text: palette::BLACK,
+        glow,
     }
 }
 

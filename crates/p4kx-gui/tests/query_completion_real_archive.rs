@@ -31,23 +31,27 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
     Ok(())
 }
 
-fn shown(model: &Model) -> Vec<String> {
+fn shown(model: &Model) -> (Vec<String>, usize) {
     model
         .query()
         .completion_shown()
         .map(|(completion, _)| {
-            completion
+            let names = completion
                 .candidates()
                 .iter()
                 .map(|candidate| candidate.name().to_owned())
-                .collect()
+                .collect();
+            (names, completion.more())
         })
         .unwrap_or_default()
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
+fn names(model: &Model) -> Vec<String> {
+    shown(model).0
+}
+
+/// Opens the real Archive on the Query tab with the focus in the editor and its schema read.
+fn opened_on_query() -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let path = real_archive_path()?;
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
@@ -66,13 +70,26 @@ fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
     harness.run_steps(2);
     harness
         .get_by_role(Role::MultilineTextInput)
+        .type_text("from ");
+    wait_until(&mut harness, |model| !names(model).is_empty())?;
+    harness.state_mut().query_mut().set_text("");
+    harness.run_steps(2);
+    Ok(harness)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
+    let mut harness = opened_on_query()?;
+    harness
+        .get_by_role(Role::MultilineTextInput)
         .type_text("from EntityClassDefinition select Components[VehicleComp");
-    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+    wait_until(&mut harness, |model| !names(model).is_empty())?;
 
     assert!(
-        shown(harness.state()).contains(&"VehicleComponentParams".to_owned()),
+        names(harness.state()).contains(&"VehicleComponentParams".to_owned()),
         "component selector: {:?}",
-        shown(harness.state())
+        names(harness.state())
     );
 
     harness
@@ -82,12 +99,18 @@ fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
     harness.run_steps(2);
     let keystroke = typed.elapsed() / 2;
     assert!(
-        shown(harness.state()).contains(&"vehicleName".to_owned()),
+        names(harness.state()).contains(&"vehicleName".to_owned()),
         "fields behind it: {:?}",
-        shown(harness.state())
+        names(harness.state())
     );
     assert!(keystroke < FRAME_LIMIT, "a frame took {keystroke:?}");
+    Ok(())
+}
 
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn completion_without_from_keeps_up_with_typing() -> TestResult {
+    let mut harness = opened_on_query()?;
     for (text, expected) in [
         ("at \"*\" select ", "Components"),
         ("at \"*\" select Components[", "VehicleComponentParams"),
@@ -101,19 +124,8 @@ fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
         harness.step();
         let frame = typed.elapsed();
         harness.run_steps(2);
-        let (names, more) = harness
-            .state()
-            .query()
-            .completion_shown()
-            .map(|(completion, _)| {
-                let names: Vec<String> = completion
-                    .candidates()
-                    .iter()
-                    .map(|candidate| candidate.name().to_owned())
-                    .collect();
-                (names, completion.more())
-            })
-            .unwrap_or_default();
+        let (names, more) = shown(harness.state());
+
         assert!(!names.is_empty(), "{text}: names offered");
         assert!(
             names.contains(&expected.to_owned()) || more > 0,

@@ -189,7 +189,9 @@ fn text_area(
         .show(ui, |ui| edit.show(ui))
         .inner
 }
-/// Handles the keys of the open completion list before the editor sees them.
+
+/// Handles the keys of the open completion list before the editor sees them; Enter passes
+/// through and closes the list when the active name is written already.
 /// Returns the byte offset behind an accepted name.
 fn popup_keys(
     input: &mut InputState,
@@ -198,12 +200,13 @@ fn popup_keys(
 ) -> Option<usize> {
     let down = consume_plain(input, Key::ArrowDown);
     let up = consume_plain(input, Key::ArrowUp);
-    let enter = if completion.active_is_written(text) {
-        completion.close();
-        0
-    } else {
-        consume_plain(input, Key::Enter)
-    };
+    let enter =
+        if down == up && pressed_plain(input, Key::Enter) && completion.active_is_written(text) {
+            completion.close();
+            0
+        } else {
+            consume_plain(input, Key::Enter)
+        };
     let accept = enter + consume_plain(input, Key::Tab) > 0;
     let dismiss = consume_plain(input, Key::Escape) > 0;
     let steps = isize::try_from(down).unwrap_or(0) - isize::try_from(up).unwrap_or(0);
@@ -234,19 +237,27 @@ pub(super) fn place_cursor(ctx: &egui::Context, text: &str, end: usize) {
 fn consume_plain(input: &mut InputState, key: Key) -> usize {
     let mut count = 0;
     input.events.retain(|event| {
-        let hit = matches!(
-            event,
-            Event::Key {
-                key: pressed,
-                modifiers,
-                pressed: true,
-                ..
-            } if *pressed == key && modifiers.is_none()
-        );
+        let hit = is_plain(event, key);
         count += usize::from(hit);
         !hit
     });
     count
+}
+
+fn pressed_plain(input: &InputState, key: Key) -> bool {
+    input.events.iter().any(|event| is_plain(event, key))
+}
+
+fn is_plain(event: &Event, key: Key) -> bool {
+    matches!(
+        event,
+        Event::Key {
+            key: pressed,
+            modifiers,
+            pressed: true,
+            ..
+        } if *pressed == key && modifiers.is_none()
+    )
 }
 
 fn byte_of(text: &str, chars: usize) -> usize {

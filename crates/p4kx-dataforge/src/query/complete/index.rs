@@ -19,8 +19,11 @@ pub struct QuerySchema {
     pub(super) all_fields: Box<[Field]>,
     ids: HashMap<Box<str>, u32>,
     first_struct: HashMap<u32, usize>,
-    declaring: HashMap<u32, Box<[usize]>>,
+    declaring: Declaring,
 }
+
+/// The structs that have a field, by the id of its name.
+type Declaring = HashMap<u32, Box<[usize]>>;
 
 /// One struct: its name, its parent and its fields, inherited ones included, sorted by name.
 #[derive(Debug, Clone)]
@@ -99,38 +102,20 @@ impl QuerySchema {
         let mut types: Vec<u32> = entries.iter().filter_map(|entry| entry.name).collect();
         types.sort_by(|a, b| by_name(name_of(&names, *a), name_of(&names, *b)));
         types.dedup();
-        let mut first_struct = HashMap::new();
-        let mut declaring: HashMap<u32, Vec<usize>> = HashMap::new();
-        for (index, entry) in entries.iter().enumerate() {
-            if let Some(name) = entry.name {
-                first_struct.entry(name).or_insert(index);
-            }
-            for field in &entry.fields {
-                declaring.entry(field.name).or_default().push(index);
-            }
-        }
-        let mut all_fields: Vec<Field> = entries
-            .iter()
-            .flat_map(|entry| entry.fields.iter().copied())
-            .collect();
-        all_fields.sort_by(|a, b| by_name(name_of(&names, a.name), name_of(&names, b.name)));
-        all_fields.dedup_by_key(|field| field.name);
+        let (first_struct, declaring) = by_name_id(&entries);
         let ids = interner
             .ids
             .into_iter()
             .map(|(name, id)| (Box::from(name), id))
             .collect();
         Self {
+            all_fields: union_of_fields(&entries, &names),
             names,
             structs: entries.into_boxed_slice(),
             types: types.into_boxed_slice(),
-            all_fields: all_fields.into_boxed_slice(),
             ids,
             first_struct,
-            declaring: declaring
-                .into_iter()
-                .map(|(name, structs)| (name, structs.into_boxed_slice()))
-                .collect(),
+            declaring,
         }
     }
 
@@ -203,6 +188,36 @@ impl QuerySchema {
     pub(super) fn struct_name(&self, index: usize) -> Option<&str> {
         self.entry(index)?.name.map(|id| self.name(id))
     }
+}
+
+/// Maps each struct name to its first struct and each field name to the structs that have it.
+fn by_name_id(entries: &[Entry]) -> (HashMap<u32, usize>, Declaring) {
+    let mut first_struct = HashMap::new();
+    let mut declaring: HashMap<u32, Vec<usize>> = HashMap::new();
+    for (index, entry) in entries.iter().enumerate() {
+        if let Some(name) = entry.name {
+            first_struct.entry(name).or_insert(index);
+        }
+        for field in &entry.fields {
+            declaring.entry(field.name).or_default().push(index);
+        }
+    }
+    let declaring = declaring
+        .into_iter()
+        .map(|(name, structs)| (name, structs.into_boxed_slice()))
+        .collect();
+    (first_struct, declaring)
+}
+
+/// Returns the fields of every struct, each name once, in name order.
+fn union_of_fields(entries: &[Entry], names: &[Box<str>]) -> Box<[Field]> {
+    let mut fields: Vec<Field> = entries
+        .iter()
+        .flat_map(|entry| entry.fields.iter().copied())
+        .collect();
+    fields.par_sort_by(|a, b| by_name(name_of(names, a.name), name_of(names, b.name)));
+    fields.dedup_by_key(|field| field.name);
+    fields.into_boxed_slice()
 }
 
 fn name_of(names: &[Box<str>], id: u32) -> &str {

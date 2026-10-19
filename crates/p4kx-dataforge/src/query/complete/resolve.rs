@@ -57,16 +57,18 @@ impl QuerySchema {
 
     /// Returns the first fields of a path: those of the `from` type, or of every struct.
     fn heads(&self, from: Option<&str>) -> Vec<Named> {
-        match from {
-            Some(from) => self
-                .position_of(from)
-                .map_or_else(Vec::new, |index| self.fields_of(&[index])),
-            None => self
-                .all_fields
-                .iter()
-                .map(|field| (field.name, Some(*field)))
-                .collect(),
-        }
+        from.map_or_else(
+            || {
+                self.all_fields
+                    .iter()
+                    .map(|field| (field.name, Some(*field)))
+                    .collect()
+            },
+            |from| {
+                self.position_of(from)
+                    .map_or_else(Vec::new, |index| self.fields_of(&[index]))
+            },
+        )
     }
 
     /// Returns the fields of the structs at `indices`, each name once, in name order.
@@ -134,10 +136,10 @@ impl QuerySchema {
     /// Returns where `path` ends in the `from` type, or in each struct declaring its first
     /// field.
     fn ends(&self, from: Option<&str>, path: &Walk<'_>) -> Vec<At> {
-        let starts = match from {
-            Some(from) => self.position_of(from).into_iter().collect(),
-            None => self.declaring(path.head).to_vec(),
-        };
+        let starts: Vec<usize> = from.map_or_else(
+            || self.declaring(path.head).to_vec(),
+            |from| self.position_of(from).into_iter().collect(),
+        );
         starts
             .into_iter()
             .filter_map(|start| {

@@ -316,7 +316,10 @@ fn the_whole_word_around_the_cursor_is_replaced() -> TestResult {
         "filtered by the part before"
     );
     assert_eq!(
-        completion.candidates().first().map(|c| c.name()),
+        completion
+            .candidates()
+            .first()
+            .map(p4kx_dataforge::query::Candidate::name),
         Some("mass"),
         "candidate"
     );

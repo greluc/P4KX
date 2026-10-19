@@ -5,13 +5,7 @@ use std::fmt;
 ///
 /// Words are the runs of ASCII letters and digits, so `paint_test_01` holds `test` while
 /// `contestant` does not.
-pub const EXCLUDED_TOKENS: [&str; 3] = ["test", "template", "dummy"];
-
-/// The localisation keys that stand for no text, matched ignoring ASCII case and the leading `@`.
-///
-/// A name or description with one of them keeps the key, has `null` texts and is counted as a
-/// placeholder, neither resolved nor unresolved.
-pub const PLACEHOLDER_KEYS: [&str; 3] = ["@LOC_EMPTY", "@LOC_PLACEHOLDER", "@LOC_UNINITIALIZED"];
+pub const EXCLUDED_TOKENS: [&str; 6] = ["test", "template", "dummy", "debug", "deprecated", "dev"];
 
 /// A kind of entity in the Basetool catalog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,11 +18,21 @@ pub enum Kind {
     /// Ships and ground vehicles: `EntityClassDefinition` Records under `entities/spaceships` and
     /// `entities/groundvehicles`.
     Ships,
+    /// Commodities: `EntityClassDefinition` Records under `entities/commodities`.
+    Commodities,
+    /// Blueprints: `CraftingBlueprintRecord` Records under `crafting/blueprints/crafting`.
+    Blueprints,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 3] = [Self::Manufacturers, Self::Items, Self::Ships];
+    pub const ALL: [Self; 5] = [
+        Self::Manufacturers,
+        Self::Items,
+        Self::Ships,
+        Self::Commodities,
+        Self::Blueprints,
+    ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
     #[must_use]
@@ -37,6 +41,8 @@ impl Kind {
             Self::Manufacturers => "manufacturers",
             Self::Items => "items",
             Self::Ships => "ships",
+            Self::Commodities => "commodities",
+            Self::Blueprints => "blueprints",
         }
     }
 
@@ -62,6 +68,14 @@ impl Kind {
                 ],
                 type_name: "EntityClassDefinition",
             },
+            Self::Commodities => KindRule {
+                prefixes: &["libs/foundry/records/entities/commodities/"],
+                type_name: "EntityClassDefinition",
+            },
+            Self::Blueprints => KindRule {
+                prefixes: &["libs/foundry/records/crafting/blueprints/crafting/"],
+                type_name: "CraftingBlueprintRecord",
+            },
         }
     }
 
@@ -79,6 +93,8 @@ impl Kind {
             Self::Manufacturers => 0,
             Self::Items => 1,
             Self::Ships => 2,
+            Self::Commodities => 3,
+            Self::Blueprints => 4,
         }
     }
 }
@@ -133,12 +149,31 @@ pub(crate) fn is_leftover(record_path: &str, name: &str) -> bool {
     })
 }
 
-/// Returns whether `key` is one of the [`PLACEHOLDER_KEYS`].
-pub(crate) fn is_placeholder_key(key: &str) -> bool {
-    let key = key.strip_prefix('@').unwrap_or(key);
-    PLACEHOLDER_KEYS.iter().any(|placeholder| {
-        placeholder
-            .strip_prefix('@')
-            .is_some_and(|placeholder| placeholder.eq_ignore_ascii_case(key))
-    })
+#[cfg(test)]
+mod tests {
+    use super::is_leftover;
+
+    #[test]
+    fn a_token_is_a_whole_word_of_the_path_or_the_name() {
+        for path in [
+            "libs/foundry/records/entities/scitem/weapons/fps_weapons/dev/vlk_spewgun",
+            "libs/foundry/records/entities/scitem/usables/counter_bar_1m_deprecated",
+            "libs/foundry/records/entities/scitem/carryables/1h/chip_01_debug",
+        ] {
+            assert!(is_leftover(path, "Name"), "{path}");
+        }
+        assert!(is_leftover("libs/foundry/records/x", "Chip_DEBUG"), "name");
+        for path in [
+            "libs/foundry/records/entities/scitem/devices/scanner",
+            "libs/foundry/records/entities/scitem/fps_devices/behr_ltp_01",
+            "libs/foundry/records/entities/scitem/undeveloped",
+            "libs/foundry/records/entities/spaceships/devastator",
+        ] {
+            assert!(!is_leftover(path, "Scanner"), "{path}");
+        }
+        assert!(
+            !is_leftover("libs/foundry/records/entities/spaceships/x", "Devastator"),
+            "a name that starts with the token"
+        );
+    }
 }

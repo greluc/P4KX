@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 
-use crate::header::MAX_HEADER_LEN;
+use crate::header::{CRYENGINE_TRAILER, MAX_HEADER_LEN};
 use crate::{DdsHeader, TextureError};
 
 const COPY_BUFFER_LEN: usize = 64 * 1024;
@@ -46,13 +46,15 @@ pub struct MergeReport {
 /// The header comes first, then every mip from the largest to the smallest, image by image for a
 /// cubemap or texture array. Every part's length is checked before anything is written. The
 /// parts are streamed; a texture with several images per mip holds the small mips of the header
-/// Entry in memory and opens each part once per image.
+/// Entry in memory and opens each part once per image. The 8-byte CryEngine trailer `CExtCEnd`
+/// some header Entries carry after the last mip is verified and left out.
 ///
 /// # Errors
 ///
 /// Returns a [`TextureError`] when the header is not a DDS header or its format's size is
 /// unknown, a part is missing, truncated or oversized, the header's tail is not a run of whole
-/// mips, or reading or writing fails.
+/// mips, the trailer is not `CExtCEnd` ([`TextureError::UnknownTrailer`]), or reading or writing
+/// fails.
 pub fn merge<R, S, W>(
     mut header: R,
     header_size: u64,
@@ -70,16 +72,25 @@ where
     let prefix_len = read_prefix(&mut header, prefix.get_mut(..limit).unwrap_or_default())?;
     let start = prefix.get(..prefix_len).unwrap_or_default();
     let dds = DdsHeader::parse(start)?;
+    let entry_size = header_size;
+    let header_size = dds.data_len(entry_size);
+    let trailer_len = entry_size.saturating_sub(header_size);
     let parts = dds.part_count(header_size)?;
     let sizes = part_sizes(&dds, parts, siblings)?;
+    let data_end = usize::try_from(header_size).map_or(prefix_len, |size| size.min(prefix_len));
     let (own_header, own_tail) = start
+        .get(..data_end)
+        .unwrap_or(start)
         .split_at_checked(dds.header_len())
         .unwrap_or((start, &[]));
+    let after_data = start.get(data_end..).unwrap_or_default();
     out.write_all(own_header).map_err(TextureError::Write)?;
     let mut buffer = vec![0; COPY_BUFFER_LEN];
     if parts > 0 && dds.surfaces() > 1 {
-        let tail = read_tail(&dds, own_tail.chain(header), header_size)?;
-        write_surfaces(&dds, parts, &tail, siblings, out, &mut buffer)?;
+        let mut tail = own_tail.chain(after_data).chain(header);
+        let data = read_tail(&dds, &mut tail, header_size)?;
+        check_trailer(tail, trailer_len, header_size)?;
+        write_surfaces(&dds, parts, &data, siblings, out, &mut buffer)?;
         return finish(dds, parts, header_size, out);
     }
     for (index, expected) in (1..=parts).rev().zip(sizes.into_iter().rev()) {
@@ -99,7 +110,7 @@ where
     }
     out.write_all(own_tail).map_err(TextureError::Write)?;
     let rest = header_size.saturating_sub(prefix_len as u64);
-    let copied = copy(header, rest, out, &mut buffer)
+    let copied = copy(&mut header, rest, out, &mut buffer)
         .map_err(|error| error.into_texture_error(TextureError::ReadHeader))?;
     if copied < rest {
         return Err(TextureError::TruncatedHeader {
@@ -107,7 +118,32 @@ where
             needed: header_size,
         });
     }
+    check_trailer(after_data.chain(header), trailer_len, header_size)?;
     finish(dds, parts, header_size, out)
+}
+
+/// Checks that the `trailer_len` bytes after the data of `data_len` bytes are the CryEngine
+/// trailer. Nothing is read when `trailer_len` is 0.
+pub(crate) fn check_trailer(
+    reader: impl Read,
+    trailer_len: u64,
+    data_len: u64,
+) -> Result<(), TextureError> {
+    if trailer_len == 0 {
+        return Ok(());
+    }
+    let read = read_up_to(reader, trailer_len).map_err(TextureError::ReadHeader)?;
+    let Ok(found) = <[u8; 8]>::try_from(read.as_slice()) else {
+        return Err(TextureError::TruncatedHeader {
+            len: data_len.saturating_add(read.len() as u64),
+            needed: data_len.saturating_add(trailer_len),
+        });
+    };
+    if &found == CRYENGINE_TRAILER {
+        Ok(())
+    } else {
+        Err(TextureError::UnknownTrailer { found })
+    }
 }
 
 fn finish<W: Write + ?Sized>(
@@ -129,7 +165,11 @@ fn finish<W: Write + ?Sized>(
 
 /// Reads the mips that follow the header in the header Entry, each image's smallest mips one
 /// image after the other.
-fn read_tail(dds: &DdsHeader, tail: impl Read, header_size: u64) -> Result<Vec<u8>, TextureError> {
+fn read_tail(
+    dds: &DdsHeader,
+    tail: &mut impl Read,
+    header_size: u64,
+) -> Result<Vec<u8>, TextureError> {
     let header_len = dds.header_len() as u64;
     let len = header_size.saturating_sub(header_len);
     let data = read_up_to(tail, len).map_err(TextureError::ReadHeader)?;

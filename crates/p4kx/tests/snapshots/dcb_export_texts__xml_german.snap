@@ -1,0 +1,17 @@
+---
+source: crates/p4kx/tests/dcb_export_texts.rs
+expression: "exported(&[\"--lang\", \"de\"])?"
+---
+== libs/foundry/records/vehicles/cart.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Vehicle xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" name="@vehicle_Cart" p4kx:text-name="Karren" description="@vehicle_CartDesc" p4kx:missing-description="true" unset="@LOC_PLACEHOLDER">
+  <labels>
+    <p4kx:value value="@vehicle_Cart" text="Karren"/>
+    <p4kx:value value="@vehicle_Unknown" missing="true"/>
+  </labels>
+</Vehicle>
+== libs/foundry/records/vehicles/truck.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Vehicle xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/vehicles/truck" name="@vehicle_Truck" p4kx:text-name="Laster" description="@vehicle_TruckDesc" p4kx:missing-description="true" unset="">
+  <labels/>
+</Vehicle>

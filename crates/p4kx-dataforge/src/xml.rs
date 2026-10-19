@@ -1,14 +1,17 @@
 use std::io::{self, Write};
 
-use crate::xml_text::{is_plain_name, write_display, write_escaped, write_float};
-use crate::{Field, RecordTree, Reference, Value};
+use crate::texts::Texts;
+use crate::xml_text::{is_plain_name, write_display, write_escaped};
+use crate::xml_write::{
+    attribute, indent, write_annotation, write_attribute_field, write_reference, write_scalar,
+};
+use crate::{Field, RecordTree, TextResolver, Value};
 
 /// The namespace of the `p4kx:` elements of Record XML.
 pub const RECORD_XML_NAMESPACE: &str = "https://github.com/krt-profit/p4k-extractor/record-xml";
 
 const DECLARATION: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 const RESERVED: [&str; 3] = ["guid", "path", "type"];
-const INDENT: &[u8; 64] = b"                                                                ";
 
 /// Writes Record trees as Record XML, the format `docs/record-xml.md` defines.
 ///
@@ -41,8 +44,23 @@ impl RecordXml {
     ///
     /// Returns the I/O error of `out`.
     pub fn write<W: Write>(&mut self, tree: &RecordTree<'_>, out: &mut W) -> io::Result<()> {
+        self.write_with(tree, None, out)
+    }
+
+    /// Writes `tree` like [`RecordXml::write`]; with `texts`, every localisation key also carries
+    /// its resolved text or a mark that it has none, see `docs/record-xml.md`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_with<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        texts: Option<&dyn TextResolver>,
+        out: &mut W,
+    ) -> io::Result<()> {
         out.write_all(DECLARATION)?;
-        self.write_element(tree, 0, out)
+        self.write_element_with(tree, texts, 0, out)
     }
 
     /// Writes the root element of `tree` without the XML declaration, indented by `depth` levels
@@ -57,8 +75,25 @@ impl RecordXml {
         depth: usize,
         out: &mut W,
     ) -> io::Result<()> {
+        self.write_element_with(tree, None, depth, out)
+    }
+
+    /// Writes the root element like [`RecordXml::write_element`], with the texts of
+    /// [`RecordXml::write_with`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_element_with<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        texts: Option<&dyn TextResolver>,
+        depth: usize,
+        out: &mut W,
+    ) -> io::Result<()> {
         self.attribute.clear();
-        self.write_struct(out, Head::Record(tree, true), tree.fields(), depth)
+        let head = Head::Record(tree, true);
+        self.write_struct(out, head, tree.fields(), depth, texts)
     }
 
     /// Writes the root element of `tree` like [`RecordXml::write_element`], but without the
@@ -74,8 +109,25 @@ impl RecordXml {
         depth: usize,
         out: &mut W,
     ) -> io::Result<()> {
+        self.write_wrapped_element_with(tree, None, depth, out)
+    }
+
+    /// Writes the wrapped root element like [`RecordXml::write_wrapped_element`], with the texts
+    /// of [`RecordXml::write_with`]; the wrapper declares the namespace.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_wrapped_element_with<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        texts: Option<&dyn TextResolver>,
+        depth: usize,
+        out: &mut W,
+    ) -> io::Result<()> {
         self.attribute.clear();
-        self.write_struct(out, Head::Record(tree, false), tree.fields(), depth)
+        let head = Head::Record(tree, false);
+        self.write_struct(out, head, tree.fields(), depth, texts)
     }
 
     fn write_struct(
@@ -84,6 +136,7 @@ impl RecordXml {
         head: Head<'_, '_>,
         fields: &[Field<'_>],
         depth: usize,
+        texts: Texts<'_>,
     ) -> io::Result<()> {
         let base = self.attribute.len();
         self.classify(fields);
@@ -98,7 +151,7 @@ impl RecordXml {
         out.write_all(b"<")?;
         out.write_all(if plain { type_name } else { fallback }.as_bytes())?;
         if let Head::Record(_, true) = head
-            && (!plain || children > 0)
+            && (!plain || children > 0 || texts.is_some())
         {
             attribute(out, "xmlns:p4kx", RECORD_XML_NAMESPACE)?;
         }
@@ -116,11 +169,7 @@ impl RecordXml {
             .zip(flags)
             .filter(|(_, attribute)| **attribute)
         {
-            out.write_all(b" ")?;
-            out.write_all(field.name().as_bytes())?;
-            out.write_all(b"=\"")?;
-            write_scalar(out, field.value())?;
-            out.write_all(b"\"")?;
+            write_attribute_field(out, field, texts)?;
         }
         if children == 0 {
             self.attribute.truncate(base);
@@ -129,7 +178,7 @@ impl RecordXml {
         out.write_all(b">\n")?;
         for (index, field) in fields.iter().enumerate() {
             if self.attribute.get(base + index) == Some(&false) {
-                self.write_child(out, field, depth + 1)?;
+                self.write_child(out, field, depth + 1, texts)?;
             }
         }
         self.attribute.truncate(base);
@@ -148,6 +197,7 @@ impl RecordXml {
         out: &mut impl Write,
         field: &Field<'_>,
         depth: usize,
+        texts: Texts<'_>,
     ) -> io::Result<()> {
         let value = field.value();
         indent(out, depth)?;
@@ -163,7 +213,8 @@ impl RecordXml {
             write_escaped(out, field.name())?;
             out.write_all(b"\" value=\"")?;
             write_scalar(out, value)?;
-            return out.write_all(b"\"/>\n");
+            out.write_all(b"\"")?;
+            return write_annotation(out, value, texts, b"/>\n");
         }
         let plain = is_plain_name(field.name());
         if plain {
@@ -183,7 +234,7 @@ impl RecordXml {
         }
         out.write_all(b">\n")?;
         for item in items {
-            self.write_value(out, item, depth + 1)?;
+            self.write_value(out, item, depth + 1, texts)?;
         }
         indent(out, depth)?;
         if plain {
@@ -200,6 +251,7 @@ impl RecordXml {
         out: &mut impl Write,
         value: &Value<'_>,
         depth: usize,
+        texts: Texts<'_>,
     ) -> io::Result<()> {
         match value {
             Value::Struct(structure) => {
@@ -208,11 +260,12 @@ impl RecordXml {
                     Head::Nested(structure.type_name()),
                     structure.fields(),
                     depth,
+                    texts,
                 );
             }
             Value::Array(items) => {
                 for item in items {
-                    self.write_value(out, item, depth)?;
+                    self.write_value(out, item, depth, texts)?;
                 }
                 return Ok(());
             }
@@ -230,7 +283,8 @@ impl RecordXml {
             scalar => {
                 out.write_all(b"<p4kx:value value=\"")?;
                 write_scalar(out, scalar)?;
-                out.write_all(b"\"/>\n")
+                out.write_all(b"\"")?;
+                write_annotation(out, scalar, texts, b"/>\n")
             }
         }
     }
@@ -277,59 +331,5 @@ pub(crate) fn classify(fields: &[Field<'_>], attribute: &mut Vec<bool>, order: &
         {
             *flag = false;
         }
-    }
-}
-
-fn indent(out: &mut impl Write, depth: usize) -> io::Result<()> {
-    let mut spaces = depth.saturating_mul(2);
-    while spaces > 0 {
-        let chunk = spaces.min(INDENT.len());
-        out.write_all(INDENT.get(..chunk).unwrap_or_default())?;
-        spaces -= chunk;
-    }
-    Ok(())
-}
-
-fn attribute(out: &mut impl Write, name: &str, value: &str) -> io::Result<()> {
-    out.write_all(b" ")?;
-    out.write_all(name.as_bytes())?;
-    out.write_all(b"=\"")?;
-    write_escaped(out, value)?;
-    out.write_all(b"\"")
-}
-
-fn write_reference(out: &mut impl Write, reference: &Reference<'_>) -> io::Result<()> {
-    out.write_all(b"<p4kx:reference guid=\"")?;
-    write!(out, "{}", reference.guid())?;
-    out.write_all(b"\"")?;
-    attribute(out, "path", reference.record_path())?;
-    attribute(out, "type", reference.type_name())?;
-    if let Some(location) = reference.location() {
-        attribute(out, "at", location.as_str())?;
-    }
-    out.write_all(b"/>\n")
-}
-
-/// Writes the text of a scalar; other values write nothing.
-fn write_scalar(out: &mut impl Write, value: &Value<'_>) -> io::Result<()> {
-    match value {
-        Value::Bool(value) => out.write_all(if *value { b"true" } else { b"false" }),
-        Value::Int8(value) => write!(out, "{value}"),
-        Value::Int16(value) => write!(out, "{value}"),
-        Value::Int32(value) => write!(out, "{value}"),
-        Value::Int64(value) => write!(out, "{value}"),
-        Value::UInt8(value) => write!(out, "{value}"),
-        Value::UInt16(value) => write!(out, "{value}"),
-        Value::UInt32(value) => write!(out, "{value}"),
-        Value::UInt64(value) => write!(out, "{value}"),
-        Value::Single(value) => write_float(out, *value),
-        Value::Double(value) => write_float(out, *value),
-        Value::String(text) | Value::Locale(text) | Value::Enum(text) => write_escaped(out, text),
-        Value::Guid(guid) => write!(out, "{guid}"),
-        Value::Struct(_)
-        | Value::Array(_)
-        | Value::Reference(_)
-        | Value::Null
-        | Value::Error(_) => Ok(()),
     }
 }

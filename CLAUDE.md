@@ -37,8 +37,12 @@ cargo test --release --workspace --locked -- --ignored
 
 That runs every real-Archive test in the workspace, whatever test file it lives in. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
-and takes the path from `p4kx_testkit::real_archive_path` (and `real_archive_b_path` for a second
-Archive, from `P4KX_DATA_P4K_B`).
+and takes the path from `p4kx_testkit::real_archive_path`, and from
+`p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`. A test
+needing the second Archive returns early when it is not set (`real_archive_b_path` gives `None`),
+so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::real_archive_pair`
+and returns early when it gives `None`. A timing test that must not share the cores with other tests
+gets its own test file.
 
 The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
 of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
@@ -52,7 +56,8 @@ when the variable is unset.
 
 ## Architecture
 
-- `p4kx-*` crates in three layers (ADR-0003): format crates depend only on `p4kx-foundation`,
+- `p4kx-*` crates in three layers (ADR-0003, ADR-0019): format crates depend only on
+  `p4kx-foundation` and the format crates they declare in `builds-on` (never `p4kx-archive`),
   service crates on format crates, front-ends (`p4kx`, `p4kx-gui`, `p4kx-mcp`) only on services.
   Never add a dependency against this direction.
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.

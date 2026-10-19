@@ -4,6 +4,7 @@ mod imaging;
 
 use std::time::{Duration, Instant};
 
+use egui::Key;
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
 use imaging::{
@@ -219,6 +220,52 @@ fn the_german_image_tab_uses_german_texts() -> TestResult {
             .query_by_label("Format B8G8R8A8_UNORM Größe 1024 × 1024 Mips 11 Cubemap-Seiten –")
             .is_some(),
         "facts"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_focused_picture_scrolls_with_the_keyboard() -> TestResult {
+    let (_folder, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "panel_diff.dds")?;
+    harness.get_by_label("1024").click();
+    wait_until(&mut harness, |model| {
+        settled(model) && image(model).and_then(ImagePreview::level) == Some(0)
+    })?;
+    let top = |harness: &egui_kittest::Harness<'_, Model>| {
+        harness
+            .get_by_role_and_label(Role::Image, "Mip 0: 1024 × 1024 pixels")
+            .rect()
+            .top()
+    };
+    let at_start = top(&harness);
+
+    harness.get_by_label("Picture").focus();
+    harness.run();
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    let one_row = top(&harness);
+    harness.key_press(Key::PageDown);
+    harness.run();
+    let a_page = top(&harness);
+    harness.key_press(Key::End);
+    harness.run();
+    let at_end = top(&harness);
+    harness.key_press(Key::Home);
+    harness.run();
+
+    assert!(
+        one_row < at_start,
+        "an arrow key scrolls: {at_start} {one_row}"
+    );
+    assert!(
+        a_page < one_row,
+        "a page scrolls further: {one_row} {a_page}"
+    );
+    assert!(at_end < a_page, "End scrolls to the end: {a_page} {at_end}");
+    assert!(
+        (top(&harness) - at_start).abs() < 0.5,
+        "Home returns to the start"
     );
     Ok(())
 }

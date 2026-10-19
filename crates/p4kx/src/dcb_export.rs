@@ -5,11 +5,12 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_export::{
-    NDJSON_FILE, RecordExportOptions, RecordExportSummary, RecordFailure, RecordForm,
+    Language, NDJSON_FILE, RecordExportOptions, RecordExportSummary, RecordFailure, RecordForm,
     write_record_export,
 };
 use p4kx_extraction::{
-    Archive, DataForgeEntry, Filter, Record, RecordExportReport, export_combined,
+    Archive, DataForge, DataForgeEntry, Filter, LanguageTexts, LocalizationSet, Record,
+    RecordExportReport, TextResolver, export_combined,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -18,6 +19,7 @@ use crate::cli::{Conflict, DcbExportArgs, RecordFormat};
 use crate::exit;
 use crate::extract::{cancel_on_interrupt, policy, prepare_target};
 use crate::json;
+use crate::loc::{LanguageNotInArchive, print_notes};
 
 /// `--combined` with another format than Record XML.
 #[derive(Debug, Error)]
@@ -37,6 +39,8 @@ struct ReportJson<'a> {
     target: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     file: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<&'static str>,
     exported: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
@@ -68,59 +72,103 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records = select_records(&forge, args.filter.as_deref())?;
-    let target = prepare_target(args.out.as_deref(), &archive)?;
-    let cancel = cancel_on_interrupt()?;
-    let options = RecordExportOptions {
-        policy: policy(args.conflict),
-        cancel: Some(&cancel),
-        progress: None,
+    let job = Job {
+        args,
+        as_json,
+        form,
+        archive: &archive,
+        entry: &entry,
+        forge: &forge,
+        records: &records,
     };
-    let combined = args.combined.then(|| combined_name(entry.path()));
-    let combined_report;
-    let summary;
-    let report: Outcome<'_> = if let Some(name) = &combined {
-        combined_report = export_combined(&forge, &records, &target.join(name), &options)?;
-        (&combined_report).into()
-    } else {
-        summary = write_record_export(&forge, &records, form, &target, &options);
-        (&summary).into()
+    let Some(language) = args.lang else {
+        return job.write(None);
     };
-    let printed = if as_json {
-        json::print(&ReportJson {
-            archive: json::path(archive.path()),
-            entry: entry.path(),
-            format: form.name(),
-            target: json::path(&target),
-            file: combined.as_deref(),
-            exported: report.written,
-            skipped: report.skipped,
-            failed: report.failures.iter().map(failure_json).collect(),
-            cancelled: report.cancelled,
-            error_values: report.error_values,
-            records_with_errors: report.records_with_errors,
-            error: report.error.map(reason),
-        })
-    } else {
-        let into = combined.map_or_else(|| target.clone(), |name| target.join(name));
-        print_report(&report, &into, args.conflict)
-    };
-    if let Err(error) = printed
-        && error.kind() != io::ErrorKind::BrokenPipe
-    {
-        return Err(error.into());
+    let set = LocalizationSet::read(&archive, &[language])?;
+    if set.entry(language).is_none() {
+        return Err(LanguageNotInArchive { language }.into());
     }
-    Ok(ExitCode::from(if report.is_complete() {
-        exit::SUCCESS
-    } else {
-        exit::PARTIAL_FAILURE
-    }))
+    let texts = set.index()?;
+    print_notes(&set.notes(&texts));
+    job.write(Some(&LanguageTexts::new(&texts, language)))
+}
+
+/// The selected Records of an export and what they are written with.
+struct Job<'a, 'f> {
+    args: &'a DcbExportArgs,
+    as_json: bool,
+    form: RecordForm,
+    archive: &'a Archive,
+    entry: &'a DataForgeEntry,
+    forge: &'a DataForge<'f>,
+    records: &'a [Record<'f>],
+}
+
+impl Job<'_, '_> {
+    /// Writes the Records with `texts` resolved and prints the report.
+    fn write(&self, texts: Option<&dyn TextResolver>) -> Result<ExitCode> {
+        let Self {
+            args,
+            as_json,
+            form,
+            archive,
+            entry,
+            forge,
+            records,
+        } = *self;
+        let target = prepare_target(args.out.as_deref(), archive)?;
+        let cancel = cancel_on_interrupt()?;
+        let options = RecordExportOptions {
+            policy: policy(args.conflict),
+            cancel: Some(&cancel),
+            progress: None,
+            texts,
+        };
+        let combined = args.combined.then(|| combined_name(entry.path()));
+        let combined_report;
+        let summary;
+        let report: Outcome<'_> = if let Some(name) = &combined {
+            combined_report = export_combined(forge, records, &target.join(name), &options)?;
+            (&combined_report).into()
+        } else {
+            summary = write_record_export(forge, records, form, &target, &options);
+            (&summary).into()
+        };
+        let printed = if as_json {
+            json::print(&ReportJson {
+                archive: json::path(archive.path()),
+                entry: entry.path(),
+                format: form.name(),
+                target: json::path(&target),
+                file: combined.as_deref(),
+                language: args.lang.map(Language::code),
+                exported: report.written,
+                skipped: report.skipped,
+                failed: report.failures.iter().map(failure_json).collect(),
+                cancelled: report.cancelled,
+                error_values: report.error_values,
+                records_with_errors: report.records_with_errors,
+                error: report.error.map(reason),
+            })
+        } else {
+            let into = combined.map_or_else(|| target.clone(), |name| target.join(name));
+            print_report(&report, &into, args.conflict)
+        };
+        if let Err(error) = printed
+            && error.kind() != io::ErrorKind::BrokenPipe
+        {
+            return Err(error.into());
+        }
+        Ok(ExitCode::from(if report.is_complete() {
+            exit::SUCCESS
+        } else {
+            exit::PARTIAL_FAILURE
+        }))
+    }
 }
 
 /// Returns every Record of `forge`, or those whose record path `filter` matches.
-fn select_records<'f>(
-    forge: &'f p4kx_extraction::DataForge<'_>,
-    filter: Option<&str>,
-) -> Result<Vec<Record<'f>>> {
+fn select_records<'f>(forge: &'f DataForge<'_>, filter: Option<&str>) -> Result<Vec<Record<'f>>> {
     let Some(text) = filter else {
         return Ok(forge.records().collect());
     };

@@ -12,9 +12,12 @@ Early development (milestone M1). Available today:
 
 - `p4kx list <archive>` lists every Entry of an Archive: compression method, encryption flag,
   compressed size, size and path. Archives in the v1 (ZIP64) and the v2 (`Jiji` trailer) layout
-  are recognised automatically; any other layout version is rejected with its number.
+  are recognised automatically; any other layout version is rejected with its number. A split
+  texture (`.dds` with its parts and alpha tail) is one row with the size of the whole texture and
+  ` (+N parts)` behind its path (`parts` in `--json`); `--parts` lists every part as an Entry of
+  its own.
 - `p4kx search <archive> <filter>` lists the Entries whose path matches a Filter, in the same
-  columns as `list`. A Filter with `*` or `?` is a glob over the full path: `*` matches any run of
+  columns as `list` but unfolded: every matching part is a row of its own. A Filter with `*` or `?` is a glob over the full path: `*` matches any run of
   characters, separators included, `?` exactly one character, and the glob must match the whole
   path (`*.xml`, `Data\Libs\*`, `*\defaultProfile.???`). Any other Filter matches when it occurs
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
@@ -66,7 +69,7 @@ Early development (milestone M1). Available today:
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
-  `[--out <folder>] [--conflict …]` writes Records as Record XML
+  `[--lang <language>] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
   ([docs/record-json.md](docs/record-json.md)), one file per Record: `<record path>.xml`, or
   `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
@@ -76,6 +79,8 @@ Early development (milestone M1). Available today:
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
+  `--lang` writes the text of every localisation key next to the key, or marks the key missing,
+  in the chosen language; without it the output carries no texts.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.
@@ -94,14 +99,29 @@ Early development (milestone M1). Available today:
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
   listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
+  their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
+  `zh-Hant`); `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>]` prints the
+  text of a localisation key, with or without the leading `@`, ignoring case, in `--lang` (English
+  by default) and otherwise in `--fallback`, with `\n` decoded; a key with no text in either is
+  reported as missing and exits with code 2, a placeholder key such as `@LOC_EMPTY` prints
+  nothing and succeeds. `p4kx loc export <archive> [--lang <language>,…] [--format json|csv]
+  [--out <file>]` writes every key with its text per language, sorted by key. A `--lang` is a
+  code, a folder name such as `german_(germany)` or a name such as `german` where one language has
+  it. UTF-8 with or without a byte order mark and UTF-16 files are read; invalid bytes become
+  U+FFFD and lines without `=` are skipped, and a `note:` line on stderr names each such Entry
+  (also for `catalog`). `loc export --format csv` writes a UTF-8 byte order mark and CRLF line
+  ends. `--fallback en` is the usual choice; there is no default. `--json` gives the shapes in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, items (with
-  their item class) and ships with ground vehicles, ordered by GUID, with test, template and dummy Records left out and
-  counted as skipped, and names and descriptions resolved in English and German. `--filter` marks
-  the catalog partial. It prints the counts per kind, the item classes read and the unresolved
-  texts per language and warns when the catalog nears or exceeds the
-  64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
+  their item class) and ships with ground vehicles, ordered by GUID, with test, template, dummy,
+  debug, deprecated and dev Records left out and counted as skipped, and names and descriptions
+  resolved in English and German. `--filter` marks the catalog partial. It prints the counts per
+  kind, the item classes read and the unresolved texts per language and warns when the catalog
+  nears or exceeds the 64 MB upload limit. A selected Record that cannot be read is left out,
+  listed on stderr with its GUID and reason and counted as failed; the catalog is still written
+  and the exit code is 1. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
@@ -207,6 +227,12 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
+- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
+  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
+  counts, the material library and material IDs, its bones and every chunk with whether it was
+  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file>` writes it as one
+  glTF 2.0 binary file (GLB), Y up and in metres, and lists the unknown chunks it skipped. Both
+  also take a model file on disk with its companion next to it.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -216,8 +242,8 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, or a tag or definition of a UI movie cannot be read or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture or UI movie file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
@@ -299,15 +325,19 @@ Tests use synthetic Archives from `p4kx-testkit`; no game files are needed or co
 A second suite checks a real `Data.p4k`: opening and listing it within 10 seconds, its Build,
 reading Entries of every compression method and encryption state present (size and CRC-32C),
 extracting a small subset, and sorting and scrolling every Entry in the window within one 60 Hz
-frame, and comparing the Entries of two Archives within 5 seconds. Its tests are ignored by
-default, so `cargo test` and CI report them as `ignored`. Point `P4KX_DATA_P4K` to an Archive,
-and `P4KX_DATA_P4K_B` to a second one for the Comparison, and pass `--ignored`; without the
-variables the suite fails and says so.
+frame. It compares two Archives on both levels with plausible counts and a report that is valid
+against `schemas/comparison-report.schema.json`, the Entries in less time than reading both
+Archives at 8 GB/s would take (about 1.5 seconds against 37 for LIVE and PTU), produces the line
+diffs of changed text Entries, and compares one Archive with itself without a difference on
+either level. Its tests are ignored by default, so `cargo test` and CI report them as `ignored`.
+Point `P4KX_DATA_P4K` to an Archive, and `P4KX_DATA_P4K_B` to a second one for the Comparison,
+and pass `--ignored`; without `P4KX_DATA_P4K` the suite fails and says so, without
+`P4KX_DATA_P4K_B` the tests over two Archives pass without checking anything.
 
 ```powershell
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
-cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-comparison -p p4kx-gui --test real_archive -- --ignored
+cargo test --release --workspace --locked -- --ignored
 ```
 
 The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is

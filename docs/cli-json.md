@@ -20,6 +20,7 @@ The shape of one Entry in `list` and `search`:
 | `encrypted` | bool | Whether the data is encrypted |
 | `compressed_size` | number | Size of the data in the Archive |
 | `size` | number | Size after decompression |
+| `parts` | array of string | Only on the header of a Texture group in `list`: the paths of its parts and Alpha tail; `compressed_size` and `size` are then those of the whole group |
 
 ## Build
 
@@ -38,7 +39,8 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 {"archive": "C:\\…\\LIVE\\Data.p4k", "entries": [Entry, …]}
 ```
 
-Entries are in Archive order.
+Entries are in Archive order. A Texture group is one Entry; `--parts` lists every part as an Entry
+of its own, without `parts` fields.
 
 ## `p4kx search <archive> <filter> --json`
 
@@ -88,6 +90,9 @@ and its causes joined by `: `. Both are in definition order for `xml` and `json`
 [record-xml.md](record-xml.md#child-elements)) in the Records written or kept, and
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.
+
+With `--lang <language>` the report also holds `"language": "de"`, the code of the language the
+texts were resolved in; without it the field is absent.
 
 With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
 `target`, and `exported` counts the Records written into it. When an existing file is kept under
@@ -235,21 +240,27 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21052438, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
- {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
- "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
- "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
- "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
+ "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
+ {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1204,
+ "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
+ "item_classes": {"classified": 347, "other": 408, "missing": 22525},
+ "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
+ "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
+ "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
+them. `failed` lists the selected Records that could not be read and are left out of the catalog,
+with GUID, record path (empty when it cannot be read) and the reason and its causes joined by
+`: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
+all the same, and the exit code is 1 when `failed` is not empty. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
@@ -257,6 +268,51 @@ each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty,
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
 for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
 unresolved texts of every language.
+
+## `p4kx loc languages <archive> --json`
+
+```json
+{"archive": "…", "languages": [{"code": "en", "folder": "english", "entry": "Data\\Localization\\english\\global.ini"}, …]}
+```
+
+`languages` lists the languages the Archive holds a `global.ini` for, in the order `en`, `de`,
+`fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`.
+
+## `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>] --json`
+
+```json
+{"key": "item_Name", "language": "de", "fallback": "en", "status": "fallback",
+ "text_language": "en", "text": "Rifle"}
+```
+
+`key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
+`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
+for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
+the command with exit code 2.
+
+## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
+
+Without `--out` the table goes to stdout and `--json` changes nothing. The JSON format is
+
+```json
+{"languages": ["en", "de"], "entries": [
+{"key": "item_Name", "texts": {"en": "Rifle", "de": null}}, …]}
+```
+
+with one entry per key, sorted by key ignoring case; a language without a text for the key is
+`null`, a text the `global.ini` holds empty is `""`. CSV starts with a UTF-8 byte order mark, so
+Excel shows non-ASCII text correctly, has CRLF line ends, the header `key,en,de` and the same
+rows, with an empty cell for either; cells with a comma, quote or line break are quoted. A key is
+left out only when none of the chosen languages' `global.ini` holds a line for it; a key held
+only with an empty text stays.
+
+CSV cells are written as they are. A text that starts with `=`, `+`, `-` or `@` is read as a
+formula by a spreadsheet program, so open a table of untrusted texts as text, not as formulas, or
+use the JSON format.
+
+With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
+"languages": ["en"], "keys": 101234}`.
 
 ## `p4kx channels --json`
 
@@ -537,6 +593,58 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
 
 `chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged.
 An index the table does not have, or an output that is the chunk file itself, fails with exit
+code 2.
+
+## `p4kx model info <archive> <entry> --json`
+
+Also `p4kx model info <file> --json` for a model file on disk with its geometry companion next to
+it.
+
+```json
+{"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
+ "material_library": "objects/test/cube", "material_ids": [1, 2],
+ "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
+           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+           "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
+                       "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
+                                     {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
+ "bones": [],
+ "chunks": [{"file": "model", "index": 0, "type": "AssetMetadata", "type_id": 3193850174,
+             "usage": "skipped"}, …,
+            {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
+             "usage": "read"}]}
+```
+
+`geometry` is the file name of the geometry companion the meshes come from, `null` when they are
+in the model file itself or the model has no geometry. `material_library` is the path below `Data`
+without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of the file;
+`parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
+matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
+metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
+lists the levels of detail, LOD0 first, each with its meshes, at most one per node; `first_index`
+and `index_count` locate a submesh in its mesh's triangle list. `bones` lists `name` and `parent`
+of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
+geometry companion (`file` is `model` or `geometry`) with `usage` `read` when the model was read
+from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
+A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
+companion with 3, and a `CrCh` model, which is not supported yet, with 1.
+
+## `p4kx model glb <archive> <entry> --out <file> --json`
+
+Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
+
+```json
+{"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
+ "primitives": 2, "materials": 2, "vertices": 24, "triangles": 12, "bytes": 2412,
+ "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
+                     "usage": "unknown"}]}
+```
+
+The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
+one primitive per submesh and one material per material ID, LOD0, in glTF axes (Y up) and metres;
+`bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
+export skipped, as in `p4kx model info`. An output that is one of the model's files exits with
 code 2.
 
 ## `p4kx extract … --json`

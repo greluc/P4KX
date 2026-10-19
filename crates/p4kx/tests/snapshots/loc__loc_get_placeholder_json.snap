@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: json
+---
+{"key":"@LOC_EMPTY","language":"en","fallback":null,"status":"placeholder","text_language":null,"text":null}

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::record_search::Wake;
-use crate::{Browser, RecordId, RecordNodeId, RecordTree, RecordTreeStatus};
+use crate::{Browser, RecordId, RecordNodeId, RecordNodeKind, RecordTree, RecordTreeStatus};
 
 impl Browser {
     /// Returns the DataForge node of the path tree, or `None` when the Archive holds neither
@@ -24,6 +24,9 @@ impl Browser {
     pub fn select_record_node(&mut self, id: RecordNodeId, wake: impl Fn() + Send + 'static) {
         if let Some(records) = &mut self.records {
             records.select(id, &self.index, wake);
+            if let RecordNodeKind::Record(record) = records.node(id).kind() {
+                self.navigation.visit(record);
+            }
         }
     }
 
@@ -88,10 +91,12 @@ impl Browser {
     }
 
     /// Selects the Record `id` in the Record tree, expanding the folders above it and scrolling
-    /// the tree to it.
+    /// the tree to it, as the next step of the way taken.
     pub fn pick_record(&mut self, id: RecordId) {
-        if let Some(records) = &mut self.records {
-            records.reveal(id);
+        if let Some(records) = &mut self.records
+            && records.reveal(id)
+        {
+            self.navigation.visit(id);
         }
     }
 
@@ -120,5 +125,6 @@ impl Browser {
             records.archive_changed();
         }
         self.record_search.clear();
+        self.navigation.archive_changed();
     }
 }

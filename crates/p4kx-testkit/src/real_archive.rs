@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// The environment variable that names a real `Data.p4k` for the real-Archive suite.
@@ -34,21 +35,50 @@ impl std::error::Error for MissingRealArchive {}
 ///
 /// Returns [`MissingRealArchive`] when the variable is unset or empty.
 pub fn real_archive_path() -> Result<PathBuf, MissingRealArchive> {
-    path_from(REAL_ARCHIVE_VAR)
+    non_empty(std::env::var_os(REAL_ARCHIVE_VAR)).ok_or(MissingRealArchive(REAL_ARCHIVE_VAR))
 }
 
-/// Returns the path of the second real Archive named by `P4KX_DATA_P4K_B`.
+/// Returns the path of the second real Archive named by `P4KX_DATA_P4K_B`, `None` when the
+/// variable is unset or empty, so that a test needing it can return early.
+#[must_use]
+pub fn real_archive_b_path() -> Option<PathBuf> {
+    non_empty(std::env::var_os(REAL_ARCHIVE_B_VAR))
+}
+
+/// Returns the paths of the real Archives named by `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`, `None`
+/// when the second is unset or empty, so that a test over two Archives can skip.
 ///
 /// # Errors
 ///
-/// Returns [`MissingRealArchive`] when the variable is unset or empty.
-pub fn real_archive_b_path() -> Result<PathBuf, MissingRealArchive> {
-    path_from(REAL_ARCHIVE_B_VAR)
+/// Returns [`MissingRealArchive`] when `P4KX_DATA_P4K` is unset or empty.
+pub fn real_archive_pair() -> Result<Option<(PathBuf, PathBuf)>, MissingRealArchive> {
+    let first = real_archive_path()?;
+    Ok(real_archive_b_path().map(|second| (first, second)))
 }
 
-fn path_from(var: &'static str) -> Result<PathBuf, MissingRealArchive> {
-    std::env::var_os(var)
-        .filter(|path| !path.is_empty())
-        .map(PathBuf::from)
-        .ok_or(MissingRealArchive(var))
+fn non_empty(value: Option<OsString>) -> Option<PathBuf> {
+    value.filter(|path| !path.is_empty()).map(PathBuf::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    use super::non_empty;
+
+    #[test]
+    fn an_unset_or_empty_variable_names_no_archive() {
+        assert_eq!(non_empty(None), None, "unset");
+        assert_eq!(non_empty(Some(OsString::new())), None, "empty");
+    }
+
+    #[test]
+    fn a_set_variable_names_the_archive() {
+        assert_eq!(
+            non_empty(Some(OsString::from("b.p4k"))),
+            Some(PathBuf::from("b.p4k")),
+            "the path"
+        );
+    }
 }

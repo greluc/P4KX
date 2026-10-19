@@ -34,6 +34,16 @@ fn database() -> Vec<u8> {
         .build()
 }
 
+fn escaping_database() -> Vec<u8> {
+    let item =
+        |guid: u128, name: &str, path: &str| TestRecord::new(guid, "Item", name, path.to_owned());
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Item").field("label", TestType::String))
+        .record(item(1, "fine", "records/fine.xml").value("label", TestValue::text("Fine")))
+        .record(item(2, "evil", "../evil.xml").value("label", TestValue::text("Evil")))
+        .build()
+}
+
 type Opened = (TempDir, PathBuf, Harness<'static, Model>);
 
 fn opened(convert: bool) -> Result<Opened, Box<dyn Error>> {
@@ -186,5 +196,29 @@ fn the_switch_writes_the_dataforge_as_records_and_the_summary_counts_them() -> T
         "the Record with an error value is written"
     );
     assert!(!out.join("Data/Game2.dcb").exists(), "no raw .dcb");
+    Ok(())
+}
+
+#[test]
+fn the_summary_lists_the_records_that_were_not_written_with_guid_and_reason() -> TestResult {
+    let (_dir, out, mut harness) = opened_with(
+        false,
+        vec![TestEntry::stored("Data\\Game2.dcb", escaping_database())],
+    )?;
+
+    extract_shown(&mut harness, true)?;
+
+    harness.get_by_label(
+        "Records written 1, skipped 0, failed 1, cancelled 0; 0 error values in 0 Records",
+    );
+    harness.get_by_label("Records not written (1)");
+    harness.get_by_label(
+        "../evil (00000000-0000-0000-0000-000000000002): the path would leave the target folder",
+    );
+    assert!(
+        read(&out, "Data/records/fine.xml").is_ok(),
+        "the other is written"
+    );
+    assert!(!out.join("evil.xml").exists(), "nothing leaves the target");
     Ok(())
 }

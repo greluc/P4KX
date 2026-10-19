@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
+use p4kx_export::Language;
 
 use crate::cli::Conflict;
 use crate::exit::EXIT_CODES_HELP;
@@ -85,6 +86,12 @@ pub(crate) struct DcbExportArgs {
     /// DataForge Entry, e.g. Game2.xml, instead of one file per Record; only with --format xml.
     #[arg(long)]
     pub(crate) combined: bool,
+    /// Writes the text of every localisation key next to the key, resolved in this language: a
+    /// code such as `en`, `de`, `es-419` or `zh-Hans`, or the folder name of the Archive such as
+    /// `german_(germany)`. A key without a text in it is marked missing. Without it the output
+    /// carries no texts.
+    #[arg(long, value_name = "LANGUAGE", value_parser = clap::value_parser!(Language))]
+    pub(crate) lang: Option<Language>,
     /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
     /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]

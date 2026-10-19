@@ -658,6 +658,12 @@
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },
+  "extractionAudio": {
+    "decision": "D.32",
+    "row": "radio row Sounds as: Ogg, WAV, WEM unchanged, 16 apart, radio to label 12; indented under the texture outputs; shown only while Conversion is on",
+    "label": "14.4 / fw-regular color-gray-1, as the radio labels",
+    "note": "12.8 / fw-regular color-gray-2-text below the row, like the new folder name hint"
+  },
   "recordExport": {
     "menu": "Export menu link after Archive, metrics menuLink, its entry dropdownItem; disabled without a DataForge and while a Record export runs",
     "setup": "modal wide: groups Records (radio tree selection with name and count, radio Record path filter over a searchField), Form (radio JSON, radio NDJSON), Target (as the Extraction setup); bodyGroupGap between groups",

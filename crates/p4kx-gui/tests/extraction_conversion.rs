@@ -16,7 +16,7 @@ use tempfile::TempDir;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const SWITCH: &str = "Convert CryXml and DataForge to XML and textures";
+const SWITCH: &str = "Convert CryXml and DataForge to XML, textures and sounds";
 
 fn vehicle() -> Vec<u8> {
     TestElement::new("Vehicle")

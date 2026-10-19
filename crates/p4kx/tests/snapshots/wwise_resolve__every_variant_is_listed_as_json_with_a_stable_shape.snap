@@ -1,0 +1,206 @@
+---
+source: crates/p4kx/tests/wwise_resolve.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "breaks": [],
+  "counts": {
+    "breaks": 0,
+    "located": 3,
+    "plugins": 1,
+    "unlocated": 1,
+    "variants": 5
+  },
+  "issues": [],
+  "trigger": {
+    "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
+    "events": [
+      {
+        "id": 4072960129,
+        "localised": false,
+        "name": "Play_Engine_Start"
+      },
+      {
+        "id": 2588973845,
+        "localised": false,
+        "name": "Play_Engine_Loop"
+      }
+    ],
+    "name": "Play_Engine"
+  },
+  "variants": [
+    {
+      "event": "Play_Engine_Start",
+      "location": {
+        "kind": "soundbank",
+        "len": 40,
+        "offset": 0,
+        "soundbank": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "path": [
+        {
+          "id": 4072960129,
+          "kind": "event"
+        },
+        {
+          "id": 1,
+          "kind": "action"
+        },
+        {
+          "id": 100,
+          "kind": "random"
+        },
+        {
+          "id": 200,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 200,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "source": "embedded",
+      "wem_id": 5000
+    },
+    {
+      "event": "Play_Engine_Start",
+      "location": {
+        "kind": "soundbank",
+        "len": 24,
+        "offset": 0,
+        "soundbank": "Data\\Sounds\\wwise\\Media.bnk"
+      },
+      "path": [
+        {
+          "id": 4072960129,
+          "kind": "event"
+        },
+        {
+          "id": 1,
+          "kind": "action"
+        },
+        {
+          "id": 100,
+          "kind": "random"
+        },
+        {
+          "id": 201,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 201,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "source": "embedded",
+      "wem_id": 5002
+    },
+    {
+      "event": "Play_Engine_Loop",
+      "location": {
+        "kind": "soundbank",
+        "len": 16,
+        "offset": 48,
+        "soundbank": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "path": [
+        {
+          "id": 2588973845,
+          "kind": "event"
+        },
+        {
+          "id": 2,
+          "kind": "action"
+        },
+        {
+          "id": 300,
+          "kind": "switch"
+        },
+        {
+          "id": 301,
+          "kind": "sequence"
+        },
+        {
+          "id": 203,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 203,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "source": "prefetch_streamed",
+      "wem_id": 5003
+    },
+    {
+      "event": "Play_Engine_Loop",
+      "location": null,
+      "path": [
+        {
+          "id": 2588973845,
+          "kind": "event"
+        },
+        {
+          "id": 2,
+          "kind": "action"
+        },
+        {
+          "id": 300,
+          "kind": "switch"
+        },
+        {
+          "id": 301,
+          "kind": "sequence"
+        },
+        {
+          "id": 204,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 204,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "source": "streamed",
+      "wem_id": 5004
+    },
+    {
+      "event": "Play_Engine_Loop",
+      "location": null,
+      "path": [
+        {
+          "id": 2588973845,
+          "kind": "event"
+        },
+        {
+          "id": 2,
+          "kind": "action"
+        },
+        {
+          "id": 300,
+          "kind": "switch"
+        },
+        {
+          "id": 302,
+          "kind": "blend"
+        },
+        {
+          "id": 205,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 205,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Ship.bnk"
+      },
+      "source": "plugin",
+      "wem_id": null
+    }
+  ]
+}

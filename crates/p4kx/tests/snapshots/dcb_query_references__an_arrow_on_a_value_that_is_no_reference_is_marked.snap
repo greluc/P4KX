@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "error(\"from Ship select mass->name\")?"
+---
+error: field `mass` of `Ship` holds a Single value, which is no Reference; `->` follows References and weak pointers only
+  from Ship select mass->name
+                       ^^

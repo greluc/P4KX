@@ -144,9 +144,9 @@ pub enum QueryErrorKind {
         /// The name written behind it.
         next: String,
     },
-    /// A path continues with `.` behind a Reference or a weak pointer.
+    /// A path continues with `.` behind a Reference or a weak pointer instead of `->`.
     #[error(
-        "field `{name}`{} holds {}, so a path cannot reach its field `{next}`",
+        "field `{name}`{} holds {}; follow it with `->{next}` to reach the field `{next}` of what it links to",
         Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: false }
     )]
     LinkHasNoFields {
@@ -157,6 +157,47 @@ pub enum QueryErrorKind {
         /// [`DataType::Reference`] or [`DataType::WeakPointer`].
         data_type: DataType,
         /// The name written behind it.
+        next: String,
+    },
+    /// `->` behind a value that is neither a Reference nor a weak pointer.
+    #[error(
+        "field `{name}`{} holds {}, which is no Reference; `->` follows References and weak pointers only",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: false }
+    )]
+    NotALink {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its value.
+        data_type: DataType,
+    },
+    /// `->` behind an array without selecting its elements.
+    #[error(
+        "field `{name}`{} holds {}; select its elements with `[n]` or `[*]` before `->`",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: true }
+    )]
+    ArrayIsNoLink {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// The type of its elements.
+        data_type: DataType,
+    },
+    /// `->` behind a Reference or weak pointer whose field declares no struct it links to.
+    #[error(
+        "field `{name}`{} holds {} without a declared type, so `->` cannot reach its field `{next}`",
+        Owner(.owner.as_deref()), Holds { data_type: *.data_type, array: false }
+    )]
+    UntypedLink {
+        /// The field as written from its name on.
+        name: String,
+        /// The struct declaring it, or `None` without `from`.
+        owner: Option<String>,
+        /// [`DataType::Reference`] or [`DataType::WeakPointer`].
+        data_type: DataType,
+        /// The name written behind `->`.
         next: String,
     },
     /// `[n]`, `[*]` or `[TypeName]` behind a value that is no array.
@@ -205,6 +246,12 @@ pub enum QueryErrorKind {
     #[error("the path has more than {limit} segments behind its first field")]
     PathTooLong {
         /// The most segments allowed.
+        limit: usize,
+    },
+    /// A path with more than [`MAX_PATH_REFERENCES`](crate::query::MAX_PATH_REFERENCES) `->`.
+    #[error("the path follows more than {limit} References with `->`")]
+    TooManyReferences {
+        /// The most `->` allowed.
         limit: usize,
     },
     /// Parentheses and `not` nest deeper than [`MAX_CONDITION_DEPTH`](crate::query::MAX_CONDITION_DEPTH).

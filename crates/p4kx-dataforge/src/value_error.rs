@@ -108,6 +108,19 @@ pub enum ValueError {
         /// The struct the field declares.
         declared: u32,
     },
+    /// A Reference a Query follows refers to a Record of a struct that neither is nor derives
+    /// from the struct the field declares.
+    #[error(
+        "the Reference refers to the Record {guid} of struct {struct_index}, which does not derive from struct {declared}, the type of the field"
+    )]
+    UnexpectedReferenceType {
+        /// The GUID of the Record.
+        guid: Guid,
+        /// The struct index of the Record.
+        struct_index: u32,
+        /// The struct the field declares.
+        declared: u32,
+    },
     /// The paths of a Query reach more array elements in one Record than
     /// [`MAX_PATH_VALUES`](crate::query::MAX_PATH_VALUES).
     #[error("the paths of the Record reach more than {limit} array elements")]

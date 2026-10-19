@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "table(\"from Ship select name, maker->name, maker->home->name, maker->home->mass\")?"
+---
+record path       name   maker->name  maker->home->name  maker->home->mass
+----------------  -----  -----------  -----------------  -----------------
+libs/ships/alpha  Alpha  Aegis        Terra              5.5
+libs/ships/beta   Beta   null         null               null
+libs/ships/gamma  Gamma  null         null               null
+3 Records, 2 unresolved References

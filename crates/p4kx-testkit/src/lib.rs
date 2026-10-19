@@ -21,12 +21,16 @@ mod dataforge_value;
 mod entity;
 mod entity_sample;
 mod entity_schema;
+mod gfx;
+mod gfx_shape;
+mod gfx_tags;
 mod global_ini;
 mod layout_v1;
 mod layout_v2;
 mod real_archive;
 mod split_dds;
 mod test_entry;
+mod test_jpeg;
 mod vorbis;
 mod wem;
 
@@ -44,6 +48,13 @@ pub use dataforge_value::{TestInstance, TestValue};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;
+pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
+pub use gfx_shape::{TestFill, TestShape, TestShapeRecord, morph_shape_body};
+pub use gfx_tags::{
+    TestGlyph, color_mapped_body, exporter_info_body, exports_body, external_image_body,
+    font_name_body, font3_body, jpeg_body, lossless_body, place_object2_body, sprite_body,
+    sub_image_body,
+};
 pub use global_ini::GlobalIniBuilder;
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
@@ -51,5 +62,6 @@ pub use real_archive::{
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
+pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};
 pub use vorbis::{TestCodebook, TestVorbis};
 pub use wem::{TestCodec, TestWem, test_signal};

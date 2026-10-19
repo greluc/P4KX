@@ -327,12 +327,18 @@ pub(crate) fn pointer(bytes: &[u8]) -> Option<(u32, u32)> {
     (struct_index != NULL || instance != NULL).then_some((struct_index, instance))
 }
 
-/// Reads a Reference: an instance index that is not used, then the GUID of the target Record.
-fn reference<'f>(forge: &'f DataForge<'f>, bytes: &[u8]) -> Value<'f> {
+/// Returns the GUID of the Record a Reference names, or `None` for a null Reference; the GUID
+/// follows an instance index that is not used.
+pub(crate) fn reference_guid(bytes: &[u8]) -> Option<Guid> {
     let guid = Guid::from_stored(first_bytes(bytes.get(4..).unwrap_or_default()));
-    if guid == Guid::default() {
+    (guid != Guid::default()).then_some(guid)
+}
+
+/// Reads a Reference as a link to its Record.
+fn reference<'f>(forge: &'f DataForge<'f>, bytes: &[u8]) -> Value<'f> {
+    let Some(guid) = reference_guid(bytes) else {
         return Value::Null;
-    }
+    };
     forge.record_by_guid(guid).map_or(
         Value::Error(ValueError::DanglingReference { guid }),
         |record| record.link(),

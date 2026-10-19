@@ -49,7 +49,7 @@ impl fmt::Display for Expected {
             Self::FieldName => "a field name",
             Self::AfterFrom => "`at`, `select`, `where` or the end of the Query",
             Self::AfterAt => "`select`, `where` or the end of the Query",
-            Self::AfterPath => "`.`, `[`, `,`, `where` or the end of the Query",
+            Self::AfterPath => "`.`, `[`, `->`, `,`, `where` or the end of the Query",
             Self::Condition => "a comparison, `not` or `(`",
             Self::Operator => {
                 "`=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `starts with` or `like`"

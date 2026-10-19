@@ -1,15 +1,30 @@
+use std::fmt;
+
 use p4kx_dataforge::{DataForgeError, Guid};
 use thiserror::Error;
 
 use crate::{CancelToken, ConflictPolicy, ExtractionError};
 
 /// The settings of one Record export.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct RecordExportOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
+    /// Called from any worker thread once for every Record the run built, kept or gave up on;
+    /// calls may overtake each other.
+    pub progress: Option<&'a (dyn Fn() + Sync)>,
+}
+
+impl fmt::Debug for RecordExportOptions<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecordExportOptions")
+            .field("policy", &self.policy)
+            .field("cancel", &self.cancel)
+            .field("progress", &self.progress.is_some())
+            .finish()
+    }
 }
 
 /// Why one Record of a Record export was not written.

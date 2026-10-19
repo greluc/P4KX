@@ -222,11 +222,15 @@ With `--out <file>`, the result in `--format` (`json` by default) goes to the fi
 gets the summary:
 
 ```json
-{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0,
+ "unresolved_references": 2}
 ```
 
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+`unresolved_references` counts the null or dangling links that `->` met in the `select` paths
+ of the rows written, each link once per row ([query.md](query.md#following-references)); they
+reach `null` and change no exit code.
 
 ## `p4kx catalog <archive> --out <file> --json`
 
@@ -394,6 +398,84 @@ both in ascending ID order. With `--format wav` a codec without a decoder and a 
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
 `"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
+
+## `p4kx ui assets <archive> <entry> --json`
+
+Also `p4kx ui assets <file> --json` for a GFx or SWF file on disk.
+
+```json
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "signature": "CFX", "version": 10,
+ "compression": "zlib", "length": 512,
+ "stage": {"x_min": 0, "x_max": 20480, "y_min": 0, "y_max": 15360},
+ "frame_rate": 30.0, "frame_count": 1, "frames": 1,
+ "exporter": {"version": 879, "flags": 16, "bitmap_format": 19, "prefix": "", "swf_name": "Panel"},
+ "tags": [{"code": 0, "name": "End", "count": 2}, {"code": 777, "name": null, "count": 1}],
+ "unknown_tags": [{"code": 777, "offset": 498, "length": 6}],
+ "shapes": [{"id": 4, "version": 3, "bounds": {"x_min": 0, "x_max": 2000, "y_min": 0,
+             "y_max": 1010}, "fill_styles": 1, "line_styles": 1, "edges": 2,
+             "export_name": null}],
+ "morph_shapes": [{"id": 6, "version": 1, "bounds": {…}, "fill_styles": 1, "line_styles": 0,
+                   "edges": 0, "export_name": null}],
+ "bitmaps": [{"id": 1, "kind": "lossless", "width": 2, "height": 1, "format": "argb32",
+              "file": null, "image_id": null, "export_name": "icon_alert"},
+             {"id": 2, "kind": "external", "width": 8, "height": 4, "format": "tiff",
+              "file": "../Textures/panel_bg.tif", "image_id": null, "export_name": null},
+             {"id": 3, "kind": "sub_image", "width": 4, "height": 2, "format": null,
+              "file": null, "image_id": 2, "export_name": null}],
+ "fonts": [{"id": 8, "format": "DefineFont3", "name": "Electrolize", "full_name": null,
+            "bold": true, "italic": false, "glyphs": 1, "outlines": true, "export_name": null}],
+ "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"], "placed": [4],
+              "export_name": "PanelButton"}],
+ "failures": [{"code": 2, "offset": 508, "error": "unexpected end of data at offset 510: …"}]}
+```
+
+`signature` is `FWS`, `CWS` or `ZWS` for SWF and `GFX` or `CFX` for GFx; `compression` is `none`,
+`zlib` or `lzma`, and `length` the size of the uncompressed movie. `stage` and every `bounds` are
+in twips, a twentieth of a pixel. `frames` counts the `ShowFrame` tags of the main timeline,
+`frame_count` is what the header declares. `exporter` is the GFx `ExporterInfo` tag, `null` for a
+SWF movie. `tags` counts every tag code, sprites included, in ascending code order, with `name`
+`null` for a code that is not known; `unknown_tags` lists those tags with the offset of their body
+in the uncompressed movie. Shapes, morph shapes, bitmaps, fonts and sprites are in file order;
+`edges` counts the straight and curved edges (of the start state of a morph shape), and
+`export_name` is the first name an `ExportAssets` tag gives the ID. A bitmap's `kind` is
+`lossless`, `jpeg`, `png` or `gif` for an embedded image, `external` for a GFx external image whose
+`file` is the path the movie gives, relative to it, and `sub_image` for a rectangle of the bitmap
+`image_id`; `format` is the pixel format of a lossless bitmap, `with alpha` or `opaque` for an
+embedded image and the GFx file format (`dds`, `tiff`, `tga`, …) of an external one; `width` and
+`height` are `null` where the movie does not state them. A font's `format` names its tag; `glyphs`
+is its glyph count and `outlines` whether glyph shapes are stored. A sprite lists its frame
+`labels` and the IDs it `placed`, ascending. `failures` lists the tags that could not be read;
+they leave out their definition and the rest of the movie is still read, but the exit code is 1.
+A file that is no movie, or one larger than 64 MiB, prints no JSON; it fails with exit code 3.
+
+## `p4kx ui extract <archive> <entry> --out <folder> --json`
+
+Also `p4kx ui extract <file> --out <folder> --json` for a GFx or SWF file on disk.
+
+```json
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\assets",
+ "extracted": [{"kind": "bitmap", "id": 1, "file": "…\\assets\\bitmap_1.png", "size": 77},
+               {"kind": "shape", "id": 4, "file": "…\\assets\\shape_4.json", "size": 1081},
+               {"kind": "morph_shape", "id": 6, "file": "…\\assets\\morph_shape_6.json",
+                "size": 1038}],
+ "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
+            {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
+             refers to ../Textures/gone.dds, which does not exist; tried
+             Data\\UI\\Screens\\Textures\\gone.dds"}]}
+```
+
+`extracted` lists the files written, `<kind>_<id>.png` for bitmaps (8-bit RGBA, straight alpha)
+and `<kind>_<id>.json` for shapes and morph shapes. `failed` lists first the tags that could not
+be read, as `tag` with their `code` and the `offset` of their body in the uncompressed movie, then
+the definitions that could not be written, with their `id`; each with the reason and its causes
+joined by `: `. Written and failed definitions list bitmaps, then shapes, then morph shapes, each
+in file order. An external image of a movie on disk is read only as DDS from inside the nearest
+ancestor folder named `Data`, or else the movie's folder; a path leaving it fails. A shape file
+holds the shape as the movie stores it, in twips: `id`, `version`, `bounds`, `edge_bounds`, the
+`fill_styles` and `line_styles` numbered from 1 by the records, and the `records` in drawing order,
+each a `style_change` (a `move_to` position and new style numbers), a `straight_edge` with its
+`delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
+not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx socpak list <archive> <container…> --json`
 
@@ -615,4 +697,3 @@ Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x`
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is
 written back with exactly the bits it was read with. `container` and each of its fields may be
 left out; without `frame` the body is always compressed anew.
-

@@ -14,6 +14,7 @@ mod cli_chf;
 mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
+mod cli_loc;
 mod cli_model;
 mod cli_socpak;
 mod cli_ui;
@@ -33,6 +34,7 @@ mod extract;
 mod info;
 mod json;
 mod list;
+mod loc;
 mod model;
 mod model_json;
 mod progress;
@@ -66,8 +68,9 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),
-        Command::Catalog(args) => catalog::run(&args, json).map(success),
+        Command::Catalog(args) => catalog::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
+        Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {
                 report(&error);

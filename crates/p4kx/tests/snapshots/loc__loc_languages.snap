@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: "text.replace('\\\\', \"/\")"
+---
+en	english	Data/Localization/english/global.ini
+de	german_(germany)	Data/Localization/german_(germany)/global.ini
+ja	japanese_(japan)	Data/Localization/japanese_(japan)/global.ini

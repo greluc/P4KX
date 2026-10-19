@@ -8,18 +8,21 @@ use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod audio_control;
+mod catalog_control;
 mod extraction_control;
 mod record_export_control;
+mod record_text;
 mod update;
 mod work_tab;
 
+use catalog_control::CatalogState;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
-    ExtractionSetup, Language, PreviewTab, QueryTab, Texts,
+    ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -59,7 +62,10 @@ pub struct Model {
     audio_output: Box<dyn AudioOutput>,
     audio_volume: f32,
     query: QueryTab,
+    localization: LocalizationTab,
     record_export: RecordExportState,
+    catalog: CatalogState,
+    record_text_choice: Option<RecordTextChoice>,
 }
 
 impl std::fmt::Debug for Model {
@@ -83,7 +89,10 @@ impl std::fmt::Debug for Model {
             .field("comparison", &self.comparison)
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
+            .field("localization", &self.localization)
             .field("record_export", &self.record_export)
+            .field("catalog", &self.catalog)
+            .field("record_text_choice", &self.record_text_choice)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -114,7 +123,10 @@ impl Model {
             audio_output: Box::new(DeviceOutput),
             audio_volume: 1.0,
             query: QueryTab::default(),
+            localization: LocalizationTab::default(),
             record_export: RecordExportState::default(),
+            catalog: CatalogState::default(),
+            record_text_choice: None,
         }
     }
 
@@ -125,8 +137,9 @@ impl Model {
     }
 
     /// Switches the interface language.
-    pub const fn set_language(&mut self, language: Language) {
+    pub fn set_language(&mut self, language: Language) {
         self.texts.set_language(language);
+        self.apply_record_language();
     }
 
     /// Returns the Channels the picker offers.
@@ -202,8 +215,10 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
+                self.apply_record_language();
                 self.stopped_by_change = false;
                 self.query.archive_opened();
+                self.localization.archive_opened();
             }
             Err(error) => self.fail(opening.path, &error),
         }

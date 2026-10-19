@@ -5,7 +5,10 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
-use crate::{ComparisonText, Model, QueryExportFormat, QueryText, Text, ui, window};
+use crate::{
+    CATALOG_FILE, CatalogText, ComparisonText, Model, QueryExportFormat, QueryText, Text, ui,
+    window,
+};
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
 /// settings file around it.
@@ -54,6 +57,7 @@ impl App {
             _ => QueryText::FilterCsv,
         };
         let export_filter = self.model.texts().get(export_filter);
+        let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -69,6 +73,10 @@ impl App {
                     Dialog::ComparisonReport => picker
                         .add_filter(report_filter, &["json"])
                         .set_file_name("comparison.json")
+                        .save_file(),
+                    Dialog::CatalogFile => picker
+                        .add_filter(catalog_filter, &["json"])
+                        .set_file_name(CATALOG_FILE)
                         .save_file(),
                     Dialog::QueryExport(format) => {
                         let extension = format.extension();
@@ -139,6 +147,11 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::CatalogFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_catalog(path, move || ctx.request_repaint());
+            }
             Some((Dialog::ComparisonArchive(side), path)) => {
                 self.model.comparison_mut().set_archive(side, path);
             }
@@ -172,6 +185,7 @@ impl eframe::App for App {
     fn on_exit(&mut self) {
         self.model.stop_extraction();
         self.model.stop_record_export();
+        self.model.stop_catalog();
         self.model.comparison_mut().cancel();
         self.model.query_mut().cancel();
         self.save_settings();
@@ -185,6 +199,9 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     if chosen || settings.language.is_some() {
         settings.language = Some(model.texts().language().tag().to_owned());
     }
+    settings.record_language = model
+        .record_text_choice()
+        .map(|choice| choice.code().to_owned());
     settings.window = window;
     settings.recent = model.recent().clone();
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
@@ -202,7 +219,7 @@ mod tests {
     use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
 
     use super::remember;
-    use crate::{ChannelList, Language, Model};
+    use crate::{ChannelList, Language, Model, RecordTextChoice, TextLanguage};
 
     #[test]
     fn the_language_stays_unset_until_the_user_chooses_one() {
@@ -219,6 +236,28 @@ mod tests {
 
         assert_eq!(unchosen, None, "follows the system");
         assert_eq!(settings.language.as_deref(), Some("en-GB"), "chosen");
+    }
+
+    #[test]
+    fn the_record_text_choice_is_stored_and_stays_unset_until_made() {
+        let mut model = Model::new(Language::German);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+        let unchosen = settings.record_language.clone();
+        model.set_record_text_choice(Some(RecordTextChoice::Language(TextLanguage::French)));
+        remember(&mut settings, &model, false, None);
+        let french = settings.record_language.clone();
+        model.set_record_text_choice(Some(RecordTextChoice::KeysOnly));
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(unchosen, None, "follows the interface");
+        assert_eq!(french.as_deref(), Some("fr"), "a language");
+        assert_eq!(
+            settings.record_language.as_deref(),
+            Some("none"),
+            "keys only"
+        );
     }
 
     #[test]

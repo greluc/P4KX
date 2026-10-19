@@ -15,7 +15,8 @@ const CAPS2_VOLUME: u32 = 0x20_0000;
 const CUBE_FACES: u32 = 6;
 const DIMENSION_TEXTURE3D: u32 = 4;
 const MISC_TEXTURECUBE: u32 = 0x4;
-const CRYENGINE_TRAILER_LEN: u64 = 8;
+pub(crate) const CRYENGINE_TRAILER: &[u8; 8] = b"CExtCEnd";
+const CRYENGINE_TRAILER_LEN: u64 = CRYENGINE_TRAILER.len() as u64;
 
 /// The longest DDS header: magic, the 124-byte header and the DX10 extension.
 pub const MAX_HEADER_LEN: usize = MAGIC_LEN + HEADER_SIZE as usize + DX10_LEN;
@@ -236,8 +237,13 @@ impl DdsHeader {
     }
 
     /// Returns the number of sibling parts a header Entry of `header_size` bytes is split into:
-    /// the mips that do not follow the header in the Entry itself, one per part. The CryEngine
-    /// trailer `CExtCEnd` after the last mip is not a mip and is ignored.
+    /// the mips that do not follow the header in the Entry itself, one per part. Exactly 8 bytes
+    /// after the last mip are taken for the CryEngine trailer `CExtCEnd` and are not a mip; only
+    /// their size is checked here, as the header Entry's bytes are not read. [`merge`] and the
+    /// header-tail path of [`read_mip`] verify them; the part path of [`read_mip`] does not.
+    ///
+    /// [`merge`]: crate::merge
+    /// [`read_mip`]: crate::read_mip
     ///
     /// # Errors
     ///
@@ -260,8 +266,8 @@ impl DdsHeader {
     }
 
     /// Returns the length of the data of a header Entry of `header_size` bytes without the
-    /// CryEngine trailer `CExtCEnd` that follows the mips of some textures, or `header_size`
-    /// when the Entry has no such trailer.
+    /// 8-byte CryEngine trailer that follows the mips of some textures, or `header_size` when the
+    /// Entry has none. Judged by size only; the trailer's bytes are not read.
     #[must_use]
     pub fn data_len(&self, header_size: u64) -> u64 {
         let trailer_free = header_size

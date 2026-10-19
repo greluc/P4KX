@@ -2,7 +2,7 @@
 
 use std::error::Error;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 use p4kx_extraction::{
@@ -199,6 +199,14 @@ fn the_inventory_probe_cubemap_with_a_cryengine_trailer_merges_and_exports() -> 
         entry.uncompressed_size(),
         expected + CRYENGINE_TRAILER_LEN,
         "the Entry ends with the eight bytes of the trailer"
+    );
+
+    let mut data = Vec::new();
+    archive.open_entry(entry)?.read_to_end(&mut data)?;
+    assert_eq!(
+        data.last_chunk::<8>(),
+        Some(b"CExtCEnd"),
+        "the eight bytes are the trailer markers"
     );
 
     let merged = dir.path().join("probe.dds");

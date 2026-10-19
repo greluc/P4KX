@@ -12,7 +12,9 @@ fails while its section is missing.
   `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
   `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer
   refused with "not a whole number of mips": the trailer is left out of the merged DDS and of
-  the mips read.
+  the mips read. Opening a texture only checks the trailer's size; `merge` and `read_mip` of a
+  mip from the header Entry's tail verify its bytes (`TextureError::UnknownTrailer`), `read_mip`
+  of a mip from a part does not.
 - GUI: the menu "Record texts" chooses the language of the texts the Record preview shows next
   to localisation keys, in the Record tab and in the Record XML. It lists the languages whose
   `global.ini` the open Archive holds plus "Keys only", follows the interface language until

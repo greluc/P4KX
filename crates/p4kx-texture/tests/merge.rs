@@ -187,8 +187,15 @@ fn a_long_part_is_oversized() {
 }
 
 fn merge_with_trailer(dds: &SplitDds) -> Result<(MergeReport, Vec<u8>), TextureError> {
+    merge_with_trailer_bytes(dds, *b"CExtCEnd")
+}
+
+fn merge_with_trailer_bytes(
+    dds: &SplitDds,
+    trailer: [u8; 8],
+) -> Result<(MergeReport, Vec<u8>), TextureError> {
     let mut header = dds.header_bytes();
-    header.extend_from_slice(b"CExtCEnd");
+    header.extend_from_slice(&trailer);
     let mut out = Vec::new();
     let report = merge(
         header.as_slice(),
@@ -220,6 +227,51 @@ fn the_cryengine_trailer_of_a_split_texture_is_not_merged() -> Result<(), Textur
     assert_eq!(merged, standard_layout(&dds, 7), "header, then mips 0 to 6");
     assert_eq!(report.parts, 4, "four parts were read");
     assert_eq!(report.size, merged.len() as u64, "size of the merged DDS");
+    Ok(())
+}
+
+#[test]
+fn eight_wrong_trailer_bytes_are_rejected_when_streaming() {
+    let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4);
+
+    let result = merge_with_trailer_bytes(&dds, *b"CExtXXXX");
+
+    assert!(
+        matches!(
+            result,
+            Err(TextureError::UnknownTrailer { found }) if &found == b"CExtXXXX"
+        ),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn eight_wrong_trailer_bytes_are_rejected_for_several_images() {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8)
+        .cubemap()
+        .split(2);
+
+    let result = merge_with_trailer_bytes(&dds, *b"CExtXXXX");
+
+    assert!(
+        matches!(
+            result,
+            Err(TextureError::UnknownTrailer { found }) if &found == b"CExtXXXX"
+        ),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn the_cryengine_trailer_of_a_split_cubemap_is_not_merged() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8)
+        .cubemap()
+        .split(2);
+
+    let (report, merged) = merge_with_trailer(&dds)?;
+
+    assert_eq!(report.size, merged.len() as u64, "size of the merged DDS");
+    assert_eq!(report.parts, 2, "two parts were read");
     Ok(())
 }
 

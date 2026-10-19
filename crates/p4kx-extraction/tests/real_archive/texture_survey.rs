@@ -7,13 +7,13 @@ use std::time::Instant;
 
 use p4kx_extraction::{Archive, ConversionError, DdsHeader, Entry, Texture, TextureError};
 use p4kx_testkit::real_archive_path;
+use p4kx_texture::MAX_HEADER_LEN;
 use rayon::prelude::*;
 
 use crate::{TestResult, report};
 
 const SAMPLES_PER_FORMAT: usize = 16;
 const PREVIEW_SIDE: u32 = 1024;
-const MAX_HEADER_LEN: usize = 148;
 const CUBE_FACES: u32 = 6;
 const CROSS_COLUMNS: u32 = 4;
 const CROSS_ROWS: u32 = 3;

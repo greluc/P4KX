@@ -3,7 +3,7 @@ use std::io::{self, Read};
 use rayon::prelude::*;
 
 use crate::header::MAX_HEADER_LEN;
-use crate::merge::{checked_part_len, read_prefix, read_up_to};
+use crate::merge::{check_trailer, checked_part_len, read_prefix, read_up_to};
 use crate::{DdsHeader, HdrImage, RgbaImage, SiblingReader, TextureError, decode, decode_hdr};
 
 /// The data of one mip of a texture: one image, or one per cubemap face or array element.
@@ -153,13 +153,17 @@ const fn side(full: u32, level: u32) -> u32 {
 /// Reads mip `level`, 0 being the largest, of the header Entry `header` of `header_size` bytes.
 ///
 /// The mip comes from its sibling part when it is split off, otherwise from the header's tail,
-/// with every cubemap face or array element.
+/// with every cubemap face or array element. The 8-byte CryEngine trailer `CExtCEnd` some header
+/// Entries carry after the last mip is verified when the mip comes from the header's tail, by
+/// reading on to the end of the data; when it comes from a part, only the trailer's size is
+/// checked, as verifying it would need an extra read of the header Entry.
 ///
 /// # Errors
 ///
 /// Returns [`TextureError::NoSuchMip`] when the level does not exist,
 /// [`TextureError::UnsupportedImage`] when the texture is a volume, the errors of
-/// [`DdsHeader::part_count`], and a part or header error when the mip's data is missing,
+/// [`DdsHeader::part_count`], [`TextureError::UnknownTrailer`] when the header's tail is read and
+/// the trailer is not `CExtCEnd`, and a part or header error when the mip's data is missing,
 /// truncated, oversized or unreadable.
 pub fn read_mip<R, S>(
     mut header: R,
@@ -188,7 +192,9 @@ where
             images: dds.surfaces().saturating_mul(dds.depth()),
         });
     }
-    let header_size = dds.data_len(header_size);
+    let entry_size = header_size;
+    let header_size = dds.data_len(entry_size);
+    let trailer_len = entry_size.saturating_sub(header_size);
     let parts = dds.part_count(header_size)?;
     let data = if level < parts {
         let size = dds
@@ -197,7 +203,13 @@ where
         read_from_part(&dds, parts, level, size, siblings)?
     } else {
         let tail = start.get(dds.header_len()..).unwrap_or_default();
-        read_from_tail(&dds, parts, level, tail.chain(header), header_size)?
+        read_from_tail(
+            &dds,
+            parts,
+            level,
+            tail.chain(header),
+            (header_size, trailer_len),
+        )?
     };
     Ok(Mip {
         header: dds,
@@ -234,14 +246,17 @@ where
 }
 
 /// Reads mip `level` of every image from the header's tail, where each image keeps its mips
-/// `parts..` together.
+/// `parts..` together. `data_trailer` is the length of the data and of the CryEngine trailer
+/// behind it; the trailer is verified by skipping the last image's smaller mips and reading its
+/// bytes from the same reader.
 fn read_from_tail(
     dds: &DdsHeader,
     parts: u32,
     level: u32,
     mut tail: impl Read,
-    header_size: u64,
+    data_trailer: (u64, u64),
 ) -> Result<Vec<u8>, TextureError> {
+    let (header_size, trailer_len) = data_trailer;
     let unsupported = || TextureError::UnsupportedFormat(dds.format());
     let size = dds.surface_size(level).ok_or_else(unsupported)?;
     let before = dds
@@ -269,6 +284,17 @@ fn read_from_tail(
                 needed: header_size,
             });
         }
+    }
+    if trailer_len > 0 {
+        let skipped = io::copy(&mut tail.by_ref().take(after), &mut io::sink())
+            .map_err(TextureError::ReadHeader)?;
+        if skipped < after {
+            return Err(TextureError::TruncatedHeader {
+                len: position.saturating_add(skipped),
+                needed: header_size,
+            });
+        }
+        check_trailer(tail, trailer_len, header_size)?;
     }
     Ok(data)
 }

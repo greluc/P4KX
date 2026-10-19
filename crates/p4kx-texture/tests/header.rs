@@ -208,6 +208,25 @@ fn eight_bytes_after_the_mips_are_the_cryengine_trailer() -> Result<(), TextureE
 }
 
 #[test]
+fn nine_surplus_bytes_and_a_chunk_with_data_are_no_trailer() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4);
+    let header = parse(&dds)?;
+    let size = dds.header_bytes().len() as u64;
+
+    for surplus in [9, 16] {
+        assert!(
+            matches!(
+                header.part_count(size + surplus),
+                Err(TextureError::TailMismatch { .. })
+            ),
+            "{surplus} surplus bytes"
+        );
+        assert_eq!(header.data_len(size + surplus), size + surplus, "not cut");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_legacy_luminance_alpha_header_is_l8a8() -> Result<(), TextureError> {
     let header = parse(&SplitDds::new(TestTextureFormat::LegacyL8A8, 8, 8))?;
 

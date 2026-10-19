@@ -44,8 +44,17 @@ mips of the 256 x 256 BC6H cubemap, is 8 bytes longer than the mips (524,264 ins
 CryEngine extension chunk and the end marker. It is the only such texture in all five Channels.
 The trailer is not pixel data: `DdsHeader::part_count` accepts exactly 8 extra bytes after a
 whole run of mips, `DdsHeader::data_len` names the length without them, and merging and mip
-reading leave them out. Any other surplus is still a `TailMismatch`. Every header of every
-Channel now fits a run of mips.
+reading leave them out. Any other surplus (7, 9 or 16 bytes, even a `CExt` chunk with data) is
+still a `TailMismatch`.
+
+Where the bytes are verified: `part_count` and `data_len` look at the size only, so opening a
+texture stays header-only. `merge` reads the 8 bytes from the reader it already has (streaming
+path and several-images path) and refuses anything but `CExtCEnd` with
+`TextureError::UnknownTrailer`. `read_mip` does the same when the mip comes from the header
+Entry's tail, by skipping the last image's smaller mips; when the mip comes from a part, it
+checks the size only, because the bytes would need an extra read of the header Entry. Every
+header of every Channel now fits a run of mips, and the real test reads the probe's last 8 bytes
+and asserts `CExtCEnd`.
 
 ## Localisation
 

@@ -884,7 +884,7 @@ code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 | `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
 | `container.flags` | number | The two header bytes behind the magic |
 | `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
-| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written with the reused frame; with a body compressed anew only the last 8 bytes of the file are written back (ADR-0014), the rest is zeros, and a new frame that reaches into non-zero ones is an error (exit code 2) |
 
 Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is

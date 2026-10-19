@@ -69,6 +69,13 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- CHF: a file whose body changes keeps the last 8 bytes of the original file (the game writes
+  `efbeadde efbeadde` there; all 41 CHF files of the LIVE Build have it) instead of zeroing them,
+  with a correct CRC-32C. A new frame that would reach into non-zero ones is an error, not an
+  overwrite. An unchanged JSON still gives the original file byte for byte (ADR-0014).
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

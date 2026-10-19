@@ -23,7 +23,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>]]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>] [--audio <format>]]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -60,6 +60,16 @@ Early development (milestone M1). Available today:
   reason, its raw Entries are written (the parts only when the merged DDS was written), and the
   Extraction continues with exit code 1. A part selected without its header is written
   unchanged.
+  `--convert` also converts WEM sounds (`<name>.wem`) as `--audio` says, by default `ogg`: Wwise
+  Vorbis is rebuilt as Ogg Vorbis and Opus repackaged as Ogg Opus, `<name>.ogg`, without
+  re-encoding, and every other codec decoded to a 16-bit PCM WAV `<name>.wav`; `wav` decodes every
+  sound to WAV, and `raw` keeps the WEMs. Each soundbank (`<name>.bnk`) is written unchanged and
+  unpacked into the folder `<name>` next to it, each embedded WEM named by its ID and written in
+  the same format. A sound whose codec cannot be decoded is reported as not converted, naming the
+  codec, and written unchanged as `.wem`; plug-in media and the prefetched start of a streamed WEM
+  are written unchanged without a report. Every file follows `--conflict`, `if-changed` comparing
+  with the converted output. Sounds and soundbanks are converted on a few threads of their own,
+  within a memory budget of 1 GiB.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
@@ -210,6 +220,15 @@ Early development (milestone M1). Available today:
   movie (on disk only inside the movie's `Data` folder), a sub-image is cut from its bitmap.
   Both also take a movie file on disk, compressed (`CWS`, `CFX`, `ZWS`) or not (`FWS`,
   `GFX`).
+- `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
+  transparent|movie|#RRGGBB[AA]]` renders the first frame of a UI movie, with its sprites, as a
+  PNG: shapes with solid, gradient and bitmap fills (external images included) and strokes, with
+  the transforms, colour transforms and masks of their placements, and morph shapes at their
+  ratio. `--size` with both sides fits the stage centred into them, with one side keeps its
+  aspect ratio; the default is the stage size. Texts, buttons and videos are skipped, filters and
+  blend modes are not applied, and every element left out is listed (exit code 1). A movie is
+  untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
+  bounded, and what lies beyond a limit is listed instead of drawn.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -246,8 +265,8 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, or a tag or definition of a UI movie cannot be read or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit); `compare`: the Archives or the `--diff` Entry differ |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
 | 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |

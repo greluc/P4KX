@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use p4kx_extraction::gfx::{Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Rgba};
 
 use crate::exit::EXIT_CODES_HELP;
 
@@ -32,6 +33,77 @@ pub(crate) enum UiAction {
         #[arg(long, value_name = "FOLDER")]
         out: PathBuf,
     },
+    /// Renders the first frame of a GFx or SWF UI movie, with its sprites, as a PNG. Shapes with
+    /// solid, gradient and bitmap fills and strokes are drawn with the transforms, colour
+    /// transforms and masks of their placements; external images are decoded as `ui extract`
+    /// decodes them. Texts, buttons and videos are skipped, filters and blend modes are not
+    /// applied, and every element left out is listed.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Render {
+        /// The UI movie.
+        #[command(flatten)]
+        source: UiSource,
+        /// The PNG file to write; replaced if it exists.
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+        /// The image size in pixels: `WIDTHxHEIGHT` scales the stage to fit and centres it,
+        /// `WIDTH` alone keeps its aspect ratio; by default one pixel per pixel of the stage. At most
+        /// 16384 a side and 33554432 pixels.
+        #[arg(long, value_name = "SIZE", value_parser = parse_size)]
+        size: Option<CanvasSize>,
+        /// The colour under the frame: `transparent`, `movie` for the background colour the
+        /// movie sets, or `#RRGGBB` or `#RRGGBBAA`.
+        #[arg(long, value_name = "COLOUR", default_value = "transparent", value_parser = parse_background)]
+        background: Background,
+    },
+}
+
+fn parse_size(text: &str) -> Result<CanvasSize, String> {
+    let side = |text: &str| {
+        text.trim()
+            .parse::<u32>()
+            .ok()
+            .filter(|&side| (1..=MAX_CANVAS_SIDE).contains(&side))
+            .ok_or_else(|| format!("`{text}` is no size from 1 to {MAX_CANVAS_SIDE} pixels"))
+    };
+    match text.split_once(['x', 'X']) {
+        Some((width, height)) => {
+            let (width, height) = (side(width)?, side(height)?);
+            if u64::from(width) * u64::from(height) > MAX_CANVAS_PIXELS {
+                return Err(format!(
+                    "{width} x {height} is more than {MAX_CANVAS_PIXELS} pixels"
+                ));
+            }
+            Ok(CanvasSize::Fit { width, height })
+        }
+        None => side(text).map(CanvasSize::Width),
+    }
+}
+
+fn parse_background(text: &str) -> Result<Background, String> {
+    match text {
+        "transparent" => return Ok(Background::Transparent),
+        "movie" => return Ok(Background::Movie),
+        _ => {}
+    }
+    let invalid = || format!("`{text}` is no colour: use transparent, movie, #RRGGBB or #RRGGBBAA");
+    let hex = text.strip_prefix('#').ok_or_else(invalid)?;
+    if !matches!(hex.len(), 6 | 8) || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
+    let channel = |at: usize| {
+        hex.get(at..at + 2)
+            .and_then(|digits| u8::from_str_radix(digits, 16).ok())
+    };
+    match (channel(0), channel(2), channel(4)) {
+        (Some(red), Some(green), Some(blue)) => Ok(Background::Color(Rgba {
+            red,
+            green,
+            blue,
+            alpha: channel(6).unwrap_or(u8::MAX),
+        })),
+        _ => Err(invalid()),
+    }
 }
 
 /// Where a UI movie is.

@@ -12,6 +12,7 @@ use crate::theme::tokens::{FS_2XS, FS_XS, TRACKING_DISPLAY, TRACKING_OVERLINE, W
 use crate::widgets::frames::px;
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row};
 use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
+use crate::widgets::tooltip;
 use crate::{Model, Text, Texts};
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
@@ -57,7 +58,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, channel: &Channel, current: Option<&Path
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let active = current == Some(channel.archive());
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, channel.name()));
-    let state = RowState::of(active, false, response.hovered());
+    let state = RowState::of_list(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     paint_divider(ui.painter(), rect);
     focus_inside(ui.painter(), rect, &response);
@@ -80,11 +81,10 @@ fn show_row(ui: &mut Ui, texts: &Texts, channel: &Channel, current: Option<&Path
     paint_right(ui, build_rect, galley, palette::GRAY_2_TEXT);
     ui.interact(build_rect, response.id.with("build"), Sense::hover())
         .widget_info(|| WidgetInfo::labeled(Role::Label, true, &build));
-    response
-        .on_hover_ui(|ui| {
-            ui.label(channel.archive().display().to_string());
-        })
-        .clicked()
+    tooltip::hover(response, |ui| {
+        tooltip::line(ui, channel.archive().display().to_string());
+    })
+    .clicked()
 }
 
 fn current_archive(model: &Model) -> Option<&Path> {

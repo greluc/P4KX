@@ -2,7 +2,7 @@
 //! and glows, named as in its `tokens.json`, with 1rem as 16 points.
 
 use egui::epaint::Shadow;
-use egui::{Color32, FontFamily, FontId};
+use egui::{Color32, CornerRadius, FontFamily, FontId};
 
 /// One rem in points.
 pub const REM: f32 = 16.0;
@@ -55,26 +55,41 @@ pub const TOUCH_TARGET: f32 = 44.0;
 /// `content-max`, the cap of a content column.
 pub const CONTENT_MAX: f32 = 1200.0;
 
-/// `radius-none`: every corner is square.
+/// `radius-none`: table cells, accent bars and gauges stay square.
 pub const RADIUS_NONE: f32 = 0.0;
-/// `radius-pill`: pill badges and the radio only.
+/// `radius-sm`: buttons, inputs, segments, panels, modals, alerts, chips and dropdowns.
+pub const RADIUS_SM: f32 = 4.0;
+/// `radius-pill`: pill badges and the drag handle only.
 pub const RADIUS_PILL: f32 = 999.0;
+
+/// `radius-sm` as egui stores a corner, in whole points.
+pub const RADIUS_SM_POINTS: u8 = 4;
+/// The `radius-sm` corner as egui stores it.
+pub const CORNER_SM: CornerRadius = CornerRadius::same(RADIUS_SM_POINTS);
+/// The `radius-none` corner as egui stores it.
+pub const CORNER_NONE: CornerRadius = CornerRadius::ZERO;
 
 /// `glow-primary`: the orange bloom of input focus and the filled CTA.
 pub const GLOW_PRIMARY: Shadow = glow(
     0,
     5,
-    Color32::from_rgba_unmultiplied_const(231, 126, 35, 77),
+    Color32::from_rgba_unmultiplied_const(251, 138, 40, 77),
 );
 /// `glow-primary-lg`: the large orange bloom of modals and the hovered CTA.
 pub const GLOW_PRIMARY_LG: Shadow = glow(
     0,
     20,
-    Color32::from_rgba_unmultiplied_const(231, 126, 35, 51),
+    Color32::from_rgba_unmultiplied_const(251, 138, 40, 51),
 );
 /// `glow-danger-lg`: the red bloom of the danger modal.
 pub const GLOW_DANGER_LG: Shadow =
     glow(0, 20, Color32::from_rgba_unmultiplied_const(163, 0, 10, 51));
+/// The orange glow of a tooltip, `0 0 10px rgb(251 138 40 / 30%)`.
+pub const GLOW_TOOLTIP: Shadow = glow(
+    0,
+    10,
+    Color32::from_rgba_unmultiplied_const(251, 138, 40, 77),
+);
 /// `shadow-drawer`: the separation of a drawer.
 pub const SHADOW_DRAWER: Shadow = Shadow {
     offset: [5, 0],

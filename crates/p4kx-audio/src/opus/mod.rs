@@ -14,13 +14,15 @@ pub(crate) use header::TAG_SWITCH;
 use self::header::Header;
 use self::layout::Layout;
 use self::packets::{Framing, Packets};
+use crate::loops::insert_comments;
 use crate::riff::{Chunk, Chunks};
-use crate::{AudioError, Codec, OggReport, OggWriter, Wem};
+use crate::{AudioError, Codec, Loop, OggReport, OggWriter, Wem};
 
 /// The sample rate every Opus stream decodes at.
 pub(crate) const OPUS_RATE: u32 = 48_000;
 const SERIAL: u32 = 0x5034_4B4F;
 const SWITCH_PRE_SKIP_DIVISOR: u32 = 8;
+const TAGS_MAGIC_LEN: usize = 8;
 
 /// An Opus WEM with every packet checked and counted.
 pub(crate) struct OpusStream<'a> {
@@ -38,7 +40,10 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// Repackages an Opus sound as a standard Ogg Opus file and writes it to `out`.
     pub(crate) fn write_opus_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
         let stream = self.opus_stream()?;
-        let size = stream.write_ogg(out)?;
+        let points = self
+            .loop_points()
+            .filter(|points| points.fits(stream.frames));
+        let (size, loop_points) = stream.write_ogg(points, out)?;
         Ok(OggReport {
             codec: Codec::Opus,
             channels: self.channels(),
@@ -46,6 +51,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             sample_count: stream.frames,
             size,
             codebooks: None,
+            loop_points,
         })
     }
 
@@ -131,7 +137,11 @@ impl<'a> OpusStream<'a> {
         Packets::new(self.data, self.framing)
     }
 
-    fn write_ogg(&self, out: &mut impl Write) -> Result<u64, AudioError> {
+    fn write_ogg(
+        &self,
+        points: Option<Loop>,
+        out: &mut impl Write,
+    ) -> Result<(u64, Option<Loop>), AudioError> {
         let write = AudioError::Write;
         let mut ogg = OggWriter::new(out, SERIAL);
         let mut packet = Vec::new();
@@ -142,10 +152,13 @@ impl<'a> OpusStream<'a> {
         ogg.write_packet(&packet, 0).map_err(write)?;
         ogg.end_page().map_err(write)?;
         packet.clear();
-        match &self.tags {
-            Some(tags) => packet.extend_from_slice(tags),
-            None => header::tags_packet(&mut packet),
-        }
+        let points = if let Some(tags) = &self.tags {
+            packet.extend_from_slice(tags);
+            points.filter(|&points| insert_comments(&mut packet, TAGS_MAGIC_LEN, points))
+        } else {
+            header::tags_packet(points, &mut packet);
+            points
+        };
         ogg.write_packet(&packet, 0).map_err(write)?;
         ogg.end_page().map_err(write)?;
         let end = u64::from(self.pre_skip) + self.frames;
@@ -159,6 +172,6 @@ impl<'a> OpusStream<'a> {
             granule = (granule + u64::from(samples)).min(end);
             ogg.write_packet(packet, granule).map_err(write)?;
         }
-        ogg.finish().map_err(write)
+        Ok((ogg.finish().map_err(write)?, points))
     }
 }

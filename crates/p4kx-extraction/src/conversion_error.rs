@@ -153,6 +153,35 @@ pub enum ConversionError {
         #[source]
         source: GfxError,
     },
+    /// The canvas a UI movie is rendered on is empty or too large.
+    #[error("cannot render {movie} at this size")]
+    UiCanvas {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// What is wrong.
+        #[source]
+        source: GfxError,
+    },
+    /// A bitmap fill of a rendered UI movie names a bitmap the movie does not define.
+    #[error("{movie} defines no bitmap {id}")]
+    UiBitmapMissing {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The ID of the bitmap.
+        id: u16,
+    },
+    /// The bitmaps of a rendered frame of a UI movie hold more pixels than the limit.
+    #[error(
+        "{movie} bitmap {id} is not decoded: the bitmaps of the frame would hold more than {limit} pixels"
+    )]
+    UiRenderBitmaps {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The ID of the bitmap.
+        id: u16,
+        /// The limit in pixels.
+        limit: u64,
+    },
     /// A sub-image cuts a bitmap that is missing or cannot be decoded, or a rectangle outside it.
     #[error(
         "{movie} definition {id} cuts bitmap {image_id}, which is missing, cannot be decoded or is smaller"

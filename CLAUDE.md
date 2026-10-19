@@ -44,6 +44,10 @@ so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::re
 and returns early when it gives `None`. A timing test that must not share the cores with other tests
 gets its own test file.
 
+The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
+of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
+when the variable is unset.
+
 ## Plan and decisions
 
 - [docs/ROADMAP.md](docs/ROADMAP.md): product decisions and milestones M1–M14.
@@ -56,7 +60,8 @@ gets its own test file.
   `p4kx-foundation` and the format crates they declare in `builds-on` (never `p4kx-archive`),
   service crates on format crates, front-ends (`p4kx`, `p4kx-gui`, `p4kx-mcp`) only on services.
   Never add a dependency against this direction.
-- Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.
+- Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`. The one
+  exception is Sound Conversion during Extraction, which runs on plain worker threads (ADR-0022).
 - `thiserror` in libraries, `anyhow` only in binaries; no `unwrap` / `expect` outside tests.
 - `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
   manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks

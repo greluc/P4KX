@@ -2,6 +2,7 @@
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod bank;
+mod budget;
 mod buffers;
 mod chunk_source;
 mod conversion_error;
@@ -22,7 +23,6 @@ mod model_source;
 mod options;
 mod output_file;
 mod path_index;
-mod pixel_budget;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -34,6 +34,11 @@ mod report;
 mod resolved_texts;
 mod selection;
 mod sound;
+mod sound_convert;
+mod sound_job;
+mod sound_output;
+mod sound_workers;
+mod soundbank_convert;
 mod target;
 mod text_window;
 mod texture;
@@ -53,6 +58,8 @@ mod ui_external;
 mod ui_extract;
 mod ui_jobs;
 mod ui_movie;
+mod ui_render;
+mod ui_render_bitmaps;
 mod watch;
 mod write;
 
@@ -71,7 +78,9 @@ pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use localization_set::{LocalizationNote, LocalizationSet};
 pub use model_source::ModelSource;
-pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
+pub use options::{
+    AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
+};
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
     MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
@@ -127,4 +136,5 @@ pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
+pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

@@ -1,9 +1,10 @@
 use egui::epaint::Shadow;
 use egui::{
-    Align2, Color32, CornerRadius, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle,
-    TextWrapMode, Ui, WidgetInfo, WidgetText, vec2,
+    Align2, Color32, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode, Ui,
+    WidgetInfo, WidgetText, vec2,
 };
 
+use super::focus::focus_ring;
 use super::text::caps;
 use crate::theme::desktop::{
     ALERT_DANGER_FILL, BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT,
@@ -11,7 +12,7 @@ use crate::theme::desktop::{
     OUTLINE_HOVER, QUIET_DANGER_HOVER, TRANSITION,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
+use crate::theme::tokens::{CORNER_SM, FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
 
 /// A rung of the design system's action hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,10 +83,10 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             glow: None,
         },
         (Kind::Ghost, Phase::Hover) => Look {
-            fill: palette::CONTROL_BG,
+            fill: none,
             tint: GHOST_HOVER,
             border: palette::PRIMARY,
-            text: palette::PRIMARY,
+            text: palette::ACCENT_LIGHT,
             glow: None,
         },
         (Kind::QuietDanger, phase) => quiet_danger(phase),
@@ -297,29 +298,19 @@ pub(crate) fn close_icon(ui: &Ui, rect: Rect, label: &str) -> Response {
     response
 }
 
-/// Paints the fill, tint, border and glow of `look` over `rect`.
+/// Paints the fill, tint, border and glow of `look` over `rect` with the `radius-sm` corner.
 pub(crate) fn paint(ui: &Ui, rect: Rect, look: Look) {
     let painter = ui.painter();
     if let Some(glow) = look.glow {
-        painter.add(glow.as_shape(rect, CornerRadius::ZERO));
+        painter.add(glow.as_shape(rect, CORNER_SM));
     }
-    painter.rect_filled(rect, CornerRadius::ZERO, look.fill);
-    painter.rect_filled(rect, CornerRadius::ZERO, look.tint);
+    painter.rect_filled(rect, CORNER_SM, look.fill);
+    painter.rect_filled(rect, CORNER_SM, look.tint);
     painter.rect_stroke(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         Stroke::new(1.0, look.border),
         StrokeKind::Inside,
-    );
-}
-
-/// Paints the 2 point focus ring `offset` outside `rect`; a negative offset draws it inside.
-pub(crate) fn focus_ring(ui: &Ui, rect: Rect, colour: Color32, offset: f32) {
-    ui.painter().rect_stroke(
-        rect.expand(offset),
-        CornerRadius::ZERO,
-        Stroke::new(FOCUS_WIDTH, colour),
-        StrokeKind::Outside,
     );
 }
 
@@ -355,9 +346,10 @@ mod tests {
         assert_eq!(rest.fill, palette::CONTROL_BG, "fill");
         assert_eq!(rest.border, palette::CONTROL_BORDER, "border");
         assert_eq!(rest.text, palette::CONTROL_FG, "text");
+        assert_eq!(hover.fill.a(), 0, "hover replaces the fill");
         assert_eq!(hover.tint, GHOST_HOVER, "hover tint");
         assert_eq!(hover.border, palette::PRIMARY, "hover border");
-        assert_eq!(hover.text, palette::PRIMARY, "hover text");
+        assert_eq!(hover.text, palette::ACCENT_LIGHT, "hover text");
     }
 
     #[test]

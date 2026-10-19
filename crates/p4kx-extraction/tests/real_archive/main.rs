@@ -18,6 +18,7 @@ mod cubemap_alpha;
 mod dataforge_canary;
 mod records;
 mod sound;
+mod sound_extraction;
 mod soundbank;
 mod texture;
 mod texture_conversion;

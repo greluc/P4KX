@@ -11,7 +11,7 @@ use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
 use crate::entry_path::relative_path;
 use crate::tracker::Tracker;
-use crate::{ConflictPolicy, ExtractionError, TextureConversion};
+use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
 const MAX_TEMPORARY_ATTEMPTS: u32 = 100;
 
@@ -65,6 +65,7 @@ pub(crate) struct EntryWriter<'a> {
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
     pub(crate) textures: TextureConversion,
+    pub(crate) audio: AudioConversion,
     pub(crate) tracker: &'a Tracker<'a>,
 }
 

@@ -2,7 +2,8 @@ use super::layout::Layout;
 use super::ogg_read::OggPackets;
 use super::packets::Framing;
 use super::{OPUS_RATE, OpusError};
-use crate::ByteOrder;
+use crate::loops::LOOP_COMMENTS;
+use crate::{ByteOrder, Loop};
 
 /// The format tag of Switch Opus.
 pub(crate) const TAG_SWITCH: u16 = 0x3039;
@@ -215,8 +216,8 @@ pub(crate) fn head_packet(layout: &Layout, pre_skip: u16, out: &mut Vec<u8>) {
     }
 }
 
-/// Writes an `OpusTags` packet that names only the vendor.
-pub(crate) fn tags_packet(out: &mut Vec<u8>) {
+/// Writes an `OpusTags` packet that names the vendor and holds the comments of `points`.
+pub(crate) fn tags_packet(points: Option<Loop>, out: &mut Vec<u8>) {
     out.extend_from_slice(b"OpusTags");
     out.extend_from_slice(
         &u32::try_from(VENDOR.len())
@@ -224,5 +225,11 @@ pub(crate) fn tags_packet(out: &mut Vec<u8>) {
             .to_le_bytes(),
     );
     out.extend_from_slice(VENDOR);
-    out.extend_from_slice(&0_u32.to_le_bytes());
+    match points {
+        Some(points) => {
+            out.extend_from_slice(&LOOP_COMMENTS.to_le_bytes());
+            points.write_comments(out);
+        }
+        None => out.extend_from_slice(&0_u32.to_le_bytes()),
+    }
 }

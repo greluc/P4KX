@@ -4,7 +4,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use p4kx_settings::{ExtractionTextures, Settings, WindowGeometry};
+use p4kx_settings::{ExtractionAudio, ExtractionTextures, Settings, WindowGeometry};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -98,6 +98,31 @@ fn a_file_without_texture_outputs_merges_and_exports_the_largest_mip() -> TestRe
             keep_raw: false,
         },
         "the defaults"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_audio_format_survives_a_round_trip_and_defaults_to_ogg() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    let settings = Settings {
+        extraction_audio: ExtractionAudio::Wav,
+        ..Settings::default()
+    };
+
+    settings.save(&file)?;
+
+    assert_eq!(Settings::load(&file)?, settings, "settings round-trip");
+    assert!(
+        std::fs::read_to_string(&file)?.contains("extraction_audio = \"wav\""),
+        "stored by name"
+    );
+    std::fs::write(&file, "language = \"de-DE\"\n")?;
+    assert_eq!(
+        Settings::load(&file)?.extraction_audio,
+        ExtractionAudio::Ogg,
+        "the default"
     );
     Ok(())
 }

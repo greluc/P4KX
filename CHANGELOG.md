@@ -8,6 +8,24 @@ fails while its section is missing.
 
 ### Added
 
+- Audio Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch of
+  the window, WEM sounds are written as Ogg (Wwise Vorbis and Opus without re-encoding, WAV for
+  other codecs), as WAV or unchanged (`--audio ogg|wav|raw`, the same choice in the Extraction
+  setup, remembered in the settings file). Each soundbank is written unchanged and unpacked into
+  a folder of the same name, its WEMs named by ID and converted alike. A sound whose codec cannot
+  be decoded is reported with the codec and written unchanged; the Extraction continues. Progress,
+  cancellation and Conflict policies cover every converted file, a cancelled run lists the sounds
+  of a soundbank it did not unpack, a soundbank folder exists only when a sound is written into
+  it, and sounds are converted on their own threads within a memory budget.
+- `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
+  transparent|movie|#RRGGBB[AA]]`: renders the first frame of a UI movie with its sprites as a
+  PNG, drawn with tiny-skia. Shapes with solid, gradient and bitmap fills (external images and
+  sub-images included) and strokes are drawn with the transforms, colour transforms and masks
+  of their placements, morph shapes at their ratio. Texts, buttons and videos are skipped,
+  filters and blend modes are not applied, and every element left out is listed with its
+  reason, plain or with `--json` (exit code 1). Placements, paths, shape conversions, masks,
+  gradient stops, sprite nesting, the canvas size and the area the fills cover (64 times the
+  canvas) are bounded. Also for movie files on disk.
 - `p4kx-mcp` DataForge tools: `get_record` returns a Record by GUID, or every Record of a record
   path, as Record JSON; `search_records` finds Records by record path and type name with Filters,
   in Record order; `list_structs` and `list_enums` list the struct definitions with parent and
@@ -30,9 +48,22 @@ fails while its section is missing.
 - Query tab: completion of struct and field names from the DataForge schema while typing, after
   `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
   settings, run with one click, renamed and deleted.
+- Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
+  and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
 
 ### Changed
 
+- GUI: the window follows the design system after its adaptation to the das-kartell.org website
+  (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+  with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
+  greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
+  chips, alerts, modals, dropdowns, tiles, the list panel and the preview. Header, status bar and
+  tab bar use the bar surface, table rows hover in `control-bg` and tree rows in 3 % white, the
+  ghost button hovers in `color-accent-light`, tooltips are square on near-black with the orange
+  glow, focus rings follow the radius of their control, and the range thumb is round. The empty
+  state no longer hides the work tabs, the dialogs' foot no longer stretches the dialog to the
+  window height, and read-only and text fields draw the rounded input frame. The desktop spec and
+  its JSON follow.
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and

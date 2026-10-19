@@ -81,8 +81,12 @@ fn sounds() -> Result<Vec<TestEntry>, Box<dyn Error>> {
     let ptadpcm = TestWem::ptadpcm(1, 48_000, 36, &test_signal(640, 1)).bytes();
     let aac = TestWem::encoded(TestCodec::Tag(0xAAC0), 1, 48_000, 960).bytes();
     let endless = TestWem::encoded(TestCodec::Vorbis, 2, 48_000, u32::MAX).bytes();
+    let looping = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone())
+        .smpl_loop(0, 12_000, 35_999)
+        .bytes();
     Ok(vec![
         TestEntry::stored("Data\\Sounds\\tone.wem", pcm),
+        TestEntry::stored("Data\\Sounds\\looping.wem", looping),
         TestEntry::zstd("Data\\Sounds\\ima.WEM", ima),
         TestEntry::stored("Data\\Sounds\\platinum.wem", ptadpcm),
         TestEntry::stored("Data\\Sounds\\engine.wem", vorbis().wem().bytes()),

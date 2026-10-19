@@ -8,6 +8,8 @@ pub mod palette;
 pub mod tokens;
 
 #[cfg(test)]
+mod audio_tests;
+#[cfg(test)]
 mod comparison_tests;
 #[cfg(test)]
 mod image_tests;

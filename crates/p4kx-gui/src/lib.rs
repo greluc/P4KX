@@ -75,5 +75,6 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
-    ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts, XmlText,
+    ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
+    XmlText,
 };

@@ -32,7 +32,7 @@ fn harness(model: Model) -> Harness<'static, Window> {
                 dialog: None,
             },
         );
-    harness.run();
+    harness.run_steps(2);
     harness
 }
 

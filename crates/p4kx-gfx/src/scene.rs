@@ -6,6 +6,9 @@ use crate::style::GradientStop;
 /// The most shape layers a scene draws, summed over every placement.
 pub const MAX_SCENE_PATHS: usize = 1 << 20;
 
+/// The most path commands a scene draws, summed over every placement.
+pub const MAX_SCENE_SEGMENTS: usize = 1 << 24;
+
 /// The most placements a scene visits, sprites and their contents included.
 pub const MAX_SCENE_PLACEMENTS: usize = 1 << 18;
 

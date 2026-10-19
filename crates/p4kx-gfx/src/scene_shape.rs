@@ -154,7 +154,7 @@ impl<'a> ShapeBuilder<'a> {
                 .map_or(Some(Paint::Solid(style.color)), |fill| self.paint(fill));
             if let Some(paint) = paint {
                 self.layers.push(ShapeLayer {
-                    path,
+                    path: if style.no_close { path } else { closed(path) },
                     paint,
                     kind: LayerKind::Stroke(stroke_style(style)),
                 });
@@ -310,6 +310,38 @@ fn link(edges: &[Edge]) -> ScenePath {
         commands.push(PathCommand::Close);
     }
     ScenePath { commands }
+}
+
+/// Closes every contour of a stroke path that ends where it starts, so it is joined there.
+fn closed(path: ScenePath) -> ScenePath {
+    let mut commands = Vec::with_capacity(path.commands.len() + path.commands.len() / 4);
+    let mut start = None;
+    let mut last = None;
+    for command in path.commands {
+        if let PathCommand::MoveTo(point) = command {
+            if start.is_some() && start == last {
+                commands.push(PathCommand::Close);
+            }
+            start = Some(point);
+            last = None;
+        } else {
+            last = end_point(command);
+        }
+        commands.push(command);
+    }
+    if start.is_some() && start == last {
+        commands.push(PathCommand::Close);
+    }
+    ScenePath { commands }
+}
+
+const fn end_point(command: PathCommand) -> Option<ScenePoint> {
+    match command {
+        PathCommand::MoveTo(point) | PathCommand::LineTo(point) | PathCommand::QuadTo(_, point) => {
+            Some(point)
+        }
+        PathCommand::Close => None,
+    }
 }
 
 fn stroke_style(style: &LineStyle) -> StrokeStyle {

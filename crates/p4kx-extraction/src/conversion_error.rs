@@ -152,8 +152,10 @@ pub enum ConversionError {
         source: GfxError,
     },
     /// The canvas a UI movie is rendered on is empty or too large.
-    #[error("cannot render the UI movie at this size")]
+    #[error("cannot render {movie} at this size")]
     UiCanvas {
+        /// The Entry path or file of the movie.
+        movie: String,
         /// What is wrong.
         #[source]
         source: GfxError,

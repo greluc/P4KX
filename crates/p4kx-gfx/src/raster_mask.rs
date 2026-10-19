@@ -1,16 +1,17 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use tiny_skia::{FillRule, Mask, Path};
+use tiny_skia::{FillRule, Mask, Path, PathStroker};
 
-use crate::raster_paint::transform;
+use crate::raster_paint::{stroke, transform};
 use crate::scene::{Affine, LayerKind, Scene};
 use crate::scene_report::SkipReason;
 
 /// The bytes the masks of a rasterisation may hold at the same time.
 const MAX_MASK_BYTES: u64 = 1 << 28;
 
-/// The masks of a rasterisation, each built when its first item is drawn, within its parent,
-/// and dropped after its last item and the last item of the masks inside it.
+/// The masks of a rasterisation, each built when its first item is drawn from the fills and
+/// strokes of its shapes, within its parent, and dropped after its last item and the last item
+/// of the masks inside it.
 pub(crate) struct Masks {
     width: u32,
     height: u32,
@@ -92,13 +93,22 @@ impl Masks {
                 continue;
             };
             for (layer, outline) in layers.layers.iter().zip(outlines) {
-                if let (LayerKind::Fill, Some(outline)) = (&layer.kind, outline) {
-                    let filled = catch_unwind(AssertUnwindSafe(|| {
+                let Some(outline) = outline else {
+                    continue;
+                };
+                let filled = catch_unwind(AssertUnwindSafe(|| match &layer.kind {
+                    LayerKind::Fill => {
                         mask.fill_path(outline, FillRule::EvenOdd, true, to_canvas);
-                    }));
-                    if filled.is_err() {
-                        return Err(SkipReason::Raster);
                     }
+                    LayerKind::Stroke(style) => {
+                        let scale = PathStroker::compute_resolution_scale(&to_canvas);
+                        if let Some(area) = outline.stroke(&stroke(style), scale) {
+                            mask.fill_path(&area, FillRule::Winding, true, to_canvas);
+                        }
+                    }
+                }));
+                if filled.is_err() {
+                    return Err(SkipReason::Raster);
                 }
             }
         }

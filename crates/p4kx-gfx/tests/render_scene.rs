@@ -7,7 +7,9 @@ use p4kx_gfx::{
     Assets, CanvasSize, FillStyle, Gradient, GradientStop, MAX_SCENE_PLACEMENTS, Movie, Rect, Rgba,
     Shape, SkipReason,
 };
-use p4kx_testkit::{TestFill, TestPlace, TestShapeRecord, morph_shape_body, sprite_body};
+use p4kx_testkit::{
+    TestFill, TestPlace, TestShape, TestShapeRecord, morph_shape_body, sprite_body,
+};
 use support::{BLUE, CLEAR, RED, assert_pixel, rect, render, scene, stage};
 
 const GREEN: [u8; 4] = [0, 255, 0, 255];
@@ -149,6 +151,30 @@ fn a_mask_inside_a_sprite_is_also_clipped_by_the_outer_mask() {
 }
 
 #[test]
+fn the_strokes_of_a_mask_clip_as_well_as_its_fills() {
+    let line = TestShape::new(1, 3, [0, 2000, 0, 2000])
+        .line(400, RED)
+        .record(TestShapeRecord::Move {
+            to: (0, 1000),
+            fill0: 0,
+            fill1: 0,
+            line: 1,
+        })
+        .record(TestShapeRecord::Line(2000, 0));
+    let wide = rect(2, (2000, 2000), TestFill::Solid(BLUE));
+    let bytes = stage()
+        .tag(line.code(), &line.body())
+        .tag(wide.code(), &wide.body())
+        .tag(26, &TestPlace::new(1, 1).clip(2).body2())
+        .tag(26, &TestPlace::new(2, 2).body2())
+        .tag(1, &[])
+        .bytes();
+    let image = render(&bytes, CanvasSize::Stage).image;
+    assert_pixel(&image, (50, 50), BLUE, 0);
+    assert_pixel(&image, (50, 20), CLEAR, 0);
+}
+
+#[test]
 fn a_morph_shape_is_drawn_at_the_ratio_of_its_placement() {
     let start = [
         TestShapeRecord::Move {
@@ -269,7 +295,7 @@ fn a_frame_beyond_the_placement_limit_stops_with_a_report() {
 }
 
 #[test]
-fn a_gradient_above_the_stop_limit_skips_its_layer() {
+fn a_gradient_above_the_stop_limit_skips_its_layer_in_every_placement() {
     let movie = Movie::parse(stage().bytes()).unwrap_or_else(|error| unreachable!("{error}"));
     let color = Rgba {
         red: 1,
@@ -291,6 +317,7 @@ fn a_gradient_above_the_stop_limit_skips_its_layer() {
         stage()
             .tag(shape.code(), &shape.body())
             .tag(26, &TestPlace::new(1, 6).body2())
+            .tag(26, &TestPlace::new(2, 6).at(500, 0).body2())
             .bytes(),
     )
     .unwrap_or_else(|error| unreachable!("{error}"));
@@ -306,8 +333,8 @@ fn a_gradient_above_the_stop_limit_skips_its_layer() {
             .iter()
             .map(|skipped| skipped.reason)
             .collect::<Vec<_>>(),
-        [SkipReason::GradientStops { count: 16 }],
-        "the gradient"
+        [SkipReason::GradientStops { count: 16 }; 2],
+        "the gradient, for each placement"
     );
     assert!(scene.shapes[0].layers.is_empty(), "no layer");
     assert_eq!(

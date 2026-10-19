@@ -117,6 +117,7 @@ impl Scene {
                     Ok(mask) => Some(mask),
                     Err(reason) => {
                         frame.skip(item, reason);
+                        masks.release(at);
                         continue;
                     }
                 },

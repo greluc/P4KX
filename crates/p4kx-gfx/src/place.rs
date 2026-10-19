@@ -226,9 +226,7 @@ pub(crate) fn read_place(tag: &Tag<'_>) -> Result<PlaceCommand, GfxError> {
     }
     if flags3 & PLACE3_HAS_FILTERS != 0 {
         command.has_filters = true;
-        if skip_filters(&mut reader).is_err() {
-            return Ok(command);
-        }
+        skip_filters(&mut reader)?;
     }
     if flags3 & PLACE3_HAS_BLEND_MODE != 0 {
         command.blend_mode = Some(reader.u8()?);

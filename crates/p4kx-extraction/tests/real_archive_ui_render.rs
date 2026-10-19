@@ -24,12 +24,17 @@ fn render(archive: &Archive, entry: &Entry, tally: &mut Tally) {
         size: CanvasSize::Width(256),
         background: Background::Transparent,
     };
-    let rendered = UiMovie::from_archive(archive, entry.path())
-        .and_then(|movie| movie.render(&options));
+    let rendered =
+        UiMovie::from_archive(archive, entry.path()).and_then(|movie| movie.render(&options));
     tally.movies += 1;
     match rendered {
         Ok(render) => {
-            if render.image.pixels().chunks(4).any(|pixel| pixel.get(3) != Some(&0)) {
+            if render
+                .image
+                .pixels()
+                .chunks(4)
+                .any(|pixel| pixel.get(3) != Some(&0))
+            {
                 tally.drawn += 1;
             }
             tally.bitmap_failures += render.bitmap_failures.len();
@@ -59,8 +64,18 @@ fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
         render(&archive, entry, &mut tally);
     }
     assert!(tally.movies > 100, "UI movies: {tally:?}");
-    assert!(tally.errors.is_empty(), "movies that do not render: {tally:#?}");
-    assert_eq!(tally.skipped.get("raster"), None, "rasteriser failures: {tally:?}");
-    assert!(tally.drawn * 2 > tally.movies, "most movies draw something: {tally:?}");
+    assert!(
+        tally.errors.is_empty(),
+        "movies that do not render: {tally:#?}"
+    );
+    assert_eq!(
+        tally.skipped.get("raster"),
+        None,
+        "rasteriser failures: {tally:?}"
+    );
+    assert!(
+        tally.drawn * 2 > tally.movies,
+        "most movies draw something: {tally:?}"
+    );
     Ok(())
 }

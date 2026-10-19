@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::scene::{MAX_GRADIENT_STOPS, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS};
+use crate::scene::{
+    MAX_GRADIENT_STOPS, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS,
+};
 use crate::tag::tag_name;
 use crate::walker::MAX_SPRITE_DEPTH;
 
@@ -32,11 +34,13 @@ pub enum SkipReason {
     SpriteDepth,
     /// The frame holds more than [`MAX_SCENE_PLACEMENTS`] placements.
     TooManyPlacements,
-    /// The frame draws more than [`MAX_SCENE_PATHS`] paths.
+    /// The frame draws more than [`MAX_SCENE_PATHS`] paths or [`MAX_SCENE_SEGMENTS`] path
+    /// commands.
     TooManyPaths,
     /// The frame holds more than [`MAX_SCENE_MASKS`] masks.
     TooManyMasks,
-    /// A mask inside a mask, which is not applied.
+    /// A mask inside a mask, which is skipped; the depths it covers are clipped by the outer
+    /// mask only.
     NestedMask,
     /// A gradient has more than [`MAX_GRADIENT_STOPS`] stops; the layer is skipped.
     GradientStops {
@@ -91,10 +95,7 @@ impl SkipReason {
     /// Returns whether the element was drawn, only without the effect.
     #[must_use]
     pub const fn is_effect(&self) -> bool {
-        matches!(
-            self,
-            Self::Filters | Self::BlendMode { .. } | Self::NestedMask
-        )
+        matches!(self, Self::Filters | Self::BlendMode { .. })
     }
 }
 
@@ -116,13 +117,13 @@ impl fmt::Display for SkipReason {
             ),
             Self::TooManyPaths => write!(
                 formatter,
-                "the frame draws more than {MAX_SCENE_PATHS} paths"
+                "the frame draws more than {MAX_SCENE_PATHS} paths or {MAX_SCENE_SEGMENTS} path commands"
             ),
             Self::TooManyMasks => write!(
                 formatter,
                 "the frame holds more than {MAX_SCENE_MASKS} masks"
             ),
-            Self::NestedMask => formatter.write_str("a mask inside a mask is not applied"),
+            Self::NestedMask => formatter.write_str("a mask inside a mask is skipped"),
             Self::GradientStops { count } => write!(
                 formatter,
                 "a gradient has {count} stops, more than {MAX_GRADIENT_STOPS}"

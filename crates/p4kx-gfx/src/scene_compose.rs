@@ -6,8 +6,8 @@ use crate::morph::MorphShape;
 use crate::morph_frame::morph_at;
 use crate::place::{ColorTransform, Placement};
 use crate::scene::{
-    Affine, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, Origin, Scene, SceneItem,
-    SceneMask, SceneShape,
+    Affine, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS, Origin,
+    Scene, SceneItem, SceneMask, SceneShape,
 };
 use crate::scene_report::{SkipReason, Skipped};
 use crate::scene_shape::ShapeBuilder;
@@ -49,9 +49,11 @@ struct Context {
 pub(crate) struct Composer<'b> {
     definitions: HashMap<u16, Definition<'b>>,
     shapes: HashMap<(u16, u16), usize>,
+    issues: Vec<Vec<SkipReason>>,
     scene: Scene,
     placements: usize,
     paths: usize,
+    segments: usize,
     stopped: bool,
 }
 
@@ -92,6 +94,7 @@ impl<'b> Composer<'b> {
         let mut composer = Self {
             definitions,
             shapes: HashMap::new(),
+            issues: Vec::new(),
             scene: Scene {
                 stage,
                 background: assets.background,
@@ -99,6 +102,7 @@ impl<'b> Composer<'b> {
             },
             placements: 0,
             paths: 0,
+            segments: 0,
             stopped: false,
         };
         let root = Context {
@@ -216,34 +220,36 @@ impl<'b> Composer<'b> {
         id: u16,
         ratio: u16,
         convert: impl FnOnce(u16) -> (SceneShape, Vec<SkipReason>),
-    ) -> (usize, Vec<SkipReason>) {
+    ) -> usize {
         if let Some(&index) = self.shapes.get(&(id, ratio)) {
-            return (index, Vec::new());
+            return index;
         }
         let (shape, issues) = convert(id);
         let index = self.scene.shapes.len();
         self.scene.shapes.push(shape);
+        self.issues.push(issues);
         self.shapes.insert((id, ratio), index);
-        (index, issues)
+        index
     }
 
-    fn draw(
-        &mut self,
-        placement: &Placement,
-        context: Context,
-        inner: Context,
-        (index, issues): (usize, Vec<SkipReason>),
-    ) {
+    fn draw(&mut self, placement: &Placement, context: Context, inner: Context, index: usize) {
+        let issues = self.issues.get(index).cloned().unwrap_or_default();
         for issue in issues {
             self.skip(placement, context, issue);
         }
-        let layers = self
-            .scene
-            .shapes
-            .get(index)
-            .map_or(0, |shape| shape.layers.len());
+        let (layers, segments) = self.scene.shapes.get(index).map_or((0, 0), |shape| {
+            (
+                shape.layers.len(),
+                shape
+                    .layers
+                    .iter()
+                    .map(|layer| layer.path.commands.len())
+                    .sum(),
+            )
+        });
         self.paths = self.paths.saturating_add(layers);
-        if self.paths > MAX_SCENE_PATHS {
+        self.segments = self.segments.saturating_add(segments);
+        if self.paths > MAX_SCENE_PATHS || self.segments > MAX_SCENE_SEGMENTS {
             self.stop(placement, context, SkipReason::TooManyPaths);
             return;
         }

@@ -173,7 +173,8 @@ fn gradient(start: &Gradient, end: &Gradient, t: f32) -> Gradient {
                 color: color(a.color, b.color, t),
             })
             .collect(),
-        ..start.clone()
+        spread: start.spread,
+        interpolation: start.interpolation,
     }
 }
 
@@ -249,6 +250,10 @@ fn line(start: &LineStyle, end: &LineStyle, t: f32) -> LineStyle {
             (Some(a), Some(b)) => Some(fill(a, b, t)),
             _ => start.fill.clone(),
         },
-        ..start.clone()
+        start_cap: start.start_cap,
+        end_cap: start.end_cap,
+        join: start.join,
+        miter_limit: start.miter_limit,
+        no_close: start.no_close,
     }
 }

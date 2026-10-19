@@ -46,6 +46,7 @@ mod ui_extract;
 mod ui_jobs;
 mod ui_movie;
 mod ui_render;
+mod ui_render_bitmaps;
 mod watch;
 mod write;
 

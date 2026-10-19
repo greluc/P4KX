@@ -9,7 +9,7 @@
 //!
 //! Every size is checked against the data left and the limits [`MAX_MOVIE_LEN`],
 //! [`MAX_BITMAP_PIXELS`], [`MAX_SHAPE_RECORDS`] and [`MAX_SPRITE_DEPTH`], a scene against
-//! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_MASKS`] and
+//! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_SEGMENTS`], [`MAX_SCENE_MASKS`] and
 //! [`MAX_GRADIENT_STOPS`], a canvas against [`MAX_CANVAS_SIDE`] and [`MAX_CANVAS_PIXELS`];
 //! corrupt input yields a [`GfxError`] or a skipped element, never a panic.
 
@@ -61,8 +61,9 @@ pub use raster::{
 };
 pub use scene::{
     Affine, BitmapPaint, Cap, GradientKind, GradientPaint, Join, LayerKind, MAX_GRADIENT_STOPS,
-    MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, Origin, Paint, PathCommand, Scene,
-    SceneItem, SceneMask, ScenePath, ScenePoint, SceneShape, ShapeLayer, Spread, StrokeStyle,
+    MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS, Origin, Paint,
+    PathCommand, Scene, SceneItem, SceneMask, ScenePath, ScenePoint, SceneShape, ShapeLayer,
+    Spread, StrokeStyle,
 };
 pub use scene_report::{SkipReason, Skipped};
 pub use shape::{MAX_SHAPE_RECORDS, NewStyles, Shape, ShapeRecord, StyleChange};

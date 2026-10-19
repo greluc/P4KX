@@ -263,6 +263,12 @@ impl QueryTab {
         slot
     }
 
+    /// Returns how many times Queries started reading the DataForge of the open Archive.
+    #[must_use]
+    pub fn dataforge_reads(&self) -> usize {
+        self.forge.as_ref().map_or(0, |(_, slot)| slot.reads())
+    }
+
     /// Returns the bytes of the Query text to mark as an error: the span of the error of the
     /// last run while the text is still the text it was found in.
     #[must_use]

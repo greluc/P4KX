@@ -226,6 +226,21 @@ One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z,
 `posx` … `negz`.
 _Avoid_: side, surface
 
+**Chunk file**:
+A CryEngine file made of typed chunks in the `#ivo` or the older `CrCh` container, e.g. a model
+(`.cgf`, `.cga`, `.skin`, `.chr`), its geometry companion, or an animation (`.caf`, `.dba`).
+_Avoid_: chunked file, CGF (one extension)
+
+**Model**:
+One chunk file read as nodes with their hierarchy and transforms, meshes per level of detail
+(LOD) and submeshes that each draw with one material ID of a material library.
+_Avoid_: mesh (one node's triangles), object, asset
+
+**Geometry companion**:
+The chunk file next to a model that holds its mesh data, named like the model with an `m`
+appended, e.g. `box.cgfm` for `box.cgf`.
+_Avoid_: mesh file, streaming file
+
 **Alpha tail**:
 A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a texture's alpha or
 smoothness channel, merged into the alpha channel on export.

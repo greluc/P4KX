@@ -1,0 +1,25 @@
+[package]
+name = "p4kx-gltf"
+description = "Writes models as glTF 2.0 binary files (GLB)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "service"
+
+[dependencies]
+gltf-json = { workspace = true, features = ["names"] }
+p4kx-model.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+p4kx-chunks.workspace = true
+p4kx-testkit.workspace = true
+
+[lints]
+workspace = true

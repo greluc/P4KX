@@ -17,7 +17,7 @@ mod walk;
 
 pub use atl::{AtlTrigger, WwiseEvent};
 pub use banks::IndexedSoundbank;
-pub use breaks::{BreakReason, LinkBreak};
+pub use breaks::{BreakReason, BrokenLink};
 pub use cache::ArchiveAudio;
 pub use entity::{EntityAudio, EntityTrigger, EventMatch, Unmatched};
 pub use error::{AudioFileError, AudioIssue};

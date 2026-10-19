@@ -24,7 +24,8 @@ expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
     "soundbank": {
       "language": null,
       "path": "Data\\Sounds\\wwise\\Ship.bnk"
-    }
+    },
+    "target": 999
   },
   {
     "event": "Play_Broken",
@@ -51,7 +52,8 @@ expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
     "soundbank": {
       "language": null,
       "path": "Data\\Sounds\\wwise\\Ship.bnk"
-    }
+    },
+    "target": null
   },
   {
     "event": "Play_In_No_Bank",
@@ -67,6 +69,7 @@ expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
         "kind": "event"
       }
     ],
-    "soundbank": null
+    "soundbank": null,
+    "target": null
   }
 ]

@@ -236,13 +236,15 @@ A **Variant**:
 | `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`; `null` when no soundbank embeds the WEM |
 | `path` | array | Container path from the Event object to the Sound object, each step with `kind` and `id` |
 
-An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in
-every other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
+An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in a
+soundbank of the same language folder (or another soundbank that is not localised), then in every
+other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
 `event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
 not followed its `HIRC` type, e.g. `music_track`.
 
 A **Break** has `event`, `soundbank` (or `null` when no soundbank holds the event), `object` (the
-step where the chain breaks, the last of `path`), `path`, `kind` and `message`. The kinds are
+step where the chain breaks, the last of `path`), `target` (for `missing` and `cycle`, the
+ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
 `no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
 an ID the soundbank does not hold), `malformed`, `unknown_layout` (a sound or container of a bank
 version other than 154), `unsupported` (an object kind that is not followed, e.g. music), `cycle`,

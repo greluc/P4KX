@@ -4,7 +4,7 @@
 use std::error::Error;
 
 use p4kx_assembly::audio::{
-    ArchiveAudio, BreakReason, LinkBreak, NodeKind, SoundVariant, SourceKind, TriggerSounds,
+    ArchiveAudio, BreakReason, BrokenLink, NodeKind, SoundVariant, SourceKind, TriggerSounds,
     WemLocation,
 };
 use p4kx_extraction::Archive;
@@ -180,7 +180,73 @@ fn embedded_wems_are_located_in_their_own_soundbank_first_then_in_any_other() ->
     })
 }
 
-fn break_text<'i>(link: &LinkBreak<'i>) -> (&'i str, Option<(&'static str, u32)>, String) {
+#[test]
+fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
+    let voice = TestBank::new(wwise_short_id("Voice"))
+        .object(TestHircObject::event(wwise_short_id("Play_Voice"), &[1]))
+        .object(TestHircObject::action(1, PLAY, 100))
+        .object(container(TestContainerKind::Random, 100, &[700, 701]))
+        .object(TestHircObject::sound(700, 7000, 0, 16))
+        .object(TestHircObject::sound(701, 7001, 0, 8))
+        .bytes();
+    let media = |id: &str, wems: &[(u32, usize)]| {
+        wems.iter()
+            .fold(TestBank::new(wwise_short_id(id)), |bank, &(wem, len)| {
+                bank.wem(wem, vec![0; len])
+            })
+            .bytes()
+    };
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(
+            "Data\\Libs\\GameAudio\\SC_Voice.xml",
+            TestAtl::new("SC_Voice")
+                .trigger("Play_Voice", &["Play_Voice"])
+                .to_cryxml(),
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Sounds\\wwise\\Aaa.bnk",
+            media("Aaa", &[(7000, 4), (7001, 8)]),
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Sounds\\wwise\\Czech\\Media.bnk",
+            media("Czech", &[(7000, 12)]),
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Sounds\\wwise\\english(us)\\Media.bnk",
+            media("English", &[(7000, 16)]),
+        ))
+        .entry(TestEntry::zstd(
+            "Data\\Sounds\\wwise\\English(US)\\Voice.bnk",
+            voice,
+        ))
+        .write_to(&path)?;
+    let archive = Archive::open(&path)?;
+    let audio = ArchiveAudio::new(&archive);
+    let sounds = resolved(&audio, "Play_Voice")?;
+    let holders: Vec<_> = sounds
+        .variants()
+        .iter()
+        .map(|variant| {
+            variant.location().map(|location| match location {
+                WemLocation::Soundbank { soundbank, len, .. } => (soundbank.path(), *len),
+                _ => ("", 0),
+            })
+        })
+        .collect();
+    assert_eq!(
+        holders,
+        [
+            Some(("Data\\Sounds\\wwise\\english(us)\\Media.bnk", 16)),
+            Some(("Data\\Sounds\\wwise\\Aaa.bnk", 8)),
+        ],
+        "same language ignoring case, then any soundbank"
+    );
+    Ok(())
+}
+
+fn break_text<'i>(link: &BrokenLink<'i>) -> (&'i str, Option<(&'static str, u32)>, String) {
     (
         link.event().name(),
         link.object().map(|step| (step.kind.name(), step.id)),

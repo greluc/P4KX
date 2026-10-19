@@ -2,7 +2,8 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_assembly::audio::{
-    ArchiveAudio, IndexedSoundbank, LinkBreak, PathStep, SoundVariant, TriggerSounds, WemLocation,
+    ArchiveAudio, BrokenLink, IndexedSoundbank, PathStep, SoundVariant, SourceKind, TriggerSounds,
+    WemLocation,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -39,7 +40,11 @@ fn resolve(args: &WwiseResolveArgs, as_json: bool) -> Result<()> {
             archive: json::path(archive.path()),
             trigger: wwise_json::trigger(&sounds),
             variants: sounds.variants().iter().map(wwise_json::variant).collect(),
-            breaks: sounds.breaks().iter().map(wwise_json::link_break).collect(),
+            breaks: sounds
+                .breaks()
+                .iter()
+                .map(wwise_json::broken_link)
+                .collect(),
             counts,
             issues: issues_json(index),
         })?;
@@ -80,7 +85,17 @@ fn variant_line(variant: &SoundVariant<'_>) -> String {
             soundbank,
             offset,
             len,
-        }) => format!("in {} at {offset} ({len} bytes)", soundbank_name(soundbank)),
+        }) => {
+            let start = if variant.source_kind() == SourceKind::PrefetchStreamed {
+                "start "
+            } else {
+                ""
+            };
+            format!(
+                "{start}in {} at {offset} ({len} bytes)",
+                soundbank_name(soundbank)
+            )
+        }
         Some(_) => "located".to_owned(),
         None => "not located".to_owned(),
     };
@@ -96,7 +111,7 @@ fn variant_line(variant: &SoundVariant<'_>) -> String {
     )
 }
 
-fn break_line(link: &LinkBreak<'_>) -> String {
+fn break_line(link: &BrokenLink<'_>) -> String {
     let bank = link
         .soundbank()
         .map_or_else(String::new, |bank| format!(" in {}", soundbank_name(bank)));

@@ -84,14 +84,14 @@ impl BreakReason {
 /// A place where the way from a Wwise event to a WEM breaks: the object it breaks at, the path
 /// to it and the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LinkBreak<'i> {
+pub struct BrokenLink<'i> {
     pub(crate) event: &'i WwiseEvent,
     pub(crate) soundbank: Option<&'i IndexedSoundbank>,
     pub(crate) path: Box<[PathStep]>,
     pub(crate) reason: BreakReason,
 }
 
-impl<'i> LinkBreak<'i> {
+impl<'i> BrokenLink<'i> {
     /// Returns the Wwise event the way starts at.
     #[must_use]
     pub const fn event(&self) -> &'i WwiseEvent {

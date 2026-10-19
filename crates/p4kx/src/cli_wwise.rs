@@ -19,7 +19,8 @@ pub(crate) enum WwiseAction {
     /// random, sequence, switch and blend containers to the sounds and lists every variant with
     /// its soundbank, WEM ID, source and container path; an embedded WEM is located in the
     /// soundbank that holds it. Where the chain breaks, the object and the reason are listed.
-    /// Reads every ATL definition and soundbank of the Archive once.
+    /// Reads every ATL definition and soundbank of the Archive once for the audio index, then
+    /// the soundbanks holding the trigger's events again.
     #[command(after_help = EXIT_CODES_HELP)]
     Resolve(WwiseResolveArgs),
 }

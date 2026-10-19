@@ -89,7 +89,7 @@ pub(crate) fn read(path: &str, entry: usize, bytes: &[u8]) -> Result<BankContent
         .map(|wem| EmbeddedMedia {
             id: wem.id(),
             offset: wem.offset(),
-            len: wem.bytes().len() as u64,
+            len: u64::try_from(wem.bytes().len()).unwrap_or(u64::MAX),
         })
         .collect();
     let header = bank.header();

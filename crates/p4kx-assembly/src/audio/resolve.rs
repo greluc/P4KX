@@ -4,8 +4,8 @@ use rayon::prelude::*;
 use super::read::entry_bytes;
 use super::walk::{self, Found};
 use super::{
-    ArchiveAudio, AudioFileError, AudioIndex, BreakReason, IndexedSoundbank, LinkBreak,
-    MAX_SOUNDBANK_LEN, NodeKind, PathStep, TriggerSounds,
+    ArchiveAudio, AudioFileError, AudioIndex, BreakReason, BrokenLink, IndexedSoundbank,
+    MAX_SOUNDBANK_LEN, NodeKind, PathStep, TriggerSounds, WwiseEvent,
 };
 
 type BankWalk<'i> = (u32, Result<Vec<(usize, Found<'i>)>, AudioFileError>);
@@ -45,7 +45,7 @@ impl ArchiveAudio<'_> {
                 id: event.id(),
             }]);
             if holders.is_empty() {
-                sounds.breaks.push(LinkBreak {
+                sounds.breaks.push(BrokenLink {
                     event,
                     soundbank: None,
                     path: event_step,
@@ -67,7 +67,7 @@ impl ArchiveAudio<'_> {
                             sounds.breaks.append(&mut found.breaks);
                         }
                     }
-                    Some(Err(error)) => sounds.breaks.push(LinkBreak {
+                    Some(Err(error)) => sounds.breaks.push(BrokenLink {
                         event,
                         soundbank: Some(soundbank),
                         path: event_step.clone(),
@@ -84,7 +84,7 @@ impl ArchiveAudio<'_> {
         &self,
         index: &'i AudioIndex,
         position: u32,
-        events: &'i [super::WwiseEvent],
+        events: &'i [WwiseEvent],
     ) -> Result<Vec<(usize, Found<'i>)>, AudioFileError> {
         let soundbank = soundbank_at(index, position).ok_or_else(gone)?;
         let entry = self

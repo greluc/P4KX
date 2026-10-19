@@ -16,6 +16,8 @@ const CURVE_POINT_LEN: usize = 12;
 const RANDOM_SEQUENCE_PARAMS_LEN: usize = 24;
 const PLAYLIST_ITEM_LEN: usize = 8;
 const SWITCH_PARAMS_LEN: usize = 13;
+const SWITCH_GROUP_LEN: usize = 1 + ID_LEN + ID_LEN + 1;
+const PATH_HEADER_LEN: usize = 1 + 4;
 const SEQUENCE_MODE: u8 = 1;
 const HAS_POSITIONING: u8 = 0b0000_0001;
 const HAS_3D: u8 = 0b0000_0010;
@@ -55,7 +57,7 @@ pub(crate) fn container(
     let parent_id = node_base(fields)?;
     let (kind, children) = match kind {
         HircKind::SwitchContainer => {
-            fields.skip(1 + ID_LEN + ID_LEN + 1)?;
+            fields.skip(SWITCH_GROUP_LEN)?;
             let children = children(fields)?;
             skip_switch_groups(fields)?;
             let count = fields.u32()?;
@@ -134,7 +136,7 @@ fn skip_positioning(fields: &mut SectionReader<'_>) -> Result<(), BankError> {
     if (bits >> POSITION_TYPE_SHIFT) & POSITION_TYPE_MASK == 0 {
         return Ok(());
     }
-    fields.skip(1 + 4)?;
+    fields.skip(PATH_HEADER_LEN)?;
     let vertices = fields.u32()?;
     skip_items(fields, vertices, VERTEX_LEN)?;
     let items = fields.u32()?;

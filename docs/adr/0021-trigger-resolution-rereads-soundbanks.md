@@ -8,8 +8,8 @@ the Event object to the Sound object. The audio index of ADR-0018 keeps no hiera
 soundbanks holding a trigger's events are read again from the Archive under the same 16 MiB cap,
 in parallel, followed and dropped, so at most one capped soundbank per rayon thread is held. The
 index adds only the WEMs every soundbank embeds (`DIDX`: ID, offset in `DATA`, length), so a
-variant's WEM is located in the soundbank that holds the hierarchy first, then in any other
-soundbank, without reading that one.
+variant's WEM is located in the soundbank that holds the hierarchy first, then in a soundbank of
+the same language folder, then in any other soundbank, without reading that one.
 
 `p4kx-audio` decodes containers to their children for bank version 154 only, the version every
 soundbank of the live Archive has; the layout of the node base parameters (effects, metadata,

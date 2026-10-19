@@ -1,5 +1,6 @@
 use p4kx_assembly::audio::{
-    IndexedSoundbank, LinkBreak, PathStep, SoundVariant, TriggerSounds, WemLocation, WwiseEvent,
+    BreakReason, BrokenLink, IndexedSoundbank, PathStep, SoundVariant, TriggerSounds, WemLocation,
+    WwiseEvent,
 };
 use serde::Serialize;
 
@@ -67,6 +68,7 @@ pub(crate) struct BreakJson<'a> {
     event: &'a str,
     soundbank: Option<SoundbankJson<'a>>,
     object: Option<StepJson>,
+    target: Option<u32>,
     path: Vec<StepJson>,
     kind: &'static str,
     message: String,
@@ -129,11 +131,15 @@ pub(crate) fn variant<'a>(variant: &SoundVariant<'a>) -> VariantJson<'a> {
     }
 }
 
-pub(crate) fn link_break<'a>(link: &LinkBreak<'a>) -> BreakJson<'a> {
+pub(crate) fn broken_link<'a>(link: &BrokenLink<'a>) -> BreakJson<'a> {
     BreakJson {
         event: link.event().name(),
         soundbank: link.soundbank().map(soundbank),
         object: link.object().map(step),
+        target: match link.reason() {
+            BreakReason::Missing { id } | BreakReason::Cycle { id } => Some(*id),
+            _ => None,
+        },
         path: steps(link.path()),
         kind: link.reason().kind(),
         message: link.reason().to_string(),

@@ -1,6 +1,6 @@
 use p4kx_audio::{ContainerKind, HircKind, MediaStorage, SoundSource};
 
-use super::{AtlTrigger, IndexedSoundbank, LinkBreak, WwiseEvent};
+use super::{AtlTrigger, BrokenLink, IndexedSoundbank, WwiseEvent};
 
 /// The kind of a `HIRC` object on the way from a Wwise event to a sound.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -153,6 +153,7 @@ pub enum WemLocation<'i> {
 pub struct SoundVariant<'i> {
     pub(crate) event: &'i WwiseEvent,
     pub(crate) soundbank: &'i IndexedSoundbank,
+    pub(crate) sound_id: u32,
     pub(crate) path: Box<[PathStep]>,
     pub(crate) source: SoundSource,
     pub(crate) location: Option<WemLocation<'i>>,
@@ -179,8 +180,8 @@ impl<'i> SoundVariant<'i> {
 
     /// Returns the ID of the Sound object.
     #[must_use]
-    pub fn sound_id(&self) -> u32 {
-        self.path.last().map_or(0, |step| step.id)
+    pub const fn sound_id(&self) -> u32 {
+        self.sound_id
     }
 
     /// Returns the WEM ID of the sound's media, or `None` for a source plug-in, which has no WEM.
@@ -219,7 +220,7 @@ pub struct TriggerSounds<'i> {
     pub(crate) trigger: &'i AtlTrigger,
     pub(crate) definition_path: Option<&'i str>,
     pub(crate) variants: Vec<SoundVariant<'i>>,
-    pub(crate) breaks: Vec<LinkBreak<'i>>,
+    pub(crate) breaks: Vec<BrokenLink<'i>>,
 }
 
 impl<'i> TriggerSounds<'i> {
@@ -244,7 +245,7 @@ impl<'i> TriggerSounds<'i> {
 
     /// Returns the broken links in the same order.
     #[must_use]
-    pub fn breaks(&self) -> &[LinkBreak<'i>] {
+    pub fn breaks(&self) -> &[BrokenLink<'i>] {
         &self.breaks
     }
 }

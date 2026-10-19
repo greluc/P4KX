@@ -17,8 +17,11 @@ a channel; the thread runs each call on a scoped thread of its own against the s
 `&DataForge`, so calls run side by side and use rayon inside, and sends the result back. Dropping
 the `LoadedDataForge` closes the channel; the thread waits for the calls still running and then
 frees the DataForge and its bytes. `p4kx-mcp` keeps one `LoadedDataForge` next to each open
-Archive, reads it on the first DataForge call while later calls wait for that read, and drops it
-with the Archive when the Archive file changes.
+Archive, reads it on the first DataForge call while later calls wait for that read without
+holding a worker permit, and drops it with the Archive when the Archive file changes. An Archive
+that falls out of the cache while a call still holds it is found again, so there is never a second
+copy. A read that failed because of the Entry's content is remembered; one that failed because of
+the disk, a changed Archive or a missing thread is tried again by the next call.
 
 The window keeps its own DataForge handling for now; it can move to `LoadedDataForge` when it
 needs the indexes across runs.

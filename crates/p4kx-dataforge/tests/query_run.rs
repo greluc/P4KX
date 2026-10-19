@@ -276,3 +276,36 @@ fn random_queries_compile_or_fail_with_a_span_inside_the_query() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn a_run_that_is_stopped_gives_nothing() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let compiled = Query::parse("from Base select id")?.compile(&forge)?;
+
+    assert!(compiled.run_while(|| false).is_none(), "stopped at once");
+    assert_eq!(
+        compiled.run_while(|| true).map(|run| run.len()),
+        Some(225),
+        "never stopped"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_selection_resumes_to_the_same_rows() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let compiled = Query::parse("from Derived select weight")?.compile(&forge)?;
+    let run = compiled.run();
+
+    let resumed = compiled.resume(run.indexes().to_vec());
+
+    assert_eq!(resumed.len(), run.len(), "the same selection");
+    assert_eq!(
+        resumed.record_paths().collect::<Vec<_>>(),
+        run.record_paths().collect::<Vec<_>>(),
+        "in the same order"
+    );
+    Ok(())
+}

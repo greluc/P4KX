@@ -26,13 +26,30 @@ impl<'f> CompiledQuery<'f> {
     /// be read to decide the condition is kept, and its row reports why.
     #[must_use]
     pub fn run(&self) -> QueryRun<'_, 'f> {
-        let records = self
-            .forge
+        self.resume(self.select(|| true))
+    }
+
+    /// Selects the Records as [`run`](Self::run) does, asking `proceed` before every Record;
+    /// returns `None` as soon as it has answered `false` and the selection is dropped.
+    #[must_use]
+    pub fn run_while(&self, proceed: impl Fn() -> bool + Sync) -> Option<QueryRun<'_, 'f>> {
+        let records = self.select(&proceed);
+        proceed().then(|| self.resume(records))
+    }
+
+    fn select(&self, proceed: impl Fn() -> bool + Sync) -> Vec<u32> {
+        self.forge
             .path_order()
             .par_iter()
             .copied()
-            .filter(|&record| self.selects(record))
-            .collect();
+            .filter(|&record| proceed() && self.selects(record))
+            .collect()
+    }
+
+    /// Returns the run that selected `records`, the indexes [`QueryRun::indexes`] gave for this
+    /// Query over the same DataForge; an index that is no Record gives no row.
+    #[must_use]
+    pub const fn resume(&self, records: Vec<u32>) -> QueryRun<'_, 'f> {
         QueryRun {
             query: self,
             records,
@@ -76,6 +93,13 @@ impl<'f> QueryRun<'_, 'f> {
     #[must_use]
     pub const fn len(&self) -> usize {
         self.records.len()
+    }
+
+    /// Returns the indexes of the selected Records in row order, which [`CompiledQuery::resume`]
+    /// turns into the run again.
+    #[must_use]
+    pub fn indexes(&self) -> &[u32] {
+        &self.records
     }
 
     /// Returns whether no Record is selected.

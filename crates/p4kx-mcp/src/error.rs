@@ -107,6 +107,21 @@ pub(crate) enum ToolError {
         /// How to ask for less.
         hint: &'static str,
     },
+    /// The Query selects more columns or compares more values than a call may.
+    #[error("the Query has {count} {what}, more than the {max} a call may have; split it")]
+    QueryTooComplex {
+        /// What there is too much of.
+        what: &'static str,
+        /// How many there are.
+        count: usize,
+        /// The most there may be.
+        max: usize,
+    },
+    /// Selecting the Records of the Query took too long or the call was cancelled.
+    #[error(
+        "selecting the Records was stopped after at most {0} seconds or by the client; narrow the Query with `from`, `at` or `where`"
+    )]
+    QueryStopped(u64),
     /// A result cannot be converted to JSON.
     #[error("cannot convert the result to JSON")]
     Json(#[from] serde_json::Error),

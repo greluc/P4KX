@@ -150,3 +150,45 @@ fn invalid_queries_are_errors_with_their_span() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn row_keys_keep_the_column_order() -> TestResult {
+    let install = install(dataforge(0, 0))?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let result = server.ok(
+        "run_query",
+        &json!({ "query": "from Ship select tags[*], crew, maker->code" }),
+    )?;
+    let row = result["rows"][0].as_object().ok_or("a row")?;
+    assert_eq!(
+        row.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["record path", "tags[*]", "crew", "maker->code"],
+        "the record path, then the columns as selected"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_query_with_too_many_columns_or_comparisons_is_refused() -> TestResult {
+    let install = install(dataforge(0, 0))?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let columns = vec!["crew"; 65].join(", ");
+    let message = server.error(
+        "run_query",
+        &json!({ "query": format!("from Ship select {columns}") }),
+    )?;
+    assert!(message.contains("65 columns"), "{message}");
+    let comparisons = vec!["crew >= 0"; 129].join(" or ");
+    let message = server.error(
+        "run_query",
+        &json!({ "query": format!("from Ship select crew where {comparisons}") }),
+    )?;
+    assert!(message.contains("129 comparisons"), "{message}");
+    let fine = vec!["crew >= 0"; 128].join(" or ");
+    let result = server.ok(
+        "run_query",
+        &json!({ "query": format!("from Ship select crew where {fine}") }),
+    )?;
+    assert_eq!(result["total"], 2, "the limit itself is allowed");
+    Ok(())
+}

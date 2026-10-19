@@ -207,3 +207,31 @@ fn an_archive_without_dataforge_says_so() -> TestResult {
     assert!(message.contains("DataForge"), "no DataForge: {message}");
     Ok(())
 }
+
+fn keys(value: &Value) -> Vec<&str> {
+    value
+        .as_object()
+        .map(|object| object.keys().map(String::as_str).collect())
+        .unwrap_or_default()
+}
+
+#[test]
+fn record_keys_keep_the_record_xml_order() -> TestResult {
+    let install = install(dataforge(0, 0))?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+    let result = server.ok("get_record", &json!({ "guid": AVENGER_TEXT }))?;
+    let record = &result["records"][0];
+    assert_eq!(
+        keys(record),
+        [
+            "$type", "$guid", "$path", "mass", "size", "maker", "crew", "tags"
+        ],
+        "the fields in definition order, not sorted"
+    );
+    assert_eq!(
+        keys(&record["maker"]),
+        ["guid", "path", "type"],
+        "a Reference link"
+    );
+    Ok(())
+}

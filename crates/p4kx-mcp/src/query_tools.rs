@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use p4kx_extraction::CancelToken;
 use p4kx_extraction::query::MAX_QUERY_LEN;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{Json, tool, tool_router};
@@ -6,8 +9,16 @@ use crate::error::capped;
 use crate::forge_params::QueryParams;
 use crate::forge_shapes::QueryResult;
 use crate::page::Page;
-use crate::query;
+use crate::query::{self, Target};
 use crate::server::Server;
+
+struct CancelOnDrop(CancelToken);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.cancel();
+    }
+}
 
 #[tool_router(router = query_router, vis = "pub(crate)")]
 impl Server {
@@ -30,13 +41,22 @@ impl Server {
         &self,
         Parameters(params): Parameters<QueryParams>,
     ) -> Result<Json<QueryResult>, String> {
+        self.preload(params.archive.clone()).await?;
+        let cancel = CancelToken::new();
+        let _stops_the_selection = CancelOnDrop(cancel.clone());
         self.run(move |state| {
             capped("query", &params.query, MAX_QUERY_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("run_query", opened.version(), &params.query);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
+            let held = Arc::clone(&opened);
             opened.with_dataforge(move |forge, archive| {
-                query::run(forge, archive, &params.query, page)
+                let target = Target {
+                    forge,
+                    archive,
+                    opened: &held,
+                };
+                query::run(&target, &params.query, page, &cancel)
             })
         })
         .await

@@ -50,7 +50,7 @@ fails while its section is missing.
   json` writes them, the failed Records and the unresolved References, and an invalid Query as an
   error with its byte span. Every result pages with a cursor and holds at most 256 KiB of items;
   a single Record or row larger than that is an error. The DataForge is read once per open
-  Archive, kept open with its indexes and read again when the Archive file changes.
+  Archive, kept open with its indexes and read again when the Archive file changes. A Query is limited to 64 columns and 128 comparisons, selecting its Records stops after 30 seconds or when the client cancels, and the selection is kept for the pages that follow.
 - The Audio tab of the preview: select a WEM to see its codec, channels, sample rate and
   duration, and play it without extracting, with play, pause, seek and volume. PCM, IMA ADPCM,
   PTADPCM and Wwise Vorbis sounds play; another codec, a missing audio device or a sound too long
@@ -223,7 +223,7 @@ fails while its section is missing.
   icon and header mark, an empty state with an "Open Archive" action.
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
-  path order spells it (ADR-0019). `list_entries` lists the Entries of a folder in path order and
+  path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
 ## [0.1.0]

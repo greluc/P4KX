@@ -69,6 +69,21 @@ impl Server {
         Arc::clone(&self.whole_text)
     }
 
+    /// Reads the DataForge of the Archive `archive` names if that has not happened yet. It waits
+    /// on the blocking pool without a worker permit, so calls waiting for the read do not keep
+    /// the workers from unrelated tools.
+    pub(crate) async fn preload(&self, archive: Option<String>) -> Result<(), String> {
+        let state = Arc::clone(&self.state);
+        let outcome = tokio::task::spawn_blocking(move || {
+            state.archive(archive.as_deref())?.load_dataforge()
+        })
+        .await;
+        match outcome {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => Err(error.message()),
+            Err(_) => Err(ToolError::Stopped.message()),
+        }
+    }
     /// Runs `work` on the blocking pool, at most one call per CPU at a time.
     pub(crate) async fn run<T, F>(&self, work: F) -> Result<Json<T>, String>
     where

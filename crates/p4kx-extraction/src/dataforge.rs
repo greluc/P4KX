@@ -12,8 +12,6 @@ pub const DATAFORGE_ENTRIES: [&str; 2] = ["Data\\Game2.dcb", "Data\\Game.dcb"];
 /// The largest uncompressed DataForge Entry that is read, 2 GiB; larger sizes are rejected.
 pub const MAX_DATAFORGE_SIZE: u64 = 2 << 30;
 
-const INITIAL_RESERVE: u64 = 64 << 20;
-
 /// The bytes of an Archive's DataForge Entry, read into memory.
 #[derive(Debug)]
 pub struct DataForgeEntry {
@@ -42,8 +40,8 @@ impl DataForgeEntry {
             });
         }
         let mut bytes = Vec::new();
-        let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
-        if bytes.try_reserve_exact(reserve).is_err() {
+        let fits = usize::try_from(size).is_ok_and(|size| bytes.try_reserve_exact(size).is_ok());
+        if !fits {
             return Err(DataForgeLoadError::TooLarge {
                 path,
                 size,
@@ -135,6 +133,21 @@ pub enum DataForgeLoadError {
     Thread(#[source] io::Error),
 }
 
+impl DataForgeLoadError {
+    /// Returns whether reading again could succeed: the failure came from the disk, a changed
+    /// file or a missing thread, not from the content of the Entry.
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::Missing | Self::TooLarge { .. } | Self::Corrupt(_) => false,
+            Self::Read { source, .. } => !matches!(
+                source.kind(),
+                io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
+            ),
+            Self::Archive(_) | Self::ArchiveChanged(_) | Self::Thread(_) => true,
+        }
+    }
+}
 fn same_path(left: &str, right: &str) -> bool {
     let key = |byte: u8| {
         if byte == b'/' {

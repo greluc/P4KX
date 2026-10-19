@@ -254,7 +254,7 @@ that returned it, on the same version of the Archive. The DataForge tools read t
 open with its indexes while the Archive stays open, and hold at most 256 KiB of items in one result:
 a larger page ends early with `next_cursor`, and a single Record or row larger than that is an
 error. `list_entries` lists folders as
-[ADR-0019](docs/adr/0019-entry-folders-fold-case-and-separators.md) defines them. `--config-dir`, `--launcher-dir` and
+[ADR-0023](docs/adr/0023-entry-folders-fold-case-and-separators.md) defines them. `--config-dir`, `--launcher-dir` and
 `--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
 for `p4kx channels`.
 

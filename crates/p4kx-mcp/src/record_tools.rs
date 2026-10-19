@@ -30,6 +30,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<RecordParams>,
     ) -> Result<Json<RecordResult>, String> {
+        self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(guid) = &params.guid {
                 capped("guid", guid, MAX_GUID_LEN)?;
@@ -63,6 +64,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<RecordSearchParams>,
     ) -> Result<Json<RecordSearchResult>, String> {
+        self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(path) = &params.path {
                 capped("path", path, MAX_PATH_LEN)?;
@@ -102,6 +104,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<DefinitionParams>,
     ) -> Result<Json<StructsResult>, String> {
+        self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(name) = &params.name {
                 capped("name", name, MAX_NAME_LEN)?;
@@ -131,6 +134,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<DefinitionParams>,
     ) -> Result<Json<EnumsResult>, String> {
+        self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(name) = &params.name {
                 capped("name", name, MAX_NAME_LEN)?;

@@ -8,6 +8,14 @@ fails while its section is missing.
 
 ### Added
 
+- GUI: a Localisation tab next to Query. It reads the `global.ini` of every language of the open
+  Archive off the UI thread behind a loading indicator and shows one row per localisation key
+  and one column per language, with missing translations marked. The search matches keys and
+  texts of all languages ignoring case, runs off the UI thread while typing and keeps the
+  window responsive on a full table; control and bidirectional characters in texts are shown as
+  escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C, and
+  the table scrolls with the keyboard. All texts are in the German and British English interface
+  files.
 - Verification of the Basetool catalog against all installed Channels: Records with the words
   `debug`, `deprecated` or `dev` in their path are left out as development leftovers, and the
   measured sizes (at most 21.1 MB against the 64 MB upload limit) are recorded in

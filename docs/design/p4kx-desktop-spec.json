@@ -584,9 +584,25 @@
   },
   "workTabs": {
     "dsClass": "tab-nav / tab",
-    "tabs": ["archive", "comparison", "query"],
+    "tabs": ["archive", "comparison", "query", "localization"],
     "position": "top of the work surface, above the list panel",
     "metrics": "tabBar"
+  },
+  "localizationTable": {
+    "decision": "D.28",
+    "toolbar": "listPanel toolbar: searchField with its eyebrow label, buttonGhost Copy key and Copy text right-aligned",
+    "rows": "tableRow; a language column holds the text on one line, control and bidirectional characters as escapes in color-gray-2-text, cut after 1024 characters",
+    "header": "tableHeader, one column for the key and one per language, labels in upper case, not sortable",
+    "keyColumnWidth": 300,
+    "textColumnWidth": 320,
+    "columnMinWidth": 80,
+    "missing": {"dsClass": "chip chip--warning", "label": "Missing", "metrics": "changeChip"},
+    "selection": "the selected row in controlSelectedBackground, the selected cell as the active row; a search that hides the selected row clears the selection",
+    "search": "keys and the texts shown in the cells; a text shown as Missing is not matched",
+    "focusRingOffset": -2,
+    "keyStep": 36,
+    "keyboard": "Tab focuses the rows (scrollRegion of D.27, name Localisation rows); arrows scroll by one row or column step, Page Up, Page Down, Home and End scroll",
+    "footer": "listFooter with the number of keys shown of all keys; the notes on files read lossily in a warning alert above the table"
   },
   "archivePicker": {
     "dsClass": "select + krt-combobox__listbox",

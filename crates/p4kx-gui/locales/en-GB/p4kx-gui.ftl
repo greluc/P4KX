@@ -405,6 +405,7 @@ scroll-image = Picture
 scroll-diff = Line differences
 scroll-fields = Changed fields
 scroll-lines = Record fields
+scroll-localization = Localisation rows
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -448,3 +449,43 @@ record-follow = Follow the Reference to { $path }
 record-row = { $field }: { $value }
 record-no-fields = The Record has no fields.
 record-xml-failed = The Record XML of { $path } cannot be written: { $reason }
+
+localization-tab = Localisation
+localization-label = Search
+localization-hint = Key or text, e.g. item_Name or Aurora
+localization-loading = Reading the localisation files…
+localization-no-texts = The Archive holds no global.ini.
+localization-failed = The localisation files cannot be read: { $reason }
+localization-stopped = Reading the localisation files stopped without a result.
+localization-archive-changed = The Archive changed on disk. Reload it to read the localisation files.
+localization-empty-title = No Archive open
+localization-empty-hint = Open an Archive to look up its localisation keys and texts.
+localization-column-key = Key
+localization-language-en = English
+localization-language-de = German
+localization-language-fr = French
+localization-language-it = Italian
+localization-language-es-ES = Spanish (Spain)
+localization-language-es-419 = Spanish (Latin America)
+localization-language-pt-BR = Portuguese (Brazil)
+localization-language-ja = Japanese
+localization-language-ko = Korean
+localization-language-zh-Hans = Chinese (simplified)
+localization-language-zh-Hant = Chinese (traditional)
+localization-language-other = Other language
+localization-missing = Missing
+localization-keys =
+    { $count ->
+        [one] { $number } key
+       *[other] { $number } keys
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } of { $total } keys
+       *[other] { $number } of { $total } keys
+    }
+localization-searching = Searching…
+localization-no-match = No key or text matches the search.
+localization-copy-key = Copy key
+localization-copy-text = Copy text
+localization-notes = Some global.ini files were not read cleanly:

@@ -1,5 +1,5 @@
 use egui::{
-    EventFilter, Id, Key, Modifiers, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo,
+    EventFilter, Id, Key, Modifiers, Rect, Response, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo,
     scroll_area::ScrollAreaOutput, vec2,
 };
 
@@ -7,10 +7,59 @@ use super::rows::focus_inside;
 
 /// Where a scroll region stood in the last frame.
 #[derive(Clone, Copy, Default)]
-struct Stand {
-    offset: Vec2,
-    view: Vec2,
-    content: Vec2,
+pub(crate) struct Stand {
+    pub(crate) offset: Vec2,
+    pub(crate) view: Vec2,
+    pub(crate) content: Vec2,
+}
+
+/// A scroll region between [`begin`] and [`Region::finish`], for content that sets up its own
+/// scroll areas.
+pub(crate) struct Region {
+    focus: Response,
+    stand_id: Id,
+    requested: Option<Vec2>,
+}
+
+impl Region {
+    /// Returns where the keys pressed in this frame scroll the region to, or `None` when none was.
+    pub(crate) const fn requested(&self) -> Option<Vec2> {
+        self.requested
+    }
+
+    /// Ends the region after its content was shown in `inner_rect` with the scroll state `stand`.
+    pub(crate) fn finish(self, ui: &Ui, inner_rect: Rect, stand: Stand) {
+        focus_inside(ui.painter(), inner_rect, &self.focus);
+        ui.data_mut(|data| *data.get_temp_mut_or_default::<Stand>(self.stand_id) = stand);
+    }
+}
+
+/// Makes the rest of `ui` a focusable region named `label`, like [`show`] does for a scroll area.
+pub(crate) fn begin(ui: &Ui, (id, label): (Id, impl Fn() -> String), step: f32) -> Region {
+    let stand_id = id.with("scroll-stand");
+    let stand: Stand = ui
+        .data(|data| data.get_temp::<Stand>(stand_id))
+        .unwrap_or_default();
+    let focus_id = id.with("scroll-focus");
+    let region = ui.available_rect_before_wrap();
+    let focus = ui.interact(region, focus_id, Sense::focusable_noninteractive());
+    focus.widget_info(|| WidgetInfo::labeled(Role::ScrollView, true, label()));
+    let requested = if focus.has_focus() {
+        let filter = EventFilter {
+            horizontal_arrows: true,
+            vertical_arrows: true,
+            ..EventFilter::default()
+        };
+        ui.memory_mut(|memory| memory.set_focus_lock_filter(focus_id, filter));
+        keyboard_offset(ui, stand, step)
+    } else {
+        None
+    };
+    Region {
+        focus,
+        stand_id,
+        requested,
+    }
 }
 
 /// Shows the scroll area that `show` makes of the one it is given as a focusable region: it takes
@@ -25,35 +74,18 @@ pub(crate) fn show<R>(
     area: ScrollArea,
     show: impl FnOnce(ScrollArea, &mut Ui) -> ScrollAreaOutput<R>,
 ) -> ScrollAreaOutput<R> {
-    let stand_id = id.with("scroll-stand");
-    let stand: Stand = ui
-        .data(|data| data.get_temp::<Stand>(stand_id))
-        .unwrap_or_default();
-    let focus_id = id.with("scroll-focus");
-    let region = ui.available_rect_before_wrap();
-    let focus = ui.interact(region, focus_id, Sense::focusable_noninteractive());
-    focus.widget_info(|| WidgetInfo::labeled(Role::ScrollView, true, label()));
+    let region = begin(ui, (id, label), step);
     let mut area = area;
-    if focus.has_focus() {
-        let filter = EventFilter {
-            horizontal_arrows: true,
-            vertical_arrows: true,
-            ..EventFilter::default()
-        };
-        ui.memory_mut(|memory| memory.set_focus_lock_filter(focus_id, filter));
-        if let Some(offset) = keyboard_offset(ui, stand, step) {
-            area = area.scroll_offset(offset);
-        }
+    if let Some(offset) = region.requested() {
+        area = area.scroll_offset(offset);
     }
     let output = show(area, ui);
-    focus_inside(ui.painter(), output.inner_rect, &focus);
-    ui.data_mut(|data| {
-        *data.get_temp_mut_or_default::<Stand>(stand_id) = Stand {
-            offset: output.state.clamped_offset(),
-            view: output.inner_rect.size(),
-            content: output.content_size,
-        };
-    });
+    let stand = Stand {
+        offset: output.state.clamped_offset(),
+        view: output.inner_rect.size(),
+        content: output.content_size,
+    };
+    region.finish(ui, output.inner_rect, stand);
     output
 }
 

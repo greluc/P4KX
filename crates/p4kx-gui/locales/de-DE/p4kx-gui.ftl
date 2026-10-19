@@ -405,6 +405,7 @@ scroll-image = Bildansicht
 scroll-diff = Zeilenunterschiede
 scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
+scroll-localization = Lokalisierungszeilen
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -448,3 +449,43 @@ record-follow = Der Referenz auf { $path } folgen
 record-row = { $field }: { $value }
 record-no-fields = Der Record hat keine Felder.
 record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }
+
+localization-tab = Lokalisierung
+localization-label = Suche
+localization-hint = Schlüssel oder Text, z. B. item_Name oder Aurora
+localization-loading = Die Lokalisierungsdateien werden gelesen …
+localization-no-texts = Das Archiv enthält keine global.ini.
+localization-failed = Die Lokalisierungsdateien können nicht gelesen werden: { $reason }
+localization-stopped = Das Lesen der Lokalisierungsdateien wurde ohne Ergebnis beendet.
+localization-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Lokalisierungsdateien zu lesen.
+localization-empty-title = Kein Archiv geöffnet
+localization-empty-hint = Öffnen Sie ein Archiv, um seine Lokalisierungsschlüssel und Texte nachzuschlagen.
+localization-column-key = Schlüssel
+localization-language-en = Englisch
+localization-language-de = Deutsch
+localization-language-fr = Französisch
+localization-language-it = Italienisch
+localization-language-es-ES = Spanisch (Spanien)
+localization-language-es-419 = Spanisch (Lateinamerika)
+localization-language-pt-BR = Portugiesisch (Brasilien)
+localization-language-ja = Japanisch
+localization-language-ko = Koreanisch
+localization-language-zh-Hans = Chinesisch (vereinfacht)
+localization-language-zh-Hant = Chinesisch (traditionell)
+localization-language-other = Andere Sprache
+localization-missing = Fehlt
+localization-keys =
+    { $count ->
+        [one] { $number } Schlüssel
+       *[other] { $number } Schlüssel
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } von { $total } Schlüsseln
+       *[other] { $number } von { $total } Schlüsseln
+    }
+localization-searching = Suche läuft …
+localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
+localization-copy-key = Schlüssel kopieren
+localization-copy-text = Text kopieren
+localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:

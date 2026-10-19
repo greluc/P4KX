@@ -77,10 +77,7 @@ impl Opened {
         if let Some(tree) = self.tree.get() {
             return tree;
         }
-        let _turn = self
-            .building
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _turn = self.building.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(tree) = self.tree.get() {
             return tree;
         }

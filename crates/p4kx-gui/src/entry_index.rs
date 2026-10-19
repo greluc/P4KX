@@ -1,27 +1,26 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use p4kx_extraction::{
-    Archive, ArchiveWatch, DataForgeEntry, Entry, Filter, LocalizationEntry, TextureGroups,
+    Archive, ArchiveWatch, DataForgeEntry, Entry, EntryTree, Filter, Folder, FolderId,
+    LocalizationEntry, TextureGroups,
 };
 use rayon::prelude::*;
 
 use crate::TextLanguage;
 use crate::entry_groups::EntryGroups;
-use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
 use crate::forge_cache::ForgeCache;
 use crate::sort::{Sort, SortDirection, SortOrders, file_name};
 use crate::text_cache::TextCache;
 
-/// An opened Archive with its path tree and its Entries pre-sorted by every column.
+/// An opened Archive with its [`EntryTree`] and its Entries pre-sorted by every column.
 ///
-/// Entries are addressed by id, their position in byte-wise path order, so the Entries of a
-/// folder and everything below it form one contiguous id range.
+/// Entries are addressed by their id in the tree, so the Entries of a folder and everything
+/// below it form one contiguous id range.
 #[derive(Debug)]
 pub struct EntryIndex {
     archive: Archive,
     watch: ArchiveWatch,
-    by_path: Vec<u32>,
-    folders: Vec<Folder>,
+    tree: EntryTree,
     orders: SortOrders,
     groups: EntryGroups,
     dataforge: Option<usize>,
@@ -36,33 +35,32 @@ impl EntryIndex {
     #[must_use]
     pub fn build(archive: Archive) -> Self {
         let entries = archive.entries();
-        let (texture_groups, by_path) = rayon::join(
+        let (texture_groups, tree) = rayon::join(
             || TextureGroups::build(&archive),
-            || positions_by_path(entries),
+            || EntryTree::build(&archive),
         );
-        let sorted: Vec<&Entry> = by_path
-            .iter()
-            .filter_map(|&position| entries.get(position as usize))
+        let sorted: Vec<&Entry> = (0..tree.len())
+            .filter_map(|id| tree.entry(&archive, u32::try_from(id).ok()?))
             .collect();
         let mut id_of = vec![0; entries.len()];
-        for (id, &position) in by_path.iter().enumerate() {
-            if let Some(slot) = id_of.get_mut(position as usize) {
+        for id in 0..tree.len() {
+            let position = u32::try_from(id)
+                .ok()
+                .and_then(|id| tree.position(id))
+                .and_then(|position| id_of.get_mut(position));
+            if let Some(slot) = position {
                 *slot = u32::try_from(id).unwrap_or(u32::MAX);
             }
         }
-        let groups = EntryGroups::new(&texture_groups, &id_of, by_path.len());
-        let (folders, orders) = rayon::join(
-            || folder_tree::build(sorted.iter().map(|entry| entry.path())),
-            || SortOrders::build(&sorted, |id| groups.total_size(id)),
-        );
+        let groups = EntryGroups::new(&texture_groups, &id_of, tree.len());
+        let orders = SortOrders::build(&sorted, |id| groups.total_size(id));
         let dataforge = DataForgeEntry::locate(&archive)
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
         let text_languages = LocalizationEntry::languages(&archive);
         Self {
             watch: ArchiveWatch::new(&archive),
             archive,
-            by_path,
-            folders,
+            tree,
             orders,
             groups,
             dataforge,
@@ -110,6 +108,12 @@ impl EntryIndex {
         &self.archive
     }
 
+    /// Returns the folder tree of the Archive.
+    #[must_use]
+    pub const fn tree(&self) -> &EntryTree {
+        &self.tree
+    }
+
     /// Returns the watch that notices when the Archive changes on disk.
     #[must_use]
     pub const fn watch(&self) -> &ArchiveWatch {
@@ -119,13 +123,13 @@ impl EntryIndex {
     /// Returns the number of Entries.
     #[must_use]
     pub const fn len(&self) -> usize {
-        self.by_path.len()
+        self.tree.len()
     }
 
     /// Returns whether the Archive has no Entries.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.by_path.is_empty()
+        self.tree.is_empty()
     }
 
     /// Returns the parts and alpha tail Entries of the split texture whose `.dds` header has id
@@ -176,9 +180,7 @@ impl EntryIndex {
     /// Returns the Entry with id `id`, or `None` when there is none.
     #[must_use]
     pub fn entry(&self, id: u32) -> Option<&Entry> {
-        self.by_path
-            .get(id as usize)
-            .and_then(|&position| self.archive.entries().get(position as usize))
+        self.tree.entry(&self.archive, id)
     }
 
     /// Returns the file name of the Entry with id `id`, empty when there is none.
@@ -190,29 +192,20 @@ impl EntryIndex {
     /// Returns the root folder, which holds every Entry.
     #[must_use]
     pub const fn root(&self) -> FolderId {
-        FolderId(0)
+        self.tree.root()
     }
 
     /// Returns the folder `id`; an id of another index yields an empty folder.
     #[must_use]
     pub fn folder(&self, id: FolderId) -> &Folder {
-        self.folders.get(id.0).unwrap_or(&NO_FOLDER)
+        self.tree.folder(id)
     }
 
-    /// Returns the folder at `path`, with backslash separators, or `None` when there is none;
-    /// the empty path is the root.
+    /// Returns the folder at `path`, or `None` when there is none; the empty path is the root.
+    /// ASCII case and separator kind do not matter.
     #[must_use]
     pub fn find_folder(&self, path: &str) -> Option<FolderId> {
-        if path.is_empty() {
-            return Some(self.root());
-        }
-        path.split('\\').try_fold(self.root(), |folder, name| {
-            self.folder(folder)
-                .children()
-                .iter()
-                .copied()
-                .find(|&child| self.folder(child).name() == name)
-        })
+        self.tree.find_folder(path)
     }
 
     /// Returns the ids of the Entries in `folder` and below, sorted by `sort`; the parts of a
@@ -236,14 +229,13 @@ impl EntryIndex {
     /// `cancelled` is set; all Entries of a split texture match when one of them does.
     #[must_use]
     pub fn matching(&self, filter: &Filter, cancelled: &AtomicBool) -> Option<Vec<bool>> {
-        let entries = self.archive.entries();
-        let mut matches: Vec<bool> = self
-            .by_path
-            .par_iter()
-            .map(|&position| {
+        let mut matches: Vec<bool> = (0..self.tree.len())
+            .into_par_iter()
+            .map(|id| {
                 !cancelled.load(Ordering::Relaxed)
-                    && entries
-                        .get(position as usize)
+                    && u32::try_from(id)
+                        .ok()
+                        .and_then(|id| self.entry(id))
                         .is_some_and(|entry| filter.matches(entry.path()))
             })
             .collect();
@@ -259,13 +251,4 @@ impl EntryIndex {
             SortDirection::Descending => ascending.rev().filter(keep).copied().collect(),
         }
     }
-}
-
-fn positions_by_path(entries: &[Entry]) -> Vec<u32> {
-    let mut by_path: Vec<u32> = (0..entries.len())
-        .filter_map(|position| u32::try_from(position).ok())
-        .collect();
-    let path = |position: u32| entries.get(position as usize).map_or("", Entry::path);
-    by_path.par_sort_unstable_by(|&a, &b| path(a).cmp(path(b)));
-    by_path
 }

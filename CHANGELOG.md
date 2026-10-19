@@ -8,6 +8,17 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx-mcp` DataForge tools: `get_record` returns a Record by GUID, or every Record of a record
+  path, as Record JSON; `search_records` finds Records by record path and type name with Filters,
+  in Record order; `list_structs` and `list_enums` list the struct definitions with parent and
+  fields (data type, array, target struct or enum) and the enums with their values; `run_query`
+  runs a Query and returns its typed columns and one page of rows as `p4kx dcb query --format
+  json` writes them, the failed Records and the unresolved References, and an invalid Query as an
+  error with its byte span. Every result pages with a cursor and holds at most 256 KiB of items;
+  a single Record or row larger than that is an error. The DataForge is read once per open
+  Archive, kept open with its indexes and read again when the Archive file changes. A Query is
+  limited to 64 columns and 128 comparisons, selecting its Records stops after 30 seconds or when
+  the client cancels, and the selection is kept for the pages that follow.
 - `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
   variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
   blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
@@ -33,6 +44,10 @@ fails while its section is missing.
   state no longer hides the work tabs, the dialogs' foot no longer stretches the dialog to the
   window height, and read-only and text fields draw the rounded input frame. The desktop spec and
   its JSON follow.
+- Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
+  folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
+  path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
+  pages in time proportional to the page; the window and the server share one folder index.
 
 ## [0.2.0]
 

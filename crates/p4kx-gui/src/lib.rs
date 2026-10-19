@@ -14,7 +14,6 @@ pub mod dwm;
 mod entry_groups;
 mod entry_index;
 mod extraction;
-mod folder_tree;
 mod forge_cache;
 mod format;
 mod language;
@@ -62,12 +61,12 @@ pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
     ExtractionSummary, FailedEntry, RecordCounts, TargetKind,
 };
-pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, Model, WorkTab};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
+pub use p4kx_extraction::{Folder, FolderId};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,

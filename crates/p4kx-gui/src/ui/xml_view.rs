@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use egui::{
-    Color32, EventFilter, Galley, Id, Key, Modifiers, Rect, Role, ScrollArea, Sense, Ui, Vec2,
-    WidgetInfo, pos2, vec2,
-};
+use egui::{Color32, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo, pos2, vec2};
 
 use super::diff_line::display;
 use crate::theme::desktop::{XML_FONT, XML_GUTTER_PADDING_X, XML_ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{Weight, font};
-use crate::widgets::rows::focus_inside;
+use crate::widgets::scroll_region;
 use crate::{Texts, XmlDocument, XmlText};
 
 const MAX_ROWS: usize = 512;
@@ -23,9 +20,6 @@ struct RowCache {
     gutter: f32,
     widest: f32,
     rows: HashMap<u32, (Arc<Galley>, Arc<Galley>)>,
-    offset: Vec2,
-    view: Vec2,
-    content: Vec2,
 }
 
 /// Shows the virtual, numbered lines of `document`; only the visible lines are laid out, once.
@@ -35,84 +29,42 @@ struct RowCache {
 pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument) {
     let cache_id = ui.scope_id().with("xml-view-row-cache");
     let (mut cache, fresh) = RowCache::load(ui, cache_id, document);
-    let region = ui.available_rect_before_wrap();
-    let focus_id = cache_id.with("focus");
-    let focus = ui.interact(region, focus_id, Sense::focusable_noninteractive());
-    focus.widget_info(|| WidgetInfo::labeled(Role::ScrollView, true, texts.get(XmlText::View)));
-    let mut area = ScrollArea::both().id_salt(cache_id).auto_shrink(false);
-    if fresh {
-        area = area.scroll_offset(Vec2::ZERO);
-    }
-    if focus.has_focus() {
-        let filter = EventFilter {
-            horizontal_arrows: true,
-            vertical_arrows: true,
-            ..EventFilter::default()
-        };
-        ui.memory_mut(|memory| memory.set_focus_lock_filter(focus_id, filter));
-        if let Some(offset) = keyboard_offset(ui, &cache) {
-            area = area.scroll_offset(offset);
-        }
-    }
     let total = document.line_count();
-    let output = area.show_viewport(ui, |ui, viewport| {
-        let origin = ui.max_rect().min;
-        let width = viewport.width().max(cache.gutter + cache.widest);
-        ui.allocate_rect(
-            Rect::from_min_size(origin, vec2(width, row_top(total))),
-            Sense::hover(),
-        );
-        let left = origin.x + viewport.min.x;
-        let first = row_at(viewport.min.y.floor());
-        let last = row_at(viewport.max.y + XML_ROW_HEIGHT - 1.0).min(total);
-        for index in first..last {
-            let top = origin.y + row_top(index);
-            let rect = Rect::from_min_size(pos2(left, top), vec2(viewport.width(), XML_ROW_HEIGHT));
-            paint_row(ui, document, &mut cache, (index, rect), viewport.min.x);
-        }
-    });
-    focus_inside(ui.painter(), output.inner_rect, &focus);
-    cache.offset = output.state.clamped_offset();
-    cache.view = output.inner_rect.size();
-    cache.content = output.content_size;
+    let area = ScrollArea::both().id_salt(cache_id).auto_shrink(false);
+    scroll_region::show(
+        ui,
+        (cache_id, || texts.get(XmlText::View)),
+        XML_ROW_HEIGHT,
+        area,
+        |area, ui| {
+            let area = if fresh {
+                area.scroll_offset(Vec2::ZERO)
+            } else {
+                area
+            };
+            area.show_viewport(ui, |ui, viewport| {
+                let origin = ui.max_rect().min;
+                let width = viewport.width().max(cache.gutter + cache.widest);
+                ui.allocate_rect(
+                    Rect::from_min_size(origin, vec2(width, row_top(total))),
+                    Sense::hover(),
+                );
+                let left = origin.x + viewport.min.x;
+                let first = row_at(viewport.min.y.floor());
+                let last = row_at(viewport.max.y + XML_ROW_HEIGHT - 1.0).min(total);
+                for index in first..last {
+                    let top = origin.y + row_top(index);
+                    let rect = Rect::from_min_size(
+                        pos2(left, top),
+                        vec2(viewport.width(), XML_ROW_HEIGHT),
+                    );
+                    paint_row(ui, document, &mut cache, (index, rect), viewport.min.x);
+                }
+            })
+        },
+    );
     ui.data_mut(|data| data.insert_temp(cache_id, cache));
 }
-
-/// Returns where a key pressed on the focused view scrolls to, or `None` when none was.
-fn keyboard_offset(ui: &Ui, cache: &RowCache) -> Option<Vec2> {
-    let page = (cache.view.y - XML_ROW_HEIGHT).max(XML_ROW_HEIGHT);
-    let max = (cache.content - cache.view).max(Vec2::ZERO);
-    let keys = [
-        Key::ArrowDown,
-        Key::ArrowUp,
-        Key::ArrowRight,
-        Key::ArrowLeft,
-        Key::PageDown,
-        Key::PageUp,
-        Key::Home,
-        Key::End,
-    ];
-    let mut offset = None;
-    ui.input_mut(|input| {
-        for key in keys {
-            if input.consume_key(Modifiers::NONE, key) {
-                let at = offset.unwrap_or(cache.offset);
-                offset = Some(match key {
-                    Key::ArrowDown => at + vec2(0.0, XML_ROW_HEIGHT),
-                    Key::ArrowUp => at - vec2(0.0, XML_ROW_HEIGHT),
-                    Key::ArrowRight => at + vec2(XML_ROW_HEIGHT, 0.0),
-                    Key::ArrowLeft => at - vec2(XML_ROW_HEIGHT, 0.0),
-                    Key::PageDown => at + vec2(0.0, page),
-                    Key::PageUp => at - vec2(0.0, page),
-                    Key::Home => vec2(at.x, 0.0),
-                    _ => vec2(at.x, max.y),
-                });
-            }
-        }
-    });
-    offset.map(|offset| offset.clamp(Vec2::ZERO, max))
-}
-
 fn paint_row(
     ui: &Ui,
     document: &XmlDocument,

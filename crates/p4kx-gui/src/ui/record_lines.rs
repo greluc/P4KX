@@ -17,8 +17,11 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
 use crate::widgets::button::focus_ring;
 use crate::widgets::rows::paint_divider;
+use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
-use crate::{FieldLine, LineValue, RecordChangeText, RecordText, RecordView, Text, Texts, format};
+use crate::{
+    FieldLine, LineValue, RecordChangeText, RecordText, RecordView, ScrollText, Text, Texts, format,
+};
 
 const MAX_ROWS: usize = 512;
 const HEADS: [Text; 2] = [
@@ -196,18 +199,27 @@ pub(super) fn show(
     ui.spacing_mut().item_spacing = Vec2::ZERO;
     heads(ui, &cache);
     let mut step = None;
-    ScrollArea::vertical()
+    let area = ScrollArea::vertical()
         .id_salt("record-preview-lines")
-        .auto_shrink(false)
-        .show_rows(ui, ROW_HEIGHT, view.lines().len(), |ui, range| {
-            for index in range {
-                if let Some(field) = view.lines().get(index)
-                    && let Some(followed) = row(ui, texts, &mut cache, (index, field))
-                {
-                    step = Some(followed);
+        .auto_shrink(false);
+    let id = ui.scope_id().with("record-preview-lines");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::Lines)),
+        ROW_HEIGHT,
+        area,
+        |area, ui| {
+            area.show_rows(ui, ROW_HEIGHT, view.lines().len(), |ui, range| {
+                for index in range {
+                    if let Some(field) = view.lines().get(index)
+                        && let Some(followed) = row(ui, texts, &mut cache, (index, field))
+                    {
+                        step = Some(followed);
+                    }
                 }
-            }
-        });
+            })
+        },
+    );
     cache.store(ui);
     step
 }

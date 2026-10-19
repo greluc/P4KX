@@ -4,7 +4,6 @@ use egui::{
     Align2, Color32, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2,
 };
 
-use crate::PreviewContents;
 use crate::preview::{HEX_ROW_LEN, printable};
 use crate::theme::desktop::{
     HEX_ASCII_GAP, HEX_ASCII_WIDTH, HEX_BYTE_GAP, HEX_BYTE_WIDTH, HEX_GROUP_GAP, HEX_OFFSET_WIDTH,
@@ -12,20 +11,29 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight, font};
+use crate::widgets::scroll_region;
+use crate::{PreviewContents, ScrollText, Texts};
 
 const GROUP: u8 = 8;
 /// Shows the hex view of contents: offsets, bytes and printable characters, row by row.
-pub(super) fn hex_rows(ui: &mut Ui, contents: &PreviewContents) {
+pub(super) fn hex_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents) {
     let glyphs = HexGlyphs::get(ui);
-    ScrollArea::both()
-        .id_salt("preview-hex")
-        .auto_shrink(false)
-        .show_rows(ui, HEX_ROW_HEIGHT, contents.hex_row_count(), |ui, rows| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            for index in rows {
-                hex_row(ui, contents, index, &glyphs);
-            }
-        });
+    let area = ScrollArea::both().id_salt("preview-hex").auto_shrink(false);
+    let id = ui.scope_id().with("preview-hex");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::Hex)),
+        HEX_ROW_HEIGHT + ui.spacing().item_spacing.y,
+        area,
+        |area, ui| {
+            area.show_rows(ui, HEX_ROW_HEIGHT, contents.hex_row_count(), |ui, rows| {
+                ui.spacing_mut().item_spacing.y = 0.0;
+                for index in rows {
+                    hex_row(ui, contents, index, &glyphs);
+                }
+            })
+        },
+    );
 }
 
 /// The laid-out byte pairs and characters of the hex view, kept across frames per scale.

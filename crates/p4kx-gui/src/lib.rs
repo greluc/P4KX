@@ -91,5 +91,5 @@ pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
     ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
-    RecordExportText, RecordSearchText, RecordText, Text, Texts, XmlText,
+    RecordExportText, RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
 };

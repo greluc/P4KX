@@ -15,7 +15,14 @@ fails while its section is missing.
   window responsive on a full table; control and bidirectional characters in texts are shown as
   escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C. All
   texts are in the German and British English interface files.
-
+- `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
+  localisation key next to the key, in the `global.ini` of that language; a key without a text is
+  marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte
+  for byte the same as before, and the export report names the `language` only with it.
+  `RecordXml::write_with`, `RecordJson::write_with` and `TextResolver` in `p4kx-dataforge`,
+  `LanguageTexts` and `RecordExportOptions::texts` in `p4kx-extraction`; the Record JSON Schema
+  allows the new `{"key", "text"|"missing"}` object. `RecordFileFormat::write_file` takes the
+  texts as an extra parameter.
 - `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
   geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
   exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node
@@ -231,6 +238,12 @@ fails while its section is missing.
   is one row with its total size, its parts one level in below it. Checking a row checks all its
   Entries, a search that matches a part shows the whole texture, sorting by size uses the total
   size, and "Selected" and "Shown" extract every part. Parts without a header stay single rows.
+- The long views of the preview and the Comparison scroll with the keyboard: Tab focuses the Text,
+  Hex and Image previews, the line diff, the field list of a Record change and the field list of
+  the Record preview, and the arrow keys, Page Up, Page Down, Home and End scroll them like the XML
+  view.
+- The Extraction summary lists the Records that were not written with their record path, GUID and
+  reason, as it lists failed Entries.
 
 ### Changed
 

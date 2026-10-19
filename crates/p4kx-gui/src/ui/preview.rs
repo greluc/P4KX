@@ -2,10 +2,11 @@ use egui::{Align, Label, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
-use super::audio_preview::{self, AudioAction, Named};
+use super::audio_preview;
+use super::preview_tab::{Asked, Typed, typed_tab};
 use super::record_preview::{self, RecordStep};
-use super::soundbank_preview::{self, BankAction};
-use super::{dataforge_summary, hex_view, image_preview, xml_preview};
+use super::soundbank_preview;
+use super::{dataforge_summary, hex_view, image_preview};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
@@ -29,14 +30,6 @@ const TABS: [(PreviewTab, Text); 7] = [
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
 ];
-
-/// What the body of a tab asks for.
-enum Asked {
-    Mip(u32),
-    Audio(AudioAction),
-    Sound(u32),
-    Record(RecordStep),
-}
 
 /// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM or
 /// a soundbank, and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
@@ -306,48 +299,6 @@ fn body(
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
     None
-}
-
-/// Whether a tab of its own showed the Entry.
-enum Typed {
-    Absent,
-    Shown(Option<Asked>),
-}
-
-/// Shows the Image, Audio or XML tab of `preview` at `path` of `size` bytes when `tab` is one of
-/// them and the Entry has it; returns `None` when it has not, and else what the tab asks for.
-fn typed_tab(
-    ui: &mut Ui,
-    texts: &Texts,
-    preview: &Preview,
-    (path, size): (&str, u64),
-    (tab, volume): (PreviewTab, f32),
-) -> Typed {
-    if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
-        return Typed::Shown(image_preview::show(ui, texts, path, image).map(Asked::Mip));
-    }
-    if let Some(bank) = preview.soundbank().filter(|_| tab == PreviewTab::Audio) {
-        let action = soundbank_preview::show(ui, texts, (path, size), bank, volume);
-        return Typed::Shown(action.map(|action| match action {
-            BankAction::Select(id) => Asked::Sound(id),
-            BankAction::Audio(action) => Asked::Audio(action),
-        }));
-    }
-    if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
-        let named = Named {
-            path,
-            size,
-            embedded: false,
-        };
-        return Typed::Shown(
-            audio_preview::show(ui, texts, named, audio, volume).map(Asked::Audio),
-        );
-    }
-    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
-        xml_preview::show(ui, texts, (path, size), xml);
-        return Typed::Shown(None);
-    }
-    Typed::Absent
 }
 
 /// Shows the path line of the preview: `path`, then `size` muted.

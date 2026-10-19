@@ -7,10 +7,10 @@ use egui_extras::{Column, TableBuilder, TableRow};
 use super::audio_controls::clock;
 use super::table::head_fill;
 use crate::theme::desktop::{
-    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, SOUND_CODEC_COLUMN, SOUND_DURATION_COLUMN,
-    SOUND_ID_COLUMN, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
 };
 use crate::theme::palette;
+use crate::theme::sound_metrics::{SOUND_CODEC_COLUMN, SOUND_DURATION_COLUMN, SOUND_ID_COLUMN};
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{RowState, focus_inside, row_weight};
 use crate::widgets::scroll_region::{self, Stand};

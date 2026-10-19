@@ -12,7 +12,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_extraction::Codec;
 use p4kx_gui::{BankSound, Language, Model, PreviewTab, SoundbankPreview, SoundbankStatus};
-use sounding::{FakeOutput, TestResult, audio, opened, player, select, wait_until};
+use sounding::{FakeOutput, TestResult, opened, player, select};
 
 fn press(harness: &mut Harness<'_, Model>, label: &str) {
     harness.get_by_label(label).click();

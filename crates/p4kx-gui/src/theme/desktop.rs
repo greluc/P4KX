@@ -135,8 +135,6 @@ pub const TAB_COUNT_GAP: f32 = SPACE_1;
 
 /// The default height of the preview.
 pub const PREVIEW_HEIGHT: f32 = 236.0;
-/// The default height of the preview while it lists the WEMs of a soundbank.
-pub const PREVIEW_SOUNDBANK_HEIGHT: f32 = 320.0;
 /// The minimum height of the preview.
 pub const PREVIEW_MIN_HEIGHT: f32 = 120.0;
 /// The height of the path line of the preview.
@@ -365,12 +363,6 @@ pub const SLIDER_LABEL_GAP: f32 = SPACE_2;
 pub const SLIDER_HIT_HEIGHT: f32 = BUTTON_XS_HEIGHT;
 /// The gap between the controls of the audio preview.
 pub const AUDIO_CONTROL_GAP: f32 = SPACE_3;
-/// The width of the ID column of the WEM list of a soundbank.
-pub const SOUND_ID_COLUMN: f32 = 130.0;
-/// The initial width of the codec column of the WEM list of a soundbank.
-pub const SOUND_CODEC_COLUMN: f32 = 200.0;
-/// The initial width of the duration column of the WEM list of a soundbank.
-pub const SOUND_DURATION_COLUMN: f32 = 130.0;
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The underline of the marked error in the Query editor.

@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 use super::desktop as d;
+use super::sound_metrics as sound;
 use super::tokens::{FS_2XS, FS_XS, TRACKING_OVERLINE};
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
@@ -78,22 +79,22 @@ fn the_soundbank_list_columns_match_the_desktop_spec() {
 
     assert_eq!(
         columns["id"].as_f64(),
-        Some(f64::from(d::SOUND_ID_COLUMN)),
+        Some(f64::from(sound::SOUND_ID_COLUMN)),
         "id"
     );
     assert_eq!(
         columns["codec"].as_f64(),
-        Some(f64::from(d::SOUND_CODEC_COLUMN)),
+        Some(f64::from(sound::SOUND_CODEC_COLUMN)),
         "codec"
     );
     assert_eq!(
         columns["duration"].as_f64(),
-        Some(f64::from(d::SOUND_DURATION_COLUMN)),
+        Some(f64::from(sound::SOUND_DURATION_COLUMN)),
         "duration"
     );
     assert_eq!(
         list["panelHeight"].as_f64(),
-        Some(f64::from(d::PREVIEW_SOUNDBANK_HEIGHT)),
+        Some(f64::from(sound::PREVIEW_SOUNDBANK_HEIGHT)),
         "panel height"
     );
     assert_eq!(

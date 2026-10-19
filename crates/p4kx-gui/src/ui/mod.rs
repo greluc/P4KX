@@ -30,6 +30,7 @@ mod localization_table;
 mod menu;
 mod moved_path;
 mod preview;
+mod preview_tab;
 mod query;
 mod query_editor;
 mod query_table;
@@ -61,9 +62,10 @@ use std::path::PathBuf;
 use egui::{CentralPanel, Margin, Panel, Ui};
 
 use crate::theme::desktop::{
-    HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, PREVIEW_SOUNDBANK_HEIGHT, SIDEBAR_MAX_WIDTH,
-    SIDEBAR_MIN_WIDTH, SIDEBAR_WIDTH, STATUS_HEIGHT,
+    HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
+    SIDEBAR_WIDTH, STATUS_HEIGHT,
 };
+use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
 use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;

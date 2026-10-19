@@ -8,6 +8,8 @@ const OBJECT_HEADER_LEN: usize = 5;
 const ID_LEN: usize = 4;
 const FIRST_SOUND_CACHE_ID_VERSION: u32 = 150;
 const CONTAINER_VERSION: u32 = 154;
+const LAST_KNOWN_VERSION: u32 = 154;
+const LAST_OLD_TYPE_NUMBERING_VERSION: u32 = 126;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
 const PLAY_ACTION_GROUP: u16 = 0x04;
@@ -65,7 +67,25 @@ pub enum HircKind {
 }
 
 impl HircKind {
-    /// Returns the kind of the type byte `kind`.
+    /// Returns the kind of the type byte `kind` in a bank of `version`.
+    ///
+    /// Up to version 126 the types from `0x10` on are numbered differently: `0x10` and `0x11` are
+    /// a feedback bus and a feedback node, which this reader reports as [`HircKind::Other`], and
+    /// `0x12` to `0x17` are the effect share set, custom effect, auxiliary bus, LFO, envelope and
+    /// audio device that later versions number `0x10` to `0x15`.
+    #[must_use]
+    pub const fn of(version: u32, kind: u8) -> Self {
+        if version > LAST_OLD_TYPE_NUMBERING_VERSION {
+            return Self::from_byte(kind);
+        }
+        match kind {
+            0x10 | 0x11 => Self::Other(kind),
+            0x12..=0x17 => Self::from_byte(kind - 2),
+            other => Self::from_byte(other),
+        }
+    }
+
+    /// Returns the kind of the type byte `kind` as banks of version 128 and later number it.
     #[must_use]
     pub const fn from_byte(kind: u8) -> Self {
         match kind {
@@ -209,7 +229,7 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
         .min(reader.remaining() / (OBJECT_HEADER_LEN + ID_LEN));
     let mut objects = Vec::with_capacity(capacity);
     for _ in 0..count {
-        let kind = HircKind::from_byte(reader.u8()?);
+        let kind = HircKind::of(version, reader.u8()?);
         let len = usize::try_from(reader.u32()?).unwrap_or(usize::MAX);
         if len < ID_LEN {
             return Err(BankError::invalid(
@@ -238,11 +258,32 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
     Ok(objects)
 }
 
+/// Decodes the fields of an object after its ID.
+///
+/// The layouts known are those of bank versions up to 154: a Sound from version 150, an Action
+/// and an Event from version 49 (an Event counts its actions in 4 bytes up to version 122, in a
+/// variable-length integer after), a random, sequence, switch or blend container in version 154
+/// only. The body of such an object in a bank above version 154, whose layouts changed, is kept
+/// raw with [`BankError::UnsupportedObjectLayout`]; below its first version it is kept raw
+/// without a reason. Other objects are never decoded.
 fn value(
     kind: HircKind,
     version: u32,
     fields: &mut SectionReader<'_>,
 ) -> Result<HircValue, BankError> {
+    if version > LAST_KNOWN_VERSION
+        && matches!(
+            kind,
+            HircKind::Sound
+                | HircKind::Action
+                | HircKind::Event
+                | HircKind::RandomSequenceContainer
+                | HircKind::SwitchContainer
+                | HircKind::LayerContainer
+        )
+    {
+        return Err(BankError::UnsupportedObjectLayout { kind, version });
+    }
     Ok(match kind {
         HircKind::Sound if version >= FIRST_SOUND_CACHE_ID_VERSION => {
             let plugin_id = fields.u32()?;

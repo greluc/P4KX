@@ -2,6 +2,8 @@ use std::fmt;
 
 use thiserror::Error;
 
+use crate::HircKind;
+
 /// The four-character tag of a soundbank section, e.g. `BKHD`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SectionId(pub [u8; 4]);
@@ -56,6 +58,16 @@ pub enum BankError {
         /// The version `BKHD` declares.
         version: u32,
     },
+    /// The layout of an object is not known for the bank version, so its body is kept raw.
+    #[error(
+        "the soundbank section HIRC holds a {kind:?} object of version {version}, whose layout is not known"
+    )]
+    UnsupportedObjectLayout {
+        /// The object type.
+        kind: HircKind,
+        /// The bank version.
+        version: u32,
+    },
     /// A section ends before a field or an item it declares.
     #[error("the soundbank section {section} is truncated: {len} bytes, {needed} needed")]
     Truncated {
@@ -101,6 +113,7 @@ impl BankError {
         match self {
             Self::NotSoundbank => None,
             Self::UnsupportedVersion { .. } => Some(SectionId::BKHD),
+            Self::UnsupportedObjectLayout { .. } => Some(SectionId::HIRC),
             Self::Truncated { section, .. }
             | Self::InvalidSection { section, .. }
             | Self::DuplicateSection(section) => Some(*section),

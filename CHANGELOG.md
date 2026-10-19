@@ -60,6 +60,14 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
+  starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
+  reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
+  maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
+  Citizen's banks are all version 154 and decode as before.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

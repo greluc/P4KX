@@ -33,6 +33,8 @@ mod model;
 mod model_cube;
 mod model_nmc;
 mod model_skin;
+mod opus;
+mod opus_encode;
 mod real_archive;
 mod split_dds;
 mod test_entry;
@@ -68,6 +70,7 @@ pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
 };
+pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

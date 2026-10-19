@@ -18,8 +18,8 @@ pub(crate) enum AudioAction {
     /// Prints the codec, channels, sample rate and duration of a WEM.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(AudioSource),
-    /// Writes a PCM, IMA ADPCM, PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file; other codecs
-    /// fail with an error naming them.
+    /// Writes a PCM, IMA ADPCM, PTADPCM, Wwise Vorbis or Opus WEM as a 16-bit WAV file; other
+    /// codecs fail with an error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Wav {
         /// The sound.
@@ -29,8 +29,8 @@ pub(crate) enum AudioAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Rebuilds a Wwise Vorbis WEM as an Ogg Vorbis file without re-encoding; other codecs
-    /// fail with an error naming them.
+    /// Rebuilds a Wwise Vorbis WEM as an Ogg Vorbis file or an Opus WEM as an Ogg Opus file,
+    /// without re-encoding; other codecs fail with an error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Ogg {
         /// The sound.

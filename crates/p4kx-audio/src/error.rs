@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::{Codec, VorbisError};
+use crate::{Codec, OpusError, VorbisError};
 
 /// A failure to read or convert a WEM.
 #[derive(Debug, Error)]
@@ -48,6 +48,9 @@ pub enum AudioError {
         /// Why inline codebooks failed.
         inline: VorbisError,
     },
+    /// The Opus header, packet layout or a packet is malformed.
+    #[error("the Opus data is invalid: {0}")]
+    InvalidOpus(OpusError),
     /// The WAV is larger than the 4 GiB a RIFF size field can describe.
     #[error("the WAV would exceed 4 GiB")]
     WavTooLarge,

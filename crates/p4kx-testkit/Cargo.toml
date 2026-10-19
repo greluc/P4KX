@@ -20,6 +20,7 @@ flate2.workspace = true
 gltf = { workspace = true, features = ["names"] }
 half.workspace = true
 lzma-rs.workspace = true
+opus-pure.workspace = true
 p4kx-foundation.workspace = true
 ruzstd.workspace = true
 

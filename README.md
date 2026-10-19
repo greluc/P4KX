@@ -161,15 +161,17 @@ Early development (milestone M1). Available today:
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
   Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
-  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  PTADPCM, Wwise Vorbis or Opus WEM as a 16-bit WAV file, and
   `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
-  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  Vorbis file and an Opus WEM as a standard Ogg Opus file, both without re-encoding. All three
+  also take a WEM file on disk instead of an Archive
   and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
   detected; a conversion the codec does not support yet fails with an error naming it, and a
   corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
-  `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
+  `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis or Ogg
+  Opus.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
 - `p4kx ui assets <archive> <entry>` lists what a GFx or SWF UI movie holds: its header, every
@@ -322,5 +324,7 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT licence](LICENSE-MIT) at your option.
 
 The Vorbis codebook libraries embedded in `p4kx-audio` come from
-[ww2ogg](https://github.com/hcs64/ww2ogg) and are licensed under the BSD 3-Clause licence; see
-[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with every Release.
+[ww2ogg](https://github.com/hcs64/ww2ogg), and the Opus decoder
+[opus-pure](https://github.com/stephenberry/opus-pure) is a port of libopus; both are licensed
+under the BSD 3-Clause licence; see [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with
+every Release.

@@ -146,8 +146,39 @@
       },
       "additionalProperties": false
     },
+    "localisedText": {
+      "description": "A localisation key next to its text in the chosen language, or marked missing; only written with --lang.",
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "missing": {
+          "const": true
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "required": [
+            "missing"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
     "value": {
-      "description": "A scalar, null, an array, an owned struct, a Reference or an error. Non-finite floats are the strings NaN, INF and -INF.",
+      "description": "A scalar, null, an array, an owned struct, a Reference, a localised text or an error. Non-finite floats are the strings NaN, INF and -INF.",
       "anyOf": [
         {
           "type": [
@@ -168,6 +199,9 @@
         },
         {
           "$ref": "#/$defs/reference"
+        },
+        {
+          "$ref": "#/$defs/localisedText"
         },
         {
           "$ref": "#/$defs/error"

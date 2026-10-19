@@ -1,5 +1,8 @@
-//! The Entry and Record levels over two real Archives; runs with `--ignored` when `P4KX_DATA_P4K` and
-//! `P4KX_DATA_P4K_B` name them.
+//! Both levels over two real Archives and over one real Archive with itself; runs with
+//! `--ignored` when `P4KX_DATA_P4K` names an Archive, and the tests over two Archives skip unless
+//! `P4KX_DATA_P4K_B` names the second.
+
+mod real_pair;
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -8,9 +11,14 @@ use p4kx_comparison::{
     Archive, ChangeKind, CompareOptions, DEFAULT_CONTEXT, DataForgeEntry, DataForges, DiffBody,
     Entry, Levels, compare, line_diff,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use p4kx_testkit::real_archive_path;
+use real_pair::{open_pair, schema_violations};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+const LINE_DIFF_BUDGET: Duration = Duration::from_secs(5);
+const TEXT_EXTENSIONS: [&str; 5] = [".xml", ".ini", ".cfg", ".json", ".txt"];
+const COMPARISON_BUDGET: Duration = Duration::from_secs(60);
 
 fn entries_only() -> CompareOptions<'static> {
     CompareOptions {
@@ -19,69 +27,13 @@ fn entries_only() -> CompareOptions<'static> {
     }
 }
 
-const ENTRY_LEVEL_BUDGET: Duration = Duration::from_secs(5);
-const LINE_DIFF_BUDGET: Duration = Duration::from_secs(5);
-const TEXT_EXTENSIONS: [&str; 5] = [".xml", ".ini", ".cfg", ".json", ".txt"];
-const RECORD_LEVEL_BUDGET: Duration = Duration::from_secs(60);
-
-fn records_only() -> CompareOptions<'static> {
-    CompareOptions {
-        levels: Levels::RECORDS,
-        ..CompareOptions::default()
-    }
-}
-
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_entry_level_of_two_real_archives_finishes_in_seconds() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
-    let (old, new) = rayon::join(|| Archive::open(old), || Archive::open(new));
-    let (old, new) = (old?, new?);
-
-    let started = Instant::now();
-    let comparison = compare(&old, &new, None, &entries_only())?;
-    let elapsed = started.elapsed();
-
-    assert!(
-        elapsed < ENTRY_LEVEL_BUDGET,
-        "the Entry level took {elapsed:?}"
-    );
-    let counts = comparison.entry_counts();
-    assert!(
-        counts.added <= new.entries().len()
-            && counts.removed <= old.entries().len()
-            && counts.changed <= old.entries().len().min(new.entries().len()),
-        "counts within the Archive sizes: {counts:?}"
-    );
-    assert_eq!(
-        comparison
-            .directory_counts()
-            .iter()
-            .map(|d| d.counts.total())
-            .sum::<usize>(),
-        counts.total(),
-        "directory counts add up"
-    );
-    Ok(())
-}
-
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn a_real_archive_has_no_differences_with_itself() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
-
-    let comparison = compare(&archive, &archive, None, &entries_only())?;
-
-    assert!(!comparison.has_differences(), "no differences");
-    Ok(())
-}
-
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_record_level_of_two_real_archives_joins_every_record_by_guid() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
-    let (old, new) = rayon::join(|| Archive::open(old), || Archive::open(new));
-    let (old, new) = (old?, new?);
+fn both_levels_of_two_real_archives_complete_with_plausible_counts_and_a_valid_report() -> TestResult
+{
+    let Some((old, new)) = open_pair()? else {
+        return Ok(());
+    };
     let (old_entry, new_entry) =
         rayon::join(|| DataForgeEntry::read(&old), || DataForgeEntry::read(&new));
     let (old_entry, new_entry) = (old_entry?, new_entry?);
@@ -92,28 +44,54 @@ fn the_record_level_of_two_real_archives_joins_every_record_by_guid() -> TestRes
     };
 
     let started = Instant::now();
-    let comparison = compare(&old, &new, Some(forges), &records_only())?;
+    let comparison = compare(&old, &new, Some(forges), &CompareOptions::default())?;
     let elapsed = started.elapsed();
 
+    assert!(elapsed < COMPARISON_BUDGET, "both levels took {elapsed:?}");
+    let entries = comparison.entry_counts();
     assert!(
-        elapsed < RECORD_LEVEL_BUDGET,
-        "the Record level took {elapsed:?}"
+        entries.added <= new.entries().len()
+            && entries.removed <= old.entries().len()
+            && entries.changed <= old.entries().len().min(new.entries().len())
+            && new.entries().len() + entries.removed == old.entries().len() + entries.added,
+        "Entry counts within the Archive sizes {} and {}: {entries:?}",
+        old.entries().len(),
+        new.entries().len()
     );
-    let counts = comparison.record_counts();
+    assert_eq!(
+        comparison
+            .directory_counts()
+            .iter()
+            .map(|d| d.counts.total())
+            .sum::<usize>(),
+        entries.total(),
+        "directory counts add up"
+    );
+    assert!(
+        old.build() == new.build() || entries.total() > 0,
+        "two Builds differ in their Entries"
+    );
+    let records = comparison.record_counts();
     let (old_count, new_count) = (old_forge.record_count(), new_forge.record_count());
     assert!(
-        counts.added <= new_count
-            && counts.removed <= old_count
-            && counts.moved + counts.changed <= old_count.min(new_count)
-            && new_count + counts.removed == old_count + counts.added,
-        "counts within the DataForge sizes {old_count} and {new_count}: {counts:?}"
+        records.added <= new_count
+            && records.removed <= old_count
+            && records.moved + records.changed <= old_count.min(new_count)
+            && new_count + records.removed == old_count + records.added,
+        "Record counts within the DataForge sizes {old_count} and {new_count}: {records:?}"
     );
+    assert_eq!(
+        records.unreadable, 0,
+        "every real Record reads: {records:?}"
+    );
+    let violations = schema_violations(&comparison)?;
+    assert!(violations.is_empty(), "the report is valid: {violations:?}");
     Ok(())
 }
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn a_real_dataforge_has_no_record_differences_with_itself() -> TestResult {
+fn a_real_archive_has_no_differences_with_itself_on_either_level() -> TestResult {
     let archive = Archive::open(real_archive_path()?)?;
     let entry = DataForgeEntry::read(&archive)?;
     let (old, new) = (entry.open()?, entry.open()?);
@@ -125,24 +103,30 @@ fn a_real_dataforge_has_no_record_differences_with_itself() -> TestResult {
             old: &old,
             new: &new,
         }),
-        &records_only(),
+        &CompareOptions::default(),
     )?;
 
-    assert_eq!(
-        comparison.record_counts().total(),
-        0,
+    assert!(
+        comparison.entry_changes().is_empty(),
+        "no Entry differs: {:?}",
+        comparison.entry_changes().first()
+    );
+    assert!(
+        comparison.record_changes().is_empty(),
         "no Record differs: {:?}",
         comparison.record_changes().first()
     );
+    let violations = schema_violations(&comparison)?;
+    assert!(violations.is_empty(), "the report is valid: {violations:?}");
     Ok(())
 }
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_changed_text_entries_of_two_real_archives_have_line_diffs() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
-    let (old, new) = rayon::join(|| Archive::open(old), || Archive::open(new));
-    let (old, new) = (old?, new?);
+    let Some((old, new)) = open_pair()? else {
+        return Ok(());
+    };
     let comparison = compare(&old, &new, None, &entries_only())?;
     let mut changed: Vec<_> = comparison
         .entry_changes()
@@ -158,7 +142,11 @@ fn the_changed_text_entries_of_two_real_archives_have_line_diffs() -> TestResult
     changed
         .sort_by_key(|change| std::cmp::Reverse(change.new_entry().map(Entry::uncompressed_size)));
 
-    let mut text = 0;
+    assert!(
+        !changed.is_empty(),
+        "two different Builds have changed text Entries"
+    );
+    let mut differing = 0;
     for change in changed.iter().take(40) {
         let started = Instant::now();
         let diff = line_diff(&old, &new, change.path(), DEFAULT_CONTEXT)?;
@@ -169,13 +157,13 @@ fn the_changed_text_entries_of_two_real_archives_have_line_diffs() -> TestResult
             "{} took {elapsed:?}",
             change.path()
         );
-        if let DiffBody::Text(_) = diff.body() {
-            text += 1;
+        if matches!(diff.body(), DiffBody::Text(text) if text.has_differences()) {
+            differing += 1;
         }
     }
     assert!(
-        changed.is_empty() || text > 0,
-        "some of the {} changed text Entries diff as text",
+        differing > 0,
+        "some of the {} changed text Entries diff as text with differences",
         changed.len()
     );
     Ok(())

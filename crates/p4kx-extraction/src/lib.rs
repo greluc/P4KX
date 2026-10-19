@@ -16,6 +16,7 @@ mod extract;
 mod filter;
 mod loaded_dataforge;
 mod localization;
+mod localization_set;
 mod model_companions;
 mod model_source;
 mod options;
@@ -30,6 +31,7 @@ mod record_format;
 mod record_plan;
 mod record_report;
 mod report;
+mod resolved_texts;
 mod selection;
 mod sound;
 mod target;
@@ -37,6 +39,7 @@ mod text_window;
 mod texture;
 mod texture_convert;
 mod texture_exr;
+mod texture_groups;
 mod texture_images;
 mod texture_job;
 mod texture_outputs;
@@ -66,6 +69,7 @@ pub use extract::extract;
 pub use filter::Filter;
 pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
+pub use localization_set::{LocalizationNote, LocalizationSet};
 pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{
@@ -73,8 +77,8 @@ pub use p4kx_archive::{
     MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
-    ActionTarget, BankError, BankHeader, EmbeddedWem, HircKind, HircObject, HircValue,
-    MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,
+    HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
@@ -85,13 +89,15 @@ pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, JsonLayout,
     MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordJson,
-    RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
-    ValueKind,
+    RecordTree, RecordXml, Reference, Resolution, Struct, StructValue, TextResolver, TreeBuilder,
+    Value, ValueError, ValueKind,
 };
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
-    GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
+    GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
+    MAX_GLOBAL_INI_SIZE, OwnedTextSet, PLACEHOLDER_KEYS, ParseLanguageError, TextSet,
+    decode_line_breaks, is_placeholder_key,
 };
 pub use p4kx_model as model;
 pub use p4kx_texture::{
@@ -110,11 +116,13 @@ pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
+pub use resolved_texts::LanguageTexts;
 pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name, utc_rfc3339};
 pub use texture::Texture;
 pub use texture_exr::ExrReport;
+pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};

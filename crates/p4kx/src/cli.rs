@@ -11,9 +11,11 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -31,7 +33,7 @@ pub(crate) struct Cli {
 /// The subcommands of `p4kx`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
-    /// Lists every Entry of an Archive.
+    /// Lists every Entry of an Archive, a split texture as one Entry.
     #[command(after_help = EXIT_CODES_HELP)]
     List(ListArgs),
     /// Lists the Entries of an Archive whose path matches a Filter.
@@ -64,6 +66,10 @@ pub(crate) enum Command {
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
+    /// Lists the languages of an Archive, looks up the text of a localisation key or exports all
+    /// keys with their texts.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Loc(LocArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
     #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
     CryXml(CryXmlArgs),
@@ -88,6 +94,9 @@ pub(crate) enum Command {
     /// Lists the chunks of a CryEngine chunk file, #ivo or CrCh, or writes the bytes of one.
     #[command(after_help = EXIT_CODES_HELP)]
     Chunks(ChunksArgs),
+    /// Resolves Wwise audio triggers through the soundbank hierarchy to their sounds.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Wwise(WwiseArgs),
     /// Shows a static #ivo model with its nodes, meshes and materials, or writes it as GLB.
     #[command(after_help = EXIT_CODES_HELP)]
     Model(ModelArgs),
@@ -172,6 +181,11 @@ pub(crate) struct TextureSource {
 pub(crate) struct ListArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
+    /// Lists every part of a split texture as an Entry of its own; by default the parts
+    /// `<name>.dds.1` … `.N` and the alpha tail `<name>.dds.a` with its parts are folded into the
+    /// row of the header `<name>.dds`, with the sizes of the whole texture.
+    #[arg(long)]
+    pub(crate) parts: bool,
 }
 
 /// Arguments of `p4kx search`.

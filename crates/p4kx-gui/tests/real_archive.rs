@@ -10,8 +10,8 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_extraction::{Archive, Entry, Filter};
 use p4kx_gui::{
-    Browser, EntryIndex, Language, Model, RecordTree, RecordTreeStatus, Sort, SortColumn,
-    SortDirection, ui,
+    Browser, EntryIndex, ExtractionScope, Language, Model, RecordTree, RecordTreeStatus, Sort,
+    SortColumn, SortDirection, ui,
 };
 use p4kx_testkit::real_archive_path;
 
@@ -37,10 +37,43 @@ fn sorting_every_entry_of_a_real_archive_takes_milliseconds() -> TestResult {
             let shown = index.entries_in(index.root(), Sort { column, direction });
             let took = started.elapsed();
 
-            assert_eq!(shown.len(), index.len(), "every Entry is shown");
+            assert_eq!(
+                shown.len() + index.folded_len(),
+                index.len(),
+                "every Entry is shown, the parts of a texture in its row"
+            );
             assert!(took < SORT_LIMIT, "{column:?} {direction:?} took {took:?}");
         }
     }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn split_textures_of_a_real_archive_are_grouped_once_and_stay_consistent() -> TestResult {
+    let started = Instant::now();
+    let groups = p4kx_extraction::TextureGroups::build(&Archive::open(real_archive_path()?)?);
+    let took = started.elapsed();
+    assert!(!groups.is_empty(), "a real Archive holds split textures");
+    assert!(took < Duration::from_secs(5), "grouping took {took:?}");
+
+    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    assert!(index.folded_len() > 0, "parts are folded");
+    let mut browser = Browser::new(index);
+    let header = (0..u32::try_from(browser.index().len())?)
+        .find(|&id| !browser.index().texture_parts(id).is_empty())
+        .ok_or("no texture header")?;
+    let parts = browser.index().texture_parts(header).len();
+    browser.set_checked(header, true);
+    assert_eq!(browser.checked_count(), parts + 1, "all parts checked");
+    browser.toggle_texture(header);
+    assert!(
+        browser
+            .rows()
+            .iter()
+            .any(|row| row.kind == p4kx_gui::EntryRowKind::Part),
+        "the parts are reachable"
+    );
     Ok(())
 }
 
@@ -84,6 +117,7 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
 fn searching_a_real_archive_finds_what_p4kx_search_finds() -> TestResult {
     let path = real_archive_path()?;
     let archive = Archive::open(&path)?;
+    let groups = p4kx_extraction::TextureGroups::build(&archive);
     let mut browser = Browser::new(EntryIndex::build(Archive::open(&path)?));
 
     for text in [
@@ -99,19 +133,19 @@ fn searching_a_real_archive_finds_what_p4kx_search_finds() -> TestResult {
             std::thread::sleep(Duration::from_millis(5));
             browser.poll();
         }
-        let selected = Filter::new(text).select(&archive);
+        let selected = Filter::new(text).select_with_parts(&archive, &groups);
         let expected: BTreeSet<&str> = selected.iter().map(|entry| entry.path()).collect();
-        let shown: BTreeSet<&str> = browser
-            .shown()
+        let covered = browser.scope_entries(ExtractionScope::Shown);
+        let shown: BTreeSet<&str> = covered
             .iter()
             .filter_map(|&id| browser.index().entry(id).map(Entry::path))
             .collect();
 
-        assert_eq!(shown, expected, "{text:?} matches as in p4kx search");
+        assert_eq!(shown, expected, "{text:?} matches as in p4kx extract");
         assert_eq!(
-            browser.shown().len(),
+            covered.len(),
             selected.len(),
-            "{text:?} shows each match once"
+            "{text:?} covers each match once"
         );
     }
     Ok(())

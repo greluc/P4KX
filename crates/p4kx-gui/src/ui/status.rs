@@ -78,10 +78,7 @@ fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
                 ("number", number(browser.index().len())),
             ],
         ),
-        texts.format(
-            Text::StatusShown,
-            &[("number", number(browser.shown().len()))],
-        ),
+        texts.format(Text::StatusShown, &[("number", number(browser.view_len()))]),
         selected_label(texts, browser, number),
     ];
     for part in parts {

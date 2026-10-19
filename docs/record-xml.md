@@ -70,7 +70,7 @@ Attributes are separated by one space, values are in double quotes.
 | int8 … int64, uint8 … uint64 | Decimal, with `-` for negative values |
 | float, double | The shortest text that reads back to the same value; with an exponent (`1e21`, `1.5e-7`) from 1e21 and below 1e-6 in magnitude, otherwise without (`0.1`, `25000.5`, `3`); `-0` for negative zero, `NaN`, `INF` and `-INF` |
 | string | The text |
-| localisation key | The key as stored, e.g. `@item_Name`; keys are not resolved |
+| localisation key | The key as stored, e.g. `@item_Name`; the text is added only with `--lang` (see [Resolved texts](#resolved-texts)) |
 | GUID | Lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | enum | The name of the option |
 
@@ -109,6 +109,25 @@ Value elements:
 - **Null**: `<p4kx:null/>` for a null strong or weak pointer and a null Reference.
 - **Scalar** in an array: `<p4kx:value value="…"/>`.
 - **Error** in an array: `<p4kx:error reason="…"/>`.
+
+## Resolved texts
+
+`p4kx dcb export --lang <language>` writes the text of every localisation key next to the key, in
+the `global.ini` of that language. Without `--lang` none of this is written and the output is
+byte for byte the output described above, free of any language. With `--lang` the root element
+always declares `xmlns:p4kx`, and a localisation key that is no placeholder (`@LOC_EMPTY`,
+`@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`) and not empty is annotated:
+
+- A key written as an attribute, `label="@item_Name"`, is followed by `p4kx:text-label="Name"`
+  holding its text, or by `p4kx:missing-label="true"` when the language has no text for it (no
+  `global.ini` line, or an empty text). The prefix `p4kx:` cannot collide with a field name.
+- A key in a `<p4kx:field name="…" value="@key"/>` element or a `<p4kx:value value="@key"/>`
+  element gets `text="Name"` or `missing="true"` on the same element.
+
+The text is as the `global.ini` holds it with its `\n` escapes turned into line feeds, escaped like
+any attribute value. A placeholder or empty key stays alone: it stands for no text and is not a
+missing translation. Only localisation keys are annotated, never strings that look like keys. The
+same Records and the same language always give the same bytes.
 
 ## Errors
 

@@ -200,7 +200,7 @@ fn a_manufacturer_carries_guid_class_name_record_path_code_name_and_description(
 fn development_leftovers_are_excluded_by_token_and_counted_as_skipped() -> TestResult {
     assert_eq!(
         EXCLUDED_TOKENS,
-        ["test", "template", "dummy"],
+        ["test", "template", "dummy", "debug", "deprecated", "dev"],
         "documented list"
     );
     let (built, catalog) = catalog_with(&options())?;

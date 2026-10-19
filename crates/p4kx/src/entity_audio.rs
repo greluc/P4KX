@@ -65,7 +65,7 @@ struct UnmatchedJson {
 }
 
 #[derive(Serialize)]
-struct IssueJson<'a> {
+pub(crate) struct IssueJson<'a> {
     path: &'a str,
     kind: &'static str,
     message: String,
@@ -152,7 +152,7 @@ fn trigger_json<'a>(trigger: &'a EntityTrigger<'a>) -> TriggerJson<'a> {
     }
 }
 
-fn issues_json(index: &AudioIndex) -> Vec<IssueJson<'_>> {
+pub(crate) fn issues_json(index: &AudioIndex) -> Vec<IssueJson<'_>> {
     index
         .issues()
         .iter()
@@ -164,7 +164,7 @@ fn issues_json(index: &AudioIndex) -> Vec<IssueJson<'_>> {
         .collect()
 }
 
-fn warn(index: &AudioIndex) -> io::Result<()> {
+pub(crate) fn warn(index: &AudioIndex) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for issue in index.issues() {
         writeln!(

@@ -6,6 +6,7 @@ use egui::{
 use egui_extras::{Column, TableBuilder, TableRow};
 use p4kx_extraction::{Compression, Entry};
 
+use super::table_name;
 use crate::theme::desktop::{
     CELL_PADDING_X, CHECK_COLUMN, CHEVRON, COMPRESSION_COLUMN, ENCRYPTION_COLUMN, ROW_FONT,
     ROW_HEIGHT, SIZE_COLUMN, SORT_GAP, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
@@ -31,6 +32,7 @@ enum Action {
     CheckShown(bool),
     Check(u32, bool),
     Preview(u32),
+    Toggle(u32),
 }
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
@@ -79,7 +81,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, browser.shown().len(), |row| {
+            body.rows(ROW_HEIGHT, browser.rows().len(), |row| {
                 let index = row.index();
                 let (clicked, is_hovered) = show_row(row, texts, browser, hovered == Some(index));
                 if clicked.is_some() {
@@ -116,6 +118,7 @@ fn apply(ui: &Ui, model: &mut Model, action: &Action) {
             Action::Sort(column) => browser.sort_by(*column),
             Action::CheckShown(checked) => browser.set_all_shown_checked(*checked),
             Action::Check(id, checked) => browser.set_checked(*id, *checked),
+            Action::Toggle(id) => browser.toggle_texture(*id),
             Action::Preview(id) => browser.select_entry(*id, move || ctx.request_repaint()),
         }
     }
@@ -148,14 +151,18 @@ fn show_row(
     hovered: bool,
 ) -> (Option<Action>, bool) {
     row.set_hovered(false);
-    let Some(&id) = browser.shown().get(row.index()) else {
+    let Some(&entry_row) = browser.rows().get(row.index()) else {
         return (None, false);
     };
+    let id = entry_row.id;
     let Some(entry) = browser.index().entry(id) else {
         return (None, false);
     };
     let name = browser.index().name(id);
-    let language = texts.language();
+    let size = browser
+        .index()
+        .texture_size(id)
+        .unwrap_or_else(|| entry.uncompressed_size());
     let checked = browser.is_checked(id);
     let active = browser.selected_entry() == Some(id);
     let state = RowState::of(active, checked, hovered);
@@ -174,18 +181,11 @@ fn show_row(
         }
     });
     row.col(|ui| {
-        cell_text(ui, name, colour, weight);
+        if table_name::show(ui, texts, browser, entry_row, (colour, weight)) {
+            action = Some(Action::Toggle(id));
+        }
     });
-    row.col(|ui| {
-        cell_text(ui, &compression(texts, entry), colour, weight);
-    });
-    row.col(|ui| {
-        cell_text(ui, &encryption(texts, entry), colour, weight);
-    });
-    row.col(|ui| {
-        let size = format::size(entry.uncompressed_size(), language);
-        size_cell(ui, size, colour, weight);
-    });
+    data_cells(&mut row, texts, entry, size, (colour, weight));
     let response = row.response();
     let is_hovered = response.hovered();
     focus_inside(
@@ -203,6 +203,24 @@ fn show_row(
         action = Some(Action::Preview(id));
     }
     (action, is_hovered)
+}
+
+fn data_cells(
+    row: &mut TableRow<'_, '_>,
+    texts: &Texts,
+    entry: &Entry,
+    size: u64,
+    (colour, weight): (egui::Color32, Weight),
+) {
+    row.col(|ui| {
+        cell_text(ui, &compression(texts, entry), colour, weight);
+    });
+    row.col(|ui| {
+        cell_text(ui, &encryption(texts, entry), colour, weight);
+    });
+    row.col(|ui| {
+        size_cell(ui, format::size(size, texts.language()), colour, weight);
+    });
 }
 
 fn size_cell(ui: &mut Ui, size: String, colour: egui::Color32, weight: Weight) {

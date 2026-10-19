@@ -21,12 +21,14 @@ mod dataforge_value;
 mod entity;
 mod entity_sample;
 mod entity_schema;
+mod frames;
 mod gfx;
 mod gfx_shape;
 mod gfx_tags;
 mod glb;
 mod glb_container;
 mod global_ini;
+mod hirc_node;
 mod layout_v1;
 mod layout_v2;
 mod model;
@@ -56,6 +58,7 @@ pub use dataforge_value::{TestInstance, TestValue};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;
+pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
 pub use gfx_shape::{TestFill, TestShape, TestShapeRecord, morph_shape_body};
 pub use gfx_tags::{
@@ -66,6 +69,7 @@ pub use gfx_tags::{
 pub use glb::{CheckedGlb, check_glb};
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
+pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
@@ -73,7 +77,7 @@ pub use model::{
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
-    real_archive_path,
+    real_archive_pair, real_archive_path,
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;

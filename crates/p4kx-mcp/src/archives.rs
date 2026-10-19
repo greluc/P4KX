@@ -37,6 +37,7 @@ type Selection = Option<(String, Arc<[u32]>)>;
 pub(crate) struct Opened {
     archive: Archive,
     tree: OnceLock<EntryTree>,
+    building: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
     selection: Mutex<Selection>,
 }
@@ -46,6 +47,7 @@ impl Opened {
         Self {
             archive,
             tree: OnceLock::new(),
+            building: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
         }
@@ -72,7 +74,18 @@ impl Opened {
 
     /// Returns the folder tree, building it on first use.
     pub(crate) fn tree(&self) -> &EntryTree {
-        self.tree.get_or_init(|| EntryTree::build(&self.archive))
+        if let Some(tree) = self.tree.get() {
+            return tree;
+        }
+        let _turn = self
+            .building
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(tree) = self.tree.get() {
+            return tree;
+        }
+        let built = EntryTree::build(&self.archive);
+        self.tree.get_or_init(|| built)
     }
 
     /// Runs `work` against the DataForge with the Archive path as text, reading the DataForge on

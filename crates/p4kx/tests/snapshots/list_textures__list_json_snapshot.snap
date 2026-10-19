@@ -1,0 +1,42 @@
+---
+source: crates/p4kx/tests/list_textures.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "[DIR]/Data.p4k",
+  "entries": [
+    {
+      "compressed_size": 5,
+      "compression": "store",
+      "encrypted": false,
+      "path": "Data\\a.txt",
+      "size": 5
+    },
+    {
+      "compressed_size": 9,
+      "compression": "store",
+      "encrypted": false,
+      "path": "Data\\tex\\lonely.dds",
+      "size": 9
+    },
+    {
+      "compressed_size": 7,
+      "compression": "store",
+      "encrypted": false,
+      "path": "Data\\tex\\orphan.dds.1",
+      "size": 7
+    },
+    {
+      "compressed_size": 127,
+      "compression": "store",
+      "encrypted": false,
+      "parts": [
+        "Data\\tex\\wall.dds.1",
+        "Data\\tex\\wall.dds.2",
+        "Data\\tex\\wall.dds.a"
+      ],
+      "path": "Data\\tex\\wall.dds",
+      "size": 127
+    }
+  ]
+}

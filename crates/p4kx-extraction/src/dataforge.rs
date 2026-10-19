@@ -40,8 +40,8 @@ impl DataForgeEntry {
             });
         }
         let mut bytes = Vec::new();
-        let fits = usize::try_from(size).is_ok_and(|size| bytes.try_reserve_exact(size).is_ok());
-        if !fits {
+        let reserve = usize::try_from(size).unwrap_or(usize::MAX);
+        if bytes.try_reserve_exact(reserve).is_err() {
             return Err(DataForgeLoadError::TooLarge {
                 path,
                 size,

@@ -59,11 +59,15 @@ pub struct Progress {
 pub struct ExtractOptions<'a> {
     /// What to do with files that already exist.
     pub policy: ConflictPolicy,
-    /// Converts `CryXml` Entries to UTF-8 XML, split DDS textures as `textures` says and the
-    /// DataForge Entry to Record XML files; text XML and every other Entry stay unchanged.
+    /// Converts `CryXml` Entries to UTF-8 XML, split DDS textures as `textures` says, WEM sounds
+    /// and soundbanks as `audio` says and the DataForge Entry to Record XML files; text XML and
+    /// every other Entry stay unchanged.
     pub convert: bool,
     /// What a Conversion writes for a DDS texture; ignored while `convert` is off.
     pub textures: TextureConversion,
+    /// What a Conversion writes for a WEM sound and for each WEM a soundbank embeds; ignored
+    /// while `convert` is off.
+    pub audio: AudioConversion,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
@@ -78,11 +82,31 @@ impl fmt::Debug for ExtractOptions<'_> {
             .field("policy", &self.policy)
             .field("convert", &self.convert)
             .field("textures", &self.textures)
+            .field("audio", &self.audio)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("watch", &self.watch)
             .finish()
     }
+}
+
+/// What a Conversion writes for a WEM sound `<name>.wem` and for each WEM a soundbank
+/// `<name>.bnk` embeds.
+///
+/// A soundbank is written unchanged and unpacked into the folder `<name>` next to it, each WEM
+/// named by its ID. A sound whose codec cannot be decoded, plug-in media and the prefetched start
+/// of a streamed WEM are written unchanged as `.wem`; only a sound that cannot be decoded is
+/// reported.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum AudioConversion {
+    /// Rebuilds Wwise Vorbis as Ogg Vorbis and Opus as Ogg Opus, `<name>.ogg`; every other codec
+    /// is decoded to WAV, `<name>.wav`.
+    #[default]
+    Ogg,
+    /// Decodes every sound to a 16-bit PCM WAV, `<name>.wav`.
+    Wav,
+    /// Writes every sound unchanged, `<name>.wem`.
+    Raw,
 }
 
 /// What a Conversion writes for a DDS texture: the header Entry `<name>.dds` and its parts

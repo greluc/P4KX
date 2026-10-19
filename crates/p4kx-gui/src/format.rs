@@ -1,6 +1,7 @@
 use crate::Language;
 
 const UNITS: [&str; 5] = ["KiB", "MiB", "GiB", "TiB", "PiB"];
+const DECIMAL_UNITS: [&str; 6] = ["kB", "MB", "GB", "TB", "PB", "EB"];
 
 /// Formats `value` with the digit grouping of `language`, e.g. `1,234` or `1.234`.
 pub(crate) fn number(value: u64, language: Language) -> String {
@@ -39,6 +40,29 @@ pub(crate) fn size(bytes: u64, language: Language) -> String {
     )
 }
 
+/// Formats a byte count as bytes below 1 kB and in decimal units above, with one decimal that is
+/// left out when it is zero, e.g. `64 MB` or `57.3 MB`.
+pub(crate) fn decimal_size(bytes: u64, language: Language) -> String {
+    let mut divisor: u128 = 1;
+    let mut unit = None;
+    for candidate in DECIMAL_UNITS {
+        if u128::from(bytes) < divisor * 1000 {
+            break;
+        }
+        divisor *= 1000;
+        unit = Some(candidate);
+    }
+    let Some(unit) = unit else {
+        return format!("{} B", number(bytes, language));
+    };
+    let tenths = (u128::from(bytes) * 10 + divisor / 2) / divisor;
+    let whole = number(u64::try_from(tenths / 10).unwrap_or(u64::MAX), language);
+    match tenths % 10 {
+        0 => format!("{whole} {unit}"),
+        tenth => format!("{whole}{}{tenth} {unit}", decimal_separator(language)),
+    }
+}
+
 const fn group_separator(language: Language) -> char {
     match language {
         Language::German => '.',
@@ -55,7 +79,7 @@ const fn decimal_separator(language: Language) -> char {
 
 #[cfg(test)]
 mod tests {
-    use super::{number, size};
+    use super::{decimal_size, number, size};
     use crate::Language::{BritishEnglish, German};
 
     #[test]
@@ -77,5 +101,21 @@ mod tests {
             "GiB"
         );
         assert_eq!(size(u64::MAX, BritishEnglish), "16,384.0 PiB", "largest");
+    }
+
+    #[test]
+    fn decimal_sizes_leave_out_a_zero_decimal() {
+        assert_eq!(decimal_size(999, BritishEnglish), "999 B", "bytes");
+        assert_eq!(
+            decimal_size(64_000_000, BritishEnglish),
+            "64 MB",
+            "the upload limit"
+        );
+        assert_eq!(
+            decimal_size(57_250_000, German),
+            "57,3 MB",
+            "German decimal comma"
+        );
+        assert_eq!(decimal_size(u64::MAX, BritishEnglish), "18.4 EB", "largest");
     }
 }

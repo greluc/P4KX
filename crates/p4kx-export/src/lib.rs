@@ -32,7 +32,7 @@ mod ship;
 mod summary;
 mod texts;
 
-pub use build::build_catalog;
+pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use error::CatalogError;
 pub use form::{NDJSON_FILE, RecordForm};

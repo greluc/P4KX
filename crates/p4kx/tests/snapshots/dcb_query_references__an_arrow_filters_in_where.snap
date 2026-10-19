@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "table(\"from Ship select name where maker->home->name = \\\"Terra\\\" \\\n         or escorts[*]->maker->name = \\\"Aegis\\\"\")?"
+---
+record path       name
+----------------  -----
+libs/ships/alpha  Alpha
+libs/ships/beta   Beta
+2 Records

@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_query_references.rs
+expression: "error(\"from Ship select maker->home->nam\")?"
+---
+error: unknown field `nam` of `Planet`; did you mean `name`?
+  from Ship select maker->home->nam
+                                ^^^

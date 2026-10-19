@@ -1,8 +1,8 @@
 use std::ops::ControlFlow;
 
-use crate::build::{element_bytes, pointer, words};
+use crate::build::{element_bytes, pointer, reference_guid, words};
 use crate::query::MAX_PATH_VALUES;
-use crate::query::reader::{Elements, Select, Step, Walk};
+use crate::query::reader::{Elements, Link, Select, Step, Walk};
 use crate::query::schema::ancestors_include;
 use crate::{DataForge, Value, ValueError, ValueKind};
 
@@ -63,6 +63,7 @@ impl<'f> Place<'f> {
 #[derive(Debug)]
 pub(crate) struct WalkState {
     budget: usize,
+    unresolved: Vec<usize>,
 }
 
 impl WalkState {
@@ -70,7 +71,23 @@ impl WalkState {
     pub(crate) const fn new() -> Self {
         Self {
             budget: MAX_PATH_VALUES,
+            unresolved: Vec::new(),
         }
+    }
+
+    /// Returns how many distinct null or dangling links `->` met.
+    pub(crate) const fn unresolved(&self) -> usize {
+        self.unresolved.len()
+    }
+
+    /// Counts the link stored in `bytes`, which `->` cannot follow, once however many paths
+    /// meet it, and returns the null it reaches.
+    fn unresolved_link<'f>(&mut self, bytes: &[u8]) -> Reached<'f> {
+        let at = bytes.as_ptr().addr();
+        if !self.unresolved.contains(&at) {
+            self.unresolved.push(at);
+        }
+        Reached::Value(Value::Null)
     }
 
     /// Counts `elements` more array elements against [`MAX_PATH_VALUES`].
@@ -130,10 +147,14 @@ impl Walk {
                     Ok(bytes) => deref(forge, bytes, declared),
                     Err(error) => Reached::Value(Value::Error(error)),
                 };
-                return match reached {
-                    Reached::Place(target) => self.step(forge, next, target, state, emit),
-                    Reached::Value(value) => Ok(emit(value)),
+                return self.continue_from(forge, next, reached, state, emit);
+            }
+            Step::Follow { at, link, declared } => {
+                let reached = match place.field(forge, *at, link.len()) {
+                    Ok(bytes) => follow(forge, *link, bytes, declared, state),
+                    Err(error) => Reached::Value(Value::Error(error)),
                 };
+                return self.continue_from(forge, next, reached, state, emit);
             }
             Step::Array {
                 at,
@@ -167,6 +188,71 @@ impl Walk {
         }
         Ok(ControlFlow::Continue(()))
     }
+
+    /// Continues at the step `next` from what a pointer or link reached.
+    fn continue_from<'f>(
+        &self,
+        forge: &'f DataForge<'f>,
+        next: usize,
+        reached: Reached<'f>,
+        state: &mut WalkState,
+        emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>,
+    ) -> Result<ControlFlow<()>, ValueError> {
+        match reached {
+            Reached::Place(target) => self.step(forge, next, target, state, emit),
+            Reached::Value(value) => Ok(emit(value)),
+        }
+    }
+}
+
+impl Link {
+    /// Returns the number of bytes the link takes in an instance or pool.
+    const fn len(self) -> u64 {
+        match self {
+            Self::Reference => ValueKind::Reference.element_len() as u64,
+            Self::Weak => HEADER_LEN,
+        }
+    }
+}
+
+/// Follows a Reference to the instance of its Record, or a weak pointer to the instance it
+/// names, when that is an instance of `declared` or of a struct deriving from it; a null or
+/// dangling Reference and a null weak pointer reach null and are counted in `state`.
+fn follow<'f>(
+    forge: &'f DataForge<'f>,
+    link: Link,
+    bytes: &[u8],
+    declared: &[usize],
+    state: &mut WalkState,
+) -> Reached<'f> {
+    if link == Link::Weak {
+        return pointer(bytes).map_or_else(
+            || state.unresolved_link(bytes),
+            |(struct_index, instance_index)| {
+                instance(forge, struct_index, instance_index, declared, |declared| {
+                    ValueError::UnexpectedPointerType {
+                        struct_index,
+                        declared,
+                    }
+                })
+            },
+        );
+    }
+    let Some(record) = reference_guid(bytes).and_then(|guid| forge.record_by_guid(guid)) else {
+        return state.unresolved_link(bytes);
+    };
+    let struct_index = record.def.struct_index;
+    instance(
+        forge,
+        struct_index,
+        u32::from(record.def.instance_index),
+        declared,
+        |declared| ValueError::UnexpectedReferenceType {
+            guid: record.guid(),
+            struct_index,
+            declared,
+        },
+    )
 }
 
 /// Follows a strong pointer to an instance of `declared` or of a struct deriving from it.
@@ -174,6 +260,23 @@ fn deref<'f>(forge: &'f DataForge<'f>, bytes: &[u8], declared: &[usize]) -> Reac
     let Some((struct_index, instance_index)) = pointer(bytes) else {
         return Reached::Value(Value::Null);
     };
+    instance(forge, struct_index, instance_index, declared, |declared| {
+        ValueError::UnexpectedPointerType {
+            struct_index,
+            declared,
+        }
+    })
+}
+
+/// Reaches the instance when it exists and is of `declared` or of a struct deriving from it;
+/// otherwise the error value, with `mismatch` of the declared struct for another struct.
+fn instance<'f>(
+    forge: &'f DataForge<'f>,
+    struct_index: u32,
+    instance_index: u32,
+    declared: &[usize],
+    mismatch: impl FnOnce(u32) -> ValueError,
+) -> Reached<'f> {
     let Some(target) = forge.instance(struct_index, instance_index) else {
         return Reached::Value(Value::Error(ValueError::InvalidPointer {
             struct_index,
@@ -182,10 +285,9 @@ fn deref<'f>(forge: &'f DataForge<'f>, bytes: &[u8], declared: &[usize]) -> Reac
     };
     if !derives(forge, struct_index, declared) {
         let declared = declared.first().copied().unwrap_or_default();
-        return Reached::Value(Value::Error(ValueError::UnexpectedPointerType {
-            struct_index,
-            declared: u32::try_from(declared).unwrap_or(u32::MAX),
-        }));
+        return Reached::Value(Value::Error(mismatch(
+            u32::try_from(declared).unwrap_or(u32::MAX),
+        )));
     }
     Reached::Place(Place::Instance {
         struct_index,

@@ -199,7 +199,7 @@ impl Writer<'_> {
                 let (index, instance) = self.names.get(name).copied().unwrap_or((NULL, NULL));
                 pointer(index, instance)
             }
-            (TestValue::Null, TestType::Reference) => vec![0; 20],
+            (TestValue::Null, TestType::Reference | TestType::ReferenceTo(_)) => vec![0; 20],
             (TestValue::Null, _) => pointer(NULL, NULL),
             (TestValue::Reference(guid), _) => {
                 let mut bytes = Vec::new();

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use p4kx_extraction::ArchiveError;
+use p4kx_extraction::{ArchiveError, EntryReadError};
 use p4kx_settings::SettingsError;
 use thiserror::Error;
 
@@ -47,6 +47,31 @@ pub(crate) enum ToolError {
         /// What failed.
         #[source]
         source: ArchiveError,
+    },
+    /// The Archive holds no Entry with the path.
+    #[error("the Archive holds no Entry `{0}`; search_entries finds Entries by path")]
+    UnknownEntry(String),
+    /// The Entry holds binary data where text was asked for.
+    #[error("the Entry {0} holds binary data, not text; read it with read_entry_bytes")]
+    Binary(String),
+    /// The Entry is too large to decode as text.
+    #[error(
+        "the Entry {path} is too large to read as text: more than {limit} bytes to decode; read it with read_entry_bytes"
+    )]
+    TooLarge {
+        /// The Entry path.
+        path: String,
+        /// The limit in bytes.
+        limit: u64,
+    },
+    /// The Entry content cannot be read.
+    #[error("cannot read the Entry {path}")]
+    Read {
+        /// The Entry path.
+        path: String,
+        /// What failed.
+        #[source]
+        source: EntryReadError,
     },
     /// The settings file with the manual Channel entries cannot be read.
     #[error("cannot read the settings")]

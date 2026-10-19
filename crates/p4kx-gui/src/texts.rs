@@ -9,6 +9,7 @@ mod extraction_text;
 mod image_text;
 mod query_text;
 mod record_change_text;
+mod record_export_text;
 mod text_ids;
 
 pub use change_extraction_text::ChangeExtractionText;
@@ -19,6 +20,7 @@ pub use extraction_text::ExtractionText;
 pub use image_text::ImageText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
+pub use record_export_text::RecordExportText;
 
 use crate::Language;
 
@@ -166,6 +168,8 @@ pub enum Text {
     Image(ImageText),
     /// A text of the Query tab.
     Query(QueryText),
+    /// A text of the Export menu and the Record export windows.
+    RecordExport(RecordExportText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

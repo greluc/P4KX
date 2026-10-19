@@ -212,6 +212,11 @@ query-rows-failed =
         [one] { $number } Record, { $failed } fehlgeschlagen
        *[other] { $number } Records, { $failed } fehlgeschlagen
     }
+query-unresolved =
+    { $count ->
+        [one] , { $number } nicht aufgelöste Referenz
+       *[other] , { $number } nicht aufgelöste Referenzen
+    }
 query-export-csv = CSV exportieren …
 query-export-json = JSON exportieren …
 query-filter-csv = CSV-Datei
@@ -308,3 +313,34 @@ image-decoding = Mip { $level } von { $path } wird dekodiert …
 image-unsupported = Die Vorschau kann Texturen im Format { $format } nicht dekodieren. Die Tabs Text und Hex zeigen die Daten von { $path } weiterhin.
 image-failed = { $path } kann nicht dekodiert werden: { $reason }
 image-unshowable = Jedes Mip von { $path } ist größer, als die Vorschau zeigen kann.
+
+menu-export = Export
+record-export-action = Record-Export …
+record-export-title = Records exportieren
+record-export-scope-heading = Records
+record-export-scope-tree = Im Record-Baum ausgewählt: { $name } ({ $number })
+record-export-scope-tree-none = Im Record-Baum ausgewählt (nichts ausgewählt)
+record-export-scope-filter = Filter nach Record-Pfad
+record-export-filter-hint = Glob mit * oder ?, sonst ein beliebiger Teil des Record-Pfads
+record-export-form-heading = Form
+record-export-form-json = JSON, eine Datei je Record unter seinem Record-Pfad
+record-export-form-ndjson = NDJSON, eine Datei { $name } mit einem Record je Zeile
+record-export-start = Export starten
+record-export-running-title = Exportiere Records
+record-export-reading = Lese DataForge …
+record-export-selecting = Wähle Records aus …
+record-export-progress = { $done } von { $total } Records, { $percent } %
+record-export-summary-title = Record-Export abgeschlossen
+record-export-summary-cancelled-title = Record-Export abgebrochen
+record-export-summary-cancelled = Der Record-Export wurde abgebrochen, bevor alle Records geschrieben waren.
+record-export-summary-counts = Records geschrieben { $written }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
+record-export-summary-errors = Records mit Fehlerwerten: { $erroneous }, Fehlerwerte: { $errors }
+record-export-summary-no-match = Kein Record passt zum Filter.
+record-export-summary-target = Ziel: { $path }
+record-export-summary-file-failed = { $path } lässt sich nicht schreiben: { $reason }
+record-export-summary-failed = Fehlgeschlagen ({ $number })
+record-export-summary-skipped = Übersprungen ({ $number })
+record-export-summary-failure = { $path } ({ $guid }): { $reason }
+record-export-failed-title = Record-Export fehlgeschlagen
+record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
+record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.

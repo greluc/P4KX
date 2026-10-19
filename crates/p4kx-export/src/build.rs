@@ -3,12 +3,13 @@ use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, TreeBuilder,
-    utc_rfc3339,
+    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, RecordTree,
+    TreeBuilder, utc_rfc3339,
 };
 use rayon::prelude::*;
 
 use crate::collected::{Collected, Picked};
+use crate::commodity::resource_type_guid;
 use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
@@ -25,7 +26,9 @@ const PROGRESS_STEP: usize = 1024;
 /// of those, development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)) are counted as
 /// skipped. Names and descriptions resolve in the English and German `global.ini`; a key or a
 /// language the Archive lacks leaves that text `null` and is counted in the summary. An item's
-/// class is read from the `Class:` line of its English description. Entities are ordered by the
+/// class is read from the `Class:` line of its English description, a commodity's missing texts
+/// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
+/// tier. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON.
 ///
 /// # Errors
@@ -64,10 +67,14 @@ pub fn build_catalog(
             manufacturers: completeness,
             items: completeness,
             ships: completeness,
+            commodities: completeness,
+            blueprints: completeness,
         },
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
+        commodities: collected.commodities,
+        blueprints: collected.blueprints,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
     json.push(b'\n');
@@ -100,6 +107,7 @@ fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
 
 /// The parallel check of every Record, with its progress.
 struct Scan<'o, 'a, 'f> {
+    forge: &'f DataForge<'f>,
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     done: AtomicUsize,
@@ -115,6 +123,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let scan = Self {
+            forge,
             options,
             texts,
             done: AtomicUsize::new(0),
@@ -158,7 +167,30 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             return Ok(Some(Picked::Skipped(kind)));
         }
         let tree = trees.build(record).map_err(failed)?;
-        Ok(Some(Picked::entity(kind, &tree, self.texts)))
+        let resource_type = match kind {
+            Kind::Commodities => self.resource_type(trees, &tree).map_err(failed)?,
+            _ => None,
+        };
+        Ok(Some(Picked::entity(
+            kind,
+            &tree,
+            self.texts,
+            resource_type.as_ref(),
+        )))
+    }
+
+    fn resource_type(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        commodity: &RecordTree<'f>,
+    ) -> Result<Option<RecordTree<'f>>, DataForgeError> {
+        let Some(guid) = resource_type_guid(commodity) else {
+            return Ok(None);
+        };
+        self.forge
+            .record_by_guid(guid.0)
+            .map(|record| trees.build(&record))
+            .transpose()
     }
 
     fn tick(&self) {

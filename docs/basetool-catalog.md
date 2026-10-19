@@ -31,6 +31,8 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `manufacturers` | The manufacturers, ordered by GUID |
 | `items` | The items, ordered by GUID |
 | `ships` | The ships and ground vehicles, ordered by GUID |
+| `commodities` | The commodities, ordered by GUID |
+| `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -78,6 +80,44 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 
+A commodity takes its fields from its `EntityClassDefinition`:
+
+| Field | Source |
+|-------|--------|
+| `name` | `SCItemPurchasableParams.displayName` |
+| `description` | `EntityUIDisplayParams.displayDescription` in `StaticEntityClassData` |
+| `typeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to |
+| `subtypeGuid` | The GUID of the first Tag Record in `tags` |
+| `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+
+A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
+`typeGuid` links to (`displayName`, `description`) instead. The game holds no field named type or
+subtype for a commodity; `typeGuid` is the type it is made of and the GUID that the ingredients of
+blueprints give as `resourceGuid`. A field without a value is `null`.
+
+A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
+
+| Field | Source |
+|-------|--------|
+| `className`, `key` | The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`; both hold it |
+| `name` | `blueprintName` |
+| `categoryGuid` | The GUID `category` links to |
+| `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
+| `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
+| `ingredients` | The costs of the first tier, see below |
+
+An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
+`optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
+
+| Field | Meaning |
+|-------|---------|
+| `resourceGuid` | The GUID of the `ResourceType` Record of a resource line, otherwise `null` |
+| `itemGuid` | The GUID of the entity of an item line, otherwise `null` |
+| `quantityScu` | `quantity.standardCargoUnits` of a resource line, otherwise `null` |
+| `quantityUnits` | `quantity` of an item line, otherwise `null` |
+| `minQuality` | `minQuality` |
+| `slot`, `slotKey` | `debugName` and `displayName` of the nearest enclosing selection that has a name; a placeholder `slotKey` is `null` |
+
 Manufacturer GUIDs are always taken from References, never from embedded Records (ADR-0004).
 
 ### Texts
@@ -113,6 +153,12 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` (
 | `manufacturers` | `libs/foundry/records/scitemmanufacturer/` | `SCItemManufacturer` |
 | `items` | `libs/foundry/records/entities/scitem/`, `libs/foundry/records/entities/legacyitems/` | `EntityClassDefinition` |
 | `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
+| `commodities` | `libs/foundry/records/entities/commodities/` | `EntityClassDefinition` |
+| `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
+
+The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record is no recipe. The
+`$templates` folders below it hold real blueprints and stay: the token `templates` is not
+`template`.
 
 An item without an `SAttachableComponentParams` component, such as a door or a shop counter, is
 still an item; its definition fields are then `null` and `tags` is empty.

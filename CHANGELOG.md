@@ -223,6 +223,12 @@ fails while its section is missing.
   is one row with its total size, its parts one level in below it. Checking a row checks all its
   Entries, a search that matches a part shows the whole texture, sorting by size uses the total
   size, and "Selected" and "Shown" extract every part. Parts without a header stay single rows.
+- The long views of the preview and the Comparison scroll with the keyboard: Tab focuses the Text,
+  Hex and Image previews, the line diff, the field list of a Record change and the field list of
+  the Record preview, and the arrow keys, Page Up, Page Down, Home and End scroll them like the XML
+  view.
+- The Extraction summary lists the Records that were not written with their record path, GUID and
+  reason, as it lists failed Entries.
 
 ### Changed
 
@@ -234,12 +240,6 @@ fails while its section is missing.
 - The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
   tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
   icon and header mark, an empty state with an "Open Archive" action.
-- The long views of the preview and the Comparison scroll with the keyboard: Tab focuses the Text,
-  Hex and Image previews, the line diff, the field list of a Record change and the field list of
-  the Record preview, and the arrow keys, Page Up, Page Down, Home and End scroll them like the XML
-  view.
-- The Extraction summary lists the Records that were not written with their record path, GUID and
-  reason, as it lists failed Entries.
 
 ## [0.1.0]
 

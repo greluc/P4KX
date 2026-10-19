@@ -386,7 +386,10 @@
     "asciiCellWidth": 10,
     "asciiColor": "color-gray-1",
     "asciiNonPrintable": ".",
-    "asciiNonPrintableColor": "color-gray-2-text"
+    "asciiNonPrintableColor": "color-gray-2-text",
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the Text and Hex lines; arrows, Page Up, Page Down, Home and End scroll"
   },
   "statusBar": {
     "dsClass": "krt-footer (desktop density)",
@@ -709,6 +712,9 @@
     "rows": "tableRow with zebra and hover, without selection; focusable with focusRing offsetRow, the full text as tooltip on hover and focus",
     "missingValue": "– in color-gray-2-text",
     "errorValue": "Error: reason in color-danger-text",
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the field list; arrows, Page Up, Page Down, Home and End scroll",
     "messages": "previewPanel body: added, removed, moved and equal in color-gray-1, unreadable sides and failures in color-danger-text"
   },
   "queryEditor": {
@@ -803,6 +809,9 @@
       "color": "color-gray-2-text",
       "current": {"borderLeft": 3, "borderColor": "color-primary", "color": "color-white"}
     },
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the lines; arrows, Page Up, Page Down, Home and End scroll",
     "longLines": "clipped per side, one horizontal scroll for both sides",
     "messages": "previewPanel body: binary and too large color-gray-1, failure color-danger-text"
   },
@@ -822,6 +831,10 @@
     "facts": "factsBar without direction: format, size, mips, cubemap faces",
     "selector": "quickFilter, one item per mip labelled with its longer side",
     "focusRingOffset": -3,
+    "decision": "D.27",
+    "pictureFocusRingOffset": -2,
+    "pictureKeyStep": 36,
+    "keyboard": "Tab focuses the picture; arrows scroll by pictureKeyStep, Page Up, Page Down, Home and End scroll",
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
   "slider": {
@@ -889,7 +902,10 @@
     "danglingLink": "error text in color-danger-text, underlined on hover",
     "danglingNotice": "alertDanger above the facts",
     "navigation": "Back and Forward as ghost btn-xs left of Copy; Alt+Left, Alt+Right, mouse back and forward",
-    "focusRingOffset": 2
+    "focusRingOffset": 2,
+    "decision": "D.27",
+    "linesFocusRingOffset": -2,
+    "keyboard": "Tab focuses the field lines; arrows, Page Up, Page Down, Home and End scroll"
   },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},

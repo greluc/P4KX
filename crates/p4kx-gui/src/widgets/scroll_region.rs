@@ -47,12 +47,13 @@ pub(crate) fn show<R>(
     }
     let output = show(area, ui);
     focus_inside(ui.painter(), output.inner_rect, &focus);
-    let stand = Stand {
-        offset: output.state.clamped_offset(),
-        view: output.inner_rect.size(),
-        content: output.content_size,
-    };
-    ui.data_mut(|data| data.insert_temp(stand_id, stand));
+    ui.data_mut(|data| {
+        *data.get_temp_mut_or_default::<Stand>(stand_id) = Stand {
+            offset: output.state.clamped_offset(),
+            view: output.inner_rect.size(),
+            content: output.content_size,
+        };
+    });
     output
 }
 
@@ -72,6 +73,9 @@ fn keyboard_offset(ui: &Ui, stand: Stand, step: f32) -> Option<Vec2> {
     ];
     let mut offset = None;
     ui.input_mut(|input| {
+        if !input.modifiers.is_none() {
+            return;
+        }
         for key in keys {
             if input.consume_key(Modifiers::NONE, key) {
                 let at = offset.unwrap_or(stand.offset);

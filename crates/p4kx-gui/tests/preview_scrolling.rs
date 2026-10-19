@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::time::{Duration, Instant};
 
-use egui::Key;
+use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{Browser, Language, Model, ui};
@@ -136,6 +136,28 @@ fn the_focused_text_view_scrolls_with_the_keyboard() -> TestResult {
         harness.query_by_label("line 0").is_some(),
         "back at the top"
     );
+    Ok(())
+}
+
+#[test]
+fn a_key_with_a_modifier_does_not_scroll_the_focused_region() -> TestResult {
+    let (_folder, mut harness) = opened()?;
+    preview(&mut harness, "lines.txt")?;
+    harness.get_by_label("Text lines").focus();
+    harness.run();
+
+    harness.key_press_modifiers(Modifiers::ALT, Key::ArrowDown);
+    harness.run();
+    harness.key_press_modifiers(Modifiers::SHIFT, Key::PageDown);
+    harness.run();
+    assert!(
+        harness.query_by_label("line 0").is_some(),
+        "Alt and Shift keys leave the region where it is"
+    );
+
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.query_by_label("line 0").is_none(), "a plain key");
     Ok(())
 }
 

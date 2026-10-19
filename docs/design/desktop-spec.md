@@ -322,17 +322,6 @@ wird der Record von einem Thread je Archiv, der DataForge aus dem einen Cache de
 und nur die neueste Anfrage beantwortet; Record-Baum, Abfrage und Record-Export lesen DataForge aus
 demselben Cache, also nur einmal.
 
-**D.27 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine
-`ScrollArea` nur mit Maus und Rad; ohne Tastenbehandlung käme ein Tastaturnutzer über die erste
-Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare Rollfläche
-(`widgets::scroll_region`), wie die Zeilenansicht des XML (D.19): die Tabulatortaste erreicht sie,
-der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name nennt den Inhalt
-(„Textzeilen", „Hexadezimalzeilen", „Bildansicht", „Zeilenunterschiede", „Geänderte Felder",
-„Record-Felder", „Umgewandeltes XML"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
-Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
-zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
-sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
-
 **D.26 Texturgruppen in der Eintragstabelle.** Ein gesplittetes DDS (Kopf `.dds` mit Teilen
 `.dds.N` und Alpha-Tail `.dds.a`/`.dds.Na`) ist eine Zeile mit der Gesamtgröße; der Name steht nach
 dem Chevron-Slot, danach die Teilezahl in `color-gray-2-text` wie die Zusatzspalte der Gruppenzeile
@@ -346,6 +335,17 @@ alle Teile. Sortieren nach Größe nutzt die Gesamtgröße. Teile ohne Kopf blei
 Die Statuszeile („angezeigt", „ausgewählt") und „Angezeigte (N)" zählen Einträge, eine Textur mit
 ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes. Keine
 neuen Maße (`tableRow.textureGroup` im JSON der Spec nennt die benutzten).
+
+**D.27 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine
+`ScrollArea` nur mit Maus und Rad; ohne Tastenbehandlung käme ein Tastaturnutzer über die erste
+Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare Rollfläche
+(`widgets::scroll_region`), wie die Zeilenansicht des XML (D.19): die Tabulatortaste erreicht sie,
+der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name nennt den Inhalt
+(„Textzeilen", „Hexadezimalzeilen", „Bildansicht", „Zeilenunterschiede", „Geänderte Felder",
+„Record-Felder", „Umgewandeltes XML"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
+Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
+zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
+sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

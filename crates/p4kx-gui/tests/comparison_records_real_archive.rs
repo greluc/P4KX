@@ -1,5 +1,5 @@
 //! The Record list of the Comparison tab over two real Archives; runs with `--ignored` when
-//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them.
+//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them, and skips without the second.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -11,7 +11,7 @@ use p4kx_gui::{
     ComparisonView, Language, Model, RecordChangeColumn, RecordChangeView, RecordDetailStatus,
     WorkTab, ui,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use p4kx_testkit::real_archive_pair;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -40,8 +40,10 @@ fn records(tab: &ComparisonTab) -> Option<&RecordChangeView> {
     tab.view().and_then(ComparisonView::records)
 }
 
-fn compared_records() -> Result<Model, Box<dyn Error>> {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
+fn compared_records() -> Result<Option<Model>, Box<dyn Error>> {
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(None);
+    };
     let mut model = Model::new(Language::BritishEnglish);
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
@@ -55,7 +57,7 @@ fn compared_records() -> Result<Model, Box<dyn Error>> {
         return Err("not started".into());
     }
     wait(tab, RUN_BUDGET, |tab| !tab.is_running())?;
-    Ok(model)
+    Ok(Some(model))
 }
 
 fn steady_frame(model: Model) -> Duration {
@@ -77,7 +79,9 @@ fn steady_frame(model: Model) -> Duration {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn two_real_dataforges_list_their_record_changes_and_open_one() -> TestResult {
-    let mut model = compared_records()?;
+    let Some(mut model) = compared_records()? else {
+        return Ok(());
+    };
     let tab = model.comparison_mut();
     assert!(
         matches!(tab.status(), ComparisonStatus::Finished(_)),

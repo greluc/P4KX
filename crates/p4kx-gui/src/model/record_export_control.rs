@@ -24,17 +24,7 @@ impl Model {
     /// not fail to load, and no Record export runs.
     #[must_use]
     pub fn record_export_available(&self) -> bool {
-        let has_dataforge = self
-            .browser
-            .as_ref()
-            .and_then(crate::Browser::records)
-            .is_some_and(|tree| {
-                !matches!(
-                    tree.status(),
-                    RecordTreeStatus::Failed(_) | RecordTreeStatus::ArchiveChanged
-                )
-            });
-        has_dataforge
+        self.has_dataforge()
             && !self
                 .record_export
                 .run

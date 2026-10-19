@@ -12,7 +12,9 @@ use crate::theme::tokens::{FS_SM, FS_XS, TOUCH_TARGET, TRACKING_DISPLAY, Weight,
 use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
-use crate::{ExtractionScope, ExtractionText, Language, Model, RecordExportText, Text, Texts};
+use crate::{
+    CatalogText, ExtractionScope, ExtractionText, Language, Model, RecordExportText, Text, Texts,
+};
 
 /// Shows the header: the brand and the menus.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -35,7 +37,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         MenuBar::new().ui(ui, |ui| {
             ui.spacing_mut().button_padding.x = MENU_LINK_PADDING_X;
             pick = archive_menu(ui, model, requests);
-            if export_menu(ui, model) {
+            if export_menu(ui, model, requests) {
                 pick = Some(Pick::RecordExport);
             }
             let response = ui.menu_button(link(&language_menu), |ui| {
@@ -175,17 +177,22 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
     pick
 }
 
-/// Shows the Export menu; returns whether Record export was picked.
-fn export_menu(ui: &mut Ui, model: &Model) -> bool {
+/// Shows the Export menu; returns whether Record export was picked, and asks for the catalog file
+/// when Basetool catalog was picked.
+fn export_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> bool {
     let texts = model.texts();
     let title = texts.get(RecordExportText::Menu);
     let mut picked = false;
     let response = ui.menu_button(link(&title), |ui| {
         dropdown(ui);
-        let entry = Button::new(entry(&texts.get(RecordExportText::Action)));
+        let record_export = Button::new(entry(&texts.get(RecordExportText::Action)));
         picked = ui
-            .add_enabled(model.record_export_available(), entry)
+            .add_enabled(model.record_export_available(), record_export)
             .clicked();
+        let catalog = Button::new(entry(&texts.get(CatalogText::Action)));
+        if ui.add_enabled(model.catalog_available(), catalog).clicked() {
+            requests.dialog = Some(Dialog::CatalogFile);
+        }
     });
     label(&response.response, &title);
     picked

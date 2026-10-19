@@ -2,6 +2,7 @@ use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
 mod audio_text;
+mod catalog_text;
 mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
@@ -16,6 +17,7 @@ mod text_ids;
 mod xml_text;
 
 pub use audio_text::AudioText;
+pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
@@ -180,6 +182,8 @@ pub enum Text {
     Query(QueryText),
     /// A text of the Export menu and the Record export windows.
     RecordExport(RecordExportText),
+    /// A text of the Basetool catalog windows.
+    Catalog(CatalogText),
     /// A text of the Record preview.
     Record(RecordText),
 }

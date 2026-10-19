@@ -1,7 +1,5 @@
-use p4kx_extraction::Entry;
-
-use crate::folder_tree::{Folder, FolderId};
 use crate::sort::{compare_ignoring_case, file_name};
+use p4kx_extraction::{Entry, EntryTree, FolderId};
 
 /// The bytes an index keeps for each Entry besides the Entry itself: its id in path order, its
 /// position in each sort order, its check mark and its search match.
@@ -22,14 +20,12 @@ pub(crate) fn is_container(path: &str) -> bool {
 
 /// Returns the containers among `sorted`, the Entries in path order, as their folder and id,
 /// sorted by folder and then by name ignoring case.
-pub(super) fn build(sorted: &[&Entry], folders: &[Folder]) -> Vec<(FolderId, u32)> {
+pub(super) fn build(sorted: &[&Entry], tree: &EntryTree) -> Vec<(FolderId, u32)> {
     let mut found: Vec<(FolderId, u32)> = sorted
         .iter()
         .enumerate()
         .filter(|(_, entry)| is_container(entry.path()))
-        .filter_map(|(id, entry)| {
-            Some((folder_of(folders, entry.path())?, u32::try_from(id).ok()?))
-        })
+        .filter_map(|(id, entry)| Some((folder_of(tree, entry.path())?, u32::try_from(id).ok()?)))
         .collect();
     let name = |id: u32| {
         sorted
@@ -50,18 +46,11 @@ pub(super) fn directly_in(containers: &[(FolderId, u32)], folder: FolderId) -> &
     containers.get(start..end).unwrap_or_default()
 }
 
-fn folder_of(folders: &[Folder], path: &str) -> Option<FolderId> {
-    let Some((parent, _)) = path.rsplit_once('\\') else {
-        return Some(FolderId(0));
-    };
-    parent.split('\\').try_fold(FolderId(0), |folder, name| {
-        folders
-            .get(folder.0)?
-            .children()
-            .iter()
-            .copied()
-            .find(|child| folders.get(child.0).is_some_and(|f| f.name() == name))
-    })
+fn folder_of(tree: &EntryTree, path: &str) -> Option<FolderId> {
+    let parent = path
+        .rfind(['\\', '/'])
+        .map_or("", |end| path.get(..end).unwrap_or_default());
+    tree.find_folder(parent)
 }
 
 #[cfg(test)]

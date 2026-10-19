@@ -8,8 +8,6 @@ use crate::record_search::Wake;
 use crate::sort::file_name;
 use crate::{Browser, EntryIndex, FolderId};
 
-const ROOT: FolderId = FolderId(0);
-
 /// A folder of the path tree: a folder of the Archive or of a container. The root folder of a
 /// container stands for the container itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,7 +33,7 @@ impl TreeNode {
     pub const fn container(id: ContainerId) -> Self {
         Self {
             place: Place::Container(id),
-            folder: ROOT,
+            folder: FolderId::ROOT,
         }
     }
 
@@ -43,7 +41,7 @@ impl TreeNode {
     #[must_use]
     pub fn as_container(self) -> Option<ContainerId> {
         match self.place {
-            Place::Container(id) if self.folder == ROOT => Some(id),
+            Place::Container(id) if self.folder == FolderId::ROOT => Some(id),
             _ => None,
         }
     }
@@ -185,7 +183,7 @@ impl Browser {
             return match self.containers.status(id) {
                 ContainerStatus::Open => self
                     .place_index(node.place)
-                    .is_some_and(|index| index.has_children(ROOT)),
+                    .is_some_and(|index| index.has_children(FolderId::ROOT)),
                 ContainerStatus::Closed
                 | ContainerStatus::Opening
                 | ContainerStatus::Failed(
@@ -240,7 +238,9 @@ impl Browser {
             entry = Some(held_in);
         }
         let path = self.index.entry(entry?)?.path();
-        let folder = path.rsplit_once('\\').map_or("", |(folder, _)| folder);
+        let folder = path
+            .rsplit_once(['\\', '/'])
+            .map_or("", |(folder, _)| folder);
         self.index.find_folder(folder)
     }
 

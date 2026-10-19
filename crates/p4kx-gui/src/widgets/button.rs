@@ -6,9 +6,9 @@ use egui::{
 
 use super::text::caps;
 use crate::theme::desktop::{
-    BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT, BUTTON_XS_PADDING_X,
-    BUTTON_XS_SIZE, DISABLED_OPACITY, FOCUS_OFFSET, FOCUS_WIDTH, GHOST_HOVER, OUTLINE_HOVER,
-    TRANSITION,
+    ALERT_DANGER_FILL, BUTTON_HEIGHT, BUTTON_PADDING_X, BUTTON_TRACKING, BUTTON_XS_HEIGHT,
+    BUTTON_XS_PADDING_X, BUTTON_XS_SIZE, DISABLED_OPACITY, FOCUS_OFFSET, FOCUS_WIDTH, GHOST_HOVER,
+    OUTLINE_HOVER, QUIET_DANGER_HOVER, TRANSITION,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
@@ -22,6 +22,10 @@ pub(crate) enum Kind {
     Outline,
     /// `.btn-ghost`, a routine action.
     Ghost,
+    /// `.btn-quiet-danger`, a destructive action that only turns red on hover.
+    QuietDanger,
+    /// `.btn-danger`, the filled red action that confirms a destructive step in a danger modal.
+    Danger,
 }
 
 /// The size of a button.
@@ -55,27 +59,7 @@ pub(crate) struct Look {
 pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
     let none = Color32::TRANSPARENT;
     match (kind, phase) {
-        (Kind::Cta, Phase::Rest) => Look {
-            fill: palette::PRIMARY,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: Some(GLOW_PRIMARY),
-        },
-        (Kind::Cta, Phase::Hover) => Look {
-            fill: palette::ACCENT_LIGHT,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: Some(GLOW_PRIMARY_LG),
-        },
-        (Kind::Cta, Phase::Pressed) => Look {
-            fill: palette::ACCENT_DARK,
-            tint: none,
-            border: none,
-            text: palette::BLACK,
-            glow: None,
-        },
+        (Kind::Cta, phase) => cta(phase),
         (Kind::Outline, Phase::Rest) => Look {
             fill: none,
             tint: none,
@@ -104,11 +88,73 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             text: palette::PRIMARY,
             glow: None,
         },
+        (Kind::QuietDanger, phase) => quiet_danger(phase),
+        (Kind::Danger, phase) => danger(phase),
         (Kind::Outline | Kind::Ghost, Phase::Pressed) => Look {
             fill: palette::CONTROL_BG,
             tint: palette::CONTROL_SELECTED_BG,
             border: palette::PRIMARY,
             text: palette::PRIMARY,
+            glow: None,
+        },
+    }
+}
+
+/// Returns the colours of `.btn-cta` in `phase`.
+const fn cta(phase: Phase) -> Look {
+    let (fill, glow) = match phase {
+        Phase::Rest => (palette::PRIMARY, Some(GLOW_PRIMARY)),
+        Phase::Hover => (palette::ACCENT_LIGHT, Some(GLOW_PRIMARY_LG)),
+        Phase::Pressed => (palette::ACCENT_DARK, None),
+    };
+    Look {
+        fill,
+        tint: Color32::TRANSPARENT,
+        border: Color32::TRANSPARENT,
+        text: palette::BLACK,
+        glow,
+    }
+}
+
+/// Returns the colours of `.btn-danger` in `phase`: `color-danger` with white text, the hover fill
+/// while hovered or pressed.
+const fn danger(phase: Phase) -> Look {
+    let fill = match phase {
+        Phase::Rest => palette::DANGER,
+        Phase::Hover | Phase::Pressed => palette::DANGER_HOVER,
+    };
+    Look {
+        fill,
+        tint: Color32::TRANSPARENT,
+        border: fill,
+        text: palette::WHITE,
+        glow: None,
+    }
+}
+
+/// Returns the colours of `.btn-quiet-danger` in `phase`.
+const fn quiet_danger(phase: Phase) -> Look {
+    let none = Color32::TRANSPARENT;
+    match phase {
+        Phase::Rest => Look {
+            fill: palette::CONTROL_BG,
+            tint: none,
+            border: palette::CONTROL_BORDER,
+            text: palette::GRAY_2_TEXT,
+            glow: None,
+        },
+        Phase::Hover => Look {
+            fill: palette::CONTROL_BG,
+            tint: QUIET_DANGER_HOVER,
+            border: palette::DANGER,
+            text: palette::DANGER_TEXT,
+            glow: None,
+        },
+        Phase::Pressed => Look {
+            fill: palette::CONTROL_BG,
+            tint: ALERT_DANGER_FILL,
+            border: palette::DANGER,
+            text: palette::DANGER_TEXT,
             glow: None,
         },
     }
@@ -164,8 +210,29 @@ pub(crate) fn width(ui: &Ui, size: Size, label: &str) -> f32 {
 /// Shows a button of `kind` and `size` with `label` set in upper case; its accessible name stays
 /// `label`. A disabled button senses no click.
 pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: bool) -> Response {
-    let (height, padding, _) = metrics(size);
     let galley = label_galley(ui, size, label);
+    button_laid(ui, (kind, size), (label, galley), enabled)
+}
+
+/// Returns the width of a button of `size` whose label is laid out as `galley`.
+pub(crate) fn width_of(size: Size, galley: &egui::Galley) -> f32 {
+    let (_, padding, _) = metrics(size);
+    padding.mul_add(2.0, galley.size().x)
+}
+
+/// Lays out `label` as a button of `size` sets it, for [`button_laid`].
+pub(crate) fn laid_label(ui: &Ui, size: Size, label: &str) -> std::sync::Arc<egui::Galley> {
+    label_galley(ui, size, label)
+}
+
+/// Shows a button as [`button`] does with the label laid out before by [`laid_label`].
+pub(crate) fn button_laid(
+    ui: &mut Ui,
+    (kind, size): (Kind, Size),
+    (label, galley): (&str, std::sync::Arc<egui::Galley>),
+    enabled: bool,
+) -> Response {
+    let (height, padding, _) = metrics(size);
     let desired = vec2(padding.mul_add(2.0, galley.size().x), height);
     let sense = if enabled {
         Sense::click()
@@ -194,7 +261,7 @@ pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: 
         .min;
     ui.painter().galley(text_at, galley, colours.text);
     if response.has_focus() {
-        let ring = if kind == Kind::Cta {
+        let ring = if matches!(kind, Kind::Cta | Kind::Danger) {
             palette::WHITE
         } else {
             palette::PRIMARY

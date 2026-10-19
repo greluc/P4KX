@@ -10,6 +10,20 @@ use crate::widgets::indicator::warning_icon;
 use crate::widgets::text::plain;
 use crate::{Extraction, Model, Text};
 
+fn archive_path(model: &Model) -> String {
+    model
+        .browser()
+        .map(|browser| {
+            browser
+                .archive_index()
+                .archive()
+                .path()
+                .display()
+                .to_string()
+        })
+        .unwrap_or_default()
+}
+
 /// Compares the open Archive with the disk when due, keeps the window repainting so that this
 /// happens while it is idle, and shows the warning notice with the reload action once it changed.
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
@@ -37,10 +51,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                         Rect::from_min_size(icon.min, icon.size()),
                         palette::WARNING,
                     );
-                    let path = model
-                        .browser()
-                        .map(|browser| browser.archive_index().archive().path().display().to_string())
-                        .unwrap_or_default();
+                    let path = archive_path(model);
                     let texts = model.texts();
                     let stopped = if model.change_stopped_extraction() {
                         "yes"

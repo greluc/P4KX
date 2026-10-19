@@ -1,13 +1,16 @@
-use std::io;
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::RecentArchives;
+use crate::{RecentArchives, SavedQueries};
 
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
+
+/// The largest settings file read, in bytes; a larger one is an error.
+pub const MAX_SETTINGS_SIZE: u64 = 16 * 1024 * 1024;
 
 /// The persistent settings of P4K-Extractor.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +41,9 @@ pub struct Settings {
     /// The last position and size of the main window, or `None` for the default placement.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowGeometry>,
+    /// The saved Queries.
+    #[serde(skip_serializing_if = "SavedQueries::is_empty")]
+    pub queries: SavedQueries,
 }
 
 /// What a Conversion writes for a DDS texture; the outputs combine.
@@ -113,6 +119,12 @@ pub enum SettingsError {
         #[source]
         source: toml::de::Error,
     },
+    /// The file is, or would be written, larger than [`MAX_SETTINGS_SIZE`].
+    #[error("the settings file {path} is larger than {MAX_SETTINGS_SIZE} bytes")]
+    TooLarge {
+        /// Path of the settings file.
+        path: PathBuf,
+    },
     /// The settings could not be written as TOML.
     #[error("cannot write the settings as TOML")]
     Serialize(#[from] toml::ser::Error),
@@ -130,30 +142,58 @@ impl Settings {
     ///
     /// # Errors
     ///
-    /// Returns a [`SettingsError`] when the file cannot be read or is malformed.
+    /// Returns a [`SettingsError`] when the file cannot be read, is larger than
+    /// [`MAX_SETTINGS_SIZE`] or is malformed.
     pub fn load(file: &Path) -> Result<Self, SettingsError> {
-        let text = match std::fs::read_to_string(file) {
-            Ok(text) => text,
+        let opened = match std::fs::File::open(file) {
+            Ok(opened) => opened,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Self::default()),
             Err(source) => return Err(io_error(file, source)),
         };
+        let mut text = String::new();
+        opened
+            .take(MAX_SETTINGS_SIZE + 1)
+            .read_to_string(&mut text)
+            .map_err(|source| io_error(file, source))?;
+        if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_SETTINGS_SIZE {
+            return Err(SettingsError::TooLarge {
+                path: file.to_path_buf(),
+            });
+        }
         toml::from_str(&text).map_err(|source| SettingsError::Malformed {
             path: file.to_path_buf(),
             source,
         })
     }
 
-    /// Writes the settings to `file`, creating its folder when missing.
+    /// Writes the settings to `file`, creating its folder when missing. The text goes to a
+    /// temporary file next to it first, which then replaces `file`, so a crash never leaves a
+    /// half-written file.
     ///
     /// # Errors
     ///
-    /// Returns a [`SettingsError`] when the folder or the file cannot be written.
+    /// Returns a [`SettingsError`] when the text would be larger than [`MAX_SETTINGS_SIZE`],
+    /// so that it could not be read again, or when the folder or the file cannot be written.
     pub fn save(&self, file: &Path) -> Result<(), SettingsError> {
         let text = toml::to_string(self)?;
+        if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_SETTINGS_SIZE {
+            return Err(SettingsError::TooLarge {
+                path: file.to_path_buf(),
+            });
+        }
         if let Some(folder) = file.parent() {
             std::fs::create_dir_all(folder).map_err(|source| io_error(file, source))?;
         }
-        std::fs::write(file, text).map_err(|source| io_error(file, source))
+        let mut temporary = file.as_os_str().to_owned();
+        temporary.push(format!(".{}.tmp", std::process::id()));
+        let temporary = PathBuf::from(temporary);
+        let written = write_synced(&temporary, text.as_bytes())
+            .and_then(|()| std::fs::rename(&temporary, file));
+        if let Err(source) = written {
+            let _ignored = std::fs::remove_file(&temporary);
+            return Err(io_error(file, source));
+        }
+        Ok(())
     }
 }
 
@@ -202,6 +242,12 @@ fn same_path(stored: &Path, path: &Path) -> bool {
             (std::fs::canonicalize(stored), std::fs::canonicalize(path)),
             (Ok(a), Ok(b)) if a == b
         )
+}
+
+fn write_synced(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let mut file = std::fs::File::create(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
 }
 
 fn io_error(path: &Path, source: io::Error) -> SettingsError {

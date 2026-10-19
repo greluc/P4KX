@@ -59,3 +59,65 @@ fn the_tools_read_a_real_archive() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_dataforge_tools_read_a_real_archive() -> TestResult {
+    let archive = p4kx_testkit::real_archive_path()?;
+    let install = Install::new(Vec::new())?;
+    let path = archive.display().to_string();
+    let mut server = install.serve(&["--archive", &path])?;
+    let ships = server.ok(
+        "search_records",
+        &json!({ "path": "*/spaceships/*", "type": "EntityClassDefinition", "limit": 5 }),
+    )?;
+    assert!(
+        ships["total"].as_u64().is_some_and(|total| total > 50),
+        "many ships: {}",
+        ships["total"]
+    );
+    let guid = ships["records"][0]["guid"].as_str().unwrap_or_default();
+    let record = server.ok("get_record", &json!({ "guid": guid }))?;
+    assert_eq!(
+        record["records"][0]["$type"], "EntityClassDefinition",
+        "the Record JSON"
+    );
+    let record_path = ships["records"][0]["path"].as_str().unwrap_or_default();
+    let at_path = server.ok("get_record", &json!({ "path": record_path }))?;
+    assert!(
+        at_path["total"].as_u64().is_some_and(|total| total >= 1),
+        "the Records at its path"
+    );
+    let structs = server.ok("list_structs", &json!({ "name": "EntityClassDefinition" }))?;
+    assert!(
+        structs["structs"].as_array().is_some_and(|structs| structs
+            .iter()
+            .any(|item| item["name"] == "EntityClassDefinition")),
+        "the struct: {}",
+        structs["total"]
+    );
+    let enums = server.ok("list_enums", &json!({ "limit": 5 }))?;
+    assert!(
+        enums["next_cursor"].as_str().is_some(),
+        "many enums page: {}",
+        enums["total"]
+    );
+    let query = "from EntityClassDefinition at \"libs/foundry/records/entities/spaceships/*\" \
+        select Components[VehicleComponentParams].vehicleName, Components[VehicleComponentParams].crewSize \
+        where Components[VehicleComponentParams].crewSize >= 4";
+    let result = server.ok("run_query", &json!({ "query": query, "limit": 20 }))?;
+    assert!(
+        result["rows"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty()),
+        "the documented Query finds ships: {}",
+        result["total"]
+    );
+    let everything = server.ok("run_query", &json!({ "query": "at \"*\"" }))?;
+    assert!(
+        everything["next_cursor"].as_str().is_some(),
+        "every Record pages: {}",
+        everything["total"]
+    );
+    Ok(())
+}

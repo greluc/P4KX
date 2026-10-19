@@ -120,7 +120,7 @@ pub(crate) fn compare_ignoring_case(a: &str, b: &str) -> Ordering {
 
 /// Returns the file name of an Entry path, the part after the last backslash.
 pub(crate) fn file_name(path: &str) -> &str {
-    path.rsplit('\\').next().unwrap_or(path)
+    path.rsplit(['\\', '/']).next().unwrap_or(path)
 }
 
 fn compare_names(a: Option<&Entry>, b: Option<&Entry>) -> Ordering {

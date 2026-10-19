@@ -16,11 +16,13 @@ pub enum ScrollText {
     Lines,
     /// The rows of the Localisation table.
     Localization,
+    /// The rows of the saved Queries.
+    SavedQueries,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 7] = [
+    pub(crate) const ALL: [Self; 8] = [
         Self::Text,
         Self::Hex,
         Self::Image,
@@ -28,6 +30,7 @@ impl ScrollText {
         Self::Fields,
         Self::Lines,
         Self::Localization,
+        Self::SavedQueries,
     ];
 
     /// Returns the Fluent message id.
@@ -41,6 +44,7 @@ impl ScrollText {
             Self::Fields => "scroll-fields",
             Self::Lines => "scroll-lines",
             Self::Localization => "scroll-localization",
+            Self::SavedQueries => "scroll-saved-queries",
         }
     }
 }

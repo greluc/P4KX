@@ -2,17 +2,17 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use p4kx_extraction::Archive;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{Json, ServerHandler, tool, tool_handler, tool_router};
 use tokio::sync::Semaphore;
 
-use crate::archives::Archives;
+use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
 use crate::locate::Locations;
+use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
@@ -23,7 +23,9 @@ const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Ci
 An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
 of a .p4k file; without one the tools use the Archive the server was started with. Listings \
 page: pass next_cursor back as cursor for the next page. Entry content is read in ranges: pass \
-next_offset back as offset for the next range.";
+next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
+list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
+gives the type and field names a Query uses.";
 
 /// The MCP server: read-only tools over the detected Channels and their Archives.
 #[derive(Debug, Clone)]
@@ -56,7 +58,10 @@ impl Server {
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
             )),
             whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
-            tool_router: Self::tool_router() + Self::content_router(),
+            tool_router: Self::tool_router()
+                + Self::content_router()
+                + Self::record_router()
+                + Self::query_router(),
         }
     }
 
@@ -65,8 +70,40 @@ impl Server {
         Arc::clone(&self.whole_text)
     }
 
+    /// Reads the DataForge of the Archive `archive` names if that has not happened yet. It waits
+    /// on the blocking pool without a worker permit, so calls waiting for the read do not keep
+    /// the workers from unrelated tools.
+    pub(crate) async fn preload(&self, archive: Option<String>) -> Result<(), String> {
+        let state = Arc::clone(&self.state);
+        let outcome = tokio::task::spawn_blocking(move || {
+            state.archive(archive.as_deref())?.load_dataforge()
+        })
+        .await;
+        match outcome {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => Err(error.message()),
+            Err(_) => Err(ToolError::Stopped.message()),
+        }
+    }
     /// Runs `work` on the blocking pool, at most one call per CPU at a time.
     pub(crate) async fn run<T, F>(&self, work: F) -> Result<Json<T>, String>
+    where
+        T: Send + 'static,
+        F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
+    {
+        self.run_plain(work).await.map(Json)
+    }
+
+    /// Like [`Server::run`], with the key order of the result kept in its text content.
+    pub(crate) async fn run_ordered<T, F>(&self, work: F) -> Result<Ordered<T>, String>
+    where
+        T: Send + 'static,
+        F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
+    {
+        self.run_plain(work).await.map(Ordered)
+    }
+
+    async fn run_plain<T, F>(&self, work: F) -> Result<T, String>
     where
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
@@ -82,7 +119,7 @@ impl Server {
         })
         .await;
         match outcome {
-            Ok(Ok(value)) => Ok(Json(value)),
+            Ok(Ok(value)) => Ok(value),
             Ok(Err(error)) => Err(error.message()),
             Err(_) => Err(ToolError::Stopped.message()),
         }
@@ -91,7 +128,7 @@ impl Server {
 
 impl State {
     /// Returns the Archive `archive` names, or the default Archive when it is `None`.
-    pub(crate) fn archive(&self, archive: Option<&str>) -> Result<Arc<Archive>, ToolError> {
+    pub(crate) fn archive(&self, archive: Option<&str>) -> Result<Arc<Opened>, ToolError> {
         let path = match archive {
             Some(text) => self.locations.resolve(text)?,
             None => self.default_archive.clone().ok_or(ToolError::NoArchive)?,
@@ -147,8 +184,8 @@ impl Server {
         Parameters(params): Parameters<ArchiveParams>,
     ) -> Result<Json<ArchiveInfo>, String> {
         self.run(move |state| {
-            let archive = state.archive(params.archive.as_deref())?;
-            Ok(entries::info(&archive))
+            let opened = state.archive(params.archive.as_deref())?;
+            Ok(entries::info(opened.archive()))
         })
         .await
     }
@@ -173,16 +210,10 @@ impl Server {
                 params.folder.as_deref().unwrap_or_default(),
                 MAX_PATH_LEN,
             )?;
-            let archive = state.archive(params.archive.as_deref())?;
-            let listing = (
-                "list_entries",
-                archive.path(),
-                archive.file_len(),
-                archive.file_modified(),
-                folder,
-            );
+            let opened = state.archive(params.archive.as_deref())?;
+            let listing = ("list_entries", opened.version(), folder);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::list(&archive, folder, page)
+            entries::list(&opened, folder, page)
         })
         .await
     }
@@ -203,16 +234,10 @@ impl Server {
     ) -> Result<Json<SearchResult>, String> {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
-            let archive = state.archive(params.archive.as_deref())?;
-            let listing = (
-                "search_entries",
-                archive.path(),
-                archive.file_len(),
-                archive.file_modified(),
-                filter,
-            );
+            let opened = state.archive(params.archive.as_deref())?;
+            let listing = ("search_entries", opened.version(), filter);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::search(&archive, filter, page)
+            entries::search(opened.archive(), filter, page)
         })
         .await
     }

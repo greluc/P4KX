@@ -4,5 +4,6 @@
 mod browsing;
 mod budget;
 mod entries;
+mod folding;
 mod socpak;
 mod window;

@@ -14,6 +14,35 @@ pub(crate) fn relative_path(entry_path: &str) -> Option<PathBuf> {
     Some(relative)
 }
 
+/// Returns the Entry path to extract for stored path bytes that are not UTF-8: the valid text as
+/// it is, `%` as `%25` and every invalid byte as `%` and two upper-case hex digits.
+///
+/// Different byte strings never give the same name, which the lossy path of the Entry does not
+/// guarantee; [`relative_path`] still checks the result.
+pub(crate) fn escaped_raw_path(raw: &[u8]) -> String {
+    let mut path = String::with_capacity(raw.len());
+    for chunk in raw.utf8_chunks() {
+        for character in chunk.valid().chars() {
+            if character == '%' {
+                path.push_str("%25");
+            } else {
+                path.push(character);
+            }
+        }
+        for byte in chunk.invalid() {
+            path.extend(['%', hex_digit(byte >> 4), hex_digit(byte & 0x0F)]);
+        }
+    }
+    path
+}
+
+fn hex_digit(value: u8) -> char {
+    b"0123456789ABCDEF"
+        .get(usize::from(value))
+        .copied()
+        .map_or('0', char::from)
+}
+
 /// Returns whether two Entry paths are equal when ASCII case and the separator kind are ignored.
 pub(crate) fn same_entry_path(left: &str, right: &str) -> bool {
     let separator = |byte: u8| byte == b'\\' || byte == b'/';
@@ -48,8 +77,27 @@ fn is_device_name(part: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::relative_path;
+    use super::{escaped_raw_path, relative_path};
     use std::path::PathBuf;
+
+    #[test]
+    fn raw_paths_escape_invalid_bytes_and_percent_signs_without_collisions() {
+        assert_eq!(escaped_raw_path(b"Data\\caf\xE9.txt"), "Data\\caf%E9.txt");
+        assert_eq!(escaped_raw_path(b"a\xFF\xFE"), "a%FF%FE");
+        assert_eq!(escaped_raw_path(b"a%E9\xC3"), "a%25E9%C3");
+        assert_ne!(escaped_raw_path(b"a\xE9"), escaped_raw_path(b"a\xE8"));
+        assert_ne!(
+            escaped_raw_path(b"a\xE9"),
+            escaped_raw_path(b"a%E9\xC3\xA9"),
+            "a literal percent sign cannot imitate an escape"
+        );
+    }
+
+    #[test]
+    fn escaped_raw_paths_that_traverse_are_still_rejected() {
+        assert_eq!(relative_path(&escaped_raw_path(b"..\\\xFF\\..")), None);
+        assert_eq!(relative_path(&escaped_raw_path(b"a\\..")), None);
+    }
 
     #[test]
     fn plain_entry_paths_map_to_nested_relative_paths() {

@@ -2,6 +2,7 @@ use std::io::Read;
 
 use crate::entry_reader;
 use crate::format_error::FormatError;
+use crate::issue::{Directory, Issues};
 use crate::source::Source;
 use crate::{Compression, Entry};
 
@@ -50,10 +51,17 @@ pub(crate) fn source_of(
 
 /// Checks the Entries of the container in `source` against the limits, leaves out folder
 /// Entries and writes their paths with backslashes.
-pub(crate) fn admit(entries: Vec<Entry>, source: &Source) -> Result<Vec<Entry>, FormatError> {
-    let mut admitted = Vec::with_capacity(entries.len());
-    for mut entry in entries {
+pub(crate) fn admit(directory: Directory, source: &Source) -> Result<Directory, FormatError> {
+    let mut admitted = Vec::with_capacity(directory.entries.len());
+    let mut issues = Issues::with_capacity(directory.issues.len());
+    let mut pending = directory.issues.into_iter().peekable();
+    for (position, mut entry) in directory.entries.into_iter().enumerate() {
+        let index = admitted.len();
+        while let Some((_, issue)) = pending.next_if(|(at, _)| *at == position) {
+            issues.push((index, issue));
+        }
         if entry.path.ends_with(['\\', '/']) && entry.uncompressed_size == 0 {
+            issues.retain(|(at, _)| *at != index);
             continue;
         }
         check_sizes(&entry)?;
@@ -63,7 +71,10 @@ pub(crate) fn admit(entries: Vec<Entry>, source: &Source) -> Result<Vec<Entry>, 
         admitted.push(entry);
     }
     check_disjoint(&admitted, source)?;
-    Ok(admitted)
+    Ok(Directory {
+        entries: admitted,
+        issues,
+    })
 }
 
 fn check_sizes(entry: &Entry) -> Result<(), FormatError> {

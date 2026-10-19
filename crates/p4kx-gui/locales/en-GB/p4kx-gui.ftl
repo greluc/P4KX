@@ -68,6 +68,11 @@ archive-changed =
         [yes] { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
        *[no] { $path } changed on disk, probably updated by the RSI Launcher. Reload the Archive to extract or preview Entries again.
     }
+archive-issues =
+    { $kind ->
+        [one] One Entry of the Archive has a defect. It stays listed, but its data may not be readable; `p4kx info` names it.
+       *[other] { $count } Entries of the Archive have defects. They stay listed, but their data may not be readable; `p4kx info` names them.
+    }
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…

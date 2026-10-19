@@ -87,6 +87,8 @@ fn archive_info_by_channel_name_summarises_the_archive() -> TestResult {
             },
             "entry_count": 6,
             "encrypted_count": 1,
+            "issue_count": 0,
+            "issues": [],
             "compressed_size": info["compressed_size"],
             "size": 4 + 80 + 50 + 3 + 3 + 5
         }),

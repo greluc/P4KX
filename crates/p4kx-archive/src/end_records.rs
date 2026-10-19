@@ -36,24 +36,68 @@ pub(crate) fn locate_directory(source: &Source) -> Result<DirectoryLocation, For
     let tail = source.read_at(tail_start, usize::try_from(tail_len).unwrap_or(usize::MAX))?;
     let end_index = find_end_record(&tail).ok_or(FormatError::NotAnArchive)?;
     let end_offset = tail_start + end_index as u64;
-    if let Some(zip64_end_offset) = read_zip64_locator(source, end_offset)? {
+    if let Some(zip64_end_offset) = find_zip64_locator(source, &tail, end_index, tail_start)? {
         return read_zip64_end(source, zip64_end_offset);
     }
     let end = tail.get(end_index..).unwrap_or_default();
     read_plain_end(end, end_offset)
 }
 
-fn read_zip64_locator(source: &Source, end_offset: u64) -> Result<Option<u64>, FormatError> {
-    let Some(locator_offset) = end_offset.checked_sub(ZIP64_LOCATOR_LEN as u64) else {
+/// Returns the offset of the ZIP64 end record the locator before the end record at `end_index` of
+/// `tail` points to. The locator is expected right before the end record; when it is not, it is
+/// searched backwards through the rest of `tail`, and only a locator whose target carries the
+/// ZIP64 end record signature counts.
+fn find_zip64_locator(
+    source: &Source,
+    tail: &[u8],
+    end_index: usize,
+    tail_start: u64,
+) -> Result<Option<u64>, FormatError> {
+    let end_offset = tail_start + end_index as u64;
+    if let Some(locator_offset) = end_offset.checked_sub(ZIP64_LOCATOR_LEN as u64) {
+        let locator = source.read_at(locator_offset, ZIP64_LOCATOR_LEN)?;
+        if let Some(target) = locator_target(&locator, 0, locator_offset) {
+            return Ok(Some(target));
+        }
+    }
+    let Some(adjacent) = end_index.checked_sub(ZIP64_LOCATOR_LEN) else {
         return Ok(None);
     };
-    let locator = source.read_at(locator_offset, ZIP64_LOCATOR_LEN)?;
-    let mut reader = ByteReader::with_base(&locator, locator_offset);
-    if reader.read_u32()? != ZIP64_LOCATOR_SIGNATURE {
-        return Ok(None);
+    let signature = ZIP64_LOCATOR_SIGNATURE.to_le_bytes();
+    for start in (0..adjacent).rev() {
+        if tail.get(start..start + signature.len()) != Some(signature.as_slice()) {
+            continue;
+        }
+        let Some(target) = locator_target(tail, start, tail_start) else {
+            continue;
+        };
+        let locator_offset = tail_start + start as u64;
+        if target < locator_offset && has_zip64_end_signature(source, target)? {
+            return Ok(Some(target));
+        }
     }
-    reader.skip(ZIP64_LOCATOR_DISK_LEN)?;
-    Ok(Some(reader.read_u64()?))
+    Ok(None)
+}
+
+fn locator_target(tail: &[u8], start: usize, tail_start: u64) -> Option<u64> {
+    let locator = tail.get(start..start + ZIP64_LOCATOR_LEN)?;
+    let mut reader = ByteReader::with_base(locator, tail_start + start as u64);
+    if reader.read_u32().ok()? != ZIP64_LOCATOR_SIGNATURE {
+        return None;
+    }
+    reader.skip(ZIP64_LOCATOR_DISK_LEN).ok()?;
+    reader.read_u64().ok()
+}
+
+fn has_zip64_end_signature(source: &Source, offset: u64) -> Result<bool, FormatError> {
+    let signature = ZIP64_END_SIGNATURE.to_le_bytes();
+    if offset
+        .checked_add(signature.len() as u64)
+        .is_none_or(|end| end > source.len())
+    {
+        return Ok(false);
+    }
+    Ok(source.read_at(offset, signature.len())? == signature)
 }
 
 fn read_plain_end(end: &[u8], offset: u64) -> Result<DirectoryLocation, FormatError> {

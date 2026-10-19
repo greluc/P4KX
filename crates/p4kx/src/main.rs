@@ -32,6 +32,7 @@ mod entity_json;
 mod exit;
 mod extract;
 mod info;
+mod issues;
 mod json;
 mod list;
 mod loc;

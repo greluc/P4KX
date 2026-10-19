@@ -20,6 +20,7 @@ mod entry_reader;
 mod error;
 mod file_source;
 mod format_error;
+mod issue;
 mod layout;
 mod source;
 
@@ -34,3 +35,4 @@ pub use data_error::DataError;
 pub use entry::Entry;
 pub use entry_reader::EntryReader;
 pub use error::ArchiveError;
+pub use issue::EntryIssue;

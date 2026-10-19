@@ -9,7 +9,7 @@ use p4kx_archive::{Archive, Checksum, Entry};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
-use crate::entry_path::relative_path;
+use crate::entry_path::{escaped_raw_path, relative_path};
 use crate::tracker::Tracker;
 use crate::{ConflictPolicy, ExtractionError, TextureConversion};
 
@@ -150,7 +150,14 @@ impl EntryWriter<'_> {
 
     /// Creates the folder of `entry` below the target and returns where its file goes.
     pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
-        let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
+        let relative = self
+            .archive
+            .raw_path(entry)
+            .map_or_else(
+                || relative_path(entry.path()),
+                |raw| relative_path(&escaped_raw_path(raw)),
+            )
+            .ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
         Destination::new(folder, name)

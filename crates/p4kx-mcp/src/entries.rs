@@ -3,7 +3,11 @@ use p4kx_extraction::{Archive, Filter};
 use crate::archives::Opened;
 use crate::error::ToolError;
 use crate::page::Page;
-use crate::shapes::{ArchiveInfo, BuildShape, EntryShape, FolderItem, FolderResult, SearchResult};
+use crate::shapes::{
+    ArchiveInfo, BuildShape, EntryShape, FolderItem, FolderResult, IssueShape, SearchResult,
+};
+
+const MAX_SHOWN_ISSUES: usize = 50;
 
 /// Returns the summary of `archive`.
 pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
@@ -24,6 +28,20 @@ pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
         build: archive.build().map(BuildShape::from),
         entry_count: entries.len(),
         encrypted_count,
+        issue_count: archive.issues().len(),
+        issues: archive
+            .issues()
+            .iter()
+            .take(MAX_SHOWN_ISSUES)
+            .map(|(index, issue)| IssueShape {
+                path: archive
+                    .entries()
+                    .get(*index)
+                    .map(|entry| entry.path().to_owned())
+                    .unwrap_or_default(),
+                issue: issue.to_string(),
+            })
+            .collect(),
         compressed_size,
         size,
     }

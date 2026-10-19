@@ -6,7 +6,8 @@ use crate::{BankError, SectionId};
 
 const OBJECT_HEADER_LEN: usize = 5;
 const ID_LEN: usize = 4;
-const FIRST_SOUND_CACHE_ID_VERSION: u32 = 150;
+const FIRST_SOUND_VERSION: u32 = 150;
+const LAST_SOUND_WITHOUT_CACHE_ID_VERSION: u32 = 150;
 const CONTAINER_VERSION: u32 = 154;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
@@ -238,17 +239,31 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
     Ok(objects)
 }
 
+/// Returns whether a Sound object or a music track playlist item of a bank of `version` carries
+/// a `cacheID` before its in-memory media size.
+pub(crate) const fn has_cache_id(version: u32) -> bool {
+    version > LAST_SOUND_WITHOUT_CACHE_ID_VERSION
+}
+
+/// Decodes the fields of an object after its ID, by the layout of the bank `version`.
+///
+/// A Sound object is decoded from version 150 on: the plug-in ID, the storage byte and the source
+/// ID; from version 151 on a `cacheID` follows the source ID, and the in-memory media size comes
+/// last. An Action and an Event are decoded for every supported version, a container only in
+/// version 154; any other object, and a Sound of an older version, stays raw.
 fn value(
     kind: HircKind,
     version: u32,
     fields: &mut SectionReader<'_>,
 ) -> Result<HircValue, BankError> {
     Ok(match kind {
-        HircKind::Sound if version >= FIRST_SOUND_CACHE_ID_VERSION => {
+        HircKind::Sound if version >= FIRST_SOUND_VERSION => {
             let plugin_id = fields.u32()?;
             let storage = MediaStorage::from_byte(fields.u8()?);
             let source_id = fields.u32()?;
-            let _cache_id = fields.u32()?;
+            if has_cache_id(version) {
+                fields.u32()?;
+            }
             let in_memory_size = fields.u32()?;
             HircValue::Sound(SoundSource {
                 plugin_id,

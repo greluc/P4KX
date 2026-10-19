@@ -49,6 +49,12 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
+  versions from 151 on write before the in-memory media size, so the media size was read one field
+  late. Star Citizen's version 154 banks were not affected.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

@@ -2,6 +2,8 @@
 
 mod archive_change;
 mod archive_picker;
+mod audio_controls;
+mod audio_preview;
 mod channels;
 mod comparison;
 mod comparison_diff;
@@ -18,6 +20,7 @@ mod empty;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod hex_view;
 mod image_preview;
 mod licence;
 mod menu;
@@ -39,6 +42,8 @@ mod shortcuts;
 mod status;
 mod table;
 mod tree;
+mod xml_preview;
+mod xml_view;
 
 use std::path::PathBuf;
 

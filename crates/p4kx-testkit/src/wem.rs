@@ -16,6 +16,9 @@ pub enum TestCodec {
     Vorbis,
     /// Any other format tag with a 24-byte `fmt` chunk holding the sample count at offset `0x18`.
     Tag(u16),
+    /// An Opus format tag: the 16 bytes every `fmt` chunk has, no sample size unless a block
+    /// alignment is set, then the [`TestWem::fmt_extension`] bytes.
+    Opus(u16),
 }
 
 /// A synthetic Wwise WEM: a RIFF (or big-endian RIFX) file with a `fmt` chunk, optional extra
@@ -30,6 +33,7 @@ pub struct TestWem {
     big_endian: bool,
     chunks: Vec<([u8; 4], Vec<u8>)>,
     vorbis_fields: Vec<u8>,
+    extension: Vec<u8>,
     data: Vec<u8>,
 }
 
@@ -47,6 +51,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             vorbis_fields: Vec::new(),
+            extension: Vec::new(),
             data: samples
                 .iter()
                 .flat_map(|sample| sample.to_le_bytes())
@@ -66,6 +71,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             vorbis_fields: Vec::new(),
+            extension: Vec::new(),
             data: (0..=255).collect(),
         }
     }
@@ -113,6 +119,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             vorbis_fields: Vec::new(),
+            extension: Vec::new(),
             data,
         }
     }
@@ -143,6 +150,13 @@ impl TestWem {
     #[must_use]
     pub fn vorbis_fields(mut self, fields: impl Into<Vec<u8>>) -> Self {
         self.vorbis_fields = fields.into();
+        self
+    }
+
+    /// Sets the bytes an Opus `fmt` chunk holds from offset `0x10`, written as given.
+    #[must_use]
+    pub fn fmt_extension(mut self, extension: impl Into<Vec<u8>>) -> Self {
+        self.extension = extension.into();
         self
     }
 
@@ -189,6 +203,7 @@ impl TestWem {
             TestCodec::WwisePcm => (FMT_EXTENSIBLE, 16),
             TestCodec::Vorbis => (0xFFFF, 0),
             TestCodec::Tag(tag) => (tag, 4),
+            TestCodec::Opus(tag) => (tag, if self.block_align == 0 { 0 } else { 16 }),
         };
         let mut fmt = Vec::new();
         self.put_u16(&mut fmt, tag);
@@ -200,6 +215,7 @@ impl TestWem {
         self.put_u16(&mut fmt, bits);
         match self.codec {
             TestCodec::Pcm => {}
+            TestCodec::Opus(_) => fmt.extend_from_slice(&self.extension),
             TestCodec::PcmWithExtension => self.put_u16(&mut fmt, 0),
             TestCodec::WwisePcm => {
                 self.put_u16(&mut fmt, 6);

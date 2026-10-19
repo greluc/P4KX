@@ -24,6 +24,7 @@ mod dcb_export;
 mod dcb_query;
 mod diff;
 mod entity;
+mod entity_audio;
 mod entity_json;
 mod exit;
 mod extract;

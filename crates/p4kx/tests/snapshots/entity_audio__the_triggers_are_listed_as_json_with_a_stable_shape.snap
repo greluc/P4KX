@@ -1,0 +1,126 @@
+---
+source: crates/p4kx/tests/entity_audio.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "counts": {
+    "matched": 3,
+    "triggers": 5,
+    "unmatched": 2
+  },
+  "entity": {
+    "class_name": "TEST_Ship",
+    "guid": "0079c5d5-1678-4f8c-85ba-18ca8f642af6",
+    "name": "EntityClassDefinition.TEST_Ship",
+    "record_path": "libs/foundry/records/entities/spaceships/test_ship"
+  },
+  "entry": "Data\\Game2.dcb",
+  "issues": [],
+  "triggers": [
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
+      "events": [
+        {
+          "id": 2588973845,
+          "localised": false,
+          "name": "Play_Engine_Loop",
+          "soundbanks": [
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Ship.bnk"
+            }
+          ]
+        },
+        {
+          "id": 22899349,
+          "localised": false,
+          "name": "Play_Engine_Tail",
+          "soundbanks": [
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Ship.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggers[0].audioTrigger",
+      "name": "Play_Engine",
+      "references": 2,
+      "unmatched": null
+    },
+    {
+      "definition": null,
+      "events": [],
+      "location": "Components[0].triggers[1].audioTrigger",
+      "name": "Play_Undefined",
+      "references": 1,
+      "unmatched": {
+        "kind": "no_definition",
+        "message": "no ATL definition has the trigger"
+      }
+    },
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
+      "events": [
+        {
+          "id": 950752116,
+          "localised": false,
+          "name": "Play_In_No_Bank",
+          "soundbanks": []
+        }
+      ],
+      "location": "Components[0].triggers[2].audioTrigger",
+      "name": "Play_Nowhere",
+      "references": 1,
+      "unmatched": {
+        "kind": "no_soundbank",
+        "message": "no soundbank holds the Wwise event"
+      }
+    },
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Voice.xml",
+      "events": [
+        {
+          "id": 259184823,
+          "localised": true,
+          "name": "Play_DX_Hello",
+          "soundbanks": [
+            {
+              "language": "English(US)",
+              "path": "Data\\Sounds\\wwise\\English(US)\\Voice.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggers[3].audioTrigger",
+      "name": "Play_Voice",
+      "references": 1,
+      "unmatched": null
+    },
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
+      "events": [
+        {
+          "id": 1958147595,
+          "localised": false,
+          "name": "Play_Shield_Up",
+          "soundbanks": [
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Shared.bnk"
+            },
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Ship.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggerEffects[0].audio.audioTrigger",
+      "name": "Play_Shield",
+      "references": 1,
+      "unmatched": null
+    }
+  ]
+}

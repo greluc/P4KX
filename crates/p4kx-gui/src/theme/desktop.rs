@@ -228,6 +228,8 @@ pub const SCROLL_THUMB_MIN: f32 = 32.0;
 
 /// The width of the focus ring.
 pub const FOCUS_WIDTH: f32 = 2.0;
+/// The thickness of a hairline, e.g. the underline of a hovered link.
+pub const HAIRLINE: f32 = 1.0;
 /// The gap between a control and its focus ring.
 pub const FOCUS_OFFSET: f32 = 2.0;
 /// The opacity of a disabled control.

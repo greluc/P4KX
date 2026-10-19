@@ -27,6 +27,18 @@ pub enum TestNormals {
     Float,
     /// An `IVOQTANGENTS` stream of a packed tangent and bitangent per vertex.
     Compressed,
+    /// An `IVONORMALS` stream of three 32-bit floats per vertex.
+    FloatOnNormals,
+    /// An `IVONORMALS` stream of one packed unit vector per vertex.
+    PackedOnNormals,
+    /// An `IVONORMALS2` stream of one packed unit vector per vertex.
+    PackedOnNormals2,
+    /// An `IVOQTANGENTS` stream of the true normals followed by an `IVONORMALS2` stream of packed
+    /// vectors that point the other way.
+    CompressedWithOpposedPacked,
+    /// An `IVOTANGENTS` stream of 16 bytes per vertex: two quaternions of four signed 16-bit
+    /// values, the first rotating the Z axis onto the normal.
+    Tangents16,
     /// No normal stream.
     None,
 }

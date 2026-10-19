@@ -91,6 +91,14 @@ fails while its section is missing.
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 
+### Fixed
+
+- Mesh streams: both normal tags now take 4-byte packed and 12-byte float vectors, and a
+  16-byte tangent stream (two quaternions) gives normals, so a mesh that stores only such a
+  stream keeps its normals. The packed vectors of the second normal tag rank last: in LIVE they
+  disagree with the tangent frames of the 17,902 meshes that hold both, so no exported model
+  changes.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

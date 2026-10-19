@@ -113,7 +113,8 @@ impl<B: AsRef<[u8]>> Wem<B> {
     }
 
     /// Returns the loop of a looping sound: the first forward loop of its `smpl` chunk, when it
-    /// is non-empty and ends within the known sample count.
+    /// is non-empty and ends within the known sample count. A raw end of 0 loops to the end of
+    /// the sound. A `smpl` chunk after the `data` chunk is ignored.
     #[must_use]
     pub const fn loop_points(&self) -> Option<Loop> {
         self.loop_points

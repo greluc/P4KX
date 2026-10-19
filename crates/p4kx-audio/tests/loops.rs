@@ -84,6 +84,24 @@ fn a_truncated_or_overcounted_smpl_chunk_gives_no_loop_and_no_panic() -> TestRes
 }
 
 #[test]
+fn a_raw_end_of_zero_loops_to_the_end_of_the_sound() -> TestResult {
+    for start in [0, 100] {
+        let wem = Wem::parse(pcm().smpl_loop(0, start, 0).bytes())?;
+        assert_eq!(
+            wem.loop_points(),
+            Some(Loop {
+                start: u64::from(start),
+                end: u64::from(FRAMES)
+            }),
+            "start {start}"
+        );
+    }
+    let at_end = Wem::parse(pcm().smpl_loop(0, FRAMES, 0).bytes())?;
+    assert_eq!(at_end.loop_points(), None, "an empty loop at the end");
+    Ok(())
+}
+
+#[test]
 fn a_sound_without_a_known_sample_count_has_no_loop() -> TestResult {
     let wem = TestWem::encoded(TestCodec::Tag(0xAAC0), 1, 48_000, 960).smpl_loop(0, 0, 99);
 

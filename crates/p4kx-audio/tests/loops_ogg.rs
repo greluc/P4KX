@@ -151,6 +151,40 @@ fn a_looping_wwise_opus_wem_gets_loop_tags() -> TestResult {
 }
 
 #[test]
+fn opus_loop_tags_count_frames_after_a_nonzero_pre_skip() -> TestResult {
+    let sound = TestOpus::new(TestOpusFraming::Wwise, 2, OPUS_FRAMES);
+    let pre_skip = sound.packets()?.pre_skip;
+    let bytes = sound.wem()?.smpl_loop(0, 480, 4_799).bytes();
+    let mut ogg = Vec::new();
+
+    let report = Wem::parse(bytes.as_slice())?.write_ogg(&mut ogg)?;
+
+    assert!(pre_skip > 0, "the encoder delays the signal");
+    let packets = pages::packets(&pages::pages(&ogg)?);
+    let head = packets.first().map(|(packet, _)| packet.as_slice());
+    assert_eq!(
+        head.and_then(|head| head.get(10..12)),
+        Some(&pre_skip.to_le_bytes()[..]),
+        "OpusHead holds the pre-skip"
+    );
+    let (_, list) = opus_tags(&ogg)?;
+    assert_eq!(
+        list,
+        ["LOOPSTART=480", "LOOPLENGTH=4320"],
+        "the pre-skip is not added"
+    );
+    assert_eq!(
+        report.loop_points,
+        Some(Loop {
+            start: 480,
+            end: 4_800
+        }),
+        "the report names the loop in frames after the pre-skip"
+    );
+    Ok(())
+}
+
+#[test]
 fn ogg_opus_in_a_wem_keeps_its_own_tags_and_gains_the_loop_tags() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Ogg, 1, OPUS_FRAMES);
     let plain = sound.wem()?.bytes();

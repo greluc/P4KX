@@ -58,7 +58,10 @@ impl Loop {
                     return None;
                 }
                 let start = u64::from(order.u32_at(entry, LOOP_START_OFFSET)?);
-                let end = u64::from(order.u32_at(entry, LOOP_END_OFFSET)?) + 1;
+                let end = match order.u32_at(entry, LOOP_END_OFFSET)? {
+                    0 => frames,
+                    last => u64::from(last) + 1,
+                };
                 Some(Self { start, end }).filter(|found| found.fits(frames))
             })
     }

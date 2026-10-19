@@ -149,8 +149,8 @@ impl TestWem {
         self
     }
 
-    /// Adds a sample loop of kind (0 forward) from frame start to the inclusive frame nd,
-    /// written as a standard smpl chunk in the file's byte order after the mt chunk.
+    /// Adds a sample loop of `kind` (0 forward) from frame `start` to the inclusive frame `end`,
+    /// written as a standard `smpl` chunk in the file's byte order after the `fmt ` chunk.
     #[must_use]
     pub fn smpl_loop(mut self, kind: u32, start: u32, end: u32) -> Self {
         self.loops.push((kind, start, end));

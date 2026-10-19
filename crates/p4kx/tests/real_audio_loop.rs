@@ -15,7 +15,8 @@ const CONVERTED: usize = 200;
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn looping_wems_keep_their_loop_in_wav_and_ogg() -> TestResult {
     let archive = Archive::open(real_archive_path()?)?;
-    let (mut parsed, mut looping, mut converted) = (0_usize, 0_usize, 0_usize);
+    let (mut parsed, mut looping, mut converted, mut single_frame) =
+        (0_usize, 0_usize, 0_usize, 0_usize);
     let mut bytes = Vec::new();
     for entry in archive.entries().iter().filter(|entry| {
         entry.path().to_ascii_lowercase().ends_with(".wem")
@@ -31,6 +32,7 @@ fn looping_wems_keep_their_loop_in_wav_and_ogg() -> TestResult {
             continue;
         };
         looping += 1;
+        single_frame += usize::from(points.frames() <= 1);
         assert!(
             points.fits(wem.sample_count().unwrap_or_default()),
             "{}: {points:?} within the sound",
@@ -62,5 +64,6 @@ fn looping_wems_keep_their_loop_in_wav_and_ogg() -> TestResult {
     }
     assert!(parsed > 1_000, "{parsed} loose WEMs");
     assert!(looping > 1_000, "{looping} of {parsed} loose WEMs loop");
+    println!("{looping} of {parsed} loose WEMs loop, {single_frame} of them for one frame or less");
     Ok(())
 }

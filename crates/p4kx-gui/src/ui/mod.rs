@@ -2,6 +2,7 @@
 
 mod archive_change;
 mod archive_picker;
+mod audio_controls;
 mod audio_preview;
 mod channels;
 mod comparison;
@@ -19,6 +20,7 @@ mod empty;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod hex_view;
 mod image_preview;
 mod licence;
 mod menu;

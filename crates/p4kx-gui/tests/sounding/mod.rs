@@ -17,23 +17,16 @@ use tempfile::TempDir;
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 
 /// The frames of the PCM test sound, one second at 48 kHz.
-pub(crate) const TONE_FRAMES: u32 = 48_000;
+const TONE_FRAMES: u32 = 48_000;
 
 /// An audio output that keeps the sources it was started with, failing them with `failure`.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct FakeOutput {
-    sources: Arc<Mutex<Vec<SoundSource>>>,
-    failure: Option<&'static str>,
+    pub(crate) sources: Arc<Mutex<Vec<SoundSource>>>,
+    pub(crate) failure: Option<&'static str>,
 }
 
 impl FakeOutput {
-    pub(crate) fn failing(reason: &'static str) -> Self {
-        Self {
-            failure: Some(reason),
-            ..Self::default()
-        }
-    }
-
     pub(crate) fn started(&self) -> usize {
         self.sources
             .lock()
@@ -65,16 +58,16 @@ impl AudioOutput for FakeOutput {
     }
 }
 
-pub(crate) fn tone() -> Vec<i16> {
+fn tone() -> Vec<i16> {
     test_signal(TONE_FRAMES, 2)
 }
 
 /// A Wwise Vorbis tone of two channels.
-pub(crate) fn vorbis() -> TestVorbis {
+fn vorbis() -> TestVorbis {
     TestVorbis::new(2, 48_000, &[false; 400]).tone(10)
 }
 
-pub(crate) fn sounds() -> Vec<TestEntry> {
+fn sounds() -> Vec<TestEntry> {
     let pcm = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone()).bytes();
     let ima = TestWem::ima_adpcm(1, 48_000, &test_signal(640, 1)).bytes();
     let ptadpcm = TestWem::ptadpcm(1, 48_000, 36, &test_signal(640, 1)).bytes();
@@ -154,11 +147,4 @@ pub(crate) fn select(harness: &mut Harness<'_, Model>, name: &str) -> TestResult
     wait_until(harness, |model| {
         audio(model).is_some_and(|audio| !audio.is_busy())
     })
-}
-
-/// Returns the sample of the test tone at `frame` and `channel` as the output gets it.
-pub(crate) fn tone_sample(frame: usize, channel: usize) -> f32 {
-    tone()
-        .get(frame * 2 + channel)
-        .map_or(0.0, |&sample| f32::from(sample) / 32_768.0)
 }

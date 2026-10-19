@@ -30,8 +30,8 @@ fn the_audio_preview_metrics_match_the_desktop_spec() {
             ("paddingX", d::PREVIEW_PADDING_X),
             ("paddingY", d::IMAGE_PADDING_Y),
             ("controlGap", d::AUDIO_CONTROL_GAP),
-            ("volumeWidth", d::AUDIO_VOLUME_WIDTH),
-            ("positionMinWidth", d::AUDIO_POSITION_MIN_WIDTH),
+            ("volumeWidth", d::SLIDER_WIDTH),
+            ("positionMinWidth", d::SLIDER_WIDTH),
             ("timeFontSize", FS_XS),
             ("labelFontSize", FS_2XS),
             ("labelLetterSpacingEm", TRACKING_OVERLINE),
@@ -40,20 +40,29 @@ fn the_audio_preview_metrics_match_the_desktop_spec() {
 }
 
 #[test]
-fn the_slider_is_the_progress_bar_in_a_compact_row() {
-    assert_metrics("slider", &[("hitHeight", d::SLIDER_HIT_HEIGHT)]);
-    assert_metrics("progressBar", &[("height", d::PROGRESS_HEIGHT)]);
+fn the_slider_is_the_quality_row_range_in_a_compact_row() {
+    assert_metrics(
+        "slider",
+        &[
+            ("width", d::SLIDER_WIDTH),
+            ("height", d::SLIDER_HEIGHT),
+            ("labelGap", d::SLIDER_LABEL_GAP),
+            ("hitHeight", d::SLIDER_HIT_HEIGHT),
+        ],
+    );
     let slider = spec("slider");
 
     assert_eq!(
-        slider["dsClass"].as_str(),
-        Some("attendance-meter"),
-        "class"
-    );
-    assert_eq!(
-        slider["borderHover"].as_str(),
+        slider["fill"].as_str(),
         Some("color-primary"),
-        "hover border"
+        "accent fill"
+    );
+    assert_eq!(slider["track"].as_str(), Some("progressBar"), "track");
+    assert_eq!(slider["thumb"]["shape"].as_str(), Some("square"), "thumb");
+    assert_eq!(
+        slider["thumb"]["size"].as_f64(),
+        Some(f64::from(d::SLIDER_HEIGHT)),
+        "thumb size"
     );
     assert_eq!(
         slider["focusRing"]["offset"].as_f64(),

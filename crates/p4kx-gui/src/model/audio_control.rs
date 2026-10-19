@@ -39,6 +39,13 @@ impl Model {
         }
     }
 
+    /// Pauses the sound of the selected WEM at its position, so playing resumes from there.
+    pub fn pause_playback(&mut self) {
+        if let Some(player) = self.player_mut() {
+            player.pause();
+        }
+    }
+
     /// Moves the sound of the selected WEM to `fraction` of its length.
     pub fn seek_playback(&mut self, fraction: f32) {
         if let Some(player) = self.player_mut() {

@@ -6,9 +6,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use p4kx_extraction::{Archive, Codec};
-use p4kx_gui::{
-    AudioPreview, AudioStatus, Browser, EntryIndex, Preview, SoundStatus, is_sound_path,
-};
+use p4kx_gui::{AudioPreview, AudioStatus, Browser, EntryIndex, Preview, SoundStatus, is_wem_path};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -35,7 +33,7 @@ fn the_wems_of_a_real_archive_decode_for_every_codec_with_a_decoder() -> TestRes
         .filter(|&id| {
             index
                 .entry(id)
-                .is_some_and(|entry| is_sound_path(entry.path()))
+                .is_some_and(|entry| is_wem_path(entry.path()))
         })
         .collect();
     let step = sounds.len().div_ceil(SAMPLES).max(1);

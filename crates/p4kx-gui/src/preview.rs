@@ -10,7 +10,7 @@ use std::thread;
 
 use p4kx_extraction::{Entry, Texture};
 
-pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_sound_path};
+pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_wem_path};
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
@@ -113,7 +113,7 @@ impl Preview {
             });
         let audio = index
             .entry(id)
-            .filter(|entry| is_sound_path(entry.path()))
+            .filter(|entry| is_wem_path(entry.path()))
             .map(|_| {
                 let wake = Arc::clone(&wake);
                 AudioPreview::start(index, id, move || wake())

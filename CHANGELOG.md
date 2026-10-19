@@ -26,7 +26,8 @@ fails while its section is missing.
 - The Audio tab of the preview: select a WEM to see its codec, channels, sample rate and
   duration, and play it without extracting, with play, pause, seek and volume. PCM, IMA ADPCM,
   PTADPCM and Wwise Vorbis sounds play; another codec, a missing audio device or a sound too long
-  to hold is named instead.- The Query tab of the window: run Queries over the DataForge of the open Archive in the
+  to hold is named instead.
+- The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
   and export the result as CSV or JSON exactly as `p4kx dcb query --out` writes it.

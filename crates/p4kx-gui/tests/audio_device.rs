@@ -32,6 +32,7 @@ fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> Te
     harness.step();
     Ok(())
 }
+
 const DEVICE_WAIT: Duration = Duration::from_secs(10);
 const FRAME_LIMIT: Duration = Duration::from_millis(500);
 

@@ -802,22 +802,27 @@
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
   "slider": {
-    "dsClass": "attendance-meter",
-    "metrics": "progressBar",
+    "dsClass": "input[type=range] accent-color color-primary, quality-row",
+    "width": 200,
+    "height": 18,
+    "labelGap": 8,
     "hitHeight": 32,
-    "borderHover": "color-primary",
+    "track": "progressBar",
+    "fill": "color-primary",
+    "thumb": {"shape": "square", "size": 18, "color": "color-primary", "hover": "color-accent-light"},
     "focusRing": {"width": 2, "offset": 2, "color": "color-primary"},
-    "keys": "ArrowLeft, ArrowRight, Home, End"
+    "keys": "ArrowLeft, ArrowRight, PageUp, PageDown, Home, End"
   },
   "audioPreview": {
     "dsClass": "previewPanel + facts-bar + btn btn-outline btn-xs + slider",
     "paddingX": 16,
     "paddingY": 8,
     "controlGap": 12,
-    "volumeWidth": 160,
-    "positionMinWidth": 160,
+    "volumeWidth": 200,
+    "positionMinWidth": 200,
     "timeFontSize": 12.8,
     "timeColor": "color-gray-1",
+    "timeWidth": "the widest time of the sound",
     "labelFontSize": 11.2,
     "labelFontWeight": "fw-bold",
     "labelLetterSpacingEm": 0.15,
@@ -825,7 +830,8 @@
     "labelColor": "color-gray-2-text",
     "background": "surface-panel",
     "facts": "factsBar without direction: codec, channels, sample rate, duration",
-    "toggle": "outline btn-xs, play or pause",
+    "toggle": "outline btn-xs, play or pause; Space while no other control has the focus",
+    "pauses": "when the preview tab leaves Audio or the work tab leaves Browse",
     "messages": "unsupported codec, too long, decoding and output failure color-danger-text"
   },
   "shadows": {

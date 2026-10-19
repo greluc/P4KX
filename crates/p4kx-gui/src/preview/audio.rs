@@ -16,7 +16,7 @@ static SERIAL: AtomicU64 = AtomicU64::new(0);
 
 /// Returns whether `path` names a Wwise WEM sound the Audio tab plays.
 #[must_use]
-pub fn is_sound_path(path: &str) -> bool {
+pub fn is_wem_path(path: &str) -> bool {
     let extension = path
         .len()
         .checked_sub(4)

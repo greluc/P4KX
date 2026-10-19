@@ -55,7 +55,7 @@ pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
-    SoundInfo, SoundStatus, TextureInfo, is_sound_path,
+    SoundInfo, SoundStatus, TextureInfo, is_wem_path,
 };
 pub use query::{
     CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,

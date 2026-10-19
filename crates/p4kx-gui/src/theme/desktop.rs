@@ -332,14 +332,16 @@ pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
 /// The offset of the focus ring of a segment, inside it.
 pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;
 
-/// The height of the row a slider takes, the compact button height, with the bar centred.
+/// The height of a range input, `.quality-row input[type="range"]`, and the side of its thumb.
+pub const SLIDER_HEIGHT: f32 = 18.0;
+/// The width of a range input, `.quality-row input[type="range"]`.
+pub const SLIDER_WIDTH: f32 = 200.0;
+/// The gap between a range input and its label, the `.quality-row` gap.
+pub const SLIDER_LABEL_GAP: f32 = SPACE_2;
+/// The height of the row a range input takes, the compact button height, with it centred.
 pub const SLIDER_HIT_HEIGHT: f32 = BUTTON_XS_HEIGHT;
 /// The gap between the controls of the audio preview.
 pub const AUDIO_CONTROL_GAP: f32 = SPACE_3;
-/// The width of the volume bar of the audio preview.
-pub const AUDIO_VOLUME_WIDTH: f32 = 10.0 * REM;
-/// The narrowest the position bar of the audio preview gets.
-pub const AUDIO_POSITION_MIN_WIDTH: f32 = 10.0 * REM;
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The underline of the marked error in the Query editor.

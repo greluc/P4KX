@@ -246,8 +246,11 @@ impl Model {
     }
 
     /// Shows the preview in `tab`.
-    pub const fn set_preview_tab(&mut self, tab: PreviewTab) {
+    pub fn set_preview_tab(&mut self, tab: PreviewTab) {
         self.preview_tab = tab;
+        if tab != PreviewTab::Audio {
+            self.pause_playback();
+        }
     }
 
     fn fail(&mut self, path: PathBuf, error: &dyn Error) {

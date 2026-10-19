@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use p4kx_gfx::{Assets, Bitmap, BitmapSource, RgbaImage, SubImage};
 use rayon::prelude::*;
 
-use crate::pixel_budget::PixelBudget;
+use crate::budget::Budget;
 use crate::ui_external::open_external;
 use crate::{ConversionError, MAX_UI_RENDER_BITMAP_PIXELS, Texture, UiBitmapFailure, UiMovie};
 
@@ -38,7 +38,7 @@ impl<'a> UiMovie<'a> {
         let mut failures = Vec::new();
         let bases = self.group(assets, ids, &mut failures);
         let granted = self.grant(assets, bases, &mut failures);
-        let budget = PixelBudget::new(MAX_UI_RENDER_BITMAP_PIXELS);
+        let budget = Budget::new(MAX_UI_RENDER_BITMAP_PIXELS);
         let decoded: Vec<Decoded> = granted
             .into_par_iter()
             .map(|(base, source, pixels)| self.decode(assets, &base, source, pixels, &budget))
@@ -193,7 +193,7 @@ impl<'a> UiMovie<'a> {
         base: &Base<'_, '_>,
         source: Source<'_, '_, '_>,
         pixels: u64,
-        budget: &PixelBudget,
+        budget: &Budget,
     ) -> Decoded {
         let id = base.bitmap.id;
         let image = {

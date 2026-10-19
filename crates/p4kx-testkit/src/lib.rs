@@ -24,9 +24,15 @@ mod entity_schema;
 mod gfx;
 mod gfx_shape;
 mod gfx_tags;
+mod glb;
+mod glb_container;
 mod global_ini;
 mod layout_v1;
 mod layout_v2;
+mod model;
+mod model_cube;
+mod model_nmc;
+mod model_skin;
 mod opus;
 mod opus_encode;
 mod real_archive;
@@ -57,7 +63,13 @@ pub use gfx_tags::{
     font_name_body, font3_body, jpeg_body, lossless_body, place_object2_body, sprite_body,
     sub_image_body,
 };
+pub use glb::{CheckedGlb, check_glb};
 pub use global_ini::GlobalIniBuilder;
+pub use gltf;
+pub use model::{
+    CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
+    TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
+};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,

@@ -3440,7 +3440,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "p4kx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3470,7 +3470,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-archive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes",
  "cbc",
@@ -3488,7 +3488,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-assembly"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "p4kx-archive",
  "p4kx-audio",
@@ -3505,7 +3505,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-audio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lewton",
  "opus-pure",
@@ -3517,7 +3517,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-channels"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "dirs",
  "p4kx-archive",
@@ -3528,7 +3528,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-character"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crc32c",
  "p4kx-foundation",
@@ -3542,7 +3542,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-chunks"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
@@ -3552,8 +3552,9 @@ dependencies = [
 
 [[package]]
 name = "p4kx-comparison"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "jsonschema",
  "p4kx-archive",
  "p4kx-channels",
  "p4kx-cryxml",
@@ -3570,7 +3571,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-cryxml"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
@@ -3580,7 +3581,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-dataforge"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
@@ -3593,7 +3594,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-export"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crc32c",
  "jsonschema",
@@ -3610,7 +3611,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-extraction"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crc32c",
  "crc32fast",
@@ -3638,14 +3639,14 @@ dependencies = [
 
 [[package]]
 name = "p4kx-foundation"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "p4kx-gfx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "flate2",
  "lzma-rs",
@@ -3662,7 +3663,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-gltf"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "gltf-json",
  "p4kx-chunks",
@@ -3674,7 +3675,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-gui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "eframe",
@@ -3697,13 +3698,14 @@ dependencies = [
  "serde_json",
  "sys-locale",
  "tempfile",
+ "thiserror 2.0.21",
  "unic-langid",
  "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "p4kx-localization"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "p4kx-testkit",
  "thiserror 2.0.21",
@@ -3711,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -3731,7 +3733,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-model"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "half",
  "p4kx-chunks",
@@ -3743,7 +3745,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-settings"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "dirs",
  "serde",
@@ -3754,7 +3756,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-testkit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes",
  "cbc",
@@ -3771,7 +3773,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-texture"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bcdec_rs",
  "exr",
@@ -3786,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "p4kx-update"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "semver",
  "serde",
@@ -6274,7 +6276,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde_json",

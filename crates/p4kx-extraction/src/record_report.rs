@@ -1,6 +1,6 @@
 use std::fmt;
 
-use p4kx_dataforge::{DataForgeError, Guid};
+use p4kx_dataforge::{DataForgeError, Guid, TextResolver};
 use thiserror::Error;
 
 use crate::{CancelToken, ConflictPolicy, ExtractionError};
@@ -15,6 +15,9 @@ pub struct RecordExportOptions<'a> {
     /// Called from any worker thread once for every Record the run built, kept or gave up on;
     /// calls may overtake each other.
     pub progress: Option<&'a (dyn Fn() + Sync)>,
+    /// Resolves the localisation keys of the Records into one language; without it the output
+    /// is language-free.
+    pub texts: Option<&'a dyn TextResolver>,
 }
 
 impl fmt::Debug for RecordExportOptions<'_> {
@@ -23,6 +26,7 @@ impl fmt::Debug for RecordExportOptions<'_> {
             .field("policy", &self.policy)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("texts", &self.texts.is_some())
             .finish()
     }
 }

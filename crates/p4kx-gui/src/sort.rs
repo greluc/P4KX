@@ -64,8 +64,12 @@ pub(crate) struct SortOrders {
 }
 
 impl SortOrders {
-    /// Sorts the ids of `entries`, which are in path order, by every column.
-    pub(crate) fn build(entries: &[&Entry]) -> Self {
+    /// Sorts the ids of `entries`, which are in path order, by every column; `total_size`
+    /// gives the size of a whole split texture for its header.
+    pub(crate) fn build(
+        entries: &[&Entry],
+        total_size: impl Fn(u32) -> Option<u64> + Sync,
+    ) -> Self {
         let ids: Vec<u32> = (0..entries.len())
             .filter_map(|id| u32::try_from(id).ok())
             .collect();
@@ -80,7 +84,11 @@ impl SortOrders {
             || {
                 rayon::join(
                     || sorted_by_key(&ids, |id| entry(id).map(Entry::is_encrypted)),
-                    || sorted_by_key(&ids, |id| entry(id).map(Entry::uncompressed_size)),
+                    || {
+                        sorted_by_key(&ids, |id| {
+                            total_size(id).or_else(|| entry(id).map(Entry::uncompressed_size))
+                        })
+                    },
                 )
             },
         );

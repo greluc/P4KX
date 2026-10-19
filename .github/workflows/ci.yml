@@ -39,4 +39,8 @@ jobs:
         run: cargo test --locked -p p4kx-export --test record_json_schema
       - name: Basetool catalog schema is current
         run: cargo test --locked -p p4kx-export --test catalog_schema
+      - name: DataForge lazy indexes survive concurrent lookups
+        run: cargo test --release --locked -p p4kx-dataforge --test lazy_indexes
+      - name: Audio index survives concurrent first use
+        run: cargo test --release --locked -p p4kx-assembly --test audio_lazy_index
       - run: cargo xtask

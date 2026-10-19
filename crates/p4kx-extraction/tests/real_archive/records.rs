@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use p4kx_extraction::{
     Archive, DataForge, DataForgeEntry, DataForgeError, Record, RecordExportOptions, RecordXml,
@@ -10,7 +11,7 @@ use p4kx_extraction::{
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
-use super::TestResult;
+use super::{TestResult, report};
 
 const KNOWN_RECORD: &str = "libs/foundry/records/entities/spaceships/aegs_avenger_titan";
 const KNOWN_TYPE: &str = "EntityClassDefinition";
@@ -78,6 +79,7 @@ fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let errors: Mutex<HashMap<String, usize>> = Mutex::default();
+    let started = Instant::now();
 
     let failures: Vec<String> = forge
         .records()
@@ -111,6 +113,11 @@ fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
         failures.iter().take(10).collect::<Vec<_>>()
     );
     let errors = errors.into_inner().unwrap_or_default();
+    report(&format!(
+        "{} Records built and written, error values by kind {errors:?}, in {:?}",
+        forge.record_count(),
+        started.elapsed()
+    ));
     let broken: usize = errors
         .iter()
         .filter(|(kind, _)| kind.as_str() != DANGLING)
@@ -134,6 +141,12 @@ fn exports_a_known_record_of_a_real_archive() -> TestResult {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records: Vec<_> = forge.records_at_path(KNOWN_RECORD).collect();
+    let tree = TreeBuilder::new().build(records.first().ok_or("the known Record exists")?)?;
+    assert_eq!(
+        tree.errors().count(),
+        0,
+        "the known Record has no error value"
+    );
     let target = tempfile::tempdir()?;
 
     let report = export_records(

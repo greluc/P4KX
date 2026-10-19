@@ -1,9 +1,10 @@
 use std::io::{self, Write};
 
 use crate::json_text::new_line;
+use crate::texts::{Texts, annotation};
 use crate::value_json::{write_json_string as write_string, write_json_value};
 use crate::xml::classify;
-use crate::{Field, RecordTree, Reference, Value};
+use crate::{Field, RecordTree, Reference, Resolution, TextResolver, Value};
 
 /// How Record JSON is laid out; both layouts hold the same value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -27,10 +28,15 @@ pub struct RecordJson {
     order: Vec<usize>,
 }
 
-/// The output of one Record and its layout.
+/// The output of one Record, its layout and its texts.
+#[expect(
+    clippy::struct_field_names,
+    reason = "`out` is the writer, read as `out.out` throughout"
+)]
 struct Out<'w, W> {
     out: &'w mut W,
     pretty: bool,
+    texts: Texts<'w>,
 }
 
 impl RecordJson {
@@ -55,10 +61,26 @@ impl RecordJson {
     ///
     /// Returns the I/O error of `out`.
     pub fn write<W: Write>(&mut self, tree: &RecordTree<'_>, out: &mut W) -> io::Result<()> {
+        self.write_with(tree, None, out)
+    }
+
+    /// Writes `tree` like [`RecordJson::write`]; with `texts`, every localisation key is an
+    /// object with the key and its resolved text or a mark that it has none, see
+    /// `docs/record-json.md`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_with<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        texts: Option<&dyn TextResolver>,
+        out: &mut W,
+    ) -> io::Result<()> {
         self.attribute.clear();
         self.escaped.clear();
         let pretty = self.layout == JsonLayout::Pretty;
-        let mut out = Out { out, pretty };
+        let mut out = Out { out, pretty, texts };
         self.write_struct(&mut out, Some(tree), tree.type_name(), tree.fields(), 0)?;
         if pretty {
             out.out.write_all(b"\n")?;
@@ -161,6 +183,7 @@ impl RecordJson {
                 write_string(out.out, &error.to_string())?;
                 out.close(depth, b"}")
             }
+            Value::Locale(key) => write_locale(out, key, depth),
             scalar => write_json_value(out.out, scalar),
         }
     }
@@ -216,6 +239,23 @@ impl<W: Write> Out<'_, W> {
         }
         self.out.write_all(bracket)
     }
+}
+
+fn write_locale<W: Write>(out: &mut Out<'_, W>, key: &str, depth: usize) -> io::Result<()> {
+    let Some(resolution) = annotation(out.texts, key) else {
+        return write_string(out.out, key);
+    };
+    out.out.write_all(b"{")?;
+    out.key(true, depth + 1, "key")?;
+    write_string(out.out, key)?;
+    if let Resolution::Text(text) = resolution {
+        out.key(false, depth + 1, "text")?;
+        write_string(out.out, &text)?;
+    } else {
+        out.key(false, depth + 1, "missing")?;
+        out.out.write_all(b"true")?;
+    }
+    out.close(depth, b"}")
 }
 
 fn write_reference<W: Write>(

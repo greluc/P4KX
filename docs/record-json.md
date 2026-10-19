@@ -101,7 +101,7 @@ keys that do.
 | int8 … int64, uint8 … uint64 | A number, exact; values beyond ±2^53 lose precision in readers that use doubles |
 | float, double | A number in the text Record XML uses: the shortest text that reads back to the same value, with an exponent (`1e21`, `1.5e-7`) from 1e21 and below 1e-6 in magnitude, `-0` for negative zero. NaN and the infinities, which JSON has no number for, are the strings `"NaN"`, `"INF"` and `"-INF"` |
 | string | A string |
-| localisation key | The key as stored, e.g. `"@item_Name"`; keys are not resolved |
+| localisation key | The key as stored, e.g. `"@item_Name"`; with `--lang` an object, see [Resolved texts](#resolved-texts) |
 | GUID | A lower-case string `"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"` |
 | enum | The name of the option as a string |
 | struct | A struct object, see above |
@@ -113,6 +113,27 @@ keys that do.
 
 A struct object always has `$type`, a Reference never; an error has only `error`. The errors and
 the Records that are not written at all are those of [Record XML](record-xml.md#errors).
+
+## Resolved texts
+
+`p4kx dcb export --lang <language>` writes the text of every localisation key in the `global.ini` of
+that language. Without `--lang` a key is the plain string above and the output is byte for byte
+the output described above, free of any language. With `--lang` a localisation key that is no
+placeholder (`@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`) and not empty is an object in
+the place of the string, in fields and in arrays alike:
+
+```json
+{"key": "@item_Name", "text": "Crate"}
+{"key": "@item_Gone", "missing": true}
+```
+
+`text` is the text with the `\n` escapes of the `global.ini` turned into line feeds. `missing` is
+`true` when the language has no text for the key: no `global.ini` line, or an empty text. An object
+with `key` has exactly one of `text` and `missing`; it is told from a struct (`$type`), a Reference
+(`guid`) and an error (`error`) by its `key`. A placeholder or empty key stays the plain string: it
+stands for no text and is not a missing translation. The
+[JSON Schema](../schemas/record-json.schema.json) allows both forms. The same Records and the same
+language always give the same bytes.
 
 ## Files
 

@@ -67,7 +67,7 @@ type RunResult = Result<ExtractionSummary, String>;
 #[derive(Debug)]
 enum State {
     Running(Receiver<RunResult>),
-    Finished(ExtractionSummary),
+    Finished(Box<ExtractionSummary>),
     Failed(Option<String>),
 }
 
@@ -167,7 +167,7 @@ impl Extraction {
 
 fn ended(outcome: Option<RunResult>) -> State {
     match outcome {
-        Some(Ok(summary)) => State::Finished(summary),
+        Some(Ok(summary)) => State::Finished(Box::new(summary)),
         Some(Err(reason)) => State::Failed(Some(reason)),
         None => State::Failed(None),
     }

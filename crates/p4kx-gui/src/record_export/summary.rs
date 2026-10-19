@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_export::{NDJSON_FILE, RecordForm};
+use p4kx_extraction::RecordFailure;
 
 use crate::model::describe;
 
@@ -13,6 +14,16 @@ pub struct FailedRecord {
     pub guid: String,
     /// The error and its causes, joined by colons.
     pub reason: String,
+}
+
+impl FailedRecord {
+    pub(crate) fn of(failure: &RecordFailure) -> Self {
+        Self {
+            record_path: failure.record_path().to_owned(),
+            guid: failure.guid().to_string(),
+            reason: describe(failure.error()),
+        }
+    }
 }
 
 /// The outcome of a finished Record export.
@@ -43,15 +54,7 @@ impl RecordExportSummary {
             selected,
             written: summary.written(),
             skipped: summary.skipped().to_vec(),
-            failures: summary
-                .failures()
-                .iter()
-                .map(|failure| FailedRecord {
-                    record_path: failure.record_path().to_owned(),
-                    guid: failure.guid().to_string(),
-                    reason: describe(failure.error()),
-                })
-                .collect(),
+            failures: summary.failures().iter().map(FailedRecord::of).collect(),
             cancelled: summary.cancelled(),
             error_values: summary.error_values(),
             records_with_errors: summary.records_with_errors(),

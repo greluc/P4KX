@@ -1,7 +1,6 @@
 mod job;
 mod progress;
 mod selection;
-mod source;
 mod summary;
 
 use std::path::{Path, PathBuf};
@@ -14,7 +13,6 @@ pub use job::{RecordExport, RecordExportStatus};
 pub(crate) use job::{Request, Selection, start};
 pub use progress::{RecordExportProgress, RecordExportStage};
 pub(crate) use selection::records_below;
-pub(crate) use source::ForgeCache;
 pub use summary::{FailedRecord, RecordExportSummary};
 
 use crate::TargetKind;

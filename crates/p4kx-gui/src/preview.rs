@@ -48,6 +48,8 @@ pub enum PreviewTab {
     DataForge,
     /// A WEM sound with its facts and playback controls.
     Audio,
+    /// The Record selected in the Record tree instead of the selected Entry.
+    Record,
 }
 
 /// Where the preview of an Entry stands.

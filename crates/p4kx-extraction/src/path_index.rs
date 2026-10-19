@@ -40,6 +40,13 @@ impl<'a> PathIndex<'a> {
     /// Returns the Entry at `path`, or `None` when the Archive holds none.
     #[must_use]
     pub fn find(&self, path: &str) -> Option<&'a Entry> {
+        self.archive.entries().get(self.position(path)?)
+    }
+
+    /// Returns the position in [`Archive::entries`] of the first Entry at `path`, or `None`
+    /// when the Archive holds none.
+    #[must_use]
+    pub fn position(&self, path: &str) -> Option<usize> {
         let key = path_key(path);
         let start = self.keys.partition_point(|&(candidate, _)| candidate < key);
         let entries = self.archive.entries();
@@ -48,8 +55,12 @@ impl<'a> PathIndex<'a> {
             .unwrap_or_default()
             .iter()
             .take_while(|&&(candidate, _)| candidate == key)
-            .filter_map(|&(_, position)| entries.get(usize::try_from(position).ok()?))
-            .find(|entry| same_entry_path(entry.path(), path))
+            .filter_map(|&(_, position)| usize::try_from(position).ok())
+            .find(|&position| {
+                entries
+                    .get(position)
+                    .is_some_and(|entry| same_entry_path(entry.path(), path))
+            })
     }
 }
 

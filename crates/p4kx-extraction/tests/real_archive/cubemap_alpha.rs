@@ -156,25 +156,38 @@ fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
     if report.size != merged.len() as u64 {
         return Err(format!("{}: merged size", tail.path()).into());
     }
-    let image = texture
-        .decode_mip(0)
+    if colour.depth() > 1 || (colour.surfaces() > 1 && !colour.is_cubemap()) {
+        return Ok(format!(
+            "{} + {}: skipped, volume or array texture",
+            colour.format(),
+            alpha.format()
+        ));
+    }
+    let images = texture
+        .decode_surfaces(0)
         .map_err(|error| format!("{colour_path}: {error}"))?;
     let values = found
-        .decode_mip(0)
+        .decode_surfaces(0)
         .map_err(|error| format!("{}: {error}", tail.path()))?;
-    let (pixels, _) = image.pixels().as_chunks::<4>();
-    let (tail_pixels, _) = values.pixels().as_chunks::<4>();
-    if pixels.len() != tail_pixels.len()
-        || pixels
-            .iter()
-            .zip(tail_pixels)
-            .any(|(pixel, value)| pixel[3] != value[0])
-    {
-        return Err(format!("{colour_path}: the alpha is not the tail's value").into());
+    if images.len() != values.len() {
+        return Err(format!("{colour_path}: the tail has another number of images").into());
+    }
+    for (image, value) in images.iter().zip(&values) {
+        let (pixels, _) = image.pixels().as_chunks::<4>();
+        let (tail_pixels, _) = value.pixels().as_chunks::<4>();
+        if pixels.len() != tail_pixels.len()
+            || pixels
+                .iter()
+                .zip(tail_pixels)
+                .any(|(pixel, value)| pixel[3] != value[0])
+        {
+            return Err(format!("{colour_path}: the alpha is not the tail's value").into());
+        }
     }
     Ok(format!(
-        "{} + {}: decoded into alpha",
+        "{} + {}: decoded into alpha, {} images",
         colour.format(),
-        alpha.format()
+        alpha.format(),
+        images.len()
     ))
 }

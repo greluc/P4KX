@@ -205,7 +205,7 @@ fails while its section is missing.
   icon and header mark, an empty state with an "Open Archive" action.
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
-  path order spells it (ADR-0016). `list_entries` lists the Entries of a folder in path order and
+  path order spells it (ADR-0019). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
 ## [0.1.0]

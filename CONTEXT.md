@@ -41,7 +41,7 @@ _Avoid_: file, asset, member
 
 **Folder**:
 A path prefix that Entries share, e.g. `Data\Libs`; spellings that differ only by ASCII case or
-separator kind are one folder, named as its first Entry in path order spells it (ADR-0016).
+separator kind are one folder, named as its first Entry in path order spells it (ADR-0019).
 _Avoid_: directory, Record folder (a Record folder groups Records)
 
 **Path order**:

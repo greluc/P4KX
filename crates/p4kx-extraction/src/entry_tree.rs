@@ -67,7 +67,7 @@ impl Folder {
 /// The folders of an Archive, built once after opening it.
 ///
 /// Folder names are compared ignoring ASCII case with `/` and `\` alike, so spellings that
-/// differ only so are one folder (ADR-0016). Entries are addressed by id, their position in
+/// differ only so are one folder (ADR-0019). Entries are addressed by id, their position in
 /// path order: by path ignoring ASCII case with `\` as `/`, then byte by byte. The Entries of a
 /// folder and everything below it form one contiguous id range.
 #[derive(Debug, Default)]

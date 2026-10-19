@@ -200,6 +200,7 @@ fn the_conflict_policies_apply_to_json_files_and_the_ndjson_file() -> TestResult
             policy,
             cancel: None,
             progress: None,
+            texts: None,
         };
         export(&bytes, form, dir.path(), &options(ConflictPolicy::Skip))?;
         let original = fs::read(&path)?;
@@ -265,6 +266,7 @@ fn a_cancelled_ndjson_export_leaves_no_file() -> TestResult {
             policy: ConflictPolicy::Skip,
             cancel: Some(&cancel),
             progress: None,
+            texts: None,
         },
     )?;
 
@@ -318,6 +320,7 @@ fn a_folder_in_the_way_of_the_ndjson_file_is_an_error() -> TestResult {
             policy: ConflictPolicy::Overwrite,
             cancel: None,
             progress: None,
+            texts: None,
         },
     )?;
 

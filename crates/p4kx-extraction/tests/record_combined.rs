@@ -152,6 +152,7 @@ fn a_cancelled_run_leaves_no_file_and_keeps_an_existing_one() -> TestResult {
         policy: ConflictPolicy::Overwrite,
         cancel: Some(&cancel),
         progress: None,
+        texts: None,
     };
 
     let fresh = export_combined(&forge, &records, &file, &options)?;

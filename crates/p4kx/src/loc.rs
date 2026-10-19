@@ -18,7 +18,7 @@ use crate::{exit, json};
 #[derive(Debug, Error)]
 #[error("the Archive holds no global.ini for the language {language}")]
 pub(crate) struct LanguageNotInArchive {
-    language: Language,
+    pub(crate) language: Language,
 }
 
 /// `p4kx loc export` found no `global.ini` in the Archive.

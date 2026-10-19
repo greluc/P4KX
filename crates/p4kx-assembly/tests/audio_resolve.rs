@@ -180,8 +180,7 @@ fn embedded_wems_are_located_in_their_own_soundbank_first_then_in_any_other() ->
     })
 }
 
-#[test]
-fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
+fn localised_archive(path: &std::path::Path) -> TestResult {
     let voice = TestBank::new(wwise_short_id("Voice"))
         .object(TestHircObject::event(wwise_short_id("Play_Voice"), &[1]))
         .object(TestHircObject::action(1, PLAY, 100))
@@ -196,8 +195,6 @@ fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
             })
             .bytes()
     };
-    let dir = tempfile::tempdir()?;
-    let path = dir.path().join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd(
             "Data\\Libs\\GameAudio\\SC_Voice.xml",
@@ -221,7 +218,15 @@ fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
             "Data\\Sounds\\wwise\\English(US)\\Voice.bnk",
             voice,
         ))
-        .write_to(&path)?;
+        .write_to(path)?;
+    Ok(())
+}
+
+#[test]
+fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    localised_archive(&path)?;
     let archive = Archive::open(&path)?;
     let audio = ArchiveAudio::new(&archive);
     let sounds = resolved(&audio, "Play_Voice")?;

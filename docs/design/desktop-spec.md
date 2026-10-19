@@ -84,6 +84,7 @@ sind keine neuen Farben.
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
 | Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
+| Record-Vorschau (Tab „Record") | Vorschau-Panel + `.facts-bar` + Tabellenkopf + Tabellenzeile + `a` | 36 | Zelle x 12,8; 12 je Ebene | zwei gleiche Spalten Feld, Wert; Typ nach dem Link 8 | Werte 13,76 / 400; Link 12,8 / 700 | Kopf und Schlüssel ja, Daten nein | Wert `color-gray-1`, `null` `color-gray-2-text`, Fehler `color-danger-text`; Link `color-primary`, Hover `color-accent-light` + Unterstrich; Ebenen-Schiene 1 `color-gray-3` | unten 1 `color-gray-3` | – | Link 2 / +2; Alt+←, Alt+→, Maustasten zurück/vor |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 
 ## Entscheidungen
@@ -287,6 +288,34 @@ Verschlüsselung. Das Häkchen einer Gruppen- oder Teilezeile setzt alle Einträ
 Suche, die einen Teil trifft, zeigt die ganze Gruppe; „Angezeigte" und „Ausgewählte" extrahieren
 alle Teile. Sortieren nach Größe nutzt die Gesamtgröße. Teile ohne Kopf bleiben einzelne Zeilen.
 Keine neuen Maße.
+
+**D.22 Record-Vorschau als Tab „Record" mit Referenzen als Links.** Ist im Record-Baum ein Record
+gewählt (durch Klick, Record-Suche, Link oder Zurück/Vor), bietet die Vorschau hinter „DataForge"
+den Tab „Record" an und öffnet ihn; „XML" zeigt dann das Record-XML des Records statt eines
+CryXml-Eintrags, mit der Zeilenansicht aus D.19, und „Kopieren" kopiert es. Die Pfadzeile nennt
+Record-Pfad und Record-Namen (`color-gray-2-text`), darunter eine `.facts-bar` ohne Richtung mit
+Typ, GUID und Name; sie hält Typ und GUID auf einer Zeile, wo eine `.kv-list` in der 236 px hohen
+Vorschau kaum Platz für Felder ließe. Es folgen der Tabellenkopf „Feld" | „Wert" und die Felder als
+virtuelle 36-px-Zeilen mit Zebra und Hover wie die Feldänderungen (D.16), zwei gleich breite
+Spalten. Eigene Kinder stehen eingerückt unter ihrem Feld, 12 px je Ebene mit den Ebenen-Schienen
+des Baums (D.2); Array-Elemente heißen `[0]`, `[1]` …, ein Struct zeigt seinen Typ, ein Array die
+Zahl der Elemente. Werte bleiben unverändert (D.6), `null` ist `color-gray-2-text`, ein nicht
+lesbarer Wert „Fehler: Grund" in `color-danger-text` an seinem Feld; der Rest des Records steht
+weiter da. Eine Reference ist ein Link nach der DS-Regel für `a` (12,8 / 700, `color-primary`,
+Hover `color-accent-light` mit Unterstrich, Fokusring 2 / +2) mit dem Record-Pfad des Ziels, eine
+Reference auf eine Stelle im Record als „Pfad · Stelle" wie in D.16; der Typ des Ziels folgt 8 px
+dahinter in `color-gray-2-text`. Der Link wählt das Ziel im Record-Baum (Ordner klappen auf, der
+Baum rollt hin) und in der Vorschau. Eine Reference auf einen fehlenden Record ist ein Fehlerwert,
+bleibt aber als Link in `color-danger-text` anklickbar; statt zu navigieren erscheint über der
+Faktenleiste ein `.alert.alert-danger` mit der GUID, bis ein anderer Record gewählt wird.
+„Zurück" und „Vor" stehen als Ghost `btn-xs` links von „Kopieren", solange die Listenfläche die
+Records zeigt, gesperrt ohne Schritt in ihrer Richtung; Alt+← und Alt+→ sowie die Maustasten
+Zurück und Vor tun dasselbe, außer ein Textfeld hat den Fokus. Der Weg merkt sich jede Auswahl eines
+Records (höchstens 256 Schritte je Richtung); eine neue Auswahl nach „Zurück" verwirft den Weg
+nach vorn, und „Zurück" bei einem gewählten Ordner kehrt erst zum aktuellen Record zurück. Gelesen
+wird der Record von einem Thread je Archiv, der DataForge aus dem einen Cache des Archivs offen hält
+und nur die neueste Anfrage beantwortet; Record-Baum, Abfrage und Record-Export lesen DataForge aus
+demselben Cache, also nur einmal.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

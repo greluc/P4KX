@@ -858,6 +858,23 @@
     "truncated": "note in color-warning above the lines, like the truncated Text tab",
     "messages": "converting with the inline spinner, too large color-gray-1, failure color-danger-text"
   },
+  "recordPreview": {
+    "dsClass": "previewPanel + factsBar + tableHead + tableRow + link",
+    "rowHeight": 36,
+    "columns": "two equal columns, field and value",
+    "indentPerLevel": 12,
+    "railColor": "color-gray-3",
+    "pathLine": "record path color-gray-1, Record name color-gray-2-text",
+    "facts": "factsBar without direction: type, GUID, name",
+    "valueColor": "color-gray-1",
+    "nullColor": "color-gray-2-text",
+    "errorColor": "color-danger-text",
+    "link": "12.8 / fw-bold color-primary, hover color-accent-light with underline, target type after 8 in color-gray-2-text",
+    "danglingLink": "error text in color-danger-text, underlined on hover",
+    "danglingNotice": "alertDanger above the facts",
+    "navigation": "Back and Forward as ghost btn-xs left of Copy; Alt+Left, Alt+Right, mouse back and forward",
+    "focusRingOffset": 2
+  },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},
     "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},

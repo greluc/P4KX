@@ -378,3 +378,20 @@ texture-parts =
     }
 texture-expand = Teile von { $name } anzeigen
 texture-collapse = Teile von { $name } ausblenden
+
+preview-tab-record = Record
+record-back = Zurück
+record-forward = Vor
+record-type = Typ
+record-guid = GUID
+record-name = Name
+record-head-value = Wert
+record-loading = Der Record { $path } wird gelesen …
+record-failed = Der Record { $path } kann nicht gelesen werden: { $reason }
+record-stopped = Das Lesen des Records { $path } brach ohne Ergebnis ab.
+record-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um den Record zu lesen.
+record-dangling = Die Referenz zeigt auf den Record { $guid }, den es in diesem DataForge nicht gibt.
+record-follow = Der Referenz auf { $path } folgen
+record-row = { $field }: { $value }
+record-no-fields = Der Record hat keine Felder.
+record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }

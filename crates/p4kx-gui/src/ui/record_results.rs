@@ -17,6 +17,7 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
 use crate::widgets::text::{caps, line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{Browser, Language, RecordId, RecordInfo, RecordNodeKind, RecordTree, Texts};
 
 const MAX_CACHED: usize = 4096;
@@ -277,13 +278,12 @@ impl Row<'_> {
             WidgetInfo::selected(Role::Button, true, self.active, self.record.name())
         });
         focus_inside(ui.painter(), rect, &response);
-        response
-            .on_hover_ui(|ui| {
-                ui.label(self.record.name());
-                ui.label(self.record.type_name());
-                ui.label(self.record.record_path());
-                ui.label(self.record.guid().to_string());
-            })
-            .clicked()
+        tooltip::hover(response, |ui| {
+            tooltip::line(ui, self.record.name());
+            tooltip::line(ui, self.record.type_name());
+            tooltip::line(ui, self.record.record_path());
+            tooltip::line(ui, self.record.guid().to_string());
+        })
+        .clicked()
     }
 }

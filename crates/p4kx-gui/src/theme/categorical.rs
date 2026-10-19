@@ -98,12 +98,12 @@ const fn item_class(hue: u32, text: u32) -> ItemClassTint {
 }
 
 /// `krt-item-class-military`.
-pub const ITEM_CLASS_MILITARY: ItemClassTint = item_class(0x008A_9455, 0x00BC_C48A);
+pub const ITEM_CLASS_MILITARY: ItemClassTint = item_class(0x008A_9455, 0x00C3_CA96);
 /// `krt-item-class-civilian`.
-pub const ITEM_CLASS_CIVILIAN: ItemClassTint = item_class(0x005C_84A8, 0x0097_B6D3);
+pub const ITEM_CLASS_CIVILIAN: ItemClassTint = item_class(0x005C_84A8, 0x00AC_C5DC);
 /// `krt-item-class-industrial`.
-pub const ITEM_CLASS_INDUSTRIAL: ItemClassTint = item_class(0x00A8_643F, 0x00D7_9A78);
+pub const ITEM_CLASS_INDUSTRIAL: ItemClassTint = item_class(0x00A8_643F, 0x00E2_B59C);
 /// `krt-item-class-stealth`.
-pub const ITEM_CLASS_STEALTH: ItemClassTint = item_class(0x009C_6688, 0x00CB_9BB9);
+pub const ITEM_CLASS_STEALTH: ItemClassTint = item_class(0x009C_6688, 0x00D9_B5CB);
 /// `krt-item-class-competition`.
-pub const ITEM_CLASS_COMPETITION: ItemClassTint = item_class(0x0044_9C80, 0x0080_CBB2);
+pub const ITEM_CLASS_COMPETITION: ItemClassTint = item_class(0x0044_9C80, 0x0091_D2BC);

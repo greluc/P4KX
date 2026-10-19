@@ -44,6 +44,17 @@ fails while its section is missing.
 
 ### Changed
 
+- GUI: the window follows the design system after its adaptation to the das-kartell.org website
+  (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+  with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
+  greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
+  chips, alerts, modals, dropdowns, tiles, the list panel and the preview. Header, status bar and
+  tab bar use the bar surface, table rows hover in `control-bg` and tree rows in 3 % white, the
+  ghost button hovers in `color-accent-light`, tooltips are square on near-black with the orange
+  glow, focus rings follow the radius of their control, and the range thumb is round. The empty
+  state no longer hides the work tabs, the dialogs' foot no longer stretches the dialog to the
+  window height, and read-only and text fields draw the rounded input frame. The desktop spec and
+  its JSON follow.
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and

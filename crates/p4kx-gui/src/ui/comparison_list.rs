@@ -8,8 +8,10 @@ use crate::theme::desktop::{CELL_PADDING_X, CHANGE_COLUMN, CHANGE_SIZE_COLUMN, R
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::chip;
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
+use crate::widgets::rows::{RowState, focus_inside, row_weight};
+use crate::widgets::table_row::RowSlots;
 use crate::widgets::text::{line, paint_left, paint_right, plain};
+use crate::widgets::tooltip;
 use crate::{ChangeColumn, ComparisonText, ComparisonView, Texts};
 
 const COLUMNS: [(ChangeColumn, ComparisonText); 4] = [
@@ -47,7 +49,7 @@ pub(super) fn show(
     }
     table
         .id_salt("comparison-changes")
-        .striped(true)
+        .striped(false)
         .resizable(true)
         .auto_shrink(false)
         .min_scrolled_height(0.0)
@@ -125,11 +127,11 @@ fn show_row(
     let (_, colour) = state.colours();
     let weight = row_weight(active);
     let mut galleys: Option<RowGalleys> = None;
+    let index = row.index();
+    let mut slots = None;
     row.col(|ui| {
+        slots = Some(RowSlots::reserve(ui));
         let rect = ui.max_rect();
-        let row_rect = rect.with_max_x(ui.clip_rect().right());
-        paint_row(ui.painter(), row_rect, state);
-        paint_divider(ui.painter(), row_rect);
         if let Some(label) = cache.chip(change.kind()) {
             let at = pos2(rect.left() + CELL_PADDING_X, rect.center().y);
             chip::paint(ui, at, label, kind_look(change.kind()).1);
@@ -161,6 +163,9 @@ fn show_row(
         });
     }
     let response = row.response();
+    if let Some(slots) = slots {
+        slots.paint(&response, state, index % 2 == 1);
+    }
     let is_hovered = response.hovered();
     let clicked = finish_row(&response, texts, &change, active);
     (clicked.then_some(ListAction::Select(id)), is_hovered)
@@ -190,12 +195,10 @@ fn finish_row(
         response.rect,
         response,
     );
-    response
-        .clone()
-        .on_hover_ui(|ui| {
-            ui.label(change.path());
-        })
-        .clicked()
+    tooltip::hover(response.clone(), |ui| {
+        tooltip::line(ui, change.path());
+    })
+    .clicked()
 }
 
 fn empty_note(ui: &Ui, texts: &Texts, view: &ComparisonView, top_left: egui::Pos2) {

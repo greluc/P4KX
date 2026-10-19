@@ -11,7 +11,7 @@ use crate::theme::desktop::{
     ROW_HEIGHT,
 };
 use crate::widgets::chip::{self, Tone};
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row};
+use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_table_row};
 use crate::widgets::scroll_region::{self, Stand};
 use crate::{LocalizationTab, LocalizationTable, ScrollText, TextLanguage, Texts};
 
@@ -130,6 +130,7 @@ fn grid(
                 table,
                 laid,
                 hovered: hovered == Some(index),
+                striped: index % 2 == 1,
             };
             let (click, is_hovered) = show_row(row, &shown, id);
             if click.is_some() {
@@ -147,12 +148,13 @@ struct Shown<'a> {
     table: &'a LocalizationTable,
     laid: &'a Laid,
     hovered: bool,
+    striped: bool,
 }
 
 fn builder(ui: &mut Ui, columns: usize) -> TableBuilder<'_> {
     let mut table = TableBuilder::new(ui)
         .id_salt("localization-rows")
-        .striped(true)
+        .striped(false)
         .resizable(true)
         .auto_shrink(false)
         .sense(Sense::hover())
@@ -229,7 +231,7 @@ fn show_row(mut row: TableRow<'_, '_>, shown: &Shown<'_>, id: u32) -> (Option<Pi
 fn cell(ui: &Ui, shown: &Shown<'_>, (id, column): (u32, usize), state: RowState) -> egui::Response {
     let rect = ui.max_rect();
     let row_rect = rect.with_max_x(ui.clip_rect().right().max(rect.right()));
-    paint_row(ui.painter(), row_rect, state);
+    paint_table_row(ui.painter(), row_rect, state, shown.striped);
     paint_divider(ui.painter(), row_rect);
     let response = ui.interact(
         rect,

@@ -1,11 +1,11 @@
-use egui::{CornerRadius, EventFilter, Id, Key, Rect, Response, Sense, Ui, WidgetInfo, pos2, vec2};
+use egui::{EventFilter, Id, Key, Rect, Response, Sense, Ui, WidgetInfo, pos2, vec2};
 
 use crate::theme::desktop::{
     FOCUS_OFFSET, PROGRESS_HEIGHT, SLIDER_HEIGHT, SLIDER_HIT_HEIGHT, TRANSITION,
 };
 use crate::theme::palette;
 
-use super::button::focus_ring;
+use super::focus::focus_ring;
 use super::indicator::track;
 
 /// How far the keys move a slider: the arrow keys by `step`, Page Up and Page Down by `page`.
@@ -17,7 +17,7 @@ pub(crate) struct Steps {
 
 /// Shows an `input[type="range"]` in the accent orange at `fraction`, named `label` with the
 /// accessible value `value`, `width` wide inside a [`SLIDER_HIT_HEIGHT`] row: the track of the
-/// progress bar filled up to a square thumb. A click or drag sets it, the arrow keys and Page
+/// progress bar filled up to a round thumb. A click or drag sets it, the arrow keys and Page
 /// Up and Page Down move it by `steps`, Home and End go to the ends. Returns its response and
 /// the fraction chosen in this frame.
 pub(crate) fn slider(
@@ -65,7 +65,8 @@ pub(crate) fn slider(
         vec2(SLIDER_HEIGHT, SLIDER_HEIGHT),
     );
     let colour = palette::PRIMARY.lerp_to_gamma(palette::ACCENT_LIGHT, hover);
-    ui.painter().rect_filled(thumb, CornerRadius::ZERO, colour);
+    ui.painter()
+        .circle_filled(thumb.center(), SLIDER_HEIGHT / 2.0, colour);
     if response.has_focus() {
         focus_ring(ui, range, palette::PRIMARY, FOCUS_OFFSET);
     }

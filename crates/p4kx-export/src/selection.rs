@@ -167,8 +167,13 @@ mod tests {
             "libs/foundry/records/entities/scitem/devices/scanner",
             "libs/foundry/records/entities/scitem/fps_devices/behr_ltp_01",
             "libs/foundry/records/entities/scitem/undeveloped",
+            "libs/foundry/records/entities/spaceships/devastator",
         ] {
             assert!(!is_leftover(path, "Scanner"), "{path}");
         }
+        assert!(
+            !is_leftover("libs/foundry/records/entities/spaceships/x", "Devastator"),
+            "a name that starts with the token"
+        );
     }
 }

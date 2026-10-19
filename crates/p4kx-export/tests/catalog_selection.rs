@@ -359,12 +359,12 @@ fn an_archive_without_dataforge_is_an_error() -> TestResult {
 }
 
 #[test]
-fn the_size_warning_comes_before_the_50_mb_upload_limit() {
-    let limit = 50_000_000;
+fn the_size_warning_comes_before_the_64_mb_upload_limit() {
+    let limit = 64_000_000;
     assert_eq!(SizeWarning::for_size(1_000_000), None, "small");
-    assert_eq!(SizeWarning::for_size(44_999_999), None, "below 90 %");
+    assert_eq!(SizeWarning::for_size(57_599_999), None, "below 90 %");
     assert_eq!(
-        SizeWarning::for_size(45_000_000),
+        SizeWarning::for_size(57_600_000),
         Some(SizeWarning::NearLimit),
         "from 90 %"
     );

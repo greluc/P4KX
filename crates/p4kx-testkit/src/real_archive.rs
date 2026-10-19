@@ -35,16 +35,14 @@ impl std::error::Error for MissingRealArchive {}
 ///
 /// Returns [`MissingRealArchive`] when the variable is unset or empty.
 pub fn real_archive_path() -> Result<PathBuf, MissingRealArchive> {
-    path_from(REAL_ARCHIVE_VAR)
+    non_empty(std::env::var_os(REAL_ARCHIVE_VAR)).ok_or(MissingRealArchive(REAL_ARCHIVE_VAR))
 }
 
-/// Returns the path of the second real Archive named by `P4KX_DATA_P4K_B`.
-///
-/// # Errors
-///
-/// Returns [`MissingRealArchive`] when the variable is unset or empty.
-pub fn real_archive_b_path() -> Result<PathBuf, MissingRealArchive> {
-    path_from(REAL_ARCHIVE_B_VAR)
+/// Returns the path of the second real Archive named by `P4KX_DATA_P4K_B`, `None` when the
+/// variable is unset or empty, so that a test needing it can return early.
+#[must_use]
+pub fn real_archive_b_path() -> Option<PathBuf> {
+    non_empty(std::env::var_os(REAL_ARCHIVE_B_VAR))
 }
 
 /// Returns the paths of the real Archives named by `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`, `None`
@@ -54,26 +52,12 @@ pub fn real_archive_b_path() -> Result<PathBuf, MissingRealArchive> {
 ///
 /// Returns [`MissingRealArchive`] when `P4KX_DATA_P4K` is unset or empty.
 pub fn real_archive_pair() -> Result<Option<(PathBuf, PathBuf)>, MissingRealArchive> {
-    pair_from(
-        std::env::var_os(REAL_ARCHIVE_VAR),
-        std::env::var_os(REAL_ARCHIVE_B_VAR),
-    )
-}
-
-fn path_from(var: &'static str) -> Result<PathBuf, MissingRealArchive> {
-    non_empty(std::env::var_os(var)).ok_or(MissingRealArchive(var))
+    let first = real_archive_path()?;
+    Ok(real_archive_b_path().map(|second| (first, second)))
 }
 
 fn non_empty(value: Option<OsString>) -> Option<PathBuf> {
     value.filter(|path| !path.is_empty()).map(PathBuf::from)
-}
-
-fn pair_from(
-    first: Option<OsString>,
-    second: Option<OsString>,
-) -> Result<Option<(PathBuf, PathBuf)>, MissingRealArchive> {
-    let first = non_empty(first).ok_or(MissingRealArchive(REAL_ARCHIVE_VAR))?;
-    Ok(non_empty(second).map(|second| (first, second)))
 }
 
 #[cfg(test)]
@@ -81,39 +65,20 @@ mod tests {
     use std::ffi::OsString;
     use std::path::PathBuf;
 
-    use super::{MissingRealArchive, REAL_ARCHIVE_VAR, pair_from};
+    use super::non_empty;
 
     #[test]
-    fn a_pair_needs_the_first_archive() {
-        assert_eq!(
-            pair_from(None, Some(OsString::from("b.p4k"))),
-            Err(MissingRealArchive(REAL_ARCHIVE_VAR)),
-            "the first Archive is required"
-        );
-        assert_eq!(
-            pair_from(Some(OsString::new()), None),
-            Err(MissingRealArchive(REAL_ARCHIVE_VAR)),
-            "an empty first Archive is missing"
-        );
+    fn an_unset_or_empty_variable_names_no_archive() {
+        assert_eq!(non_empty(None), None, "unset");
+        assert_eq!(non_empty(Some(OsString::new())), None, "empty");
     }
 
     #[test]
-    fn a_pair_without_the_second_archive_skips() {
-        for second in [None, Some(OsString::new())] {
-            assert_eq!(
-                pair_from(Some(OsString::from("a.p4k")), second),
-                Ok(None),
-                "no second Archive"
-            );
-        }
-    }
-
-    #[test]
-    fn a_pair_holds_both_archives() {
+    fn a_set_variable_names_the_archive() {
         assert_eq!(
-            pair_from(Some(OsString::from("a.p4k")), Some(OsString::from("b.p4k"))),
-            Ok(Some((PathBuf::from("a.p4k"), PathBuf::from("b.p4k")))),
-            "both Archives"
+            non_empty(Some(OsString::from("b.p4k"))),
+            Some(PathBuf::from("b.p4k")),
+            "the path"
         );
     }
 }

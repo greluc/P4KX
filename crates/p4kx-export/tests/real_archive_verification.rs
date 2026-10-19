@@ -1,6 +1,7 @@
 //! The verification of M3 over real Archives: the whole catalog against the checked-in schema,
 //! plausible counts, no development leftovers, resolved texts and the upload limit; runs with
-//! `--ignored` when `P4KX_DATA_P4K` (and for the second Channel `P4KX_DATA_P4K_B`) names one.
+//! `--ignored` when `P4KX_DATA_P4K` names one; the test of the second Channel returns early
+//! while `P4KX_DATA_P4K_B` is unset.
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -72,14 +73,17 @@ fn has_excluded_token(text: &str) -> Option<&'static str> {
 
 fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     let (built, catalog) = built(path)?;
-    let validator = jsonschema::validator_for(&catalog_schema())?;
-    let errors: Vec<String> = validator
-        .iter_errors(&catalog)
-        .take(5)
-        .map(|error| error.to_string())
-        .collect();
-    assert!(errors.is_empty(), "valid against the schema: {errors:?}");
+    let validator = jsonschema::draft202012::new(&catalog_schema())?;
+    assert!(
+        validator.is_valid(&catalog),
+        "valid against the catalog schema"
+    );
     report(path, &built);
+    assert!(
+        built.summary().is_complete(),
+        "every selected Record is readable: {:?}",
+        built.summary().failures().first()
+    );
 
     for (kind, minimum) in MINIMUM {
         let counts = built.summary().kind(kind).ok_or("the kind")?;
@@ -92,8 +96,12 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert_eq!(entities.len(), counts.count, "{kind} written");
         let guids: Vec<&str> = entities.iter().filter_map(|e| e["guid"].as_str()).collect();
         assert_eq!(guids.len(), entities.len(), "{kind} all have a GUID");
-        assert!(guids.is_sorted(), "{kind} ordered by GUID");
+        assert!(
+            guids.is_sorted_by(|a, b| a < b),
+            "{kind} strictly ordered by GUID, none twice"
+        );
     }
+    check_unique_guids(&catalog)?;
     assert!(
         built.summary().size() < UPLOAD_LIMIT / MIN_HEADROOM_FACTOR,
         "the limit holds at least {MIN_HEADROOM_FACTOR} times the catalog"
@@ -101,6 +109,17 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     check_leftovers(&catalog)?;
     check_texts(&built, &catalog)?;
     Ok(catalog)
+}
+
+fn check_unique_guids(catalog: &Value) -> TestResult {
+    let mut seen = HashSet::new();
+    for kind in Kind::ALL {
+        for entity in list(catalog, kind)? {
+            let guid = entity["guid"].as_str().ok_or("a GUID")?;
+            assert!(seen.insert(guid), "{guid} occurs twice, also in {kind}");
+        }
+    }
+    Ok(())
 }
 
 fn check_leftovers(catalog: &Value) -> TestResult {
@@ -161,7 +180,7 @@ fn check_texts(built: &BuiltCatalog, catalog: &Value) -> TestResult {
         "most texts resolve in en"
     );
     assert!(german_share >= MIN_GERMAN_SHARE, "most texts resolve in de");
-    for language in Language::ALL {
+    for language in [Language::English, Language::German] {
         let texts = built.summary().text(language).ok_or("a text summary")?;
         assert!(texts.available, "the Archive holds {language}");
         assert!(
@@ -246,6 +265,8 @@ fn the_catalog_of_a_real_archive_is_complete_plausible_and_within_the_limit() ->
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_catalog_of_a_second_real_archive_is_complete_plausible_and_within_the_limit() -> TestResult {
-    let path = real_archive_b_path()?;
+    let Some(path) = real_archive_b_path() else {
+        return Ok(());
+    };
     check_links(&verify_catalog(&path)?)
 }

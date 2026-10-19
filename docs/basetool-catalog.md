@@ -203,8 +203,15 @@ exactly. `--filter` further selects by record path with the rules of `p4kx searc
 every kind partial.
 
 Development leftovers are left out and counted as skipped: a selected Record whose record path or
-name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a whole word, ignoring case. Words are
-the runs of ASCII letters and digits, so `paint_test_01` is left out while `contestant` stays.
+name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a
+whole word, ignoring case. Words are the runs of ASCII letters and digits, so `paint_test_01` is
+left out while `contestant` stays.
+
+A selected Record that cannot be read, such as one whose struct layout is corrupt, does not stop
+the catalog: it is left out, counted as a failure and reported with its record path, GUID and
+reason. `p4kx catalog` prints each failure on stderr, lists them under `failed` in `--json` and
+exits with code 1, with the catalog written; the desktop app lists them in the summary. The
+catalog file itself, its schema and its completeness are not affected.
 
 ## Determinism and size
 
@@ -215,10 +222,11 @@ seconds since 1970-01-01 UTC.
 ### Upload limit
 
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
-now 50,000,000 bytes (50 MB). It must match the basetool's upload limit: when one changes, the
-other changes with it. The limit is sized from the measurement below: twice the largest catalog
-(42.2 MB), rounded up to 50 MB. The real-Archive tests assert that the limit is at least twice
-the catalog and print the size (`catalog size: … bytes`).
+64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
+changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
+catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
+limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
+print the size (`catalog size: … bytes`).
 
 Measured on 2026-10-19 with every installed Channel (complete catalog of every kind, English and
 German texts):
@@ -248,7 +256,8 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
   Vlk spewgun test weapons under `fps_weapons/dev`, `*_deprecated` bar counters, a debug hacking
   chip). `placeholder` stays out of the list: the manufacturer `PLACEHOLDER` is referenced by an
   item, and the manufacturers are complete by decision. The rest of the vocabulary
-  (`fake`, `old`, `legacy`, `temp`, `prototype`) names real Records.
+  (`fake`, `old`, `legacy`, `temp`, `prototype`) names real Records and stays in the catalog by
+  decision.
 - Every `manufacturerGuid` of an item or ship, every `producedItemGuid`, every ingredient
   `resourceGuid` and `itemGuid` resolves to a catalog entry; no GUID occurs twice.
 - Texts that carry a key (placeholder keys excluded), LIVE: English 27,751 of 27,889 resolve

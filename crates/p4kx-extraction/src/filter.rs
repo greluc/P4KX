@@ -2,6 +2,9 @@ use std::fmt;
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_foundation::PathPattern;
+use rayon::prelude::*;
+
+use crate::TextureGroups;
 
 /// Text that selects Entries by their path.
 ///
@@ -41,6 +44,27 @@ impl Filter {
     #[must_use]
     pub fn matches(&self, path: &str) -> bool {
         self.pattern.matches(path)
+    }
+
+    /// Returns the Entries of `archive` whose path matches, in Archive order, and every other
+    /// Entry of each texture in `groups` that has one that matches.
+    #[must_use]
+    pub fn select_with_parts<'a>(
+        &self,
+        archive: &'a Archive,
+        groups: &TextureGroups,
+    ) -> Vec<&'a Entry> {
+        let entries = archive.entries();
+        let mut marked: Vec<bool> = entries
+            .par_iter()
+            .map(|entry| self.matches(entry.path()))
+            .collect();
+        groups.complete(&mut marked);
+        entries
+            .iter()
+            .zip(marked)
+            .filter_map(|(entry, marked)| marked.then_some(entry))
+            .collect()
     }
 
     /// Returns the Entries of `archive` whose path matches, in Archive order.

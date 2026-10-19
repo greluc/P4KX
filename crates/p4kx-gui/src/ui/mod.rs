@@ -44,6 +44,7 @@ mod search;
 mod shortcuts;
 mod status;
 mod table;
+mod table_name;
 mod tree;
 mod xml_preview;
 mod xml_view;

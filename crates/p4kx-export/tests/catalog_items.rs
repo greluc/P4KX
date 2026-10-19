@@ -268,6 +268,8 @@ fn every_kind_states_its_completeness() -> TestResult {
             "manufacturers": {"status": "complete"},
             "items": {"status": "complete"},
             "ships": {"status": "complete"},
+            "commodities": {"status": "complete"},
+            "blueprints": {"status": "complete"},
         }),
         "complete"
     );
@@ -299,15 +301,6 @@ fn the_summary_lists_the_kinds_in_catalog_order() -> TestResult {
         .iter()
         .map(|kind| kind.kind)
         .collect();
-    assert_eq!(
-        kinds,
-        [Kind::Manufacturers, Kind::Items, Kind::Ships],
-        "order"
-    );
-    assert_eq!(
-        Kind::ALL,
-        [Kind::Manufacturers, Kind::Items, Kind::Ships],
-        "all"
-    );
+    assert_eq!(kinds, Kind::ALL, "order");
     Ok(())
 }

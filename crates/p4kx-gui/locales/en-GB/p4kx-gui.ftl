@@ -421,6 +421,15 @@ audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex 
 audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
 audio-failed = Cannot decode { $path }: { $reason }
 audio-output-failed = The sound cannot be played: { $reason }
+
+texture-parts =
+    { $count ->
+        [one] +{ $number } part
+       *[other] +{ $number } parts
+    }
+texture-expand = Show the parts of { $name }
+texture-collapse = Hide the parts of { $name }
+
 preview-tab-record = Record
 record-back = Back
 record-forward = Forward

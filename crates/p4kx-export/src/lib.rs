@@ -7,14 +7,18 @@
 //!
 //! [`build_catalog`] reads the DataForge of an open Archive, selects the Records of every kind by
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
-//! descriptions in English and German from the Archive's `global.ini` files, reads each item's
+//! descriptions in English and German from the Archive's `global.ini` files, reads the crafting
+//! ingredients of blueprints, reads each item's
 //! [`ItemClass`] from its English description and writes the
 //! catalog as deterministic UTF-8 JSON. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 
+mod blueprint;
 mod build;
 mod collected;
+mod commodity;
 mod contract;
+mod contract_crafting;
 mod contract_entities;
 mod error;
 mod form;

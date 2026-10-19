@@ -293,6 +293,7 @@ Dokumentation als „64 MB". Nahe am Upload-Limit steht oben `.alert-warning`, d
 lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Ist die gewählte
 Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
 Der Katalog liest DataForge aus dem einen Cache des offenen Archivs (D.22), also nur einmal.
+
 **D.22 Record-Vorschau als Tab „Record" mit Referenzen als Links.** Ist im Record-Baum ein Record
 gewählt (durch Klick, Record-Suche, Link oder Zurück/Vor), bietet die Vorschau hinter „DataForge"
 den Tab „Record" an und öffnet ihn; „XML" zeigt dann das Record-XML des Records statt eines
@@ -321,7 +322,7 @@ wird der Record von einem Thread je Archiv, der DataForge aus dem einen Cache de
 und nur die neueste Anfrage beantwortet; Record-Baum, Abfrage und Record-Export lesen DataForge aus
 demselben Cache, also nur einmal.
 
-**D.26 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine
+**D.27 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine
 `ScrollArea` nur mit Maus und Rad; ohne Tastenbehandlung käme ein Tastaturnutzer über die erste
 Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare Rollfläche
 (`widgets::scroll_region`), wie die Zeilenansicht des XML (D.19): die Tabulatortaste erreicht sie,
@@ -331,6 +332,20 @@ der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name 
 Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
 zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
 sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
+
+**D.26 Texturgruppen in der Eintragstabelle.** Ein gesplittetes DDS (Kopf `.dds` mit Teilen
+`.dds.N` und Alpha-Tail `.dds.a`/`.dds.Na`) ist eine Zeile mit der Gesamtgröße; der Name steht nach
+dem Chevron-Slot, danach die Teilezahl in `color-gray-2-text` wie die Zusatzspalte der Gruppenzeile
+im `tree-table`. Alle Zeilen der Namenszelle reservieren den Chevron-Slot (`CHEVRON` + `TREE_GAP`
+nach `TREE_PADDING_LEFT`), damit die Namen untereinander stehen; nur Gruppenzeilen zeichnen den
+Chevron (`color-primary`, Fokusring `FOCUS_OFFSET`). Aufgeklappt stehen die Teile darunter, eine
+Ebene (`TREE_INDENT`) eingerückt mit Ebenenschiene wie im Baum, mit eigener Größe, Kompression und
+Verschlüsselung. Das Häkchen einer Gruppen- oder Teilezeile setzt alle Einträge der Gruppe;
+Suche, die einen Teil trifft, zeigt die ganze Gruppe; „Angezeigte" und „Ausgewählte" extrahieren
+alle Teile. Sortieren nach Größe nutzt die Gesamtgröße. Teile ohne Kopf bleiben einzelne Zeilen.
+Die Statuszeile („angezeigt", „ausgewählt") und „Angezeigte (N)" zählen Einträge, eine Textur mit
+ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes. Keine
+neuen Maße (`tableRow.textureGroup` im JSON der Spec nennt die benutzten).
 
 ## Bewusste Abweichungen von den Web-Specimens
 

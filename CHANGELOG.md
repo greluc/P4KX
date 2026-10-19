@@ -219,9 +219,18 @@ fails while its section is missing.
 
 - Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
   shortcuts working anywhere in the window.
+- Texture groups in the window: a split texture (`.dds` with `.dds.N` parts and an Alpha tail)
+  is one row with its total size, its parts one level in below it. Checking a row checks all its
+  Entries, a search that matches a part shows the whole texture, sorting by size uses the total
+  size, and "Selected" and "Shown" extract every part. Parts without a header stay single rows.
 
 ### Changed
 
+- `p4kx list` folds the parts of a split texture into the row of its header: sizes of the whole
+  texture, a ` (+N parts)` suffix on the path and a `parts` field in `--json`. `--parts` restores
+  one row per Entry.
+- `p4kx extract --filter` and `p4kx socpak extract --filter` now also take every Entry of a
+  texture whose header, part or Alpha tail matches.
 - The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
   tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
   icon and header mark, an empty state with an "Open Archive" action.

@@ -1,4 +1,4 @@
-//! Loop points of looping Vorbis and Opus WEMs in the Ogg they become.
+//! Loop points of looping Vorbis and Opus WEMs in the Ogg and WAV they become.
 
 mod pages;
 
@@ -168,5 +168,38 @@ fn ogg_opus_in_a_wem_keeps_its_own_tags_and_gains_the_loop_tags() -> TestResult 
         (vendor, list),
         "own tags first, then the loop"
     );
+    Ok(())
+}
+
+#[test]
+fn a_looping_opus_wem_becomes_a_wav_with_a_smpl_chunk() -> TestResult {
+    let bytes = TestOpus::new(TestOpusFraming::Wwise, 2, OPUS_FRAMES)
+        .wem()?
+        .smpl_loop(0, 960, 8_639)
+        .bytes();
+    let mut wav = Vec::new();
+
+    let report = Wem::parse(bytes.as_slice())?.write_wav(&mut wav)?;
+
+    assert_eq!(
+        wav.get(36..40),
+        Some(&b"smpl"[..]),
+        "smpl after the fmt chunk"
+    );
+    assert_eq!(wav.get(104..108), Some(&b"data"[..]), "then the samples");
+    assert_eq!(
+        report.loop_points,
+        Some(Loop {
+            start: 960,
+            end: 8_640
+        }),
+        "the loop in frames after the pre-skip"
+    );
+    assert_eq!(
+        report.sample_count,
+        u64::from(OPUS_FRAMES),
+        "the sound is written once"
+    );
+    assert_eq!(report.size, wav.len() as u64, "size");
     Ok(())
 }

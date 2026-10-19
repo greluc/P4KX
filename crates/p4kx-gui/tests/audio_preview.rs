@@ -44,6 +44,29 @@ fn selecting_a_wem_shows_codec_channels_sample_rate_and_duration() -> TestResult
 }
 
 #[test]
+fn a_looping_wem_decodes_and_plays_once() -> TestResult {
+    let output = FakeOutput::default();
+    let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
+
+    select(&mut harness, "looping.wem")?;
+    press(&mut harness, "Play");
+
+    assert!(
+        harness
+            .query_by_label_contains("Codec PCM Channels 2 Sample rate 48,000 Hz")
+            .is_some(),
+        "facts"
+    );
+    assert_eq!(
+        player(harness.state()).map(|player| player.pcm().frames()),
+        Some(48_000),
+        "the sound is decoded once, without its loop"
+    );
+    assert_eq!(output.started(), 1, "plays");
+    Ok(())
+}
+
+#[test]
 fn ima_adpcm_and_ptadpcm_decode_and_play() -> TestResult {
     for (name, codec) in [("ima.WEM", "IMA ADPCM"), ("platinum.wem", "PTADPCM")] {
         let output = FakeOutput::default();

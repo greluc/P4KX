@@ -1,5 +1,6 @@
 use super::{HEADER_COMMENT, HEADER_IDENT, VorbisError};
-use crate::ByteOrder;
+use crate::loops::LOOP_COMMENTS;
+use crate::{ByteOrder, Loop};
 
 const VORB_LEN: usize = 0x2A;
 const EMBEDDED_VORB_OFFSET: usize = 0x18;
@@ -97,8 +98,8 @@ impl Header {
     }
 }
 
-/// Writes a Vorbis comment header naming the tool and holding no comments.
-pub(crate) fn comment_packet(out: &mut Vec<u8>) {
+/// Writes a Vorbis comment header naming the tool and holding the comments of `points`.
+pub(crate) fn comment_packet(points: Option<Loop>, out: &mut Vec<u8>) {
     out.clear();
     out.push(HEADER_COMMENT);
     out.extend_from_slice(b"vorbis");
@@ -108,6 +109,12 @@ pub(crate) fn comment_packet(out: &mut Vec<u8>) {
             .to_le_bytes(),
     );
     out.extend_from_slice(VENDOR);
-    out.extend_from_slice(&0_u32.to_le_bytes());
+    match points {
+        Some(points) => {
+            out.extend_from_slice(&LOOP_COMMENTS.to_le_bytes());
+            points.write_comments(out);
+        }
+        None => out.extend_from_slice(&0_u32.to_le_bytes()),
+    }
     out.push(1);
 }

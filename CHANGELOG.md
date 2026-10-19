@@ -30,6 +30,8 @@ fails while its section is missing.
 - Query tab: completion of struct and field names from the DataForge schema while typing, after
   `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
   settings, run with one click, renamed and deleted.
+- Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
+  and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
 
 ### Changed
 

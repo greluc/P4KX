@@ -2,7 +2,9 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::{DataForge, DataForgeIssue, Field, MAX_DATAFORGE_ISSUES, RecordTree, Value, ValueError};
+use p4kx_dataforge::{
+    DataForge, DataForgeIssue, Field, MAX_DATAFORGE_ISSUES, RecordTree, Value, ValueError,
+};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;

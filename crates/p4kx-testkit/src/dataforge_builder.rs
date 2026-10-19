@@ -185,10 +185,13 @@ impl<'a> Writer<'a> {
             | TestType::WeakPointer(_) => 8,
             TestType::Guid => 16,
             TestType::Reference | TestType::ReferenceTo(_) => 20,
-            TestType::Class(name) => self
-                .struct_index
-                .get(name.as_str())
-                .map_or(0, |index| self.struct_size(*index as usize, depth)),
+            TestType::Class(name) => self.struct_index.get(name.as_str()).map_or(0, |index| {
+                self.spec
+                    .structs
+                    .get(*index as usize)
+                    .and_then(|structure| structure.declared_size)
+                    .unwrap_or_else(|| self.struct_size(*index as usize, depth))
+            }),
         }
     }
 

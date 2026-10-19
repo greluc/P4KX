@@ -133,6 +133,10 @@ impl TestStruct {
     ///
     /// Panics when the struct has no field yet.
     #[must_use]
+    #[expect(
+        clippy::panic,
+        reason = "a misuse of the test helper must fail the test loudly"
+    )]
     pub fn conversion_flags(mut self, flags: u8) -> Self {
         let property = self
             .properties

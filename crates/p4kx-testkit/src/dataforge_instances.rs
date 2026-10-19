@@ -105,7 +105,7 @@ impl Writer<'_> {
     fn defaults(&self, index: u32, depth: usize) -> Vec<u8> {
         let size = self.sizes.get(index as usize).copied().unwrap_or(0) as usize;
         let mut bytes = vec![0; size];
-        let Some(depth) = depth.checked_sub(1) else {
+        let Some(depth) = depth.checked_sub(1).filter(|_| size > 0) else {
             return bytes;
         };
         for slot in self.slots(index as usize) {

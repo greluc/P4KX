@@ -99,6 +99,12 @@ A label DataForge version 8 stores with every Record, e.g. `SystemsDesign` or `U
 Records have none.
 _Avoid_: category, kind
 
+**DataForge issue**:
+A deviation from the known DataForge layout that the reader tolerates and reports instead of
+failing: conversion flags above the low byte of a property, or a Record without name or tag.
+Distinct from an error value, which marks one value that cannot be read.
+_Avoid_: warning
+
 **Reference**:
 A link from one Record to another by GUID; it is never expanded into the referring Record. A weak
 pointer, the stored data type, becomes a Reference into its own Record, with the location of the

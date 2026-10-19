@@ -7,7 +7,7 @@ use egui::{
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
-use super::{dataforge_summary, image_preview};
+use super::{dataforge_summary, image_preview, xml_preview};
 use crate::preview::{HEX_ROW_LEN, printable};
 use crate::theme::desktop::{
     HEX_ASCII_GAP, HEX_ASCII_WIDTH, HEX_BYTE_GAP, HEX_BYTE_WIDTH, HEX_GROUP_GAP, HEX_OFFSET_WIDTH,
@@ -21,19 +21,21 @@ use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents,
-    PreviewStatus, PreviewTab, Text, Texts, format,
+    PreviewStatus, PreviewTab, Text, Texts, XmlPreview, XmlText, format,
 };
 
-const TABS: [(PreviewTab, Text); 4] = [
+const TABS: [(PreviewTab, Text); 5] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
+    (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
 ];
 const GROUP: u8 = 8;
 
 /// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, and
-/// leaves the Image and DataForge tabs for the Text tab otherwise.
+/// leaves the XML, Image and DataForge tabs for the Text tab otherwise; the XML tab opens once
+/// the Entry turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let texture = model
         .browser()
@@ -43,7 +45,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
         model.set_preview_tab(PreviewTab::Image);
     } else if matches!(
         model.preview_tab(),
-        PreviewTab::Image | PreviewTab::DataForge
+        PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge
     ) {
         model.set_preview_tab(PreviewTab::Text);
     }
@@ -52,6 +54,13 @@ pub(super) fn select(model: &mut Model, id: u32) {
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
         image.upload(ui.ctx());
+    }
+    if model
+        .browser_mut()
+        .and_then(Browser::preview_mut)
+        .is_some_and(Preview::take_xml_arrival)
+    {
+        model.set_preview_tab(PreviewTab::Xml);
     }
     let Some(browser) = model.browser() else {
         return;
@@ -85,8 +94,10 @@ fn tab_bar(
     mut tab: PreviewTab,
 ) -> (PreviewTab, Option<String>) {
     let image = browser.preview().and_then(Preview::image);
+    let xml = browser.preview().and_then(Preview::xml);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
+        PreviewTab::Xml => xml.is_some(),
         PreviewTab::Image => image.is_some(),
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Text | PreviewTab::Hex => true,
@@ -113,15 +124,21 @@ fn tab_bar(
         .preview()
         .and_then(|preview| preview.contents())
         .filter(|_| matches!(tab, PreviewTab::Text | PreviewTab::Hex));
+    let document = xml
+        .and_then(XmlPreview::text)
+        .filter(|_| tab == PreviewTab::Xml);
     let copy_label = texts.get(Text::PreviewCopy);
     let mut copy = None;
     ui.scope_builder(
         egui::UiBuilder::new().max_rect(bar.shrink2(vec2(SPACE_2, 0.0))),
         |ui| {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let enabled = contents.is_some();
+                let enabled = contents.is_some() || document.is_some();
                 if button::button(ui, Kind::Ghost, Size::Compact, &copy_label, enabled).clicked() {
-                    copy = contents.map(|contents| contents.copied(tab));
+                    copy = contents.map(|contents| contents.copied(tab)).or_else(|| {
+                        document
+                            .map(|document| String::from_utf8_lossy(document.bytes()).into_owned())
+                    });
                 }
             });
         },
@@ -160,6 +177,10 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Optio
     path_line(ui, path, &format::size(size, texts.language()));
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
         return image_preview::show(ui, texts, path, image);
+    }
+    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
+        xml_preview::show(ui, texts, (path, size), xml);
+        return None;
     }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
@@ -234,7 +255,9 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text | PreviewTab::Image | PreviewTab::DataForge => text_rows(ui, contents),
+        PreviewTab::Text | PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge => {
+            text_rows(ui, contents);
+        }
         PreviewTab::Hex => hex_rows(ui, contents),
     }
 }

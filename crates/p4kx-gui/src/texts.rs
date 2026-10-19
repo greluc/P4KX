@@ -12,6 +12,7 @@ mod query_text;
 mod record_change_text;
 mod record_export_text;
 mod text_ids;
+mod xml_text;
 
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
@@ -23,6 +24,7 @@ pub use image_text::ImageText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
+pub use xml_text::XmlText;
 
 use crate::Language;
 
@@ -168,6 +170,8 @@ pub enum Text {
     RecordChange(RecordChangeText),
     /// A text of the image preview.
     Image(ImageText),
+    /// A text of the XML preview.
+    Xml(XmlText),
     /// A text of the Query tab.
     Query(QueryText),
     /// A text of the containers in the path tree.

@@ -353,3 +353,11 @@ record-export-summary-failure = { $path } ({ $guid }): { $reason }
 record-export-failed-title = Record export failed
 record-export-failed = The Record export into { $path } failed: { $reason }
 record-export-stopped = The Record export into { $path } stopped without a result.
+
+preview-tab-xml = XML
+xml-converting = Converting { $path } to XML…
+xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.
+xml-failed = Cannot convert { $path } to XML: { $reason }
+xml-stopped = Converting { $path } stopped without a result.
+xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.
+xml-view = Converted XML

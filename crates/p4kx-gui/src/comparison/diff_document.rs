@@ -200,7 +200,7 @@ fn widest(text: &TextDiff) -> (ComparisonSide, u32) {
 }
 
 /// Returns the characters of `line` as shown: UTF-8 sequences count once, a tab four times.
-fn shown_len(line: &[u8]) -> usize {
+pub(crate) fn shown_len(line: &[u8]) -> usize {
     line.iter()
         .map(|&byte| match byte {
             b'\t' => 4,

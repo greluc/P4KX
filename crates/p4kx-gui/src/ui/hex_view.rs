@@ -14,9 +14,8 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight, font};
 
 const GROUP: u8 = 8;
-
-/// Shows the hex rows of `contents`: offsets, bytes and printable characters.
-pub(super) fn show(ui: &mut Ui, contents: &PreviewContents) {
+/// Shows the hex view of contents: offsets, bytes and printable characters, row by row.
+pub(super) fn hex_rows(ui: &mut Ui, contents: &PreviewContents) {
     let glyphs = HexGlyphs::get(ui);
     ScrollArea::both()
         .id_salt("preview-hex")

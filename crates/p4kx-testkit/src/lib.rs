@@ -6,6 +6,7 @@
 
 mod adpcm;
 mod archive_builder;
+mod audio;
 mod bnk;
 mod build_manifest;
 mod bytes;
@@ -26,6 +27,8 @@ mod gfx_tags;
 mod global_ini;
 mod layout_v1;
 mod layout_v2;
+mod opus;
+mod opus_encode;
 mod real_archive;
 mod split_dds;
 mod test_entry;
@@ -34,6 +37,7 @@ mod vorbis;
 mod wem;
 
 pub use archive_builder::ArchiveBuilder;
+pub use audio::{TestAtl, audio_schema, wwise_short_id};
 pub use bnk::{TestBank, TestHircObject};
 pub use build_manifest::write_build_manifest;
 pub use chf::{TestChf, TestItemPort, TestMaterial, TestSubMaterial};
@@ -54,6 +58,7 @@ pub use gfx_tags::{
     sub_image_body,
 };
 pub use global_ini::GlobalIniBuilder;
+pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

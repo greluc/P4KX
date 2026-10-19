@@ -69,7 +69,7 @@ pub use p4kx_audio::{
     MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
-    AudioError, ByteOrder, Codebooks, Codec, OggReport, VorbisError, WavReport, Wem,
+    AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
 };
 pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;

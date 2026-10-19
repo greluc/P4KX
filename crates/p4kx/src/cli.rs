@@ -11,6 +11,7 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
@@ -91,6 +92,9 @@ pub(crate) enum Command {
     /// Resolves Wwise audio triggers through the soundbank hierarchy to their sounds.
     #[command(after_help = EXIT_CODES_HELP)]
     Wwise(WwiseArgs),
+    /// Shows a static #ivo model with its nodes, meshes and materials, or writes it as GLB.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Model(ModelArgs),
 }
 
 /// Arguments of `p4kx cryxml`.

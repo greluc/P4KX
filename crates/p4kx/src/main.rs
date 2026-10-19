@@ -14,6 +14,7 @@ mod cli_chf;
 mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
+mod cli_model;
 mod cli_socpak;
 mod cli_ui;
 mod cli_wwise;
@@ -32,6 +33,8 @@ mod extract;
 mod info;
 mod json;
 mod list;
+mod model;
+mod model_json;
 mod progress;
 mod query_file;
 mod query_rows;
@@ -80,6 +83,7 @@ fn main() -> ExitCode {
         Command::Chf(args) => chf::run(&args, json).map(success),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
         Command::Wwise(args) => wwise::run(&args, json).map(success),
+        Command::Model(args) => model::run(&args, json).map(success),
     };
     match result {
         Ok(code) => code,

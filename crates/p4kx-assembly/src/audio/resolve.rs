@@ -23,26 +23,7 @@ impl ArchiveAudio<'_> {
         let index = self.index();
         let trigger = index.trigger(name)?;
         let events = trigger.events();
-        let mut positions: Vec<u32> = events
-            .iter()
-            .flat_map(|event| index.event_holders(event.id()).iter().copied())
-            .collect();
-        positions.sort_unstable();
-        positions.dedup();
-        let pairs: usize = events
-            .iter()
-            .map(|event| index.event_holders(event.id()).len())
-            .sum();
-        let budget = (MAX_TRIGGER_OBJECTS / pairs.max(1)).clamp(1, MAX_EVENT_OBJECTS);
-        let mut walks: Vec<BankWalk<'_>> = positions
-            .par_iter()
-            .map(|&position| {
-                (
-                    position,
-                    self.walk_soundbank(index, position, events, budget),
-                )
-            })
-            .collect();
+        let mut walks = self.walk_soundbanks(index, events);
         let mut sounds = TriggerSounds {
             trigger,
             definition_path: index.definition_path(trigger),
@@ -89,6 +70,33 @@ impl ArchiveAudio<'_> {
             }
         }
         Some(sounds)
+    }
+
+    fn walk_soundbanks<'i>(
+        &self,
+        index: &'i AudioIndex,
+        events: &'i [WwiseEvent],
+    ) -> Vec<BankWalk<'i>> {
+        let mut positions: Vec<u32> = events
+            .iter()
+            .flat_map(|event| index.event_holders(event.id()).iter().copied())
+            .collect();
+        positions.sort_unstable();
+        positions.dedup();
+        let pairs: usize = events
+            .iter()
+            .map(|event| index.event_holders(event.id()).len())
+            .sum();
+        let budget = (MAX_TRIGGER_OBJECTS / pairs.max(1)).clamp(1, MAX_EVENT_OBJECTS);
+        positions
+            .par_iter()
+            .map(|&position| {
+                (
+                    position,
+                    self.walk_soundbank(index, position, events, budget),
+                )
+            })
+            .collect()
     }
 
     fn walk_soundbank<'i>(

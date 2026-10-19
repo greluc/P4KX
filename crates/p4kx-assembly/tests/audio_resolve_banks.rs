@@ -4,7 +4,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_assembly::audio::{ArchiveAudio, BreakReason, WemLocation};
+use p4kx_assembly::audio::{ArchiveAudio, BreakReason, IndexedSoundbank, WemLocation};
 use p4kx_extraction::Archive;
 use p4kx_testkit::{
     ArchiveBuilder, TestAtl, TestBank, TestContainerKind, TestEntry, TestHircObject, TestNodeBase,
@@ -128,7 +128,10 @@ fn corrupt_bank_magic(path: &Path) -> TestResult {
         .windows(4)
         .position(|window| window == b"BKHD")
         .ok_or("the stored soundbank is in the file")?;
-    bytes[at..at + 4].copy_from_slice(b"XXXX");
+    bytes
+        .get_mut(at..at + 4)
+        .ok_or("the magic lies in the file")?
+        .copy_from_slice(b"XXXX");
     std::fs::write(path, bytes)?;
     Ok(())
 }
@@ -161,7 +164,7 @@ fn a_soundbank_that_cannot_be_read_again_is_a_broken_link_at_the_event() -> Test
         "typed reason"
     );
     assert_eq!(
-        link.soundbank().map(|bank| bank.file_name()),
+        link.soundbank().map(IndexedSoundbank::file_name),
         Some("A.bnk"),
         "soundbank"
     );

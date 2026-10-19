@@ -282,18 +282,23 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 1061001, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}], "skipped": 2, "texts": [{"language": "en", "available": true,
- "resolved": 2240, "unresolved": 8, "placeholder": 154}, {"language": "de", "available": true,
- "resolved": 2132, "unresolved": 116, "placeholder": 154}], "unresolved": 124}
+ "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
+ "item_classes": {"classified": 347, "other": 409, "missing": 22544},
+ "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
+ "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
+ "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them. `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+them. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
+holds another value (`other`) or is missing, also for an item without an English description
+(`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
@@ -579,6 +584,58 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
 
 `chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged.
 An index the table does not have, or an output that is the chunk file itself, fails with exit
+code 2.
+
+## `p4kx model info <archive> <entry> --json`
+
+Also `p4kx model info <file> --json` for a model file on disk with its geometry companion next to
+it.
+
+```json
+{"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
+ "material_library": "objects/test/cube", "material_ids": [1, 2],
+ "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
+           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+           "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
+                       "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
+                                     {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
+ "bones": [],
+ "chunks": [{"file": "model", "index": 0, "type": "AssetMetadata", "type_id": 3193850174,
+             "usage": "skipped"}, …,
+            {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
+             "usage": "read"}]}
+```
+
+`geometry` is the file name of the geometry companion the meshes come from, `null` when they are
+in the model file itself or the model has no geometry. `material_library` is the path below `Data`
+without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of the file;
+`parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
+matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
+metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
+lists the levels of detail, LOD0 first, each with its meshes, at most one per node; `first_index`
+and `index_count` locate a submesh in its mesh's triangle list. `bones` lists `name` and `parent`
+of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
+geometry companion (`file` is `model` or `geometry`) with `usage` `read` when the model was read
+from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
+A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
+companion with 3, and a `CrCh` model, which is not supported yet, with 1.
+
+## `p4kx model glb <archive> <entry> --out <file> --json`
+
+Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
+
+```json
+{"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
+ "primitives": 2, "materials": 2, "vertices": 24, "triangles": 12, "bytes": 2412,
+ "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
+                     "usage": "unknown"}]}
+```
+
+The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
+one primitive per submesh and one material per material ID, LOD0, in glTF axes (Y up) and metres;
+`bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
+export skipped, as in `p4kx model info`. An output that is one of the model's files exits with
 code 2.
 
 ## `p4kx extract … --json`

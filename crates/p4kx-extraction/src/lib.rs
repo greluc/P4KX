@@ -1,5 +1,5 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
-//! texture, audio, chunk file and UI movie APIs front-ends use.
+//! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -14,8 +14,11 @@ mod entry_path;
 mod extract;
 mod filter;
 mod localization;
+mod model_companions;
+mod model_source;
 mod options;
 mod output_file;
+mod path_index;
 mod pixel_budget;
 mod query_export;
 mod record_combined;
@@ -59,6 +62,7 @@ pub use entry_content::{
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};
+pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
@@ -81,13 +85,16 @@ pub use p4kx_dataforge::{
     ValueKind,
 };
 pub use p4kx_gfx as gfx;
+pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
     GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
 };
+pub use p4kx_model as model;
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
 };
+pub use path_index::PathIndex;
 pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };

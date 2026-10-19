@@ -59,6 +59,14 @@ fails while its section is missing.
 
 ### Changed
 
+- GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
+  `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
+  bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
+  `#2F394C`, the text `#D1D2D3` and the muted text `#A2A5A9`; the selected tint is 26 % orange,
+  every orange tint and glow follows, tooltips fill with the control colour, and the glyph and
+  logo SVGs use the house orange, tree rows hover in 2.5 % white and the drop target fills with
+  6 % orange as the design system's CSS sets them. The earlier values were sampled from HDR screenshots and were
+  too light.
 - GUI: the window follows the design system after its adaptation to the das-kartell.org website
   (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
   with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
@@ -74,6 +82,14 @@ fails while its section is missing.
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
+- DataForge: a format drift that no known database has is read and reported instead of failing the
+  Record or the file. Bits above the low byte of a property's conversion type are ignored, so a
+  flag no longer turns a single value into an array slot and breaks the struct layout; a Record
+  whose name offset is `0xFFFFFFFF` reads with an empty name and one whose tag offset is
+  `0xFFFFFFFF` without a tag. `DataForge::issues` lists these deviations (one per property or
+  Record, at most 1024 listed, all counted by `issue_count`), and `DataForge::survey` counts the
+  format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
+  checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 
 ## [0.2.0]
 

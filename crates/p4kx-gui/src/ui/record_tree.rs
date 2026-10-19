@@ -150,7 +150,7 @@ pub(super) fn show_row(
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let active = tree.selected() == Some(row.node);
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of_list(active, response.hovered());
+    let state = RowState::of_tree(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let toggle_id = ui.scope_id().with(("record-toggle", row.node));

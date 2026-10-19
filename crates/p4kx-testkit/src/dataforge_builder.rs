@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::TestInstance;
 use crate::bytes::{put_u16, put_u32};
 use crate::dataforge_schema::{TestPool, TestProperty, TestRecord, TestStruct, TestType};
+use crate::dataforge_strings::{Strings, guid_bytes, names, to_u16, to_u32};
 
 const NONE: u32 = u32::MAX;
 const TAGGED_VERSION: u32 = 8;
@@ -110,25 +111,6 @@ impl DataForgeBuilder {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct Strings {
-    bytes: Vec<u8>,
-    offsets: HashMap<String, u32>,
-}
-
-impl Strings {
-    pub(crate) fn offset(&mut self, text: &str) -> u32 {
-        if let Some(offset) = self.offsets.get(text) {
-            return *offset;
-        }
-        let offset = to_u32(self.bytes.len());
-        self.bytes.extend_from_slice(text.as_bytes());
-        self.bytes.push(0);
-        self.offsets.insert(text.to_owned(), offset);
-        offset
-    }
-}
-
 pub(crate) struct Writer<'a> {
     pub(crate) spec: &'a DataForgeBuilder,
     pub(crate) struct_index: HashMap<&'a str, u32>,
@@ -203,10 +185,13 @@ impl<'a> Writer<'a> {
             | TestType::WeakPointer(_) => 8,
             TestType::Guid => 16,
             TestType::Reference | TestType::ReferenceTo(_) => 20,
-            TestType::Class(name) => self
-                .struct_index
-                .get(name.as_str())
-                .map_or(0, |index| self.struct_size(*index as usize, depth)),
+            TestType::Class(name) => self.struct_index.get(name.as_str()).map_or(0, |index| {
+                self.spec
+                    .structs
+                    .get(*index as usize)
+                    .and_then(|structure| structure.declared_size)
+                    .unwrap_or_else(|| self.struct_size(*index as usize, depth))
+            }),
         }
     }
 
@@ -325,10 +310,20 @@ impl<'a> Writer<'a> {
             let struct_index = self.lookup_struct(Some(&record.type_name));
             let instance = *instance;
             let size = self.sizes.get(struct_index as usize).copied().unwrap_or(0);
-            put_u32(&mut rows, self.blob.offset(&record.name));
+            let name = if record.without_name {
+                NONE
+            } else {
+                self.blob.offset(&record.name)
+            };
+            put_u32(&mut rows, name);
             put_u32(&mut rows, self.text.offset(&record.file_name));
             if self.spec.version == TAGGED_VERSION {
-                put_u32(&mut rows, self.blob.offset(&record.tag));
+                let tag = if record.without_tag {
+                    NONE
+                } else {
+                    self.blob.offset(&record.tag)
+                };
+                put_u32(&mut rows, tag);
             }
             put_u32(&mut rows, struct_index);
             rows.extend_from_slice(&guid_bytes(record.guid));
@@ -354,7 +349,7 @@ impl<'a> Writer<'a> {
         put_u32(out, self.blob.offset(&property.name));
         put_u16(out, self.property_target(&property.ty));
         put_u16(out, property.ty.code());
-        put_u16(out, conversion);
+        put_u16(out, conversion | u16::from(property.flags) << 8);
         put_u16(out, 0);
     }
 
@@ -363,36 +358,4 @@ impl<'a> Writer<'a> {
             .copied()
             .unwrap_or(NONE)
     }
-}
-
-/// Returns the 16 stored bytes of a GUID written in text as the hexadecimal number `guid`.
-pub(crate) fn guid_bytes(guid: u128) -> [u8; 16] {
-    let text = guid.to_be_bytes();
-    let mut stored = [0; 16];
-    for (position, byte) in text.iter().enumerate() {
-        let target = if position < 8 {
-            7 - position
-        } else {
-            23 - position
-        };
-        if let Some(slot) = stored.get_mut(target) {
-            *slot = *byte;
-        }
-    }
-    stored
-}
-
-fn names<'a>(names: impl Iterator<Item = &'a str>) -> HashMap<&'a str, u32> {
-    names
-        .enumerate()
-        .map(|(index, name)| (name, to_u32(index)))
-        .collect()
-}
-
-fn to_u32(value: usize) -> u32 {
-    u32::try_from(value).unwrap_or(u32::MAX)
-}
-
-fn to_u16(value: usize) -> u16 {
-    u16::try_from(value).unwrap_or(u16::MAX)
 }

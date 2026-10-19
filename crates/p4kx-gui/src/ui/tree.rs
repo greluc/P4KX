@@ -115,7 +115,7 @@ fn show_row(
         && browser.selected_node() == node
         && browser.records().and_then(RecordTree::selected).is_none();
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of_list(active, response.hovered());
+    let state = RowState::of_tree(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let expanded = browser.is_expanded(node);

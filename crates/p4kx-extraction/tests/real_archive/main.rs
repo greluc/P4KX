@@ -15,6 +15,7 @@ use rayon::prelude::*;
 mod adpcm;
 mod combined;
 mod cubemap_alpha;
+mod dataforge_canary;
 mod records;
 mod sound;
 mod sound_extraction;

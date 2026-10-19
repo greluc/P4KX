@@ -1,5 +1,5 @@
 use crate::dataforge::out_of_range;
-use crate::rows::RecordDef;
+use crate::rows::{NO_STRING, RecordDef};
 use crate::strings::{compare_ignoring_case, compare_paths, strip_xml};
 use crate::{
     DataForge, DataForgeError, Guid, RecordTree, Reference, Struct, TreeBuilder, Value, ValueError,
@@ -26,12 +26,16 @@ impl<'f> Record<'f> {
         Guid::from_stored(self.def.guid)
     }
 
-    /// Returns the name, e.g. `EntityClassDefinition.AEGS_Avenger`.
+    /// Returns the name, e.g. `EntityClassDefinition.AEGS_Avenger`; empty when the Record has no
+    /// name, which [`DataForge::issues`] reports.
     ///
     /// # Errors
     ///
     /// Returns [`DataForgeError::InvalidString`] when the name offset is not a valid string.
     pub fn name(&self) -> Result<&'f str, DataForgeError> {
+        if self.def.name == NO_STRING {
+            return Ok("");
+        }
         self.forge.blob.get(self.def.name)
     }
 
@@ -46,13 +50,18 @@ impl<'f> Record<'f> {
     }
 
     /// Returns the Record tag version 8 stores with every Record, e.g. `SystemsDesign`, or `None` for
-    /// version 6, which has no tags.
+    /// version 6, which has no tags, and for a Record without tag, which [`DataForge::issues`]
+    /// reports.
     ///
     /// # Errors
     ///
     /// Returns [`DataForgeError::InvalidString`] when the tag offset is not a valid string.
     pub fn tag(&self) -> Result<Option<&'f str>, DataForgeError> {
-        self.def.tag.map(|tag| self.forge.blob.get(tag)).transpose()
+        self.def
+            .tag
+            .filter(|tag| *tag != NO_STRING)
+            .map(|tag| self.forge.blob.get(tag))
+            .transpose()
     }
 
     /// Returns the struct the Record is an instance of.

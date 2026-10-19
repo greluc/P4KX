@@ -10,6 +10,14 @@ use crate::cli::{AudioAction, AudioArgs, AudioSource};
 use crate::json;
 
 const UNKNOWN: &str = "unknown";
+const NONE: &str = "none";
+
+#[derive(Serialize)]
+struct LoopJson {
+    start: u64,
+    end: u64,
+    frames: u64,
+}
 
 #[derive(Serialize)]
 struct InfoJson<'a> {
@@ -21,6 +29,8 @@ struct InfoJson<'a> {
     sample_rate: u32,
     sample_count: Option<u64>,
     duration_seconds: Option<f64>,
+    #[serde(rename = "loop")]
+    loop_points: Option<LoopJson>,
 }
 
 #[derive(Serialize)]
@@ -31,6 +41,8 @@ struct WavJson<'a> {
     sample_rate: u32,
     sample_count: u64,
     size: u64,
+    #[serde(rename = "loop")]
+    loop_points: Option<LoopJson>,
 }
 
 #[derive(Serialize)]
@@ -44,6 +56,8 @@ struct OggJson<'a> {
     duration_seconds: f64,
     codebooks: Option<&'static str>,
     size: u64,
+    #[serde(rename = "loop")]
+    loop_points: Option<LoopJson>,
 }
 
 /// Runs `p4kx audio info`, `p4kx audio wav` or `p4kx audio ogg`.
@@ -74,6 +88,9 @@ fn info(sound: &Sound, as_json: bool) -> Result<()> {
         sample_rate: wem.sample_rate(),
         sample_count: wem.sample_count(),
         duration_seconds: duration.map(|duration| duration.as_secs_f64()),
+        loop_points: wem
+            .loop_points()
+            .map(|points| loop_json(points.start, points.end)),
     };
     if as_json {
         json::print(&info)?;
@@ -88,12 +105,32 @@ fn info(sound: &Sound, as_json: bool) -> Result<()> {
             "Duration",
             duration.map_or_else(|| UNKNOWN.to_owned(), format_duration),
         ),
+        (
+            "Loop",
+            info.loop_points.as_ref().map_or_else(
+                || NONE.to_owned(),
+                |points| {
+                    format!(
+                        "frames {} to {}, {} frames",
+                        points.start, points.end, points.frames
+                    )
+                },
+            ),
+        ),
     ];
     let mut out = io::stdout().lock();
     for (label, value) in lines {
         writeln!(out, "{:<12} {value}", format!("{label}:"))?;
     }
     Ok(())
+}
+
+const fn loop_json(start: u64, end: u64) -> LoopJson {
+    LoopJson {
+        start,
+        end,
+        frames: end.saturating_sub(start),
+    }
 }
 
 fn format_duration(duration: Duration) -> String {
@@ -111,6 +148,9 @@ fn wav(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
             sample_rate: report.sample_rate,
             sample_count: report.sample_count,
             size: report.size,
+            loop_points: report
+                .loop_points
+                .map(|points| loop_json(points.start, points.end)),
         })?;
     } else {
         writeln!(
@@ -138,6 +178,9 @@ fn ogg(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
             duration_seconds: duration.as_secs_f64(),
             codebooks: report.codebooks.map(Codebooks::id),
             size: report.size,
+            loop_points: report
+                .loop_points
+                .map(|points| loop_json(points.start, points.end)),
         })?;
     } else {
         writeln!(

@@ -33,6 +33,7 @@ pub struct TestWem {
     big_endian: bool,
     chunks: Vec<([u8; 4], Vec<u8>)>,
     tail: Vec<([u8; 4], Vec<u8>)>,
+    loops: Vec<(u32, u32, u32)>,
     vorbis_fields: Vec<u8>,
     extension: Vec<u8>,
     data: Vec<u8>,
@@ -52,6 +53,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             tail: Vec::new(),
+            loops: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data: samples
@@ -73,6 +75,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             tail: Vec::new(),
+            loops: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data: (0..=255).collect(),
@@ -122,6 +125,7 @@ impl TestWem {
             big_endian: false,
             chunks: Vec::new(),
             tail: Vec::new(),
+            loops: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data,
@@ -157,6 +161,14 @@ impl TestWem {
         self
     }
 
+    /// Adds a sample loop of `kind` (0 forward) from frame `start` to the inclusive frame `end`,
+    /// written as a standard `smpl` chunk in the file's byte order after the `fmt ` chunk.
+    #[must_use]
+    pub fn smpl_loop(mut self, kind: u32, start: u32, end: u32) -> Self {
+        self.loops.push((kind, start, end));
+        self
+    }
+
     /// Sets the bytes a Wwise Vorbis `fmt` chunk holds after the sample count, from offset `0x1C`;
     /// they are written as given, so multi-byte fields must already be in the file's byte order.
     #[must_use]
@@ -184,6 +196,9 @@ impl TestWem {
     pub fn bytes(&self) -> Vec<u8> {
         let mut body = b"WAVE".to_vec();
         self.put_chunk(&mut body, *b"fmt ", &self.fmt());
+        if !self.loops.is_empty() {
+            self.put_chunk(&mut body, *b"smpl", &self.smpl());
+        }
         for (id, chunk) in &self.chunks {
             self.put_chunk(&mut body, *id, chunk);
         }
@@ -253,6 +268,30 @@ impl TestWem {
             }
         }
         fmt
+    }
+
+    fn smpl(&self) -> Vec<u8> {
+        let mut smpl = Vec::new();
+        let period = 1_000_000_000 / self.sample_rate.max(1);
+        for value in [
+            0,
+            0,
+            period,
+            60,
+            0,
+            0,
+            0,
+            u32::try_from(self.loops.len()).unwrap_or(u32::MAX),
+            0,
+        ] {
+            self.put_u32(&mut smpl, value);
+        }
+        for &(kind, start, end) in &self.loops {
+            for value in [0, kind, start, end, 0, 0] {
+                self.put_u32(&mut smpl, value);
+            }
+        }
+        smpl
     }
 
     fn put_chunk(&self, out: &mut Vec<u8>, id: [u8; 4], body: &[u8]) {

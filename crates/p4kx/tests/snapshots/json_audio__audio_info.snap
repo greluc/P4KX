@@ -8,6 +8,7 @@ expression: json
   "codec_name": "PCM",
   "duration_seconds": 0.025,
   "format_tag": 65534,
+  "loop": null,
   "sample_count": 1200,
   "sample_rate": 48000,
   "sound": "Data\\Sounds\\wwise\\Media\\100.wem"

@@ -15,11 +15,12 @@ pub(crate) struct AudioArgs {
 /// The actions of `p4kx audio`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum AudioAction {
-    /// Prints the codec, channels, sample rate and duration of a WEM.
+    /// Prints the codec, channels, sample rate, duration and loop of a WEM; the loop runs from its
+    /// start frame up to, not including, its end frame.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(AudioSource),
-    /// Writes a PCM, IMA ADPCM, PTADPCM, Wwise Vorbis or Opus WEM as a 16-bit WAV file; other
-    /// codecs fail with an error naming them.
+    /// Writes a PCM, IMA ADPCM, PTADPCM, Wwise Vorbis or Opus WEM as a 16-bit WAV file with its
+    /// loop in a smpl chunk; other codecs fail with an error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Wav {
         /// The sound.
@@ -30,7 +31,8 @@ pub(crate) enum AudioAction {
         out: PathBuf,
     },
     /// Rebuilds a Wwise Vorbis WEM as an Ogg Vorbis file or an Opus WEM as an Ogg Opus file,
-    /// without re-encoding; other codecs fail with an error naming them.
+    /// without re-encoding, with its loop in LOOPSTART and LOOPLENGTH comments; other codecs fail
+    /// with an error naming them.
     #[command(after_help = EXIT_CODES_HELP)]
     Ogg {
         /// The sound.

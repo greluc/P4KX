@@ -96,6 +96,7 @@ fn info_of_a_file_prints_json() -> TestResult {
             "sample_rate": 48_000,
             "sample_count": FRAMES,
             "duration_seconds": 0.5,
+            "loop": null,
         }),
         "the JSON shape"
     );

@@ -140,6 +140,22 @@ fn convert_sound(archive: &Archive, entry: &Entry) -> Result<String, String> {
     }
 }
 
+/// Returns the offset of the samples of a WAV, found by walking its chunks.
+fn data_start(wav: &[u8]) -> Option<usize> {
+    let mut position = 12_usize;
+    loop {
+        let id = wav.get(position..position.checked_add(4)?)?;
+        let len = u32::from_le_bytes(*wav.get(position.checked_add(4)?..)?.first_chunk::<4>()?);
+        let body = position.checked_add(8)?;
+        if id == b"data" {
+            return Some(body);
+        }
+        position = body
+            .checked_add(usize::try_from(len).ok()?)?
+            .checked_add(usize::try_from(len).ok()? % 2)?;
+    }
+}
+
 /// Rebuilds the Ogg, decodes it as a player would and checks that `wav` holds the same samples.
 fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry, wav: Option<&[u8]>) -> Result<String, String> {
     let mut ogg = Vec::new();
@@ -151,9 +167,8 @@ fn rebuild_ogg(wem: &Wem<&[u8]>, entry: &Entry, wav: Option<&[u8]>) -> Result<St
         entry.path()
     );
     let mut reader = OggStreamReader::new(Cursor::new(ogg)).map_err(|error| error.to_string())?;
-    let header_len = if wem.channels() > 2 { 68 } else { 44 };
     let wav: Vec<i16> = wav
-        .and_then(|wav| wav.get(header_len..))
+        .and_then(|wav| wav.get(data_start(wav)?..))
         .unwrap_or_default()
         .as_chunks::<2>()
         .0

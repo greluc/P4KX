@@ -961,6 +961,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
+name = "crc-catalog"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
+
+[[package]]
 name = "crc32c"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2549,6 +2564,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
+name = "lzma-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+dependencies = [
+ "byteorder",
+ "crc",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3392,12 +3417,14 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-foundation",
+ "p4kx-gfx",
  "p4kx-localization",
  "p4kx-testkit",
  "p4kx-texture",
  "png",
  "rayon",
  "roxmltree",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
 ]
@@ -3407,6 +3434,22 @@ name = "p4kx-foundation"
 version = "0.1.0"
 dependencies = [
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-gfx"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "lzma-rs",
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "png",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -3450,6 +3493,7 @@ name = "p4kx-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "clap",
  "p4kx-channels",
  "p4kx-extraction",
@@ -3484,6 +3528,7 @@ dependencies = [
  "crc32c",
  "crc32fast",
  "flate2",
+ "lzma-rs",
  "p4kx-foundation",
  "ruzstd",
 ]

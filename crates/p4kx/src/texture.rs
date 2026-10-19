@@ -221,6 +221,8 @@ pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
                 | ConversionError::ChunkFile { .. }
                 | ConversionError::ChunkFileTooLarge { .. }
                 | ConversionError::SoundTooLarge { .. }
+                | ConversionError::UiMovie { .. }
+                | ConversionError::UiMovieTooLarge { .. }
                 | ConversionError::Texture {
                     source: TextureError::ReadHeader(_),
                     ..

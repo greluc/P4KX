@@ -60,7 +60,15 @@ pub(crate) fn wait_until(
     harness.step();
     while !done(harness.state()) {
         if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
+            let browser = harness.state().browser();
+            let tree = browser.and_then(Browser::records).map(|tree| tree.status());
+            let record = browser
+                .and_then(Browser::record_preview)
+                .map(|preview| preview.status());
+            return Err(format!(
+                "the window did not settle in time; tree {tree:?}, preview {record:?}"
+            )
+            .into());
         }
         std::thread::sleep(Duration::from_millis(5));
         harness.step();

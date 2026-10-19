@@ -26,10 +26,12 @@ pub(crate) enum Ended {
         entries: Vec<EntryEnded>,
         unconverted: Option<(usize, EntryFailure)>,
     },
-    /// A sound or soundbank Entry, and the failures of what could not be converted.
+    /// A sound or soundbank Entry, the failures of what could not be converted and the names of
+    /// the sounds of a soundbank the cancelled run left unwritten.
     Sound {
         entry: EntryEnded,
         unconverted: Vec<EntryFailure>,
+        cancelled: Vec<String>,
     },
 }
 
@@ -162,6 +164,7 @@ fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
 fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
     let mut outcomes = Vec::with_capacity(ended.len());
     let mut unconverted = Vec::new();
+    let mut unwritten = Vec::new();
     for item in ended {
         match item {
             Ended::Entry(outcome) => outcomes.push(outcome),
@@ -175,14 +178,17 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
             Ended::Sound {
                 entry,
                 unconverted: failures,
+                cancelled: sounds,
             } => {
                 let index = entry.0;
                 outcomes.push(entry);
                 unconverted.extend(failures.into_iter().map(|failure| (index, failure)));
+                unwritten.extend(sounds.into_iter().map(|sound| (index, sound)));
             }
         }
     }
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
+    unwritten.sort_by_key(|(index, _)| *index);
     unconverted.sort_by_key(|(index, _)| *index);
     let mut report = ExtractionReport {
         converted: convert.then_some(0),
@@ -204,6 +210,9 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
+    report
+        .cancelled
+        .extend(unwritten.into_iter().map(|(_, sound)| sound));
     report
 }
 

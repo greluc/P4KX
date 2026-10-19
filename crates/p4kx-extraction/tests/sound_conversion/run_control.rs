@@ -3,7 +3,9 @@ use std::sync::Mutex;
 
 use p4kx_extraction::{AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress};
 
-use crate::fixture::{BANK, Fixture, PCM, TestResult, VORBIS, XMA, partial_files};
+use p4kx_testkit::{TestBank, TestEntry};
+
+use crate::fixture::{BANK, Fixture, PCM, TestResult, VORBIS, XMA, bank, partial_files};
 
 const OGG: &str = "Data/Sounds/wwise/Media/500.ogg";
 const EMBEDDED: &str = "Data/Sounds/wwise/Ship/20.wav";
@@ -127,14 +129,73 @@ fn cancelling_during_the_run_stops_the_rest_without_partial_files() -> TestResul
     });
 
     assert!(!report.cancelled().is_empty(), "the run stopped");
+    let cancelled_entries = report
+        .cancelled()
+        .iter()
+        .filter(|path| !path.contains(" WEM "))
+        .count();
     assert_eq!(
-        report.extracted() + report.cancelled().len() + report.failures().len(),
+        report.extracted() + cancelled_entries + report.failures().len(),
         4,
         "every Entry ended once"
     );
     assert!(
         partial_files(&fixture.target)?.is_empty(),
         "no partial file"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_soundbank_cancelled_between_sounds_reports_what_it_wrote_and_what_it_left() -> TestResult {
+    let fixture = Fixture::new(vec![TestEntry::zstd(BANK, bank())])?;
+    let first = fixture.target.join("Data/Sounds/wwise/Ship/10.ogg");
+    let cancel = CancelToken::new();
+    let on_progress = |_: Progress| {
+        if first.exists() {
+            cancel.cancel();
+        }
+    };
+
+    let report = fixture.run_with(&ExtractOptions {
+        convert: true,
+        cancel: Some(&cancel),
+        progress: Some(&on_progress),
+        ..ExtractOptions::default()
+    });
+
+    assert_eq!(report.extracted(), 1, "the soundbank itself is written");
+    assert!(fixture.exists(BANK), "the soundbank is on disk");
+    assert_eq!(
+        report.cancelled(),
+        [20, 30, 40].map(|id| format!("{BANK} WEM {id}")),
+        "the sounds not written"
+    );
+    assert!(report.failures().is_empty(), "nothing failed");
+    assert!(!report.is_complete(), "the run is not complete");
+    assert_eq!(
+        fixture.names("Data/Sounds/wwise/Ship")?,
+        ["10.ogg"],
+        "only the sound written before the cancel"
+    );
+    assert!(
+        partial_files(&fixture.target)?.is_empty(),
+        "no partial file"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_soundbank_without_sounds_creates_no_folder() -> TestResult {
+    let fixture = Fixture::new(vec![TestEntry::zstd(BANK, TestBank::new(1).bytes())])?;
+
+    let report = fixture.run(AudioConversion::Ogg, ConflictPolicy::Skip);
+
+    assert_eq!(report.extracted(), 1, "the soundbank is written");
+    assert!(fixture.exists(BANK), "the soundbank is on disk");
+    assert!(
+        !fixture.exists("Data\\Sounds\\wwise\\Ship"),
+        "no folder for sounds that are not there"
     );
     Ok(())
 }

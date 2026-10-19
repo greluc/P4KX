@@ -10,8 +10,7 @@ use p4kx_channels::channel_name;
 use p4kx_extraction::{
     Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
     Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion,
-    TextureGroups,
-    create_default_target, extract, select_entries,
+    TextureGroups, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;

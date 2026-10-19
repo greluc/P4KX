@@ -57,8 +57,23 @@ impl Form {
     }
 }
 
-/// How converting one sound or Soundbank Entry ended, and what it could not convert.
-pub(crate) type Converted = (Outcome, Vec<ConversionError>);
+/// How converting one sound or Soundbank Entry ended, what it could not convert and the sounds of
+/// a Soundbank that the cancelled run left unwritten.
+pub(crate) struct Converted {
+    pub(crate) outcome: Outcome,
+    pub(crate) unconverted: Vec<ConversionError>,
+    pub(crate) cancelled: Vec<String>,
+}
+
+impl Converted {
+    pub(crate) const fn of(outcome: Outcome) -> Self {
+        Self {
+            outcome,
+            unconverted: Vec::new(),
+            cancelled: Vec::new(),
+        }
+    }
+}
 
 impl EntryWriter<'_> {
     /// Converts the sound or Soundbank `entry` through `convert` and reports its end; an Entry
@@ -87,17 +102,19 @@ impl EntryWriter<'_> {
             return Ended::Sound {
                 entry: (index, path.clone(), outcome),
                 unconverted: vec![EntryFailure { path, error }],
+                cancelled: Vec::new(),
             };
         }
         let credited = AtomicU64::new(0);
-        let (outcome, unconverted) = match convert(self, entry, buffers, &credited) {
+        let done = match convert(self, entry, buffers, &credited) {
             Ok(done) => done,
-            Err(_) if self.tracker.archive_file_changed() => (Outcome::Cancelled, Vec::new()),
-            Err(error) => (Outcome::Failed(error), Vec::new()),
+            Err(_) if self.tracker.archive_file_changed() => Converted::of(Outcome::Cancelled),
+            Err(error) => Converted::of(Outcome::Failed(error)),
         };
         buffers.trim();
         self.tracker.ended(entry, credited.into_inner());
-        let unconverted = unconverted
+        let unconverted = done
+            .unconverted
             .into_iter()
             .map(|error| EntryFailure {
                 path: path.clone(),
@@ -105,8 +122,9 @@ impl EntryWriter<'_> {
             })
             .collect();
         Ended::Sound {
-            entry: (index, path, outcome),
+            entry: (index, path, done.outcome),
             unconverted,
+            cancelled: done.cancelled,
         }
     }
 
@@ -134,7 +152,7 @@ impl EntryWriter<'_> {
         credited: &AtomicU64,
     ) -> Result<Converted, ExtractionError> {
         if self.tracker.should_stop() {
-            return Ok((Outcome::Cancelled, Vec::new()));
+            return Ok(Converted::of(Outcome::Cancelled));
         }
         let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
         let stem = sound_role(entry.path())
@@ -142,7 +160,7 @@ impl EntryWriter<'_> {
             .ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
         if !self.read_sound(entry, buffers, credited)? {
-            return Ok((Outcome::Cancelled, Vec::new()));
+            return Ok(Converted::of(Outcome::Cancelled));
         }
         let sound = SoundFile {
             folder: &folder,
@@ -157,7 +175,10 @@ impl EntryWriter<'_> {
             Step::Kept => Outcome::Kept,
             Step::Cancelled => Outcome::Cancelled,
         };
-        Ok((outcome, end.unconverted.into_iter().collect()))
+        Ok(Converted {
+            unconverted: end.unconverted.into_iter().collect(),
+            ..Converted::of(outcome)
+        })
     }
 
     /// Writes the WEM `bytes` into its folder: as Ogg where the audio option asks for it and the

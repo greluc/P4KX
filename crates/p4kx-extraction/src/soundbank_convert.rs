@@ -1,6 +1,7 @@
 use std::fmt::Write as _;
+use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_archive::Entry;
@@ -14,27 +15,35 @@ use crate::texture_convert::Step;
 use crate::write::{EntryWriter, Outcome, create_folders};
 use crate::{ConversionError, ExtractionError};
 
-/// What unpacking a soundbank got done: how its files ended, the first error that stopped a file
-/// and the WEMs written unchanged because they could not be converted.
+/// What unpacking a soundbank got done: how its files ended, the first error that stopped a file,
+/// the WEMs written unchanged because they could not be converted and the WEMs a cancelled run
+/// left unwritten.
 #[derive(Default)]
 struct Unpacked {
     steps: Vec<Step>,
     error: Option<ExtractionError>,
     unconverted: Vec<ConversionError>,
+    cancelled: Vec<String>,
 }
 
 impl Unpacked {
-    fn outcome(self) -> (Outcome, Vec<ConversionError>) {
+    fn wrote_wem(&self) -> bool {
+        self.steps.iter().skip(1).any(|step| *step == Step::Written)
+    }
+
+    fn into_converted(self) -> Converted {
         let outcome = if let Some(error) = self.error {
             Outcome::Failed(error)
-        } else if self.steps.contains(&Step::Cancelled) {
-            Outcome::Cancelled
         } else if self.steps.contains(&Step::Written) {
             Outcome::Converted
         } else {
             Outcome::Kept
         };
-        (outcome, self.unconverted)
+        Converted {
+            outcome,
+            unconverted: self.unconverted,
+            cancelled: self.cancelled,
+        }
     }
 }
 
@@ -42,6 +51,9 @@ impl EntryWriter<'_> {
     /// Writes the Soundbank `entry` unchanged and unpacks its WEMs into the folder of its path
     /// without the extension, each named by its ID and converted as the run's audio option says;
     /// a Soundbank that cannot be read is written unchanged and returned.
+    ///
+    /// The folder is created only when a WEM is written into it. A run cancelled after the
+    /// Soundbank itself was written lists each WEM not written as cancelled, as `<path> WEM <ID>`.
     pub(crate) fn try_write_bank(
         &self,
         entry: &Entry,
@@ -49,7 +61,7 @@ impl EntryWriter<'_> {
         credited: &AtomicU64,
     ) -> Result<Converted, ExtractionError> {
         if self.tracker.should_stop() {
-            return Ok((Outcome::Cancelled, Vec::new()));
+            return Ok(Converted::of(Outcome::Cancelled));
         }
         let stem = sound_role(entry.path())
             .map(|(_, stem)| stem)
@@ -57,48 +69,65 @@ impl EntryWriter<'_> {
         let wem_folder = relative_path(stem).ok_or(ExtractionError::UnsafePath)?;
         let destination = self.destination(entry)?;
         if !self.read_sound(entry, buffers, credited)? {
-            return Ok((Outcome::Cancelled, Vec::new()));
+            return Ok(Converted::of(Outcome::Cancelled));
         }
         let Buffers { chunk, data, .. } = buffers;
         let bytes = data.as_slice();
-        let raw = self.write_converted(
-            &destination,
-            |sink| sink.write_all(bytes).map_err(AudioError::Write),
-            chunk,
-        )?;
+        let raw = self
+            .write_converted(
+                &destination,
+                |sink| sink.write_all(bytes).map_err(AudioError::Write),
+                chunk,
+            )?
+            .unwrap_or(Step::Cancelled);
+        if raw == Step::Cancelled {
+            return Ok(Converted::of(Outcome::Cancelled));
+        }
         let mut unpacked = Unpacked {
-            steps: vec![raw.unwrap_or(Step::Cancelled)],
+            steps: vec![raw],
             ..Unpacked::default()
         };
         match Soundbank::parse(bytes) {
             Ok(bank) => {
-                let folder = create_folders(self.target, Some(&wem_folder))?;
-                self.unpack(entry, &bank, (folder, chunk), credited, &mut unpacked);
+                if bank.wems().next().is_some() {
+                    let existed = self.target.join(&wem_folder).symlink_metadata().is_ok();
+                    let folder = create_folders(self.target, Some(&wem_folder))?;
+                    self.unpack(
+                        entry,
+                        &bank,
+                        (folder.as_path(), chunk),
+                        credited,
+                        &mut unpacked,
+                    );
+                    if !existed && !unpacked.wrote_wem() {
+                        let _ignored = fs::remove_dir(&folder);
+                    }
+                }
+                Ok(unpacked.into_converted())
             }
             Err(source) => {
                 let error = ConversionError::Soundbank {
                     bank: entry.path().to_owned(),
                     source,
                 };
-                let (outcome, mut unconverted) = unpacked.outcome();
-                unconverted.push(error);
-                let outcome = match outcome {
-                    Outcome::Converted => Outcome::Written,
-                    other => other,
-                };
-                return Ok((outcome, unconverted));
+                let mut converted = unpacked.into_converted();
+                converted.unconverted.push(error);
+                if matches!(converted.outcome, Outcome::Converted) {
+                    converted.outcome = Outcome::Written;
+                }
+                Ok(converted)
             }
         }
-        Ok(unpacked.outcome())
     }
 
     /// Writes every WEM of `bank` into `folder` in ID order, counting the rest of the soundbank's
-    /// size as progress in equal parts; stops once a file fails to be written.
+    /// size as progress in equal parts; stops once a file fails to be written, and names the WEMs
+    /// left unwritten once the run is cancelled.
     fn unpack(
         &self,
         entry: &Entry,
         bank: &Soundbank<&[u8]>,
-        (folder, chunk): (PathBuf, &mut [u8]),
+        (folder, chunk): (&Path, &mut [u8]),
         credited: &AtomicU64,
         unpacked: &mut Unpacked,
     ) {
@@ -110,13 +139,13 @@ impl EntryWriter<'_> {
             .unwrap_or_default();
         let mut stem = String::new();
         let mut name = String::new();
-        for wem in bank.wems() {
+        for (position, wem) in bank.wems().enumerate() {
             stem.clear();
             name.clear();
             let _infallible = write!(stem, "{}", wem.id());
             let _infallible = write!(name, "{} WEM {}", entry.path(), wem.id());
             let sound = SoundFile {
-                folder: &folder,
+                folder,
                 stem: &stem,
                 name: &name,
                 prefetch: wem.is_prefetch(),
@@ -126,6 +155,11 @@ impl EntryWriter<'_> {
                     unpacked.steps.push(end.step);
                     unpacked.unconverted.extend(end.unconverted);
                     if end.step == Step::Cancelled {
+                        unpacked.cancelled = bank
+                            .wems()
+                            .skip(position)
+                            .map(|left| format!("{} WEM {}", entry.path(), left.id()))
+                            .collect();
                         return;
                     }
                 }

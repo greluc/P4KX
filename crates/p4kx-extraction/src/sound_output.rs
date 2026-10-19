@@ -97,3 +97,61 @@ impl EntryWriter<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::io::Write;
+
+    use p4kx_audio::AudioError;
+    use p4kx_testkit::{ArchiveBuilder, TestEntry};
+
+    use super::Step;
+    use crate::tracker::Tracker;
+    use crate::write::{Destination, EntryWriter};
+    use crate::{Archive, AudioConversion, CancelToken, ConflictPolicy, TextureConversion};
+
+    #[test]
+    fn cancelling_while_a_sound_streams_leaves_neither_file_nor_partial_file() {
+        let dir = tempfile::tempdir().expect("temporary folder");
+        let path = dir.path().join("Data.p4k");
+        ArchiveBuilder::new()
+            .entry(TestEntry::stored("a.wem", vec![0; 4]))
+            .write_to(&path)
+            .expect("archive");
+        let archive = Archive::open(&path).expect("open");
+        let target = dir.path().join("out");
+        fs::create_dir(&target).expect("target");
+        let cancel = CancelToken::new();
+        let tracker = Tracker::new(&[], Some(&cancel), None, None);
+        let writer = EntryWriter {
+            archive: &archive,
+            target: &target,
+            policy: ConflictPolicy::Overwrite,
+            convert: true,
+            textures: TextureConversion::default(),
+            audio: AudioConversion::Wav,
+            tracker: &tracker,
+        };
+        let destination = Destination::new(target.clone(), "a.wav".as_ref()).expect("destination");
+
+        let ended = writer
+            .write_converted(
+                &destination,
+                |sink| {
+                    sink.write_all(&[1; 1000]).map_err(AudioError::Write)?;
+                    cancel.cancel();
+                    sink.write_all(&[2; 1000]).map_err(AudioError::Write)
+                },
+                &mut [0; 16],
+            )
+            .expect("no Extraction error");
+
+        assert!(matches!(ended, Ok(Step::Cancelled)), "cancelled");
+        assert_eq!(
+            fs::read_dir(&target).expect("read").count(),
+            0,
+            "no file and no partial file"
+        );
+    }
+}

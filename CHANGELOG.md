@@ -18,8 +18,9 @@ for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP 
   setup, remembered in the settings file). Each soundbank is written unchanged and unpacked into
   a folder of the same name, its WEMs named by ID and converted alike. A sound whose codec cannot
   be decoded is reported with the codec and written unchanged; the Extraction continues. Progress,
-  cancellation and Conflict policies cover every converted file, and sounds are converted on their
-  own threads within a memory budget.
+  cancellation and Conflict policies cover every converted file, a cancelled run lists the sounds
+  of a soundbank it did not unpack, a soundbank folder exists only when a sound is written into
+  it, and sounds are converted on their own threads within a memory budget.
 - Verification of textures and localisation against all installed Channels, recorded in
   `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
   `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer

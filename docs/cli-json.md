@@ -670,8 +670,9 @@ fields are absent. When `--convert` converted the DataForge Entry, the report al
 the Record files relative to the folder of the DataForge Entry. Otherwise that field is absent.
 `skipped` lists the Entries whose existing file in the target was kept under `--conflict`;
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
-`cancelled` lists the Entries not written because the run was cancelled. All three are in
-Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
+`cancelled` lists the Entries not written because the run was cancelled and, once a cancelled run
+had written a soundbank itself, each of its WEMs not unpacked as `<bank> WEM <ID>`, after the
+Entries. The Entries in all three are in Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
 when the Archive changed on disk after it was opened: the Extraction then stops, the Entries not
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
 `failed` or `cancelled` is not empty.

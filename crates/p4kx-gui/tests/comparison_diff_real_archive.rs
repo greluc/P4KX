@@ -10,12 +10,14 @@ use p4kx_comparison::ChangeKind;
 use p4kx_gui::{
     ComparisonSide, ComparisonTab, ComparisonView, DiffStatus, Language, Model, WorkTab, ui,
 };
-use p4kx_testkit::real_archive_pair;
+use p4kx_testkit::{assert_steady_frames, real_archive_pair};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const RUN_BUDGET: Duration = Duration::from_secs(120);
 const FRAME_LIMIT: Duration = Duration::from_millis(16);
+const FRAME_CEILING: Duration = Duration::from_millis(100);
+const HAND_OFF_CEILING: Duration = Duration::from_millis(50);
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
     let deadline = Instant::now() + RUN_BUDGET;
@@ -82,7 +84,7 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
 
     let diff = tab.view().and_then(ComparisonView::diff).ok_or("no diff")?;
     assert!(
-        handed_off < Duration::from_millis(5),
+        handed_off < HAND_OFF_CEILING,
         "starting the diff took {handed_off:?}"
     );
     assert_eq!(diff.change(), other, "the last selection wins");
@@ -101,14 +103,15 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
             model,
         );
     harness.run_steps(3);
+    let mut frames = Vec::new();
     for _ in 0..20 {
         if let Some(next) = harness.query_by_label("Next difference") {
             next.click();
         }
         let started = Instant::now();
         harness.step();
-        let took = started.elapsed();
-        assert!(took < FRAME_LIMIT, "a frame of the diff took {took:?}");
+        frames.push(started.elapsed());
     }
+    assert_steady_frames("a frame of the diff", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
 }

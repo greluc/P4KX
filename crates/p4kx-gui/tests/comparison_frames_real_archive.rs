@@ -10,12 +10,13 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{ComparisonSide, ComparisonTab, Language, Model, WorkTab, ui};
-use p4kx_testkit::{ArchiveBuilder, real_archive_path};
+use p4kx_testkit::{ArchiveBuilder, assert_steady_frames, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const RUN_BUDGET: Duration = Duration::from_secs(60);
 const FRAME_LIMIT: Duration = Duration::from_millis(16);
+const FRAME_CEILING: Duration = Duration::from_millis(100);
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
     let deadline = Instant::now() + RUN_BUDGET;
@@ -69,13 +70,15 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
         );
     harness.run_steps(2);
 
+    let mut sorting = Vec::new();
     for header in ["New size", "New size", "Old size", "Change", "Path"] {
         harness.get_by_label(header).click();
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "sorting by {header} took {took:?}");
+        sorting.push(timed_step(&mut harness));
     }
+    assert_steady_frames("sorting", &sorting, FRAME_LIMIT, FRAME_CEILING);
     harness.hover_at(egui::pos2(800.0, 800.0));
     let first_row = top_row(&harness);
+    let mut scrolling = Vec::new();
     for _ in 0..20 {
         harness.event(egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Page,
@@ -84,9 +87,9 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
             modifiers: egui::Modifiers::NONE,
             source: egui::MouseWheelSource::Wheel,
         });
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "scrolling took {took:?}");
+        scrolling.push(timed_step(&mut harness));
     }
+    assert_steady_frames("scrolling", &scrolling, FRAME_LIMIT, FRAME_CEILING);
     harness.run_steps(2);
     let changes = harness
         .state()

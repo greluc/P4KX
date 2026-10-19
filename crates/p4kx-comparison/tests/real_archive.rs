@@ -142,7 +142,11 @@ fn the_changed_text_entries_of_two_real_archives_have_line_diffs() -> TestResult
     changed
         .sort_by_key(|change| std::cmp::Reverse(change.new_entry().map(Entry::uncompressed_size)));
 
-    let mut text = 0;
+    assert!(
+        !changed.is_empty(),
+        "two different Builds have changed text Entries"
+    );
+    let mut differing = 0;
     for change in changed.iter().take(40) {
         let started = Instant::now();
         let diff = line_diff(&old, &new, change.path(), DEFAULT_CONTEXT)?;
@@ -153,13 +157,13 @@ fn the_changed_text_entries_of_two_real_archives_have_line_diffs() -> TestResult
             "{} took {elapsed:?}",
             change.path()
         );
-        if let DiffBody::Text(_) = diff.body() {
-            text += 1;
+        if matches!(diff.body(), DiffBody::Text(text) if text.has_differences()) {
+            differing += 1;
         }
     }
     assert!(
-        changed.is_empty() || text > 0,
-        "some of the {} changed text Entries diff as text",
+        differing > 0,
+        "some of the {} changed text Entries diff as text with differences",
         changed.len()
     );
     Ok(())

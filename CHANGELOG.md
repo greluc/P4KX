@@ -69,6 +69,13 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- A WEM whose odd-sized chunk is not followed by a pad byte, as Wwise writes it, no longer
+  misaligns the chunks after it: the reader takes the position that holds a valid chunk header,
+  and skips the pad byte of plain RIFF when both or neither do. No WEM of the LIVE, PTU and
+  TECH-PREVIEW Archives has an odd-sized chunk before its last.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

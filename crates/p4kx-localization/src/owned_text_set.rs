@@ -48,6 +48,15 @@ impl OwnedTextSet {
         self.len(language) == 0
     }
 
+    /// Returns every key of `language` with its text, sorted by key ignoring ASCII case; empty
+    /// when the set holds no file for the language.
+    pub fn iter(&self, language: Language) -> impl Iterator<Item = (&str, &str)> {
+        self.rows(language)
+            .unwrap_or_default()
+            .iter()
+            .map(|(key, text)| (&**key, &**text))
+    }
+
     /// Returns the text of `key`, with or without its leading `@`, in `language` as the file
     /// held it, also when it is empty.
     #[must_use]

@@ -18,6 +18,7 @@ mod folder_tree;
 mod forge_cache;
 mod format;
 mod language;
+mod localization;
 mod model;
 mod preview;
 mod query;
@@ -60,8 +61,10 @@ pub use extraction::{
 };
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
+pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, Model, WorkTab};
 pub use p4kx_export::RecordForm;
+pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
@@ -87,6 +90,6 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
-    ExtractionText, GroupText, ImageText, QueryText, RecordChangeText, RecordExportText,
-    RecordSearchText, RecordText, Text, Texts, XmlText,
+    ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
+    RecordExportText, RecordSearchText, RecordText, Text, Texts, XmlText,
 };

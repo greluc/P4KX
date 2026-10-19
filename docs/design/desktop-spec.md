@@ -336,6 +336,31 @@ Die Statuszeile („angezeigt", „ausgewählt") und „Angezeigte (N)" zählen 
 ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes. Keine
 neuen Maße (`tableRow.textureGroup` im JSON der Spec nennt die benutzten).
 
+**D.28 Lokalisierung als vierter Tab im Arbeitsbereich.** „Lokalisierung" folgt auf „Abfrage".
+Sie braucht ein geöffnetes Archiv und liest die `global.ini` aller Sprachen im Hintergrund, sobald
+der Tab erstmals erscheint; bis dahin steht ein Spinner mit „Die Lokalisierungsdateien werden
+gelesen …" im Körper (D.5). Die Toolbar ist die der Listenfläche: Suchfeld mit Eyebrow „Suche",
+rechts „Schlüssel kopieren" und „Text kopieren" als Ghost (D.7), gesperrt ohne Auswahl bzw. ohne
+Text in der gewählten Zelle. Die Tabelle hat einen Kopf „Schlüssel" und je Sprache der Datei einen
+Kopf mit dem Sprachnamen (Versalien, nicht sortierbar); die Zeilen sind die Schlüssel, ohne
+Beachtung der Schreibweise sortiert, 36 px mit Zebra und Hover wie die Tabelle. Spalten: Schlüssel
+300, Sprachen je 320 (min. 80), verschiebbar, die letzte füllt, mit horizontaler Scrollleiste
+(`localizationTable` im JSON). Schlüssel und Texte stehen unverändert (D.6) auf einer Zeile; das
+Zeilenende `\n` bleibt als geschriebener Text stehen, Steuer- und Richtungszeichen erscheinen als
+Escapes in `color-gray-2-text` und lange Texte enden nach 1024 Zeichen mit Auslassung (D.19). Eine
+fehlende, leere oder Platzhalter-Übersetzung ist ein `.chip--warning` „Fehlt" in der Zelle: Lücken
+sind der Sinn der Tabelle und sollen auffallen, die Farbe ist nie der einzige Hinweis (D.11).
+Ein Klick oder Fokus plus Enter wählt eine Zelle: ihre Zeile steht in `control-selected-bg`, die
+Zelle selbst wie die aktive Zeile (Balken links, Weiß, Bold); Strg+C kopiert den Text der Zelle,
+sonst den Schlüssel, solange kein Textfeld den Fokus hat. Kopiert wird der Text mit echten
+Zeilenumbrüchen. Die Suche findet Schlüssel und Texte aller Sprachen ohne Beachtung der
+Groß-/Kleinschreibung (ein führendes `@` wird ignoriert), läuft bei jedem Tastendruck in einem
+Hintergrund-Thread und lässt bis zum Ergebnis die vorherigen Zeilen stehen; der
+`.list-panel__footer` nennt „n von m Schlüsseln" und, solange sie läuft, „Suche läuft …" mit
+Spinner. Wurde eine Datei mit ungültigen Bytes oder übersprungenen Zeilen gelesen, steht darüber
+ein `.alert-warning` mit den Hinweisen. Gezeichnet und im Cache gehalten werden nur die sichtbaren
+Zeilen; die ganze Tabelle wird nie je Frame gefiltert oder formatiert.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

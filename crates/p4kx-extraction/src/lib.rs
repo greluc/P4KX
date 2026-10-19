@@ -91,8 +91,8 @@ pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
-    MAX_GLOBAL_INI_SIZE, PLACEHOLDER_KEYS, ParseLanguageError, TextSet, decode_line_breaks,
-    is_placeholder_key,
+    MAX_GLOBAL_INI_SIZE, OwnedTextSet, PLACEHOLDER_KEYS, ParseLanguageError, TextSet,
+    decode_line_breaks, is_placeholder_key,
 };
 pub use p4kx_model as model;
 pub use p4kx_texture::{

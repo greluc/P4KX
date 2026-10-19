@@ -261,6 +261,11 @@ pub const PICKER_CHEVRON_INSET: f32 = 0.65 * REM;
 /// The narrowest an Archive picker gets.
 pub const PICKER_MIN_WIDTH: f32 = SEARCH_WIDTH;
 
+/// The initial width of the key column of the localisation table.
+pub const LOCALIZATION_KEY_WIDTH: f32 = 300.0;
+/// The initial width of a language column of the localisation table.
+pub const LOCALIZATION_TEXT_WIDTH: f32 = 320.0;
+
 /// The widest the progress bar of a Comparison gets.
 pub const COMPARISON_PROGRESS_WIDTH: f32 = 320.0;
 

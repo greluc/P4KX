@@ -3,6 +3,9 @@
 
 use egui::Color32;
 
+pub use super::query_metrics::{
+    COMBOBOX_NOTICE_PADDING, COMPLETION_MAX_HEIGHT, SAVED_LIST_HEIGHT, SAVED_NAME_MAX_WIDTH,
+};
 use super::tokens::{
     FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
 };
@@ -243,6 +246,8 @@ pub const TRANSITION: f32 = 0.2;
 pub const GHOST_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(251, 138, 40, 18);
 /// The outline button's hover tint and the chip tint, `rgba(251,138,40,0.12)`.
 pub const OUTLINE_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(251, 138, 40, 31);
+/// The quiet-danger button's hover tint, `rgba(163,0,10,0.12)`.
+pub const QUIET_DANGER_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 31);
 /// The zebra stripe of a table, `rgba(255,255,255,0.02)`.
 pub const ZEBRA: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 5);
 /// The fill of a warning alert, `rgba(255,210,63,0.15)`.

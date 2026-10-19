@@ -86,6 +86,9 @@ sind keine neuen Farben.
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
 | Record-Vorschau (Tab „Record") | Vorschau-Panel + `.facts-bar` + Tabellenkopf + Tabellenzeile + `a` | 36 | Zelle x 12,8; 12 je Ebene | zwei gleiche Spalten Feld, Wert; Typ nach dem Link 8 | Werte 13,76 / 400; Link 12,8 / 700 | Kopf und Schlüssel ja, Daten nein | Wert `color-gray-1`, `null` `color-gray-2-text`, Fehler `color-danger-text`; Link `color-primary`, Hover `color-accent-light` + Unterstrich; Ebenen-Schiene 1 `color-gray-3` | unten 1 `color-gray-3` | – | Link 2 / +2; Alt+←, Alt+→, Maustasten zurück/vor |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
+| Abfrage-Vervollständigung | `.krt-combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
+| Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700, max. 240 breit mit Auslassung; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
+| Abfrage speichern / umbenennen / löschen | `.krt-modal` / `.krt-modal--danger` + `.btn-danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
 
 ## Entscheidungen
 
@@ -294,7 +297,8 @@ lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`
 Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
 Der Katalog liest DataForge aus dem einen Cache des offenen Archivs (D.22), also nur einmal.
 
-**D.22 bis D.29** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte)
+**D.22 bis D.30** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte,
+Abfrage-Vervollständigung)
 stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 
 ## Bewusste Abweichungen von den Web-Specimens
@@ -325,6 +329,8 @@ stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 | Tooltip mit 4 px Ecke | egui gibt Tooltips den Rahmen der Menüs (`menu_corner_radius`) |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
+| Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.30) |
+| Vervollständigungs-Einträge 14,4 px (`fs-sm`) statt der von `.krt-combobox__option` geerbten 16 px | gleiche Schrift und Zeilenhöhe wie die Dropdown-Einträge (36 px, D.1), damit Name und Typ in eine Zeile passen (D.30) |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte

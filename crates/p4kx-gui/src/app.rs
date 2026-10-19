@@ -112,7 +112,10 @@ impl App {
         }
     }
 
-    fn save_settings(&self) {
+    /// Stores the settings into the file freshly read, so that what another window stored
+    /// meanwhile stays; the saved Queries get this window's edits replayed by name. A file that
+    /// cannot be read is never written over.
+    fn save_settings(&mut self) {
         let Some(file) = &self.settings_file else {
             return;
         };
@@ -125,7 +128,14 @@ impl App {
             self.language_chosen,
             self.window,
         );
-        let _ignored = settings.save(file);
+        let edits = self.model.query().saved_edits();
+        for edit in edits {
+            settings.queries.apply(edit);
+        }
+        let edited = !edits.is_empty();
+        if settings.save(file).is_ok() && edited {
+            self.model.query_mut().edits_stored(settings.queries);
+        }
     }
 }
 
@@ -212,140 +222,4 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use p4kx_channels::SearchPaths;
-    use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
-
-    use super::remember;
-    use crate::{ChannelList, Language, Model, RecordTextChoice, TextLanguage};
-
-    #[test]
-    fn the_language_stays_unset_until_the_user_chooses_one() {
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &Model::new(Language::German), false, None);
-        let unchosen = settings.language.clone();
-        remember(
-            &mut settings,
-            &Model::new(Language::BritishEnglish),
-            true,
-            None,
-        );
-
-        assert_eq!(unchosen, None, "follows the system");
-        assert_eq!(settings.language.as_deref(), Some("en-GB"), "chosen");
-    }
-
-    #[test]
-    fn the_record_text_choice_is_stored_and_stays_unset_until_made() {
-        let mut model = Model::new(Language::German);
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-        let unchosen = settings.record_language.clone();
-        model.set_record_text_choice(Some(RecordTextChoice::Language(TextLanguage::French)));
-        remember(&mut settings, &model, false, None);
-        let french = settings.record_language.clone();
-        model.set_record_text_choice(Some(RecordTextChoice::KeysOnly));
-        remember(&mut settings, &model, false, None);
-
-        assert_eq!(unchosen, None, "follows the interface");
-        assert_eq!(french.as_deref(), Some("fr"), "a language");
-        assert_eq!(
-            settings.record_language.as_deref(),
-            Some("none"),
-            "keys only"
-        );
-    }
-
-    #[test]
-    fn manual_entries_join_those_already_in_the_settings() -> Result<(), std::io::Error> {
-        let folder = tempfile::tempdir()?;
-        let mut settings = Settings::default();
-        settings.channels.add_folder(PathBuf::from(r"D:\Elsewhere"));
-        let mut model = Model::new(Language::German);
-        model.add_manual(folder.path().to_path_buf());
-
-        remember(&mut settings, &model, false, None);
-
-        assert_eq!(
-            settings.channels.folders,
-            [PathBuf::from(r"D:\Elsewhere"), folder.path().to_path_buf()],
-            "both folders are kept"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn the_extraction_folder_is_stored() {
-        let mut model = Model::new(Language::German);
-        model.set_extraction_folder(Some(PathBuf::from(r"D:\Exports")));
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-
-        assert_eq!(
-            settings.extraction_folder,
-            Some(PathBuf::from(r"D:\Exports")),
-            "the folder chosen last"
-        );
-    }
-
-    #[test]
-    fn the_update_check_is_stored() {
-        let mut model = Model::new(Language::German);
-        model.set_update_check(true);
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-
-        assert!(settings.update_check, "switched on");
-    }
-
-    #[test]
-    fn the_conversion_switch_is_stored() {
-        let mut model = Model::new(Language::German);
-        model.set_extraction_conversion(true);
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-
-        assert!(settings.extraction_conversion, "switched on");
-    }
-
-    #[test]
-    fn the_texture_outputs_are_stored() {
-        let mut model = Model::new(Language::German);
-        let textures = ExtractionTextures {
-            merge: false,
-            png: true,
-            mip: 3,
-            keep_raw: true,
-        };
-        model.set_extraction_textures(textures);
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-
-        assert_eq!(settings.extraction_textures, textures, "stored");
-    }
-
-    #[test]
-    fn an_entry_removed_elsewhere_is_not_written_back() {
-        let mut model = Model::new(Language::German);
-        let mut loaded = ManualChannels::default();
-        loaded.add_folder(PathBuf::from(r"D:\Removed"));
-        model.set_channels(ChannelList::new(SearchPaths::default(), loaded));
-        let mut recent = RecentArchives::default();
-        recent.push(PathBuf::from(r"C:\SC\LIVE\Data.p4k"));
-        model.set_recent(recent.clone());
-        let mut settings = Settings::default();
-
-        remember(&mut settings, &model, false, None);
-
-        assert!(settings.channels.folders.is_empty(), "stays removed");
-        assert_eq!(settings.recent, recent, "the recent Archives are stored");
-    }
-}
+mod tests;

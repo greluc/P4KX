@@ -253,6 +253,14 @@
     "hoverBorder": "color-primary",
     "pressedBackground": "control-selected-bg"
   },
+  "buttonDanger": {
+    "dsClass": "btn btn-danger",
+    "background": "color-danger",
+    "color": "color-white",
+    "hoverBackground": "color-danger-hover",
+    "focusRing": "color-white, +2",
+    "usage": "the confirming action in the foot of a modalDanger"
+  },
   "buttonQuietDanger": {
     "dsClass": "btn btn-quiet-danger",
     "background": "control-bg",
@@ -815,6 +823,37 @@
     "fontSize": 14.4,
     "color": "color-gray-2-text",
     "borderTop": {"width": 1, "color": "color-gray-3"}
+  },
+  "queryCompletion": {
+    "decision": "D.30",
+    "dsClass": "krt-combobox__listbox / krt-combobox__option / krt-combobox__notice",
+    "anchor": "below the text cursor of the query editor, above it when there is no room",
+    "border": {"width": 1, "color": "color-primary", "sides": "all four, as it hangs on no field"},
+    "maxHeight": 288,
+    "minWidth": 240,
+    "item": "dropdownItem; the typed start in fw-bold (mark), the field type right in 12.8 color-gray-2-text",
+    "optionFontSize": 14.4,
+    "keyboardBackground": "color-primary",
+    "keyboardColor": "color-bg-black",
+    "noticePadding": 12,
+    "notice": "italic color-gray-2-text, the names beyond 50",
+    "keys": "focus stays in the editor; ArrowUp/ArrowDown choose, Enter or Tab accepts, Escape closes, Ctrl+Space opens"
+  },
+  "savedQueries": {
+    "decision": "D.30",
+    "header": "collapsibleSection, open",
+    "listHeight": 180,
+    "keyboard": "scrollRegion of D.27, name Saved Queries; the rows stay Tab targets",
+    "nameMaxWidth": 240,
+    "rowHeight": 36,
+    "paddingX": 12,
+    "gap": 8,
+    "name": {"fontSize": 12.8, "fontWeight": "fw-bold", "color": "color-gray-1"},
+    "query": {"fontSize": 12.8, "fontWeight": "fw-regular", "color": "color-gray-2-text"},
+    "actions": "buttonCompact: rename buttonGhost, delete buttonQuietDanger",
+    "save": "buttonGhost next to the run CTA",
+    "dialogs": "modal for save and rename, modalDanger with buttonDanger for delete; note color-gray-2-text when it replaces, color-danger-text for a problem",
+    "empty": "one sentence in color-gray-2-text under the header, no emptyState"
   },
   "lineDiff": {
     "panel": "previewPanel below the change list once a change is selected, opening at half the remaining height (at least previewPanel minHeight), with resizeHandle; the selected row scrolls back into view",

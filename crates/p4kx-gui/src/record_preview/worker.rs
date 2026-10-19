@@ -2,12 +2,22 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::DataForge;
+use p4kx_extraction::{DataForge, LanguageTexts, TextResolver};
 
 use super::{RecordView, lines};
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
-use crate::{EntryIndex, RecordId};
+use crate::text_cache::TextFailure;
+use crate::{EntryIndex, RecordId, TextLanguage};
+
+/// A Record to read for the preview, as request `generation`, with its localisation keys
+/// resolved in `language`.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Request {
+    pub(super) generation: u64,
+    pub(super) id: RecordId,
+    pub(super) language: Option<TextLanguage>,
+}
 
 /// Why a Record could not be read for the preview.
 #[derive(Debug)]
@@ -22,14 +32,14 @@ pub(super) type Answer = (u64, Result<RecordView, Unread>);
 /// for, only the newest of the requests waiting; it ends once this handle is dropped.
 #[derive(Debug)]
 pub(super) struct Worker {
-    requests: Sender<(u64, RecordId)>,
+    requests: Sender<Request>,
     answers: Receiver<Answer>,
 }
 
 /// What the worker answered since the last poll.
 pub(super) enum Answered {
     Nothing,
-    Answer(Answer),
+    Answer(Box<Answer>),
     Gone,
 }
 
@@ -50,33 +60,30 @@ impl Worker {
         Ok(Self { requests, answers })
     }
 
-    /// Asks for the Record `id` as request `generation`; returns whether the worker still runs.
-    pub(super) fn request(&self, generation: u64, id: RecordId) -> bool {
-        self.requests.send((generation, id)).is_ok()
+    /// Asks for a Record; returns whether the worker still runs.
+    pub(super) fn request(&self, request: Request) -> bool {
+        self.requests.send(request).is_ok()
     }
 
     /// Takes the next answer.
     pub(super) fn poll(&self) -> Answered {
         match self.answers.try_recv() {
-            Ok(answer) => Answered::Answer(answer),
+            Ok(answer) => Answered::Answer(Box::new(answer)),
             Err(TryRecvError::Empty) => Answered::Nothing,
             Err(TryRecvError::Disconnected) => Answered::Gone,
         }
     }
 }
 
-fn run(
-    index: &EntryIndex,
-    waiting: &Receiver<(u64, RecordId)>,
-    answer: &Sender<Answer>,
-    wake: &dyn Fn(),
-) {
+fn run(index: &EntryIndex, waiting: &Receiver<Request>, answer: &Sender<Answer>, wake: &dyn Fn()) {
     let mut first = None;
     loop {
         let reason = match index.forge().read(index, || {}) {
             Ok(source) => match source.entry.open() {
                 Ok(forge) => {
-                    return serve(waiting, answer, wake, first, |id| read(index, &forge, id));
+                    return serve(waiting, answer, wake, first, |request| {
+                        read(index, &forge, request)
+                    });
                 }
                 Err(error) => Unread::Failed(describe(&error)),
             },
@@ -86,7 +93,7 @@ fn run(
         let Some(request) = first.take().or_else(|| next(waiting)) else {
             return;
         };
-        if answer.send((request.0, Err(reason))).is_err() {
+        if answer.send((request.generation, Err(reason))).is_err() {
             return;
         }
         wake();
@@ -97,21 +104,38 @@ fn run(
     }
 }
 
-fn read(index: &EntryIndex, forge: &DataForge<'_>, id: RecordId) -> Result<RecordView, Unread> {
+fn read(index: &EntryIndex, forge: &DataForge<'_>, request: Request) -> Result<RecordView, Unread> {
     let record = forge
-        .record(id.0)
-        .ok_or_else(|| Unread::Failed(format!("the DataForge has no Record {}", id.0)))?;
+        .record(request.id.0)
+        .ok_or_else(|| Unread::Failed(format!("the DataForge has no Record {}", request.id.0)))?;
     let tree = record
         .tree()
         .map_err(|error| Unread::Failed(describe(&error)))?;
-    let view = lines::view(forge, &tree);
+    let mut failure = None;
+    let mut view = match request.language {
+        None => lines::view(forge, &tree, None),
+        Some(language) => match index.texts().load(index, language) {
+            Ok(texts) => {
+                let resolver = LanguageTexts::owned(&texts, language);
+                let mut view = lines::view(forge, &tree, Some(&resolver as &dyn TextResolver));
+                view.language = Some(language);
+                view
+            }
+            Err(TextFailure::ArchiveChanged) => return Err(Unread::ArchiveChanged),
+            Err(TextFailure::Unreadable(reason)) => {
+                failure = Some((language, reason.into_boxed_str()));
+                lines::view(forge, &tree, None)
+            }
+        },
+    };
+    view.texts_failure = failure;
     if index.watch().check().is_err() {
         return Err(Unread::ArchiveChanged);
     }
     Ok(view)
 }
 
-fn next(waiting: &Receiver<(u64, RecordId)>) -> Option<(u64, RecordId)> {
+fn next(waiting: &Receiver<Request>) -> Option<Request> {
     let mut request = waiting.recv().ok()?;
     while let Ok(newer) = waiting.try_recv() {
         request = newer;
@@ -120,15 +144,14 @@ fn next(waiting: &Receiver<(u64, RecordId)>) -> Option<(u64, RecordId)> {
 }
 
 fn serve(
-    waiting: &Receiver<(u64, RecordId)>,
+    waiting: &Receiver<Request>,
     answer: &Sender<Answer>,
     wake: &dyn Fn(),
-    mut first: Option<(u64, RecordId)>,
-    mut read: impl FnMut(RecordId) -> Result<RecordView, Unread>,
+    mut first: Option<Request>,
+    mut read: impl FnMut(Request) -> Result<RecordView, Unread>,
 ) {
     while let Some(request) = first.take().or_else(|| next(waiting)) {
-        let (generation, id) = request;
-        if answer.send((generation, read(id))).is_err() {
+        if answer.send((request.generation, read(request))).is_err() {
             return;
         }
         wake();

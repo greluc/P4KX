@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use egui::{Color32, CornerRadius, Galley, Pos2, Rect, Stroke, StrokeKind, Ui, pos2, vec2};
+use egui::{
+    Color32, CornerRadius, Galley, Painter, Pos2, Rect, Stroke, StrokeKind, Ui, pos2, vec2,
+};
 
 use super::text::{caps, line};
 use crate::theme::desktop::{
@@ -76,10 +78,25 @@ pub(crate) fn galley(ui: &Ui, label: &str) -> Arc<Galley> {
 /// Paints a chip in `tone` with `galley` inside, its left edge at `left_centre`; returns its
 /// rectangle.
 pub(crate) fn paint(ui: &Ui, left_centre: Pos2, galley: Arc<Galley>, tone: Tone) -> Rect {
+    paint_with(ui.painter(), left_centre, galley, tone)
+}
+
+/// Paints a chip like [`paint`], cut off at the edges of `clip`.
+pub(crate) fn paint_clipped(
+    ui: &Ui,
+    left_centre: Pos2,
+    galley: Arc<Galley>,
+    tone: Tone,
+    clip: Rect,
+) -> Rect {
+    let painter = ui.painter().with_clip_rect(clip.intersect(ui.clip_rect()));
+    paint_with(&painter, left_centre, galley, tone)
+}
+
+fn paint_with(painter: &Painter, left_centre: Pos2, galley: Arc<Galley>, tone: Tone) -> Rect {
     let colours = colours(tone);
     let size = galley.size() + vec2(2.0 * CHIP_PADDING_X, 2.0 * CHIP_PADDING_Y);
     let rect = Rect::from_min_size(pos2(left_centre.x, left_centre.y - size.y / 2.0), size);
-    let painter = ui.painter();
     painter.rect(
         rect,
         CornerRadius::ZERO,

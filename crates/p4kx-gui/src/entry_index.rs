@@ -1,12 +1,16 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use p4kx_extraction::{Archive, ArchiveWatch, DataForgeEntry, Entry, Filter, TextureGroups};
+use p4kx_extraction::{
+    Archive, ArchiveWatch, DataForgeEntry, Entry, Filter, LocalizationEntry, TextureGroups,
+};
 use rayon::prelude::*;
 
+use crate::TextLanguage;
 use crate::entry_groups::EntryGroups;
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
 use crate::forge_cache::ForgeCache;
 use crate::sort::{Sort, SortDirection, SortOrders, file_name};
+use crate::text_cache::TextCache;
 
 /// An opened Archive with its path tree and its Entries pre-sorted by every column.
 ///
@@ -22,6 +26,8 @@ pub struct EntryIndex {
     groups: EntryGroups,
     dataforge: Option<usize>,
     forge: ForgeCache,
+    text_languages: Vec<TextLanguage>,
+    texts: TextCache,
 }
 
 impl EntryIndex {
@@ -51,6 +57,7 @@ impl EntryIndex {
         );
         let dataforge = DataForgeEntry::locate(&archive)
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
+        let text_languages = LocalizationEntry::languages(&archive);
         Self {
             watch: ArchiveWatch::new(&archive),
             archive,
@@ -60,6 +67,8 @@ impl EntryIndex {
             groups,
             dataforge,
             forge: ForgeCache::default(),
+            text_languages,
+            texts: TextCache::default(),
         }
     }
 
@@ -74,6 +83,25 @@ impl EntryIndex {
     /// Returns the one DataForge cache of the Archive.
     pub(crate) const fn forge(&self) -> &ForgeCache {
         &self.forge
+    }
+
+    /// Returns the one cache of the localisation texts of the Archive.
+    pub(crate) const fn texts(&self) -> &TextCache {
+        &self.texts
+    }
+
+    /// Returns the languages the Archive holds a `global.ini` for, in the order of
+    /// [`TextLanguage::ALL`].
+    #[must_use]
+    pub fn text_languages(&self) -> &[TextLanguage] {
+        &self.text_languages
+    }
+
+    /// Returns how often a `global.ini` was read from the Archive; the Record previews share
+    /// each read.
+    #[must_use]
+    pub fn text_loads(&self) -> usize {
+        self.texts.loads()
     }
 
     /// Returns the Archive.

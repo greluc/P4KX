@@ -15,7 +15,7 @@ use crate::record_search::RecordSearch;
 use crate::search::{Matches, Pending};
 use crate::{
     AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
-    SortColumn, SortDirection,
+    SortColumn, SortDirection, TextLanguage,
 };
 
 /// One visible row of the path tree.
@@ -50,6 +50,7 @@ pub struct Browser {
     records: Option<RecordTree>,
     record_search: RecordSearch,
     navigation: Navigation,
+    record_language: Option<TextLanguage>,
 }
 
 impl Browser {
@@ -81,6 +82,7 @@ impl Browser {
             records,
             record_search: RecordSearch::default(),
             navigation: Navigation::default(),
+            record_language: None,
         };
         browser.refresh_tree();
         browser.refresh_shown();

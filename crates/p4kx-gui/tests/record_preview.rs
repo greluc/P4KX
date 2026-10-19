@@ -26,6 +26,7 @@ fn view(model: &mut Model) -> Result<&RecordView, Box<dyn Error>> {
 fn shown(field: &FieldLine) -> String {
     let value = match field.value() {
         LineValue::Scalar(text) => text.to_string(),
+        LineValue::Key { key, text } => format!("key {key} {text:?}"),
         LineValue::Struct(type_name) => format!("struct {type_name}"),
         LineValue::Array(len) => format!("array {len}"),
         LineValue::Null => "null".to_owned(),

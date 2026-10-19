@@ -200,7 +200,7 @@ fn a_manufacturer_carries_guid_class_name_record_path_code_name_and_description(
 fn development_leftovers_are_excluded_by_token_and_counted_as_skipped() -> TestResult {
     assert_eq!(
         EXCLUDED_TOKENS,
-        ["test", "template", "dummy"],
+        ["test", "template", "dummy", "debug", "deprecated", "dev"],
         "documented list"
     );
     let (built, catalog) = catalog_with(&options())?;
@@ -359,12 +359,12 @@ fn an_archive_without_dataforge_is_an_error() -> TestResult {
 }
 
 #[test]
-fn the_size_warning_comes_before_the_64_mb_upload_limit() {
-    let limit = 64_000_000;
+fn the_size_warning_comes_before_the_50_mb_upload_limit() {
+    let limit = 50_000_000;
     assert_eq!(SizeWarning::for_size(1_000_000), None, "small");
-    assert_eq!(SizeWarning::for_size(57_599_999), None, "below 90 %");
+    assert_eq!(SizeWarning::for_size(44_999_999), None, "below 90 %");
     assert_eq!(
-        SizeWarning::for_size(57_600_000),
+        SizeWarning::for_size(45_000_000),
         Some(SizeWarning::NearLimit),
         "from 90 %"
     );

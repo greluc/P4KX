@@ -100,11 +100,11 @@ Early development (milestone M1). Available today:
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, items (with
-  their item class) and ships with ground vehicles, ordered by GUID, with test, template and dummy Records left out and
+  their item class) and ships with ground vehicles, ordered by GUID, with test, template, dummy, debug, deprecated and dev Records left out and
   counted as skipped, and names and descriptions resolved in English and German. `--filter` marks
   the catalog partial. It prints the counts per kind, the item classes read and the unresolved
   texts per language and warns when the catalog nears or exceeds the
-  64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
+  50 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

@@ -237,7 +237,7 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 21064214, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21064214, "upload_limit": 50000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},

@@ -8,6 +8,9 @@ fails while its section is missing.
 
 ### Added
 
+- Verification of the Basetool catalog against all installed Channels: the upload limit is now 50 MB
+  (twice the largest measured catalog of 21.1 MB, rounded up), and Records with the words `debug`,
+  `deprecated` or `dev` in their path are left out as development leftovers.
 - `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
   geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
   exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node
@@ -105,9 +108,9 @@ fails while its section is missing.
   and is counted as unresolved in the result summary; `->` where no Reference stands is marked
   as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
-  Channel, Build and completeness per kind, starting with the manufacturers; test, template and
-  dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
-  the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
+  Channel, Build and completeness per kind, starting with the manufacturers; test, template, dummy, debug, deprecated and
+  dev Records are left out and counted, `--filter` makes it partial, and a warning comes before
+  the 50 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
 - English and German names and descriptions in the Basetool catalog, resolved from the Archive's
   `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or

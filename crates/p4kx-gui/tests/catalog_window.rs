@@ -108,26 +108,26 @@ fn the_summary_shows_the_kinds_the_texts_the_size_and_the_file() -> TestResult {
 
 #[test]
 fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
-    let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
+    let (_dir, mut model, out) = opened(&cataloging::wordy(23, 1_000_000))?;
     model.start_catalog(out.join("catalog.json"), || {});
     let mut harness = harness(model);
 
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label("The catalog is close to the basetool upload limit of 64 MB.");
+    harness.get_by_label("The catalog is close to the basetool upload limit of 50 MB.");
     Ok(())
 }
 
 #[test]
 fn a_catalog_over_the_upload_limit_shows_the_danger_alert() -> TestResult {
-    let (_dir, mut model, out) = opened(&cataloging::wordy(34, 1_000_000))?;
+    let (_dir, mut model, out) = opened(&cataloging::wordy(26, 1_000_000))?;
     model.start_catalog(out.join("catalog.json"), || {});
     let mut harness = harness(model);
 
     wait_for_the_end(&mut harness)?;
 
     harness.get_by_label(
-        "The catalog is over the basetool upload limit of 64 MB; the basetool will reject the upload.",
+        "The catalog is over the basetool upload limit of 50 MB; the basetool will reject the upload.",
     );
     assert!(
         harness

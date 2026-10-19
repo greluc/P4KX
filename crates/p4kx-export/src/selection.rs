@@ -5,7 +5,7 @@ use std::fmt;
 ///
 /// Words are the runs of ASCII letters and digits, so `paint_test_01` holds `test` while
 /// `contestant` does not.
-pub const EXCLUDED_TOKENS: [&str; 3] = ["test", "template", "dummy"];
+pub const EXCLUDED_TOKENS: [&str; 6] = ["test", "template", "dummy", "debug", "deprecated", "dev"];
 
 /// The localisation keys that stand for no text, matched ignoring ASCII case and the leading `@`.
 ///
@@ -163,4 +163,28 @@ pub(crate) fn is_placeholder_key(key: &str) -> bool {
             .strip_prefix('@')
             .is_some_and(|placeholder| placeholder.eq_ignore_ascii_case(key))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_leftover;
+
+    #[test]
+    fn a_token_is_a_whole_word_of_the_path_or_the_name() {
+        for path in [
+            "libs/foundry/records/entities/scitem/weapons/fps_weapons/dev/vlk_spewgun",
+            "libs/foundry/records/entities/scitem/usables/counter_bar_1m_deprecated",
+            "libs/foundry/records/entities/scitem/carryables/1h/chip_01_debug",
+        ] {
+            assert!(is_leftover(path, "Name"), "{path}");
+        }
+        assert!(is_leftover("libs/foundry/records/x", "Chip_DEBUG"), "name");
+        for path in [
+            "libs/foundry/records/entities/scitem/devices/scanner",
+            "libs/foundry/records/entities/scitem/fps_devices/behr_ltp_01",
+            "libs/foundry/records/entities/scitem/undeveloped",
+        ] {
+            assert!(!is_leftover(path, "Scanner"), "{path}");
+        }
+    }
 }

@@ -219,7 +219,7 @@ fn an_archive_change_during_a_catalog_fails_it_and_writes_nothing() -> TestResul
 
 #[test]
 fn a_catalog_near_the_upload_limit_is_flagged() -> TestResult {
-    let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
+    let (_dir, mut model, out) = opened(&cataloging::wordy(23, 1_000_000))?;
 
     model.start_catalog(out.join("catalog.json"), || {});
     let CatalogExportStatus::Finished(outcome) = ended(&mut model)? else {
@@ -229,7 +229,7 @@ fn a_catalog_near_the_upload_limit_is_flagged() -> TestResult {
     assert_eq!(
         outcome.summary().size_warning(),
         Some(SizeWarning::NearLimit),
-        "about 60 MB: {}",
+        "about 46 MB: {}",
         outcome.summary().size()
     );
     Ok(())

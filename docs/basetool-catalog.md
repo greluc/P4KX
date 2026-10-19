@@ -197,7 +197,7 @@ exactly. `--filter` further selects by record path with the rules of `p4kx searc
 every kind partial.
 
 Development leftovers are left out and counted as skipped: a selected Record whose record path or
-name holds one of the tokens `test`, `template` or `dummy` as a whole word, ignoring case. Words are
+name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a whole word, ignoring case. Words are
 the runs of ASCII letters and digits, so `paint_test_01` is left out while `contestant` stays.
 
 ## Determinism and size
@@ -209,10 +209,56 @@ seconds since 1970-01-01 UTC.
 ### Upload limit
 
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
-now 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the
-other changes with it. The limit is sized to what a full catalog of every kind needs, with enough
-buffer to upload it whole; the real-Archive test prints the size of the current catalog
-(`catalog size: … bytes`) as the measurement to size it from.
+now 50,000,000 bytes (50 MB). It must match the basetool's upload limit: when one changes, the
+other changes with it. The limit is sized from the measurement below: twice the largest catalog
+(42.2 MB), rounded up to 50 MB. The real-Archive tests assert that the limit is at least twice
+the catalog and print the size (`catalog size: … bytes`).
+
+Measured on 2026-10-19 with every installed Channel (complete catalog of every kind, English and
+German texts):
+
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|
+| LIVE | 21,052,438 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
+| PTU | 20,727,734 | 1,172 | 22,945 | 1,054 | 145 | 1,618 |
+| EPTU | 20,339,175 | 1,154 | 22,788 | 1,049 | 145 | 1,607 |
+| HOTFIX | 21,052,440 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
+| TECH-PREVIEW | 21,112,018 | 1,203 | 23,635 | 1,035 | 145 | 1,618 |
+
+A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
+1,145 items and 57 ships (1,204 Records).
+
+### Verification against the live data
+
+Checked on all five Channels; `crates/p4kx-export/tests/real_archive_verification.rs` repeats it
+on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
+
+- The record-path prefixes and types match the live DataForge: of 29,693 `EntityClassDefinition`
+  Records on LIVE, 25,704 lie under the item, ship and commodity prefixes (1,202 of them are left
+  out as leftovers); the rest are actors, mineables, job boards, interiors, audio, decorations,
+  lights and the like and are no catalog kind. All 1,203 `SCItemManufacturer` and 1,619
+  `CraftingBlueprintRecord` Records are selected or left out as leftovers.
+- The token list gained `debug`, `deprecated` and `dev`, which mark 20 further items on LIVE (the
+  Vlk spewgun test weapons under `fps_weapons/dev`, `*_deprecated` bar counters, a debug hacking
+  chip). `placeholder` stays out of the list: the manufacturer `PLACEHOLDER` is referenced by an
+  item, and the manufacturers are complete by decision. The rest of the vocabulary
+  (`fake`, `old`, `legacy`, `temp`, `prototype`) names real Records.
+- Every `manufacturerGuid` of an item or ship, every `producedItemGuid`, every ingredient
+  `resourceGuid` and `itemGuid` resolves to a catalog entry; no GUID occurs twice.
+- Texts that carry a key (placeholder keys excluded), LIVE: English 27,751 of 27,889 resolve
+  (99.5 %), German 15,819 (56.7 %). The German file lacks a text for about 11,250 of 23,180 item
+  texts, so German `null` is common for items and the Basetool falls back to `en`; per kind:
+
+  | Kind | Keyed texts | Missing in en | Missing in de |
+  |------|------------:|--------------:|--------------:|
+  | manufacturers | 2,248 | 8 | 116 |
+  | items | 23,179 | 118 | 11,252 |
+  | ships | 2,172 | 12 | 677 |
+  | commodities | 289 | 0 | 24 |
+  | blueprints | 1 | 0 | 1 |
+
+  The `p4kx catalog` summary counts them over all texts: English 37,963 resolved, 160 unresolved,
+  German 25,497 resolved, 12,626 unresolved, 23,658 placeholders in each.
 
 `p4kx catalog` warns on stderr when a catalog reaches 90 % of the limit and when it exceeds it;
 the file is written either way.

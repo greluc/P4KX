@@ -38,6 +38,15 @@ pub fn real_archive_path() -> Result<PathBuf, MissingRealArchive> {
     path_from(REAL_ARCHIVE_VAR)
 }
 
+/// Returns the path of the second real Archive named by `P4KX_DATA_P4K_B`.
+///
+/// # Errors
+///
+/// Returns [`MissingRealArchive`] when the variable is unset or empty.
+pub fn real_archive_b_path() -> Result<PathBuf, MissingRealArchive> {
+    path_from(REAL_ARCHIVE_B_VAR)
+}
+
 /// Returns the paths of the real Archives named by `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`, `None`
 /// when the second is unset or empty, so that a test over two Archives can skip.
 ///

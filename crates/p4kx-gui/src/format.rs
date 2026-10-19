@@ -41,7 +41,7 @@ pub(crate) fn size(bytes: u64, language: Language) -> String {
 }
 
 /// Formats a byte count as bytes below 1 kB and in decimal units above, with one decimal that is
-/// left out when it is zero, e.g. `64 MB` or `57.3 MB`.
+/// left out when it is zero, e.g. `50 MB` or `57.3 MB`.
 pub(crate) fn decimal_size(bytes: u64, language: Language) -> String {
     let mut divisor: u128 = 1;
     let mut unit = None;
@@ -107,8 +107,8 @@ mod tests {
     fn decimal_sizes_leave_out_a_zero_decimal() {
         assert_eq!(decimal_size(999, BritishEnglish), "999 B", "bytes");
         assert_eq!(
-            decimal_size(64_000_000, BritishEnglish),
-            "64 MB",
+            decimal_size(50_000_000, BritishEnglish),
+            "50 MB",
             "the upload limit"
         );
         assert_eq!(

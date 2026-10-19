@@ -119,7 +119,7 @@ The catalog is created in the background with a progress window; DataForge alrea
 Record tree, a Query or a Record export is reused, and the other way round. **Cancel** stops it at once and writes no file; an
 existing file stays as it was. The summary lists per kind the entities written, the Records left
 out as development leftovers and whether the kind is complete, per language the texts resolved,
-missing and placeholders, the size against the basetool upload limit of 64 MB and the file. A
+missing and placeholders, the size against the basetool upload limit of 50 MB and the file. A
 catalog close to the upload limit gets a warning, one over it an error note, because the basetool
 rejects it.
 

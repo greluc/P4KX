@@ -30,16 +30,19 @@ const ATTEMPTS: [Codebooks; 3] = [Codebooks::Default, Codebooks::AoTuV, Codebook
 /// What [`Wem::write_ogg`] wrote.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OggReport {
+    /// The codec of the stream: Wwise Vorbis becomes Ogg Vorbis, Opus becomes Ogg Opus.
+    pub codec: Codec,
     /// Channels of the stream.
     pub channels: u16,
     /// Sample rate in Hz.
     pub sample_rate: u32,
-    /// Frames of the stream, samples per channel: the granule position of its last page.
+    /// Frames the stream plays, samples per channel: the granule position of its last page, less
+    /// the pre-skip for Opus.
     pub sample_count: u64,
     /// Size of the whole Ogg file in bytes.
     pub size: u64,
-    /// The codebooks the setup header was rebuilt with.
-    pub codebooks: Codebooks,
+    /// The codebooks the Vorbis setup header was rebuilt with; `None` for Opus.
+    pub codebooks: Option<Codebooks>,
 }
 
 impl OggReport {
@@ -71,7 +74,12 @@ pub(crate) struct RebuiltSound<'a> {
 }
 
 impl<B: AsRef<[u8]>> Wem<B> {
-    /// Rebuilds a Wwise Vorbis sound as a standard Ogg Vorbis file and writes it to `out`.
+    /// Rebuilds a Wwise Vorbis sound as a standard Ogg Vorbis file, or repackages an Opus sound
+    /// as a standard Ogg Opus file, and writes it to `out`.
+    ///
+    /// An Opus sound keeps its packets: they get an `OpusHead` with the pre-skip and the channel
+    /// mapping of the WEM, an `OpusTags` packet and granule positions that count every packet,
+    /// the last one trimmed to the pre-skip plus the sample count of the WEM.
     ///
     /// The setup header is rebuilt with the default codebook library first; when a Vorbis
     /// decoder rejects the result, the aoTuV library and then inline codebooks are tried. When
@@ -82,23 +90,30 @@ impl<B: AsRef<[u8]>> Wem<B> {
     /// # Errors
     ///
     /// Returns, before writing anything, [`AudioError::UnsupportedOggCodec`] for a codec other
-    /// than Wwise Vorbis, [`AudioError::InvalidVorbis`] for a malformed header, packet layout or audio packet
-    /// and [`AudioError::CodebooksRejected`] when no codebooks give a decodable stream;
+    /// than Wwise Vorbis and Opus, [`AudioError::InvalidVorbis`] for a malformed header, packet
+    /// layout or audio packet, [`AudioError::CodebooksRejected`] when no codebooks give a
+    /// decodable stream and [`AudioError::InvalidOpus`] for a malformed Opus header or packet;
     /// [`AudioError::Write`] when `out` fails.
     pub fn write_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
-        if self.codec() != Codec::Vorbis {
-            return Err(AudioError::UnsupportedOggCodec(self.codec()));
+        match self.codec() {
+            Codec::Vorbis => self.write_vorbis_ogg(out),
+            Codec::Opus => self.write_opus_ogg(out),
+            codec => Err(AudioError::UnsupportedOggCodec(codec)),
         }
+    }
+
+    fn write_vorbis_ogg(&self, out: &mut impl Write) -> Result<OggReport, AudioError> {
         let sound = self.rebuild_vorbis()?;
         let stream = &sound.stream;
         let headers = [sound.ident.as_slice(), &sound.comment, &sound.setup_header];
         let (sample_count, size) = stream.write(headers, &sound.setup, out)?;
         Ok(OggReport {
+            codec: Codec::Vorbis,
             channels: u16::from(stream.header.channels),
             sample_rate: stream.header.sample_rate,
             sample_count,
             size,
-            codebooks: sound.codebooks,
+            codebooks: Some(sound.codebooks),
         })
     }
 

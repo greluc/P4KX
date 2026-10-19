@@ -95,6 +95,11 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Unresolved Reference**:
+A null or dangling link that a Query path follows with `->`; it reaches null and is counted
+ once per row in the Query result, however many paths of the row meet it.
+_Avoid_: broken link, missing Reference
+
 **Query**:
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
@@ -112,6 +117,12 @@ _Avoid_: type filter, cast
 **CryXml**:
 The binary XML encoding CryEngine uses for many Entries outside DataForge.
 _Avoid_: CryXmlB, binary XML
+
+**Localisation key**:
+The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
+resolves to one text per language in that language's `global.ini` Entry
+(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+_Avoid_: loc string, text id
 
 ### Assets
 
@@ -173,6 +184,26 @@ with `DATA` (the embedded WEMs, each named by its ID); a streamed WEM may be emb
 prefetched start.
 _Avoid_: sound package, audio archive
 
+**Audio trigger**:
+A named sound action an Entity's Record refers to, e.g. `Play_QDrive_Spool`; its ATL definition
+maps it to Wwise events.
+_Avoid_: sound, audio event
+
+**ATL definition**:
+An `ATLConfig` Entry below `Data\Libs\GameAudio\`, text XML or CryXml, that defines audio triggers
+with the Wwise events each posts and the soundbanks it preloads.
+_Avoid_: audio XML, game audio file
+
+**Wwise event**:
+An event object in a Soundbank's `HIRC` section that leads through actions to sounds, identified
+by its Wwise short ID, the 32-bit FNV-1 hash of its name in lower case.
+_Avoid_: trigger (an Audio trigger is the game's name for it)
+
+**Audio index**:
+The Audio triggers of every ATL definition and the Wwise events of every Soundbank of one
+Archive, read once while the Archive is open and joined by Wwise short ID.
+_Avoid_: sound database, audio cache
+
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
@@ -195,6 +226,22 @@ _Avoid_: side, surface
 A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a texture's alpha or
 smoothness channel, merged into the alpha channel on export.
 _Avoid_: attached alpha, gloss map, smoothness map
+
+**UI movie**:
+A Scaleform GFx (`GFX`, `CFX`) or Flash SWF (`FWS`, `CWS`, `ZWS`) file of the game's user
+interface: a stream of tags that define shapes, bitmaps, fonts and sprites and place them on
+timelines.
+_Avoid_: Flash file, SWF (alone), GFx asset
+
+**Definition**:
+A shape, morph shape, bitmap, font or sprite a UI movie defines under a numeric ID, which
+placements and other definitions refer to; an export name may name it.
+_Avoid_: character (a Character is a human body), symbol
+
+**External image**:
+A bitmap of a GFx UI movie stored outside it, as a texture file named relative to the movie; the
+game ships it as DDS even where the movie names a TIFF or TGA.
+_Avoid_: linked image, imported bitmap
 
 ### Operations
 

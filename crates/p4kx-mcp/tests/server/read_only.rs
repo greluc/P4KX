@@ -38,6 +38,11 @@ fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
         ("archive_info", json!({})),
         ("list_entries", json!({ "folder": "Data/Libs" })),
         ("search_entries", json!({ "filter": "*" })),
+        ("read_entry_text", json!({ "path": "readme.txt" })),
+        (
+            "read_entry_bytes",
+            json!({ "path": "Data/Libs/Other/c.txt" }),
+        ),
     ];
     for (name, arguments) in &calls {
         server.ok(name, arguments)?;

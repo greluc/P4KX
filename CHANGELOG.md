@@ -8,6 +8,19 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
+  the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
+  matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or
+  in no soundbank are listed with the reason; ATL definitions and soundbanks that cannot be read
+  are warned about. The audio index reads every ATL definition and soundbank of the Archive once,
+  in parallel.
+- `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
+  <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
+  movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
+  twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
+  counted, a broken tag is reported without failing the movie (exit code 1), and GFx external
+  images are decoded from the DDS textures next to the movie, on disk only inside the movie's
+  `Data` folder. Also for movie files on disk.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
@@ -23,6 +36,16 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- `p4kx-mcp` tools `read_entry_text` and `read_entry_bytes`: read an Entry in ranges from a byte
+  offset, as text (CryXml converted to XML, UTF-16 by its byte order mark, otherwise UTF-8;
+  binary Entries are an error) or as base64. A range is at most 256 KiB of text or 192 KiB of
+  bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
+  Stored Entries, encrypted or not, are read from the offset directly; compressed ones decode at
+  most 1 GiB to reach it. At most four Entries are decoded whole for text at a time.
+- The Audio tab of the preview: select a WEM to see its codec, channels, sample rate and
+  duration, and play it without extracting, with play, pause, seek and volume. PCM, IMA ADPCM,
+  PTADPCM and Wwise Vorbis sounds play; another codec, a missing audio device or a sound too long
+  to hold is named instead.
 - The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
@@ -31,6 +54,15 @@ fails while its section is missing.
   moved, changed and unreadable Record with its record path and type, sorted and filtered like the
   Entries, and a selected Record shows its field changes with old and new value, links by the
   record path of their target and unreadable values with their reason.
+- The Export menu of the window with **Record export…**: the Records selected in the Record tree
+  or matching a record-path filter as Record JSON, one file per Record or one NDJSON file, into a
+  new or an existing folder with a Conflict policy, in the background with progress, cancel and a
+  summary of the Records written and those with error values. DataForge and the planned files are
+  read once per open Archive and reused by every later export.
+- `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
+  `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
+  the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record
+  as it ends.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port
@@ -54,11 +86,22 @@ fails while its section is missing.
   `Components[VehicleComponentParams].crewSize`. A path through `[*]` or `[TypeName]` gives a
   list per cell, a JSON array in CSV and JSON, and a comparison over it holds when one of its
   values holds.
+- `->` in Query paths follows a Reference to the Record it links to, or a weak pointer to its
+  instance, in `select` and `where`, chained and behind array elements, e.g.
+  `AttachDef.Manufacturer->Code` or `escorts[*]->name`. A null or dangling Reference gives null
+  and is counted as unresolved in the result summary; `->` where no Reference stands is marked
+  as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
   Channel, Build and completeness per kind, starting with the manufacturers; test, template and
   dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
   the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
+- English and German names and descriptions in the Basetool catalog, resolved from the Archive's
+  `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or
+  language the Archive lacks or an empty text leaves that text `null`, the placeholder keys
+  `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` give no text, and `p4kx catalog`
+  counts resolved, unresolved and placeholder texts per language. A corrupt `global.ini` ends
+  `p4kx catalog` with exit code 3.
 - `p4kx texture info` and `p4kx texture merge`: read a DDS texture split into a header and mip
   parts, from an Archive or from files on disk, and merge it into one standard DDS file.
 - `p4kx texture png`: decode a mip of a BC1, BC2, BC3 or uncompressed texture with pure-Rust
@@ -106,6 +149,14 @@ fails while its section is missing.
   the sound's exact duration, with the codebooks the Ogg export picks; the channels keep the
   order and speaker mask of the WEM. A sound that cannot be decoded fails with an error naming
   the WEM and the reason.
+- `p4kx audio ogg` and `p4kx bnk extract --format ogg` repackage Opus WEMs (Wwise Opus, Ogg Opus
+  in a WEM and Switch Opus) as standard Ogg Opus files without re-encoding, with the pre-skip,
+  the channel mapping of the Wwise layout and the sound's exact duration; `p4kx audio wav` and
+  `p4kx bnk extract --format wav` decode them at 48 kHz to 16-bit WAV in the speaker order of the
+  WEM, with the pure-Rust decoder opus-pure under the BSD 3-Clause licence, whose notice ships in
+  `THIRD-PARTY-NOTICES`. The `OggReport` of `p4kx-audio` gains a `codec` field and its
+  `codebooks` becomes an `Option`, `None` for Opus; `p4kx audio ogg --json` reports `codec` and a
+  `null` `codebooks` for Opus.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a

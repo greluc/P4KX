@@ -3,7 +3,8 @@ use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, CancelToken, DataForgeEntry, DataForgeError, Record, TreeBuilder, utc_rfc3339,
+    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, TreeBuilder,
+    utc_rfc3339,
 };
 use rayon::prelude::*;
 
@@ -12,6 +13,7 @@ use crate::contract::{
 };
 use crate::manufacturer::manufacturer;
 use crate::selection::is_leftover;
+use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogOptions, CatalogProgress, CatalogSummary, Kind, KindSummary,
 };
@@ -23,14 +25,16 @@ const PROGRESS_STEP: usize = 1024;
 /// Every Record is checked in parallel: a kind takes the Records under its record-path prefix
 /// whose struct is its type and, with a Filter, whose record path the Filter matches; of those,
 /// development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)) are counted as skipped.
-/// Entities are ordered by the text of their GUID, so equal input and export time give
-/// byte-identical JSON.
+/// Names and descriptions resolve in the English and German `global.ini`; a key or a language
+/// the Archive lacks leaves that text `null` and is counted in the summary. Entities are ordered
+/// by the text of their GUID, so equal input and export time give byte-identical JSON.
 ///
 /// # Errors
 ///
 /// Returns [`CatalogError::Load`] or [`CatalogError::DataForge`] when the DataForge cannot be
-/// read, [`CatalogError::Record`] when a Record cannot be read, and [`CatalogError::Cancelled`]
-/// once the [`CancelToken`] of `options` is cancelled.
+/// read, [`CatalogError::LoadTexts`] or [`CatalogError::Texts`] when a `global.ini` the Archive
+/// holds cannot be read, [`CatalogError::Record`] when a Record cannot be read, and
+/// [`CatalogError::Cancelled`] once the [`CancelToken`] of `options` is cancelled.
 pub fn build_catalog(
     archive: &Archive,
     options: &CatalogOptions<'_>,
@@ -41,17 +45,9 @@ pub fn build_catalog(
     }
     let entry = DataForgeEntry::read(archive).map_err(CatalogError::Load)?;
     let forge = entry.open().map_err(CatalogError::DataForge)?;
-    let records: Vec<Record<'_>> = forge.records().collect();
-    let scan = Scan {
-        options,
-        done: AtomicUsize::new(0),
-        total: records.len(),
-    };
-    let picked: Vec<Picked<'_>> = records
-        .par_iter()
-        .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
-        .filter_map(Result::transpose)
-        .collect::<Result<_, _>>()?;
+    let sources = TextSources::read(archive)?;
+    let texts = Texts::parse(&sources)?;
+    let picked = Scan::run(&forge, options, &texts)?;
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
@@ -88,6 +84,7 @@ pub fn build_catalog(
     Ok(BuiltCatalog {
         summary: CatalogSummary {
             kinds: summary,
+            texts: texts.summary(),
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
         json,
@@ -117,14 +114,35 @@ enum Picked<'f> {
 }
 
 /// The parallel check of every Record, with its progress.
-struct Scan<'o, 'a> {
+struct Scan<'o, 'a, 'f> {
     options: &'o CatalogOptions<'a>,
+    texts: &'o Texts<'f>,
     done: AtomicUsize,
     total: usize,
 }
 
-impl Scan<'_, '_> {
-    fn check<'f>(
+impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
+    /// Checks every Record of `forge` in parallel and returns those a kind selected.
+    fn run(
+        forge: &'f DataForge<'_>,
+        options: &'o CatalogOptions<'a>,
+        texts: &'o Texts<'f>,
+    ) -> Result<Vec<Picked<'f>>, CatalogError> {
+        let records: Vec<Record<'f>> = forge.records().collect();
+        let scan = Self {
+            options,
+            texts,
+            done: AtomicUsize::new(0),
+            total: records.len(),
+        };
+        records
+            .par_iter()
+            .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
+            .filter_map(Result::transpose)
+            .collect()
+    }
+
+    fn check(
         &self,
         trees: &mut TreeBuilder<'f>,
         record: &Record<'f>,
@@ -152,7 +170,7 @@ impl Scan<'_, '_> {
             return Ok(Some(Picked::Skipped));
         }
         let tree = trees.build(record).map_err(failed)?;
-        Ok(Some(Picked::Manufacturer(manufacturer(&tree))))
+        Ok(Some(Picked::Manufacturer(manufacturer(&tree, self.texts))))
     }
 
     fn tick(&self) {

@@ -90,11 +90,16 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
+  Wwise events of its ATL definition and the soundbanks holding them, e.g.
+  `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
+  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,
-  with test, template and dummy Records left out and counted as skipped. `--filter` marks the
-  catalog partial. It prints the counts per kind and warns when the catalog nears or exceeds the
+  with test, template and dummy Records left out and counted as skipped, and names and
+  descriptions resolved in English and German. `--filter` marks the catalog partial. It prints
+  the counts per kind and the unresolved texts per language and warns when the catalog nears or exceeds the
   64 MB upload limit. `p4kx catalog schema` prints the catalog's JSON Schema.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
@@ -156,17 +161,29 @@ Early development (milestone M1). Available today:
   equal after conversion.
 - `p4kx audio info <archive> <entry>` prints the codec, channels, sample rate and duration of a
   Wwise WEM sound; `p4kx audio wav <archive> <entry> --out <file>` writes a PCM, IMA ADPCM,
-  PTADPCM or Wwise Vorbis WEM as a 16-bit WAV file, and
+  PTADPCM, Wwise Vorbis or Opus WEM as a 16-bit WAV file, and
   `p4kx audio ogg <archive> <entry> --out <file>` rebuilds a Wwise Vorbis WEM as a standard Ogg
-  Vorbis file without re-encoding. All three also take a WEM file on disk instead of an Archive
+  Vorbis file and an Opus WEM as a standard Ogg Opus file, both without re-encoding. All three
+  also take a WEM file on disk instead of an Archive
   and an Entry. PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM and the console codecs are
   detected; a conversion the codec does not support yet fails with an error naming it, and a
   corrupt or truncated WEM fails with the reason.
 - `p4kx bnk list <archive> <entry>` prints the ID, codec and duration of every WEM a Wwise BNK
   soundbank embeds; `p4kx bnk extract <archive> <entry> --out <folder>` writes them as
-  `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
+  `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis or Ogg
+  Opus.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx ui assets <archive> <entry>` lists what a GFx or SWF UI movie holds: its header, every
+  tag code with its count (unknown tags kept and counted), and the shapes, morph shapes, bitmaps
+  (lossless, JPEG, PNG, GFx external and sub-images), fonts and sprites with their IDs and export
+  names; a tag that cannot be read is listed instead of failing the movie, with exit code 1.
+  `p4kx ui extract <archive> <entry> --out <folder>` writes every bitmap as `bitmap_<id>.png`
+  and every shape as `shape_<id>.json` (morph shapes as `morph_shape_<id>.json`) in twips as the
+  movie stores them; an external image is decoded from the DDS texture it names next to the
+  movie (on disk only inside the movie's `Data` folder), a sub-image is cut from its bitmap.
+  Both also take a movie file on disk, compressed (`CWS`, `CFX`, `ZWS`) or not (`FWS`,
+  `GFX`).
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -197,9 +214,9 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml or CHF, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml; a missing texture file is 2 |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, or a tag or definition of a UI movie cannot be read or written; `compare`: the Archives or the `--diff` Entry differ |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
@@ -305,5 +322,7 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT licence](LICENSE-MIT) at your option.
 
 The Vorbis codebook libraries embedded in `p4kx-audio` come from
-[ww2ogg](https://github.com/hcs64/ww2ogg) and are licensed under the BSD 3-Clause licence; see
-[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with every Release.
+[ww2ogg](https://github.com/hcs64/ww2ogg), and the Opus decoder
+[opus-pure](https://github.com/stephenberry/opus-pure) is a port of libopus; both are licensed
+under the BSD 3-Clause licence; see [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with
+every Release.

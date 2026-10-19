@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::time::SystemTime;
 
 use egui::{Align, Align2, Layout, Margin, TextEdit, Ui, vec2};
@@ -15,8 +16,8 @@ use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
 use crate::widgets::{number, toggle};
 use crate::{
-    Extraction, ExtractionScope, ExtractionSetup, ExtractionText as T, Model, TargetKind, Texts,
-    format,
+    Extraction, ExtractionScope, ExtractionSetup, ExtractionText as T, Model, TargetKind, Text,
+    Texts, format,
 };
 
 const ACTIONS: [(ExtractionScope, T, Kind); 3] = [
@@ -31,7 +32,7 @@ const SCOPES: [(ExtractionScope, T); 3] = [
     (ExtractionScope::All, T::ScopeAll),
 ];
 
-const POLICIES: [(ConflictPolicy, T); 3] = [
+pub(super) const POLICIES: [(ConflictPolicy, T); 3] = [
     (ConflictPolicy::Skip, T::PolicySkip),
     (ConflictPolicy::Overwrite, T::PolicyOverwrite),
     (ConflictPolicy::IfChanged, T::PolicyIfChanged),
@@ -68,7 +69,7 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     };
     let mut setup = current.clone();
     let title = model.texts().get(T::SetupTitle);
-    let close_dialog = model.texts().get(crate::Text::CloseDialog);
+    let close_dialog = model.texts().get(Text::CloseDialog);
     let shown =
         frames::modal(frames::modal_id("extraction-setup"), Tone::Normal).show(ui.ctx(), |ui| {
             ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
@@ -102,7 +103,7 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     }
 }
 
-fn group_label(ui: &mut Ui, text: &str) {
+pub(super) fn group_label(ui: &mut Ui, text: &str) {
     ui.label(plain(text, FS_SM, Weight::Bold).color(palette::GRAY_1));
 }
 
@@ -138,7 +139,7 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
                 action = Some(Action::ChooseFolder);
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                folder_field(ui, texts, setup);
+                folder_field(ui, texts, setup.folder());
             });
         });
     });
@@ -208,11 +209,9 @@ fn texture_choices(ui: &mut Ui, texts: &Texts, textures: &mut ExtractionTextures
     toggle::checkbox(ui, &mut textures.keep_raw, &texts.get(T::TextureRaw));
 }
 
-fn folder_field(ui: &mut Ui, texts: &Texts, setup: &ExtractionSetup) {
+pub(super) fn folder_field(ui: &mut Ui, texts: &Texts, folder: Option<&Path>) {
     let none = texts.get(T::FolderNone);
-    let shown = setup
-        .folder()
-        .map_or_else(String::new, |folder| folder.display().to_string());
+    let shown = folder.map_or_else(String::new, |folder| folder.display().to_string());
     let mut text = shown.as_str();
     let field = TextEdit::singleline(&mut text)
         .hint_text(plain(none, FS_BODY, Weight::Regular).italics())
@@ -250,7 +249,12 @@ fn confirm(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
 
 /// Shows the foot of a modal: the ghost `secondary` and, right of it, the CTA `primary`. Returns
 /// `Some(true)` for the CTA and `Some(false)` for the secondary action.
-pub(super) fn foot(ui: &mut Ui, texts: &Texts, primary: (T, bool), secondary: T) -> Option<bool> {
+pub(super) fn foot(
+    ui: &mut Ui,
+    texts: &Texts,
+    primary: (impl Into<Text>, bool),
+    secondary: impl Into<Text>,
+) -> Option<bool> {
     frames::foot_rule(ui);
     let mut pressed = None;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -266,7 +270,7 @@ pub(super) fn foot(ui: &mut Ui, texts: &Texts, primary: (T, bool), secondary: T)
     pressed
 }
 
-fn new_folder_name(model: &Model, scope: ExtractionScope) -> String {
+pub(super) fn new_folder_name(model: &Model, scope: ExtractionScope) -> String {
     let archive = match scope {
         ExtractionScope::Changes(side) => comparison_extraction::archive(model, side),
         _ => model.browser().map(|browser| browser.index().archive()),

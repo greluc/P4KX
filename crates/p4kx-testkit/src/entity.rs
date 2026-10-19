@@ -14,6 +14,8 @@ pub struct TestEntity {
     file_name: String,
     ports: Vec<TestPort>,
     loadout: Option<TestLoadout>,
+    triggers: Vec<String>,
+    sound_effects: Vec<(String, String)>,
 }
 
 impl TestEntity {
@@ -27,7 +29,25 @@ impl TestEntity {
             file_name: file_name.into(),
             ports: Vec::new(),
             loadout: None,
+            triggers: Vec::new(),
+            sound_effects: Vec::new(),
         }
+    }
+
+    /// Adds a reference to the audio trigger `name` in the Entity's audio component; the
+    /// database needs [`audio_schema`](crate::audio_schema).
+    #[must_use]
+    pub fn audio_trigger(mut self, name: impl Into<String>) -> Self {
+        self.triggers.push(name.into());
+        self
+    }
+
+    /// Adds a sound trigger effect `effect` playing the audio trigger `trigger` to the Entity's
+    /// audio component; the database needs [`audio_schema`](crate::audio_schema).
+    #[must_use]
+    pub fn sound_effect(mut self, effect: impl Into<String>, trigger: impl Into<String>) -> Self {
+        self.sound_effects.push((effect.into(), trigger.into()));
+        self
     }
 
     /// Adds an item port definition.
@@ -62,6 +82,9 @@ impl TestEntity {
                 ),
             ));
         }
+        if !self.triggers.is_empty() || !self.sound_effects.is_empty() {
+            components.push(self.audio_component());
+        }
         TestRecord::new(
             self.guid,
             "EntityClassDefinition",
@@ -70,6 +93,34 @@ impl TestEntity {
         )
         .value("Category", TestValue::text("Default"))
         .value("Components", TestValue::Array(components))
+    }
+
+    fn audio_component(&self) -> TestValue {
+        let audio = |trigger: &str| {
+            TestValue::Struct(
+                TestInstance::new("GlobalResourceAudio")
+                    .value("audioTrigger", TestValue::text(trigger)),
+            )
+        };
+        let effects = self
+            .sound_effects
+            .iter()
+            .map(|(effect, trigger)| {
+                TestValue::Struct(
+                    TestInstance::new("SEntityEffectSystem_SoundTriggerEffect")
+                        .value("name", TestValue::text(effect.clone()))
+                        .value("audio", audio(trigger)),
+                )
+            })
+            .collect();
+        TestValue::Struct(
+            TestInstance::new("SAudioTestComponentParams")
+                .value(
+                    "triggers",
+                    TestValue::Array(self.triggers.iter().map(|name| audio(name)).collect()),
+                )
+                .value("triggerEffects", TestValue::Array(effects)),
+        )
     }
 }
 

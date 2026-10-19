@@ -73,6 +73,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     let options = RecordExportOptions {
         policy: policy(args.conflict),
         cancel: Some(&cancel),
+        progress: None,
     };
     let combined = args.combined.then(|| combined_name(entry.path()));
     let combined_report;

@@ -609,6 +609,13 @@
     "position": "list-panel toolbar, left of the shown count and Save report; wraps onto its own right-aligned toolbar row when the search field would get less than 260",
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
+  },
+  "recordExport": {
+    "menu": "Export menu link after Archive, metrics menuLink, its entry dropdownItem; disabled without a DataForge and while a Record export runs",
+    "setup": "modal wide: groups Records (radio tree selection with name and count, radio Record path filter over a searchField), Form (radio JSON, radio NDJSON), Target (as the Extraction setup); bodyGroupGap between groups",
+    "cta": "buttonCta Start export; Close is buttonGhost",
+    "progress": "non-modal modal frame, width 440: spinner while DataForge is read and Records are chosen, then progressBar with done of total; Cancel buttonGhost alone in the foot",
+    "summary": "non-modal modal frame, width 600: cancel note in color-warning, counts and target in color-gray-1, failed Records as collapsibleSection rows with the reason in color-danger-text; Close buttonCta alone in the foot; no target line when none was created"
   },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
@@ -800,6 +807,56 @@
     "selector": "quickFilter, one item per mip labelled with its longer side",
     "focusRingOffset": -3,
     "messages": "unsupported format, unshowable and failure color-danger-text"
+  },
+  "slider": {
+    "dsClass": "input[type=range] accent-color color-primary, quality-row",
+    "width": 200,
+    "height": 18,
+    "labelGap": 8,
+    "hitHeight": 32,
+    "track": "progressBar",
+    "fill": "color-primary",
+    "thumb": {"shape": "square", "size": 18, "color": "color-primary", "hover": "color-accent-light"},
+    "focusRing": {"width": 2, "offset": 2, "color": "color-primary"},
+    "keys": "ArrowLeft, ArrowRight, PageUp, PageDown, Home, End"
+  },
+  "audioPreview": {
+    "dsClass": "previewPanel + facts-bar + btn btn-outline btn-xs + slider",
+    "paddingX": 16,
+    "paddingY": 8,
+    "controlGap": 12,
+    "volumeWidth": 200,
+    "positionMinWidth": 200,
+    "timeFontSize": 12.8,
+    "timeColor": "color-gray-1",
+    "timeWidth": "the widest time of the sound",
+    "labelFontSize": 11.2,
+    "labelFontWeight": "fw-bold",
+    "labelLetterSpacingEm": 0.15,
+    "labelUppercase": true,
+    "labelColor": "color-gray-2-text",
+    "background": "surface-panel",
+    "facts": "factsBar without direction: codec, channels, sample rate, duration",
+    "toggle": "outline btn-xs, play or pause; Space while no other control has the focus",
+    "pauses": "when the preview tab leaves Audio or the work tab leaves Browse",
+    "messages": "unsupported codec, too long, decoding and output failure color-danger-text"
+  },
+  "xmlPreview": {
+    "dsClass": "previewPanel + hexRow",
+    "rowHeight": 20,
+    "fontSize": 12.8,
+    "fontWeight": "fw-regular",
+    "tabular": false,
+    "textColor": "color-gray-1",
+    "lineNumberColor": "color-gray-2-text",
+    "escapeColor": "color-gray-2-text",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the lines; arrows, Page Up, Page Down, Home and End scroll",
+    "gutterPaddingX": 12.8,
+    "background": "surface-panel",
+    "longLines": "cut after 1024 characters with an ellipsis, one horizontal scroll",
+    "truncated": "note in color-warning above the lines, like the truncated Text tab",
+    "messages": "converting with the inline spinner, too large color-gray-1, failure color-danger-text"
   },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},

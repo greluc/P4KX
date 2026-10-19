@@ -40,11 +40,14 @@ impl std::fmt::Debug for QueryExportOptions<'_> {
 
 /// What [`export_query`] wrote.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct QueryExport {
     /// The rows written, one per Record.
     pub records: u64,
     /// The Records whose layout or instance cannot be read; they have no row.
     pub failed: u64,
+    /// The null or dangling links `->` met in the rows written, each counted once per row.
+    pub unresolved_references: u64,
 }
 
 /// A Query result cannot be exported.
@@ -145,6 +148,9 @@ fn write_rows(
             if let Ok(cells) = row.cells() {
                 writer.write_row(row.record_path(), cells)?;
                 export.records = export.records.saturating_add(1);
+                export.unresolved_references = export
+                    .unresolved_references
+                    .saturating_add(u64::try_from(row.unresolved_references()).unwrap_or(u64::MAX));
             } else {
                 export.failed = export.failed.saturating_add(1);
                 if let Some(failed) = options.failed {

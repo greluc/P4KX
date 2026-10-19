@@ -2,6 +2,8 @@
 
 mod archive_change;
 mod archive_picker;
+mod audio_controls;
+mod audio_preview;
 mod channels;
 mod comparison;
 mod comparison_diff;
@@ -18,6 +20,7 @@ mod empty;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod hex_view;
 mod image_preview;
 mod licence;
 mod menu;
@@ -26,6 +29,8 @@ mod preview;
 mod query;
 mod query_editor;
 mod query_table;
+mod record_export;
+mod record_export_outcome;
 mod record_fields;
 mod record_list;
 mod record_results;
@@ -37,6 +42,8 @@ mod shortcuts;
 mod status;
 mod table;
 mod tree;
+mod xml_preview;
+mod xml_view;
 
 use std::path::PathBuf;
 
@@ -68,6 +75,8 @@ pub enum Dialog {
     ComparisonReport,
     /// Picks the file the Query result is exported to.
     QueryExport(QueryExportFormat),
+    /// Picks the folder of a Record export.
+    RecordExportFolder,
 }
 
 /// What the window asks of its host after a frame.
@@ -91,6 +100,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         browser.poll();
     }
     model.poll_extraction();
+    model.poll_record_export();
     model.poll_update();
     model.comparison_mut().poll();
     model.query_mut().poll();
@@ -127,6 +137,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .show(ui, |ui| work_surface(ui, model, &mut requests));
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
+    record_export::setup(ui, model, &mut requests);
+    record_export_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }

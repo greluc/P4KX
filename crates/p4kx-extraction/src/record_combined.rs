@@ -59,7 +59,7 @@ pub fn export_combined(
     };
     let (temporary, part) = create_temporary(&folder)?;
     let streamed = Document::new(part, file)
-        .and_then(|document| document.stream(records, &order, options.cancel, &mut report));
+        .and_then(|document| document.stream(records, &order, options, &mut report));
     let placed = streamed.and_then(|streamed| {
         let Some((len, crc)) = streamed else {
             let failed = report.failures.len().saturating_sub(foreign);
@@ -215,10 +215,11 @@ impl<'p> Document<'p> {
         mut self,
         records: &[Record<'_>],
         order: &[usize],
-        cancel: Option<&CancelToken>,
+        options: &RecordExportOptions<'_>,
         report: &mut RecordExportReport,
     ) -> Result<Option<(u64, u32)>, ExtractionError> {
         let file = self.file;
+        let (cancel, progress) = (options.cancel, options.progress);
         let mut pending = Vec::new();
         for batch in order.chunks(BATCH_LEN) {
             let (written, next) = rayon::join(
@@ -228,7 +229,11 @@ impl<'p> Document<'p> {
                         .par_iter()
                         .filter_map(|position| records.get(*position))
                         .map_init(Scratch::default, |scratch, record| {
-                            build(record, scratch, cancel, file)
+                            let built = build(record, scratch, cancel, file);
+                            if let Some(progress) = progress {
+                                progress();
+                            }
+                            built
                         })
                         .collect::<Vec<_>>()
                 },

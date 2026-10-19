@@ -64,9 +64,14 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("width", "512".into()),
         ("height", "256".into()),
         ("format", "BC7_UNORM".into()),
+        ("rate", "48,000".into()),
+        ("position", "0:03".into()),
+        ("duration", "1:12".into()),
+        ("codec", "Opus".into()),
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),
+        ("guid", "cbee34fd-6441-4000-b99f-924f7f26e19f".into()),
     ]
 }
 

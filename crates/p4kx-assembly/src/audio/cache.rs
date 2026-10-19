@@ -1,0 +1,35 @@
+use std::sync::OnceLock;
+
+use p4kx_archive::Archive;
+
+use super::AudioIndex;
+
+/// The audio of one open Archive: its [`AudioIndex`] is built on the first use and kept.
+#[derive(Debug)]
+pub struct ArchiveAudio<'a> {
+    archive: &'a Archive,
+    index: OnceLock<AudioIndex>,
+}
+
+impl<'a> ArchiveAudio<'a> {
+    /// Reads audio from `archive`; nothing is read before the first [`index`](Self::index).
+    #[must_use]
+    pub const fn new(archive: &'a Archive) -> Self {
+        Self {
+            archive,
+            index: OnceLock::new(),
+        }
+    }
+
+    /// Returns the Archive.
+    #[must_use]
+    pub const fn archive(&self) -> &'a Archive {
+        self.archive
+    }
+
+    /// Returns the audio index, building it on the first call; later calls, from any thread,
+    /// return the same index.
+    pub fn index(&self) -> &AudioIndex {
+        self.index.get_or_init(|| AudioIndex::build(self.archive))
+    }
+}

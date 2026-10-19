@@ -164,6 +164,47 @@ defines and no Loadout names, in definition order. An entry names its Entity by 
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
+## `p4kx entity audio <archive> <entity> --json`
+
+```json
+{"archive": "…", "entry": "Data\\Game2.dcb",
+ "entity": {"guid": "…", "record_path": "…", "name": "EntityClassDefinition.ORIG_890Jump",
+            "class_name": "ORIG_890Jump"},
+ "triggers": [Trigger, …], "counts": {"triggers": 47, "matched": 47, "unmatched": 0},
+ "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. The command reads
+every ATL definition below `Data\Libs\GameAudio\` (text XML or CryXml) and every `.bnk`
+soundbank of the Archive once. `triggers` lists the audio triggers the Entity's Record names
+through `GlobalResourceAudio.audioTrigger` fields, each once (names ignoring ASCII case) in the
+order the Record first names them. `matched` counts the triggers one of whose Wwise events a
+soundbank holds; triggers that reach no soundbank do not change the exit code.
+
+A **Trigger**:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `name` | string | The trigger name as the Record first writes it |
+| `location` | string | The first field naming it, e.g. `Components[3].triggers[0].audioTrigger` |
+| `references` | number | How many fields of the Record name it |
+| `definition` | string or `null` | Path of the ATL definition Entry; `null` when no definition has the trigger |
+| `events` | array | One Event per `WwiseEvent` of the definition, in order |
+| `unmatched` | object or `null` | Why the trigger reaches no soundbank: `kind` and `message` |
+
+An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
+case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
+definition's `wwise_localised`) and `soundbanks`, each with `path` and `language` (the language
+folder below `Sounds\wwise\`, e.g. `English(US)`, or `null`), in path order. `events` holds at most
+the first 256 `WwiseEvent`s of a definition; further ones are left out without an issue.
+
+The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
+definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
+**Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
+(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+`soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
+`--json` each issue is a warning on stderr. New kinds may be added in later versions.
+
 ## `p4kx dcb query <archive> <query> --json`
 
 Without `--out`, the line is the Query result itself in its JSON format, as `--format json`
@@ -181,25 +222,36 @@ With `--out <file>`, the result in `--format` (`json` by default) goes to the fi
 gets the summary:
 
 ```json
-{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0}
+{"archive": "…", "format": "csv", "output": "…\\ships.csv", "records": 3, "failed": 0,
+ "unresolved_references": 2}
 ```
 
 `records` counts the rows written and `failed` the Records whose layout cannot be read; each of
 them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
+`unresolved_references` counts the null or dangling links that `->` met in the `select` paths
+ of the rows written, each link once per row ([query.md](query.md#following-references)); they
+reach `null` and change no exit code.
 
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 356216, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 1061001, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}], "skipped": 2}
+ "complete": true}], "skipped": 2, "texts": [{"language": "en", "available": true,
+ "resolved": 2240, "unresolved": 8, "placeholder": 154}, {"language": "de", "available": true,
+ "resolved": 2132, "unresolved": 116, "placeholder": 154}], "unresolved": 124}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them.
+them. `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+counts per text occurrence, so a key that several names or descriptions share counts once for
+each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
+language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
+for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
+unresolved texts of every language.
 
 ## `p4kx channels --json`
 
@@ -300,16 +352,18 @@ codec without a decoder prints no JSON; it fails with exit code 1 and an error n
 Also `p4kx audio ogg <file> --out <file> --json` for a WEM file on disk.
 
 ```json
-{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "channels": 2,
- "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0, "codebooks": "aotuv",
- "size": 9876}
+{"sound": "Data\\Sounds\\wwise\\Media\\300.wem", "output": "…\\300.ogg", "codec": "vorbis",
+ "channels": 2, "sample_rate": 48000, "sample_count": 48000, "duration_seconds": 1.0,
+ "codebooks": "aotuv", "size": 9876}
 ```
 
-`sample_count` is the number of frames of the Ogg Vorbis stream, the granule position of its last
-page, and `duration_seconds` its playing time. `codebooks` names the codebooks the setup header was
-rebuilt with: `default`, `aotuv` or `inline`. `size` is the size of the written Ogg file. A codec
-other than Wwise Vorbis, or a Vorbis WEM that no codebooks fit, prints no JSON; it fails with exit
-code 1 and an error giving the reason.
+`codec` is `vorbis` for an Ogg Vorbis file rebuilt from Wwise Vorbis and `opus` for an Ogg Opus
+file repackaged from an Opus WEM. `sample_count` is the number of frames the stream plays, the
+granule position of its last page less the pre-skip for Opus, and `duration_seconds` its playing
+time; Opus always plays at 48000 Hz. `codebooks` names the codebooks the Vorbis setup header was
+rebuilt with: `default`, `aotuv` or `inline`; it is `null` for Opus. `size` is the size of the
+written Ogg file. A codec other than Wwise Vorbis and Opus, a Vorbis WEM that no codebooks fit or
+a malformed Opus WEM prints no JSON; it fails with exit code 1 and an error giving the reason.
 
 ## `p4kx bnk list <archive> <entry> --json`
 
@@ -346,6 +400,84 @@ both in ascending ID order. With `--format wav` a codec without a decoder and a 
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
 `"prefetch": true`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
+
+## `p4kx ui assets <archive> <entry> --json`
+
+Also `p4kx ui assets <file> --json` for a GFx or SWF file on disk.
+
+```json
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "signature": "CFX", "version": 10,
+ "compression": "zlib", "length": 512,
+ "stage": {"x_min": 0, "x_max": 20480, "y_min": 0, "y_max": 15360},
+ "frame_rate": 30.0, "frame_count": 1, "frames": 1,
+ "exporter": {"version": 879, "flags": 16, "bitmap_format": 19, "prefix": "", "swf_name": "Panel"},
+ "tags": [{"code": 0, "name": "End", "count": 2}, {"code": 777, "name": null, "count": 1}],
+ "unknown_tags": [{"code": 777, "offset": 498, "length": 6}],
+ "shapes": [{"id": 4, "version": 3, "bounds": {"x_min": 0, "x_max": 2000, "y_min": 0,
+             "y_max": 1010}, "fill_styles": 1, "line_styles": 1, "edges": 2,
+             "export_name": null}],
+ "morph_shapes": [{"id": 6, "version": 1, "bounds": {…}, "fill_styles": 1, "line_styles": 0,
+                   "edges": 0, "export_name": null}],
+ "bitmaps": [{"id": 1, "kind": "lossless", "width": 2, "height": 1, "format": "argb32",
+              "file": null, "image_id": null, "export_name": "icon_alert"},
+             {"id": 2, "kind": "external", "width": 8, "height": 4, "format": "tiff",
+              "file": "../Textures/panel_bg.tif", "image_id": null, "export_name": null},
+             {"id": 3, "kind": "sub_image", "width": 4, "height": 2, "format": null,
+              "file": null, "image_id": 2, "export_name": null}],
+ "fonts": [{"id": 8, "format": "DefineFont3", "name": "Electrolize", "full_name": null,
+            "bold": true, "italic": false, "glyphs": 1, "outlines": true, "export_name": null}],
+ "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"], "placed": [4],
+              "export_name": "PanelButton"}],
+ "failures": [{"code": 2, "offset": 508, "error": "unexpected end of data at offset 510: …"}]}
+```
+
+`signature` is `FWS`, `CWS` or `ZWS` for SWF and `GFX` or `CFX` for GFx; `compression` is `none`,
+`zlib` or `lzma`, and `length` the size of the uncompressed movie. `stage` and every `bounds` are
+in twips, a twentieth of a pixel. `frames` counts the `ShowFrame` tags of the main timeline,
+`frame_count` is what the header declares. `exporter` is the GFx `ExporterInfo` tag, `null` for a
+SWF movie. `tags` counts every tag code, sprites included, in ascending code order, with `name`
+`null` for a code that is not known; `unknown_tags` lists those tags with the offset of their body
+in the uncompressed movie. Shapes, morph shapes, bitmaps, fonts and sprites are in file order;
+`edges` counts the straight and curved edges (of the start state of a morph shape), and
+`export_name` is the first name an `ExportAssets` tag gives the ID. A bitmap's `kind` is
+`lossless`, `jpeg`, `png` or `gif` for an embedded image, `external` for a GFx external image whose
+`file` is the path the movie gives, relative to it, and `sub_image` for a rectangle of the bitmap
+`image_id`; `format` is the pixel format of a lossless bitmap, `with alpha` or `opaque` for an
+embedded image and the GFx file format (`dds`, `tiff`, `tga`, …) of an external one; `width` and
+`height` are `null` where the movie does not state them. A font's `format` names its tag; `glyphs`
+is its glyph count and `outlines` whether glyph shapes are stored. A sprite lists its frame
+`labels` and the IDs it `placed`, ascending. `failures` lists the tags that could not be read;
+they leave out their definition and the rest of the movie is still read, but the exit code is 1.
+A file that is no movie, or one larger than 64 MiB, prints no JSON; it fails with exit code 3.
+
+## `p4kx ui extract <archive> <entry> --out <folder> --json`
+
+Also `p4kx ui extract <file> --out <folder> --json` for a GFx or SWF file on disk.
+
+```json
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\assets",
+ "extracted": [{"kind": "bitmap", "id": 1, "file": "…\\assets\\bitmap_1.png", "size": 77},
+               {"kind": "shape", "id": 4, "file": "…\\assets\\shape_4.json", "size": 1081},
+               {"kind": "morph_shape", "id": 6, "file": "…\\assets\\morph_shape_6.json",
+                "size": 1038}],
+ "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
+            {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
+             refers to ../Textures/gone.dds, which does not exist; tried
+             Data\\UI\\Screens\\Textures\\gone.dds"}]}
+```
+
+`extracted` lists the files written, `<kind>_<id>.png` for bitmaps (8-bit RGBA, straight alpha)
+and `<kind>_<id>.json` for shapes and morph shapes. `failed` lists first the tags that could not
+be read, as `tag` with their `code` and the `offset` of their body in the uncompressed movie, then
+the definitions that could not be written, with their `id`; each with the reason and its causes
+joined by `: `. Written and failed definitions list bitmaps, then shapes, then morph shapes, each
+in file order. An external image of a movie on disk is read only as DDS from inside the nearest
+ancestor folder named `Data`, or else the movie's folder; a path leaving it fails. A shape file
+holds the shape as the movie stores it, in twips: `id`, `version`, `bounds`, `edge_bounds`, the
+`fill_styles` and `line_styles` numbered from 1 by the records, and the `records` in drawing order,
+each a `style_change` (a `move_to` position and new style numbers), a `straight_edge` with its
+`delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
+not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx socpak list <archive> <container…> --json`
 
@@ -567,4 +699,3 @@ Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x`
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is
 written back with exactly the bits it was read with. `container` and each of its fields may be
 left out; without `frame` the body is always compressed anew.
-

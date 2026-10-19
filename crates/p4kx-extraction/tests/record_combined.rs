@@ -151,6 +151,7 @@ fn a_cancelled_run_leaves_no_file_and_keeps_an_existing_one() -> TestResult {
     let options = RecordExportOptions {
         policy: ConflictPolicy::Overwrite,
         cancel: Some(&cancel),
+        progress: None,
     };
 
     let fresh = export_combined(&forge, &records, &file, &options)?;
@@ -220,6 +221,31 @@ fn records_sharing_a_record_path_are_ordered_by_name_then_definition_order() -> 
         guids,
         ["4", "2", "1", "3"],
         "record path and name ignoring case, then definition order"
+    );
+    Ok(())
+}
+
+#[test]
+fn every_record_of_a_combined_export_is_reported_as_it_ends() -> TestResult {
+    let bytes = many(1500);
+    let forge = DataForge::open(&bytes)?;
+    let records: Vec<_> = forge.records().collect();
+    let dir = tempfile::tempdir()?;
+    let ended = std::sync::atomic::AtomicUsize::new(0);
+    let progress = || {
+        ended.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    };
+    let options = RecordExportOptions {
+        progress: Some(&progress),
+        ..RecordExportOptions::default()
+    };
+
+    export_combined(&forge, &records, &dir.path().join("all.xml"), &options)?;
+
+    assert_eq!(
+        ended.load(std::sync::atomic::Ordering::Relaxed),
+        1500,
+        "once per Record"
     );
     Ok(())
 }

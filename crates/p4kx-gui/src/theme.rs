@@ -8,6 +8,8 @@ pub mod palette;
 pub mod tokens;
 
 #[cfg(test)]
+mod audio_tests;
+#[cfg(test)]
 mod comparison_tests;
 #[cfg(test)]
 mod image_tests;
@@ -17,6 +19,8 @@ mod query_tests;
 mod tests;
 #[cfg(test)]
 mod token_tests;
+#[cfg(test)]
+mod xml_tests;
 
 use std::sync::Arc;
 

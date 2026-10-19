@@ -4,9 +4,8 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_audio::{AudioError, OggReport, WavReport, Wem};
-use rayon::prelude::*;
 
-use crate::entry_path::same_entry_path;
+use crate::entry_content::find_entry;
 use crate::output_file::{read_error, write_error, write_replacing};
 use crate::texture_parts::is_same_file;
 use crate::{ConversionError, UnknownEntries};
@@ -34,11 +33,8 @@ impl Sound {
     /// [`ConversionError::SoundTooLarge`] when it exceeds [`MAX_SOUND_LEN`], and another
     /// [`ConversionError`] when it cannot be read or is no valid WEM.
     pub fn from_archive(archive: &Archive, path: &str) -> Result<Self, ConversionError> {
-        let entry = archive
-            .entries()
-            .par_iter()
-            .find_first(|entry| same_entry_path(entry.path(), path))
-            .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        let entry =
+            find_entry(archive, path).ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         let name = entry.path().to_owned();
         let reader = archive.open_entry(entry)?;
         let bytes =
@@ -127,14 +123,15 @@ impl Sound {
         })
     }
 
-    /// Rebuilds a Wwise Vorbis sound as an Ogg Vorbis file at `out`, replacing it; the file is
-    /// written under a temporary name first, so a failed conversion leaves nothing behind.
+    /// Rebuilds a Wwise Vorbis sound as an Ogg Vorbis file or an Opus sound as an Ogg Opus file at
+    /// `out`, replacing it; the file is written under a temporary name first, so a failed
+    /// conversion leaves nothing behind.
     ///
     /// # Errors
     ///
-    /// Returns [`ConversionError::Audio`] naming the codec when it is not Wwise Vorbis or the
-    /// stream cannot be rebuilt, [`ConversionError::OutputIsInput`] when `out` is the WEM file
-    /// itself, and [`ConversionError::Write`] when the file cannot be written.
+    /// Returns [`ConversionError::Audio`] naming the codec when it is neither Wwise Vorbis nor
+    /// Opus or the stream cannot be rebuilt, [`ConversionError::OutputIsInput`] when `out` is the
+    /// WEM file itself, and [`ConversionError::Write`] when the file cannot be written.
     pub fn write_ogg_to_file(&self, out: &Path) -> Result<OggReport, ConversionError> {
         self.refuse_input_as_output(out)?;
         write_replacing(out, |writer| {

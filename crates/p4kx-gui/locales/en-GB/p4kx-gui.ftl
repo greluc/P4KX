@@ -212,6 +212,11 @@ query-rows-failed =
         [one] { $number } Record, { $failed } failed
        *[other] { $number } Records, { $failed } failed
     }
+query-unresolved =
+    { $count ->
+        [one] , { $number } unresolved Reference
+       *[other] , { $number } unresolved References
+    }
 query-export-csv = Export CSV…
 query-export-json = Export JSON…
 query-filter-csv = CSV file
@@ -308,3 +313,60 @@ image-decoding = Decoding mip { $level } of { $path }…
 image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
 image-failed = Cannot decode { $path }: { $reason }
 image-unshowable = Every mip of { $path } is larger than the preview can show.
+
+menu-export = Export
+record-export-action = Record export…
+record-export-title = Export Records
+record-export-scope-heading = Records
+record-export-scope-tree = Selected in the Record tree: { $name } ({ $number })
+record-export-scope-tree-none = Selected in the Record tree (nothing selected)
+record-export-scope-filter = Record path filter
+record-export-filter-hint = A glob with * or ?, otherwise any part of the record path
+record-export-form-heading = Form
+record-export-form-json = JSON, one file per Record under its record path
+record-export-form-ndjson = NDJSON, one file { $name } with one Record per line
+record-export-start = Start export
+record-export-running-title = Exporting Records
+record-export-reading = Reading DataForge…
+record-export-selecting = Selecting Records…
+record-export-progress = { $done } of { $total } Records, { $percent } %
+record-export-summary-title = Record export finished
+record-export-summary-cancelled-title = Record export cancelled
+record-export-summary-cancelled = The Record export was cancelled before every Record was written.
+record-export-summary-counts = Records written { $written }, skipped { $skipped }, failed { $failed }, cancelled { $cancelled }
+record-export-summary-errors = Records with error values: { $erroneous }, error values: { $errors }
+record-export-summary-no-match = No Record matches the filter.
+record-export-summary-target = Target: { $path }
+record-export-summary-file-failed = Cannot write { $path }: { $reason }
+record-export-summary-failed = Failed ({ $number })
+record-export-summary-skipped = Skipped ({ $number })
+record-export-summary-failure = { $path } ({ $guid }): { $reason }
+record-export-failed-title = Record export failed
+record-export-failed = The Record export into { $path } failed: { $reason }
+record-export-stopped = The Record export into { $path } stopped without a result.
+
+preview-tab-xml = XML
+xml-converting = Converting { $path } to XML…
+xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.
+xml-failed = Cannot convert { $path } to XML: { $reason }
+xml-stopped = Converting { $path } stopped without a result.
+xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.
+xml-view = Converted XML
+
+preview-tab-audio = Audio
+audio-codec = Codec
+audio-channels = Channels
+audio-sample-rate = Sample rate
+audio-duration = Duration
+audio-hertz = { $rate } Hz
+audio-unknown = –
+audio-play = Play
+audio-pause = Pause
+audio-position = Position
+audio-volume = Volume
+audio-time = { $position } / { $duration }
+audio-decoding = Decoding { $path }…
+audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex tabs still show the data of { $path }.
+audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
+audio-failed = Cannot decode { $path }: { $reason }
+audio-output-failed = The sound cannot be played: { $reason }

@@ -10,8 +10,9 @@ use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
-pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityLoadoutArgs};
+pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
+pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -54,7 +55,8 @@ pub(crate) enum Command {
         subcommand_negates_reqs = true
     )]
     Catalog(CatalogArgs),
-    /// Shows the Loadout tree of an Entity: a ship, vehicle, weapon or item.
+    /// Shows the Loadout tree or the audio triggers of an Entity: a ship, vehicle, weapon or
+    /// item.
     #[command(after_help = EXIT_CODES_HELP)]
     Entity(EntityArgs),
     /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
@@ -73,6 +75,9 @@ pub(crate) enum Command {
     /// Lists or extracts the WEMs a Wwise BNK soundbank embeds.
     #[command(after_help = EXIT_CODES_HELP)]
     Bnk(BnkArgs),
+    /// Lists or extracts the bitmaps, shapes, fonts and sprites of a GFx or SWF UI movie.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Ui(UiArgs),
     /// Lists or extracts the Entries of a socpak container, also of one nested in another.
     #[command(after_help = EXIT_CODES_HELP)]
     Socpak(SocpakArgs),

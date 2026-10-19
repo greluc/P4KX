@@ -18,6 +18,7 @@ mod selection;
 mod view;
 
 pub use diff::{DiffStatus, EntryDiff};
+pub(crate) use diff_document::shown_len;
 pub use diff_document::{DiffCell, DiffDocument, DiffHunk, DiffRow};
 pub(crate) use orders::rank;
 pub use orders::{ChangeColumn, ChangeSort};

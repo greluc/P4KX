@@ -19,13 +19,21 @@ fails while its section is missing.
   Archive, kept open with its indexes and read again when the Archive file changes. A Query is
   limited to 64 columns and 128 comparisons, selecting its Records stops after 30 seconds or when
   the client cancels, and the selection is kept for the pages that follow.
+- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
+  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
+  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
+  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
+  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
+  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
+  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
+  children.
 
 ### Changed
 
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
-  path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and pages in time proportional to the page; the window and the server share one
-  folder index.
+  path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
+  pages in time proportional to the page; the window and the server share one folder index.
 
 ## [0.2.0]
 
@@ -35,14 +43,6 @@ for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP 
 
 ### Added
 
-- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
-  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
-  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
-  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
-  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
-  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
-  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
-  children.
 - Verification of textures and localisation against all installed Channels, recorded in
   `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
   `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer

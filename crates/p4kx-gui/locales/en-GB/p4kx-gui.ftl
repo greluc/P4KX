@@ -119,6 +119,8 @@ extraction-summary-skipped = Skipped ({ $number })
 extraction-summary-cancelled = Cancelled ({ $number })
 extraction-summary-unconverted = Not converted ({ $number })
 extraction-summary-failure = { $path }: { $reason }
+extraction-summary-records-failed = Records not written ({ $number })
+extraction-summary-record-failure = { $path } ({ $guid }): { $reason }
 extraction-failed = Cannot prepare the target in { $path }: { $reason }
 extraction-stopped = The Extraction into { $path } stopped without a result.
 extraction-failed-title = Extraction failed
@@ -352,6 +354,13 @@ xml-failed = Cannot convert { $path } to XML: { $reason }
 xml-stopped = Converting { $path } stopped without a result.
 xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.
 xml-view = Converted XML
+
+scroll-text = Text lines
+scroll-hex = Hexadecimal rows
+scroll-image = Picture
+scroll-diff = Line differences
+scroll-fields = Changed fields
+scroll-lines = Record fields
 
 preview-tab-audio = Audio
 audio-codec = Codec

@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::io::Read;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 
 use p4kx_extraction::cryxml::{self, Format};
 use p4kx_extraction::{Archive, ConflictPolicy, Entry, ExtractOptions, extract};
@@ -21,9 +22,18 @@ mod texture;
 mod texture_conversion;
 mod texture_hdr;
 mod texture_hdr_cube;
+mod verification;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts and timings of a real Archive are what the verification reports"
+)]
+fn report(line: &str) {
+    println!("{line}");
+}
 
 const PER_KIND: usize = 10;
 const MAX_SIZE: u64 = 4 << 20;
@@ -47,6 +57,7 @@ fn converts_every_cryxml_entry_of_a_real_archive() -> TestResult {
         .collect();
     let binary = AtomicUsize::new(0);
     let text = AtomicUsize::new(0);
+    let started = Instant::now();
 
     let failures: Vec<String> = candidates
         .par_iter()
@@ -72,6 +83,11 @@ fn converts_every_cryxml_entry_of_a_real_archive() -> TestResult {
         failures.iter().take(10).collect::<Vec<_>>()
     );
     let (binary, text) = (binary.into_inner(), text.into_inner());
+    report(&format!(
+        "{} candidates: {binary} CryXml converted, {text} text passed through, in {:?}",
+        candidates.len(),
+        started.elapsed()
+    ));
     assert!(
         binary > 1000,
         "converted {binary} CryXml and passed {text} text Entries through"

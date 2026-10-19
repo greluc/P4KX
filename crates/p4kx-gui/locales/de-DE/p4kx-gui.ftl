@@ -119,6 +119,8 @@ extraction-summary-skipped = Übersprungen ({ $number })
 extraction-summary-cancelled = Abgebrochen ({ $number })
 extraction-summary-unconverted = Nicht umgewandelt ({ $number })
 extraction-summary-failure = { $path }: { $reason }
+extraction-summary-records-failed = Nicht geschriebene Records ({ $number })
+extraction-summary-record-failure = { $path } ({ $guid }): { $reason }
 extraction-failed = Das Ziel in { $path } lässt sich nicht anlegen: { $reason }
 extraction-stopped = Die Extraktion nach { $path } brach ohne Ergebnis ab.
 extraction-failed-title = Extraktion fehlgeschlagen
@@ -352,6 +354,13 @@ xml-failed = { $path } kann nicht in XML umgewandelt werden: { $reason }
 xml-stopped = Das Umwandeln von { $path } brach ohne Ergebnis ab.
 xml-truncated = Gekürzt: angezeigt werden die ersten { $lines } Zeilen, die ersten { $limit } des XML.
 xml-view = Umgewandeltes XML
+
+scroll-text = Textzeilen
+scroll-hex = Hexadezimalzeilen
+scroll-image = Bildansicht
+scroll-diff = Zeilenunterschiede
+scroll-fields = Geänderte Felder
+scroll-lines = Record-Felder
 
 preview-tab-audio = Audio
 audio-codec = Codec

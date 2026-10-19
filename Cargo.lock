@@ -3337,6 +3337,7 @@ name = "p4kx-assembly"
 version = "0.1.0"
 dependencies = [
  "p4kx-archive",
+ "p4kx-audio",
  "p4kx-character",
  "p4kx-cryxml",
  "p4kx-dataforge",
@@ -3344,6 +3345,7 @@ dependencies = [
  "p4kx-testkit",
  "rayon",
  "roxmltree",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

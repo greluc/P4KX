@@ -90,6 +90,10 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
+  Wwise events of its ATL definition and the soundbanks holding them, e.g.
+  `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
+  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, ordered by GUID,

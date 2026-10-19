@@ -13,8 +13,14 @@
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
 //!
+//! [`audio`] indexes the audio of an Archive once: the ATL definitions that map audio trigger
+//! names to Wwise events and the soundbanks whose `HIRC` sections hold those events, matched by
+//! the events' Wwise short IDs ([`audio::wwise_id`]). [`audio::AudioIndex::entity_audio`] lists
+//! the audio triggers an Entity names with their events and soundbanks.
+//!
 //! [`character`] reads and writes the CHF files of Characters and their JSON form.
 
+pub mod audio;
 mod entities;
 mod error;
 mod files;

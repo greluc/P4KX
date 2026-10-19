@@ -58,6 +58,22 @@ impl RecordLanguageText {
     }
 }
 
+const fn name_id(language: TextLanguage) -> &'static str {
+    match language {
+        TextLanguage::German => "record-language-de",
+        TextLanguage::French => "record-language-fr",
+        TextLanguage::Italian => "record-language-it",
+        TextLanguage::SpanishSpain => "record-language-es-es",
+        TextLanguage::SpanishLatinAmerica => "record-language-es-419",
+        TextLanguage::PortugueseBrazil => "record-language-pt-br",
+        TextLanguage::Japanese => "record-language-ja",
+        TextLanguage::Korean => "record-language-ko",
+        TextLanguage::ChineseSimplified => "record-language-zh-hans",
+        TextLanguage::ChineseTraditional => "record-language-zh-hant",
+        _ => "record-language-en",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::RecordLanguageText;
@@ -80,21 +96,5 @@ mod tests {
         ids.dedup();
 
         assert_eq!(ids.len(), RecordLanguageText::ALL.len(), "ids are unique");
-    }
-}
-
-const fn name_id(language: TextLanguage) -> &'static str {
-    match language {
-        TextLanguage::German => "record-language-de",
-        TextLanguage::French => "record-language-fr",
-        TextLanguage::Italian => "record-language-it",
-        TextLanguage::SpanishSpain => "record-language-es-es",
-        TextLanguage::SpanishLatinAmerica => "record-language-es-419",
-        TextLanguage::PortugueseBrazil => "record-language-pt-br",
-        TextLanguage::Japanese => "record-language-ja",
-        TextLanguage::Korean => "record-language-ko",
-        TextLanguage::ChineseSimplified => "record-language-zh-hans",
-        TextLanguage::ChineseTraditional => "record-language-zh-hant",
-        _ => "record-language-en",
     }
 }

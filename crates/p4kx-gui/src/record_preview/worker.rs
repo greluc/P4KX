@@ -39,7 +39,7 @@ pub(super) struct Worker {
 /// What the worker answered since the last poll.
 pub(super) enum Answered {
     Nothing,
-    Answer(Answer),
+    Answer(Box<Answer>),
     Gone,
 }
 
@@ -68,7 +68,7 @@ impl Worker {
     /// Takes the next answer.
     pub(super) fn poll(&self) -> Answered {
         match self.answers.try_recv() {
-            Ok(answer) => Answered::Answer(answer),
+            Ok(answer) => Answered::Answer(Box::new(answer)),
             Err(TryRecvError::Empty) => Answered::Nothing,
             Err(TryRecvError::Disconnected) => Answered::Gone,
         }

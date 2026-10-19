@@ -336,6 +336,33 @@ Die Statuszeile („angezeigt", „ausgewählt") und „Angezeigte (N)" zählen 
 ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes. Keine
 neuen Maße (`tableRow.textureGroup` im JSON der Spec nennt die benutzten).
 
+**D.27 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine
+`ScrollArea` nur mit Maus und Rad; ohne Tastenbehandlung käme ein Tastaturnutzer über die erste
+Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare Rollfläche
+(`widgets::scroll_region`), wie die Zeilenansicht des XML (D.19): die Tabulatortaste erreicht sie,
+der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name nennt den Inhalt
+(„Textzeilen", „Hexadezimalzeilen", „Bildansicht", „Zeilenunterschiede", „Geänderte Felder",
+„Record-Felder", „Umgewandeltes XML"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
+Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
+zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
+sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
+
+**D.29 Sprache der Record-Texte als Menü „Record-Texte".** Die Sprache der Texte neben den
+Lokalisierungsschlüsseln gilt für den Tab „Record" und für das Record-XML; sie ist eine
+Fensteroption wie die Oberflächensprache und steht deshalb als Menü-Link rechts von „Export" in der
+Kopfzeile (Maße `menuLink`), nicht im Vorschau-Panel: das hat bei 236 px Starthöhe keinen Platz für
+eine weitere Zeile, und ein 44-px-`select` mit Beschriftung verdrängte die Feldzeilen. Die Einträge
+sind `dropdownItem` mit Radio wie im Sprachmenü: zuerst „Nur Schlüssel", dann die Sprachen, deren
+`global.ini` das Archiv enthält, benannt in der Oberflächensprache. Ohne `global.ini` ist das Menü
+gesperrt. Ohne Wahl folgt die Vorschau der Oberflächensprache, sofern das Archiv sie hat. In der
+Zeile steht der Schlüssel in `color-gray-2-text`, 8 danach der Text in `color-gray-1`
+(`tableRow`-Schrift, mit Auslassung gekürzt; Zeilenumbrüche, Steuer- und Bidi-Zeichen als
+Escapes); fehlt der Text, steht dort ein `chip--warning` „Fehlt", nie nur Farbe. Platzhalter und
+leere Schlüssel bleiben allein. Lässt sich die `global.ini` nicht lesen, zeigt ein `alert-warning`
+über der Faktenleiste den Grund, und die Vorschau zeigt nur Schlüssel. Ein Sprachwechsel lässt die
+Vorschau stehen, bis die neue Fassung fertig ist. Keine neuen Maße (`recordPreview.keyText` im JSON
+der Spec).
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

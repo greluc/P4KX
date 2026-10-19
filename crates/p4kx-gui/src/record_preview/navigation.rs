@@ -163,7 +163,8 @@ impl Navigation {
         while let Some(worker) = &self.worker {
             match worker.poll() {
                 Answered::Nothing => break,
-                Answered::Answer((generation, read)) => {
+                Answered::Answer(answer) => {
+                    let (generation, read) = *answer;
                     if let Some(preview) = &mut self.preview
                         && (preview.generation == generation || preview.pending == Some(generation))
                     {

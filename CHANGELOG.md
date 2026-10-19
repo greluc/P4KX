@@ -8,6 +8,15 @@ fails while its section is missing.
 
 ### Added
 
+- GUI: the menu "Record texts" chooses the language of the texts the Record preview shows next
+  to localisation keys, in the Record tab and in the Record XML. It lists the languages whose
+  `global.ini` the open Archive holds plus "Keys only", follows the interface language until
+  one is chosen, and stores the choice in the settings (`record_language`). A key without a text
+  in the language is marked "Missing"; control, bidirectional and line feed characters of the
+  texts are shown as escapes. A language is read, indexed and copied once per Archive; switching
+  it re-renders the open Record from the DataForge already held, without reading it again.
+  `LanguageTexts::owned` resolves with an `OwnedTextSet`.
+
 - `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
   localisation key next to the key, in the `global.ini` of that language; a key without a text is
   marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte
@@ -231,6 +240,12 @@ fails while its section is missing.
   is one row with its total size, its parts one level in below it. Checking a row checks all its
   Entries, a search that matches a part shows the whole texture, sorting by size uses the total
   size, and "Selected" and "Shown" extract every part. Parts without a header stay single rows.
+- The long views of the preview and the Comparison scroll with the keyboard: Tab focuses the Text,
+  Hex and Image previews, the line diff, the field list of a Record change and the field list of
+  the Record preview, and the arrow keys, Page Up, Page Down, Home and End scroll them like the XML
+  view.
+- The Extraction summary lists the Records that were not written with their record path, GUID and
+  reason, as it lists failed Entries.
 
 ### Changed
 

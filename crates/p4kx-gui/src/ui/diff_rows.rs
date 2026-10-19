@@ -15,7 +15,10 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{Weight, font};
-use crate::{ComparisonSide, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffText, Texts};
+use crate::widgets::scroll_region;
+use crate::{
+    ComparisonSide, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffText, ScrollText, Texts,
+};
 
 const MAX_ROWS: usize = 512;
 const SIDES: [ComparisonSide; 2] = [ComparisonSide::Old, ComparisonSide::New];
@@ -68,36 +71,45 @@ pub(super) fn show(ui: &mut Ui, rows: &Rows<'_>) {
     if let Some(row) = rows.scroll_to {
         area = area.vertical_scroll_offset(row_top(row as usize));
     }
-    area.show_viewport(ui, |ui, viewport| {
-        let origin = ui.max_rect().min;
-        let half = (viewport.width() / 2.0).floor();
-        let text_left = cache.gutter + cache.marker + DIFF_MARKER_GAP;
-        let extra = (cache.widest - (half - text_left)).max(0.0);
-        ui.allocate_rect(
-            Rect::from_min_size(origin, vec2(viewport.width() + extra, row_top(total))),
-            Sense::hover(),
-        );
-        ui.data_mut(|data| data.insert_temp(split_id(), half));
-        let left = origin.x + viewport.min.x;
-        let first = row_at(viewport.min.y.floor());
-        let last = row_at(viewport.max.y + DIFF_ROW_HEIGHT - 1.0).min(total);
-        let frame = Frame {
-            left,
-            half,
-            text_left,
-            scroll: viewport.min.x,
-        };
-        for index in first..last {
-            let top = origin.y + row_top(index);
-            paint_row(ui, rows, &mut cache, &frame, (index, top));
-        }
-        let x = left + half;
-        ui.painter().vline(
-            x,
-            (origin.y + viewport.min.y)..=(origin.y + viewport.max.y),
-            Stroke::new(1.0, palette::GRAY_3),
-        );
-    });
+    let id = ui.scope_id().with("comparison-diff-rows");
+    scroll_region::show(
+        ui,
+        (id, || rows.texts.get(ScrollText::Diff)),
+        DIFF_ROW_HEIGHT,
+        area,
+        |area, ui| {
+            area.show_viewport(ui, |ui, viewport| {
+                let origin = ui.max_rect().min;
+                let half = (viewport.width() / 2.0).floor();
+                let text_left = cache.gutter + cache.marker + DIFF_MARKER_GAP;
+                let extra = (cache.widest - (half - text_left)).max(0.0);
+                ui.allocate_rect(
+                    Rect::from_min_size(origin, vec2(viewport.width() + extra, row_top(total))),
+                    Sense::hover(),
+                );
+                ui.data_mut(|data| data.insert_temp(split_id(), half));
+                let left = origin.x + viewport.min.x;
+                let first = row_at(viewport.min.y.floor());
+                let last = row_at(viewport.max.y + DIFF_ROW_HEIGHT - 1.0).min(total);
+                let frame = Frame {
+                    left,
+                    half,
+                    text_left,
+                    scroll: viewport.min.x,
+                };
+                for index in first..last {
+                    let top = origin.y + row_top(index);
+                    paint_row(ui, rows, &mut cache, &frame, (index, top));
+                }
+                let x = left + half;
+                ui.painter().vline(
+                    x,
+                    (origin.y + viewport.min.y)..=(origin.y + viewport.max.y),
+                    Stroke::new(1.0, palette::GRAY_3),
+                );
+            })
+        },
+    );
     cache.store(ui);
 }
 

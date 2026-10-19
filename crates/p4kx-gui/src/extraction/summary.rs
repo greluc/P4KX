@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use p4kx_extraction::{EntryFailure, ExtractionReport, RecordExportReport};
 
 use crate::model::describe;
+use crate::record_export::FailedRecord;
 
 /// One Entry an Extraction did not write, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +56,7 @@ pub struct ExtractionSummary {
     cancelled: Vec<String>,
     archive_changed: bool,
     records: Option<RecordCounts>,
+    record_failures: Vec<FailedRecord>,
 }
 
 impl ExtractionSummary {
@@ -69,6 +71,10 @@ impl ExtractionSummary {
             cancelled: report.cancelled().to_vec(),
             archive_changed: report.archive_changed(),
             records: report.records().map(RecordCounts::new),
+            record_failures: report
+                .records()
+                .map(|records| records.failures().iter().map(FailedRecord::of).collect())
+                .unwrap_or_default(),
         }
     }
 
@@ -121,6 +127,12 @@ impl ExtractionSummary {
     #[must_use]
     pub const fn records(&self) -> Option<RecordCounts> {
         self.records
+    }
+
+    /// Returns the Records of the DataForge Entry that were not written, with the reason.
+    #[must_use]
+    pub fn record_failures(&self) -> &[FailedRecord] {
+        &self.record_failures
     }
 
     /// Returns whether the Archive changed on disk, which stopped the Extraction.

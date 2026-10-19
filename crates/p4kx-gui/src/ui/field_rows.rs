@@ -15,9 +15,11 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{focus_inside, paint_divider};
+use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::{
-    DiffText, FieldName, FieldRow, FieldValue, RecordChangeText, RecordFields, Text, Texts, format,
+    DiffText, FieldName, FieldRow, FieldValue, RecordChangeText, RecordFields, ScrollText, Text,
+    Texts, format,
 };
 
 const MAX_ROWS: usize = 512;
@@ -181,16 +183,25 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, fields: &RecordFields, generation
     let mut cache = FieldCache::load(ui, texts, generation);
     ui.spacing_mut().item_spacing = Vec2::ZERO;
     heads(ui, &cache);
-    ScrollArea::vertical()
+    let area = ScrollArea::vertical()
         .id_salt("comparison-field-rows")
-        .auto_shrink(false)
-        .show_rows(ui, ROW_HEIGHT, fields.rows().len(), |ui, range| {
-            for index in range {
-                if let Some(row) = fields.rows().get(index) {
-                    field_row(ui, texts, &mut cache, (index, row));
+        .auto_shrink(false);
+    let id = ui.scope_id().with("comparison-field-rows");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::Fields)),
+        ROW_HEIGHT,
+        area,
+        |area, ui| {
+            area.show_rows(ui, ROW_HEIGHT, fields.rows().len(), |ui, range| {
+                for index in range {
+                    if let Some(row) = fields.rows().get(index) {
+                        field_row(ui, texts, &mut cache, (index, row));
+                    }
                 }
-            }
-        });
+            })
+        },
+    );
     cache.store(ui);
 }
 

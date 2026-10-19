@@ -65,23 +65,35 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         });
     });
     if enabled != model.update_check() {
-        let ctx = ui.ctx().clone();
-        model.switch_update_check(enabled, move || ctx.request_repaint());
-        requests.settings_changed = true;
+        switch_update_check(ui, model, requests, enabled);
     }
     if let Some(pick) = pick {
         apply(ui, model, pick);
     }
-    if let Some(choice) = text_choice {
-        model.set_record_text_choice(Some(choice));
-        requests.settings_changed = true;
-    }
+    choose_record_texts(model, requests, text_choice);
     if show_licence {
         model.set_licence_shown(true);
     }
     if let Some(language) = chosen.filter(|&language| language != current) {
         model.set_language(language);
         requests.language_changed = true;
+    }
+}
+
+fn switch_update_check(ui: &Ui, model: &mut Model, requests: &mut Requests, enabled: bool) {
+    let ctx = ui.ctx().clone();
+    model.switch_update_check(enabled, move || ctx.request_repaint());
+    requests.settings_changed = true;
+}
+
+fn choose_record_texts(
+    model: &mut Model,
+    requests: &mut Requests,
+    choice: Option<RecordTextChoice>,
+) {
+    if choice.is_some() {
+        model.set_record_text_choice(choice);
+        requests.settings_changed = true;
     }
 }
 

@@ -49,11 +49,13 @@ pub enum CatalogText {
     Failed,
     /// The catalog stopped without a result; takes `path`.
     Stopped,
+    /// The chosen file is the open Archive; takes `path`.
+    IsArchive,
 }
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::Action,
         Self::FileFilter,
         Self::RunningTitle,
@@ -77,6 +79,7 @@ impl CatalogText {
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
+        Self::IsArchive,
     ];
 
     /// Returns the Fluent message id.
@@ -106,6 +109,7 @@ impl CatalogText {
             Self::FailedTitle => "catalog-failed-title",
             Self::Failed => "catalog-failed",
             Self::Stopped => "catalog-stopped",
+            Self::IsArchive => "catalog-output-is-archive",
         }
     }
 }

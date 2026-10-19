@@ -113,14 +113,16 @@ partial file.
 [basetool-catalog.md](basetool-catalog.md)), the same file as `p4kx catalog`. It is offered while
 the open Archive holds DataForge that did not fail to load, and while no other catalog is being
 created. Choose the file in the save dialog, `basetool-catalog.json` by default; an existing file
-is replaced.
+is replaced. The open Archive itself is refused as the target.
 
 The catalog is created in the background with a progress window; DataForge read for a Record
 export is reused, and the other way round. **Cancel** stops it at once and writes no file; an
 existing file stays as it was. The summary lists per kind the entities written, the Records left
 out as development leftovers and whether the kind is complete, per language the texts resolved,
-missing and placeholders, the size against the basetool upload limit and the file. A catalog close
-to the upload limit gets a warning, one over it an error note, because the basetool rejects it.
+missing and placeholders, the size against the basetool upload limit of 64 MB and the file. A
+catalog close to the upload limit gets a warning, one over it an error note, because the basetool
+rejects it.
+
 ## Running Queries
 
 The **Query** tab runs Queries ([query.md](query.md)) over the DataForge of the open Archive, for

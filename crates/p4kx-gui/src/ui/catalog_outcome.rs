@@ -36,7 +36,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             cancel = running_window(ui, texts, run, progress);
         }
         CatalogExportStatus::Finished(summary) => {
-            let laid = Laid::get(ui, texts, summary);
+            let laid = Laid::get(ui, texts, (run.id(), summary));
             close = outcome_window(
                 ui,
                 texts,
@@ -54,22 +54,17 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 },
             );
         }
+        CatalogExportStatus::IsArchive => {
+            let text = texts.format(T::IsArchive, &[("path", run.shown_file().into())]);
+            close = failure_window(ui, texts, text);
+        }
         CatalogExportStatus::Failed(reason) => {
-            let path = ("path", run.file().display().to_string().into());
+            let path = ("path", run.shown_file().into());
             let text = match reason {
-                Some(reason) => {
-                    texts.format(T::Failed, &[path, ("reason", reason.to_owned().into())])
-                }
+                Some(reason) => texts.format(T::Failed, &[path, ("reason", reason.into())]),
                 None => texts.format(T::Stopped, &[path]),
             };
-            close = outcome_window(
-                ui,
-                texts,
-                (OUTCOME, T::FailedTitle.into(), Tone::Danger),
-                |ui| {
-                    ui.colored_label(palette::DANGER_TEXT, text);
-                },
-            );
+            close = failure_window(ui, texts, text);
         }
     }
     if cancel {
@@ -78,6 +73,19 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     if close {
         model.close_catalog();
     }
+}
+
+/// Shows the danger window of a catalog that wrote nothing, saying why; returns whether it was
+/// closed.
+fn failure_window(ui: &Ui, texts: &Texts, text: String) -> bool {
+    outcome_window(
+        ui,
+        texts,
+        (OUTCOME, T::FailedTitle.into(), Tone::Danger),
+        |ui| {
+            ui.colored_label(palette::DANGER_TEXT, text);
+        },
+    )
 }
 
 /// Shows the non-modal progress window; returns whether Cancel was pressed.
@@ -90,7 +98,7 @@ fn running_window(
     let mut cancel = false;
     let cancelling = run.is_cancelled();
     let title = texts.get(T::RunningTitle);
-    let path = run.file().display().to_string();
+    let path = run.shown_file();
     let shown = frames::window(&title, Tone::Normal)
         .id(Id::unique(WINDOW))
         .collapsible(false)
@@ -98,7 +106,7 @@ fn running_window(
         .default_width(MODAL_WIDTH)
         .show(ui.ctx(), |ui| {
             frames::head(ui, (&title, Tone::Normal), false, None);
-            cancel = running(ui, texts, (progress, &path), cancelling);
+            cancel = running(ui, texts, (progress, path), cancelling);
         });
     decorate(ui, shown, Tone::Normal);
     ui.ctx().request_repaint_after(REFRESH);
@@ -120,10 +128,9 @@ fn running(
     };
     match progress.stage {
         CatalogExportStage::Reading => waiting(ui, &texts.get(T::Reading)),
-        CatalogExportStage::Writing => waiting(
-            ui,
-            &texts.format(T::Writing, &[("path", path.to_owned().into())]),
-        ),
+        CatalogExportStage::Writing => {
+            waiting(ui, &texts.format(T::Writing, &[("path", path.into())]));
+        }
         CatalogExportStage::Building => {
             let percent = (fraction * 100.0).floor();
             ui.label(texts.format(
@@ -155,37 +162,36 @@ fn waiting(ui: &mut Ui, text: &str) {
     });
 }
 
-/// The texts of one summary, formatted once per summary and language.
-#[derive(Clone)]
+/// The texts of one summary, formatted once per catalog and language.
 struct Laid {
-    key: (usize, Language),
+    key: (u64, Language),
     headings: [String; 2],
     warning: Option<(String, SizeWarning)>,
-    kinds: Arc<[String]>,
+    kinds: Vec<String>,
     skipped: String,
-    texts: Arc<[String]>,
+    texts: Vec<String>,
     missing: String,
     size: String,
     file: String,
 }
 
 impl Laid {
-    fn get(ui: &Ui, texts: &Texts, summary: &CatalogExportSummary) -> Self {
-        let key = (std::ptr::from_ref(summary).addr(), texts.language());
+    fn get(ui: &Ui, texts: &Texts, (run, summary): (u64, &CatalogExportSummary)) -> Arc<Self> {
+        let key = (run, texts.language());
         let id = Id::unique("p4kx-catalog-summary");
-        if let Some(cached) = ui.data(|data| data.get_temp::<Self>(id))
+        if let Some(cached) = ui.data(|data| data.get_temp::<Arc<Self>>(id))
             && cached.key == key
         {
             return cached;
         }
-        let laid = Self::new(key, texts, summary);
-        ui.data_mut(|data| data.insert_temp(id, laid.clone()));
+        let laid = Arc::new(Self::new(key, texts, summary));
+        ui.data_mut(|data| data.insert_temp(id, Arc::clone(&laid)));
         laid
     }
 
-    fn new(key: (usize, Language), texts: &Texts, outcome: &CatalogExportSummary) -> Self {
+    fn new(key: (u64, Language), texts: &Texts, outcome: &CatalogExportSummary) -> Self {
         let summary = outcome.summary();
-        let limit = format::size(UPLOAD_LIMIT, texts.language());
+        let limit = format::decimal_size(UPLOAD_LIMIT, texts.language());
         let warning = summary.size_warning().map(|warning| {
             let text = match warning {
                 SizeWarning::NearLimit => T::NearLimit,
@@ -200,12 +206,12 @@ impl Laid {
             key,
             headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
             warning,
-            kinds: kinds(texts, summary).into(),
+            kinds: kinds(texts, summary),
             skipped: texts.format(
                 T::SummarySkipped,
                 &[("number", number(texts, summary.skipped()))],
             ),
-            texts: languages(texts, summary).into(),
+            texts: languages(texts, summary),
             missing: texts.format(
                 T::SummaryMissing,
                 &[("number", number(texts, summary.unresolved()))],
@@ -215,7 +221,7 @@ impl Laid {
                 &[
                     (
                         "size",
-                        format::size(summary.size(), texts.language()).into(),
+                        format::decimal_size(summary.size(), texts.language()).into(),
                     ),
                     ("limit", limit.into()),
                 ],

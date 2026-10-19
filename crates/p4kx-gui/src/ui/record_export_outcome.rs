@@ -23,6 +23,7 @@ use crate::{
 
 const REFRESH: Duration = Duration::from_millis(100);
 const WINDOW: &str = "record-export-run";
+const OUTCOME: &str = "record-export-outcome";
 
 /// Shows the progress of a running Record export, or the summary once it ended.
 pub(super) fn show(ui: &Ui, model: &mut Model) {
@@ -49,13 +50,13 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             ui.ctx().request_repaint_after(REFRESH);
         }
         RecordExportStatus::Finished(summary) => {
-            let laid = Laid::get(ui, texts, summary);
+            let laid = Laid::get(ui, texts, (run.id(), summary));
             let title = if summary.was_cancelled() {
                 T::SummaryCancelledTitle
             } else {
                 T::SummaryTitle
             };
-            close = outcome_window(ui, texts, (WINDOW, title.into(), Tone::Normal), |ui| {
+            close = outcome_window(ui, texts, (OUTCOME, title.into(), Tone::Normal), |ui| {
                 finished(ui, &laid);
             });
         }
@@ -70,7 +71,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             close = outcome_window(
                 ui,
                 texts,
-                (WINDOW, T::FailedTitle.into(), Tone::Danger),
+                (OUTCOME, T::FailedTitle.into(), Tone::Danger),
                 |ui| {
                     ui.colored_label(palette::DANGER_TEXT, text);
                 },
@@ -157,44 +158,33 @@ fn running(ui: &mut Ui, texts: &Texts, progress: RecordExportProgress, cancellin
     }
 }
 
-/// The texts of one summary, formatted once per summary and language.
-#[derive(Clone)]
+/// The texts of one summary, formatted once per export and language.
 struct Laid {
-    key: (usize, usize, usize, usize, Language),
-    notes: Arc<[(String, egui::Color32)]>,
-    failures: Arc<[String]>,
-    reasons: Arc<[usize]>,
-    skipped: Arc<[String]>,
+    key: (u64, Language),
+    notes: Vec<(String, egui::Color32)>,
+    failures: Vec<String>,
+    reasons: Vec<usize>,
+    skipped: Vec<String>,
     failed_heading: String,
     skipped_heading: String,
 }
 
 impl Laid {
-    fn get(ui: &Ui, texts: &Texts, summary: &RecordExportSummary) -> Self {
-        let key = (
-            std::ptr::from_ref(summary).addr(),
-            summary.written(),
-            summary.failures().len(),
-            summary.skipped().len(),
-            texts.language(),
-        );
+    fn get(ui: &Ui, texts: &Texts, (run, summary): (u64, &RecordExportSummary)) -> Arc<Self> {
+        let key = (run, texts.language());
         let id = Id::unique("p4kx-record-export-summary");
-        if let Some(cached) = ui.data(|data| data.get_temp::<Self>(id))
+        if let Some(cached) = ui.data(|data| data.get_temp::<Arc<Self>>(id))
             && cached.key == key
         {
             return cached;
         }
-        let laid = Self::new(key, texts, summary);
-        ui.data_mut(|data| data.insert_temp(id, laid.clone()));
+        let laid = Arc::new(Self::new(key, texts, summary));
+        ui.data_mut(|data| data.insert_temp(id, Arc::clone(&laid)));
         laid
     }
 
-    fn new(
-        key: (usize, usize, usize, usize, Language),
-        texts: &Texts,
-        summary: &RecordExportSummary,
-    ) -> Self {
-        let failures: Arc<[String]> = summary
+    fn new(key: (u64, Language), texts: &Texts, summary: &RecordExportSummary) -> Self {
+        let failures: Vec<String> = summary
             .failures()
             .iter()
             .map(|failure| {
@@ -215,10 +205,10 @@ impl Laid {
             .collect();
         Self {
             key,
-            notes: notes(texts, summary).into(),
+            notes: notes(texts, summary),
             failures,
             reasons,
-            skipped: summary.skipped().into(),
+            skipped: summary.skipped().to_vec(),
             failed_heading: texts.format(
                 T::SummaryFailed,
                 &[("number", number(texts, summary.failures().len()))],
@@ -276,7 +266,7 @@ fn notes(texts: &Texts, summary: &RecordExportSummary) -> Vec<(String, egui::Col
 }
 
 fn finished(ui: &mut Ui, laid: &Laid) {
-    for (note, colour) in laid.notes.iter() {
+    for (note, colour) in &laid.notes {
         ui.colored_label(*colour, note);
     }
     list(

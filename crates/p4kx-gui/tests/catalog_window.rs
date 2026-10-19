@@ -114,7 +114,73 @@ fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
 
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label("The catalog is close to the basetool upload limit of 61.0 MiB.");
+    harness.get_by_label("The catalog is close to the basetool upload limit of 64 MB.");
+    Ok(())
+}
+
+#[test]
+fn a_catalog_over_the_upload_limit_shows_the_danger_alert() -> TestResult {
+    let (_dir, mut model, out) = opened(&cataloging::wordy(34, 1_000_000))?;
+    model.start_catalog(out.join("catalog.json"), || {});
+    let mut harness = harness(model);
+
+    wait_for_the_end(&mut harness)?;
+
+    harness.get_by_label(
+        "The catalog is over the basetool upload limit of 64 MB; the basetool will reject the upload.",
+    );
+    assert!(
+        harness
+            .query_by_label_contains("close to the basetool upload limit")
+            .is_none(),
+        "no warning besides the danger alert"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_second_catalog_shows_its_own_summary() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+    let first = out.join("first.json");
+    let second = out.join("second.json");
+    model.start_catalog(first.clone(), || {});
+    let mut harness = harness(model);
+    wait_for_the_end(&mut harness)?;
+    harness.get_by_label(&format!("File: {}", first.display()));
+    harness.get_by_label("Close").click();
+    harness.run();
+
+    let started = harness
+        .state_mut()
+        .model
+        .start_catalog(second.clone(), || {});
+    wait_for_the_end(&mut harness)?;
+
+    assert!(started, "the second starts");
+    harness.get_by_label(&format!("File: {}", second.display()));
+    assert!(
+        harness
+            .query_by_label(&format!("File: {}", first.display()))
+            .is_none(),
+        "not the first summary"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_open_archive_as_the_catalog_file_is_explained() -> TestResult {
+    let (dir, mut model, _) = opened(&makers())?;
+    let archive = dir.path().join("Data.p4k");
+    model.start_catalog(archive.clone(), || {});
+    let mut harness = harness(model);
+
+    harness.run();
+
+    harness.get_by_label("Basetool catalog failed");
+    harness.get_by_label(&format!(
+        "The Basetool catalog cannot be written to {}, because that is the open Archive. Choose another file.",
+        archive.display()
+    ));
     Ok(())
 }
 

@@ -286,10 +286,12 @@ Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit g
 Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
 vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
 aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
-Datei, alles in `color-gray-1`. Nahe am Upload-Limit steht oben `.alert-warning`, darüber
+Datei, alles in `color-gray-1`. Größe und Limit stehen in Dezimaleinheiten, das Limit wie in der
+Dokumentation als „64 MB". Nahe am Upload-Limit steht oben `.alert-warning`, darüber
 `.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
-lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Record-Export und
-Katalog teilen sich das einmal gelesene DataForge des offenen Archivs.
+lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Ist die gewählte
+Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
+Record-Export und Katalog teilen sich das einmal gelesene DataForge des offenen Archivs.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

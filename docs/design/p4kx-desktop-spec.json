@@ -620,9 +620,11 @@
   "basetoolCatalog": {
     "menu": "Export menu entry dropdownItem below Record export; disabled without a DataForge and while a catalog is created; opens the system save dialog with basetool-catalog.json",
     "progress": "non-modal modal frame, width 440: spinner while DataForge is read and while the file is written, progressBar with Records checked of total between; Cancel buttonGhost alone in the foot",
-    "summary": "non-modal modal frame, width 600: alertWarning near the upload limit or alertDanger over it on top; group labels Kinds and Texts with one color-gray-1 line per kind and language, then size with the upload limit and the file; Close buttonCta alone in the foot",
-    "cancelled": "non-modal modal frame: note in color-warning, no file written"
-  },  "factsBar": {
+    "summary": "non-modal modal frame, width 600: alertWarning near the upload limit or alertDanger over it on top; group labels Kinds and Texts with one color-gray-1 line per kind and language, then size in decimal units with the upload limit of 64 MB and the file; Close buttonCta alone in the foot",
+    "cancelled": "non-modal modal frame: note in color-warning, no file written",
+    "failed": "non-modal danger modal frame: the reason in color-danger-text, also when the chosen file is the open Archive, which is never written"
+  },
+  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,
     "paddingY": 8,

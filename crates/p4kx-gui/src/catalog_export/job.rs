@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 use std::time::SystemTime;
 
 use p4kx_export::{CancelToken, CatalogError, CatalogOptions, CatalogProgress, build_catalog_from};
+use p4kx_extraction::is_same_file;
 
 use super::write::{Written, write_replacing};
 use super::{CatalogExportProgress, CatalogExportStage, CatalogExportSummary, Shared};
@@ -22,6 +23,8 @@ pub enum CatalogExportStatus<'a> {
     Finished(&'a CatalogExportSummary),
     /// The catalog was cancelled; no file was written.
     Cancelled,
+    /// The chosen file is the open Archive; nothing was written.
+    IsArchive,
     /// The catalog could not be created, for the reason given, or it stopped without a result.
     Failed(Option<&'a str>),
 }
@@ -29,6 +32,7 @@ pub enum CatalogExportStatus<'a> {
 enum Outcome {
     Written(CatalogExportSummary),
     Cancelled,
+    IsArchive,
 }
 
 type RunResult = Result<Outcome, String>;
@@ -38,23 +42,50 @@ enum State {
     Running(Receiver<RunResult>),
     Finished(CatalogExportSummary),
     Cancelled,
+    IsArchive,
     Failed(Option<String>),
 }
 
 /// A Basetool catalog created on a background thread, or its outcome.
 #[derive(Debug)]
 pub struct CatalogExport {
+    id: u64,
     file: PathBuf,
+    shown: String,
     cancel: CancelToken,
     shared: Arc<Shared>,
     state: State,
 }
 
 impl CatalogExport {
+    fn new(file: PathBuf, cancel: CancelToken, shared: Arc<Shared>, state: State) -> Self {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        Self {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            shown: file.display().to_string(),
+            file,
+            cancel,
+            shared,
+            state,
+        }
+    }
+
+    /// Returns the number that tells this catalog apart from every other one of the process.
+    #[must_use]
+    pub const fn id(&self) -> u64 {
+        self.id
+    }
+
     /// Returns the catalog file chosen.
     #[must_use]
     pub fn file(&self) -> &Path {
         &self.file
+    }
+
+    /// Returns the catalog file chosen as the windows show it.
+    #[must_use]
+    pub fn shown_file(&self) -> &str {
+        &self.shown
     }
 
     /// Returns where the catalog stands.
@@ -64,6 +95,7 @@ impl CatalogExport {
             State::Running(_) => CatalogExportStatus::Running(self.shared.progress()),
             State::Finished(summary) => CatalogExportStatus::Finished(summary),
             State::Cancelled => CatalogExportStatus::Cancelled,
+            State::IsArchive => CatalogExportStatus::IsArchive,
             State::Failed(reason) => CatalogExportStatus::Failed(reason.as_deref()),
         }
     }
@@ -126,6 +158,7 @@ fn ended(outcome: Option<RunResult>) -> State {
     match outcome {
         Some(Ok(Outcome::Written(summary))) => State::Finished(summary),
         Some(Ok(Outcome::Cancelled)) => State::Cancelled,
+        Some(Ok(Outcome::IsArchive)) => State::IsArchive,
         Some(Err(reason)) => State::Failed(Some(reason)),
         None => State::Failed(None),
     }
@@ -160,12 +193,12 @@ pub(crate) fn start(
         Ok(_handle) => State::Running(result),
         Err(error) => State::Failed(Some(describe(&error))),
     };
-    CatalogExport {
-        file,
-        cancel,
-        shared,
-        state,
-    }
+    CatalogExport::new(file, cancel, shared, state)
+}
+
+/// Returns the outcome of a catalog refused because `file` is the open Archive.
+pub(crate) fn refused(file: PathBuf) -> CatalogExport {
+    CatalogExport::new(file, CancelToken::new(), Arc::default(), State::IsArchive)
 }
 
 struct Job {
@@ -177,6 +210,9 @@ struct Job {
 
 impl Job {
     fn run(&self, slot: &ForgeSlot) -> RunResult {
+        if is_same_file(&self.file, self.index.archive().path()) {
+            return Ok(Outcome::IsArchive);
+        }
         self.check_archive()?;
         let source = slot.read(&self.index)?;
         if !self.shared.gate.leave_reading() {

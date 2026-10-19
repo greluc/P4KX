@@ -45,9 +45,12 @@ fn write_new(path: &Path, json: &[u8]) -> io::Result<()> {
 }
 
 fn temporary(out: &Path) -> io::Result<PathBuf> {
-    let name = out
-        .file_name()
-        .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let name = out.file_name().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{} does not name a file", out.display()),
+        )
+    })?;
     let mut name = name.to_os_string();
     name.push(format!(".p4kx-{}.part", process::id()));
     Ok(out.with_file_name(name))
@@ -57,6 +60,7 @@ fn temporary(out: &Path) -> io::Result<PathBuf> {
 mod tests {
     use std::error::Error;
     use std::fs;
+    use std::path::Path;
 
     use super::{Written, write_replacing};
 
@@ -99,5 +103,17 @@ mod tests {
         assert!(written.is_err(), "the folder does not exist");
         assert!(!out.exists(), "no file");
         Ok(())
+    }
+
+    #[test]
+    fn a_path_without_a_file_name_is_refused_with_a_message() {
+        let written = write_replacing(Path::new(".."), b"new", || false);
+
+        let message = written.err().map(|error| error.to_string());
+        assert_eq!(
+            message.as_deref(),
+            Some(".. does not name a file"),
+            "the reason"
+        );
     }
 }

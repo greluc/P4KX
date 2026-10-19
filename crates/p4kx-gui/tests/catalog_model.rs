@@ -158,6 +158,7 @@ fn the_dataforge_read_for_a_catalog_is_kept_for_the_record_export() -> TestResul
     );
     Ok(())
 }
+
 #[test]
 fn a_catalog_into_a_missing_folder_fails_with_the_reason() -> TestResult {
     let (_dir, mut model, out) = opened(&makers())?;
@@ -172,6 +173,49 @@ fn a_catalog_into_a_missing_folder_fails_with_the_reason() -> TestResult {
     assert!(!reason.is_empty(), "a reason: {reason}");
     assert!(!file.exists(), "nothing written");
     assert!(files_in(&out)?.is_empty(), "no partial file");
+    Ok(())
+}
+
+#[test]
+fn the_open_archive_is_refused_as_the_catalog_file() -> TestResult {
+    let (dir, mut model, _) = opened(&makers())?;
+    let archive = dir.path().join("Data.p4k");
+    let before = fs::read(&archive)?;
+
+    let started = model.start_catalog(archive.clone(), || {});
+
+    assert!(!started, "nothing starts");
+    assert!(
+        model
+            .catalog()
+            .is_some_and(|run| matches!(run.status(), CatalogExportStatus::IsArchive)),
+        "the outcome says why"
+    );
+    assert_eq!(fs::read(&archive)?, before, "the Archive is unchanged");
+    Ok(())
+}
+
+#[test]
+fn an_archive_change_during_a_catalog_fails_it_and_writes_nothing() -> TestResult {
+    let (dir, mut model, out) = opened(&many(20_000))?;
+
+    model.start_catalog(out.join("basetool-catalog.json"), || {});
+    wait_until(&mut model, |model| {
+        model.catalog().is_some_and(|run| {
+            !matches!(
+                run.status(),
+                CatalogExportStatus::Running(progress) if progress.stage == CatalogExportStage::Reading
+            )
+        })
+    })?;
+    makers().write_to(dir.path().join("Data.p4k"))?;
+    let status = ended(&mut model)?;
+
+    assert!(
+        matches!(status, CatalogExportStatus::Failed(Some(_))),
+        "failed with the reason: {status:?}"
+    );
+    assert!(files_in(&out)?.is_empty(), "no file and no partial file");
     Ok(())
 }
 

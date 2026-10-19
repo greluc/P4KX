@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use p4kx_extraction::is_same_file;
+
 use super::Model;
-use crate::catalog_export::start;
+use crate::catalog_export::{refused, start};
 use crate::{CatalogExport, RecordTreeStatus};
 
 /// The Basetool catalog of the window: the running or finished catalog.
@@ -28,7 +30,8 @@ impl Model {
     /// thread, calling `wake` from it once it ended; returns whether it started.
     ///
     /// Nothing starts while no catalog is available or once the Archive changed on disk. A
-    /// finished catalog is dismissed.
+    /// finished catalog is dismissed. When `file` is the open Archive nothing starts either, and
+    /// the catalog shows [`CatalogExportStatus::IsArchive`](crate::CatalogExportStatus::IsArchive).
     pub fn start_catalog(&mut self, file: PathBuf, wake: impl Fn() + Send + 'static) -> bool {
         if self.check_archive() || !self.catalog_available() {
             return false;
@@ -36,6 +39,10 @@ impl Model {
         let Some(browser) = &self.browser else {
             return false;
         };
+        if is_same_file(&file, browser.index().archive().path()) {
+            self.catalog.run = Some(refused(file));
+            return false;
+        }
         let index = Arc::clone(browser.shared_index());
         let slot = self.forge.slot(&index);
         self.catalog.run = Some(start(&index, slot, file, wake));

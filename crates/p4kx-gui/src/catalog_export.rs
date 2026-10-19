@@ -6,8 +6,8 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
 use p4kx_export::CatalogSummary;
 
-pub(crate) use job::start;
 pub use job::{CatalogExport, CatalogExportStatus};
+pub(crate) use job::{refused, start};
 
 use crate::forge_cache::ReadGate;
 

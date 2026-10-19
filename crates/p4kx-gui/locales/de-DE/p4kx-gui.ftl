@@ -386,6 +386,7 @@ catalog-cancelled = Der Basetool-Katalog wurde abgebrochen. Es wurde keine Datei
 catalog-failed-title = Basetool-Katalog fehlgeschlagen
 catalog-failed = Der Basetool-Katalog { $path } ließ sich nicht erstellen: { $reason }
 catalog-stopped = Der Basetool-Katalog { $path } brach ohne Ergebnis ab.
+catalog-output-is-archive = Der Basetool-Katalog kann nicht nach { $path } geschrieben werden, weil das das geöffnete Archiv ist. Eine andere Datei wählen.
 preview-tab-xml = XML
 xml-converting = { $path } wird in XML umgewandelt …
 xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit } werden in der Vorschau nicht umgewandelt; zum Lesen mit Umwandlung extrahieren.

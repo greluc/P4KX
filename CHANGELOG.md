@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
+  geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
+  exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node
+  per model node with its transform, one primitive per submesh with positions, normals and
+  texture coordinates, and one material per material ID. Unknown chunks are skipped and listed.
+  Both commands also take a model file on disk with its companion next to it.
 - `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
   the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
   matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or

@@ -3,7 +3,10 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
+mod commodities;
 mod structures;
+
+use commodities::{commodity_records, prop};
 
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
@@ -14,7 +17,10 @@ pub(crate) const GOLD: u128 = 0xa100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const DOPPLE: u128 = 0xa200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const RESOURCE_GOLD: u128 = 0xb100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const RESOURCE_IRON: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0002;
-pub(crate) const TAG_GOLD: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const RESOURCE_EMBER: u128 = 0xb300_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const RESOURCE_COPPER: u128 = 0xb400_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const GROUP_METAL: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const GROUP_MINERAL: u128 = 0xc200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const CATEGORY: u128 = 0xd100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const PRODUCT: u128 = 0xe100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const ORE: u128 = 0xe200_0000_0000_4000_8000_0000_0000_0002;
@@ -23,6 +29,7 @@ pub(crate) const MAGAZINE: u128 = 0x1100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const CORE: u128 = 0x1200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const DANGLING: u128 = 0x1300_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const TEMPLATE: u128 = 0x1400_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const NESTED: u128 = 0x1700_0000_0000_4000_8000_0000_0000_0007;
 
 pub(crate) fn resource(guid: u128, scu: f32, quality: i32) -> TestValue {
     TestValue::Struct(
@@ -80,13 +87,14 @@ pub(crate) struct BlueprintSpec {
     pub(crate) path: &'static str,
     pub(crate) produces: u128,
     pub(crate) mandatory: TestValue,
+    pub(crate) optional: Vec<TestValue>,
 }
 
 fn blueprint(spec: &BlueprintSpec) -> TestRecord {
     let costs = TestInstance::new("CraftingRecipeCosts")
         .value("craftTime", time(1, 2, 3, 3.6))
         .value("mandatoryCost", spec.mandatory.clone())
-        .value("optionalCosts", TestValue::Array(Vec::new()));
+        .value("optionalCosts", TestValue::Array(spec.optional.clone()));
     let tier = TestInstance::new("CraftingBlueprintTier").value(
         "recipe",
         TestValue::Struct(
@@ -117,88 +125,6 @@ fn blueprint(spec: &BlueprintSpec) -> TestRecord {
     )
 }
 
-fn commodity(
-    guid: u128,
-    class: &str,
-    path: &str,
-    description: &str,
-    resource: Option<u128>,
-) -> TestRecord {
-    let purchasable = TestInstance::new("SCItemPurchasableParams")
-        .value(
-            "displayName",
-            TestValue::text(format!("@items_commodities_{class}")),
-        )
-        .value(
-            "displayType",
-            TestValue::text("@items_commodities_type_metal"),
-        );
-    let container = TestInstance::new("ResourceContainer").value(
-        "defaultComposition",
-        TestValue::Array(
-            resource
-                .map(|guid| {
-                    TestValue::Struct(
-                        TestInstance::new("ResourceContainerDefaultCompositionEntry")
-                            .value("entry", TestValue::Reference(guid)),
-                    )
-                })
-                .into_iter()
-                .collect(),
-        ),
-    );
-    let display = TestInstance::new("EntityUIDisplayParams")
-        .value("displayDescription", TestValue::text(description));
-    TestRecord::new(
-        guid,
-        "EntityClassDefinition",
-        format!("EntityClassDefinition.{class}"),
-        format!("libs/foundry/records/entities/commodities/{path}.xml"),
-    )
-    .value(
-        "tags",
-        TestValue::Array(vec![TestValue::Reference(TAG_GOLD)]),
-    )
-    .value(
-        "StaticEntityClassData",
-        TestValue::Array(vec![TestValue::Struct(display)]),
-    )
-    .value(
-        "Components",
-        TestValue::Array(vec![
-            TestValue::Struct(purchasable),
-            TestValue::Struct(container),
-        ]),
-    )
-}
-
-fn resource_type(guid: u128, class: &str) -> TestRecord {
-    TestRecord::new(
-        guid,
-        "ResourceType",
-        format!("ResourceType.{class}"),
-        "libs/foundry/records/resourcetypedatabase/resourcetypedatabase.xml",
-    )
-    .value(
-        "displayName",
-        TestValue::text(format!("@items_commodities_{class}")),
-    )
-    .value(
-        "description",
-        TestValue::text(format!("@items_commodities_{class}_desc")),
-    )
-}
-
-fn prop(guid: u128, class: &str) -> TestRecord {
-    TestRecord::new(
-        guid,
-        "EntityClassDefinition",
-        format!("EntityClassDefinition.{class}"),
-        format!("libs/foundry/records/entities/props/{class}.xml"),
-    )
-    .value("Components", TestValue::Array(Vec::new()))
-}
-
 /// The blueprints of the fixture in the order of their GUIDs.
 pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
     let magazine = BlueprintSpec {
@@ -223,6 +149,26 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
                 resource(RESOURCE_IRON, 2.0, 100),
             ],
         ),
+        optional: Vec::new(),
+    };
+    let nested = BlueprintSpec {
+        guid: NESTED,
+        class: "BP_CRAFT_nested",
+        path: "crafting/fpsgear/armour/bp_craft_nested",
+        produces: PRODUCT,
+        mandatory: select(
+            "OUTER",
+            "@crafting_ui_slotname_outer",
+            vec![select(
+                "",
+                "@LOC_PLACEHOLDER",
+                vec![select("", "", vec![resource(RESOURCE_GOLD, 3.0, 200)])],
+            )],
+        ),
+        optional: vec![
+            resource(RESOURCE_IRON, 0.75, 400),
+            select("EXTRA", "@LOC_PLACEHOLDER", vec![item(ORE, 2, 0)]),
+        ],
     };
     let core = BlueprintSpec {
         guid: CORE,
@@ -230,6 +176,7 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         path: "crafting/vehiclegear/powerplant/bp_craft_core",
         produces: ORE,
         mandatory: resource(RESOURCE_GOLD, 1.0, 0),
+        optional: Vec::new(),
     };
     let dangling = BlueprintSpec {
         guid: DANGLING,
@@ -237,6 +184,7 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         path: "crafting/vehiclegear/cooler/bp_craft_dangling",
         produces: MISSING,
         mandatory: item(ORE, 1, 0),
+        optional: Vec::new(),
     };
     let template = BlueprintSpec {
         guid: TEMPLATE,
@@ -244,6 +192,7 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         path: "crafting/fpsgear/weapons/$templates/bp_craft_weapon",
         produces: PRODUCT,
         mandatory: resource(RESOURCE_IRON, 1.0, 0),
+        optional: Vec::new(),
     };
     let leftover = BlueprintSpec {
         guid: 0x1500_0000_0000_4000_8000_0000_0000_0005,
@@ -251,8 +200,9 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         path: "crafting/fpsgear/bp_craft_dev_test",
         produces: PRODUCT,
         mandatory: resource(RESOURCE_IRON, 1.0, 0),
+        optional: Vec::new(),
     };
-    vec![magazine, core, dangling, template, leftover]
+    vec![magazine, core, dangling, template, leftover, nested]
 }
 
 /// Returns the DataForge of the fixture.
@@ -297,46 +247,6 @@ fn blueprint_records(builder: DataForgeBuilder) -> DataForgeBuilder {
         )
 }
 
-fn commodity_records(builder: DataForgeBuilder) -> DataForgeBuilder {
-    builder
-        .record(resource_type(RESOURCE_GOLD, "gold"))
-        .record(resource_type(RESOURCE_IRON, "iron"))
-        .record(
-            TestRecord::new(
-                TAG_GOLD,
-                "Tag",
-                "Tag.Gold",
-                "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml",
-            )
-            .value("tagName", TestValue::text("Gold")),
-        )
-        .record(commodity(
-            GOLD,
-            "gold",
-            "metals/gold",
-            "@LOC_UNINITIALIZED",
-            Some(RESOURCE_GOLD),
-        ))
-        .record(commodity(
-            DOPPLE,
-            "dopple",
-            "vice/dopple",
-            "@items_commodities_dopple_desc",
-            None,
-        ))
-        .record(commodity(
-            0xa300_0000_0000_4000_8000_0000_0000_0003,
-            "scrap_test",
-            "test/scrap_test",
-            "",
-            None,
-        ))
-        .record(prop(
-            0xa400_0000_0000_4000_8000_0000_0000_0004,
-            "Carryable_Gold",
-        ))
-}
-
 /// Returns the English `global.ini` of the fixture.
 pub(crate) fn english() -> TestEntry {
     TestEntry::zstd(
@@ -346,6 +256,8 @@ pub(crate) fn english() -> TestEntry {
             .text("items_commodities_gold_desc", "A precious metal.")
             .text("items_commodities_dopple", "Dopple")
             .text("items_commodities_dopple_desc", "A vice.")
+            .text("items_commodities_ember", "Ember")
+            .text("items_commodities_ember_desc", "A glowing mineral.")
             .text("items_commodities_type_metal", "Metal")
             .build(),
     )

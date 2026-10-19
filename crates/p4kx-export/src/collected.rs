@@ -1,7 +1,7 @@
 use p4kx_extraction::RecordTree;
 
 use crate::blueprint::blueprint;
-use crate::commodity::commodity;
+use crate::commodity::{Groups, commodity};
 use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
 use crate::item::item;
 use crate::item_class::ClassLine;
@@ -28,12 +28,14 @@ pub(crate) enum Picked<'f> {
 
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
-    /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type`.
+    /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
+    /// type from `groups`.
     pub(crate) fn entity(
         kind: Kind,
         tree: &RecordTree<'f>,
         texts: &Texts<'f>,
         resource_type: Option<&RecordTree<'f>>,
+        groups: &Groups,
     ) -> Self {
         match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
@@ -42,7 +44,7 @@ impl<'f> Picked<'f> {
                 Self::Item(item, line)
             }
             Kind::Ships => Self::Ship(ship(tree, texts)),
-            Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type)),
+            Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
         }
     }

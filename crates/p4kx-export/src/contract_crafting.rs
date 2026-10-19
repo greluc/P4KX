@@ -4,12 +4,13 @@ use serde::Serialize;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
 
-/// A commodity: an `EntityClassDefinition` Record under `entities/commodities`.
+/// A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a
+/// `ResourceType` Record a blueprint ingredient uses that no commodity Record carries.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Commodity<'a> {
-    /// The GUID of the Record.
+    /// The GUID of the Record; for a `ResourceType` entry the GUID of the `ResourceType`.
     pub(crate) guid: CatalogGuid,
     /// The Record name without its type, e.g. `Gold`.
     pub(crate) class_name: &'a str,
@@ -20,12 +21,15 @@ pub(crate) struct Commodity<'a> {
     /// The description, from the entity's display parameters or, without one, from the
     /// `ResourceType` Record of the commodity.
     pub(crate) description: LocalisedText<'a>,
-    /// The GUID of the `ResourceType` Record the commodity's default composition holds, `null`
-    /// without one.
+    /// The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`
+    /// without a `ResourceType` or a group.
     pub(crate) type_guid: Option<CatalogGuid>,
-    /// The GUID of the Tag Record in `tags`, `null` without one.
+    /// The GUID of the `ResourceType` Record the commodity's default composition holds first,
+    /// `null` without one. The `resourceGuid` of an ingredient equals the
+    /// `subtypeGuid` of exactly one commodity.
     pub(crate) subtype_guid: Option<CatalogGuid>,
-    /// The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`.
+    /// The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;
+    /// without a key for a `ResourceType` entry.
     pub(crate) display_type: LocalisedText<'a>,
 }
 

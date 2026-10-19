@@ -1,7 +1,7 @@
 //! Commodities and blueprints in the Basetool catalog of a real Archive; runs with `--ignored`
 //! when `P4KX_DATA_P4K` names one.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::time::SystemTime;
 
@@ -15,7 +15,6 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MIN_COMMODITIES: usize = 100;
 const MIN_BLUEPRINTS: usize = 1_000;
 const MIN_LINKED: f64 = 0.95;
-const MIN_LINKED_RESOURCES: usize = 10;
 
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c Vec<Value>, String> {
     catalog[kind]
@@ -85,8 +84,8 @@ fn check_commodities(catalog: &Value) -> TestResult {
         Some(&Value::from("Gold")),
         "English name"
     );
-    assert!(gold["typeGuid"].is_string(), "type");
-    assert!(gold["subtypeGuid"].is_string(), "subtype");
+    assert!(gold["typeGuid"].is_string(), "type: the group");
+    assert!(gold["subtypeGuid"].is_string(), "subtype: the ResourceType");
     let described = commodities
         .iter()
         .filter(|commodity| {
@@ -105,10 +104,13 @@ fn check_commodities(catalog: &Value) -> TestResult {
 
 fn check_blueprints(catalog: &Value) -> TestResult {
     let blueprints = list(catalog, "blueprints")?;
-    let resources: HashSet<&str> = list(catalog, "commodities")?
+    let mut resources: HashMap<&str, usize> = HashMap::new();
+    for subtype in list(catalog, "commodities")?
         .iter()
-        .filter_map(|commodity| commodity["typeGuid"].as_str())
-        .collect();
+        .filter_map(|commodity| commodity["subtypeGuid"].as_str())
+    {
+        *resources.entry(subtype).or_default() += 1;
+    }
     let items: HashSet<&str> = list(catalog, "items")?
         .iter()
         .filter_map(|item| item["guid"].as_str())
@@ -128,7 +130,7 @@ fn check_blueprints(catalog: &Value) -> TestResult {
     Ok(())
 }
 
-fn check_ingredients(catalog: &Value, resources: &HashSet<&str>) -> TestResult {
+fn check_ingredients(catalog: &Value, resources: &HashMap<&str, usize>) -> TestResult {
     let blueprints = list(catalog, "blueprints")?;
     let lines: Vec<&Value> = blueprints
         .iter()
@@ -140,14 +142,13 @@ fn check_ingredients(catalog: &Value, resources: &HashSet<&str>) -> TestResult {
         .iter()
         .filter_map(|line| line["resourceGuid"].as_str())
         .collect();
-    let linked = resource_lines
+    let unjoined: Vec<&&str> = resource_lines
         .iter()
-        .filter(|guid| resources.contains(*guid))
-        .count();
+        .filter(|guid| resources.get(**guid) != Some(&1))
+        .collect();
     assert!(
-        linked >= MIN_LINKED_RESOURCES,
-        "{linked} of {} distinct resource GUIDs are commodity types",
-        resource_lines.len()
+        !resource_lines.is_empty() && unjoined.is_empty(),
+        "every resource GUID joins exactly one commodity: {unjoined:?}"
     );
     assert!(
         lines.iter().any(|line| line["itemGuid"].is_string()),

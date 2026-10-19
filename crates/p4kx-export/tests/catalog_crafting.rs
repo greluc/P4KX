@@ -39,13 +39,13 @@ fn commodities_are_selected_by_prefix_and_type_without_leftovers_ordered_by_guid
     let (built, catalog) = build(None)?;
     assert_eq!(
         class_names(&catalog, "commodities"),
-        ["gold", "dopple"],
-        "under entities/commodities, without the test commodity and the carryable"
+        ["gold", "dopple", "ember", "iron"],
+        "under entities/commodities, without the test commodity and the carryable, then the used ResourceType no commodity Record carries"
     );
     let kind = built.summary().kind(Kind::Commodities);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((2, 1, true)),
+        Some((4, 1, true)),
         "counts"
     );
     Ok(())
@@ -66,11 +66,11 @@ fn a_commodity_carries_its_guids_texts_and_display_type() -> TestResult {
                 "en": "A precious metal.",
                 "de": "Ein Edelmetall.",
             },
-            "typeGuid": "b1000000-0000-4000-8000-000000000001",
-            "subtypeGuid": "c1000000-0000-4000-8000-000000000001",
+            "typeGuid": "c1000000-0000-4000-8000-000000000001",
+            "subtypeGuid": "b1000000-0000-4000-8000-000000000001",
             "displayType": {"key": "@items_commodities_type_metal", "en": "Metal", "de": "Metall"},
         }),
-        "the description of a placeholder comes from the ResourceType"
+        "the type is the group, the subtype the ResourceType; the description of a placeholder comes from the ResourceType"
     );
     Ok(())
 }
@@ -101,13 +101,14 @@ fn blueprints_are_selected_by_prefix_and_type_without_leftovers_ordered_by_guid(
             "BP_CRAFT_core",
             "BP_CRAFT_dangling",
             "BP_CRAFT_weapon",
+            "BP_CRAFT_nested",
         ],
         "crafting blueprints incl. $templates, without the dismantle record and the leftover"
     );
     let kind = built.summary().kind(Kind::Blueprints);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((4, 1, true)),
+        Some((5, 1, true)),
         "counts"
     );
     Ok(())
@@ -188,6 +189,118 @@ fn ingredients_with_resources_and_items_keep_quantity_quality_and_slot() -> Test
         Value::Null,
         "a cost outside any selection has no slot"
     );
+    Ok(())
+}
+
+#[test]
+fn a_slot_is_inherited_through_unnamed_nested_selections() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let nested = &catalog["blueprints"][4];
+    assert_eq!(nested["className"], "BP_CRAFT_nested", "the blueprint");
+    assert_eq!(
+        nested["ingredients"][0],
+        json!({
+            "resourceGuid": "b1000000-0000-4000-8000-000000000001", "itemGuid": null,
+            "quantityScu": 3.0, "quantityUnits": null, "minQuality": 200,
+            "slot": "OUTER", "slotKey": "@crafting_ui_slotname_outer",
+        }),
+        "two unnamed selections down, the slot of the named one"
+    );
+    Ok(())
+}
+
+#[test]
+fn optional_costs_follow_the_mandatory_ones() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let ingredients = &catalog["blueprints"][4]["ingredients"];
+    assert_eq!(
+        ingredients.as_array().map(Vec::len),
+        Some(3),
+        "one mandatory and two optional lines"
+    );
+    assert_eq!(
+        ingredients[1],
+        json!({
+            "resourceGuid": "b2000000-0000-4000-8000-000000000002", "itemGuid": null,
+            "quantityScu": 0.75, "quantityUnits": null, "minQuality": 400,
+            "slot": null, "slotKey": null,
+        }),
+        "an optional resource outside any selection"
+    );
+    assert_eq!(
+        (&ingredients[2]["itemGuid"], &ingredients[2]["slot"]),
+        (
+            &json!("e2000000-0000-4000-8000-000000000002"),
+            &json!("EXTRA")
+        ),
+        "an optional item in a selection"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_placeholder_name_and_description_fall_back_to_the_resource_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let ember = &catalog["commodities"][2];
+    assert_eq!(ember["className"], "ember", "the commodity");
+    assert_eq!(
+        (&ember["name"], &ember["description"]),
+        (
+            &json!({"key": "@items_commodities_ember", "en": "Ember", "de": null}),
+            &json!({"key": "@items_commodities_ember_desc", "en": "A glowing mineral.", "de": null}),
+        ),
+        "the texts of the ResourceType"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_used_resource_type_without_a_commodity_record_is_a_commodity_of_its_group() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        catalog["commodities"][3],
+        json!({
+            "guid": "b2000000-0000-4000-8000-000000000002",
+            "className": "iron",
+            "recordPath": "libs/foundry/records/resourcetypedatabase/resourcetypedatabase",
+            "name": {"key": "@items_commodities_iron", "en": null, "de": null},
+            "description": {"key": "@items_commodities_iron_desc", "en": null, "de": null},
+            "typeGuid": "c1000000-0000-4000-8000-000000000001",
+            "subtypeGuid": "b2000000-0000-4000-8000-000000000002",
+            "displayType": {"key": null, "en": null, "de": null},
+        }),
+        "the ResourceType and its group"
+    );
+    assert!(
+        !class_names(&catalog, "commodities").contains(&"copper"),
+        "an unused ResourceType stays out"
+    );
+    Ok(())
+}
+
+#[test]
+fn every_resource_ingredient_joins_exactly_one_commodity() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let subtypes: Vec<&Value> = catalog["commodities"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .map(|commodity| &commodity["subtypeGuid"])
+                .collect()
+        })
+        .unwrap_or_default();
+    let blueprints = catalog["blueprints"].as_array().ok_or("blueprints")?;
+    for ingredient in blueprints
+        .iter()
+        .flat_map(|blueprint| blueprint["ingredients"].as_array().into_iter().flatten())
+        .filter(|ingredient| !ingredient["resourceGuid"].is_null())
+    {
+        let joined = subtypes
+            .iter()
+            .filter(|subtype| **subtype == &ingredient["resourceGuid"])
+            .count();
+        assert_eq!(joined, 1, "{}", ingredient["resourceGuid"]);
+    }
     Ok(())
 }
 

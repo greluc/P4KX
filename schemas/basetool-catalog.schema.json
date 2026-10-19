@@ -106,7 +106,7 @@
     },
     "Commodity": {
       "additionalProperties": false,
-      "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities`.",
+      "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a\n`ResourceType` Record a blueprint ingredient uses that no commodity Record carries.",
       "properties": {
         "className": {
           "description": "The Record name without its type, e.g. `Gold`.",
@@ -118,11 +118,11 @@
         },
         "displayType": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`."
+          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry."
         },
         "guid": {
           "$ref": "#/$defs/Guid",
-          "description": "The GUID of the Record."
+          "description": "The GUID of the Record; for a `ResourceType` entry the GUID of the `ResourceType`."
         },
         "name": {
           "$ref": "#/$defs/LocalisedText",
@@ -141,7 +141,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the Tag Record in `tags`, `null` without one."
+          "description": "The GUID of the `ResourceType` Record the commodity's default composition holds first,\n`null` without one. The `resourceGuid` of an ingredient equals the\n`subtypeGuid` of exactly one commodity."
         },
         "typeGuid": {
           "anyOf": [
@@ -152,7 +152,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the `ResourceType` Record the commodity's default composition holds, `null`\nwithout one."
+          "description": "The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`\nwithout a `ResourceType` or a group."
         }
       },
       "required": [

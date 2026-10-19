@@ -24,7 +24,6 @@ pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
 fn commodity_structures(builder: DataForgeBuilder) -> DataForgeBuilder {
     [
         TestStruct::new("EntityClassDefinition")
-            .array("tags", TestType::Reference)
             .array("StaticEntityClassData", pointer("StaticEntityClassData"))
             .array("Components", pointer("DataForgeComponentParams")),
         TestStruct::new("StaticEntityClassData"),
@@ -44,7 +43,7 @@ fn commodity_structures(builder: DataForgeBuilder) -> DataForgeBuilder {
         TestStruct::new("ResourceType")
             .field("displayName", TestType::Locale)
             .field("description", TestType::Locale),
-        TestStruct::new("Tag").field("tagName", TestType::String),
+        TestStruct::new("ResourceTypeGroup").array("resources", TestType::Reference),
         TestStruct::new("BlueprintCategoryRecord"),
     ]
     .into_iter()

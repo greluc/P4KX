@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod audio_text;
 mod change_extraction_text;
 mod comparison_text;
 mod dataforge_text;
@@ -13,6 +14,7 @@ mod record_export_text;
 mod text_ids;
 mod xml_text;
 
+pub use audio_text::AudioText;
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
@@ -168,6 +170,8 @@ pub enum Text {
     RecordChange(RecordChangeText),
     /// A text of the image preview.
     Image(ImageText),
+    /// A text of the audio preview.
+    Audio(AudioText),
     /// A text of the XML preview.
     Xml(XmlText),
     /// A text of the Query tab.

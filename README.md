@@ -69,7 +69,7 @@ Early development (milestone M1). Available today:
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
-  `[--out <folder>] [--conflict …]` writes Records as Record XML
+  `[--lang <language>] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
   ([docs/record-json.md](docs/record-json.md)), one file per Record: `<record path>.xml`, or
   `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
@@ -79,6 +79,8 @@ Early development (milestone M1). Available today:
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
+  `--lang` writes the text of every localisation key next to the key, or marks the key missing,
+  in the chosen language; without it the output carries no texts.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.

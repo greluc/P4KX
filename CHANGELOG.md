@@ -16,6 +16,14 @@ fails while its section is missing.
   catalog: it is left out and counted as a failure, the catalog is still written, `p4kx catalog`
   lists the failed Records on stderr and under `failed` in `--json` and exits with code 1, and the
   summary window lists them.
+- `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
+  localisation key next to the key, in the `global.ini` of that language; a key without a text is
+  marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte
+  for byte the same as before, and the export report names the `language` only with it.
+  `RecordXml::write_with`, `RecordJson::write_with` and `TextResolver` in `p4kx-dataforge`,
+  `LanguageTexts` and `RecordExportOptions::texts` in `p4kx-extraction`; the Record JSON Schema
+  allows the new `{"key", "text"|"missing"}` object. `RecordFileFormat::write_file` takes the
+  texts as an extra parameter.
 - `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
   geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
   exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node

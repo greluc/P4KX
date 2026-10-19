@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_export_texts.rs
+expression: ndjson
+---
+== records.ndjson
+{"$type":"Vehicle","$guid":"cbee34fd-6441-4000-b99f-924f7f26e19f","$path":"libs/foundry/records/vehicles/cart","name":{"key":"@vehicle_Cart","text":"Karren"},"description":{"key":"@vehicle_CartDesc","missing":true},"unset":"@LOC_PLACEHOLDER","labels":[{"key":"@vehicle_Cart","text":"Karren"},{"key":"@vehicle_Unknown","missing":true}]}
+{"$type":"Vehicle","$guid":"50e8a9f6-f956-4000-8ace-7c0ca9a91f5d","$path":"libs/foundry/records/vehicles/truck","name":{"key":"@vehicle_Truck","text":"Laster"},"description":{"key":"@vehicle_TruckDesc","missing":true},"unset":"","labels":[]}

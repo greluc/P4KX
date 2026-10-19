@@ -91,6 +91,9 @@ and its causes joined by `: `. Both are in definition order for `xml` and `json`
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.
 
+With `--lang <language>` the report also holds `"language": "de"`, the code of the language the
+texts were resolved in; without it the field is absent.
+
 With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
 `target`, and `exported` counts the Records written into it. When an existing file is kept under
 `--conflict`, `skipped` holds its name and `exported` is 0; under `if-changed` the document was

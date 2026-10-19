@@ -277,6 +277,13 @@ write a file:
 | `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
 | `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
 | `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
+| `read_entry_text` | A range of an Entry as text (`path`, `offset`, `max_bytes`): CryXml as XML, UTF-16 by its byte order mark, otherwise UTF-8 |
+| `read_entry_bytes` | A range of an Entry's data as base64 (`path`, `offset`, `max_bytes`) |
+| `get_record` | A Record by `guid`, or every Record of a record `path`, as Record JSON |
+| `search_records` | The Records whose record `path` and `type` name match Filters, in Record order |
+| `list_structs` | The struct definitions matching a `name` Filter, with parent and declared fields (data type, array, target struct or enum) |
+| `list_enums` | The enum definitions matching a `name` Filter, with their values |
+| `run_query` | One page of a Query result (`query`): typed columns, rows as `p4kx dcb query --format json` writes them, failed Records, unresolved References |
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
 or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a
@@ -285,7 +292,11 @@ device are refused. Without it the tools use the Archive given with `--archive` 
 was started. Opened Archives stay open between calls and are opened again when their file
 changes. Listings page: `limit` sets the page size (100 by default, at most 1000), and a result
 with `next_cursor` has a next page that `cursor` asks for; a cursor only continues the listing
-that returned it, on the same version of the Archive. `--config-dir`, `--launcher-dir` and
+that returned it, on the same version of the Archive. The DataForge tools read the Archive's DataForge once, keep it
+open with its indexes while the Archive stays open, and hold at most 256 KiB of items in one result:
+a larger page ends early with `next_cursor`, and a single Record or row larger than that is an
+error. `list_entries` lists folders as
+[ADR-0023](docs/adr/0023-entry-folders-fold-case-and-separators.md) defines them. `--config-dir`, `--launcher-dir` and
 `--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
 for `p4kx channels`.
 

@@ -43,7 +43,9 @@ Verschlüsselung. Das Häkchen einer Gruppen- oder Teilezeile setzt alle Einträ
 Suche, die einen Teil trifft, zeigt die ganze Gruppe; „Angezeigte" und „Ausgewählte" extrahieren
 alle Teile. Sortieren nach Größe nutzt die Gesamtgröße. Teile ohne Kopf bleiben einzelne Zeilen.
 Die Statuszeile („angezeigt", „ausgewählt") und „Angezeigte (N)" zählen Einträge, eine Textur mit
-ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes. Keine
+ihren Teilen; ein Teil in einem anderen Ordner als sein Kopf gehört zur Ansicht des Kopfes
+(Ordner, die sich nur durch Groß-/Kleinschreibung oder `/` und `\` unterscheiden, sind ein Ordner,
+ADR-0023). Keine
 neuen Maße (`tableRow.textureGroup` im JSON der Spec nennt die benutzten).
 
 **D.27 Scrollflächen der Vorschau und des Vergleichs rollen mit der Tastatur.** egui rollt eine

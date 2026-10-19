@@ -77,6 +77,8 @@ sind keine neuen Farben.
 | Feldänderungen | Vorschau-Panel + Tabellenkopf + Tabellenzeile | 36 | Zelle x 12,8 | drei gleiche Spalten Feld, Alt, Neu | wie Tabelle | Kopf ja | Text `color-gray-1`; Zebra und Hover wie Tabelle; fehlend „–" `color-gray-2-text`; Fehlerwert `color-danger-text`; Anzahl `color-gray-2-text` | unten 1 `color-gray-3` | – | innen −2; Tooltip bei Fokus |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
 | Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
+| Tonvorschau (Tab „Audio") | Vorschau-Panel + `.facts-bar` + `.btn-outline.btn-xs` + `.quality-row`-Range | füllt | Inhalt x 16 y 8 | Bedienelemente 12; Label↔Range 8; Lautstärke 200 breit; Position füllt, min. 200; Zeit so breit wie die breiteste Zeit des Tons | Faktenleiste wie oben; Zeit 12,8 / 400; Lautstärke-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel, Button und Label ja, Codec und Zeit nein | Zeit `color-gray-1`; unbekannte Dauer „–"; Meldungen `color-danger-text` | wie Faktenleiste | – | Button 2 / +2; Leertaste spielt oder pausiert |
+| Range | `input[type="range"]` (`accent-color: color-primary`), Maße aus `.quality-row` | 18 in einer Zeile von 32 | – | – | – | – | Spur wie Fortschrittsbalken, Füllung `color-primary`; Griff quadratisch 18, `color-primary`, Hover `color-accent-light` | Spur 1 `color-gray-3` | – | 2 / +2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 | Abfrage-Editor | `textarea` | 4 Zeilen (112), wächst bis 12 Zeilen (304), dann Scrollleiste | x 12, y 8 | Label darüber (Eyebrow), Aktionen darunter 12 | 16 / 400, Zeilenhöhe 1,5; Platzhalter kursiv | nein | bg `color-surface-input`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Fehlerstelle bg `rgba(163,0,10,0.2)` | 1 `control-border`; Fokus `color-primary`; Fehlerstelle unterstrichen 2 `color-danger` | Fokus `glow-primary` | Rahmen + Glow; Strg+Enter führt aus |
 | Fehlerhinweis | `.alert.alert-danger` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(163,0,10,0.2)`, Text `color-gray-1` | 1 `color-danger`, links 4 | – | – |
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
@@ -241,6 +243,23 @@ und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" 
 zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
 bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
 
+**D.18 Töne im Tab „Audio".** Wählt man eine WEM (`.wem`), öffnet die Vorschau den Tab „Audio";
+andere Einträge kehren zu „Text" zurück. Codec, Kanäle, Abtastrate und Dauer stehen als
+`.facts-bar` über den Bedienelementen, wie beim Tab „Bild" (D.14). Darunter eine Zeile:
+„Abspielen"/„Pause" als Outline `btn-xs` (D.7: keine CTA im Hauptfenster, Abspielen ist die
+betonte Aktion des Tabs), die Zeit („0:03 / 1:12") in `color-gray-1` mit der Breite der breitesten
+Zeit des Tons, damit die Position nicht springt, die Position als Range über die restliche Breite
+und „Lautstärke" als Eyebrow mit einer Range von 200 px. Die Ranges sind die des Design-Systems:
+`input[type="range"]` in der Akzentfarbe, 200 × 18 und 8 px vom Label wie in `.quality-row`
+(Specimen MasterDetail). Gefüllt ist bis zum Griff in `color-primary`. Der Griff ist ein Quadrat
+der Range-Höhe (ADR-0006: eckig), Hover `color-accent-light`. Pfeiltasten gehen 5 s bzw. ein
+Zehntel, Bild auf/ab 30 s bzw. ein Viertel, Pos1 und Ende an die Enden. Die Leertaste spielt
+oder pausiert, solange kein anderes Bedienelement den Fokus hat. Der Barrierefreiheits-Wert der
+Position ist die Zeit. Wechselt der Vorschau-Tab weg von „Audio" oder der Arbeitsbereich weg von
+„Durchsuchen", pausiert der Ton an seiner Stelle; „Abspielen" macht dort weiter. Ein Codec ohne
+Decoder, ein zu langer Ton und ein Fehler beim Dekodieren oder am Audiogerät stehen als Text in
+`color-danger-text` im Panel; Text und Hex bleiben erreichbar.
+
 **D.19 CryXml im Tab „XML".** Ist der gewählte Eintrag CryXml (erkannt an der Signatur, nicht an
 der Endung), bietet die Vorschau den Tab „XML" hinter „Hex" an und öffnet ihn, sobald der Anfang
 gelesen ist; andere Einträge, auch Text-XML, bekommen den Tab nicht und kehren zu „Text" zurück.
@@ -292,6 +311,7 @@ Archiv.
 | Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |
 | Zahlenspalten der Abfrage rechtsbündig ohne tabellarische Ziffern | egui kann OpenType-Merkmale wie `tnum` nicht einschalten; rechtsbündig stehen gleich lange Zahlen trotzdem untereinander |
 | Abfrage-Editor 4 Zeilen statt `textarea`-Standardhöhe, Fehlerstelle als Hinterlegung mit Unterstrich | egui kennt keine `rows`-Vorgabe mit eigener Zeilenhöhe; DS hat keine Fehlermarkierung im Text, Farben aus `.alert-danger` |
+| Range gezeichnet statt nativ: Spur des Fortschrittsbalkens, quadratischer Griff, Trefferzeile 32 px | egui hat kein `input[type="range"]`; der Griff ist eckig wie alles im DS (ADR-0006), die Zeile hat die Höhe von `btn-xs`, damit die 18 px hohe Range sich treffen lässt (D.18) |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |

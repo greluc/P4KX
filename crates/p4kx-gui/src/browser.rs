@@ -12,8 +12,8 @@ use crate::containers::{Containers, Place};
 use crate::record_search::RecordSearch;
 use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{
-    EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort, SortColumn,
-    SortDirection,
+    AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
+    SortColumn, SortDirection,
 };
 
 pub use tree::{TreeNode, TreeRow};
@@ -21,8 +21,9 @@ pub use tree::{TreeNode, TreeRow};
 /// The browsing state of an opened Archive and its containers.
 ///
 /// It holds the selected and expanded folders, the search, the sorted Entries of the selected
-/// folder or of the search, and the checked Entries. The table shows the Entries of one place at a time, the Archive or one container; the
-/// search, the checks and the preview belong to that place.
+/// folder or of the search, and the checked Entries. The table shows the Entries of one place
+/// at a time, the Archive or one container; the search, the checks and the preview belong to
+/// that place.
 #[derive(Debug)]
 pub struct Browser {
     index: Arc<EntryIndex>,
@@ -282,6 +283,11 @@ impl Browser {
     /// Returns the image preview of the selected Entry when it is the header of a texture.
     pub fn image_mut(&mut self) -> Option<&mut ImagePreview> {
         self.preview.as_mut().and_then(Preview::image_mut)
+    }
+
+    /// Returns the audio preview of the selected Entry when it is a WEM.
+    pub fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
+        self.preview.as_mut().and_then(Preview::audio_mut)
     }
 
     /// Selects the Entry `id` of the shown place and reads its preview on a background thread,

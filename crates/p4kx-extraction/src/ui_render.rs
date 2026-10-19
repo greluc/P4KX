@@ -56,19 +56,21 @@ impl UiMovie<'_> {
     pub fn render(&self, options: &RasterOptions) -> Result<UiRender, ConversionError> {
         let mut assets = self.movie().assets();
         let scene = self.movie().first_frame(&assets);
+        let movie_error = |source| match source {
+            GfxError::CanvasSize { .. } => ConversionError::UiCanvas {
+                movie: self.name().to_owned(),
+                source,
+            },
+            source => ConversionError::UiMovie {
+                movie: self.name().to_owned(),
+                source,
+            },
+        };
+        scene.canvas_size(options.size).map_err(movie_error)?;
         let bitmaps = self.frame_bitmaps(&assets, &scene.bitmap_ids());
         let raster = scene
             .rasterize(&bitmaps.images, options)
-            .map_err(|source| match source {
-                GfxError::CanvasSize { .. } => ConversionError::UiCanvas {
-                    movie: self.name().to_owned(),
-                    source,
-                },
-                source => ConversionError::UiMovie {
-                    movie: self.name().to_owned(),
-                    source,
-                },
-            })?;
+            .map_err(movie_error)?;
         Ok(UiRender {
             image: raster.image,
             skipped: raster.skipped,

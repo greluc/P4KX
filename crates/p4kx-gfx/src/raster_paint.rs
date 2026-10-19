@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 
 use tiny_skia::{
     Color, ColorU8, FilterQuality, GradientStop, IntSize, LineCap, LineJoin, LinearGradient, Paint,
@@ -8,7 +7,7 @@ use tiny_skia::{
 };
 
 use crate::geometry::Rgba;
-use crate::image::{MAX_BITMAP_PIXELS, RgbaImage};
+use crate::image::RgbaImage;
 use crate::place::ColorTransform;
 use crate::scene::{
     Affine, BitmapPaint, Cap, GradientKind, GradientPaint, Join, Paint as ScenePaint, PathCommand,
@@ -18,57 +17,59 @@ use crate::scene_report::SkipReason;
 
 const GRADIENT_EXTENT: f32 = 16_384.0;
 
-/// The pixels of colour-transformed bitmap copies a rasterisation may hold.
-const MAX_TRANSFORMED_PIXELS: u64 = 2 * MAX_BITMAP_PIXELS;
-
 /// The bitmaps of a rasterisation as premultiplied pixmaps, each converted once, and their
-/// colour-transformed copies.
+/// colour-transformed copies; the pixels of all copies together stay within a limit.
 pub(crate) struct BitmapCache<'b> {
     bitmaps: &'b HashMap<u16, RgbaImage>,
     plain: HashMap<u16, Option<Pixmap>>,
     transformed: HashMap<(u16, [u32; 8]), Option<Pixmap>>,
-    transformed_pixels: u64,
+    copied_pixels: u64,
+    max_pixels: u64,
 }
 
 impl<'b> BitmapCache<'b> {
-    /// Starts an empty cache over the decoded `bitmaps`.
-    pub(crate) fn new(bitmaps: &'b HashMap<u16, RgbaImage>) -> Self {
+    /// Starts an empty cache over the decoded `bitmaps` whose copies may hold `max_pixels`
+    /// pixels together.
+    pub(crate) fn new(bitmaps: &'b HashMap<u16, RgbaImage>, max_pixels: u64) -> Self {
         Self {
             bitmaps,
             plain: HashMap::new(),
             transformed: HashMap::new(),
-            transformed_pixels: 0,
+            copied_pixels: 0,
+            max_pixels,
         }
+    }
+
+    fn charge(&mut self, image: &RgbaImage) -> Result<(), SkipReason> {
+        let pixels = u64::from(image.width()) * u64::from(image.height());
+        let total = self.copied_pixels.saturating_add(pixels);
+        if total > self.max_pixels {
+            return Err(SkipReason::BitmapMemory);
+        }
+        self.copied_pixels = total;
+        Ok(())
     }
 
     fn pixmap(&mut self, id: u16, transform: &ColorTransform) -> Result<&Pixmap, SkipReason> {
         let missing = SkipReason::MissingBitmap { bitmap_id: id };
-        if transform.is_identity() {
-            let bitmaps = self.bitmaps;
-            return self
-                .plain
-                .entry(id)
-                .or_insert_with(|| bitmaps.get(&id).and_then(|image| premultiply(image, None)))
-                .as_ref()
-                .ok_or(missing);
-        }
         let image = self.bitmaps.get(&id).ok_or(missing)?;
-        let key = (id, key(transform));
-        let pixels = u64::from(image.width()) * u64::from(image.height());
-        match self.transformed.entry(key) {
-            Entry::Occupied(entry) => entry.into_mut().as_ref().ok_or(missing),
-            Entry::Vacant(entry) => {
-                let total = self.transformed_pixels.saturating_add(pixels);
-                if total > MAX_TRANSFORMED_PIXELS {
-                    return Err(SkipReason::BitmapMemory);
-                }
-                self.transformed_pixels = total;
-                entry
-                    .insert(premultiply(image, Some(transform)))
-                    .as_ref()
-                    .ok_or(missing)
+        if transform.is_identity() {
+            if !self.plain.contains_key(&id) {
+                self.charge(image)?;
+                self.plain.insert(id, premultiply(image, None));
             }
+            return self.plain.get(&id).and_then(Option::as_ref).ok_or(missing);
         }
+        let key = (id, key(transform));
+        if !self.transformed.contains_key(&key) {
+            self.charge(image)?;
+            self.transformed
+                .insert(key, premultiply(image, Some(transform)));
+        }
+        self.transformed
+            .get(&key)
+            .and_then(Option::as_ref)
+            .ok_or(missing)
     }
 }
 

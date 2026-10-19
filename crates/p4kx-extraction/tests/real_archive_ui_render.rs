@@ -73,6 +73,21 @@ fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
         None,
         "rasteriser failures: {tally:?}"
     );
+    for limit in [
+        "fill_budget",
+        "too_many_records",
+        "too_many_paths",
+        "too_many_placements",
+        "too_many_masks",
+        "mask_memory",
+        "bitmap_memory",
+    ] {
+        assert_eq!(
+            tally.skipped.get(limit),
+            None,
+            "real movies stay within the {limit} limit: {tally:?}"
+        );
+    }
     assert!(
         tally.drawn * 2 > tally.movies,
         "most movies draw something: {tally:?}"

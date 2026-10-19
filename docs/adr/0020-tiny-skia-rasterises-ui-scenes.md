@@ -29,9 +29,16 @@ fanning out and large shapes placed many times; sprites nest at most `MAX_SPRITE
 frame holds at most `MAX_SCENE_MASKS` (256) masks, and a mask inside a mask is skipped. A gradient has at most `MAX_GRADIENT_STOPS` (15) stops, as many as SWF
 can store. A canvas is at most `MAX_CANVAS_SIDE` (16384) pixels a side and `MAX_CANVAS_PIXELS`
 (2^25) pixels. Masks are built when first needed and dropped after their last item, within 256
-MiB; colour-transformed bitmap copies stay within twice `MAX_BITMAP_PIXELS`, and the bitmaps of
-one rendered frame hold at most twice `MAX_BITMAP_PIXELS` together, granted in ascending ID
-order before anything is decoded; a bitmap that sub-images cut is decoded once. Whatever exceeds a limit is skipped and listed, never a panic.
+MiB; the premultiplied and colour-transformed bitmap copies together stay within four times
+`MAX_BITMAP_PIXELS`, and the bitmaps of one rendered frame hold at most twice
+`MAX_BITMAP_PIXELS` together, granted in ascending ID order before anything is decoded; a
+bitmap that sub-images cut is decoded once. Counting placements, layers and commands does not
+bound the time: the bounds of every fill, stroke and mask build, clipped to the canvas, are
+charged to a budget of `MAX_COVERAGE_FACTOR` (64) times the canvas pixels before they are drawn,
+and the frame ends at the first item that does not fit (the worst of the 607 UI movies of LIVE
+needs between 16 and 24 times at 256 pixels wide). Every shape or morph shape conversion is charged by its records and styles to
+`MAX_SCENE_RECORDS` (2^24) before it runs, since a morph shape is converted once per ratio
+placed. The canvas is checked before any bitmap is decoded. Whatever exceeds a limit is skipped and listed, never a panic.
 
 ## Considered Options
 

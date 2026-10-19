@@ -6,8 +6,8 @@ use crate::morph::MorphShape;
 use crate::morph_frame::morph_at;
 use crate::place::{ColorTransform, Placement};
 use crate::scene::{
-    Affine, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS, Origin,
-    Scene, SceneItem, SceneMask, SceneShape,
+    Affine, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_RECORDS,
+    MAX_SCENE_SEGMENTS, Origin, Scene, SceneItem, SceneMask, SceneShape,
 };
 use crate::scene_report::{SkipReason, Skipped};
 use crate::scene_shape::ShapeBuilder;
@@ -45,8 +45,30 @@ struct Context {
     depth: u32,
 }
 
+/// The limits of one composition.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SceneLimits {
+    pub(crate) placements: usize,
+    pub(crate) paths: usize,
+    pub(crate) segments: usize,
+    pub(crate) records: usize,
+    pub(crate) masks: usize,
+}
+
+impl SceneLimits {
+    pub(crate) const DEFAULT: Self = Self {
+        placements: MAX_SCENE_PLACEMENTS,
+        paths: MAX_SCENE_PATHS,
+        segments: MAX_SCENE_SEGMENTS,
+        records: MAX_SCENE_RECORDS,
+        masks: MAX_SCENE_MASKS,
+    };
+}
+
 /// Composes the first frame of a movie into a [`Scene`].
 pub(crate) struct Composer<'b> {
+    limits: SceneLimits,
+    records: usize,
     definitions: HashMap<u16, Definition<'b>>,
     shapes: HashMap<(u16, u16), usize>,
     issues: Vec<Vec<SkipReason>>,
@@ -60,6 +82,11 @@ pub(crate) struct Composer<'b> {
 impl<'b> Composer<'b> {
     /// Composes the display list of the main timeline's first frame.
     pub(crate) fn compose(assets: &'b Assets<'_>, stage: Rect) -> Scene {
+        Self::compose_with(assets, stage, SceneLimits::DEFAULT)
+    }
+
+    /// Composes the display list as [`Composer::compose`] does within `limits`.
+    pub(crate) fn compose_with(assets: &'b Assets<'_>, stage: Rect, limits: SceneLimits) -> Scene {
         let mut definitions = HashMap::new();
         for other in &assets.other_definitions {
             definitions
@@ -92,6 +119,8 @@ impl<'b> Composer<'b> {
                 .or_insert(Definition::Shape(shape));
         }
         let mut composer = Self {
+            limits,
+            records: 0,
             definitions,
             shapes: HashMap::new(),
             issues: Vec::new(),
@@ -133,7 +162,7 @@ impl<'b> Composer<'b> {
                 return;
             }
             self.placements += 1;
-            if self.placements > MAX_SCENE_PLACEMENTS {
+            if self.placements > self.limits.placements {
                 self.stop(placement, context, SkipReason::TooManyPlacements);
                 return;
             }
@@ -160,7 +189,7 @@ impl<'b> Composer<'b> {
                     self.skip(placement, context, SkipReason::NestedMask);
                     continue;
                 }
-                if self.scene.masks.len() >= MAX_SCENE_MASKS {
+                if self.scene.masks.len() >= self.limits.masks {
                     self.skip(placement, context, SkipReason::TooManyMasks);
                     continue;
                 }
@@ -179,7 +208,8 @@ impl<'b> Composer<'b> {
     fn place(&mut self, placement: &Placement, context: Context, inner: Context) {
         match self.definitions.get(&placement.id).copied() {
             Some(Definition::Shape(shape)) => {
-                let index = self.shape(shape.id, 0, |id| {
+                let cost = shape.records.len() + shape.fill_styles.len() + shape.line_styles.len();
+                let converted = self.shape(placement, context, (shape.id, 0), cost, |id| {
                     ShapeBuilder::convert(
                         id,
                         &shape.fill_styles,
@@ -187,14 +217,27 @@ impl<'b> Composer<'b> {
                         &shape.records,
                     )
                 });
-                self.draw(placement, context, inner, index);
+                if let Some(index) = converted {
+                    self.draw(placement, context, inner, index);
+                }
             }
             Some(Definition::Morph(morph)) => {
-                let index = self.shape(morph.id, placement.ratio, |id| {
-                    let (fills, lines, records) = morph_at(morph, placement.ratio);
-                    ShapeBuilder::convert(id, &fills, &lines, &records)
-                });
-                self.draw(placement, context, inner, index);
+                let cost = morph.start_records.len()
+                    + morph.start_fill_styles.len()
+                    + morph.start_line_styles.len();
+                let converted = self.shape(
+                    placement,
+                    context,
+                    (morph.id, placement.ratio),
+                    cost,
+                    |id| {
+                        let (fills, lines, records) = morph_at(morph, placement.ratio);
+                        ShapeBuilder::convert(id, &fills, &lines, &records)
+                    },
+                );
+                if let Some(index) = converted {
+                    self.draw(placement, context, inner, index);
+                }
             }
             Some(Definition::Sprite(sprite)) => {
                 if inner.depth >= MAX_SPRITE_DEPTH {
@@ -217,19 +260,26 @@ impl<'b> Composer<'b> {
 
     fn shape(
         &mut self,
-        id: u16,
-        ratio: u16,
+        placement: &Placement,
+        context: Context,
+        (id, ratio): (u16, u16),
+        cost: usize,
         convert: impl FnOnce(u16) -> (SceneShape, Vec<SkipReason>),
-    ) -> usize {
+    ) -> Option<usize> {
         if let Some(&index) = self.shapes.get(&(id, ratio)) {
-            return index;
+            return Some(index);
+        }
+        self.records = self.records.saturating_add(cost.max(1));
+        if self.records > self.limits.records {
+            self.stop(placement, context, SkipReason::TooManyRecords);
+            return None;
         }
         let (shape, issues) = convert(id);
         let index = self.scene.shapes.len();
         self.scene.shapes.push(shape);
         self.issues.push(issues);
         self.shapes.insert((id, ratio), index);
-        index
+        Some(index)
     }
 
     fn draw(&mut self, placement: &Placement, context: Context, inner: Context, index: usize) {
@@ -249,7 +299,7 @@ impl<'b> Composer<'b> {
         });
         self.paths = self.paths.saturating_add(layers);
         self.segments = self.segments.saturating_add(segments);
-        if self.paths > MAX_SCENE_PATHS || self.segments > MAX_SCENE_SEGMENTS {
+        if self.paths > self.limits.paths || self.segments > self.limits.segments {
             self.stop(placement, context, SkipReason::TooManyPaths);
             return;
         }

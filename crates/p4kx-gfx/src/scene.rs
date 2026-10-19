@@ -9,6 +9,10 @@ pub const MAX_SCENE_PATHS: usize = 1 << 20;
 /// The most path commands a scene draws, summed over every placement.
 pub const MAX_SCENE_SEGMENTS: usize = 1 << 24;
 
+/// The most shape records and styles the conversions of a scene read, summed over every
+/// conversion; a morph shape is converted once per distinct ratio placed.
+pub const MAX_SCENE_RECORDS: usize = 1 << 24;
+
 /// The most placements a scene visits, sprites and their contents included.
 pub const MAX_SCENE_PLACEMENTS: usize = 1 << 18;
 

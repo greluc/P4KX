@@ -1,7 +1,9 @@
 use std::fmt;
 
+use crate::raster_budget::MAX_COVERAGE_FACTOR;
 use crate::scene::{
-    MAX_GRADIENT_STOPS, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS,
+    MAX_GRADIENT_STOPS, MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_RECORDS,
+    MAX_SCENE_SEGMENTS,
 };
 use crate::tag::tag_name;
 use crate::walker::MAX_SPRITE_DEPTH;
@@ -37,6 +39,11 @@ pub enum SkipReason {
     /// The frame draws more than [`MAX_SCENE_PATHS`] paths or [`MAX_SCENE_SEGMENTS`] path
     /// commands.
     TooManyPaths,
+    /// Converting shapes and morph shapes would read more than [`MAX_SCENE_RECORDS`] records.
+    TooManyRecords,
+    /// The fills of the frame would cover more than [`MAX_COVERAGE_FACTOR`] times its canvas;
+    /// this and every later element are not drawn.
+    FillBudget,
     /// The frame holds more than [`MAX_SCENE_MASKS`] masks.
     TooManyMasks,
     /// A mask inside a mask, which is skipped; the depths it covers are clipped by the outer
@@ -79,6 +86,8 @@ impl SkipReason {
             Self::SpriteDepth => "sprite_depth",
             Self::TooManyPlacements => "too_many_placements",
             Self::TooManyPaths => "too_many_paths",
+            Self::TooManyRecords => "too_many_records",
+            Self::FillBudget => "fill_budget",
             Self::TooManyMasks => "too_many_masks",
             Self::NestedMask => "nested_mask",
             Self::GradientStops { .. } => "gradient_stops",
@@ -118,6 +127,14 @@ impl fmt::Display for SkipReason {
             Self::TooManyPaths => write!(
                 formatter,
                 "the frame draws more than {MAX_SCENE_PATHS} paths or {MAX_SCENE_SEGMENTS} path commands"
+            ),
+            Self::TooManyRecords => write!(
+                formatter,
+                "converting the shapes would read more than {MAX_SCENE_RECORDS} records"
+            ),
+            Self::FillBudget => write!(
+                formatter,
+                "the fills would cover more than {MAX_COVERAGE_FACTOR} times the canvas; the rest is not drawn"
             ),
             Self::TooManyMasks => write!(
                 formatter,

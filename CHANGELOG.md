@@ -14,8 +14,9 @@ fails while its section is missing.
   sub-images included) and strokes are drawn with the transforms, colour transforms and masks
   of their placements, morph shapes at their ratio. Texts, buttons and videos are skipped,
   filters and blend modes are not applied, and every element left out is listed with its
-  reason, plain or with `--json` (exit code 1). Placements, paths, masks, gradient stops, sprite
-  nesting and the canvas size are bounded. Also for movie files on disk.
+  reason, plain or with `--json` (exit code 1). Placements, paths, shape conversions, masks,
+  gradient stops, sprite nesting, the canvas size and the area the fills cover (64 times the
+  canvas) are bounded. Also for movie files on disk.
 - `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
   variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
   blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,

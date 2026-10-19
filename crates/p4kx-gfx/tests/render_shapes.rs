@@ -8,7 +8,7 @@ use p4kx_gfx::{Background, CanvasSize, GfxError, RasterOptions, Rgba};
 use p4kx_testkit::{
     TestFill, TestGradient, TestPlace, TestShape, TestShapeRecord, background_body, lossless_body,
 };
-use support::{BLUE, CLEAR, RED, assert_pixel, rect, render, scene, stage};
+use support::{BLUE, CLEAR, RED, assert_pixel, pixel, rect, render, scene, stage};
 
 fn red_square() -> Vec<u8> {
     let square = rect(4, (1000, 1000), TestFill::Solid(RED));
@@ -157,6 +157,10 @@ fn a_focal_gradient_starts_at_its_focal_point() {
 }
 
 fn quadrants(repeating: bool) -> Vec<u8> {
+    smoothable_quadrants(repeating, false)
+}
+
+fn smoothable_quadrants(repeating: bool, smoothed: bool) -> Vec<u8> {
     let white = [255, 255, 255, 255];
     let green = [0, 255, 0, 255];
     let bitmap = lossless_body(7, 2, 2, &[RED, green, BLUE, white], false);
@@ -165,7 +169,7 @@ fn quadrants(repeating: bool) -> Vec<u8> {
         scale: 400,
         at: (0, 0),
         repeating,
-        smoothed: false,
+        smoothed,
     };
     let square = rect(1, (1600, 800), fill);
     stage()
@@ -189,6 +193,20 @@ fn a_bitmap_fill_maps_its_pixels_and_repeats_or_clamps() {
     let clamped = render(&quadrants(false), CanvasSize::Stage).image;
     assert_pixel(&clamped, (50, 10), [0, 255, 0, 255], 0);
     assert_pixel(&clamped, (70, 30), [255, 255, 255, 255], 0);
+}
+
+#[test]
+fn a_smoothed_bitmap_blends_at_its_pixel_edges_and_a_plain_one_does_not() {
+    let plain = render(&smoothable_quadrants(true, false), CanvasSize::Stage).image;
+    assert_pixel(&plain, (19, 10), RED, 0);
+    assert_pixel(&plain, (20, 10), [0, 255, 0, 255], 0);
+    let smooth = render(&smoothable_quadrants(true, true), CanvasSize::Stage).image;
+    let near_edge = pixel(&smooth, 19, 10);
+    assert!(
+        near_edge[0] > 60 && near_edge[0] < 240 && near_edge[1] > 20,
+        "{near_edge:?} mixes red and green"
+    );
+    assert_pixel(&smooth, (10, 10), RED, 24);
 }
 
 #[test]

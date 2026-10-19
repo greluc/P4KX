@@ -323,6 +323,14 @@ fn the_json_report_lists_what_was_left_out() -> TestResult {
         "the text"
     );
     assert_eq!(report["failed"], serde_json::json!([]), "nothing failed");
+    let mut redacted = report;
+    assert_eq!(
+        redacted["target"].as_str(),
+        Some(out.display().to_string().as_str()),
+        "the PNG"
+    );
+    redacted["target"] = Value::from("[DIR]/panel.png");
+    insta::assert_snapshot!(serde_json::to_string_pretty(&redacted)?);
     assert_matches_reference(&out, "panel.png")
 }
 

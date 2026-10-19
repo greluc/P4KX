@@ -9,8 +9,9 @@
 //!
 //! Every size is checked against the data left and the limits [`MAX_MOVIE_LEN`],
 //! [`MAX_BITMAP_PIXELS`], [`MAX_SHAPE_RECORDS`] and [`MAX_SPRITE_DEPTH`], a scene against
-//! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_SEGMENTS`], [`MAX_SCENE_MASKS`] and
-//! [`MAX_GRADIENT_STOPS`], a canvas against [`MAX_CANVAS_SIDE`] and [`MAX_CANVAS_PIXELS`];
+//! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_SEGMENTS`], [`MAX_SCENE_RECORDS`],
+//! [`MAX_SCENE_MASKS`] and [`MAX_GRADIENT_STOPS`], a canvas against [`MAX_CANVAS_SIDE`],
+//! [`MAX_CANVAS_PIXELS`] and the fill area [`MAX_COVERAGE_FACTOR`] times its size;
 //! corrupt input yields a [`GfxError`] or a skipped element, never a panic.
 
 mod assets;
@@ -24,6 +25,8 @@ mod header;
 mod image;
 mod jpeg;
 mod json;
+#[cfg(test)]
+mod limit_tests;
 mod line;
 mod lossless;
 mod morph;
@@ -31,6 +34,7 @@ mod morph_frame;
 mod movie;
 mod place;
 mod raster;
+mod raster_budget;
 mod raster_mask;
 mod raster_paint;
 mod reader;
@@ -59,11 +63,12 @@ pub use place::{ColorTransform, Placement};
 pub use raster::{
     Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Raster, RasterOptions,
 };
+pub use raster_budget::MAX_COVERAGE_FACTOR;
 pub use scene::{
     Affine, BitmapPaint, Cap, GradientKind, GradientPaint, Join, LayerKind, MAX_GRADIENT_STOPS,
-    MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_SEGMENTS, Origin, Paint,
-    PathCommand, Scene, SceneItem, SceneMask, ScenePath, ScenePoint, SceneShape, ShapeLayer,
-    Spread, StrokeStyle,
+    MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_RECORDS, MAX_SCENE_SEGMENTS,
+    Origin, Paint, PathCommand, Scene, SceneItem, SceneMask, ScenePath, ScenePoint, SceneShape,
+    ShapeLayer, Spread, StrokeStyle,
 };
 pub use scene_report::{SkipReason, Skipped};
 pub use shape::{MAX_SHAPE_RECORDS, NewStyles, Shape, ShapeRecord, StyleChange};

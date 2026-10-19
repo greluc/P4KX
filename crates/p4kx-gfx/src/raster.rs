@@ -6,6 +6,7 @@ use tiny_skia::{Color, FillRule, Mask, Path, Pixmap};
 use crate::GfxError;
 use crate::geometry::Rgba;
 use crate::image::RgbaImage;
+use crate::raster_budget::{Coverage, RasterLimits, covered_pixels};
 use crate::raster_mask::Masks;
 use crate::raster_paint::{BitmapCache, paint, path, stroke, transform};
 use crate::scene::{Affine, LayerKind, Scene, SceneItem};
@@ -82,6 +83,24 @@ impl Scene {
         bitmaps: &HashMap<u16, RgbaImage>,
         options: &RasterOptions,
     ) -> Result<Raster, GfxError> {
+        self.rasterize_with(bitmaps, options, &RasterLimits::DEFAULT)
+    }
+
+    /// Returns the width and height in pixels of the image [`Scene::rasterize`] makes for `size`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Scene::rasterize`] for the canvas.
+    pub fn canvas_size(&self, size: CanvasSize) -> Result<(u32, u32), GfxError> {
+        canvas(self, size).map(|(width, height, _)| (width, height))
+    }
+
+    pub(crate) fn rasterize_with(
+        &self,
+        bitmaps: &HashMap<u16, RgbaImage>,
+        options: &RasterOptions,
+        limits: &RasterLimits,
+    ) -> Result<Raster, GfxError> {
         let (width, height, root) = canvas(self, options.size)?;
         let mut pixmap =
             Pixmap::new(width, height).ok_or(GfxError::CanvasSize { width, height })?;
@@ -107,17 +126,24 @@ impl Scene {
             scene: self,
             paths: &paths,
             root,
-            cache: BitmapCache::new(bitmaps),
+            cache: BitmapCache::new(bitmaps, limits.bitmap_pixels),
             skipped: self.skipped.clone(),
+            coverage: Coverage::new(width, height, limits.coverage_factor),
+            canvas: (width, height),
+            exhausted: false,
         };
-        let mut masks = Masks::new(self, width, height);
+        let mut masks = Masks::new(self, width, height, limits.mask_bytes);
         for (at, item) in self.items.iter().enumerate() {
             let mask = match item.mask {
-                Some(index) => match masks.get(self, &paths, index, &root) {
+                Some(index) => match masks.get(self, &paths, index, &root, &mut frame.coverage) {
                     Ok(mask) => Some(mask),
                     Err(reason) => {
                         frame.skip(item, reason);
+                        frame.exhausted |= reason == SkipReason::FillBudget;
                         masks.release(at);
+                        if frame.exhausted {
+                            break;
+                        }
                         continue;
                     }
                 },
@@ -125,6 +151,9 @@ impl Scene {
             };
             frame.draw(item, &mut pixmap, mask);
             masks.release(at);
+            if frame.exhausted {
+                break;
+            }
         }
         Ok(Raster {
             image: unpremultiply(&pixmap),
@@ -140,6 +169,9 @@ struct Frame<'s, 'b> {
     root: Affine,
     cache: BitmapCache<'b>,
     skipped: Vec<Skipped>,
+    coverage: Coverage,
+    canvas: (u32, u32),
+    exhausted: bool,
 }
 
 impl Frame<'_, '_> {
@@ -170,6 +202,21 @@ impl Frame<'_, '_> {
             let Some(outline) = outline else {
                 continue;
             };
+            let stroked = match &layer.kind {
+                LayerKind::Fill => None,
+                LayerKind::Stroke(style) => Some(style),
+            };
+            let Some(cost) =
+                covered_pixels(outline, to_canvas, stroked, self.canvas.0, self.canvas.1)
+            else {
+                self.skip(item, SkipReason::InvalidGeometry);
+                continue;
+            };
+            if !self.coverage.charge(cost) {
+                self.skip(item, SkipReason::FillBudget);
+                self.exhausted = true;
+                return;
+            }
             let built = paint(&mut self.cache, &item.color_transform, &layer.paint);
             let drawn = match built {
                 Ok(paint) => catch_unwind(AssertUnwindSafe(|| match &layer.kind {

@@ -1,0 +1,20 @@
+---
+source: crates/p4kx/tests/ui_render.rs
+expression: "serde_json::to_string_pretty(&redacted)?"
+---
+{
+  "failed": [],
+  "height": 48,
+  "movie": "Data\\UI\\Screens\\SWF\\Panel.gfx",
+  "skipped": [
+    {
+      "depth": 7,
+      "drawn": false,
+      "id": 50,
+      "message": "DefineText definitions are not drawn",
+      "reason": "not_drawn"
+    }
+  ],
+  "target": "[DIR]/panel.png",
+  "width": 64
+}

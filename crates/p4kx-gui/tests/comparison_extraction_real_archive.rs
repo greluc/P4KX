@@ -1,5 +1,5 @@
 //! Extracting the changes of one side of a Comparison of two real Archives; runs with
-//! `--ignored` when `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them.
+//! `--ignored` when `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them, and skips without the second.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -8,7 +8,7 @@ use p4kx_gui::{
     ComparisonSide, ComparisonStatus, Extraction, ExtractionScope, ExtractionStatus, Language,
     Model, TargetKind,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use p4kx_testkit::real_archive_pair;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -35,7 +35,9 @@ fn settled(model: &Model) -> bool {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_changes_of_a_real_side_start_without_blocking_and_account_for_every_entry() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(());
+    };
     let out = tempfile::tempdir()?;
     let mut model = Model::new(Language::BritishEnglish);
     let tab = model.comparison_mut();

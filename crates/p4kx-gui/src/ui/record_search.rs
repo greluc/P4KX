@@ -36,7 +36,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let picked = body(ui, model.texts(), browser, tree, &laid);
     let ctx = ui.ctx().clone();
     if picked.is_some() {
-        model.set_preview_tab(PreviewTab::DataForge);
+        model.set_preview_tab(PreviewTab::Record);
     }
     let Some(browser) = model.browser_mut() else {
         return;

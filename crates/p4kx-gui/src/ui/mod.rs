@@ -4,6 +4,7 @@ mod archive_change;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
+mod catalog_outcome;
 mod channels;
 mod comparison;
 mod comparison_diff;
@@ -32,7 +33,9 @@ mod query_table;
 mod record_export;
 mod record_export_outcome;
 mod record_fields;
+mod record_lines;
 mod record_list;
+mod record_preview;
 mod record_results;
 mod record_rows;
 mod record_search;
@@ -77,6 +80,8 @@ pub enum Dialog {
     QueryExport(QueryExportFormat),
     /// Picks the folder of a Record export.
     RecordExportFolder,
+    /// Picks the file the Basetool catalog is written to.
+    CatalogFile,
 }
 
 /// What the window asks of its host after a frame.
@@ -101,6 +106,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     }
     model.poll_extraction();
     model.poll_record_export();
+    model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
     model.query_mut().poll();
@@ -112,6 +118,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         }
     }
     shortcuts::handle(ui, model);
+    record_preview::handle_shortcuts(ui, model);
     let header = Panel::top("menu")
         .frame(frames::header())
         .show_separator_line(false)
@@ -139,6 +146,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     extraction_outcome::show(ui, model);
     record_export::setup(ui, model, &mut requests);
     record_export_outcome::show(ui, model);
+    catalog_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }

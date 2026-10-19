@@ -1,5 +1,3 @@
-use rayon::slice::ParallelSliceMut;
-
 use crate::dataforge::out_of_range;
 use crate::rows::RecordDef;
 use crate::strings::{compare_ignoring_case, compare_paths, strip_xml};
@@ -206,7 +204,7 @@ impl<'a> DataForge<'a> {
             .iter_indexed()
             .map(|(index, def)| (def.guid, index))
             .collect();
-        keyed.par_sort_unstable();
+        keyed.sort_unstable();
         keyed.into_iter().map(|(_, index)| index).collect()
     }
 
@@ -220,7 +218,7 @@ impl<'a> DataForge<'a> {
                 Some((strip_xml(path), name, index))
             })
             .collect();
-        keyed.par_sort_unstable_by(|left, right| {
+        keyed.sort_unstable_by(|left, right| {
             compare_paths(left.0, right.0)
                 .then_with(|| compare_ignoring_case(left.1, right.1))
                 .then(left.2.cmp(&right.2))

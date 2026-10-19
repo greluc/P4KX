@@ -65,6 +65,13 @@ fails while its section is missing.
   new or an existing folder with a Conflict policy, in the background with progress, cancel and a
   summary of the Records written and those with error values. DataForge and the planned files are
   read once per open Archive and reused by every later export.
+- **Export › Basetool catalog…** in the window: the Basetool catalog of the open Archive into a
+  file chosen in the save dialog, in the background with progress and cancel, writing no partial
+  file, and a summary of the entities and skipped Records per kind, the resolved and missing texts
+  per language and the size with a warning near or over the basetool upload limit. The Record
+  export and the catalog share the DataForge read once per open Archive.
+- `p4kx_export::build_catalog_from`: builds the Basetool catalog from a DataForge Entry already
+  read.
 - `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
   `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
   the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record

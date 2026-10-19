@@ -345,6 +345,48 @@ record-export-failed-title = Record-Export fehlgeschlagen
 record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
 record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.
 
+catalog-action = Basetool-Katalog …
+catalog-file-filter = Basetool-Katalog
+catalog-running-title = Erstelle Basetool-Katalog
+catalog-reading = Lese DataForge …
+catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
+catalog-writing = Schreibe { $path } …
+catalog-summary-title = Basetool-Katalog erstellt
+catalog-kinds-heading = Arten
+catalog-summary-kind = { $kind ->
+    [manufacturers] Hersteller
+    [items] Items
+    [ships] Schiffe
+    [commodities] Waren
+    [blueprints] Blaupausen
+   *[other] { $kind }
+}: { $written } geschrieben, { $skipped } übersprungen, { $complete ->
+    [yes] vollständig
+   *[no] teilweise
+}
+catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-texts-heading = Texte
+catalog-summary-texts = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: { $resolved } aufgelöst, { $missing } fehlen, { $placeholders } Platzhalter
+catalog-summary-texts-unavailable = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: das Archiv enthält keine global.ini, { $missing } fehlen
+catalog-summary-missing = Fehlende Texte: { $number }
+catalog-summary-size = Größe: { $size } vom Upload-Limit { $limit }
+catalog-near-limit = Der Katalog liegt nahe am Upload-Limit des Basetools von { $limit }.
+catalog-over-limit = Der Katalog liegt über dem Upload-Limit des Basetools von { $limit }; das Basetool lehnt den Upload ab.
+catalog-summary-file = Datei: { $path }
+catalog-cancelled-title = Basetool-Katalog abgebrochen
+catalog-cancelled = Der Basetool-Katalog wurde abgebrochen. Es wurde keine Datei geschrieben.
+catalog-failed-title = Basetool-Katalog fehlgeschlagen
+catalog-failed = Der Basetool-Katalog { $path } ließ sich nicht erstellen: { $reason }
+catalog-stopped = Der Basetool-Katalog { $path } brach ohne Ergebnis ab.
+catalog-output-is-archive = Der Basetool-Katalog kann nicht nach { $path } geschrieben werden, weil das das geöffnete Archiv ist. Eine andere Datei wählen.
 preview-tab-xml = XML
 xml-converting = { $path } wird in XML umgewandelt …
 xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit } werden in der Vorschau nicht umgewandelt; zum Lesen mit Umwandlung extrahieren.
@@ -370,3 +412,19 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+preview-tab-record = Record
+record-back = Zurück
+record-forward = Vor
+record-type = Typ
+record-guid = GUID
+record-name = Name
+record-head-value = Wert
+record-loading = Der Record { $path } wird gelesen …
+record-failed = Der Record { $path } kann nicht gelesen werden: { $reason }
+record-stopped = Das Lesen des Records { $path } brach ohne Ergebnis ab.
+record-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um den Record zu lesen.
+record-dangling = Die Referenz zeigt auf den Record { $guid }, den es in diesem DataForge nicht gibt.
+record-follow = Der Referenz auf { $path } folgen
+record-row = { $field }: { $value }
+record-no-fields = Der Record hat keine Felder.
+record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }

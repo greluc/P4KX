@@ -48,6 +48,11 @@ pub(crate) fn progress(ui: &mut Ui, fraction: f32, cancelling: bool, width: f32)
     } else {
         palette::PRIMARY
     };
+    track(ui, rect, fraction, fill);
+}
+
+/// Paints the `.attendance-meter` track over `rect`, filled with `fill` up to `fraction`.
+pub(crate) fn track(ui: &Ui, rect: Rect, fraction: f32, fill: Color32) {
     let painter = ui.painter();
     painter.rect(
         rect,

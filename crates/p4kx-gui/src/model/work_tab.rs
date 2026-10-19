@@ -23,9 +23,12 @@ impl Model {
         self.work_tab
     }
 
-    /// Shows `tab` in the work surface.
-    pub const fn set_work_tab(&mut self, tab: WorkTab) {
+    /// Shows `tab` in the work surface, pausing a sound when it leaves the Archive.
+    pub fn set_work_tab(&mut self, tab: WorkTab) {
         self.work_tab = tab;
+        if tab != WorkTab::Archive {
+            self.pause_playback();
+        }
     }
 
     /// Returns the Comparison tab.

@@ -11,7 +11,10 @@ use p4kx_gui::{
     AudioOutput, AudioPreview, Browser, Language, Model, Player, Preview, SoundSource, StreamGuard,
     ui,
 };
-use p4kx_testkit::{ArchiveBuilder, TestCodec, TestEntry, TestVorbis, TestWem, test_signal};
+use p4kx_testkit::{
+    ArchiveBuilder, TestCodec, TestEntry, TestOpus, TestOpusFraming, TestVorbis, TestWem,
+    test_signal,
+};
 use tempfile::TempDir;
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
@@ -67,25 +70,31 @@ fn vorbis() -> TestVorbis {
     TestVorbis::new(2, 48_000, &[false; 400]).tone(10)
 }
 
-fn sounds() -> Vec<TestEntry> {
+/// A Wwise Opus sound of two channels, 0.2 seconds of [`test_signal`].
+pub(crate) const fn opus() -> TestOpus {
+    TestOpus::new(TestOpusFraming::Wwise, 2, 9_600)
+}
+
+fn sounds() -> Result<Vec<TestEntry>, Box<dyn Error>> {
     let pcm = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone()).bytes();
     let ima = TestWem::ima_adpcm(1, 48_000, &test_signal(640, 1)).bytes();
     let ptadpcm = TestWem::ptadpcm(1, 48_000, 36, &test_signal(640, 1)).bytes();
-    let xma = TestWem::encoded(TestCodec::Tag(0x0166), 1, 48_000, 960).bytes();
+    let aac = TestWem::encoded(TestCodec::Tag(0xAAC0), 1, 48_000, 960).bytes();
     let endless = TestWem::encoded(TestCodec::Vorbis, 2, 48_000, u32::MAX).bytes();
-    vec![
+    Ok(vec![
         TestEntry::stored("Data\\Sounds\\tone.wem", pcm),
         TestEntry::zstd("Data\\Sounds\\ima.WEM", ima),
         TestEntry::stored("Data\\Sounds\\platinum.wem", ptadpcm),
         TestEntry::stored("Data\\Sounds\\engine.wem", vorbis().wem().bytes()),
-        TestEntry::stored("Data\\Sounds\\voice.wem", xma),
+        TestEntry::stored("Data\\Sounds\\voice.wem", opus().wem()?.bytes()),
+        TestEntry::stored("Data\\Sounds\\console.wem", aac),
         TestEntry::stored("Data\\Sounds\\endless.wem", endless),
         TestEntry::stored(
             "Data\\Sounds\\broken.wem",
             b"RIFF\x04\x00\x00\x00WAVE".to_vec(),
         ),
         TestEntry::stored("Data\\readme.txt", "plain text"),
-    ]
+    ])
 }
 
 pub(crate) fn opened(
@@ -94,7 +103,7 @@ pub(crate) fn opened(
 ) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
     let path = folder.path().join("Data.p4k");
-    sounds()
+    sounds()?
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;

@@ -62,3 +62,10 @@ languages; a key is translated when its text in the language is not empty.
 The other languages translate about a quarter of the keys, so a Record preview in German shows
 the key's missing marker for most keys unless the English fallback is chosen. `ui_Abandon`
 resolves to `Abandon` in English and `Aufgeben` in German in every Channel.
+
+### Record previews in a language
+
+A real ship Record (`aegs_avenger_titan`) is previewed in English, then in German, then with
+the keys only, in every Channel: each switch re-renders the open Record, the same keys stay, and
+the DataForge is read once for all three. The GUI texts table, the image preview and the Record
+language selector tests pass on every Channel.

@@ -119,6 +119,8 @@ extraction-summary-skipped = Übersprungen ({ $number })
 extraction-summary-cancelled = Abgebrochen ({ $number })
 extraction-summary-unconverted = Nicht umgewandelt ({ $number })
 extraction-summary-failure = { $path }: { $reason }
+extraction-summary-records-failed = Nicht geschriebene Records ({ $number })
+extraction-summary-record-failure = { $path } ({ $guid }): { $reason }
 extraction-failed = Das Ziel in { $path } lässt sich nicht anlegen: { $reason }
 extraction-stopped = Die Extraktion nach { $path } brach ohne Ergebnis ab.
 extraction-failed-title = Extraktion fehlgeschlagen
@@ -354,6 +356,50 @@ record-export-failed-title = Record-Export fehlgeschlagen
 record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
 record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.
 
+catalog-action = Basetool-Katalog …
+catalog-file-filter = Basetool-Katalog
+catalog-running-title = Erstelle Basetool-Katalog
+catalog-reading = Lese DataForge …
+catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
+catalog-writing = Schreibe { $path } …
+catalog-summary-title = Basetool-Katalog erstellt
+catalog-kinds-heading = Arten
+catalog-summary-kind = { $kind ->
+    [manufacturers] Hersteller
+    [items] Items
+    [ships] Schiffe
+    [commodities] Waren
+    [blueprints] Blaupausen
+   *[other] { $kind }
+}: { $written } geschrieben, { $skipped } übersprungen, { $complete ->
+    [yes] vollständig
+   *[no] teilweise
+}
+catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-summary-failed = Nicht lesbare und weggelassene Records ({ $number })
+catalog-summary-failure = { $path } ({ $guid }): { $reason }
+catalog-texts-heading = Texte
+catalog-summary-texts = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: { $resolved } aufgelöst, { $missing } fehlen, { $placeholders } Platzhalter
+catalog-summary-texts-unavailable = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: das Archiv enthält keine global.ini, { $missing } fehlen
+catalog-summary-missing = Fehlende Texte: { $number }
+catalog-summary-size = Größe: { $size } vom Upload-Limit { $limit }
+catalog-near-limit = Der Katalog liegt nahe am Upload-Limit des Basetools von { $limit }.
+catalog-over-limit = Der Katalog liegt über dem Upload-Limit des Basetools von { $limit }; das Basetool lehnt den Upload ab.
+catalog-summary-file = Datei: { $path }
+catalog-cancelled-title = Basetool-Katalog abgebrochen
+catalog-cancelled = Der Basetool-Katalog wurde abgebrochen. Es wurde keine Datei geschrieben.
+catalog-failed-title = Basetool-Katalog fehlgeschlagen
+catalog-failed = Der Basetool-Katalog { $path } ließ sich nicht erstellen: { $reason }
+catalog-stopped = Der Basetool-Katalog { $path } brach ohne Ergebnis ab.
+catalog-output-is-archive = Der Basetool-Katalog kann nicht nach { $path } geschrieben werden, weil das das geöffnete Archiv ist. Eine andere Datei wählen.
 preview-tab-xml = XML
 xml-converting = { $path } wird in XML umgewandelt …
 xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit } werden in der Vorschau nicht umgewandelt; zum Lesen mit Umwandlung extrahieren.
@@ -361,6 +407,14 @@ xml-failed = { $path } kann nicht in XML umgewandelt werden: { $reason }
 xml-stopped = Das Umwandeln von { $path } brach ohne Ergebnis ab.
 xml-truncated = Gekürzt: angezeigt werden die ersten { $lines } Zeilen, die ersten { $limit } des XML.
 xml-view = Umgewandeltes XML
+
+scroll-text = Textzeilen
+scroll-hex = Hexadezimalzeilen
+scroll-image = Bildansicht
+scroll-diff = Zeilenunterschiede
+scroll-fields = Geänderte Felder
+scroll-lines = Record-Felder
+scroll-localization = Lokalisierungszeilen
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -379,3 +433,74 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+
+texture-parts =
+    { $count ->
+        [one] +{ $number } Teil
+       *[other] +{ $number } Teile
+    }
+texture-expand = Teile von { $name } anzeigen
+texture-collapse = Teile von { $name } ausblenden
+
+preview-tab-record = Record
+record-back = Zurück
+record-forward = Vor
+record-type = Typ
+record-guid = GUID
+record-name = Name
+record-head-value = Wert
+record-loading = Der Record { $path } wird gelesen …
+record-failed = Der Record { $path } kann nicht gelesen werden: { $reason }
+record-stopped = Das Lesen des Records { $path } brach ohne Ergebnis ab.
+record-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um den Record zu lesen.
+record-dangling = Die Referenz zeigt auf den Record { $guid }, den es in diesem DataForge nicht gibt.
+record-follow = Der Referenz auf { $path } folgen
+record-row = { $field }: { $value }
+record-no-fields = Der Record hat keine Felder.
+record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }
+
+record-language-menu = Record-Texte
+record-language-keys-only = Nur Schlüssel
+record-language-unavailable = Das Archiv enthält keine Texte auf { $language }, deshalb stehen nur die Schlüssel da.
+record-language-key-row = { $key }: { $text }
+record-language-key-row-missing = { $key } (kein Text in dieser Sprache)
+record-language-load-failed = Die Texte auf { $language } können nicht gelesen werden, deshalb stehen nur die Schlüssel da: { $reason }
+localization-tab = Lokalisierung
+localization-label = Suche
+localization-hint = Schlüssel oder Text, z. B. item_Name oder Aurora
+localization-loading = Die Lokalisierungsdateien werden gelesen …
+localization-no-texts = Das Archiv enthält keine global.ini.
+localization-failed = Die Lokalisierungsdateien können nicht gelesen werden: { $reason }
+localization-stopped = Das Lesen der Lokalisierungsdateien wurde ohne Ergebnis beendet.
+localization-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Lokalisierungsdateien zu lesen.
+localization-empty-title = Kein Archiv geöffnet
+localization-empty-hint = Öffnen Sie ein Archiv, um seine Lokalisierungsschlüssel und Texte nachzuschlagen.
+localization-column-key = Schlüssel
+localization-language-en = Englisch
+localization-language-de = Deutsch
+localization-language-fr = Französisch
+localization-language-it = Italienisch
+localization-language-es-ES = Spanisch (Spanien)
+localization-language-es-419 = Spanisch (Lateinamerika)
+localization-language-pt-BR = Portugiesisch (Brasilien)
+localization-language-ja = Japanisch
+localization-language-ko = Koreanisch
+localization-language-zh-Hans = Chinesisch (vereinfacht)
+localization-language-zh-Hant = Chinesisch (traditionell)
+localization-language-other = Andere Sprache
+localization-missing = Fehlt
+localization-keys =
+    { $count ->
+        [one] { $number } Schlüssel
+       *[other] { $number } Schlüssel
+    }
+localization-keys-shown =
+    { $count ->
+        [one] { $number } von { $total } Schlüsseln
+       *[other] { $number } von { $total } Schlüsseln
+    }
+localization-searching = Suche läuft …
+localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
+localization-copy-key = Schlüssel kopieren
+localization-copy-text = Text kopieren
+localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:

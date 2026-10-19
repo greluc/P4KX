@@ -2,11 +2,17 @@ mod containers;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use p4kx_extraction::{Archive, ArchiveWatch, DataForgeEntry, Entry, Filter};
+use p4kx_extraction::{
+    Archive, ArchiveWatch, DataForgeEntry, Entry, Filter, LocalizationEntry, TextureGroups,
+};
 use rayon::prelude::*;
 
+use crate::TextLanguage;
+use crate::entry_groups::EntryGroups;
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
+use crate::forge_cache::ForgeCache;
 use crate::sort::{Sort, SortDirection, SortOrders, file_name};
+use crate::text_cache::TextCache;
 
 /// An opened Archive with its path tree and its Entries pre-sorted by every column.
 ///
@@ -21,7 +27,11 @@ pub struct EntryIndex {
     orders: SortOrders,
     containers: Vec<(FolderId, u32)>,
     path_bytes: u64,
+    groups: EntryGroups,
     dataforge: Option<usize>,
+    forge: ForgeCache,
+    text_languages: Vec<TextLanguage>,
+    texts: TextCache,
 }
 
 impl EntryIndex {
@@ -30,18 +40,24 @@ impl EntryIndex {
     #[must_use]
     pub fn build(archive: Archive) -> Self {
         let entries = archive.entries();
-        let mut by_path: Vec<u32> = (0..entries.len())
-            .filter_map(|position| u32::try_from(position).ok())
-            .collect();
-        let path = |position: u32| entries.get(position as usize).map_or("", Entry::path);
-        by_path.par_sort_unstable_by(|&a, &b| path(a).cmp(path(b)));
+        let (texture_groups, by_path) = rayon::join(
+            || TextureGroups::build(&archive),
+            || positions_by_path(entries),
+        );
         let sorted: Vec<&Entry> = by_path
             .iter()
             .filter_map(|&position| entries.get(position as usize))
             .collect();
+        let mut id_of = vec![0; entries.len()];
+        for (id, &position) in by_path.iter().enumerate() {
+            if let Some(slot) = id_of.get_mut(position as usize) {
+                *slot = u32::try_from(id).unwrap_or(u32::MAX);
+            }
+        }
+        let groups = EntryGroups::new(&texture_groups, &id_of, by_path.len());
         let (folders, orders) = rayon::join(
             || folder_tree::build(sorted.iter().map(|entry| entry.path())),
-            || SortOrders::build(&sorted),
+            || SortOrders::build(&sorted, |id| groups.total_size(id)),
         );
         let containers = containers::build(&sorted, &folders);
         let path_bytes = sorted
@@ -50,6 +66,7 @@ impl EntryIndex {
             .sum();
         let dataforge = DataForgeEntry::locate(&archive)
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
+        let text_languages = LocalizationEntry::languages(&archive);
         Self {
             watch: ArchiveWatch::new(&archive),
             archive,
@@ -58,7 +75,11 @@ impl EntryIndex {
             orders,
             containers,
             path_bytes,
+            groups,
             dataforge,
+            forge: ForgeCache::default(),
+            text_languages,
+            texts: TextCache::default(),
         }
     }
 
@@ -93,6 +114,30 @@ impl EntryIndex {
             .and_then(|position| self.archive.entries().get(position))
     }
 
+    /// Returns the one DataForge cache of the Archive.
+    pub(crate) const fn forge(&self) -> &ForgeCache {
+        &self.forge
+    }
+
+    /// Returns the one cache of the localisation texts of the Archive.
+    pub(crate) const fn texts(&self) -> &TextCache {
+        &self.texts
+    }
+
+    /// Returns the languages the Archive holds a `global.ini` for, in the order of
+    /// [`TextLanguage::ALL`].
+    #[must_use]
+    pub fn text_languages(&self) -> &[TextLanguage] {
+        &self.text_languages
+    }
+
+    /// Returns how often a `global.ini` was read from the Archive; the Record previews share
+    /// each read.
+    #[must_use]
+    pub fn text_loads(&self) -> usize {
+        self.texts.loads()
+    }
+
     /// Returns the Archive.
     #[must_use]
     pub const fn archive(&self) -> &Archive {
@@ -115,6 +160,51 @@ impl EntryIndex {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.by_path.is_empty()
+    }
+
+    /// Returns the parts and alpha tail Entries of the split texture whose `.dds` header has id
+    /// `id`; empty for any other Entry.
+    #[must_use]
+    pub fn texture_parts(&self, id: u32) -> &[u32] {
+        self.groups.parts_of(id)
+    }
+
+    /// Returns every Entry of the split texture `id` belongs to, its header first, or `None`
+    /// when `id` belongs to none.
+    #[must_use]
+    pub fn texture_members(&self, id: u32) -> Option<&[u32]> {
+        self.groups.members(id)
+    }
+
+    /// Returns the id of the header of the split texture `id` belongs to, or `id` itself when it
+    /// belongs to none.
+    #[must_use]
+    pub fn texture_header(&self, id: u32) -> u32 {
+        self.groups
+            .members(id)
+            .and_then(<[u32]>::first)
+            .copied()
+            .unwrap_or(id)
+    }
+
+    /// Returns whether `id` is a part or alpha tail Entry of a split texture, which the listing
+    /// folds into the row of the texture's header.
+    #[must_use]
+    pub fn is_texture_part(&self, id: u32) -> bool {
+        self.groups.is_part(id)
+    }
+
+    /// Returns the size after decompression of the whole split texture whose header has id
+    /// `id`, or `None` when `id` is no such header.
+    #[must_use]
+    pub fn texture_size(&self, id: u32) -> Option<u64> {
+        self.groups.total_size(id)
+    }
+
+    /// Returns the number of Entries folded into the row of a texture header.
+    #[must_use]
+    pub const fn folded_len(&self) -> usize {
+        self.groups.part_count()
     }
 
     /// Returns the Entry with id `id`, or `None` when there is none.
@@ -159,7 +249,8 @@ impl EntryIndex {
         })
     }
 
-    /// Returns the ids of the Entries in `folder` and below, sorted by `sort`.
+    /// Returns the ids of the Entries in `folder` and below, sorted by `sort`; the parts of a
+    /// split texture are folded into its header and left out.
     #[must_use]
     pub fn entries_in(&self, folder: FolderId, sort: Sort) -> Vec<u32> {
         let range = self.folder(folder).entries();
@@ -167,7 +258,7 @@ impl EntryIndex {
     }
 
     /// Returns the ids of the Entries marked in `matches`, which is indexed by id, sorted by
-    /// `sort`.
+    /// `sort`; the parts of a split texture are folded into its header and left out.
     #[must_use]
     pub fn entries_matching(&self, matches: &[bool], sort: Sort) -> Vec<u32> {
         self.sorted_where(sort, |id| {
@@ -176,11 +267,11 @@ impl EntryIndex {
     }
 
     /// Returns, indexed by id, whether the path of each Entry matches `filter`, or `None` once
-    /// `cancelled` is set.
+    /// `cancelled` is set; all Entries of a split texture match when one of them does.
     #[must_use]
     pub fn matching(&self, filter: &Filter, cancelled: &AtomicBool) -> Option<Vec<bool>> {
         let entries = self.archive.entries();
-        let matches = self
+        let mut matches: Vec<bool> = self
             .by_path
             .par_iter()
             .map(|&position| {
@@ -190,15 +281,25 @@ impl EntryIndex {
                         .is_some_and(|entry| filter.matches(entry.path()))
             })
             .collect();
+        self.groups.complete(&mut matches);
         (!cancelled.load(Ordering::Relaxed)).then_some(matches)
     }
 
     fn sorted_where(&self, sort: Sort, keep: impl Fn(u32) -> bool) -> Vec<u32> {
         let ascending = self.orders.ascending(sort.column).iter();
-        let keep = |id: &&u32| keep(**id);
+        let keep = |id: &&u32| keep(**id) && !self.groups.is_part(**id);
         match sort.direction {
             SortDirection::Ascending => ascending.filter(keep).copied().collect(),
             SortDirection::Descending => ascending.rev().filter(keep).copied().collect(),
         }
     }
+}
+
+fn positions_by_path(entries: &[Entry]) -> Vec<u32> {
+    let mut by_path: Vec<u32> = (0..entries.len())
+        .filter_map(|position| u32::try_from(position).ok())
+        .collect();
+    let path = |position: u32| entries.get(position as usize).map_or("", Entry::path);
+    by_path.par_sort_unstable_by(|&a, &b| path(a).cmp(path(b)));
+    by_path
 }

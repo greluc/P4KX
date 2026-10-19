@@ -75,9 +75,6 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
 fn apply(ui: &Ui, model: &mut Model, action: &Action) {
     let ctx = ui.ctx().clone();
     let wake = move || ctx.request_repaint();
-    if matches!(action, Action::Record(RecordAction::Select(_))) {
-        model.set_preview_tab(PreviewTab::DataForge);
-    }
     let Some(browser) = model.browser_mut() else {
         return;
     };
@@ -86,6 +83,14 @@ fn apply(ui: &Ui, model: &mut Model, action: &Action) {
         Action::Toggle(node) => browser.toggle_node(node, wake),
         Action::Record(RecordAction::Select(node)) => browser.select_record_node(node, wake),
         Action::Record(RecordAction::Toggle(node)) => browser.toggle_record_node(node, wake),
+    }
+    if matches!(action, Action::Record(RecordAction::Select(_))) {
+        let record = browser.selected_record().is_some();
+        model.set_preview_tab(if record {
+            PreviewTab::Record
+        } else {
+            PreviewTab::DataForge
+        });
     }
 }
 

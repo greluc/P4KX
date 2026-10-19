@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 use std::time::SystemTime;
@@ -15,8 +15,8 @@ use rayon::prelude::*;
 
 use super::RecordExportSummary;
 use super::progress::{RecordExportProgress, RecordExportStage, Shared};
-use super::source::{ForgeSlot, ForgeSource};
 use crate::extraction::target_naming;
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 use crate::{EntryIndex, TargetKind};
 
@@ -63,6 +63,7 @@ enum State {
 /// A Record export running on a background thread, or its outcome.
 #[derive(Debug)]
 pub struct RecordExport {
+    id: u64,
     folder: PathBuf,
     form: RecordForm,
     cancel: CancelToken,
@@ -71,6 +72,12 @@ pub struct RecordExport {
 }
 
 impl RecordExport {
+    /// Returns the number that tells this export apart from every other one of the process.
+    #[must_use]
+    pub const fn id(&self) -> u64 {
+        self.id
+    }
+
     /// Returns the chosen folder: the parent of a new folder, or the existing folder.
     #[must_use]
     pub fn folder(&self) -> &Path {
@@ -149,14 +156,15 @@ fn ended(outcome: Option<RunResult>) -> State {
 }
 
 /// Starts writing the Records of `request` from the DataForge of `index` on a background thread,
-/// reading DataForge into `source` unless it holds it already, and calls `wake` from that thread
-/// once the export ended.
+/// reading DataForge into the cache of `index` unless it holds it already, and calls `wake` from
+/// that thread once the export ended.
 pub(crate) fn start(
     index: &Arc<EntryIndex>,
-    source: Arc<ForgeSlot>,
     request: Request,
     wake: impl Fn() + Send + 'static,
 ) -> RecordExport {
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
     let folder = request.folder.clone();
@@ -174,7 +182,7 @@ pub(crate) fn start(
                 cancel: &thread_cancel,
                 shared: &thread_shared,
             };
-            if sender.send(job.run(&source)).is_ok() {
+            if sender.send(job.run()).is_ok() {
                 wake();
             }
         });
@@ -183,6 +191,7 @@ pub(crate) fn start(
         Err(error) => State::Failed(Some(describe(&error))),
     };
     RecordExport {
+        id,
         folder,
         form,
         cancel,
@@ -199,8 +208,8 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
-    fn run(&self, slot: &ForgeSlot) -> RunResult {
-        let source = self.source(slot)?;
+    fn run(&self) -> RunResult {
+        let source = self.source()?;
         if !self.shared.leave_reading() {
             return Err(String::new());
         }
@@ -225,6 +234,7 @@ impl Job<'_> {
             policy: self.request.policy,
             cancel: Some(self.cancel),
             progress: Some(&progress),
+            texts: None,
         };
         let summary = write_planned_record_export(
             &forge,
@@ -237,13 +247,16 @@ impl Job<'_> {
         Ok(RecordExportSummary::new(target, records.len(), &summary))
     }
 
-    /// Returns DataForge from `slot`, reading it from the Archive first when the slot is empty.
-    fn source(&self, slot: &ForgeSlot) -> Result<Arc<ForgeSource>, String> {
+    /// Returns DataForge from the cache of the Archive, reading it first when the cache is empty.
+    fn source(&self) -> Result<Arc<ForgeSource>, String> {
         self.index
             .watch()
             .check()
             .map_err(|error| describe(&error))?;
-        slot.read(self.index)
+        self.index
+            .forge()
+            .read(self.index, || {})
+            .map_err(ReadFailure::into_reason)
     }
 }
 

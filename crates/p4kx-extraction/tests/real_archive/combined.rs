@@ -1,5 +1,6 @@
 //! The combined Record export and the DataForge Conversion over the live DataForge.
 
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -28,8 +29,17 @@ fn the_combined_document_of_a_real_archive_parses() -> TestResult {
 
     assert!(report.is_complete(), "{:?}", report.failures());
     assert_eq!(report.written(), forge.record_count(), "every Record");
-    let paths = check_document(&file)?;
+    let (paths, guids) = check_document(&file)?;
     assert_eq!(paths.len(), forge.record_count(), "one element per Record");
+    let expected: HashSet<String> = forge
+        .records()
+        .map(|record| record.guid().to_string())
+        .collect();
+    assert_eq!(
+        guids.iter().cloned().collect::<HashSet<_>>(),
+        expected,
+        "the document holds every Record of the DataForge, none twice"
+    );
     let folded: Vec<String> = paths
         .iter()
         .map(|path| path.to_lowercase().replace('\\', "/"))
@@ -41,9 +51,12 @@ fn the_combined_document_of_a_real_archive_parses() -> TestResult {
     Ok(())
 }
 
+/// The record paths and the GUIDs of the Records of a combined document, in document order.
+type Listed = (Vec<String>, Vec<String>);
+
 /// Parses the combined document at `file` one Record element at a time and returns the record
-/// path of each, so the whole document is checked without holding it in memory.
-fn check_document(file: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+/// path and the GUID of each, so the whole document is checked without holding it in memory.
+fn check_document(file: &Path) -> Result<Listed, Box<dyn std::error::Error>> {
     let mut lines = BufReader::new(File::open(file)?).lines();
     assert_eq!(
         lines.next().transpose()?.as_deref(),
@@ -57,6 +70,7 @@ fn check_document(file: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>
         "root element"
     );
     let mut paths = Vec::new();
+    let mut guids = Vec::new();
     let mut chunk = String::new();
     let mut closed = false;
     for line in lines {
@@ -65,7 +79,9 @@ fn check_document(file: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>
         let starts_record = line.starts_with("  <") && !line.starts_with("   ");
         let is_end = line == "</p4kx:records>";
         if (starts_record && !line.starts_with("  </") || is_end) && !chunk.is_empty() {
-            paths.push(parse_record(&head, &chunk)?);
+            let (path, guid) = parse_record(&head, &chunk)?;
+            paths.push(path);
+            guids.push(guid);
             chunk.clear();
         }
         if is_end {
@@ -76,10 +92,10 @@ fn check_document(file: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>
         }
     }
     assert!(closed, "the root element is closed");
-    Ok(paths)
+    Ok((paths, guids))
 }
 
-fn parse_record(head: &str, chunk: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn parse_record(head: &str, chunk: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
     let wrapped = format!("{head}\n{chunk}</p4kx:records>\n");
     let document = roxmltree::Document::parse(&wrapped)?;
     let mut elements = document
@@ -88,7 +104,9 @@ fn parse_record(head: &str, chunk: &str) -> Result<String, Box<dyn std::error::E
         .filter(roxmltree::Node::is_element);
     let record = elements.next().ok_or("a Record element")?;
     assert!(elements.next().is_none(), "one Record per chunk: {chunk}");
-    Ok(record.attribute("path").ok_or("a record path")?.to_owned())
+    let path = record.attribute("path").ok_or("a record path")?;
+    let guid = record.attribute("guid").ok_or("a GUID")?;
+    Ok((path.to_owned(), guid.to_owned()))
 }
 
 #[test]

@@ -194,8 +194,8 @@ fn picking_a_match_selects_the_record_in_the_tree_and_the_preview() -> TestResul
     assert_eq!(selected, Some("aegs_avenger"), "the Record in the tree");
     assert_eq!(
         harness.state().preview_tab(),
-        PreviewTab::DataForge,
-        "the DataForge preview"
+        PreviewTab::Record,
+        "the Record preview"
     );
     assert!(
         harness

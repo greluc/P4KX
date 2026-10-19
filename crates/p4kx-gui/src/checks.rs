@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 /// Which Entries of one Archive or container are checked, indexed by id, and how many.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Checks {
@@ -46,13 +44,6 @@ impl Checks {
     /// Returns the number of checked Entries.
     pub(crate) const fn count(&self) -> usize {
         self.count
-    }
-
-    /// Returns the number of checked Entries among the ids in `range`.
-    pub(crate) fn count_in(&self, range: Range<u32>) -> usize {
-        self.marks
-            .get(range.start as usize..range.end as usize)
-            .map_or(0, |slots| slots.iter().filter(|&&checked| checked).count())
     }
 
     /// Returns the ids of the checked Entries in id order.

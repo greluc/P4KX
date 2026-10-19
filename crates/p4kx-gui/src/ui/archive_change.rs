@@ -39,7 +39,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                     );
                     let path = model
                         .browser()
-                        .map(|browser| browser.index().archive().path().display().to_string())
+                        .map(|browser| browser.archive_index().archive().path().display().to_string())
                         .unwrap_or_default();
                     let texts = model.texts();
                     let stopped = if model.change_stopped_extraction() {

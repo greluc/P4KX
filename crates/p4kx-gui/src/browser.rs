@@ -1,19 +1,24 @@
+mod checks;
+mod entry_search;
+mod navigation;
 mod records;
+mod rows;
 mod tree;
+
+pub use rows::{EntryRow, EntryRowKind};
 
 use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::Arc;
 
-use p4kx_extraction::Filter;
-
 use crate::checks::Checks;
 use crate::containers::{Containers, Place};
+use crate::record_preview::Navigation;
 use crate::record_search::RecordSearch;
-use crate::search::{self, Matches, Outcome, Pending, Started};
+use crate::search::{Matches, Pending};
 use crate::{
     AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
-    SortColumn, SortDirection,
+    SortColumn, SortDirection, TextLanguage,
 };
 
 pub use tree::{TreeNode, TreeRow};
@@ -38,11 +43,16 @@ pub struct Browser {
     tree_rows: Vec<TreeRow>,
     sort: Sort,
     shown: Vec<u32>,
+    rows: Vec<EntryRow>,
+    expanded_textures: HashSet<u32>,
+    view_len: usize,
     checks: Checks,
     shown_checked_count: usize,
     preview: Option<Preview>,
     records: Option<RecordTree>,
     record_search: RecordSearch,
+    navigation: Navigation,
+    record_language: Option<TextLanguage>,
 }
 
 impl Browser {
@@ -67,11 +77,16 @@ impl Browser {
             tree_rows: Vec::new(),
             sort: Sort::default(),
             shown: Vec::new(),
+            rows: Vec::new(),
+            expanded_textures: HashSet::new(),
+            view_len: 0,
             checks,
             shown_checked_count: 0,
             preview: None,
             records,
             record_search: RecordSearch::default(),
+            navigation: Navigation::default(),
+            record_language: None,
         };
         browser.refresh_tree();
         browser.refresh_shown();
@@ -82,7 +97,7 @@ impl Browser {
     /// container once it is open.
     #[must_use]
     pub fn index(&self) -> &EntryIndex {
-        self.pane().unwrap_or(&self.index)
+        self.shown_index()
     }
 
     /// Returns the index of the opened Archive itself.
@@ -112,7 +127,7 @@ impl Browser {
         match scope {
             ExtractionScope::Selected => self.checks.count(),
             ExtractionScope::Shown if self.pending.is_some() => 0,
-            ExtractionScope::Shown => self.shown.len(),
+            ExtractionScope::Shown => self.view_len,
             ExtractionScope::All => self.index.len(),
             ExtractionScope::Changes(_) => 0,
         }
@@ -126,7 +141,7 @@ impl Browser {
         match scope {
             ExtractionScope::Selected => self.checks.ids(),
             ExtractionScope::Shown if self.pending.is_some() => Vec::new(),
-            ExtractionScope::Shown => self.shown.clone(),
+            ExtractionScope::Shown => self.shown_with_parts(),
             ExtractionScope::All => (0..self.index.len())
                 .filter_map(|id| u32::try_from(id).ok())
                 .collect(),
@@ -169,55 +184,18 @@ impl Browser {
         self.refresh_shown();
     }
 
-    /// Returns the ids of the shown Entries in table order.
+    /// Returns the ids of the shown Entries in table order; a split texture is one Entry, its
+    /// header, with its parts left out.
     #[must_use]
     pub fn shown(&self) -> &[u32] {
         &self.shown
     }
 
-    /// Returns whether the Entry `id` of the shown place is checked.
+    /// Returns the number of Entries the shown rows stand for, a split texture counting with its
+    /// parts.
     #[must_use]
-    pub fn is_checked(&self, id: u32) -> bool {
-        self.checks.is_checked(id)
-    }
-
-    /// Checks or unchecks the Entry `id` of the shown place.
-    pub fn set_checked(&mut self, id: u32, checked: bool) {
-        let shown = self.is_in_view(id);
-        if self.checks.set(id, checked) && shown {
-            if checked {
-                self.shown_checked_count += 1;
-            } else {
-                self.shown_checked_count -= 1;
-            }
-        }
-    }
-
-    /// Returns whether at least one Entry is shown and every shown Entry is checked.
-    #[must_use]
-    pub const fn all_shown_checked(&self) -> bool {
-        !self.shown.is_empty() && self.shown_checked_count == self.shown.len()
-    }
-
-    /// Checks or unchecks every shown Entry.
-    pub fn set_all_shown_checked(&mut self, checked: bool) {
-        let shown = std::mem::take(&mut self.shown);
-        for &id in &shown {
-            self.set_checked(id, checked);
-        }
-        self.shown = shown;
-    }
-
-    /// Returns the number of checked Entries of the shown place.
-    #[must_use]
-    pub const fn checked_count(&self) -> usize {
-        self.checks.count()
-    }
-
-    /// Returns the number of checked Entries of the shown place that are not shown.
-    #[must_use]
-    pub const fn hidden_checked_count(&self) -> usize {
-        self.checks.count() - self.shown_checked_count
+    pub const fn view_len(&self) -> usize {
+        self.view_len
     }
 
     /// Returns the text of the search field.
@@ -236,31 +214,6 @@ impl Browser {
     #[must_use]
     pub const fn is_searching(&self) -> bool {
         self.pending.is_some()
-    }
-
-    /// Searches the whole shown place for `text` as a Filter on a background thread, replacing
-    /// a search still running; `wake` is called from that thread once the result is ready. The
-    /// shown Entries change when [`Browser::poll`] takes the result; empty text shows the
-    /// selected folder again at once.
-    pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
-        text.clone_into(&mut self.search_text);
-        self.pending = None;
-        if let Some(records) = self.records.as_mut().filter(|_| !text.is_empty()) {
-            records.clear_selection();
-        }
-        if text.is_empty() {
-            self.matches = None;
-            self.refresh_shown();
-            return;
-        }
-        let Some(index) = self.pane().map(Arc::clone) else {
-            self.show_matches(Matches::default());
-            return;
-        };
-        match search::start(&index, &Filter::new(text), wake) {
-            Started::Running(pending) => self.pending = Some(pending),
-            Started::Finished(matches) => self.show_matches(matches),
-        }
     }
 
     /// Returns the Entry of the shown place selected for the preview, or `None` when none is.
@@ -307,30 +260,8 @@ impl Browser {
         let loaded = self.records.as_mut().is_some_and(RecordTree::poll);
         let found = self.poll_record_search(loaded);
         let opened = self.poll_containers();
-        self.poll_search() || previewed || loaded || found || opened
-    }
-
-    fn poll_search(&mut self) -> bool {
-        let Some(pending) = &self.pending else {
-            return false;
-        };
-        match pending.poll() {
-            Outcome::Running => false,
-            Outcome::Finished(matches) => {
-                self.pending = None;
-                self.show_matches(matches);
-                true
-            }
-            Outcome::Lost => {
-                self.pending = None;
-                true
-            }
-        }
-    }
-
-    fn show_matches(&mut self, matches: Matches) {
-        self.matches = Some(matches);
-        self.refresh_shown();
+        let read = self.navigation.poll();
+        self.poll_search() || previewed || loaded || found || opened || read
     }
 
     fn folder_range(&self) -> Range<u32> {
@@ -340,19 +271,29 @@ impl Browser {
 
     fn is_in_view(&self, id: u32) -> bool {
         self.matches.as_ref().map_or_else(
-            || self.folder_range().contains(&id),
+            || {
+                self.folder_range()
+                    .contains(&self.shown_index().texture_header(id))
+            },
             |matches| matches.contains(id),
         )
     }
 
     fn refresh_shown(&mut self) {
+        self.refresh_view();
+        self.refresh_rows();
+    }
+
+    fn refresh_view(&mut self) {
         let Some(index) = self.pane().map(Arc::clone) else {
             self.shown.clear();
+            self.view_len = 0;
             self.shown_checked_count = 0;
             return;
         };
         if let Some(matches) = &self.matches {
             self.shown = index.entries_matching(matches.mask(), self.sort);
+            self.view_len = matches.mask().iter().filter(|&&matched| matched).count();
             self.shown_checked_count = matches
                 .mask()
                 .iter()
@@ -361,7 +302,19 @@ impl Browser {
                 .count();
         } else {
             self.shown = index.entries_in(self.folder, self.sort);
-            self.shown_checked_count = self.checks.count_in(self.folder_range());
+            let (mut len, mut checked) = (0, 0);
+            for &id in &self.shown {
+                let parts = index.texture_parts(id);
+                len += 1 + parts.len();
+                checked += usize::from(self.is_checked(id))
+                    + parts.iter().filter(|&&part| self.is_checked(part)).count();
+            }
+            self.view_len = len;
+            self.shown_checked_count = checked;
         }
+    }
+
+    pub(crate) fn shown_index(&self) -> &Arc<EntryIndex> {
+        self.pane().unwrap_or(&self.index)
     }
 }

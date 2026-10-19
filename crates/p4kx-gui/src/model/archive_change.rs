@@ -53,6 +53,8 @@ impl Model {
             return false;
         }
         let path = browser.archive_index().archive().path().to_path_buf();
+        browser.archive_index().forge().clear();
+        browser.archive_index().texts().clear();
         browser.drop_records();
         browser.drop_containers();
         self.record_export.archive_changed();

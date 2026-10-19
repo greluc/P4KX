@@ -54,6 +54,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("last", "16".into()),
         ("line", "12".into()),
         ("text", "<a/>".into()),
+        ("key", "@item_Name".into()),
         ("lines", "4,194,304".into()),
         ("old", "libs/ships/old".into()),
         ("new", "libs/ships/new".into()),
@@ -72,6 +73,13 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("page", "1".into()),
         ("pages", "3".into()),
         ("guid", "cbee34fd-6441-4000-b99f-924f7f26e19f".into()),
+        ("kind", "manufacturers".into()),
+        ("complete", "yes".into()),
+        ("language", "de".into()),
+        ("resolved", "4".into()),
+        ("missing", "1".into()),
+        ("placeholders", "2".into()),
+        ("value", "1.5".into()),
     ]
 }
 

@@ -4,6 +4,7 @@ mod archive_change;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
+mod catalog_outcome;
 mod channels;
 mod comparison;
 mod comparison_diff;
@@ -15,7 +16,6 @@ mod comparison_summary;
 mod comparison_table;
 mod container_note;
 mod dataforge_summary;
-mod diff_line;
 mod diff_rows;
 mod empty;
 mod extraction;
@@ -24,6 +24,10 @@ mod field_rows;
 mod hex_view;
 mod image_preview;
 mod licence;
+mod list_footer;
+mod localization;
+mod localization_laid;
+mod localization_table;
 mod menu;
 mod moved_path;
 mod preview;
@@ -33,15 +37,20 @@ mod query_table;
 mod record_export;
 mod record_export_outcome;
 mod record_fields;
+mod record_key;
+mod record_lines;
 mod record_list;
+mod record_preview;
 mod record_results;
 mod record_rows;
 mod record_search;
 mod record_tree;
+mod record_value;
 mod search;
 mod shortcuts;
 mod status;
 mod table;
+mod table_name;
 mod tree;
 mod xml_preview;
 mod xml_view;
@@ -57,7 +66,10 @@ use crate::theme::desktop::{
 use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
-use crate::{ComparisonSide, ComparisonText, Model, QueryExportFormat, QueryText, Text, WorkTab};
+use crate::{
+    ComparisonSide, ComparisonText, LocalizationText, Model, QueryExportFormat, QueryText, Text,
+    WorkTab,
+};
 
 /// A dialog the host shows for the window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +90,8 @@ pub enum Dialog {
     QueryExport(QueryExportFormat),
     /// Picks the folder of a Record export.
     RecordExportFolder,
+    /// Picks the file the Basetool catalog is written to.
+    CatalogFile,
 }
 
 /// What the window asks of its host after a frame.
@@ -102,9 +116,11 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     }
     model.poll_extraction();
     model.poll_record_export();
+    model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
     model.query_mut().poll();
+    model.localization_mut().poll();
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -113,6 +129,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         }
     }
     shortcuts::handle(ui, model);
+    record_preview::handle_shortcuts(ui, model);
     let header = Panel::top("menu")
         .frame(frames::header())
         .show_separator_line(false)
@@ -140,6 +157,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     extraction_outcome::show(ui, model);
     record_export::setup(ui, model, &mut requests);
     record_export_outcome::show(ui, model);
+    catalog_outcome::show(ui, model);
     licence::show(ui, model);
     requests
 }
@@ -149,6 +167,7 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     match model.work_tab() {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),
+        WorkTab::Localization => return localization::show(ui, model),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -175,7 +194,7 @@ fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 3] = [
+const WORK_TABS: [(WorkTab, Text); 4] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -185,6 +204,10 @@ const WORK_TABS: [(WorkTab, Text); 3] = [
         Text::Comparison(ComparisonText::TabComparison),
     ),
     (WorkTab::Query, Text::Query(QueryText::Tab)),
+    (
+        WorkTab::Localization,
+        Text::Localization(LocalizationText::Tab),
+    ),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

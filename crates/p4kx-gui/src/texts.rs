@@ -2,30 +2,43 @@ use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
 mod audio_text;
+mod catalog_text;
 mod change_extraction_text;
 mod comparison_text;
 mod container_text;
 mod dataforge_text;
 mod diff_text;
 mod extraction_text;
+mod group_text;
 mod image_text;
+mod localization_text;
 mod query_text;
 mod record_change_text;
 mod record_export_text;
+mod record_language_text;
+mod record_text;
+mod scroll_text;
 mod text_ids;
 mod xml_text;
 
 pub use audio_text::AudioText;
+pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
 pub use container_text::ContainerText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
+pub use group_text::GroupText;
 pub use image_text::ImageText;
+pub use localization_text::LocalizationText;
+pub(crate) use localization_text::language_name;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
+pub use record_language_text::RecordLanguageText;
+pub use record_text::RecordText;
+pub use scroll_text::ScrollText;
 pub use xml_text::XmlText;
 
 use crate::Language;
@@ -170,18 +183,30 @@ pub enum Text {
     Diff(DiffText),
     /// A text of the Record list of the Comparison tab.
     RecordChange(RecordChangeText),
+    /// A text of the split textures in the Entry table.
+    Group(GroupText),
     /// A text of the image preview.
     Image(ImageText),
     /// A text of the audio preview.
     Audio(AudioText),
     /// A text of the XML preview.
     Xml(XmlText),
+    /// The accessible name of a view the keyboard scrolls.
+    Scroll(ScrollText),
     /// A text of the Query tab.
     Query(QueryText),
     /// A text of the containers in the path tree.
     Container(ContainerText),
     /// A text of the Export menu and the Record export windows.
     RecordExport(RecordExportText),
+    /// A text of the Basetool catalog windows.
+    Catalog(CatalogText),
+    /// A text of the Record preview.
+    Record(RecordText),
+    /// A text of the language selection for Record previews.
+    RecordLanguage(RecordLanguageText),
+    /// A text of the localisation tab.
+    Localization(LocalizationText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

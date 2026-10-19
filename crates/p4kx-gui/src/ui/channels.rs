@@ -91,6 +91,6 @@ fn current_archive(model: &Model) -> Option<&Path> {
     model.opening_path().or_else(|| {
         model
             .browser()
-            .map(|browser| browser.index().archive().path())
+            .map(|browser| browser.archive_index().archive().path())
     })
 }

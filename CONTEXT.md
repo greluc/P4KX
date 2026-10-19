@@ -121,7 +121,8 @@ _Avoid_: CryXmlB, binary XML
 **Localisation key**:
 The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
 resolves to one text per language in that language's `global.ini` Entry
-(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+(`Data\Localization\<folder>\global.ini`), of which a Build holds eleven. Code follows the game's
+spelling `Localization`.
 _Avoid_: loc string, text id
 
 ### Assets
@@ -236,6 +237,12 @@ _Avoid_: mesh (one node's triangles), object, asset
 The chunk file next to a model that holds its mesh data, named like the model with an `m`
 appended, e.g. `box.cgfm` for `box.cgf`.
 _Avoid_: mesh file, streaming file
+
+**Texture group**:
+A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
+with the sizes of the whole texture. A part or tail without a header Entry is in no group and
+stays an Entry of its own.
+_Avoid_: texture set, texture bundle
 
 **Alpha tail**:
 A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a texture's alpha or

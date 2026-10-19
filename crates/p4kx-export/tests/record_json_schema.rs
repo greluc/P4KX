@@ -8,11 +8,23 @@ use std::path::PathBuf;
 
 use common::database;
 use p4kx_export::{NDJSON_FILE, RecordExportOptions, RecordForm, write_record_export};
-use p4kx_extraction::DataForge;
+use p4kx_extraction::{DataForge, Resolution, TextResolver};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 use serde_json::{Value, json};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+struct Texts;
+
+impl TextResolver for Texts {
+    fn resolve<'a>(&'a self, key: &str) -> Resolution<'a> {
+        if key.ends_with("Ship") {
+            Resolution::Text("Ship".into())
+        } else {
+            Resolution::Missing
+        }
+    }
+}
 
 fn schema() -> Result<Value, Box<dyn Error>> {
     let path =
@@ -101,6 +113,48 @@ fn every_record_the_export_writes_is_valid() -> TestResult {
             .collect();
         assert!(errors.is_empty(), "{record}: {errors:?}");
     }
+    Ok(())
+}
+
+#[test]
+fn records_with_resolved_texts_are_valid_and_a_text_cannot_also_be_missing() -> TestResult {
+    let validator = jsonschema::draft202012::new(&schema()?)?;
+    let bytes = database().build();
+    let forge = DataForge::open(&bytes)?;
+    let records: Vec<_> = forge.records().collect();
+    let options = RecordExportOptions {
+        texts: Some(&Texts),
+        ..RecordExportOptions::default()
+    };
+    let out = tempfile::tempdir()?;
+    let summary = write_record_export(&forge, &records, RecordForm::Ndjson, out.path(), &options);
+    assert!(summary.written() > 0, "lines written");
+    let text = fs::read_to_string(out.path().join(NDJSON_FILE))?;
+
+    assert!(
+        text.contains("\"missing\":true") || text.contains("\"text\":"),
+        "{text}"
+    );
+    for line in text.lines() {
+        let record: Value = serde_json::from_str(line)?;
+        let errors: Vec<String> = validator
+            .iter_errors(&record)
+            .map(|error| error.to_string())
+            .collect();
+        assert!(errors.is_empty(), "{record}: {errors:?}");
+    }
+    let valid = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+        "label": {"key": "@a", "text": "T"}, "other": {"key": "@b", "missing": true}});
+    let both = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+        "label": {"key": "@a", "text": "T", "missing": true}});
+    let neither = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+        "label": {"key": "@a"}});
+    assert!(validator.is_valid(&valid));
+    assert!(!validator.is_valid(&both), "text and missing together");
+    assert!(
+        !validator.is_valid(&neither),
+        "a key alone is not an annotation"
+    );
     Ok(())
 }
 

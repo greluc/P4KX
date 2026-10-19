@@ -1,60 +1,70 @@
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use p4kx_extraction::{Archive, GlobalIni, Language, LocalizationEntry, LocalizationLoadError};
-use rayon::prelude::*;
+use p4kx_extraction::{
+    Archive, Language, LocalizationLoadError, LocalizationNote, LocalizationSet, Lookup, TextSet,
+    decode_line_breaks, is_placeholder_key,
+};
 
 use crate::contract::LocalisedText;
-use crate::selection::is_placeholder_key;
 use crate::{CatalogError, TextSummary};
 
-/// The `global.ini` Entry of every language in [`Language::ALL`], `None` for a language the
-/// Archive lacks.
+/// The languages the catalog carries texts in, in the order its summary lists them.
+pub(crate) const CATALOG_LANGUAGES: [Language; 2] = [Language::English, Language::German];
+
+/// The `global.ini` Entry of every language in [`CATALOG_LANGUAGES`] the Archive holds.
 pub(crate) struct TextSources {
-    entries: Vec<(Language, Option<LocalizationEntry>)>,
+    set: LocalizationSet,
 }
 
 impl TextSources {
-    /// Reads the `global.ini` of every language from `archive`.
+    /// Reads the `global.ini` of every catalog language from `archive`.
     pub(crate) fn read(archive: &Archive) -> Result<Self, CatalogError> {
-        let entries = Language::ALL
-            .into_iter()
-            .map(|language| Ok((language, read_if_present(archive, language)?)))
-            .collect::<Result<_, CatalogError>>()?;
-        Ok(Self { entries })
+        let set =
+            LocalizationSet::read(archive, &CATALOG_LANGUAGES).map_err(CatalogError::LoadTexts)?;
+        Ok(Self { set })
     }
 }
 
-fn read_if_present(
-    archive: &Archive,
-    language: Language,
-) -> Result<Option<LocalizationEntry>, CatalogError> {
-    match LocalizationEntry::read(archive, language) {
-        Ok(entry) => Ok(Some(entry)),
-        Err(LocalizationLoadError::Missing { .. }) => Ok(None),
-        Err(error) => Err(CatalogError::LoadTexts(error)),
-    }
-}
-
-/// Resolves localisation keys in every language and counts what resolves.
+/// Resolves localisation keys in every catalog language and counts what resolves.
 ///
 /// Every kind turns its keys into [`LocalisedText`]s through [`Texts::localised`]; it may be
 /// called from any worker thread.
 pub(crate) struct Texts<'e> {
-    languages: Vec<LanguageTexts<'e>>,
+    set: TextSet<'e>,
+    notes: Vec<LocalizationNote>,
+    languages: [LanguageCount; CATALOG_LANGUAGES.len()],
     placeholders: AtomicUsize,
+}
+
+struct LanguageCount {
+    language: Language,
+    resolved: AtomicUsize,
+    unresolved: AtomicUsize,
+}
+
+impl LanguageCount {
+    const fn new(language: Language) -> Self {
+        Self {
+            language,
+            resolved: AtomicUsize::new(0),
+            unresolved: AtomicUsize::new(0),
+        }
+    }
 }
 
 impl<'e> Texts<'e> {
     /// Indexes every language of `sources` in parallel.
     pub(crate) fn parse(sources: &'e TextSources) -> Result<Self, CatalogError> {
-        let languages = sources
-            .entries
-            .par_iter()
-            .map(|(language, entry)| LanguageTexts::parse(*language, entry.as_ref()))
-            .collect::<Result<_, _>>()?;
+        let set = sources.set.index().map_err(|error| match error {
+            LocalizationLoadError::Index { path, source } => CatalogError::Texts { path, source },
+            other => CatalogError::LoadTexts(other),
+        })?;
+        let notes = sources.set.notes(&set);
         Ok(Self {
-            languages,
+            set,
+            notes,
+            languages: CATALOG_LANGUAGES.map(LanguageCount::new),
             placeholders: AtomicUsize::new(0),
         })
     }
@@ -84,83 +94,37 @@ impl<'e> Texts<'e> {
         }
     }
 
-    /// Returns what resolved per language, in the order of [`Language::ALL`].
+    /// Returns a note for every `global.ini` that was read lossily or had lines skipped.
+    pub(crate) fn notes(&self) -> &[LocalizationNote] {
+        &self.notes
+    }
+
+    /// Returns what resolved per language, in the order of [`CATALOG_LANGUAGES`].
     pub(crate) fn summary(&self) -> Vec<TextSummary> {
         let placeholder = self.placeholders.load(Ordering::Relaxed);
         self.languages
             .iter()
-            .map(|texts| texts.summary(placeholder))
+            .map(|count| TextSummary {
+                language: count.language,
+                available: self.set.ini(count.language).is_some(),
+                resolved: count.resolved.load(Ordering::Relaxed),
+                unresolved: count.unresolved.load(Ordering::Relaxed),
+                placeholder,
+            })
             .collect()
     }
 
     fn resolve(&self, language: Language, key: &str) -> Option<Cow<'e, str>> {
-        self.languages
+        let count = self
+            .languages
             .iter()
-            .find(|texts| texts.language == language)
-            .and_then(|texts| texts.resolve(key))
-            .map(decode_line_breaks)
-    }
-}
-
-struct LanguageTexts<'e> {
-    language: Language,
-    ini: Option<GlobalIni<'e>>,
-    resolved: AtomicUsize,
-    unresolved: AtomicUsize,
-}
-
-impl<'e> LanguageTexts<'e> {
-    fn parse(
-        language: Language,
-        source: Option<&'e LocalizationEntry>,
-    ) -> Result<Self, CatalogError> {
-        let ini = source
-            .map(|entry| {
-                entry.parse().map_err(|source| CatalogError::Texts {
-                    path: entry.path().to_owned(),
-                    source,
-                })
-            })
-            .transpose()?;
-        Ok(Self {
-            language,
-            ini,
-            resolved: AtomicUsize::new(0),
-            unresolved: AtomicUsize::new(0),
-        })
-    }
-
-    fn resolve(&self, key: &str) -> Option<&'e str> {
-        let text = self
-            .ini
-            .as_ref()
-            .and_then(|ini| ini.resolve(key))
-            .filter(|text| !text.is_empty());
-        let counter = if text.is_some() {
-            &self.resolved
+            .find(|count| count.language == language)?;
+        if let Lookup::Found { text, .. } = self.set.lookup(key, language, None) {
+            count.resolved.fetch_add(1, Ordering::Relaxed);
+            Some(decode_line_breaks(text))
         } else {
-            &self.unresolved
-        };
-        counter.fetch_add(1, Ordering::Relaxed);
-        text
-    }
-
-    fn summary(&self, placeholder: usize) -> TextSummary {
-        TextSummary {
-            language: self.language,
-            available: self.ini.is_some(),
-            resolved: self.resolved.load(Ordering::Relaxed),
-            unresolved: self.unresolved.load(Ordering::Relaxed),
-            placeholder,
+            count.unresolved.fetch_add(1, Ordering::Relaxed);
+            None
         }
-    }
-}
-
-/// Returns `text` with every `\n` escape turned into a line feed, borrowed when it has none.
-fn decode_line_breaks(text: &str) -> Cow<'_, str> {
-    if text.contains("\\n") {
-        Cow::Owned(text.replace("\\n", "\n"))
-    } else {
-        Cow::Borrowed(text)
     }
 }

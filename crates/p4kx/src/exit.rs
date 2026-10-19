@@ -15,6 +15,7 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
+use crate::loc::{LanguageNotInArchive, NoLanguages};
 use crate::{model, texture};
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
@@ -31,7 +32,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs, has an invalid Query or a Query
 /// output that does not fit --json, or gives CHF JSON that is invalid or cannot be written as
-/// CHF.
+/// CHF, asks loc for a language the Archive holds no global.ini for, or looks up a localisation
+/// key that has no text.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -64,7 +66,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      --json without --out for cryxml or chf to-json, an invalid Query, --json with another
      --format and without --out for dcb query, an Entity that no Record or several Records
      match, or a CHF JSON file that is invalid, has an unknown version or holds values a CHF
-     file cannot store
+     file cannot store, a language the Archive holds no global.ini for, or a localisation key
+     that has no text in the language or its fallback
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
@@ -139,6 +142,8 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<InvalidChfJson>().is_some()
         || error.downcast_ref::<InvalidExportTime>().is_some()
         || error.downcast_ref::<MissingCatalogArgs>().is_some()
+        || error.downcast_ref::<LanguageNotInArchive>().is_some()
+        || error.downcast_ref::<NoLanguages>().is_some()
     {
         INVALID_INPUT
     } else {

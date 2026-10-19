@@ -1,40 +1,32 @@
-use std::sync::Arc;
-
-use egui::{
-    Align, Align2, Color32, Galley, Id, Label, Layout, Rect, Role, ScrollArea, Sense, Ui,
-    WidgetInfo, pos2, vec2,
-};
+use egui::{Align, Label, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
-use super::{dataforge_summary, image_preview, xml_preview};
-use crate::preview::{HEX_ROW_LEN, printable};
-use crate::theme::desktop::{
-    HEX_ASCII_GAP, HEX_ASCII_WIDTH, HEX_BYTE_GAP, HEX_BYTE_WIDTH, HEX_GROUP_GAP, HEX_OFFSET_WIDTH,
-    HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT,
-};
+use super::record_preview::{self, RecordStep};
+use super::{dataforge_summary, hex_rows, image_preview, xml_preview};
+use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight, font};
+use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents,
-    PreviewStatus, PreviewTab, Text, Texts, XmlPreview, XmlText, format,
+    PreviewStatus, PreviewTab, RecordText, Text, Texts, XmlDocument, XmlPreview, XmlText, format,
 };
 
-const TABS: [(PreviewTab, Text); 5] = [
+const TABS: [(PreviewTab, Text); 6] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
+    (PreviewTab::Record, Text::Record(RecordText::Tab)),
 ];
-const GROUP: u8 = 8;
 
 /// Shows the Image tab after selecting the Entry `id` when it is the header of a texture, and
-/// leaves the XML, Image and DataForge tabs for the Text tab otherwise; the XML tab opens once
+/// leaves the XML, Image, DataForge and Record tabs for the Text tab otherwise; the XML tab opens once
 /// the Entry turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let texture = model
@@ -45,7 +37,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
         model.set_preview_tab(PreviewTab::Image);
     } else if matches!(
         model.preview_tab(),
-        PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge
+        PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge | PreviewTab::Record
     ) {
         model.set_preview_tab(PreviewTab::Text);
     }
@@ -62,16 +54,24 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     {
         model.set_preview_tab(PreviewTab::Xml);
     }
+    if let Some(browser) = model.browser_mut() {
+        let ctx = ui.ctx().clone();
+        browser.load_record_preview(move || ctx.request_repaint());
+    }
     let Some(browser) = model.browser() else {
         return;
     };
     let texts = model.texts();
-    let (tab, copy) = tab_bar(ui, texts, browser, model.preview_tab());
-    let level = tab_body(ui, texts, browser, tab);
-    if let Some(text) = copy {
+    let bar = tab_bar(ui, texts, browser, model.preview_tab());
+    let tab = bar.tab;
+    let (level, followed) = tab_body(ui, texts, browser, tab);
+    if let Some(text) = bar.copy {
         ui.ctx().copy_text(text);
     }
     model.set_preview_tab(tab);
+    if let Some(step) = bar.step.or(followed) {
+        record_preview::apply(model, &step);
+    }
     if let Some(level) = level
         && let Some(image) = model.browser_mut().and_then(Browser::image_mut)
     {
@@ -85,21 +85,25 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-/// Shows the tabs `browser` offers with the copy action; returns the tab to show, `tab` unless
-/// another was clicked or it is not offered, and the text to copy when copy was clicked.
-fn tab_bar(
-    ui: &mut Ui,
-    texts: &Texts,
-    browser: &Browser,
-    mut tab: PreviewTab,
-) -> (PreviewTab, Option<String>) {
+/// What the tab bar asks for: the tab to show, the text to copy and a step through the Records.
+struct Bar {
+    tab: PreviewTab,
+    copy: Option<String>,
+    step: Option<RecordStep>,
+}
+
+/// Shows the tabs `browser` offers with back and forward through the Records and the copy
+/// action; the tab to show is `tab` unless another was clicked or it is not offered.
+fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
     let image = browser.preview().and_then(Preview::image);
-    let xml = browser.preview().and_then(Preview::xml);
+    let record = browser.selected_record().is_some();
+    let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
-        PreviewTab::Xml => xml.is_some(),
+        PreviewTab::Xml => xml.is_some() || record,
         PreviewTab::Image => image.is_some(),
         PreviewTab::DataForge => records.is_some(),
+        PreviewTab::Record => record,
         PreviewTab::Text | PreviewTab::Hex => true,
     };
     let tabs: Vec<(PreviewTab, Text)> = TABS
@@ -124,11 +128,15 @@ fn tab_bar(
         .preview()
         .and_then(|preview| preview.contents())
         .filter(|_| matches!(tab, PreviewTab::Text | PreviewTab::Hex));
-    let document = xml
-        .and_then(XmlPreview::text)
-        .filter(|_| tab == PreviewTab::Xml);
+    let document = if record {
+        record_preview::xml_bytes(browser)
+    } else {
+        xml.and_then(XmlPreview::text).map(XmlDocument::bytes)
+    }
+    .filter(|_| tab == PreviewTab::Xml);
     let copy_label = texts.get(Text::PreviewCopy);
     let mut copy = None;
+    let mut step = None;
     ui.scope_builder(
         egui::UiBuilder::new().max_rect(bar.shrink2(vec2(SPACE_2, 0.0))),
         |ui| {
@@ -136,28 +144,63 @@ fn tab_bar(
                 let enabled = contents.is_some() || document.is_some();
                 if button::button(ui, Kind::Ghost, Size::Compact, &copy_label, enabled).clicked() {
                     copy = contents.map(|contents| contents.copied(tab)).or_else(|| {
-                        document
-                            .map(|document| String::from_utf8_lossy(document.bytes()).into_owned())
+                        document.map(|document| String::from_utf8_lossy(document).into_owned())
                     });
+                }
+                if browser.shows_records() {
+                    step = steps(ui, texts, browser);
                 }
             });
         },
     );
-    (tab, copy)
+    Bar { tab, copy, step }
 }
-/// Shows the body of `tab`; returns the mip level the Image tab asks for.
-fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Option<u32> {
-    match browser.records().filter(|_| tab == PreviewTab::DataForge) {
-        Some(tree) => {
+
+/// Shows forward and back, right to left; returns the step that was clicked.
+fn steps(ui: &mut Ui, texts: &Texts, browser: &Browser) -> Option<RecordStep> {
+    let forward = texts.get(RecordText::Forward);
+    let back = texts.get(RecordText::Back);
+    let forward = button::button(
+        ui,
+        Kind::Ghost,
+        Size::Compact,
+        &forward,
+        browser.can_go_forward(),
+    )
+    .clicked();
+    let back =
+        button::button(ui, Kind::Ghost, Size::Compact, &back, browser.can_go_back()).clicked();
+    if back {
+        Some(RecordStep::Back)
+    } else {
+        forward.then_some(RecordStep::Forward)
+    }
+}
+/// Shows the body of `tab`; returns the mip level the Image tab asks for and the step through
+/// the Records a link of the Record tab asks for.
+fn tab_body(
+    ui: &mut Ui,
+    texts: &Texts,
+    browser: &Browser,
+    tab: PreviewTab,
+) -> (Option<u32>, Option<RecordStep>) {
+    let record = browser.selected_record().is_some();
+    match (tab, browser.records()) {
+        (PreviewTab::DataForge, Some(tree)) => {
             let size = browser
                 .index()
                 .dataforge_entry()
                 .map_or(0, Entry::uncompressed_size);
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));
             dataforge_summary::show(ui, texts, tree);
-            None
+            (None, None)
         }
-        None => body(ui, texts, browser, tab),
+        (PreviewTab::Record, Some(_)) if record => (None, record_preview::show(ui, texts, browser)),
+        (PreviewTab::Xml, Some(_)) if record => {
+            record_preview::show_xml(ui, texts, browser);
+            (None, None)
+        }
+        _ => (body(ui, texts, browser, tab), None),
     }
 }
 
@@ -222,7 +265,8 @@ fn body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> Optio
     None
 }
 
-fn path_line(ui: &mut Ui, path: &str, size: &str) {
+/// Shows the path line of the preview: `path`, then `size` muted.
+pub(super) fn path_line(ui: &mut Ui, path: &str, size: &str) {
     let (rect, response) = ui.allocate_exact_size(
         vec2(ui.available_width(), PREVIEW_PATH_HEIGHT),
         Sense::hover(),
@@ -255,10 +299,14 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
         ui.colored_label(palette::WARNING, note);
     }
     match tab {
-        PreviewTab::Text | PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge => {
+        PreviewTab::Text
+        | PreviewTab::Xml
+        | PreviewTab::Image
+        | PreviewTab::DataForge
+        | PreviewTab::Record => {
             text_rows(ui, contents);
         }
-        PreviewTab::Hex => hex_rows(ui, contents),
+        PreviewTab::Hex => hex_rows::show(ui, contents),
     }
 }
 
@@ -272,120 +320,4 @@ fn text_rows(ui: &mut Ui, contents: &PreviewContents) {
                 ui.add(Label::new(contents.line(index)).extend());
             }
         });
-}
-
-fn hex_rows(ui: &mut Ui, contents: &PreviewContents) {
-    let glyphs = HexGlyphs::get(ui);
-    ScrollArea::both()
-        .id_salt("preview-hex")
-        .auto_shrink(false)
-        .show_rows(ui, HEX_ROW_HEIGHT, contents.hex_row_count(), |ui, rows| {
-            ui.spacing_mut().item_spacing.y = 0.0;
-            for index in rows {
-                hex_row(ui, contents, index, &glyphs);
-            }
-        });
-}
-
-/// The laid-out byte pairs and characters of the hex view, kept across frames per scale.
-#[derive(Clone)]
-struct HexGlyphs {
-    pixels_per_point: f32,
-    pairs: Arc<[Arc<Galley>]>,
-    characters: Arc<[Arc<Galley>]>,
-}
-
-impl HexGlyphs {
-    fn get(ui: &Ui) -> Self {
-        let id = Id::unique("p4kx-hex-glyphs");
-        let pixels_per_point = ui.ctx().pixels_per_point();
-        if let Some(cached) = ui.data(|data| data.get_temp::<Self>(id))
-            && (cached.pixels_per_point - pixels_per_point).abs() < f32::EPSILON
-        {
-            return cached;
-        }
-        let font = font(FS_XS, Weight::Regular);
-        let layout = |text: String| {
-            ui.fonts_mut(|fonts| fonts.layout_no_wrap(text, font.clone(), Color32::PLACEHOLDER))
-        };
-        let glyphs = Self {
-            pixels_per_point,
-            pairs: (0..=u8::MAX)
-                .map(|byte| layout(format!("{byte:02X}")))
-                .collect(),
-            characters: (0..=u8::MAX)
-                .map(|byte| layout(printable(byte).to_string()))
-                .collect(),
-        };
-        ui.data_mut(|data| data.insert_temp(id, glyphs.clone()));
-        glyphs
-    }
-}
-
-const fn muted(byte: u8) -> bool {
-    !matches!(byte, 0x21..=0x7E)
-}
-
-fn byte_left(column: u8) -> f32 {
-    let groups = f32::from(column / GROUP);
-    f32::from(column).mul_add(
-        HEX_BYTE_WIDTH + HEX_BYTE_GAP,
-        groups.mul_add(HEX_GROUP_GAP, HEX_OFFSET_WIDTH),
-    )
-}
-
-fn hex_row(ui: &mut Ui, contents: &PreviewContents, index: usize, glyphs: &HexGlyphs) {
-    let ascii_left = byte_left(HEX_ROW_LEN) + HEX_ASCII_GAP;
-    let width = f32::from(HEX_ROW_LEN).mul_add(HEX_ASCII_WIDTH, ascii_left);
-    let (rect, response) = ui.allocate_exact_size(vec2(width, HEX_ROW_HEIGHT), Sense::hover());
-    response.widget_info(|| WidgetInfo::labeled(Role::Label, true, contents.hex_row(index)));
-    if !ui.is_rect_visible(rect) {
-        return;
-    }
-    let painter = ui.painter();
-    let y = rect.center().y;
-    let offset = u32::try_from(index.saturating_mul(usize::from(HEX_ROW_LEN))).unwrap_or(u32::MAX);
-    let mut left = rect.left();
-    for byte in offset.to_be_bytes() {
-        if let Some(pair) = glyphs.pairs.get(usize::from(byte)) {
-            let at = pos2(left, y - pair.size().y / 2.0);
-            left += pair.size().x;
-            painter.galley(at, Arc::clone(pair), palette::GRAY_2_TEXT);
-        }
-    }
-    for (&byte, column) in contents.hex_row_bytes(index).iter().zip(0_u8..) {
-        let colour = if byte == 0 {
-            palette::GRAY_2_TEXT
-        } else {
-            palette::GRAY_1
-        };
-        if let Some(pair) = glyphs.pairs.get(usize::from(byte)) {
-            let cell = Rect::from_min_size(
-                pos2(rect.left() + byte_left(column), rect.top()),
-                vec2(HEX_BYTE_WIDTH, HEX_ROW_HEIGHT),
-            );
-            let at = Align2::CENTER_CENTER
-                .align_size_within_rect(pair.size(), cell)
-                .min;
-            painter.galley(at, Arc::clone(pair), colour);
-        }
-        if let Some(character) = glyphs.characters.get(usize::from(byte)) {
-            let cell = Rect::from_min_size(
-                pos2(
-                    f32::from(column).mul_add(HEX_ASCII_WIDTH, rect.left() + ascii_left),
-                    rect.top(),
-                ),
-                vec2(HEX_ASCII_WIDTH, HEX_ROW_HEIGHT),
-            );
-            let at = Align2::CENTER_CENTER
-                .align_size_within_rect(character.size(), cell)
-                .min;
-            let colour = if muted(byte) {
-                palette::GRAY_2_TEXT
-            } else {
-                palette::GRAY_1
-            };
-            painter.galley(at, Arc::clone(character), colour);
-        }
-    }
 }

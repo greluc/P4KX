@@ -357,8 +357,7 @@ record-back = Back
 record-forward = Forward
 record-type = Type
 record-guid = GUID
-record-path = Record path
-record-fields = Fields
+record-name = Name
 record-head-value = Value
 record-loading = Reading the Record { $path }…
 record-failed = Cannot read the Record { $path }: { $reason }
@@ -366,10 +365,5 @@ record-stopped = Reading the Record { $path } stopped without a result.
 record-archive-changed = The Archive changed on disk. Reload it to read the Record.
 record-dangling = The Reference points to the Record { $guid }, which does not exist in this DataForge.
 record-follow = Follow the Reference to { $path }
-record-errors =
-    { $count ->
-        [one] { $number } unreadable value
-       *[other] { $number } unreadable values
-    }
 record-row = { $field }: { $value }
 record-no-fields = The Record has no fields.

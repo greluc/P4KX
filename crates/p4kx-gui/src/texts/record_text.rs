@@ -11,10 +11,8 @@ pub enum RecordText {
     Type,
     /// The key of the Record's GUID.
     Guid,
-    /// The key of the Record's record path.
-    RecordPath,
-    /// The heading above the fields.
-    Fields,
+    /// The key of the Record's name.
+    Name,
     /// The value column.
     HeadValue,
     /// Shown while the Record is read; takes `path`.
@@ -29,8 +27,6 @@ pub enum RecordText {
     Dangling,
     /// The accessible name of a Reference link; takes `path`.
     Follow,
-    /// The number of values that cannot be read; takes `count` and `number`.
-    Errors,
     /// A field row for assistive technology and the tooltip; takes `field` and `value`.
     Row,
     /// Shown instead of the field rows of a Record without fields.
@@ -39,14 +35,13 @@ pub enum RecordText {
 
 impl RecordText {
     /// Every text of the Record preview.
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 15] = [
         Self::Tab,
         Self::Back,
         Self::Forward,
         Self::Type,
         Self::Guid,
-        Self::RecordPath,
-        Self::Fields,
+        Self::Name,
         Self::HeadValue,
         Self::Loading,
         Self::Failed,
@@ -54,7 +49,6 @@ impl RecordText {
         Self::ArchiveChanged,
         Self::Dangling,
         Self::Follow,
-        Self::Errors,
         Self::Row,
         Self::NoFields,
     ];
@@ -68,8 +62,7 @@ impl RecordText {
             Self::Forward => "record-forward",
             Self::Type => "record-type",
             Self::Guid => "record-guid",
-            Self::RecordPath => "record-path",
-            Self::Fields => "record-fields",
+            Self::Name => "record-name",
             Self::HeadValue => "record-head-value",
             Self::Loading => "record-loading",
             Self::Failed => "record-failed",
@@ -77,7 +70,6 @@ impl RecordText {
             Self::ArchiveChanged => "record-archive-changed",
             Self::Dangling => "record-dangling",
             Self::Follow => "record-follow",
-            Self::Errors => "record-errors",
             Self::Row => "record-row",
             Self::NoFields => "record-no-fields",
         }

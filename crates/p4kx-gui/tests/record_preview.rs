@@ -1,15 +1,15 @@
 //! The Record preview over a synthetic DataForge, driven without drawing: fields, error values,
 //! following References, back and forward, and the one DataForge cache of the Archive.
 
+#[path = "previewing_records/model.rs"]
+mod model;
 mod previewing_records;
 
 use std::error::Error;
 
+use model::{opened, previewed, select, selected_path, wait_until};
 use p4kx_gui::{Browser, FieldLine, LineValue, Model, RecordLink, RecordPreviewStatus, RecordView};
-use previewing_records::{
-    ITEM_PATH, MAKER_PATH, SHIP_PATH, TestResult, archive, database, opened, previewed, select,
-    selected_path, wait_until,
-};
+use previewing_records::{ITEM_PATH, MAKER_PATH, SHIP_PATH, TestResult, archive, database};
 
 fn view(model: &mut Model) -> Result<&RecordView, Box<dyn Error>> {
     let preview = previewed(model)?;
@@ -19,8 +19,8 @@ fn view(model: &mut Model) -> Result<&RecordView, Box<dyn Error>> {
     }
 }
 
-fn shown(line: &FieldLine) -> String {
-    let value = match line.value() {
+fn shown(field: &FieldLine) -> String {
+    let value = match field.value() {
         LineValue::Scalar(text) => text.to_string(),
         LineValue::Struct(type_name) => format!("struct {type_name}"),
         LineValue::Array(len) => format!("array {len}"),
@@ -31,8 +31,8 @@ fn shown(line: &FieldLine) -> String {
     };
     format!(
         "{}{} = {value}",
-        "  ".repeat(usize::from(line.depth())),
-        line.name()
+        "  ".repeat(usize::from(field.depth())),
+        field.name()
     )
 }
 

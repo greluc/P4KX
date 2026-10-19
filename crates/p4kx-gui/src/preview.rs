@@ -44,6 +44,8 @@ pub enum PreviewTab {
     Image,
     /// The summary of the Archive's DataForge instead of the selected Entry.
     DataForge,
+    /// The Record selected in the Record tree instead of the selected Entry.
+    Record,
 }
 
 /// Where the preview of an Entry stands.

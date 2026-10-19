@@ -7,6 +7,7 @@ use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
+mod audio_control;
 mod catalog_control;
 mod extraction_control;
 mod record_export_control;
@@ -20,8 +21,8 @@ pub use work_tab::WorkTab;
 
 use crate::forge_cache::ForgeCache;
 use crate::{
-    Browser, ChannelList, ComparisonTab, EntryIndex, Extraction, ExtractionSetup, Language,
-    PreviewTab, QueryTab, Texts,
+    AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
+    ExtractionSetup, Language, PreviewTab, QueryTab, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -58,6 +59,8 @@ pub struct Model {
     work_tab: WorkTab,
     comparison: ComparisonTab,
     stopped_by_change: bool,
+    audio_output: Box<dyn AudioOutput>,
+    audio_volume: f32,
     query: QueryTab,
     record_export: RecordExportState,
     catalog: CatalogState,
@@ -88,7 +91,8 @@ impl std::fmt::Debug for Model {
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
             .field("forge", &self.forge)
-            .finish()
+            .field("audio_volume", &self.audio_volume)
+            .finish_non_exhaustive()
     }
 }
 
@@ -114,6 +118,8 @@ impl Model {
             work_tab: WorkTab::default(),
             comparison: ComparisonTab::default(),
             stopped_by_change: false,
+            audio_output: Box::new(DeviceOutput),
+            audio_volume: 1.0,
             query: QueryTab::default(),
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
@@ -254,8 +260,11 @@ impl Model {
     }
 
     /// Shows the preview in `tab`.
-    pub const fn set_preview_tab(&mut self, tab: PreviewTab) {
+    pub fn set_preview_tab(&mut self, tab: PreviewTab) {
         self.preview_tab = tab;
+        if tab != PreviewTab::Audio {
+            self.pause_playback();
+        }
     }
 
     fn fail(&mut self, path: PathBuf, error: &dyn Error) {

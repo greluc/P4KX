@@ -1,3 +1,4 @@
+mod navigation;
 mod records;
 
 use std::collections::HashSet;
@@ -6,6 +7,7 @@ use std::sync::Arc;
 
 use p4kx_extraction::Filter;
 
+use crate::record_preview::Navigation;
 use crate::record_search::RecordSearch;
 use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{
@@ -41,6 +43,7 @@ pub struct Browser {
     preview: Option<Preview>,
     records: Option<RecordTree>,
     record_search: RecordSearch,
+    navigation: Navigation,
 }
 
 impl Browser {
@@ -68,6 +71,7 @@ impl Browser {
             preview: None,
             records,
             record_search: RecordSearch::default(),
+            navigation: Navigation::default(),
         };
         browser.refresh_tree();
         browser.refresh_shown();
@@ -305,7 +309,8 @@ impl Browser {
         let previewed = self.preview.as_mut().is_some_and(Preview::poll);
         let loaded = self.records.as_mut().is_some_and(RecordTree::poll);
         let found = self.poll_record_search(loaded);
-        self.poll_search() || previewed || loaded || found
+        let read = self.navigation.poll();
+        self.poll_search() || previewed || loaded || found || read
     }
 
     fn poll_search(&mut self) -> bool {

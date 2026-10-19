@@ -1,12 +1,11 @@
 use std::ops::Range;
 use std::path::PathBuf;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use p4kx_extraction::query::{Query, QueryError};
 
 mod cell;
 mod export;
-mod forge_slot;
 mod result;
 mod run;
 
@@ -16,7 +15,6 @@ pub use result::{QUERY_PAGE_ROWS, QueryResult, ResultColumn};
 
 use crate::EntryIndex;
 use export::ExportJob;
-use forge_slot::ForgeSlot;
 use run::{Job, Outcome, Run};
 
 /// How far a running Query has come.
@@ -147,7 +145,6 @@ enum State {
 pub struct QueryTab {
     text: String,
     state: State,
-    forge: Option<(Weak<EntryIndex>, Arc<ForgeSlot>)>,
     export: Option<ExportJob>,
 }
 
@@ -192,31 +189,16 @@ impl QueryTab {
                 return false;
             }
         };
-        let forge = self.slot_of(index);
         let job = Job {
             index: Arc::clone(index),
             query,
             text: self.text.clone(),
-            forge,
         };
         self.state = match run::start(job, wake) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };
         true
-    }
-
-    /// Returns the DataForge slot of `index`, a new one when the slot kept is of another
-    /// Archive.
-    fn slot_of(&mut self, index: &Arc<EntryIndex>) -> Arc<ForgeSlot> {
-        if let Some((of, slot)) = &self.forge
-            && of.upgrade().is_some_and(|of| Arc::ptr_eq(&of, index))
-        {
-            return Arc::clone(slot);
-        }
-        let slot = Arc::new(ForgeSlot::default());
-        self.forge = Some((Arc::downgrade(index), Arc::clone(&slot)));
-        slot
     }
 
     /// Returns the bytes of the Query text to mark as an error: the span of the error of the
@@ -229,11 +211,10 @@ impl QueryTab {
         }
     }
 
-    /// Forgets the result, the running Query, its export and the DataForge read for it,
-    /// keeping the Query text, because another Archive was opened.
+    /// Forgets the result, the running Query and its export, keeping the Query text, because
+    /// another Archive was opened.
     pub(crate) fn archive_opened(&mut self) {
         self.state = State::Idle;
-        self.forge = None;
         self.export = None;
     }
 

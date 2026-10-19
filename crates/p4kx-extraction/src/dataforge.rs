@@ -10,8 +10,6 @@ pub const DATAFORGE_ENTRIES: [&str; 2] = ["Data\\Game2.dcb", "Data\\Game.dcb"];
 /// The largest uncompressed DataForge Entry that is read, 2 GiB; larger sizes are rejected.
 pub const MAX_DATAFORGE_SIZE: u64 = 2 << 30;
 
-const INITIAL_RESERVE: u64 = 64 << 20;
-
 /// The bytes of an Archive's DataForge Entry, read into memory.
 #[derive(Debug)]
 pub struct DataForgeEntry {
@@ -40,7 +38,7 @@ impl DataForgeEntry {
             });
         }
         let mut bytes = Vec::new();
-        let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
+        let reserve = usize::try_from(size).unwrap_or(usize::MAX);
         if bytes.try_reserve_exact(reserve).is_err() {
             return Err(DataForgeLoadError::TooLarge {
                 path,

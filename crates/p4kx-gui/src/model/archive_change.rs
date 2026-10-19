@@ -53,6 +53,7 @@ impl Model {
             return false;
         }
         let path = browser.index().archive().path().to_path_buf();
+        browser.index().forge().clear();
         browser.drop_records();
         self.record_export.archive_changed();
         if self

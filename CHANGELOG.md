@@ -14,6 +14,14 @@ fails while its section is missing.
   or shown Entries. Opened containers are kept per Archive within 1 GiB of memory, closing the
   least recently used collapsed ones first; a corrupt container says so on its row, and a change
   of the Archive on disk closes them.
+- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
+  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
+  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
+  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
+  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
+  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
+  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
+  children.
 
 ## [0.2.0]
 
@@ -23,14 +31,6 @@ for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP 
 
 ### Added
 
-- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
-  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
-  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
-  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
-  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
-  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
-  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
-  children.
 - Verification of textures and localisation against all installed Channels, recorded in
   `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
   `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer

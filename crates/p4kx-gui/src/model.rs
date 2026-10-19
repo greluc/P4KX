@@ -19,7 +19,6 @@ use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
-use crate::forge_cache::ForgeCache;
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
     ExtractionSetup, Language, PreviewTab, QueryTab, Texts,
@@ -64,7 +63,6 @@ pub struct Model {
     query: QueryTab,
     record_export: RecordExportState,
     catalog: CatalogState,
-    forge: ForgeCache,
 }
 
 impl std::fmt::Debug for Model {
@@ -90,7 +88,6 @@ impl std::fmt::Debug for Model {
             .field("query", &self.query)
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
-            .field("forge", &self.forge)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -123,7 +120,6 @@ impl Model {
             query: QueryTab::default(),
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
-            forge: ForgeCache::default(),
         }
     }
 

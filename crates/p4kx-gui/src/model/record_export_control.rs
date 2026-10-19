@@ -92,8 +92,7 @@ impl Model {
         };
         let index = Arc::clone(browser.shared_index());
         self.extraction_folder = Some(request.folder.clone());
-        let source = self.forge.slot(&index);
-        self.record_export.run = Some(start(&index, source, request, wake));
+        self.record_export.run = Some(start(&index, request, wake));
         self.record_export.setup = None;
         true
     }
@@ -104,18 +103,17 @@ impl Model {
         self.record_export.run.as_ref()
     }
 
-    /// Returns whether DataForge of the open Archive was read for a Record export or a Basetool
-    /// catalog and is kept for the next one.
+    /// Returns whether DataForge of the open Archive was read and is kept for the next Record
+    /// export.
     #[must_use]
     pub fn record_export_keeps_dataforge(&self) -> bool {
         self.browser
             .as_ref()
-            .is_some_and(|browser| self.forge.is_read_for(browser.shared_index()))
+            .is_some_and(|browser| browser.index().forge().is_read())
     }
 
     /// Takes the outcome of a Record export that ended; returns whether one ended.
     pub fn poll_record_export(&mut self) -> bool {
-        self.forge.forget_closed();
         self.record_export
             .run
             .as_mut()

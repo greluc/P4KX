@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
-use crate::forge_cache::ReadGate;
+use crate::read_gate::ReadGate;
 
 /// The step a running Record export is at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -44,8 +44,7 @@ impl Model {
             return false;
         }
         let index = Arc::clone(browser.shared_index());
-        let slot = self.forge.slot(&index);
-        self.catalog.run = Some(start(&index, slot, file, wake));
+        self.catalog.run = Some(start(&index, file, wake));
         true
     }
 
@@ -70,7 +69,6 @@ impl Model {
 
     /// Takes the outcome of a Basetool catalog that ended; returns whether one ended.
     pub fn poll_catalog(&mut self) -> bool {
-        self.forge.forget_closed();
         self.catalog.run.as_mut().is_some_and(CatalogExport::poll)
     }
 

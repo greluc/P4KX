@@ -33,7 +33,9 @@ mod query_table;
 mod record_export;
 mod record_export_outcome;
 mod record_fields;
+mod record_lines;
 mod record_list;
+mod record_preview;
 mod record_results;
 mod record_rows;
 mod record_search;
@@ -116,6 +118,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         }
     }
     shortcuts::handle(ui, model);
+    record_preview::handle_shortcuts(ui, model);
     let header = Panel::top("menu")
         .frame(frames::header())
         .show_separator_line(false)

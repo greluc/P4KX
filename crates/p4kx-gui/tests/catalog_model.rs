@@ -7,7 +7,7 @@ use std::fs;
 
 use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
 use p4kx_export::{Kind, Language as TextLanguage, SizeWarning};
-use p4kx_gui::{CatalogExportStage, CatalogExportStatus};
+use p4kx_gui::{Browser, CatalogExportStage, CatalogExportStatus, Model};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 #[test]
@@ -90,7 +90,7 @@ fn cancelling_while_dataforge_is_read_ends_at_once_and_writes_nothing() -> TestR
     model.cancel_catalog();
     let ended_at_once = model.poll_catalog();
     let cancelled = matches!(ended(&mut model)?, CatalogExportStatus::Cancelled);
-    wait_until(&mut model, p4kx_gui::Model::record_export_keeps_dataforge)?;
+    wait_until(&mut model, Model::record_export_keeps_dataforge)?;
 
     assert!(ended_at_once, "the window does not wait for the read");
     assert!(cancelled, "the outcome says so");
@@ -130,7 +130,8 @@ fn cancelling_while_records_are_checked_writes_nothing() -> TestResult {
 #[test]
 fn the_dataforge_read_for_a_catalog_is_kept_for_the_record_export() -> TestResult {
     let (_dir, mut model, out) = opened(&makers())?;
-    let before = model.record_export_keeps_dataforge();
+    let reads = |model: &Model| model.browser().map(Browser::dataforge_reads);
+    let before = reads(&model);
 
     model.start_catalog(out.join("catalog.json"), || {});
     let finished = matches!(ended(&mut model)?, CatalogExportStatus::Finished(_));
@@ -144,13 +145,10 @@ fn the_dataforge_read_for_a_catalog_is_kept_for_the_record_export() -> TestResul
         model.record_export().is_some_and(|run| !run.is_running())
     })?;
 
-    assert!(!before, "nothing read before");
+    assert_eq!(before, Some(0), "nothing read before");
     assert!(finished, "the catalog is written");
     assert!(exported, "the Record export starts");
-    assert!(
-        model.record_export_keeps_dataforge(),
-        "one DataForge kept for both"
-    );
+    assert_eq!(reads(&model), Some(1), "DataForge read once for both");
     assert_eq!(
         files_in(&out.join("records/libs/foundry/records/scitemmanufacturer"))?.len(),
         3,

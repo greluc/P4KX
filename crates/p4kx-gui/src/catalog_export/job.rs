@@ -11,7 +11,7 @@ use p4kx_extraction::is_same_file;
 use super::write::{Written, write_replacing};
 use super::{CatalogExportProgress, CatalogExportStage, CatalogExportSummary, Shared};
 use crate::EntryIndex;
-use crate::forge_cache::ForgeSlot;
+use crate::forge_cache::ReadFailure;
 use crate::model::describe;
 
 /// Where a Basetool catalog stands.
@@ -165,11 +165,10 @@ fn ended(outcome: Option<RunResult>) -> State {
 }
 
 /// Creates the Basetool catalog of the Archive of `index` into `file` on a background thread,
-/// reading DataForge into `slot` unless it holds it already, and calls `wake` from that thread
-/// once the catalog ended.
+/// reading DataForge into the cache of `index` unless it holds it already, and calls `wake` from
+/// that thread once the catalog ended.
 pub(crate) fn start(
     index: &Arc<EntryIndex>,
-    slot: Arc<ForgeSlot>,
     file: PathBuf,
     wake: impl Fn() + Send + 'static,
 ) -> CatalogExport {
@@ -185,7 +184,7 @@ pub(crate) fn start(
     let spawned = thread::Builder::new()
         .name("basetool-catalog".to_owned())
         .spawn(move || {
-            if sender.send(job.run(&slot)).is_ok() {
+            if sender.send(job.run()).is_ok() {
                 wake();
             }
         });
@@ -209,12 +208,15 @@ struct Job {
 }
 
 impl Job {
-    fn run(&self, slot: &ForgeSlot) -> RunResult {
+    fn run(&self) -> RunResult {
         if is_same_file(&self.file, self.index.archive().path()) {
             return Ok(Outcome::IsArchive);
         }
-        self.check_archive()?;
-        let source = slot.read(&self.index)?;
+        let source = self
+            .index
+            .forge()
+            .read(&self.index, || {})
+            .map_err(ReadFailure::into_reason)?;
         if !self.shared.gate.leave_reading() {
             return Ok(Outcome::Cancelled);
         }

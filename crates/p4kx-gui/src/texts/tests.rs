@@ -78,6 +78,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("resolved", "4".into()),
         ("missing", "1".into()),
         ("placeholders", "2".into()),
+        ("value", "1.5".into()),
     ]
 }
 

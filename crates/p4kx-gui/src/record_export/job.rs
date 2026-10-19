@@ -16,7 +16,7 @@ use rayon::prelude::*;
 use super::RecordExportSummary;
 use super::progress::{RecordExportProgress, RecordExportStage, Shared};
 use crate::extraction::target_naming;
-use crate::forge_cache::{ForgeSlot, ForgeSource};
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 use crate::{EntryIndex, TargetKind};
 
@@ -156,11 +156,10 @@ fn ended(outcome: Option<RunResult>) -> State {
 }
 
 /// Starts writing the Records of `request` from the DataForge of `index` on a background thread,
-/// reading DataForge into `source` unless it holds it already, and calls `wake` from that thread
-/// once the export ended.
+/// reading DataForge into the cache of `index` unless it holds it already, and calls `wake` from
+/// that thread once the export ended.
 pub(crate) fn start(
     index: &Arc<EntryIndex>,
-    source: Arc<ForgeSlot>,
     request: Request,
     wake: impl Fn() + Send + 'static,
 ) -> RecordExport {
@@ -183,7 +182,7 @@ pub(crate) fn start(
                 cancel: &thread_cancel,
                 shared: &thread_shared,
             };
-            if sender.send(job.run(&source)).is_ok() {
+            if sender.send(job.run()).is_ok() {
                 wake();
             }
         });
@@ -209,8 +208,8 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
-    fn run(&self, slot: &ForgeSlot) -> RunResult {
-        let source = self.source(slot)?;
+    fn run(&self) -> RunResult {
+        let source = self.source()?;
         if !self.shared.leave_reading() {
             return Err(String::new());
         }
@@ -247,13 +246,16 @@ impl Job<'_> {
         Ok(RecordExportSummary::new(target, records.len(), &summary))
     }
 
-    /// Returns DataForge from `slot`, reading it from the Archive first when the slot is empty.
-    fn source(&self, slot: &ForgeSlot) -> Result<Arc<ForgeSource>, String> {
+    /// Returns DataForge from the cache of the Archive, reading it first when the cache is empty.
+    fn source(&self) -> Result<Arc<ForgeSource>, String> {
         self.index
             .watch()
             .check()
             .map_err(|error| describe(&error))?;
-        slot.read(self.index)
+        self.index
+            .forge()
+            .read(self.index, || {})
+            .map_err(ReadFailure::into_reason)
     }
 }
 

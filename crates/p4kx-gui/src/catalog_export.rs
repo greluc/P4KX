@@ -9,7 +9,7 @@ use p4kx_export::CatalogSummary;
 pub use job::{CatalogExport, CatalogExportStatus};
 pub(crate) use job::{refused, start};
 
-use crate::forge_cache::ReadGate;
+use crate::read_gate::ReadGate;
 
 /// The file name the save dialog of the Basetool catalog suggests.
 pub const CATALOG_FILE: &str = "basetool-catalog.json";

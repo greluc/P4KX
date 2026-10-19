@@ -8,9 +8,7 @@ mod querying;
 use std::time::{Duration, Instant};
 
 use model::{column, finished, opened, run, settled};
-use p4kx_gui::{
-    Language, Model, QUERY_PAGE_ROWS, QueryStage, QueryStatus, ResultColumn, SortDirection,
-};
+use p4kx_gui::{Language, Model, QUERY_PAGE_ROWS, QueryStatus, ResultColumn, SortDirection};
 use querying::{REFERENCING, TestResult, archive, database, listed, numbered, referencing};
 #[test]
 fn a_query_lists_one_row_per_record_with_one_column_per_selected_path() -> TestResult {
@@ -228,21 +226,16 @@ fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResul
 fn a_second_run_does_not_read_dataforge_again() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut model = opened(&archive(dir.path(), &database())?)?;
-    model.query_mut().set_text("from Item");
-    model.run_query(|| {});
-    let first = model.query().status().stage();
-    settled(&mut model)?;
+    let reads = |model: &Model| model.browser().map(p4kx_gui::Browser::dataforge_reads);
+    let before = reads(&model);
+    run(&mut model, "from Item")?;
+    let first = reads(&model);
 
-    model.run_query(|| {});
-    let second = model.query().status().stage();
-    settled(&mut model)?;
+    run(&mut model, "from Item select mass")?;
 
-    assert_eq!(
-        first,
-        Some(QueryStage::Loading),
-        "the first run reads DataForge"
-    );
-    assert_eq!(second, Some(QueryStage::Selecting), "the second does not");
+    assert_eq!(before, Some(0), "nothing read before the first run");
+    assert_eq!(first, Some(1), "the first run reads DataForge");
+    assert_eq!(reads(&model), Some(1), "the second does not");
     Ok(())
 }
 

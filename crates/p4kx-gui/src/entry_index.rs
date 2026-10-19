@@ -4,6 +4,7 @@ use p4kx_extraction::{Archive, ArchiveWatch, DataForgeEntry, Entry, Filter};
 use rayon::prelude::*;
 
 use crate::folder_tree::{self, Folder, FolderId, NO_FOLDER};
+use crate::forge_cache::ForgeCache;
 use crate::sort::{Sort, SortDirection, SortOrders, file_name};
 
 /// An opened Archive with its path tree and its Entries pre-sorted by every column.
@@ -18,6 +19,7 @@ pub struct EntryIndex {
     folders: Vec<Folder>,
     orders: SortOrders,
     dataforge: Option<usize>,
+    forge: ForgeCache,
 }
 
 impl EntryIndex {
@@ -48,6 +50,7 @@ impl EntryIndex {
             folders,
             orders,
             dataforge,
+            forge: ForgeCache::default(),
         }
     }
 
@@ -57,6 +60,11 @@ impl EntryIndex {
     pub fn dataforge_entry(&self) -> Option<&Entry> {
         self.dataforge
             .and_then(|position| self.archive.entries().get(position))
+    }
+
+    /// Returns the one DataForge cache of the Archive.
+    pub(crate) const fn forge(&self) -> &ForgeCache {
+        &self.forge
     }
 
     /// Returns the Archive.

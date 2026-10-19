@@ -11,6 +11,7 @@ mod channel_list;
 mod comparison;
 #[cfg(windows)]
 pub mod dwm;
+mod entry_groups;
 mod entry_index;
 mod extraction;
 mod folder_tree;
@@ -39,7 +40,7 @@ pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
     StreamGuard,
 };
-pub use browser::{Browser, TreeRow};
+pub use browser::{Browser, EntryRow, EntryRowKind, TreeRow};
 pub use catalog_export::{
     CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
     CatalogExportSummary,
@@ -86,6 +87,6 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
-    ExtractionText, ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText,
-    RecordText, Text, Texts, XmlText,
+    ExtractionText, GroupText, ImageText, QueryText, RecordChangeText, RecordExportText,
+    RecordSearchText, RecordText, Text, Texts, XmlText,
 };

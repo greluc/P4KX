@@ -12,9 +12,12 @@ Early development (milestone M1). Available today:
 
 - `p4kx list <archive>` lists every Entry of an Archive: compression method, encryption flag,
   compressed size, size and path. Archives in the v1 (ZIP64) and the v2 (`Jiji` trailer) layout
-  are recognised automatically; any other layout version is rejected with its number.
+  are recognised automatically; any other layout version is rejected with its number. A split
+  texture (`.dds` with its parts and alpha tail) is one row with the size of the whole texture and
+  ` (+N parts)` behind its path (`parts` in `--json`); `--parts` lists every part as an Entry of
+  its own.
 - `p4kx search <archive> <filter>` lists the Entries whose path matches a Filter, in the same
-  columns as `list`. A Filter with `*` or `?` is a glob over the full path: `*` matches any run of
+  columns as `list` but unfolded: every matching part is a row of its own. A Filter with `*` or `?` is a glob over the full path: `*` matches any run of
   characters, separators included, `?` exactly one character, and the glob must match the whole
   path (`*.xml`, `Data\Libs\*`, `*\defaultProfile.???`). Any other Filter matches when it occurs
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every

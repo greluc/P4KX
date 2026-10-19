@@ -9,8 +9,8 @@ use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
     Archive, ArchiveWatch, Build, CancelToken, ConflictPolicy, DataForgeEntry, Entry, EntryFailure,
-    ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, create_default_target,
-    extract, select_entries,
+    ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, TextureGroups,
+    create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -193,13 +193,15 @@ fn requested_entries<'a>(args: &ExtractArgs, archive: &'a Archive) -> Result<Vec
     }
 }
 
-/// Returns the Entries of `archive` the Filter `text` matches.
+/// Returns the Entries of `archive` the Filter `text` matches, and all Entries of each split
+/// texture one of them matches.
 ///
 /// # Errors
 ///
 /// Returns [`NoMatch`] when it matches none.
 pub(crate) fn filtered_entries<'a>(archive: &'a Archive, text: &str) -> Result<Vec<&'a Entry>> {
-    let entries = Filter::new(text).select(archive);
+    let groups = TextureGroups::build(archive);
+    let entries = Filter::new(text).select_with_parts(archive, &groups);
     if entries.is_empty() {
         return Err(NoMatch(text.to_owned()).into());
     }

@@ -8,6 +8,7 @@ mod comparison_text;
 mod dataforge_text;
 mod diff_text;
 mod extraction_text;
+mod group_text;
 mod image_text;
 mod query_text;
 mod record_change_text;
@@ -23,6 +24,7 @@ pub use comparison_text::ComparisonText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
+pub use group_text::GroupText;
 pub use image_text::ImageText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
@@ -172,6 +174,8 @@ pub enum Text {
     Diff(DiffText),
     /// A text of the Record list of the Comparison tab.
     RecordChange(RecordChangeText),
+    /// A text of the split textures in the Entry table.
+    Group(GroupText),
     /// A text of the image preview.
     Image(ImageText),
     /// A text of the audio preview.

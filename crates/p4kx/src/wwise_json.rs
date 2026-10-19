@@ -126,7 +126,7 @@ pub(crate) fn variant<'a>(variant: &SoundVariant<'a>) -> VariantJson<'a> {
         sound_id: variant.sound_id(),
         wem_id: variant.wem_id(),
         source: variant.source_kind().name(),
-        location: variant.location().map(location),
+        location: variant.location().and_then(location),
         path: steps(variant.path()),
     }
 }
@@ -153,24 +153,19 @@ fn soundbank(bank: &IndexedSoundbank) -> SoundbankJson<'_> {
     }
 }
 
-fn location<'a>(location: &WemLocation<'a>) -> LocationJson<'a> {
+fn location<'a>(location: &WemLocation<'a>) -> Option<LocationJson<'a>> {
     match location {
         WemLocation::Soundbank {
             soundbank,
             offset,
             len,
-        } => LocationJson {
+        } => Some(LocationJson {
             kind: "soundbank",
             soundbank: soundbank.path(),
             offset: *offset,
             len: *len,
-        },
-        _ => LocationJson {
-            kind: "other",
-            soundbank: "",
-            offset: 0,
-            len: 0,
-        },
+        }),
+        _ => None,
     }
 }
 

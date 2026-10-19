@@ -21,6 +21,13 @@ fn resolve(bank: TestBank, check: impl FnOnce(&TriggerSounds<'_>) -> TestResult)
         .object(TestHircObject::event(wwise_short_id("Play_It"), &[1]))
         .object(TestHircObject::action(1, PLAY, 10))
         .bytes();
+    resolve_bytes(bytes, check)
+}
+
+fn resolve_bytes(
+    bytes: Vec<u8>,
+    check: impl FnOnce(&TriggerSounds<'_>) -> TestResult,
+) -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     ArchiveBuilder::new()
@@ -114,6 +121,54 @@ fn a_hierarchy_leading_to_more_objects_than_the_budget_is_cut_once() -> TestResu
             sounds.variants().len() < MAX_EVENT_OBJECTS,
             "{} variants",
             sounds.variants().len()
+        );
+        Ok(())
+    })
+}
+
+#[test]
+fn back_references_are_charged_to_the_budget() -> TestResult {
+    let mut bank = TestBank::new(1);
+    for id in 10..40 {
+        let mut children = vec![10; 900];
+        children.extend([id + 1, id + 1]);
+        bank = bank.object(random(id, &children));
+    }
+    resolve(bank.object(random(40, &[10; 900])), |sounds| {
+        let budget = sounds
+            .breaks()
+            .iter()
+            .filter(|link| matches!(link.reason(), BreakReason::TooManyObjects { .. }))
+            .count();
+        assert_eq!(budget, 1, "the budget cut is reported once");
+        assert!(
+            sounds.breaks().len() <= MAX_EVENT_OBJECTS + 1,
+            "{} breaks",
+            sounds.breaks().len()
+        );
+        Ok(())
+    })
+}
+
+#[test]
+fn an_event_listing_itself_many_times_is_cut_at_the_fan_out_limit() -> TestResult {
+    let event = wwise_short_id("Play_It");
+    let bytes = TestBank::new(1)
+        .object(TestHircObject::event(event, &vec![event; 5000]))
+        .bytes();
+    resolve_bytes(bytes, |sounds| {
+        assert!(sounds.variants().is_empty(), "no variants");
+        assert_eq!(
+            sounds.breaks().len(),
+            MAX_CONTAINER_CHILDREN + 1,
+            "one break per followed action and one for the rest"
+        );
+        assert!(
+            sounds.breaks().iter().any(|link| matches!(
+                link.reason(),
+                BreakReason::TooManyChildren { count: 5000, .. }
+            )),
+            "the list is reported as too long"
         );
         Ok(())
     })

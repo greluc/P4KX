@@ -27,6 +27,7 @@ const HAS_AUX: u8 = 0b0000_1000;
 
 /// The kind of a container object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ContainerKind {
     /// A random container, which plays one of its children at random.
     Random,
@@ -40,6 +41,7 @@ pub enum ContainerKind {
 
 /// A random, sequence, switch or blend container object.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct Container {
     /// The kind of container.
     pub kind: ContainerKind,
@@ -70,7 +72,7 @@ pub(crate) fn container(
             fields.u8()?;
             (ContainerKind::Blend, children)
         }
-        _ => {
+        HircKind::RandomSequenceContainer => {
             fields.skip(RANDOM_SEQUENCE_PARAMS_LEN - 2)?;
             let mode = fields.u8()?;
             fields.u8()?;
@@ -83,6 +85,12 @@ pub(crate) fn container(
                 ContainerKind::Random
             };
             (kind, children)
+        }
+        _ => {
+            return Err(BankError::invalid(
+                SectionId::HIRC,
+                "the object is not a container",
+            ));
         }
     };
     if fields.remaining() > 0 {

@@ -1,6 +1,6 @@
 //! Random, sequence, switch and blend containers of the `HIRC` section, decoded to their children.
 
-use p4kx_audio::{BankError, Container, ContainerKind, HircKind, HircValue, SectionId, Soundbank};
+use p4kx_audio::{BankError, ContainerKind, HircKind, HircValue, SectionId, Soundbank};
 use p4kx_testkit::{TestBank, TestContainerKind, TestHircObject, TestNodeBase};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -14,6 +14,17 @@ fn decoded(object: TestHircObject, version: u32) -> Result<(HircKind, HircValue)
         .map_or((HircKind::Other(0), HircValue::Raw), |object| {
             (object.kind, object.value.clone())
         }))
+}
+
+fn parts(value: &HircValue) -> Option<(ContainerKind, u32, Vec<u32>)> {
+    match value {
+        HircValue::Container(container) => Some((
+            container.kind,
+            container.parent_id,
+            container.children.clone(),
+        )),
+        _ => None,
+    }
 }
 
 #[test]
@@ -45,16 +56,11 @@ fn every_container_kind_is_decoded_with_its_children_in_order() -> TestResult {
         ),
     ] {
         let object = TestHircObject::container(kind, 77, &[30, 10, 20], base);
+        let (decoded_kind, value) = decoded(object, 154)?;
+        assert_eq!(decoded_kind, type_byte, "{kind:?} object kind");
         assert_eq!(
-            decoded(object, 154)?,
-            (
-                type_byte,
-                HircValue::Container(Container {
-                    kind: expected_kind,
-                    parent_id: 0x2C21_1B2E,
-                    children: vec![30, 10, 20],
-                })
-            ),
+            parts(&value),
+            Some((expected_kind, 0x2C21_1B2E, vec![30, 10, 20])),
             "{kind:?} with a {base:?} node base"
         );
     }
@@ -65,12 +71,8 @@ fn every_container_kind_is_decoded_with_its_children_in_order() -> TestResult {
 fn a_container_without_children_is_decoded_empty() -> TestResult {
     let object = TestHircObject::container(TestContainerKind::Switch, 5, &[], TestNodeBase::Plain);
     assert_eq!(
-        decoded(object, 154)?.1,
-        HircValue::Container(Container {
-            kind: ContainerKind::Switch,
-            parent_id: 0x2C21_1B2E,
-            children: Vec::new(),
-        }),
+        parts(&decoded(object, 154)?.1),
+        Some((ContainerKind::Switch, 0x2C21_1B2E, Vec::new())),
         "no children"
     );
     Ok(())

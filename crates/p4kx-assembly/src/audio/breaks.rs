@@ -53,9 +53,10 @@ pub enum BreakReason {
         /// The limit.
         limit: usize,
     },
-    /// The event leads to more objects than [`MAX_EVENT_OBJECTS`](super::MAX_EVENT_OBJECTS); the
-    /// rest are left out.
-    #[error("the event leads to more than {limit} objects; the rest are left out")]
+    /// The walk followed as many references as its budget allows, at most
+    /// [`MAX_EVENT_OBJECTS`](super::MAX_EVENT_OBJECTS) and a share of
+    /// [`MAX_TRIGGER_OBJECTS`](super::MAX_TRIGGER_OBJECTS); the rest are left out.
+    #[error("the event leads to more than {limit} references; the rest are left out")]
     TooManyObjects {
         /// The limit.
         limit: usize,

@@ -5,7 +5,8 @@ use super::read::entry_bytes;
 use super::walk::{self, Found};
 use super::{
     ArchiveAudio, AudioFileError, AudioIndex, BreakReason, BrokenLink, IndexedSoundbank,
-    MAX_SOUNDBANK_LEN, NodeKind, PathStep, TriggerSounds, WwiseEvent,
+    MAX_EVENT_OBJECTS, MAX_SOUNDBANK_LEN, MAX_TRIGGER_OBJECTS, NodeKind, PathStep, TriggerSounds,
+    WwiseEvent,
 };
 
 type BankWalk<'i> = (u32, Result<Vec<(usize, Found<'i>)>, AudioFileError>);
@@ -28,9 +29,19 @@ impl ArchiveAudio<'_> {
             .collect();
         positions.sort_unstable();
         positions.dedup();
+        let pairs: usize = events
+            .iter()
+            .map(|event| index.event_holders(event.id()).len())
+            .sum();
+        let budget = (MAX_TRIGGER_OBJECTS / pairs.max(1)).clamp(1, MAX_EVENT_OBJECTS);
         let mut walks: Vec<BankWalk<'_>> = positions
             .par_iter()
-            .map(|&position| (position, self.walk_soundbank(index, position, events)))
+            .map(|&position| {
+                (
+                    position,
+                    self.walk_soundbank(index, position, events, budget),
+                )
+            })
             .collect();
         let mut sounds = TriggerSounds {
             trigger,
@@ -85,6 +96,7 @@ impl ArchiveAudio<'_> {
         index: &'i AudioIndex,
         position: u32,
         events: &'i [WwiseEvent],
+        budget: usize,
     ) -> Result<Vec<(usize, Found<'i>)>, AudioFileError> {
         let soundbank = soundbank_at(index, position).ok_or_else(gone)?;
         let entry = self
@@ -97,7 +109,7 @@ impl ArchiveAudio<'_> {
             .iter()
             .enumerate()
             .filter(|(_, event)| index.event_holders(event.id()).contains(&position))
-            .map(|(number, event)| (number, walk::event(index, &bank, soundbank, event)))
+            .map(|(number, event)| (number, walk::event(index, &bank, soundbank, event, budget)))
             .collect())
     }
 }

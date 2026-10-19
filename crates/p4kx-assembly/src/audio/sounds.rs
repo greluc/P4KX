@@ -32,6 +32,7 @@ impl NodeKind {
             ContainerKind::Sequence => Self::Sequence,
             ContainerKind::Switch => Self::Switch,
             ContainerKind::Blend => Self::Blend,
+            _ => Self::Other(HircKind::Other(0)),
         }
     }
 

@@ -1,9 +1,8 @@
 use p4kx_audio::{HircKind, HircObject, HircValue, SoundSource, Soundbank};
 
 use super::{
-    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, MAX_CONTAINER_CHILDREN,
-    MAX_EVENT_OBJECTS, MAX_PATH_DEPTH, NodeKind, PathStep, SoundVariant, SourceKind, WemLocation,
-    WwiseEvent,
+    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, MAX_CONTAINER_CHILDREN, MAX_PATH_DEPTH,
+    NodeKind, PathStep, SoundVariant, SourceKind, WemLocation, WwiseEvent,
 };
 
 /// The variants and broken links one Wwise event leads to in one soundbank.
@@ -20,6 +19,7 @@ pub(crate) fn event<'i>(
     bank: &Soundbank<Vec<u8>>,
     soundbank: &'i IndexedSoundbank,
     event: &'i WwiseEvent,
+    budget: usize,
 ) -> Found<'i> {
     let mut walk = Walk {
         index,
@@ -28,6 +28,7 @@ pub(crate) fn event<'i>(
         event,
         path: Vec::new(),
         objects: 0,
+        budget,
         exhausted: false,
         found: Found::default(),
     };
@@ -42,12 +43,21 @@ struct Walk<'w, 'i> {
     event: &'i WwiseEvent,
     path: Vec<PathStep>,
     objects: usize,
+    budget: usize,
     exhausted: bool,
     found: Found<'i>,
 }
 
 impl<'w, 'i> Walk<'w, 'i> {
     fn follow(&mut self, id: u32) {
+        if self.objects >= self.budget {
+            if !self.exhausted {
+                self.exhausted = true;
+                self.broke(BreakReason::TooManyObjects { limit: self.budget });
+            }
+            return;
+        }
+        self.objects += 1;
         if self.path.len() >= MAX_PATH_DEPTH {
             self.broke(BreakReason::TooDeep {
                 limit: MAX_PATH_DEPTH,
@@ -58,16 +68,6 @@ impl<'w, 'i> Walk<'w, 'i> {
             self.broke(BreakReason::Cycle { id });
             return;
         }
-        if self.objects >= MAX_EVENT_OBJECTS {
-            if !self.exhausted {
-                self.exhausted = true;
-                self.broke(BreakReason::TooManyObjects {
-                    limit: MAX_EVENT_OBJECTS,
-                });
-            }
-            return;
-        }
-        self.objects += 1;
         let Some(object) = self.object(id) else {
             self.broke(BreakReason::Missing { id });
             return;
@@ -94,27 +94,13 @@ impl<'w, 'i> Walk<'w, 'i> {
 
     fn visit(&mut self, object: &HircObject) {
         match &object.value {
-            HircValue::Event(actions) if self.path.len() == 1 => {
-                for &action in actions {
-                    self.follow(action);
-                }
-            }
+            HircValue::Event(actions) if self.path.len() == 1 => self.children(actions),
             HircValue::Action(action) => {
                 if action.is_play() {
                     self.follow(action.target_id);
                 }
             }
-            HircValue::Container(container) => {
-                for &child in container.children.iter().take(MAX_CONTAINER_CHILDREN) {
-                    self.follow(child);
-                }
-                if container.children.len() > MAX_CONTAINER_CHILDREN {
-                    self.broke(BreakReason::TooManyChildren {
-                        count: container.children.len(),
-                        limit: MAX_CONTAINER_CHILDREN,
-                    });
-                }
-            }
+            HircValue::Container(container) => self.children(&container.children),
             HircValue::Sound(source) => self.sound(*source),
             HircValue::Malformed(error) => self.broke(BreakReason::Malformed(error.clone())),
             HircValue::Raw
@@ -131,6 +117,18 @@ impl<'w, 'i> Walk<'w, 'i> {
                 });
             }
             _ => self.broke(BreakReason::Unsupported),
+        }
+    }
+
+    fn children(&mut self, ids: &[u32]) {
+        for &id in ids.iter().take(MAX_CONTAINER_CHILDREN) {
+            self.follow(id);
+        }
+        if ids.len() > MAX_CONTAINER_CHILDREN {
+            self.broke(BreakReason::TooManyChildren {
+                count: ids.len(),
+                limit: MAX_CONTAINER_CHILDREN,
+            });
         }
     }
 
@@ -153,23 +151,22 @@ impl<'w, 'i> Walk<'w, 'i> {
         let holder = |location: &WemLocation<'i>| match location {
             WemLocation::Soundbank { soundbank, .. } => *soundbank,
         };
-        let own = self
-            .index
-            .embedded_wem(wem)
-            .find(|location| std::ptr::eq(holder(location), self.soundbank));
-        let language = self.soundbank.language();
-        let same_language = || {
-            self.index.embedded_wem(wem).find(|location| {
-                match (holder(location).language(), language) {
-                    (Some(theirs), Some(ours)) => theirs.eq_ignore_ascii_case(ours),
-                    (theirs, ours) => theirs.is_none() && ours.is_none(),
-                }
-            })
+        let find = |accepts: &dyn Fn(&'i IndexedSoundbank) -> bool| {
+            self.index
+                .embedded_wem(wem)
+                .find(|location| accepts(holder(location)))
         };
-        own.or_else(same_language)
+        let ours = self.soundbank.language();
+        find(&|bank| std::ptr::eq(bank, self.soundbank))
+            .or_else(|| {
+                find(&|bank| match (bank.language(), ours) {
+                    (Some(theirs), Some(ours)) => theirs.eq_ignore_ascii_case(ours),
+                    _ => false,
+                })
+            })
+            .or_else(|| find(&|bank| bank.language().is_none()))
             .or_else(|| self.index.embedded_wem(wem).next())
     }
-
     fn broke(&mut self, reason: BreakReason) {
         self.found.breaks.push(BrokenLink {
             event: self.event,

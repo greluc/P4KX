@@ -237,7 +237,7 @@ A **Variant**:
 | `path` | array | Container path from the Event object to the Sound object, each step with `kind` and `id` |
 
 An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in a
-soundbank of the same language folder (or another soundbank that is not localised), then in every
+soundbank of the same language folder, then in a soundbank that is not localised, then in every
 other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
 `event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
 not followed its `HIRC` type, e.g. `music_track`.

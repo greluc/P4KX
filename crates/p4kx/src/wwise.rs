@@ -96,7 +96,7 @@ fn variant_line(variant: &SoundVariant<'_>) -> String {
                 soundbank_name(soundbank)
             )
         }
-        Some(_) => "located".to_owned(),
+        Some(_) => "at an unknown location".to_owned(),
         None => "not located".to_owned(),
     };
     let media = variant.wem_id().map_or_else(

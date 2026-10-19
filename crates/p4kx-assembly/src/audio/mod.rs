@@ -53,3 +53,7 @@ pub const MAX_CONTAINER_CHILDREN: usize = 1024;
 
 /// The most objects followed from one Wwise event in one soundbank.
 pub const MAX_EVENT_OBJECTS: usize = 1 << 14;
+
+/// The most objects followed for one audio trigger over all its events and soundbanks; the share
+/// of each event in each soundbank shrinks once the product exceeds it.
+pub const MAX_TRIGGER_OBJECTS: usize = 1 << 21;

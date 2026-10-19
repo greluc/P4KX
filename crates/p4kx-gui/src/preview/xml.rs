@@ -1,6 +1,6 @@
 use std::io::Read;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 
 use p4kx_extraction::cryxml::{self, Format};
@@ -13,9 +13,6 @@ use crate::model::describe;
 pub const XML_SIZE_LIMIT: u64 = 64 * 1024 * 1024;
 
 const READ_CHUNK: u64 = 1024 * 1024;
-const RESERVED_LEN: usize = 16 * 1024 * 1024;
-
-static SERIAL: AtomicU64 = AtomicU64::new(0);
 
 /// Returns whether data starting with `start` is `CryXml`; text XML and other data are not.
 pub(super) fn is_cryxml(start: &[u8]) -> bool {
@@ -56,7 +53,6 @@ enum State {
 /// The XML preview of a `CryXml` Entry, converted on a background thread.
 #[derive(Debug)]
 pub struct XmlPreview {
-    serial: u64,
     dropped: Arc<AtomicBool>,
     state: State,
 }
@@ -77,17 +73,10 @@ impl XmlPreview {
             sender,
         };
         let preview = Self {
-            serial: SERIAL.fetch_add(1, Ordering::Relaxed),
             dropped,
             state: State::Converting(receiver),
         };
         (preview, job)
-    }
-
-    /// Returns a number no other XML preview of this process has.
-    #[must_use]
-    pub const fn serial(&self) -> u64 {
-        self.serial
     }
 
     /// Returns where the preview stands.
@@ -159,7 +148,9 @@ impl XmlJob {
         if size > XML_SIZE_LIMIT {
             return Some(Converted::TooLarge);
         }
-        let capacity = usize::try_from(size).unwrap_or(0).min(RESERVED_LEN);
+        let Ok(capacity) = usize::try_from(size) else {
+            return Some(Converted::TooLarge);
+        };
         let mut data = Vec::with_capacity(capacity.max(start.len()));
         data.extend_from_slice(start);
         let mut remaining = size.saturating_sub(start.len() as u64);
@@ -174,6 +165,9 @@ impl XmlJob {
             match read {
                 Ok(0) => break,
                 Ok(count) => remaining = remaining.saturating_sub(count as u64),
+                Err(_) if index.watch().check().is_err() => {
+                    return Some(Converted::ArchiveChanged);
+                }
                 Err(error) => return Some(Converted::Failed(describe(&error))),
             }
         }
@@ -192,6 +186,9 @@ impl XmlJob {
         }
         drop(document);
         drop(data);
+        if self.is_dropped() {
+            return None;
+        }
         Some(Converted::Ready(XmlDocument::new(
             writer.out,
             writer.capped,

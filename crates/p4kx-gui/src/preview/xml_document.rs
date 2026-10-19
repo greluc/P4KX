@@ -1,14 +1,17 @@
 use std::io::{self, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::comparison::shown_len;
 
 /// The most bytes of converted XML a preview keeps; the lines after them are left out.
 pub const XML_TEXT_LIMIT: usize = 64 * 1024 * 1024;
 
+static SERIAL: AtomicU64 = AtomicU64::new(0);
+
 /// An XML text split into lines for a view that lays out only the lines it shows.
 #[derive(Debug)]
 pub struct XmlDocument {
+    serial: u64,
     bytes: Vec<u8>,
     starts: Vec<u32>,
     truncated: bool,
@@ -37,12 +40,21 @@ impl XmlDocument {
             }
             start += line.len();
         }
+        bytes.shrink_to_fit();
+        starts.shrink_to_fit();
         Self {
+            serial: SERIAL.fetch_add(1, Ordering::Relaxed),
             bytes,
             starts,
             truncated,
             widest: widest.1,
         }
+    }
+
+    /// Returns a number no other XML document of this process has.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
     }
 
     /// Returns the whole text.

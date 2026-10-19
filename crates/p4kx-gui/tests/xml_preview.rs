@@ -4,10 +4,14 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use egui::Key;
 use egui::OutputCommand;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Browser, Language, Model, Preview, PreviewTab, XmlPreview, XmlStatus, ui};
+use p4kx_gui::{
+    Browser, Language, Model, PREVIEW_READ_LIMIT, Preview, PreviewStatus, PreviewTab,
+    XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlPreview, XmlStatus, ui,
+};
 use p4kx_testkit::{ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, TestElement, TestEntry};
 use tempfile::TempDir;
 
@@ -36,9 +40,23 @@ fn fleet(ships: usize) -> Vec<u8> {
         .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
 }
 
-fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
-    let folder = tempfile::tempdir()?;
-    let path = folder.path().join("Data.p4k");
+fn long() -> Vec<u8> {
+    let value = "v".repeat(64 * 1024);
+    let children = XML_TEXT_LIMIT / value.len() + 16;
+    (0..children)
+        .fold(TestElement::new("long"), |long, _| {
+            long.child(TestElement::new("item").attribute("value", value.as_str()))
+        })
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
+}
+
+fn huge_start() -> Vec<u8> {
+    let mut start = ship();
+    start.resize(PREVIEW_READ_LIMIT + 1, 0);
+    start
+}
+
+fn entries() -> ArchiveBuilder {
     let mut broken = b"CryXmlB\0".to_vec();
     broken.extend_from_slice(&[0xFF; 24]);
     ArchiveBuilder::new()
@@ -49,13 +67,27 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
             "<config>\n  <ship name=\"Aurora\"/>\n</config>\n",
         ))
         .entry(TestEntry::zstd("Data\\Libs\\fleet.xml", fleet(50_000)))
+        .entry(TestEntry::zstd("Data\\Libs\\long.xml", long()))
+        .entry(
+            TestEntry::stored("Data\\Libs\\huge.xml", huge_start())
+                .with_uncompressed_size(XML_SIZE_LIMIT + 1),
+        )
         .entry(TestEntry::stored("Data\\readme.txt", "plain text"))
-        .write_to(&path)?;
+}
+
+fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
+    let folder = tempfile::tempdir()?;
+    let path = folder.path().join("Data.p4k");
+    entries().write_to(&path)?;
     Ok((folder, path))
 }
 
 fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let (folder, path) = archive()?;
+    Ok((folder, opened_at(language, path)?))
+}
+
+fn opened_at(language: Language, path: PathBuf) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1600.0, 900.0])
@@ -67,7 +99,7 @@ fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<
         );
     harness.state_mut().open(path, || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
-    Ok((folder, harness))
+    Ok(harness)
 }
 
 fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
@@ -283,6 +315,127 @@ fn the_german_xml_tab_uses_german_texts() -> TestResult {
             )
             .is_some(),
         "error"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_entry_too_large_to_convert_says_so_in_the_xml_tab() -> TestResult {
+    let (_folder, mut harness) = opened(Language::BritishEnglish)?;
+
+    select(&mut harness, "huge.xml")?;
+
+    assert_eq!(harness.state().preview_tab(), PreviewTab::Xml, "XML tab");
+    assert!(
+        harness
+            .query_by_label_contains("are not converted in the preview")
+            .is_some(),
+        "too large message"
+    );
+    Ok(())
+}
+
+#[test]
+fn xml_past_the_limit_is_cut_and_marked_as_truncated() -> TestResult {
+    let (_folder, mut harness) = opened(Language::BritishEnglish)?;
+
+    select(&mut harness, "long.xml")?;
+
+    let (truncated, size) = match xml(harness.state()).map(XmlPreview::status) {
+        Some(XmlStatus::Ready(document)) => (document.is_truncated(), document.bytes().len()),
+        other => return Err(format!("not converted: {other:?}").into()),
+    };
+    assert!(truncated, "truncated");
+    assert!(size <= XML_TEXT_LIMIT, "{size} bytes kept");
+    assert!(
+        harness
+            .query_by_label_contains("Truncated: showing the first ")
+            .is_some(),
+        "truncation note"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cryxml_entry_of_a_changed_archive_is_not_converted() -> TestResult {
+    let (folder, path) = archive()?;
+    let mut harness = opened_at(Language::BritishEnglish, path.clone())?;
+    select(&mut harness, "ship.xml")?;
+
+    entries()
+        .entry(TestEntry::stored("Data\\patch.txt", "patch"))
+        .write_to(&path)?;
+    let browser = harness.state_mut().browser_mut().ok_or("not opened")?;
+    let fleet = (0..u32::try_from(browser.index().len())?)
+        .find(|&id| browser.index().name(id) == "fleet.xml")
+        .ok_or("no fleet")?;
+    browser.select_entry(fleet, || {});
+    wait_until(&mut harness, |model| {
+        model.browser().is_some_and(|browser| {
+            browser.preview().is_some_and(|preview| {
+                browser.index().name(preview.entry()) == "fleet.xml"
+                    && matches!(preview.status(), PreviewStatus::ArchiveChanged)
+            })
+        })
+    })?;
+
+    assert!(xml(harness.state()).is_none(), "no XML preview");
+    assert!(harness.query_by_label("XML").is_none(), "no XML tab");
+    assert!(
+        harness
+            .query_by_label("The Archive changed on disk. Reload it to preview Entries.")
+            .is_some(),
+        "archive change message"
+    );
+    drop(folder);
+    Ok(())
+}
+
+#[test]
+fn the_focused_xml_view_scrolls_with_the_keyboard() -> TestResult {
+    let (_folder, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "fleet.xml")?;
+    let first = "  <ship name=\"ship-0\"/>";
+    let declaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+
+    harness.get_by_label("Converted XML").focus();
+    harness.run();
+    harness.key_press(Key::End);
+    harness.run();
+    assert!(
+        harness.query_by_label("</fleet>").is_some(),
+        "End shows the last line"
+    );
+    assert!(
+        harness.query_by_label(first).is_none(),
+        "the first ship scrolled away"
+    );
+
+    harness.key_press(Key::Home);
+    harness.run();
+    assert!(
+        harness.query_by_label(first).is_some(),
+        "Home shows the first ship"
+    );
+
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(
+        harness.query_by_label(declaration).is_none(),
+        "one line down"
+    );
+    assert!(harness.query_by_label(first).is_some(), "only one line");
+
+    harness.key_press(Key::PageDown);
+    harness.run();
+    assert!(harness.query_by_label(first).is_none(), "a page down");
+
+    harness.key_press(Key::PageUp);
+    harness.key_press(Key::ArrowUp);
+    harness.run();
+    assert!(
+        harness.query_by_label(declaration).is_some(),
+        "back at the top"
     );
     Ok(())
 }

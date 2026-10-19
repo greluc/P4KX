@@ -320,3 +320,4 @@ xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit }
 xml-failed = { $path } kann nicht in XML umgewandelt werden: { $reason }
 xml-stopped = Das Umwandeln von { $path } brach ohne Ergebnis ab.
 xml-truncated = Gekürzt: angezeigt werden die ersten { $lines } Zeilen, die ersten { $limit } des XML.
+xml-view = Umgewandeltes XML

@@ -320,3 +320,4 @@ xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } ar
 xml-failed = Cannot convert { $path } to XML: { $reason }
 xml-stopped = Converting { $path } stopped without a result.
 xml-truncated = Truncated: showing the first { $lines } lines, the first { $limit } of the XML.
+xml-view = Converted XML

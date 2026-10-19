@@ -14,17 +14,20 @@ pub enum XmlText {
     Stopped,
     /// Shown above XML cut at the limit; takes `lines` and `limit`.
     Truncated,
+    /// The accessible name of the scrollable lines.
+    View,
 }
 
 impl XmlText {
     /// Every text of the XML preview.
-    pub(crate) const ALL: [Self; 6] = [
+    pub(crate) const ALL: [Self; 7] = [
         Self::Tab,
         Self::Converting,
         Self::TooLarge,
         Self::Failed,
         Self::Stopped,
         Self::Truncated,
+        Self::View,
     ];
 
     /// Returns the Fluent message id.
@@ -37,6 +40,7 @@ impl XmlText {
             Self::Failed => "xml-failed",
             Self::Stopped => "xml-stopped",
             Self::Truncated => "xml-truncated",
+            Self::View => "xml-view",
         }
     }
 }

@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod archive_change_tests;
 mod contents;
 mod image;
 mod texture_info;
@@ -281,7 +283,12 @@ fn read(index: &EntryIndex, id: u32, deliver: impl FnOnce(ReadResult) -> bool, w
     let mut reader = match opened {
         Ok(reader) => reader,
         Err(reason) => {
-            if deliver(Err(Unread::Failed(Some(reason)))) {
+            let unread = if index.watch().check().is_err() {
+                Unread::ArchiveChanged
+            } else {
+                Unread::Failed(Some(reason))
+            };
+            if deliver(Err(unread)) {
                 wake();
             }
             return;

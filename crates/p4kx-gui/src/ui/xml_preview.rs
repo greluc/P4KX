@@ -56,7 +56,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, (path, size): (&str, u64), xml: &
                 );
                 ui.colored_label(palette::WARNING, note);
             }
-            xml_view::show(ui, document, xml.serial());
+            xml_view::show(ui, texts, document);
         }
     });
 }

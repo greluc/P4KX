@@ -82,6 +82,14 @@ impl Model {
         }
     }
 
+    /// Returns whether the names of the open Archive are missing and nothing tried to read them
+    /// since the DataForge cache was last cleared, so a failed build is tried again once.
+    pub(crate) fn query_completion_unprepared(&self) -> bool {
+        self.browser
+            .as_ref()
+            .is_some_and(|browser| browser.shared_index().forge().schema_unattempted())
+    }
+
     /// Works out the names the Query editor offers at byte `cursor` of its text.
     pub(crate) fn update_query_completion(&mut self, cursor: usize, trigger: Trigger) {
         let schema = self

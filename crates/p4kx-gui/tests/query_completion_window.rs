@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{Language, Model, WorkTab, ui};
 use p4kx_testkit::DataForgeBuilder;
 use querying::{TestResult, archive, database, referencing};
@@ -234,5 +234,138 @@ fn enter_breaks_the_line_when_the_chosen_name_is_written_already() -> TestResult
         "from Ship select mass\n",
         "a line break, not the name again"
     );
+    Ok(())
+}
+
+fn editor_has_focus(harness: &Harness<'_, Model>) -> bool {
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .accesskit_node()
+        .is_focused()
+}
+
+fn announced(harness: &Harness<'_, Model>) -> (Option<bool>, Option<egui::accesskit::NodeId>) {
+    let editor = harness
+        .get_by_role(Role::MultilineTextInput)
+        .accesskit_node();
+    let data = editor.data();
+    (data.is_expanded(), data.active_descendant())
+}
+
+fn option_id(harness: &Harness<'_, Model>, name: &str) -> egui::accesskit::NodeId {
+    let full = u128::from(
+        harness
+            .get_by_role_and_label(Role::ListBoxOption, name)
+            .accesskit_node()
+            .id(),
+    );
+    egui::accesskit::NodeId(u64::try_from(full >> 64).unwrap_or_default())
+}
+
+#[test]
+fn the_editor_points_screen_readers_at_the_active_option() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+    type_text(&mut harness, "from Ship select ");
+    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+    assert_eq!(
+        announced(&harness),
+        (Some(true), Some(option_id(&harness, "crew"))),
+        "open, first option"
+    );
+
+    harness.key_press(Key::ArrowDown);
+    harness.run_steps(3);
+    assert_eq!(
+        announced(&harness),
+        (Some(true), Some(option_id(&harness, "mass"))),
+        "moved"
+    );
+
+    harness.key_press(Key::Escape);
+    harness.run_steps(3);
+    assert_eq!(announced(&harness), (Some(false), None), "closed");
+    Ok(())
+}
+
+#[test]
+fn tab_writes_the_chosen_name() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+    type_text(&mut harness, "from Ship select ");
+    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+
+    harness.key_press(Key::Tab);
+    harness.run_steps(3);
+
+    assert_eq!(
+        harness.state().query().text(),
+        "from Ship select crew",
+        "the first name, no tab written"
+    );
+    assert!(shown(harness.state()).is_empty(), "closed");
+    assert!(editor_has_focus(&harness), "the focus stays");
+    Ok(())
+}
+
+#[test]
+fn tab_leaves_the_editor_while_the_list_is_closed() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+    type_text(&mut harness, "from Ship select ");
+    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+    harness.key_press(Key::Escape);
+    harness.run_steps(2);
+    assert!(shown(harness.state()).is_empty(), "closed");
+
+    harness.key_press(Key::Tab);
+    harness.run_steps(3);
+
+    assert_eq!(
+        harness.state().query().text(),
+        "from Ship select ",
+        "nothing written"
+    );
+    assert!(!editor_has_focus(&harness), "the focus moved on");
+    Ok(())
+}
+
+#[test]
+fn the_list_does_not_open_by_itself_when_the_names_arrive() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+    harness
+        .state_mut()
+        .query_mut()
+        .set_text("from Ship select ");
+    harness.run_steps(2);
+
+    harness.get_by_role(Role::MultilineTextInput).focus();
+    wait_until(&mut harness, |model| {
+        model
+            .browser()
+            .is_some_and(|browser| browser.query_schema_builds() == 1)
+    })?;
+    std::thread::sleep(Duration::from_millis(300));
+    harness.run_steps(4);
+    assert!(editor_has_focus(&harness), "focused");
+    assert!(shown(harness.state()).is_empty(), "no list without typing");
+
+    harness.key_press(Key::Tab);
+    harness.run_steps(3);
+
+    assert_eq!(
+        harness.state().query().text(),
+        "from Ship select ",
+        "no name written"
+    );
+    assert!(!editor_has_focus(&harness), "the focus moved on");
+    Ok(())
+}
+
+#[test]
+fn typing_before_the_names_arrive_opens_the_list_when_they_do() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+
+    type_text(&mut harness, "from Ship select ");
+    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+
+    assert_eq!(shown(harness.state()), ["crew", "mass", "name"], "opened");
     Ok(())
 }

@@ -99,10 +99,12 @@ fn complete(ui: &Ui, model: &mut Model, edited: &query_editor::Edited) {
     let focus_id = Id::unique("p4kx-query-editor-had-focus");
     let had_focus = ui.data(|data| data.get_temp::<bool>(focus_id).unwrap_or(false));
     ui.data_mut(|data| data.insert_temp(focus_id, edited.cursor.is_some()));
+    let editor = query_editor::editor_id();
     let Some(cursor) = edited.cursor else {
+        completion_list::announce(ui.ctx(), editor, None);
         return;
     };
-    if !had_focus || edited.asked {
+    if !had_focus || edited.asked || model.query_completion_unprepared() {
         let ctx = ui.ctx().clone();
         model.prepare_query_completion(move || ctx.request_repaint());
     }
@@ -115,14 +117,16 @@ fn complete(ui: &Ui, model: &mut Model, edited: &query_editor::Edited) {
     };
     model.update_query_completion(cursor, trigger);
     let (Some(shown), Some(caret)) = (model.query().completion_shown(), edited.caret) else {
+        completion_list::announce(ui.ctx(), editor, None);
         return;
     };
     let generation = model.query().completion().generation();
+    let typed = model.query().completion().typed_len();
     let clicked = completion_list::show(
         ui,
         &edited.response,
         shown,
-        (caret, generation),
+        (caret, generation, typed),
         model.texts(),
     );
     if let Some(index) = clicked {

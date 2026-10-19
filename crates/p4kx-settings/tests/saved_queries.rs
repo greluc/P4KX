@@ -210,6 +210,24 @@ fn names_with_control_characters_are_refused() {
 }
 
 #[test]
+fn names_with_bidirectional_overrides_are_refused() {
+    let mut queries = SavedQueries::default();
+
+    for mark in ('\u{202A}'..='\u{202E}').chain('\u{2066}'..='\u{2069}') {
+        assert_eq!(
+            queries.save(&format!("A{mark}B"), "from A"),
+            Err(NameProblem::Control),
+            "U+{:04X}",
+            u32::from(mark)
+        );
+    }
+    assert!(
+        queries.save("Ship \u{05D0}", "from A").is_ok(),
+        "Hebrew text"
+    );
+}
+
+#[test]
 fn the_total_size_is_budgeted() {
     let mut queries = SavedQueries::default();
     let text = "x".repeat(SavedQueries::MAX_TEXT_LEN);

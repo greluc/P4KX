@@ -102,6 +102,7 @@ pub(crate) struct ForgeCache {
     generation: AtomicU64,
     reads: AtomicUsize,
     schema_asked: AtomicBool,
+    schema_attempted: AtomicU64,
 }
 
 impl ForgeCache {
@@ -163,6 +164,15 @@ impl ForgeCache {
             .map_or(0, |source| source.schema_builds.load(Ordering::Relaxed))
     }
 
+    /// Returns whether the completion schema is missing, no build runs and none was started
+    /// since the cache was last cleared.
+    pub(crate) fn schema_unattempted(&self) -> bool {
+        let current = self.generation.load(Ordering::Acquire).wrapping_add(1);
+        !self.schema_asked.load(Ordering::Acquire)
+            && self.schema_attempted.load(Ordering::Acquire) != current
+            && self.schema().is_none()
+    }
+
     /// Builds the completion schema of `index` on a background thread, reading its DataForge
     /// unless it was read before, and calls `wake` once it is there. Nothing starts while a build
     /// runs or after one succeeded; after a failed build or spawn the next call tries again. A
@@ -172,6 +182,10 @@ impl ForgeCache {
         if cache.schema().is_some() || cache.schema_asked.swap(true, Ordering::AcqRel) {
             return;
         }
+        cache.schema_attempted.store(
+            cache.generation.load(Ordering::Acquire).wrapping_add(1),
+            Ordering::Release,
+        );
         let thread_index = Arc::clone(index);
         let spawned = thread::Builder::new()
             .name("query-schema".to_owned())

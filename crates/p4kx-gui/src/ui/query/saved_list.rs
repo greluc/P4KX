@@ -30,9 +30,10 @@ pub(super) enum SavedAction {
 const SHOWN_TEXT: usize = 240;
 
 /// The laid-out names, texts and actions of the saved Queries, made again only when they, the
-/// language or the scale change.
+/// language or the scale change, and with none saved the width.
 struct Laid {
     key: u64,
+    width: u32,
     title: String,
     none: Arc<Galley>,
     rename: (String, Arc<Galley>),
@@ -158,9 +159,15 @@ fn saved_row(ui: &mut Ui, index: usize, row: &Row, laid: &Laid) -> Option<SavedA
 
 fn laid(ui: &Ui, saved: &SavedQueries, texts: &Texts, key: u64) -> Arc<Laid> {
     let key = key ^ u64::from(ui.ctx().pixels_per_point().to_bits());
+    let wrap = if saved.is_empty() {
+        ui.available_width().to_bits()
+    } else {
+        0
+    };
     let id = Id::unique("p4kx-saved-queries-laid");
     if let Some(laid) = ui.data(|data| data.get_temp::<Arc<Laid>>(id))
         && laid.key == key
+        && laid.width == wrap
     {
         return laid;
     }
@@ -197,6 +204,7 @@ fn laid(ui: &Ui, saved: &SavedQueries, texts: &Texts, key: u64) -> Arc<Laid> {
     let actions_width = CHANNEL_GAP.mul_add(3.0, width(&rename.1) + width(&delete.1));
     let laid = Arc::new(Laid {
         key,
+        width: wrap,
         title: texts.get(QueryText::SavedTitle),
         none: line(
             ui,

@@ -236,11 +236,15 @@ fn name_problem(name: &str) -> Option<NameProblem> {
         Some(NameProblem::Empty)
     } else if name.chars().count() > SavedQueries::MAX_NAME_LEN {
         Some(NameProblem::TooLong)
-    } else if name.chars().any(char::is_control) {
+    } else if name.chars().any(|c| c.is_control() || is_bidi_control(c)) {
         Some(NameProblem::Control)
     } else {
         None
     }
+}
+
+const fn is_bidi_control(c: char) -> bool {
+    matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
 }
 
 fn valid_text(text: &str) -> bool {

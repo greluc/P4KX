@@ -75,7 +75,7 @@ fn completion_before_anything_else_reads_dataforge_once_for_all() -> TestResult 
 }
 
 #[test]
-fn the_schema_is_built_once_however_often_completion_is_prepared() -> TestResult {
+fn the_schema_is_built_once_however_often_completion_is_prepared_in_turn() -> TestResult {
     let (_dir, _, mut model) = opened()?;
 
     for _ in 0..8 {
@@ -106,10 +106,14 @@ fn a_change_on_disk_drops_the_schema_with_the_cache() -> TestResult {
     std::fs::copy(rewritten, &path)?;
     let noticed = model.check_archive();
     let dropped = builds(&model);
+    let before = reads(&model);
     model.prepare_query_completion(|| {});
-    std::thread::sleep(Duration::from_millis(300));
+    wait_until(&mut model, |model| reads(model) > before)?;
+    std::thread::sleep(Duration::from_millis(100));
 
     assert!(noticed, "the change is noticed");
+    assert_eq!(before, Some(1), "one read before");
+    assert_eq!(reads(&model), Some(2), "completion tried to read it again");
     assert_eq!(dropped, Some(0), "dropped with the cache");
     assert_eq!(
         builds(&model),

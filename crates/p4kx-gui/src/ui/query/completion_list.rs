@@ -32,12 +32,13 @@ pub(super) fn show(
     ui: &Ui,
     editor: &Response,
     (completion, active): (&Completion, usize),
-    (caret, generation): (Rect, u64),
+    (caret, generation, typed): (Rect, u64, usize),
     texts: &Texts,
 ) -> Option<usize> {
-    let (laid, fresh) = laid(ui, completion, generation, texts);
+    let (laid, fresh) = laid(ui, completion, (generation, typed), texts);
     let moved = moved_to(ui, active);
     let mut clicked = None;
+    let mut active_id = None;
     Popup::from_response(editor)
         .id(super::super::query_editor::popup_id())
         .kind(PopupKind::Popup)
@@ -56,8 +57,11 @@ pub(super) fn show(
                     for (index, (name, detail)) in laid.names.iter().enumerate() {
                         let shown = (name, detail.as_ref(), completion.candidates().get(index));
                         let response = option(ui, shown, index == active, index < last);
-                        if (fresh || moved) && index == active {
-                            response.scroll_to_me(None);
+                        if index == active {
+                            active_id = Some(response.id);
+                            if fresh || moved {
+                                response.scroll_to_me(None);
+                            }
                         }
                         if response.clicked() {
                             clicked = Some(index);
@@ -68,7 +72,20 @@ pub(super) fn show(
                     }
                 });
         });
+    announce(ui.ctx(), editor.id, active_id);
     clicked
+}
+
+/// Tells screen readers which option of the list the editor points at, or that the list is
+/// closed when `active` is `None`.
+pub(super) fn announce(ctx: &egui::Context, editor: Id, active: Option<Id>) {
+    ctx.accesskit_node_builder(editor, |node| {
+        match active {
+            Some(option) => node.set_active_descendant(option.accesskit_id()),
+            None => node.clear_active_descendant(),
+        }
+        node.set_expanded(active.is_some());
+    });
 }
 
 fn option(
@@ -127,7 +144,12 @@ fn notice_row(ui: &mut Ui, notice: &Arc<Galley>) {
 }
 
 /// Returns the laid-out candidates and whether they were laid out again this frame.
-fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> (Arc<Laid>, bool) {
+fn laid(
+    ui: &Ui,
+    completion: &Completion,
+    (generation, typed): (u64, usize),
+    texts: &Texts,
+) -> (Arc<Laid>, bool) {
     let key = (
         generation,
         ui.ctx().pixels_per_point().to_bits(),
@@ -139,7 +161,6 @@ fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> (Ar
     {
         return (laid, false);
     }
-    let typed = completion.replace().len();
     let names: Vec<(Arc<Galley>, Option<Arc<Galley>>)> = completion
         .candidates()
         .iter()

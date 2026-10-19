@@ -7,7 +7,7 @@ pub(crate) struct CompletionState {
     shown: Option<Shown>,
     dismissed: Option<(String, usize)>,
     cursor: Option<usize>,
-    schema_seen: bool,
+    waiting: Option<Trigger>,
     generation: u64,
 }
 
@@ -38,6 +38,18 @@ impl CompletionState {
             .map(|shown| (&shown.completion, shown.active))
     }
 
+    /// Returns how many bytes of every candidate name the user typed: the word before the
+    /// cursor without its backticks.
+    pub(crate) fn typed_len(&self) -> usize {
+        self.shown.as_ref().map_or(0, |shown| {
+            let start = shown.completion.replace().start;
+            shown
+                .text
+                .get(start..shown.cursor)
+                .map_or(0, |word| word.trim_matches('`').len())
+        })
+    }
+
     /// Returns a number that changes whenever the shown names do, not when only the active one
     /// moves.
     pub(crate) const fn generation(&self) -> u64 {
@@ -45,19 +57,23 @@ impl CompletionState {
     }
 
     /// Works out the names at byte `cursor` of `text` from `schema`: opens the list after
-    /// typing, when asked or once the schema arrives, keeps an open list in step with the
-    /// cursor, closes it where nothing fits.
+    /// typing or when asked, also once the schema arrives if typing or asking found it missing,
+    /// keeps an open list in step with the cursor, closes it where nothing fits.
     pub(crate) fn update(
         &mut self,
         schema: Option<&QuerySchema>,
         (text, cursor): (&str, usize),
         trigger: Trigger,
     ) {
-        let arrived = schema.is_some() && !self.schema_seen;
-        self.schema_seen = schema.is_some();
-        let trigger = if arrived && trigger == Trigger::Moved {
-            Trigger::Typed
+        let trigger = if schema.is_none() {
+            if trigger != Trigger::Moved {
+                self.waiting = Some(trigger);
+            }
+            trigger
+        } else if trigger == Trigger::Moved {
+            self.waiting.take().unwrap_or(trigger)
         } else {
+            self.waiting = None;
             trigger
         };
         if trigger == Trigger::Moved && self.cursor == Some(cursor) {
@@ -160,6 +176,7 @@ impl CompletionState {
 
     /// Closes the list.
     pub(crate) fn close(&mut self) {
+        self.waiting = None;
         self.set(None);
     }
 

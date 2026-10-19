@@ -1,0 +1,59 @@
+---
+source: crates/p4kx/tests/ui.rs
+expression: json
+---
+{
+  "extracted": [
+    {
+      "file": "[DIR]/assets/bitmap_1.png",
+      "id": 1,
+      "kind": "bitmap",
+      "size": 77
+    },
+    {
+      "file": "[DIR]/assets/bitmap_2.png",
+      "id": 2,
+      "kind": "bitmap",
+      "size": 200
+    },
+    {
+      "file": "[DIR]/assets/bitmap_3.png",
+      "id": 3,
+      "kind": "bitmap",
+      "size": 102
+    },
+    {
+      "file": "[DIR]/assets/bitmap_7.png",
+      "id": 7,
+      "kind": "bitmap",
+      "size": 144
+    },
+    {
+      "file": "[DIR]/assets/shape_4.json",
+      "id": 4,
+      "kind": "shape",
+      "size": 1081
+    },
+    {
+      "file": "[DIR]/assets/morph_shape_6.json",
+      "id": 6,
+      "kind": "morph_shape",
+      "size": 1038
+    }
+  ],
+  "failed": [
+    {
+      "code": 2,
+      "error": "unexpected end of data at offset 510: needed 1 bytes, 0 left",
+      "kind": "tag",
+      "offset": 508
+    },
+    {
+      "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5 refers to ../Textures/gone.dds, which does not exist; tried Data\\UI\\Screens\\Textures\\gone.dds",
+      "id": 5,
+      "kind": "bitmap"
+    }
+  ],
+  "movie": "Data\\UI\\Screens\\SWF\\Panel.gfx",
+  "target": "[DIR]/assets"
+}

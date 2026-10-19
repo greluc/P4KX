@@ -168,6 +168,16 @@ Early development (milestone M1). Available today:
   `<id>.wem`, with `--format wav` converted to WAV, or with `--format ogg` rebuilt as Ogg Vorbis.
   Both also take a soundbank file on disk. A corrupt soundbank fails with an error naming the
   section.
+- `p4kx ui assets <archive> <entry>` lists what a GFx or SWF UI movie holds: its header, every
+  tag code with its count (unknown tags kept and counted), and the shapes, morph shapes, bitmaps
+  (lossless, JPEG, PNG, GFx external and sub-images), fonts and sprites with their IDs and export
+  names; a tag that cannot be read is listed instead of failing the movie, with exit code 1.
+  `p4kx ui extract <archive> <entry> --out <folder>` writes every bitmap as `bitmap_<id>.png`
+  and every shape as `shape_<id>.json` (morph shapes as `morph_shape_<id>.json`) in twips as the
+  movie stores them; an external image is decoded from the DDS texture it names next to the
+  movie (on disk only inside the movie's `Data` folder), a sub-image is cut from its bitmap.
+  Both also take a movie file on disk, compressed (`CWS`, `CFX`, `ZWS`) or not (`FWS`,
+  `GFX`).
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -198,9 +208,9 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, or a texture cannot be read, merged or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml or CHF, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture file is 2 |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, or a tag or definition of a UI movie cannot be read or written; `compare`: the Archives or the `--diff` Entry differ |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |

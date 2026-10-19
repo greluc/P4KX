@@ -8,6 +8,13 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
+  <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
+  movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
+  twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
+  counted, a broken tag is reported without failing the movie (exit code 1), and GFx external
+  images are decoded from the DDS textures next to the movie, on disk only inside the movie's
+  `Data` folder. Also for movie files on disk.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.

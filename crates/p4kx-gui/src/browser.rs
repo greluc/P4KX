@@ -22,6 +22,29 @@ pub struct TreeRow {
     pub depth: usize,
 }
 
+/// What a row of the Entry table shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryRowKind {
+    /// An Entry that is no part of a split texture.
+    Entry,
+    /// The `.dds` header of a split texture, its row standing for the header and its parts.
+    Texture {
+        /// The number of parts and alpha tail Entries folded into the row.
+        parts: usize,
+    },
+    /// A part or alpha tail Entry shown below its expanded texture.
+    Part,
+}
+
+/// One row of the Entry table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EntryRow {
+    /// The Entry of the row.
+    pub id: u32,
+    /// What the row shows.
+    pub kind: EntryRowKind,
+}
+
 /// The browsing state of an opened Archive: the selected and expanded folders, the search, the
 /// sorted Entries of the selected folder or of the search, and the checked Entries.
 #[derive(Debug)]
@@ -35,6 +58,9 @@ pub struct Browser {
     tree_rows: Vec<TreeRow>,
     sort: Sort,
     shown: Vec<u32>,
+    rows: Vec<EntryRow>,
+    expanded_textures: HashSet<u32>,
+    view_len: usize,
     checked: Vec<bool>,
     checked_count: usize,
     shown_checked_count: usize,
@@ -62,6 +88,9 @@ impl Browser {
             tree_rows: Vec::new(),
             sort: Sort::default(),
             shown: Vec::new(),
+            rows: Vec::new(),
+            expanded_textures: HashSet::new(),
+            view_len: 0,
             checked,
             checked_count: 0,
             shown_checked_count: 0,
@@ -90,7 +119,7 @@ impl Browser {
         match scope {
             ExtractionScope::Selected => self.checked_count,
             ExtractionScope::Shown if self.pending.is_some() => 0,
-            ExtractionScope::Shown => self.shown.len(),
+            ExtractionScope::Shown => self.view_len,
             ExtractionScope::All => self.index.len(),
             ExtractionScope::Changes(_) => 0,
         }
@@ -103,7 +132,7 @@ impl Browser {
         match scope {
             ExtractionScope::Selected => ids.filter(|&id| self.is_checked(id)).collect(),
             ExtractionScope::Shown if self.pending.is_some() => Vec::new(),
-            ExtractionScope::Shown => self.shown.clone(),
+            ExtractionScope::Shown => self.shown_with_parts(),
             ExtractionScope::All => ids.collect(),
             ExtractionScope::Changes(_) => Vec::new(),
         }
@@ -172,10 +201,32 @@ impl Browser {
         self.refresh_shown();
     }
 
-    /// Returns the ids of the shown Entries in table order.
+    /// Returns the ids of the shown Entries in table order; a split texture is one Entry, its
+    /// header, with its parts left out.
     #[must_use]
     pub fn shown(&self) -> &[u32] {
         &self.shown
+    }
+
+    /// Returns the rows of the Entry table: the shown Entries, and below each expanded texture
+    /// its parts.
+    #[must_use]
+    pub fn rows(&self) -> &[EntryRow] {
+        &self.rows
+    }
+
+    /// Returns whether the parts of the texture whose header is `id` are shown below it.
+    #[must_use]
+    pub fn is_texture_expanded(&self, id: u32) -> bool {
+        self.expanded_textures.contains(&id)
+    }
+
+    /// Shows the parts of the texture whose header is `id` below it, or hides them again.
+    pub fn toggle_texture(&mut self, id: u32) {
+        if !self.expanded_textures.remove(&id) {
+            self.expanded_textures.insert(id);
+        }
+        self.refresh_rows();
     }
 
     /// Returns whether the Entry `id` is checked.
@@ -184,8 +235,20 @@ impl Browser {
         self.checked.get(id as usize).copied().unwrap_or(false)
     }
 
-    /// Checks or unchecks the Entry `id`.
+    /// Checks or unchecks the Entry `id`, and with it every other Entry of its split texture.
     pub fn set_checked(&mut self, id: u32, checked: bool) {
+        let index = Arc::clone(&self.index);
+        match index.texture_members(id) {
+            Some(members) => {
+                for &member in members {
+                    self.set_checked_entry(member, checked);
+                }
+            }
+            None => self.set_checked_entry(id, checked),
+        }
+    }
+
+    fn set_checked_entry(&mut self, id: u32, checked: bool) {
         let shown = self.is_in_view(id);
         let Some(slot) = self.checked.get_mut(id as usize) else {
             return;
@@ -206,7 +269,7 @@ impl Browser {
     /// Returns whether at least one Entry is shown and every shown Entry is checked.
     #[must_use]
     pub const fn all_shown_checked(&self) -> bool {
-        !self.shown.is_empty() && self.shown_checked_count == self.shown.len()
+        !self.shown.is_empty() && self.shown_checked_count == self.view_len
     }
 
     /// Checks or unchecks every shown Entry.
@@ -347,9 +410,49 @@ impl Browser {
         )
     }
 
+    fn shown_with_parts(&self) -> Vec<u32> {
+        let mut ids = Vec::with_capacity(self.view_len);
+        for &id in &self.shown {
+            ids.push(id);
+            ids.extend_from_slice(self.index.texture_parts(id));
+        }
+        ids
+    }
+
+    fn refresh_rows(&mut self) {
+        let mut rows = Vec::with_capacity(self.shown.len());
+        for &id in &self.shown {
+            let parts = self.index.texture_parts(id);
+            if parts.is_empty() {
+                rows.push(EntryRow {
+                    id,
+                    kind: EntryRowKind::Entry,
+                });
+                continue;
+            }
+            rows.push(EntryRow {
+                id,
+                kind: EntryRowKind::Texture { parts: parts.len() },
+            });
+            if self.expanded_textures.contains(&id) {
+                rows.extend(parts.iter().map(|&part| EntryRow {
+                    id: part,
+                    kind: EntryRowKind::Part,
+                }));
+            }
+        }
+        self.rows = rows;
+    }
+
     fn refresh_shown(&mut self) {
+        self.refresh_view();
+        self.refresh_rows();
+    }
+
+    fn refresh_view(&mut self) {
         if let Some(matches) = &self.matches {
             self.shown = self.index.entries_matching(matches.mask(), self.sort);
+            self.view_len = matches.mask().iter().filter(|&&matched| matched).count();
             self.shown_checked_count = matches
                 .mask()
                 .iter()
@@ -359,6 +462,7 @@ impl Browser {
         } else {
             self.shown = self.index.entries_in(self.folder, self.sort);
             let range = self.folder_range();
+            self.view_len = range.len();
             let checked = self.checked.get(range.start as usize..range.end as usize);
             self.shown_checked_count =
                 checked.map_or(0, |slots| slots.iter().filter(|&&c| c).count());

@@ -276,6 +276,18 @@ nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis 
 wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
 „Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
+**D.26 Texturgruppen in der Eintragstabelle.** Ein gesplittetes DDS (Kopf `.dds` mit Teilen
+`.dds.N` und Alpha-Tail `.dds.a`/`.dds.Na`) ist eine Zeile mit der Gesamtgröße; der Name steht nach
+dem Chevron-Slot, danach die Teilezahl in `color-gray-2-text` wie die Zusatzspalte der Gruppenzeile
+im `tree-table`. Alle Zeilen der Namenszelle reservieren den Chevron-Slot (`CHEVRON` + `TREE_GAP`
+nach `TREE_PADDING_LEFT`), damit die Namen untereinander stehen; nur Gruppenzeilen zeichnen den
+Chevron (`color-primary`, Fokusring `FOCUS_OFFSET`). Aufgeklappt stehen die Teile darunter, eine
+Ebene (`TREE_INDENT`) eingerückt mit Ebenenschiene wie im Baum, mit eigener Größe, Kompression und
+Verschlüsselung. Das Häkchen einer Gruppen- oder Teilezeile setzt alle Einträge der Gruppe;
+Suche, die einen Teil trifft, zeigt die ganze Gruppe; „Angezeigte" und „Ausgewählte" extrahieren
+alle Teile. Sortieren nach Größe nutzt die Gesamtgröße. Teile ohne Kopf bleiben einzelne Zeilen.
+Keine neuen Maße.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

@@ -20,6 +20,7 @@ The shape of one Entry in `list` and `search`:
 | `encrypted` | bool | Whether the data is encrypted |
 | `compressed_size` | number | Size of the data in the Archive |
 | `size` | number | Size after decompression |
+| `parts` | array of string | Only on the header of a Texture group in `list`: the paths of its parts and Alpha tail; `compressed_size` and `size` are then those of the whole group |
 
 ## Build
 
@@ -38,7 +39,8 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 {"archive": "C:\\…\\LIVE\\Data.p4k", "entries": [Entry, …]}
 ```
 
-Entries are in Archive order.
+Entries are in Archive order. A Texture group is one Entry; `--parts` lists every part as an Entry
+of its own, without `parts` fields.
 
 ## `p4kx search <archive> <filter> --json`
 

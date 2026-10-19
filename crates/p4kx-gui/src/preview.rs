@@ -2,7 +2,9 @@
 mod archive_change_tests;
 mod audio;
 mod contents;
+mod entry_bytes;
 mod image;
+mod soundbank;
 mod texture_info;
 mod xml;
 mod xml_document;
@@ -18,6 +20,7 @@ pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_wem_path};
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
+pub use soundbank::{BankSound, SoundbankPreview, SoundbankStatus, is_bank_path};
 pub use texture_info::{MAX_PREVIEW_PIXELS, TextureInfo};
 use xml::is_cryxml;
 pub use xml::{XML_SIZE_LIMIT, XmlPreview, XmlStatus};
@@ -97,6 +100,7 @@ pub struct Preview {
     state: State,
     image: Option<ImagePreview>,
     audio: Option<AudioPreview>,
+    soundbank: Option<SoundbankPreview>,
     xml: Option<XmlPreview>,
     xml_arrived: bool,
 }
@@ -120,6 +124,7 @@ impl Preview {
                 state: State::ArchiveChanged,
                 image: None,
                 audio: None,
+                soundbank: None,
                 xml: None,
                 xml_arrived: false,
             };
@@ -139,11 +144,19 @@ impl Preview {
                 let wake = Arc::clone(&wake);
                 AudioPreview::start(index, id, move || wake())
             });
+        let soundbank = index
+            .entry(id)
+            .filter(|entry| is_bank_path(entry.path()))
+            .map(|_| {
+                let wake = Arc::clone(&wake);
+                SoundbankPreview::start(index, id, move || wake())
+            });
         let mut preview = Self {
             entry: id,
             state: State::Failed(None),
             image,
             audio,
+            soundbank,
             xml: None,
             xml_arrived: false,
         };
@@ -169,15 +182,36 @@ impl Preview {
         std::mem::replace(&mut self.xml_arrived, false)
     }
 
-    /// Returns the audio preview when the Entry is a WEM.
+    /// Returns the audio preview when the Entry is a WEM, or that of the selected WEM when it is
+    /// a soundbank.
     #[must_use]
-    pub const fn audio(&self) -> Option<&AudioPreview> {
-        self.audio.as_ref()
+    pub fn audio(&self) -> Option<&AudioPreview> {
+        self.audio
+            .as_ref()
+            .or_else(|| self.soundbank.as_ref().and_then(SoundbankPreview::audio))
     }
 
-    /// Returns the audio preview for controlling its playback, when the Entry is a WEM.
-    pub const fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
-        self.audio.as_mut()
+    /// Returns the audio preview for controlling its playback, when the Entry is a WEM or a
+    /// soundbank with a selected WEM.
+    pub fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
+        if self.audio.is_some() {
+            self.audio.as_mut()
+        } else {
+            self.soundbank
+                .as_mut()
+                .and_then(SoundbankPreview::audio_mut)
+        }
+    }
+
+    /// Returns the soundbank preview when the Entry is a soundbank.
+    #[must_use]
+    pub const fn soundbank(&self) -> Option<&SoundbankPreview> {
+        self.soundbank.as_ref()
+    }
+
+    /// Returns the soundbank preview for selecting a WEM, when the Entry is a soundbank.
+    pub(crate) const fn soundbank_mut(&mut self) -> Option<&mut SoundbankPreview> {
+        self.soundbank.as_mut()
     }
 
     /// Returns the image preview when the Entry is the header of a texture.
@@ -228,7 +262,8 @@ impl Preview {
     /// returns whether one arrived.
     pub(crate) fn poll(&mut self) -> bool {
         let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
-        let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll);
+        let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll)
+            | self.soundbank.as_mut().is_some_and(SoundbankPreview::poll);
         let read = self.poll_data();
         let converted = self.xml.as_mut().is_some_and(XmlPreview::poll);
         read || imaged || converted || sounded

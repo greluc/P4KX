@@ -2,8 +2,9 @@ use egui::{Align, Label, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
-use super::audio_preview::{self, AudioAction};
+use super::audio_preview::{self, AudioAction, Named};
 use super::record_preview::{self, RecordStep};
+use super::soundbank_preview::{self, BankAction};
 use super::{dataforge_summary, hex_view, image_preview, xml_preview};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
@@ -16,7 +17,7 @@ use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
     PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts, XmlDocument,
-    XmlPreview, XmlText, format, is_wem_path,
+    XmlPreview, XmlText, format, is_bank_path, is_wem_path,
 };
 
 const TABS: [(PreviewTab, Text); 7] = [
@@ -33,11 +34,12 @@ const TABS: [(PreviewTab, Text); 7] = [
 enum Asked {
     Mip(u32),
     Audio(AudioAction),
+    Sound(u32),
     Record(RecordStep),
 }
 
-/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM,
-/// and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
+/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM or
+/// a soundbank, and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
 /// another Entry; the XML tab opens once the Entry turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
@@ -46,7 +48,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
         .map(Entry::path);
     if path.is_some_and(Texture::is_header_path) {
         model.set_preview_tab(PreviewTab::Image);
-    } else if path.is_some_and(is_wem_path) {
+    } else if path.is_some_and(|path| is_wem_path(path) || is_bank_path(path)) {
         model.set_preview_tab(PreviewTab::Audio);
     } else if matches!(
         model.preview_tab(),
@@ -93,6 +95,12 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             }
         }
         Some(Asked::Audio(action)) => audio_preview::apply(model, action),
+        Some(Asked::Sound(id)) => {
+            let ctx = ui.ctx().clone();
+            if let Some(browser) = model.browser_mut() {
+                browser.select_sound(id, move || ctx.request_repaint());
+            }
+        }
         Some(Asked::Record(step)) => record_preview::apply(model, &step),
         None => {}
     }
@@ -116,13 +124,14 @@ struct Bar {
 fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
     let image = browser.preview().and_then(Preview::image);
     let audio = browser.preview().and_then(Preview::audio);
+    let sounds = browser.soundbank().is_some();
     let record = browser.selected_record().is_some();
     let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
         PreviewTab::Xml => xml.is_some() || record,
         PreviewTab::Image => image.is_some(),
-        PreviewTab::Audio => audio.is_some(),
+        PreviewTab::Audio => audio.is_some() || sounds,
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Record => record,
         PreviewTab::Text | PreviewTab::Hex => true,
@@ -252,16 +261,13 @@ fn body(
     let entry = browser.index().entry(preview.entry());
     let path = entry.map_or("", Entry::path);
     let size = entry.map_or(0, Entry::uncompressed_size);
-    path_line(ui, path, &format::size(size, texts.language()));
-    if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
-        return image_preview::show(ui, texts, path, image).map(Asked::Mip);
-    }
-    if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
-        return audio_preview::show(ui, texts, (path, size), audio, volume).map(Asked::Audio);
-    }
-    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
-        xml_preview::show(ui, texts, (path, size), xml);
-        return None;
+    let size_line = preview
+        .soundbank()
+        .and_then(|bank| soundbank_preview::summary(texts, bank, size))
+        .unwrap_or_else(|| format::size(size, texts.language()));
+    path_line(ui, path, &size_line);
+    if let Typed::Shown(asked) = typed_tab(ui, texts, preview, (path, size), (tab, volume)) {
+        return asked;
     }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
@@ -300,6 +306,48 @@ fn body(
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
     None
+}
+
+/// Whether a tab of its own showed the Entry.
+enum Typed {
+    Absent,
+    Shown(Option<Asked>),
+}
+
+/// Shows the Image, Audio or XML tab of `preview` at `path` of `size` bytes when `tab` is one of
+/// them and the Entry has it; returns `None` when it has not, and else what the tab asks for.
+fn typed_tab(
+    ui: &mut Ui,
+    texts: &Texts,
+    preview: &Preview,
+    (path, size): (&str, u64),
+    (tab, volume): (PreviewTab, f32),
+) -> Typed {
+    if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
+        return Typed::Shown(image_preview::show(ui, texts, path, image).map(Asked::Mip));
+    }
+    if let Some(bank) = preview.soundbank().filter(|_| tab == PreviewTab::Audio) {
+        let action = soundbank_preview::show(ui, texts, (path, size), bank, volume);
+        return Typed::Shown(action.map(|action| match action {
+            BankAction::Select(id) => Asked::Sound(id),
+            BankAction::Audio(action) => Asked::Audio(action),
+        }));
+    }
+    if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
+        let named = Named {
+            path,
+            size,
+            embedded: false,
+        };
+        return Typed::Shown(
+            audio_preview::show(ui, texts, named, audio, volume).map(Asked::Audio),
+        );
+    }
+    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
+        xml_preview::show(ui, texts, (path, size), xml);
+        return Typed::Shown(None);
+    }
+    Typed::Absent
 }
 
 /// Shows the path line of the preview: `path`, then `size` muted.

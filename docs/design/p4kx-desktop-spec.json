@@ -949,6 +949,18 @@
     "pauses": "when the preview tab leaves Audio or the work tab leaves Browse",
     "messages": "unsupported codec, too long, decoding and output failure color-danger-text"
   },
+  "soundbankList": {
+    "decision": "D.33",
+    "dsClass": "previewPanel + audioPreview + tableHead + tableRow",
+    "panelHeight": 320,
+    "rowHeight": 36,
+    "columns": {"id": 130, "codec": 200, "duration": 130, "size": "fill"},
+    "head": "tableHead without sorting",
+    "order": "path line, then the audioPreview of the selected WEM or the hint in color-gray-2-text, then the list filling the rest",
+    "unknown": "– in color-gray-2-text",
+    "prefetched": "codec cell Prefetched in color-gray-2-text; the controls give way to a color-warning note",
+    "messages": "unreadable bank color-danger-text, empty bank plain text"
+  },
   "xmlPreview": {
     "dsClass": "previewPanel + hexRow",
     "rowHeight": 20,

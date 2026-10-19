@@ -70,3 +70,35 @@ fn the_slider_is_the_quality_row_range_in_a_compact_row() {
         "focus ring"
     );
 }
+
+#[test]
+fn the_soundbank_list_columns_match_the_desktop_spec() {
+    let list = spec("soundbankList");
+    let columns = &list["columns"];
+
+    assert_eq!(
+        columns["id"].as_f64(),
+        Some(f64::from(d::SOUND_ID_COLUMN)),
+        "id"
+    );
+    assert_eq!(
+        columns["codec"].as_f64(),
+        Some(f64::from(d::SOUND_CODEC_COLUMN)),
+        "codec"
+    );
+    assert_eq!(
+        columns["duration"].as_f64(),
+        Some(f64::from(d::SOUND_DURATION_COLUMN)),
+        "duration"
+    );
+    assert_eq!(
+        list["panelHeight"].as_f64(),
+        Some(f64::from(d::PREVIEW_SOUNDBANK_HEIGHT)),
+        "panel height"
+    );
+    assert_eq!(
+        list["rowHeight"].as_f64(),
+        Some(f64::from(d::ROW_HEIGHT)),
+        "row height"
+    );
+}

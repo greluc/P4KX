@@ -1,7 +1,7 @@
 use super::{
-    AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
-    ImageText, QueryText, RecordChangeText, RecordExportText, RecordText, ScrollText, Text,
-    XmlText,
+    AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
+    ExtractionText, ImageText, QueryText, RecordChangeText, RecordExportText, RecordText,
+    ScrollText, Text, XmlText,
 };
 use crate::Language;
 
@@ -89,6 +89,7 @@ impl Text {
             .chain(ScrollText::ALL.map(Self::Scroll))
             .chain(QueryText::ALL.map(Self::Query))
             .chain(RecordExportText::ALL.map(Self::RecordExport))
+            .chain(CatalogText::ALL.map(Self::Catalog))
             .chain(RecordText::ALL.map(Self::Record))
     }
 
@@ -172,6 +173,7 @@ impl Text {
             Self::Scroll(text) => text.id(),
             Self::Query(text) => text.id(),
             Self::RecordExport(text) => text.id(),
+            Self::Catalog(text) => text.id(),
             Self::Record(text) => text.id(),
         }
     }

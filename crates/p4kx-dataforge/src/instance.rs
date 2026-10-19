@@ -1,5 +1,3 @@
-use rayon::slice::ParallelSliceMut;
-
 use crate::DataForge;
 
 impl<'a> DataForge<'a> {
@@ -28,7 +26,7 @@ impl<'a> DataForge<'a> {
                 .iter_indexed()
                 .map(|(record, def)| (def.struct_index, u32::from(def.instance_index), record))
                 .collect();
-            roots.par_sort_unstable();
+            roots.sort_unstable();
             roots.into_boxed_slice()
         });
         let key = (struct_index, instance_index);

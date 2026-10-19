@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 use std::time::SystemTime;
@@ -63,6 +63,7 @@ enum State {
 /// A Record export running on a background thread, or its outcome.
 #[derive(Debug)]
 pub struct RecordExport {
+    id: u64,
     folder: PathBuf,
     form: RecordForm,
     cancel: CancelToken,
@@ -71,6 +72,12 @@ pub struct RecordExport {
 }
 
 impl RecordExport {
+    /// Returns the number that tells this export apart from every other one of the process.
+    #[must_use]
+    pub const fn id(&self) -> u64 {
+        self.id
+    }
+
     /// Returns the chosen folder: the parent of a new folder, or the existing folder.
     #[must_use]
     pub fn folder(&self) -> &Path {
@@ -156,6 +163,8 @@ pub(crate) fn start(
     request: Request,
     wake: impl Fn() + Send + 'static,
 ) -> RecordExport {
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
     let folder = request.folder.clone();
@@ -182,6 +191,7 @@ pub(crate) fn start(
         Err(error) => State::Failed(Some(describe(&error))),
     };
     RecordExport {
+        id,
         folder,
         form,
         cancel,

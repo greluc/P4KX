@@ -20,6 +20,7 @@ The shape of one Entry in `list` and `search`:
 | `encrypted` | bool | Whether the data is encrypted |
 | `compressed_size` | number | Size of the data in the Archive |
 | `size` | number | Size after decompression |
+| `parts` | array of string | Only on the header of a Texture group in `list`: the paths of its parts and Alpha tail; `compressed_size` and `size` are then those of the whole group |
 
 ## Build
 
@@ -38,7 +39,8 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 {"archive": "C:\\…\\LIVE\\Data.p4k", "entries": [Entry, …]}
 ```
 
-Entries are in Archive order.
+Entries are in Archive order. A Texture group is one Entry; `--parts` lists every part as an Entry
+of its own, without `parts` fields.
 
 ## `p4kx search <archive> <filter> --json`
 
@@ -235,14 +237,16 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21064214, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
- {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
+ {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1184,
  "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
- "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
- "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
+ "texts": [{"language": "en", "available": true, "resolved": 37969, "unresolved": 160,
+ "placeholder": 23704}, {"language": "de", "available": true, "resolved": 25503,
+ "unresolved": 12626, "placeholder": 23704}], "unresolved": 12786}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size

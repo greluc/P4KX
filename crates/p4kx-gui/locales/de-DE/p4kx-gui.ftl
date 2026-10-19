@@ -412,6 +412,15 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+
+texture-parts =
+    { $count ->
+        [one] +{ $number } Teil
+       *[other] +{ $number } Teile
+    }
+texture-expand = Teile von { $name } anzeigen
+texture-collapse = Teile von { $name } ausblenden
+
 preview-tab-record = Record
 record-back = Zurück
 record-forward = Vor

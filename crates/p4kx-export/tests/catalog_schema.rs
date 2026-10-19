@@ -59,7 +59,9 @@ fn minimal_catalog() -> serde_json::Value {
         "completeness": {
             "manufacturers": {"status": "complete"},
             "items": {"status": "complete"},
-            "ships": {"status": "partial", "filter": "*/spaceships/*"}
+            "ships": {"status": "partial", "filter": "*/spaceships/*"},
+            "commodities": {"status": "complete"},
+            "blueprints": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -96,6 +98,46 @@ fn minimal_catalog() -> serde_json::Value {
             "crewSize": 2,
             "manufacturerGuid": null,
             "vehicleDefinition": null
+        }],
+        "commodities": [{
+            "guid": "a1000000-0000-4000-8000-000000000001",
+            "className": "gold",
+            "recordPath": "libs/foundry/records/entities/commodities/metals/gold",
+            "name": {"key": "@items_commodities_gold", "en": "Gold", "de": null},
+            "description": {"key": null, "en": null, "de": null},
+            "typeGuid": "b1000000-0000-4000-8000-000000000001",
+            "subtypeGuid": null,
+            "displayType": {"key": null, "en": null, "de": null}
+        }],
+        "blueprints": [{
+            "guid": "11000000-0000-4000-8000-000000000001",
+            "className": "BP_CRAFT_core",
+            "recordPath": "libs/foundry/records/crafting/blueprints/crafting/bp_craft_core",
+            "key": "BP_CRAFT_core",
+            "name": {"key": null, "en": null, "de": null},
+            "categoryGuid": "d1000000-0000-4000-8000-000000000001",
+            "producedItemGuid": null,
+            "craftTimeSeconds": 93784,
+            "ingredients": [
+                {
+                    "resourceGuid": "b1000000-0000-4000-8000-000000000001",
+                    "itemGuid": null,
+                    "quantityScu": 0.5,
+                    "quantityUnits": null,
+                    "minQuality": 0,
+                    "slot": "CORE",
+                    "slotKey": null
+                },
+                {
+                    "resourceGuid": null,
+                    "itemGuid": "30000000-0000-4000-8000-000000000001",
+                    "quantityScu": null,
+                    "quantityUnits": 5,
+                    "minQuality": 500,
+                    "slot": null,
+                    "slotKey": "@crafting_ui_slotname_core"
+                }
+            ]
         }]
     })
 }
@@ -125,11 +167,33 @@ fn the_schema_accepts_a_catalog_and_rejects_unknown_versions_and_guids() -> Test
     no_class["items"][0]["itemClass"] = json!(null);
     assert!(validator.is_valid(&no_class), "the item class may be null");
 
-    for kind in ["manufacturers", "items", "ships"] {
+    for kind in [
+        "manufacturers",
+        "items",
+        "ships",
+        "commodities",
+        "blueprints",
+    ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);
         assert!(!validator.is_valid(&unknown), "no unknown fields in {kind}");
     }
+
+    let mut unknown_ingredient = catalog.clone();
+    unknown_ingredient["blueprints"][0]["ingredients"][0]["extra"] = json!(true);
+    assert!(
+        !validator.is_valid(&unknown_ingredient),
+        "no unknown fields in an ingredient"
+    );
+
+    let mut no_quantity = catalog.clone();
+    if let Some(ingredient) = no_quantity["blueprints"][0]["ingredients"][0].as_object_mut() {
+        ingredient.remove("quantityScu");
+    }
+    assert!(
+        !validator.is_valid(&no_quantity),
+        "every field of an ingredient is present"
+    );
 
     let mut missing = catalog;
     if let Some(ship) = missing["ships"][0].as_object_mut() {

@@ -238,6 +238,12 @@ The chunk file next to a model that holds its mesh data, named like the model wi
 appended, e.g. `box.cgfm` for `box.cgf`.
 _Avoid_: mesh file, streaming file
 
+**Texture group**:
+A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
+with the sizes of the whole texture. A part or tail without a header Entry is in no group and
+stays an Entry of its own.
+_Avoid_: texture set, texture bundle
+
 **Alpha tail**:
 A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a texture's alpha or
 smoothness channel, merged into the alpha channel on export.

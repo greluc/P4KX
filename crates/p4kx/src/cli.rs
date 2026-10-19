@@ -32,7 +32,7 @@ pub(crate) struct Cli {
 /// The subcommands of `p4kx`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
-    /// Lists every Entry of an Archive.
+    /// Lists every Entry of an Archive, a split texture as one Entry.
     #[command(after_help = EXIT_CODES_HELP)]
     List(ListArgs),
     /// Lists the Entries of an Archive whose path matches a Filter.
@@ -177,6 +177,11 @@ pub(crate) struct TextureSource {
 pub(crate) struct ListArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
+    /// Lists every part of a split texture as an Entry of its own; by default the parts
+    /// `<name>.dds.1` … `.N` and the alpha tail `<name>.dds.a` with its parts are folded into the
+    /// row of the header `<name>.dds`, with the sizes of the whole texture.
+    #[arg(long)]
+    pub(crate) parts: bool,
 }
 
 /// Arguments of `p4kx search`.

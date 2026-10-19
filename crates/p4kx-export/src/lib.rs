@@ -11,6 +11,9 @@
 //! [`ItemClass`] from its English description and writes the
 //! catalog as deterministic UTF-8 JSON. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
+//!
+//! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
+//! the chosen languages as JSON or CSV.
 
 mod build;
 mod collected;
@@ -21,6 +24,7 @@ mod form;
 mod guid_text;
 mod item;
 mod item_class;
+mod localization_table;
 mod manufacturer;
 mod ndjson;
 mod options;
@@ -37,14 +41,15 @@ pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use error::CatalogError;
 pub use form::{NDJSON_FILE, RecordForm};
 pub use item_class::{ItemClass, ItemClassSummary};
+pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};
 pub use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, RecordExportError,
-    RecordExportOptions, RecordFailure,
+    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, PLACEHOLDER_KEYS,
+    RecordExportError, RecordExportOptions, RecordFailure, TextSet,
 };
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
-pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, PLACEHOLDER_KEYS};
+pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use summary::{
     BuiltCatalog, CatalogSummary, KindSummary, SizeWarning, TextSummary, UPLOAD_LIMIT,
     UPLOAD_WARNING_SIZE,

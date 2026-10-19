@@ -258,6 +258,45 @@ language that is not available; `null` in the catalog) and `placeholder` texts, 
 for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
 unresolved texts of every language.
 
+## `p4kx loc languages <archive> --json`
+
+```json
+{"archive": "…", "languages": [{"code": "en", "folder": "english", "entry": "Data\\Localization\\english\\global.ini"}, …]}
+```
+
+`languages` lists the languages the Archive holds a `global.ini` for, in the order `en`, `de`,
+`fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`.
+
+## `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>] --json`
+
+```json
+{"key": "item_Name", "language": "de", "fallback": "en", "status": "fallback",
+ "text_language": "en", "text": "Rifle"}
+```
+
+`key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
+`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
+for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
+the command with exit code 2.
+
+## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
+
+Without `--out` the table goes to stdout and `--json` changes nothing. The JSON format is
+
+```json
+{"languages": ["en", "de"], "entries": [
+{"key": "item_Name", "texts": {"en": "Rifle", "de": null}}, …]}
+```
+
+with one entry per key, sorted by key ignoring case; a language without a text for the key is
+`null`, a text the `global.ini` holds empty is `""`. CSV has the header `key,en,de` and the same
+rows, with an empty cell for either; cells with a comma, quote or line break are quoted. Keys
+without a text in any chosen language are left out.
+
+With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
+"languages": ["en"], "keys": 101234}`.
+
 ## `p4kx channels --json`
 
 ```json

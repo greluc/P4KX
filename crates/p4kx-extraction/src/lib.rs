@@ -14,6 +14,7 @@ mod entry_path;
 mod extract;
 mod filter;
 mod localization;
+mod localization_set;
 mod model_companions;
 mod model_source;
 mod options;
@@ -62,6 +63,7 @@ pub use entry_content::{
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};
+pub use localization_set::LocalizationSet;
 pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{
@@ -87,7 +89,9 @@ pub use p4kx_dataforge::{
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
-    GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
+    GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
+    MAX_GLOBAL_INI_SIZE, PLACEHOLDER_KEYS, ParseLanguageError, TextSet, decode_line_breaks,
+    is_placeholder_key,
 };
 pub use p4kx_model as model;
 pub use p4kx_texture::{

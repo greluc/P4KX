@@ -94,6 +94,17 @@ Early development (milestone M1). Available today:
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
   listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
+  their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
+  `zh-Hant`); `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>]` prints the
+  text of a localisation key, with or without the leading `@`, ignoring case, in `--lang` (English
+  by default) and otherwise in `--fallback`, with `\n` decoded; a key with no text in either is
+  reported as missing and exits with code 2, a placeholder key such as `@LOC_EMPTY` prints
+  nothing and succeeds. `p4kx loc export <archive> [--lang <language>,…] [--format json|csv]
+  [--out <file>]` writes every key with its text per language, sorted by key. A `--lang` is a
+  code, a folder name such as `german_(germany)` or a name such as `german` where one language has
+  it. UTF-8 with or without a byte order mark and UTF-16 files are read, and malformed lines are
+  skipped. `--json` gives the shapes in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, items (with

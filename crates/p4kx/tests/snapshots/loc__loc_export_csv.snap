@@ -1,0 +1,12 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: csv
+---
+key,de,en
+item_DescRifle,"Schießt.
+Gut.","Shoots.
+Well, ""very"" well."
+item_EmptyGerman,,Filled
+item_NameRifle,Gewehr,Rifle
+item_OnlyEnglish,,Only in English
+LOC_EMPTY,,

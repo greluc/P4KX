@@ -3,15 +3,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use p4kx_extraction::query::{Query, QueryError};
+use p4kx_settings::SavedQueries;
 
 mod cell;
+mod completion;
 mod export;
 mod result;
 mod run;
+mod saved;
 
 pub use cell::CellLook;
+pub(crate) use completion::{CompletionState, Trigger};
 pub use export::{QueryExportFormat, QueryExportStatus};
 pub use result::{QUERY_PAGE_ROWS, QueryResult, ResultColumn};
+pub use saved::{NameNote, SavedDialog};
 
 use crate::EntryIndex;
 use export::ExportJob;
@@ -146,6 +151,12 @@ pub struct QueryTab {
     text: String,
     state: State,
     export: Option<ExportJob>,
+    completion: CompletionState,
+    saved: SavedQueries,
+    saved_dialog: Option<SavedDialog>,
+    saved_revision: u64,
+    edits: Vec<p4kx_settings::SavedQueryEdit>,
+    loaded: Option<String>,
 }
 
 impl QueryTab {
@@ -155,14 +166,27 @@ impl QueryTab {
         &self.text
     }
 
-    /// Returns the Query text of the editor for editing.
-    pub(crate) const fn text_mut(&mut self) -> &mut String {
-        &mut self.text
-    }
-
     /// Replaces the Query text of the editor.
     pub fn set_text(&mut self, text: &str) {
         text.clone_into(&mut self.text);
+        self.completion.close();
+    }
+
+    /// Returns the text and the completion of the editor for editing.
+    pub(crate) const fn editing(&mut self) -> (&mut String, &mut CompletionState) {
+        (&mut self.text, &mut self.completion)
+    }
+
+    /// Returns the completion of the editor.
+    pub(crate) const fn completion(&self) -> &CompletionState {
+        &self.completion
+    }
+
+    /// Returns the names the editor offers at the cursor, the index of the active one first;
+    /// `None` while no list is shown.
+    #[must_use]
+    pub fn completion_shown(&self) -> Option<(&p4kx_extraction::query::Completion, usize)> {
+        self.completion.shown()
     }
 
     /// Returns whether a Query runs.
@@ -216,6 +240,7 @@ impl QueryTab {
     pub(crate) fn archive_opened(&mut self) {
         self.state = State::Idle;
         self.export = None;
+        self.completion.reset();
     }
 
     /// Stops the running Query; the tab shows it as cancelled at once.

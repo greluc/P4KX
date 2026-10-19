@@ -12,6 +12,13 @@ impl Browser {
         self.index.forge().reads()
     }
 
+    /// Returns how often the Query completion schema was built for the DataForge of the open
+    /// Archive; it is built from the DataForge already read, once per Archive.
+    #[must_use]
+    pub fn query_schema_builds(&self) -> usize {
+        self.index.forge().schema_builds()
+    }
+
     /// Returns the Record selected in the Record tree, or `None` when a folder, a record folder
     /// or nothing of the tree is selected.
     #[must_use]

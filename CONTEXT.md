@@ -104,6 +104,10 @@ _Avoid_: broken link, missing Reference
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)
 
+**Saved Query**:
+A Query kept under a unique name in the settings file, rerun from the Query tab with one click.
+_Avoid_: favourite, bookmark, preset
+
 **Condition**:
 The `where` part of a Query: comparisons of a Record's values joined by `and`, `or` and `not`, which
 a Record has to meet to be selected.

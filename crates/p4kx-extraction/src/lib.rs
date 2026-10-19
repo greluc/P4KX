@@ -29,6 +29,7 @@ mod record_format;
 mod record_plan;
 mod record_report;
 mod report;
+mod resolved_texts;
 mod selection;
 mod sound;
 mod target;
@@ -84,8 +85,8 @@ pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
     DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, JsonLayout,
     MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordJson,
-    RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
-    ValueKind,
+    RecordTree, RecordXml, Reference, Resolution, Struct, StructValue, TextResolver, TreeBuilder,
+    Value, ValueError, ValueKind,
 };
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
@@ -111,6 +112,7 @@ pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };
 pub use report::{EntryFailure, ExtractionError, ExtractionReport};
+pub use resolved_texts::LanguageTexts;
 pub use selection::{UnknownEntries, select_entries};
 pub use sound::{MAX_SOUND_LEN, Sound};
 pub use target::{create_default_target, default_target_name, utc_rfc3339};

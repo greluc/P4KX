@@ -279,10 +279,10 @@ impl Row<'_> {
         });
         focus_inside(ui.painter(), rect, &response);
         tooltip::hover(response, |ui| {
-            ui.label(self.record.name());
-            ui.label(self.record.type_name());
-            ui.label(self.record.record_path());
-            ui.label(self.record.guid().to_string());
+            tooltip::line(ui, self.record.name());
+            tooltip::line(ui, self.record.type_name());
+            tooltip::line(ui, self.record.record_path());
+            tooltip::line(ui, self.record.guid().to_string());
         })
         .clicked()
     }

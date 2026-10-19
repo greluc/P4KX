@@ -196,7 +196,7 @@ fn finish_row(
         response,
     );
     tooltip::hover(response.clone(), |ui| {
-        ui.label(change.path());
+        tooltip::line(ui, change.path());
     })
     .clicked()
 }

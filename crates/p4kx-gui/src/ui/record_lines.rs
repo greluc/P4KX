@@ -226,7 +226,7 @@ fn row(
     };
     response.widget_info(|| WidgetInfo::labeled(Role::Row, true, described()));
     tooltip::hover(response, |ui| {
-        ui.label(described());
+        tooltip::line(ui, described());
     });
     match field.value() {
         LineValue::Reference(link) => {

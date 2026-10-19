@@ -261,11 +261,11 @@ fn field_row(ui: &mut Ui, texts: &Texts, cache: &mut FieldCache, (index, row): (
     focus_inside(ui.painter(), rect, &response);
     if response.has_focus() {
         tooltip::show(&response, |ui| {
-            ui.label(described());
+            tooltip::line(ui, described());
         });
     } else {
         tooltip::hover(response, |ui| {
-            ui.label(described());
+            tooltip::line(ui, described());
         });
     }
 }

@@ -3,13 +3,12 @@ use egui::{
     vec2,
 };
 
-use super::focus::{focus_ring_circle, focus_ring_rounded};
 use super::text::{centred, line, paint_left, plain};
 use crate::theme::desktop::{
-    CHECKBOX_RADIUS, DISABLED_OPACITY, FOCUS_OFFSET, RADIO_DOT, ROW_HEIGHT, TOGGLE_GAP, TOGGLE_SIZE,
+    CHECKBOX_RADIUS, DISABLED_OPACITY, RADIO_DOT, ROW_HEIGHT, TOGGLE_GAP, TOGGLE_SIZE,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_SM, Weight};
+use crate::theme::tokens::{FS_SM, GLOW_PRIMARY, Weight};
 
 /// The state of a checkbox.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,16 +35,13 @@ pub(crate) fn checkbox_cell(ui: &mut Ui, check: Check, label: &str) -> bool {
     let selected = check == Check::On;
     response.widget_info(|| WidgetInfo::selected(Role::CheckBox, true, selected, label));
     let box_rect = Rect::from_min_size(centred(rect, TOGGLE_SIZE), vec2(TOGGLE_SIZE, TOGGLE_SIZE));
+    bloom(
+        ui,
+        box_rect,
+        CornerRadius::same(CHECKBOX_RADIUS),
+        response.has_focus(),
+    );
     paint_checkbox(ui, box_rect, check, response.hovered(), true);
-    if response.has_focus() {
-        focus_ring_rounded(
-            ui,
-            box_rect,
-            palette::PRIMARY,
-            FOCUS_OFFSET,
-            CHECKBOX_RADIUS,
-        );
-    }
     response.clicked()
 }
 
@@ -60,17 +56,14 @@ pub(crate) fn checkbox_if(ui: &mut Ui, checked: &mut bool, text: &str, enabled: 
     let (rect, box_rect, mut response) = allocate(ui, text, enabled);
     response.widget_info(|| WidgetInfo::selected(Role::CheckBox, enabled, *checked, text));
     let check = if *checked { Check::On } else { Check::Off };
+    bloom(
+        ui,
+        box_rect,
+        CornerRadius::same(CHECKBOX_RADIUS),
+        response.has_focus(),
+    );
     paint_checkbox(ui, box_rect, check, response.hovered(), enabled);
     label(ui, rect, text, enabled);
-    if response.has_focus() {
-        focus_ring_rounded(
-            ui,
-            box_rect,
-            palette::PRIMARY,
-            FOCUS_OFFSET,
-            CHECKBOX_RADIUS,
-        );
-    }
     if response.clicked() {
         *checked = !*checked;
         response.mark_changed();
@@ -90,6 +83,12 @@ pub(crate) fn radio(ui: &mut Ui, selected: bool, text: &str, enabled: bool) -> R
             colour.gamma_multiply(DISABLED_OPACITY)
         }
     };
+    bloom(
+        ui,
+        dot_rect,
+        CornerRadius::same(RADIO_CORNER),
+        response.has_focus(),
+    );
     let painter = ui.painter();
     let centre = dot_rect.center();
     painter.circle(
@@ -102,16 +101,17 @@ pub(crate) fn radio(ui: &mut Ui, selected: bool, text: &str, enabled: bool) -> R
         painter.circle_filled(centre, RADIO_DOT / 2.0, dim(mark));
     }
     label(ui, rect, text, enabled);
-    if response.has_focus() {
-        focus_ring_circle(
-            ui,
-            centre,
-            TOGGLE_SIZE / 2.0,
-            palette::PRIMARY,
-            FOCUS_OFFSET,
-        );
-    }
     response
+}
+
+const RADIO_CORNER: u8 = 10;
+
+/// Paints the `glow-primary` bloom around a focused checkbox or radio at `rect`: the design
+/// system gives `input:focus` a bloom and no outline.
+fn bloom(ui: &Ui, rect: Rect, corner: CornerRadius, focused: bool) {
+    if focused {
+        ui.painter().add(GLOW_PRIMARY.as_shape(rect, corner));
+    }
 }
 
 fn allocate(ui: &mut Ui, text: &str, enabled: bool) -> (Rect, Rect, Response) {

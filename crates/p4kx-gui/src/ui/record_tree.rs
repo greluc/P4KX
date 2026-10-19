@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use egui::{Color32, Galley, Id, Rect, Role, Sense, Ui, UiBuilder, WidgetInfo, vec2};
+use egui::{Color32, Galley, Id, Rect, RichText, Role, Sense, Ui, UiBuilder, WidgetInfo, vec2};
 
 use super::dataforge_summary::message;
 use super::tree::{rails, toggle};
@@ -11,7 +11,7 @@ use crate::theme::tokens::{SPACE_2, Weight};
 use crate::widgets::indicator::spinner;
 use crate::widgets::rows::{RowState, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
-use crate::widgets::tooltip::hover;
+use crate::widgets::tooltip::{hover, line as tip};
 use crate::{
     DataForgeText, Language, RecordNodeId, RecordNodeKind, RecordRow, RecordTree, RecordTreeStatus,
     Texts,
@@ -211,9 +211,9 @@ fn root_note(ui: &mut Ui, (texts, tree, labels): (&Texts, &RecordTree, &Labels),
 
 fn tooltip(ui: &mut Ui, texts: &Texts, tree: &RecordTree, node: RecordNodeId) {
     if node == tree.root() {
-        ui.label(tree.entry_path());
+        tip(ui, tree.entry_path());
         if let Some((text, colour)) = message(texts, tree.entry_path(), tree.status()) {
-            ui.colored_label(colour, text);
+            tip(ui, RichText::new(text).color(colour));
         }
         return;
     }
@@ -221,13 +221,13 @@ fn tooltip(ui: &mut Ui, texts: &Texts, tree: &RecordTree, node: RecordNodeId) {
     match shown.kind() {
         RecordNodeKind::Record(id) => {
             if let Some(record) = tree.record(id) {
-                ui.label(record.name());
-                ui.label(record.type_name());
-                ui.label(record.guid().to_string());
+                tip(ui, record.name());
+                tip(ui, record.type_name());
+                tip(ui, record.guid().to_string());
             }
         }
         RecordNodeKind::Folder | RecordNodeKind::RecordFolder => {
-            ui.label(shown.name());
+            tip(ui, shown.name());
         }
     }
 }

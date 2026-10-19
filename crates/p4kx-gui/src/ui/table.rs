@@ -196,7 +196,7 @@ fn show_row(
         &response,
     );
     if tooltip::hover(response, |ui| {
-        ui.label(entry.path());
+        tooltip::line(ui, entry.path());
     })
     .clicked()
         && action.is_none()

@@ -264,7 +264,7 @@ fn cells(ui: &Ui, (section, row): (u8, usize), rect: Rect, cells: &[Labelled]) {
         );
         if section == ROWS {
             tooltip::hover(response, |ui| {
-                ui.label(cell.0.as_str());
+                tooltip::line(ui, cell.0.as_str());
             });
         }
     }

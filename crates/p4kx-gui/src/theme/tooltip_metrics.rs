@@ -13,5 +13,7 @@ pub const TOOLTIP_PADDING_X: f32 = 0.6 * REM;
 pub const TOOLTIP_PADDING_Y: f32 = SPACE_2;
 /// The font size of a tooltip, 0.78 rem.
 pub const TOOLTIP_SIZE: f32 = 0.78 * REM;
+/// The line height of a tooltip as a multiple of its font size.
+pub const TOOLTIP_LINE_HEIGHT: f32 = 1.4;
 /// The fill of a tooltip, `rgba(0,0,0,0.95)`.
 pub const TOOLTIP_FILL: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 242);

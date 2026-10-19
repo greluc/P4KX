@@ -11,7 +11,8 @@ use super::tokens::{
     FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
 };
 pub use super::tooltip_metrics::{
-    TOOLTIP_FILL, TOOLTIP_MAX_WIDTH, TOOLTIP_PADDING_X, TOOLTIP_PADDING_Y, TOOLTIP_SIZE,
+    TOOLTIP_FILL, TOOLTIP_LINE_HEIGHT, TOOLTIP_MAX_WIDTH, TOOLTIP_PADDING_X, TOOLTIP_PADDING_Y,
+    TOOLTIP_SIZE,
 };
 
 /// The height of a data row in the table, the tree, the channel list and dropdowns.

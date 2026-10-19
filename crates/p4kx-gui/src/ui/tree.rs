@@ -133,7 +133,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, browser: &Browser, row: TreeRow) -> Opti
     paint_left(ui, text_rect, galley, colour);
     focus_inside(ui.painter(), rect, &response);
     if tooltip::hover(response, |ui| {
-        ui.label(name);
+        tooltip::line(ui, name);
     })
     .clicked()
         && action.is_none()

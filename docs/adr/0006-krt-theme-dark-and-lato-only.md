@@ -20,7 +20,8 @@ its machine-readable [p4kx-desktop-spec.json](../design/p4kx-desktop-spec.json).
   the preview take `radius-sm` and sit as cards on the canvas, 12 points (`space-3`) from the
   tab bar and the window edge, 6 points (the resize grip) apart. Header, status bar, tab bar and sidebar have no radius in the
   design system and stay square. Accent edges are clipped to the rounded frame they sit on, and a
-  focus ring follows the radius of its control.
+  focus ring follows the radius of its control; a checkbox and a radio get the `glow-primary`
+  bloom and no ring, as `input:focus` sets.
 - `p4kx_gui::widgets` draws the components after the contracts of `krt-components.css`: the
   action hierarchy (one filled CTA per context, outline, ghost), checkbox, radio, tab nav,
   segmented quick filters, data rows, panel-header, modal and window frames with the orange top

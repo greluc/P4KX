@@ -1,4 +1,4 @@
-use egui::{Color32, CornerRadius, Pos2, Rect, Stroke, StrokeKind, Ui};
+use egui::{Color32, CornerRadius, Rect, Stroke, StrokeKind, Ui};
 
 use crate::theme::desktop::FOCUS_WIDTH;
 use crate::theme::tokens::RADIUS_SM_POINTS;
@@ -15,23 +15,12 @@ pub(crate) fn focus_ring_square(ui: &Ui, rect: Rect, colour: Color32, offset: f3
     focus_ring_rounded(ui, rect, colour, offset, 0);
 }
 
-/// Paints the 2 point focus ring like [`focus_ring`] for a control with the corner `radius`, as
-/// the checkbox's: the ring corner is `radius` plus `offset`, and square stays square.
-pub(crate) fn focus_ring_rounded(ui: &Ui, rect: Rect, colour: Color32, offset: f32, radius: u8) {
+fn focus_ring_rounded(ui: &Ui, rect: Rect, colour: Color32, offset: f32, radius: u8) {
     ui.painter().rect_stroke(
         rect.expand(offset),
         CornerRadius::same(ring_radius(radius, offset)),
         Stroke::new(FOCUS_WIDTH, colour),
         StrokeKind::Outside,
-    );
-}
-
-/// Paints the 2 point focus ring `offset` outside the circle of `radius` around `centre`.
-pub(crate) fn focus_ring_circle(ui: &Ui, centre: Pos2, radius: f32, colour: Color32, offset: f32) {
-    ui.painter().circle_stroke(
-        centre,
-        radius + offset + FOCUS_WIDTH / 2.0,
-        Stroke::new(FOCUS_WIDTH, colour),
     );
 }
 
@@ -57,7 +46,7 @@ mod tests {
     use egui_kittest::kittest::Queryable;
 
     use super::ring_radius;
-    use crate::theme::desktop::{CHECKBOX_RADIUS, FOCUS_OFFSET, FOCUS_WIDTH, TOGGLE_SIZE};
+    use crate::theme::desktop::{CHECKBOX_RADIUS, FOCUS_OFFSET, FOCUS_WIDTH};
     use crate::theme::palette;
     use crate::widgets::text::link;
     use crate::widgets::toggle::{checkbox, radio};
@@ -99,43 +88,49 @@ mod tests {
         rings(&harness)
     }
 
+    fn blooms(show: impl FnMut(&mut egui::Ui) + 'static, label: &str) -> usize {
+        let mut harness = Harness::builder()
+            .with_context_setup(crate::theme::apply)
+            .with_size(Vec2::new(200.0, 100.0))
+            .build_ui(show);
+        harness.run();
+        harness.get_by_label(label).focus();
+        harness.run();
+        harness
+            .output()
+            .shapes
+            .iter()
+            .filter(|clipped| matches!(&clipped.shape, Shape::Rect(rect) if rect.blur_width > 0.0))
+            .count()
+    }
+
     #[test]
-    fn a_focused_checkbox_rings_with_its_own_corner() {
+    fn a_focused_checkbox_and_radio_bloom_without_a_ring() {
         let mut checked = false;
         let shapes = focused("Option", move |ui| {
             checkbox(ui, &mut checked, "Option");
         });
-
-        let corner = shapes.iter().find_map(|shape| match shape {
-            Shape::Rect(rect) => Some(rect.corner_radius),
-            _ => None,
-        });
-        assert_eq!(
-            corner.map(|corner| (corner.nw, corner.se)),
-            Some((4, 4)),
-            "corner"
-        );
-    }
-
-    #[test]
-    fn a_focused_radio_rings_as_a_circle() {
+        assert!(shapes.is_empty(), "no ring on the checkbox");
         let shapes = focused("Choice", |ui| {
             radio(ui, false, "Choice", true);
         });
+        assert!(shapes.is_empty(), "no ring on the radio");
 
-        let radius = shapes.iter().find_map(|shape| match shape {
-            Shape::Circle(circle) => Some(circle.radius),
-            _ => None,
-        });
-        let want = TOGGLE_SIZE / 2.0 + FOCUS_OFFSET + FOCUS_WIDTH / 2.0;
-        assert!(
-            radius.is_some_and(|radius| (radius - want).abs() < 0.01),
-            "circle radius {radius:?}, want {want}"
+        let mut checked = false;
+        let on_checkbox = blooms(
+            move |ui| {
+                checkbox(ui, &mut checked, "Option");
+            },
+            "Option",
         );
-        assert!(
-            shapes.iter().all(|shape| !matches!(shape, Shape::Rect(_))),
-            "no rectangle ring"
+        let on_radio = blooms(
+            |ui| {
+                radio(ui, false, "Choice", true);
+            },
+            "Choice",
         );
+        assert_eq!(on_checkbox, 1, "checkbox bloom");
+        assert_eq!(on_radio, 1, "radio bloom");
     }
 
     #[test]

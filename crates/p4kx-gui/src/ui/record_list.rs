@@ -180,8 +180,8 @@ fn finish_row(response: &Response, texts: &Texts, record: &RecordChangeRow, acti
         response,
     );
     tooltip::hover(response.clone(), |ui| {
-        ui.label(shown_path(texts, record));
-        ui.label(record.type_name());
+        tooltip::line(ui, shown_path(texts, record));
+        tooltip::line(ui, record.type_name());
     })
     .clicked()
 }

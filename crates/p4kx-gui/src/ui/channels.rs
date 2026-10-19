@@ -82,7 +82,7 @@ fn show_row(ui: &mut Ui, texts: &Texts, channel: &Channel, current: Option<&Path
     ui.interact(build_rect, response.id.with("build"), Sense::hover())
         .widget_info(|| WidgetInfo::labeled(Role::Label, true, &build));
     tooltip::hover(response, |ui| {
-        ui.label(channel.archive().display().to_string());
+        tooltip::line(ui, channel.archive().display().to_string());
     })
     .clicked()
 }

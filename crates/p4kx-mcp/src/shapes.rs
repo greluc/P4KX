@@ -76,10 +76,23 @@ pub(crate) struct ArchiveInfo {
     pub(crate) entry_count: usize,
     /// The number of encrypted Entries.
     pub(crate) encrypted_count: usize,
+    /// The number of defects found in the Entries' directory records.
+    pub(crate) issue_count: usize,
+    /// The first of those defects, at most 50.
+    pub(crate) issues: Vec<IssueShape>,
     /// The sum of the stored Entry sizes in bytes.
     pub(crate) compressed_size: u64,
     /// The sum of the Entry sizes in bytes.
     pub(crate) size: u64,
+}
+
+/// A defect of one Entry that did not keep the Archive from opening.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct IssueShape {
+    /// The Entry path in the Archive, with invalid UTF-8 bytes replaced.
+    pub(crate) path: String,
+    /// What is wrong with the Entry.
+    pub(crate) issue: String,
 }
 
 /// One Entry.

@@ -73,7 +73,11 @@ Early development (milestone M1). Available today:
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
-  Entries. An Archive without a readable manifest has an unknown Build and still opens.
+  Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has
+  an unknown Build and still opens. A malformed field of one directory record, such as a path
+  that is not UTF-8, an encryption value other than 0 or 1 or v2 data outside the file, does not
+  stop an Archive from opening: `info`, `list` and `extract` print up to ten `warning: Entry …`
+  lines to stderr for the Entries concerned.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
@@ -283,7 +287,7 @@ write a file:
 | Tool | Result |
 |------|--------|
 | `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
-| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes, `issue_count` and the first 50 `issues` (Entry path and defect) of the directory |
 | `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
 | `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
 | `read_entry_text` | A range of an Entry as text (`path`, `offset`, `max_bytes`): CryXml as XML, UTF-16 by its byte order mark, otherwise UTF-8 |

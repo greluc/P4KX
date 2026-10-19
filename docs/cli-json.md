@@ -195,12 +195,14 @@ A **Trigger**:
 An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
 case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
 definition's `wwise_localised`) and `soundbanks`, each with `path` and `language` (the language
-folder below `Sounds\wwise\`, e.g. `English(US)`, or `null`), in path order.
+folder below `Sounds\wwise\`, e.g. `English(US)`, or `null`), in path order. `events` holds at most
+the first 256 `WwiseEvent`s of a definition; further ones are left out without an issue.
 
 The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
-(`too_large`, `unreadable`, `atl`, `soundbank` or `too_many_triggers`) and `message`; without
+(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+`soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
 ## `p4kx dcb query <archive> <query> --json`

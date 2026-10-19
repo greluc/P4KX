@@ -6,8 +6,8 @@ use rayon::prelude::*;
 
 use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
 use super::{
-    ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, IndexedSoundbank, MAX_AUDIO_TRIGGERS, atl,
-    banks,
+    ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, IndexedSoundbank, MAX_ATL_LEN,
+    MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, atl, banks,
 };
 
 type BankRead = Result<(IndexedSoundbank, Vec<u32>), AudioFileError>;
@@ -52,13 +52,14 @@ impl AudioIndex {
             .enumerate()
             .map(|(position, entry)| {
                 let file = u32::try_from(position).unwrap_or(u32::MAX);
-                entry_bytes(archive, entry).and_then(|bytes| atl::parse(&bytes, file))
+                entry_bytes(archive, entry, MAX_ATL_LEN).and_then(|bytes| atl::parse(&bytes, file))
             })
             .collect();
         let soundbanks: Vec<BankRead> = bank_entries
             .par_iter()
             .map(|entry| {
-                entry_bytes(archive, entry).and_then(|bytes| banks::read(entry.path(), &bytes))
+                entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
+                    .and_then(|bytes| banks::read(entry.path(), &bytes))
             })
             .collect();
         let mut index = Self::default();
@@ -100,6 +101,7 @@ impl AudioIndex {
         }
         Ok(())
     }
+
     fn add_soundbanks(&mut self, entries: &[&Entry], soundbanks: Vec<BankRead>) {
         let mut events: HashMap<u32, Vec<u32>> = HashMap::new();
         for (entry, soundbank) in entries.iter().zip(soundbanks) {
@@ -141,7 +143,8 @@ impl AudioIndex {
         &self.triggers
     }
 
-    /// Returns the path of the ATL definition Entry that defines `trigger`, or `None` for a trigger of another index.
+    /// Returns the path of the ATL definition Entry that defines `trigger`, or `None` for a
+    /// trigger of another index.
     #[must_use]
     pub fn definition_path(&self, trigger: &AtlTrigger) -> Option<&str> {
         let file = usize::try_from(trigger.file).ok()?;

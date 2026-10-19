@@ -1,17 +1,20 @@
 use p4kx_audio::BankError;
 use thiserror::Error;
 
-use super::{MAX_AUDIO_FILE_LEN, MAX_AUDIO_TRIGGERS};
+use super::MAX_AUDIO_TRIGGERS;
 
 /// Why an ATL definition or soundbank Entry is left out of the audio index.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
 pub enum AudioFileError {
-    /// The Entry is larger than [`MAX_AUDIO_FILE_LEN`].
-    #[error("the Entry holds {size} bytes, more than the limit of {MAX_AUDIO_FILE_LEN} bytes")]
+    /// The Entry is larger than [`MAX_SOUNDBANK_LEN`](super::MAX_SOUNDBANK_LEN) or
+    /// [`MAX_ATL_LEN`](super::MAX_ATL_LEN).
+    #[error("the Entry holds {size} bytes, more than the limit of {limit} bytes")]
     TooLarge {
         /// Its size.
         size: u64,
+        /// The limit for its kind.
+        limit: u64,
     },
     /// The Entry's data cannot be read from the Archive.
     #[error("the Entry cannot be read: {reason}")]

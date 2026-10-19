@@ -1,8 +1,11 @@
 use p4kx_cryxml::{Element, Xml};
 
-use super::{AudioFileError, MAX_TRIGGER_EVENTS, wwise_id};
+use super::{AudioFileError, MAX_ATL_NODES, MAX_TRIGGER_EVENTS, wwise_id};
 
 /// A Wwise event an ATL trigger posts: its name and its short ID.
+///
+/// This is the definition's reference to the event by name; the Wwise event of the glossary is
+/// the Event object in a soundbank's `HIRC` section that the short ID finds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WwiseEvent {
     name: Box<str>,
@@ -96,8 +99,15 @@ pub(crate) fn parse(bytes: &[u8], file: u32) -> Result<Vec<AtlTrigger>, AudioFil
         Xml::CryXml(document) => Ok(triggers(document.root(), file)),
         Xml::Text(text) => {
             let text = std::str::from_utf8(text).map_err(|error| failed(error.to_string()))?;
-            let document = roxmltree::Document::parse(text.trim_start_matches('\u{feff}'))
-                .map_err(|error| failed(error.to_string()))?;
+            let options = roxmltree::ParsingOptions {
+                nodes_limit: MAX_ATL_NODES,
+                ..roxmltree::ParsingOptions::default()
+            };
+            let document = roxmltree::Document::parse_with_options(
+                text.trim_start_matches('\u{feff}'),
+                options,
+            )
+            .map_err(|error| failed(error.to_string()))?;
             Ok(triggers(document.root_element(), file))
         }
     }

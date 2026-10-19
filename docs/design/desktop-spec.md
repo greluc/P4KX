@@ -197,6 +197,19 @@ der Listenfläche des Design-Systems. Die Köpfe der
 Versalien würden `Size` und `size` gleich aussehen lassen. Nur der Kopf „Record-Pfad" ist ein
 Label in Versalien.
 
+**D.18 Container als Ordner im Pfadbaum.** Ein `.socpak` steht nach den Unterordnern seines
+Ordners als gewöhnliche Baumzeile: Name unverändert (D.6), Chevron, Ebenen-Schienen. Ein eigenes
+Symbol gibt es nicht, weil das Icon-Set des DS keines für Archive hat; die Endung unterscheidet
+den Container schon. Während er geöffnet wird, stehen hinter dem Namen wie beim DataForge-Knoten
+der Inline-Spinner (14) und „Wird geöffnet …" in `color-gray-2-text`. Lässt er sich nicht öffnen,
+steht dort ein kurzer Hinweis in `color-danger-text` („Lässt sich nicht öffnen", „Nicht geöffnet:
+Speichergrenze"), nach einer Änderung des Archivs „Archiv geändert" in `color-warning` (D.8). Der
+volle Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container,
+der sich nicht lesen lässt, hat keinen Chevron. Wählt man einen Container oder einen seiner Ordner,
+zeigt die Tabelle dessen Einträge. Suche, Auswahl, „Ausgewählte extrahieren …", „Angezeigte
+extrahieren …" und Vorschau gelten dann diesem Container, „Alle extrahieren …" weiter dem ganzen
+Archiv.
+
 ## Bewusste Abweichungen von den Web-Specimens
 
 | Abweichung | Grund |

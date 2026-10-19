@@ -10,6 +10,7 @@ mod comparison_list;
 mod comparison_rows;
 mod comparison_summary;
 mod comparison_table;
+mod container_note;
 mod dataforge_summary;
 mod diff_line;
 mod diff_rows;

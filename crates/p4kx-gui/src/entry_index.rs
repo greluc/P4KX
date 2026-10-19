@@ -1,3 +1,5 @@
+mod containers;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use p4kx_extraction::{Archive, ArchiveWatch, DataForgeEntry, Entry, Filter};
@@ -17,6 +19,8 @@ pub struct EntryIndex {
     by_path: Vec<u32>,
     folders: Vec<Folder>,
     orders: SortOrders,
+    containers: Vec<(FolderId, u32)>,
+    path_bytes: u64,
     dataforge: Option<usize>,
 }
 
@@ -39,6 +43,11 @@ impl EntryIndex {
             || folder_tree::build(sorted.iter().map(|entry| entry.path())),
             || SortOrders::build(&sorted),
         );
+        let containers = containers::build(&sorted, &folders);
+        let path_bytes = sorted
+            .par_iter()
+            .map(|entry| entry.path().len() as u64)
+            .sum();
         let dataforge = DataForgeEntry::locate(&archive)
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
         Self {
@@ -47,8 +56,33 @@ impl EntryIndex {
             by_path,
             folders,
             orders,
+            containers,
+            path_bytes,
             dataforge,
         }
+    }
+
+    /// Returns the ids of the containers directly in `folder`, by name ignoring case.
+    pub fn containers_in(&self, folder: FolderId) -> impl ExactSizeIterator<Item = u32> + '_ {
+        containers::directly_in(&self.containers, folder)
+            .iter()
+            .map(|&(_, id)| id)
+    }
+
+    /// Returns whether `folder` shows anything below it in the path tree: subfolders or
+    /// containers.
+    #[must_use]
+    pub fn has_children(&self, folder: FolderId) -> bool {
+        !self.folder(folder).children().is_empty() || self.containers_in(folder).len() > 0
+    }
+
+    /// Returns roughly how many bytes the Entries and this index hold in memory, without the
+    /// data of a decoded container.
+    pub(crate) const fn footprint(&self) -> u64 {
+        let per_entry = size_of::<Entry>() + containers::INDEX_BYTES_PER_ENTRY;
+        (self.len() as u64)
+            .saturating_mul(per_entry as u64)
+            .saturating_add(self.path_bytes)
     }
 
     /// Returns the Entry DataForge is read from, `Data\Game2.dcb` or `Data\Game.dcb`, or `None`

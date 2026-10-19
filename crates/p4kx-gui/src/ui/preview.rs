@@ -133,7 +133,7 @@ fn tab_body(ui: &mut Ui, texts: &Texts, browser: &Browser, tab: PreviewTab) -> O
     match browser.records().filter(|_| tab == PreviewTab::DataForge) {
         Some(tree) => {
             let size = browser
-                .index()
+                .archive_index()
                 .dataforge_entry()
                 .map_or(0, Entry::uncompressed_size);
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));

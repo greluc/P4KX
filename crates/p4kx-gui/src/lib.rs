@@ -6,7 +6,9 @@
 mod app;
 mod browser;
 mod channel_list;
+mod checks;
 mod comparison;
+mod containers;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_index;
@@ -29,12 +31,15 @@ mod widgets;
 pub mod window;
 
 pub use app::App;
-pub use browser::{Browser, TreeRow};
+pub use browser::{Browser, TreeNode, TreeRow};
 pub use channel_list::ChannelList;
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonSide, ComparisonStage, ComparisonStatus,
     ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow, DiffStatus,
     DirectorySummary, EntryDiff, ReportStatus, Summary,
+};
+pub use containers::{
+    ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
 pub use entry_index::EntryIndex;
 pub use extraction::{
@@ -59,6 +64,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    QueryText, RecordSearchText, Text, Texts,
+    ChangeExtractionText, ComparisonText, ContainerText, DataForgeText, DiffText, ExtractionText,
+    ImageText, QueryText, RecordSearchText, Text, Texts,
 };

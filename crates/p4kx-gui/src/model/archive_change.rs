@@ -11,7 +11,7 @@ impl Model {
     pub fn archive_changed(&self) -> bool {
         self.browser
             .as_ref()
-            .is_some_and(|browser| browser.index().watch().is_changed())
+            .is_some_and(|browser| browser.archive_index().watch().is_changed())
     }
 
     /// Returns whether a change of the open Archive on disk stopped a running Extraction of it.
@@ -40,7 +40,7 @@ impl Model {
         let Some(browser) = &self.browser else {
             return;
         };
-        let path = browser.index().archive().path().to_path_buf();
+        let path = browser.archive_index().archive().path().to_path_buf();
         self.open(path, wake);
     }
 
@@ -48,12 +48,13 @@ impl Model {
         let Some(browser) = &mut self.browser else {
             return false;
         };
-        let watch = browser.index().watch();
+        let watch = browser.archive_index().watch();
         if compare(watch).is_ok() {
             return false;
         }
-        let path = browser.index().archive().path().to_path_buf();
+        let path = browser.archive_index().archive().path().to_path_buf();
         browser.drop_records();
+        browser.drop_containers();
         if self
             .extraction_setup
             .as_ref()

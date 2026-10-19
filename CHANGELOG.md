@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- socpak containers in the path tree of the window: a container expands like a folder, opened in
+  the background with a spinner and cancelled by collapsing it, and nested containers expand too.
+  Selecting a container lists its Entries for search, preview and the extraction of the selected
+  or shown Entries. Opened containers are kept per Archive within 1 GiB of memory, closing the
+  least recently used collapsed ones first; a corrupt container says so on its row, and a change
+  of the Archive on disk closes them.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.

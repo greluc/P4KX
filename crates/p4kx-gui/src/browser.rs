@@ -1,4 +1,5 @@
 mod records;
+mod tree;
 
 use std::collections::HashSet;
 use std::ops::Range;
@@ -6,6 +7,8 @@ use std::sync::Arc;
 
 use p4kx_extraction::Filter;
 
+use crate::checks::Checks;
+use crate::containers::{Containers, Place};
 use crate::record_search::RecordSearch;
 use crate::search::{self, Matches, Outcome, Pending, Started};
 use crate::{
@@ -13,30 +16,28 @@ use crate::{
     SortDirection,
 };
 
-/// One visible row of the path tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TreeRow {
-    /// The folder of the row.
-    pub folder: FolderId,
-    /// How deep the folder sits below the root, which has depth 0.
-    pub depth: usize,
-}
+pub use tree::{TreeNode, TreeRow};
 
-/// The browsing state of an opened Archive: the selected and expanded folders, the search, the
-/// sorted Entries of the selected folder or of the search, and the checked Entries.
+/// The browsing state of an opened Archive and its containers.
+///
+/// It holds the selected and expanded folders, the search, the sorted Entries of the selected
+/// folder or of the search, and the checked Entries. The table shows the Entries of one place at a time, the Archive or one container; the
+/// search, the checks and the preview belong to that place.
 #[derive(Debug)]
 pub struct Browser {
     index: Arc<EntryIndex>,
+    containers: Containers,
+    place: Place,
+    parked: Checks,
     search_text: String,
     matches: Option<Matches>,
     pending: Option<Pending>,
     folder: FolderId,
-    expanded: HashSet<FolderId>,
+    expanded: HashSet<TreeNode>,
     tree_rows: Vec<TreeRow>,
     sort: Sort,
     shown: Vec<u32>,
-    checked: Vec<bool>,
-    checked_count: usize,
+    checks: Checks,
     shown_checked_count: usize,
     preview: Option<Preview>,
     records: Option<RecordTree>,
@@ -48,22 +49,24 @@ impl Browser {
     #[must_use]
     pub fn new(index: EntryIndex) -> Self {
         let root = index.root();
-        let checked = vec![false; index.len()];
+        let checks = Checks::new(index.len());
         let records = index
             .dataforge_entry()
             .map(|entry| RecordTree::new(entry.path().to_owned()));
         let mut browser = Self {
             index: Arc::new(index),
+            containers: Containers::default(),
+            place: Place::Archive,
+            parked: Checks::default(),
             search_text: String::new(),
             matches: None,
             pending: None,
             folder: root,
-            expanded: HashSet::from([root]),
+            expanded: HashSet::from([TreeNode::from(root)]),
             tree_rows: Vec::new(),
             sort: Sort::default(),
             shown: Vec::new(),
-            checked,
-            checked_count: 0,
+            checks,
             shown_checked_count: 0,
             preview: None,
             records,
@@ -74,9 +77,16 @@ impl Browser {
         browser
     }
 
-    /// Returns the index of the opened Archive.
+    /// Returns the index of the place whose Entries are shown: the Archive, or the selected
+    /// container once it is open.
     #[must_use]
     pub fn index(&self) -> &EntryIndex {
+        self.pane().unwrap_or(&self.index)
+    }
+
+    /// Returns the index of the opened Archive itself.
+    #[must_use]
+    pub fn archive_index(&self) -> &EntryIndex {
         &self.index
     }
 
@@ -84,11 +94,22 @@ impl Browser {
         &self.index
     }
 
-    /// Returns the number of Entries `scope` covers; none are shown while a search runs.
+    /// Returns the place whose Entries are shown.
+    #[must_use]
+    pub const fn place(&self) -> Place {
+        self.place
+    }
+
+    fn pane(&self) -> Option<&Arc<EntryIndex>> {
+        self.containers.index_of(self.place, &self.index)
+    }
+
+    /// Returns the number of Entries `scope` covers: the checked and the shown Entries of the
+    /// shown place, or every Entry of the Archive; none are shown while a search runs.
     #[must_use]
     pub fn scope_len(&self, scope: ExtractionScope) -> usize {
         match scope {
-            ExtractionScope::Selected => self.checked_count,
+            ExtractionScope::Selected => self.checks.count(),
             ExtractionScope::Shown if self.pending.is_some() => 0,
             ExtractionScope::Shown => self.shown.len(),
             ExtractionScope::All => self.index.len(),
@@ -96,58 +117,33 @@ impl Browser {
         }
     }
 
-    /// Returns the ids of the Entries `scope` covers; none are shown while a search runs.
+    /// Returns the ids of the Entries `scope` covers: of [`Browser::index`] for the checked and
+    /// the shown Entries, of [`Browser::archive_index`] for every Entry; none are shown while a
+    /// search runs.
     #[must_use]
     pub fn scope_entries(&self, scope: ExtractionScope) -> Vec<u32> {
-        let ids = (0..self.index.len()).filter_map(|id| u32::try_from(id).ok());
         match scope {
-            ExtractionScope::Selected => ids.filter(|&id| self.is_checked(id)).collect(),
+            ExtractionScope::Selected => self.checks.ids(),
             ExtractionScope::Shown if self.pending.is_some() => Vec::new(),
             ExtractionScope::Shown => self.shown.clone(),
-            ExtractionScope::All => ids.collect(),
+            ExtractionScope::All => (0..self.index.len())
+                .filter_map(|id| u32::try_from(id).ok())
+                .collect(),
             ExtractionScope::Changes(_) => Vec::new(),
         }
     }
 
-    /// Returns the folder whose Entries are shown.
-    #[must_use]
-    pub const fn selected_folder(&self) -> FolderId {
-        self.folder
-    }
-
-    /// Shows the Entries of `folder` and below, ending the search, and expands it.
-    pub fn select_folder(&mut self, folder: FolderId) {
-        self.folder = folder;
-        if let Some(records) = &mut self.records {
-            records.clear_selection();
-        }
-        self.search_text.clear();
-        self.pending = None;
-        self.matches = None;
-        if self.expanded.insert(folder) {
-            self.refresh_tree();
-        }
-        self.refresh_shown();
-    }
-
-    /// Returns whether `folder` shows its subfolders in the tree.
-    #[must_use]
-    pub fn is_expanded(&self, folder: FolderId) -> bool {
-        self.expanded.contains(&folder)
-    }
-
-    /// Expands a collapsed `folder` or collapses an expanded one.
-    pub fn toggle_expanded(&mut self, folder: FolderId) {
-        if !self.expanded.remove(&folder) {
-            self.expanded.insert(folder);
-        }
-        self.refresh_tree();
-    }
-
-    /// Returns the visible rows of the path tree, top to bottom.
-    #[must_use]
-    pub fn tree_rows(&self) -> &[TreeRow] {
-        &self.tree_rows
+    /// Returns the index the Entries of `scope` are read from with their ids, or `None` while
+    /// the selected container is not open.
+    pub(crate) fn scope_source(
+        &self,
+        scope: ExtractionScope,
+    ) -> Option<(Arc<EntryIndex>, Vec<u32>)> {
+        let index = match scope {
+            ExtractionScope::All => &self.index,
+            _ => self.pane()?,
+        };
+        Some((Arc::clone(index), self.scope_entries(scope)))
     }
 
     /// Returns how the shown Entries are sorted.
@@ -178,28 +174,21 @@ impl Browser {
         &self.shown
     }
 
-    /// Returns whether the Entry `id` is checked.
+    /// Returns whether the Entry `id` of the shown place is checked.
     #[must_use]
     pub fn is_checked(&self, id: u32) -> bool {
-        self.checked.get(id as usize).copied().unwrap_or(false)
+        self.checks.is_checked(id)
     }
 
-    /// Checks or unchecks the Entry `id`.
+    /// Checks or unchecks the Entry `id` of the shown place.
     pub fn set_checked(&mut self, id: u32, checked: bool) {
         let shown = self.is_in_view(id);
-        let Some(slot) = self.checked.get_mut(id as usize) else {
-            return;
-        };
-        if *slot == checked {
-            return;
-        }
-        *slot = checked;
-        if checked {
-            self.checked_count += 1;
-            self.shown_checked_count += usize::from(shown);
-        } else {
-            self.checked_count -= 1;
-            self.shown_checked_count -= usize::from(shown);
+        if self.checks.set(id, checked) && shown {
+            if checked {
+                self.shown_checked_count += 1;
+            } else {
+                self.shown_checked_count -= 1;
+            }
         }
     }
 
@@ -218,16 +207,16 @@ impl Browser {
         self.shown = shown;
     }
 
-    /// Returns the number of checked Entries in the whole Archive.
+    /// Returns the number of checked Entries of the shown place.
     #[must_use]
     pub const fn checked_count(&self) -> usize {
-        self.checked_count
+        self.checks.count()
     }
 
-    /// Returns the number of checked Entries that are not shown.
+    /// Returns the number of checked Entries of the shown place that are not shown.
     #[must_use]
     pub const fn hidden_checked_count(&self) -> usize {
-        self.checked_count - self.shown_checked_count
+        self.checks.count() - self.shown_checked_count
     }
 
     /// Returns the text of the search field.
@@ -248,8 +237,8 @@ impl Browser {
         self.pending.is_some()
     }
 
-    /// Searches the whole Archive for `text` as a Filter on a background thread, replacing a
-    /// search still running; `wake` is called from that thread once the result is ready. The
+    /// Searches the whole shown place for `text` as a Filter on a background thread, replacing
+    /// a search still running; `wake` is called from that thread once the result is ready. The
     /// shown Entries change when [`Browser::poll`] takes the result; empty text shows the
     /// selected folder again at once.
     pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
@@ -263,13 +252,17 @@ impl Browser {
             self.refresh_shown();
             return;
         }
-        match search::start(&self.index, &Filter::new(text), wake) {
+        let Some(index) = self.pane().map(Arc::clone) else {
+            self.show_matches(Matches::default());
+            return;
+        };
+        match search::start(&index, &Filter::new(text), wake) {
             Started::Running(pending) => self.pending = Some(pending),
             Started::Finished(matches) => self.show_matches(matches),
         }
     }
 
-    /// Returns the Entry selected for the preview, or `None` when none is.
+    /// Returns the Entry of the shown place selected for the preview, or `None` when none is.
     #[must_use]
     pub fn selected_entry(&self) -> Option<u32> {
         self.preview.as_ref().map(Preview::entry)
@@ -286,21 +279,24 @@ impl Browser {
         self.preview.as_mut().and_then(Preview::image_mut)
     }
 
-    /// Selects the Entry `id` and reads its preview on a background thread, unless it is
-    /// selected already; `wake` is called from that thread once the data is ready.
+    /// Selects the Entry `id` of the shown place and reads its preview on a background thread,
+    /// unless it is selected already; `wake` is called from that thread once the data is ready.
     pub fn select_entry(&mut self, id: u32, wake: impl Fn() + Send + Sync + 'static) {
-        if self.selected_entry() != Some(id) {
-            self.preview = Some(Preview::start(&self.index, id, wake));
+        if self.selected_entry() != Some(id)
+            && let Some(index) = self.pane()
+        {
+            self.preview = Some(Preview::start(index, id, wake));
         }
     }
 
-    /// Takes the result of a finished search and of a finished preview; returns whether one
-    /// finished.
+    /// Takes the result of a finished search, preview and container opening; returns whether
+    /// one finished.
     pub fn poll(&mut self) -> bool {
         let previewed = self.preview.as_mut().is_some_and(Preview::poll);
         let loaded = self.records.as_mut().is_some_and(RecordTree::poll);
         let found = self.poll_record_search(loaded);
-        self.poll_search() || previewed || loaded || found
+        let opened = self.poll_containers();
+        self.poll_search() || previewed || loaded || found || opened
     }
 
     fn poll_search(&mut self) -> bool {
@@ -327,7 +323,8 @@ impl Browser {
     }
 
     fn folder_range(&self) -> Range<u32> {
-        self.index.folder(self.folder).entries()
+        self.pane()
+            .map_or(0..0, |index| index.folder(self.folder).entries())
     }
 
     fn is_in_view(&self, id: u32) -> bool {
@@ -338,39 +335,22 @@ impl Browser {
     }
 
     fn refresh_shown(&mut self) {
+        let Some(index) = self.pane().map(Arc::clone) else {
+            self.shown.clear();
+            self.shown_checked_count = 0;
+            return;
+        };
         if let Some(matches) = &self.matches {
-            self.shown = self.index.entries_matching(matches.mask(), self.sort);
+            self.shown = index.entries_matching(matches.mask(), self.sort);
             self.shown_checked_count = matches
                 .mask()
                 .iter()
-                .zip(&self.checked)
+                .zip(self.checks.marks())
                 .filter(|&(&matched, &checked)| matched && checked)
                 .count();
         } else {
-            self.shown = self.index.entries_in(self.folder, self.sort);
-            let range = self.folder_range();
-            let checked = self.checked.get(range.start as usize..range.end as usize);
-            self.shown_checked_count =
-                checked.map_or(0, |slots| slots.iter().filter(|&&c| c).count());
+            self.shown = index.entries_in(self.folder, self.sort);
+            self.shown_checked_count = self.checks.count_in(self.folder_range());
         }
-    }
-
-    fn refresh_tree(&mut self) {
-        let mut rows = Vec::new();
-        let mut pending = vec![TreeRow {
-            folder: self.index.root(),
-            depth: 0,
-        }];
-        while let Some(row) = pending.pop() {
-            rows.push(row);
-            if self.expanded.contains(&row.folder) {
-                let children = self.index.folder(row.folder).children();
-                pending.extend(children.iter().rev().map(|&folder| TreeRow {
-                    folder,
-                    depth: row.depth + 1,
-                }));
-            }
-        }
-        self.tree_rows = rows;
     }
 }

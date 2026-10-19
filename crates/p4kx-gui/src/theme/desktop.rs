@@ -3,6 +3,9 @@
 
 use egui::Color32;
 
+pub use super::query_metrics::{
+    COMBOBOX_NOTICE_PADDING, COMPLETION_MAX_HEIGHT, SAVED_LIST_HEIGHT, SAVED_NAME_MAX_WIDTH,
+};
 use super::tokens::{
     FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
 };
@@ -228,6 +231,8 @@ pub const SCROLL_THUMB_MIN: f32 = 32.0;
 
 /// The width of the focus ring.
 pub const FOCUS_WIDTH: f32 = 2.0;
+/// The thickness of a hairline, e.g. the underline of a hovered link.
+pub const HAIRLINE: f32 = 1.0;
 /// The gap between a control and its focus ring.
 pub const FOCUS_OFFSET: f32 = 2.0;
 /// The opacity of a disabled control.
@@ -260,6 +265,11 @@ pub const PICKER_PADDING_RIGHT: f32 = 2.0 * REM;
 pub const PICKER_CHEVRON_INSET: f32 = 0.65 * REM;
 /// The narrowest an Archive picker gets.
 pub const PICKER_MIN_WIDTH: f32 = SEARCH_WIDTH;
+
+/// The initial width of the key column of the localisation table.
+pub const LOCALIZATION_KEY_WIDTH: f32 = 300.0;
+/// The initial width of a language column of the localisation table.
+pub const LOCALIZATION_TEXT_WIDTH: f32 = 320.0;
 
 /// The widest the progress bar of a Comparison gets.
 pub const COMPARISON_PROGRESS_WIDTH: f32 = 320.0;
@@ -385,13 +395,3 @@ pub const LIST_FOOTER_PADDING_Y: f32 = SPACE_3;
 pub const PAGE_CHEVRON: f32 = 1.1 * REM;
 /// The rows of text the Query editor grows to before it scrolls.
 pub const QUERY_EDITOR_MAX_ROWS: usize = 12;
-/// The tallest the completion list of the Query editor gets before it scrolls, the
-/// `.krt-combobox__listbox` `max-height` of 18 rem.
-pub const COMPLETION_MAX_HEIGHT: f32 = 18.0 * REM;
-/// The padding of a `.krt-combobox__notice`.
-pub const COMBOBOX_NOTICE_PADDING: f32 = 0.75 * REM;
-/// The tallest the list of saved Queries gets before it scrolls, the list height of a
-/// collapsible section.
-pub const SAVED_LIST_HEIGHT: f32 = SECTION_LIST_HEIGHT;
-/// The widest the name of a saved Query gets before it ends in an ellipsis, a dropdown's width.
-pub const SAVED_NAME_MAX_WIDTH: f32 = DROPDOWN_MIN_WIDTH;

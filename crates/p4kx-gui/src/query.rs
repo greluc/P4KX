@@ -1,14 +1,13 @@
 use std::ops::Range;
 use std::path::PathBuf;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
-use p4kx_extraction::query::{Query, QueryError, QuerySchema};
+use p4kx_extraction::query::{Query, QueryError};
 use p4kx_settings::SavedQueries;
 
 mod cell;
 mod completion;
 mod export;
-mod forge_slot;
 mod result;
 mod run;
 mod saved;
@@ -21,7 +20,6 @@ pub use saved::{NameNote, SavedDialog};
 
 use crate::EntryIndex;
 use export::ExportJob;
-use forge_slot::ForgeSlot;
 use run::{Job, Outcome, Run};
 
 /// How far a running Query has come.
@@ -152,7 +150,6 @@ enum State {
 pub struct QueryTab {
     text: String,
     state: State,
-    forge: Option<(Weak<EntryIndex>, Arc<ForgeSlot>)>,
     export: Option<ExportJob>,
     completion: CompletionState,
     saved: SavedQueries,
@@ -192,26 +189,6 @@ impl QueryTab {
         self.completion.shown()
     }
 
-    /// Starts reading the completion schema of `index` off the UI thread unless it is read or
-    /// being read; `wake` is called once it is read. Together with [`Self::schema`] this is the
-    /// one way the tab reaches the schema cache.
-    pub(crate) fn prepare_completion(
-        &mut self,
-        index: &Arc<EntryIndex>,
-        wake: impl Fn() + Send + 'static,
-    ) {
-        self.slot_of(index).prepare_schema(index, wake);
-    }
-
-    /// Returns the completion schema of `index` once it was read.
-    pub(crate) fn schema(&self, index: &Arc<EntryIndex>) -> Option<Arc<QuerySchema>> {
-        let (of, slot) = self.forge.as_ref()?;
-        of.upgrade()
-            .is_some_and(|of| Arc::ptr_eq(&of, index))
-            .then(|| slot.schema())
-            .flatten()
-    }
-
     /// Returns whether a Query runs.
     #[must_use]
     pub const fn is_running(&self) -> bool {
@@ -236,37 +213,16 @@ impl QueryTab {
                 return false;
             }
         };
-        let forge = self.slot_of(index);
         let job = Job {
             index: Arc::clone(index),
             query,
             text: self.text.clone(),
-            forge,
         };
         self.state = match run::start(job, wake) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };
         true
-    }
-
-    /// Returns the DataForge slot of `index`, a new one when the slot kept is of another
-    /// Archive.
-    fn slot_of(&mut self, index: &Arc<EntryIndex>) -> Arc<ForgeSlot> {
-        if let Some((of, slot)) = &self.forge
-            && of.upgrade().is_some_and(|of| Arc::ptr_eq(&of, index))
-        {
-            return Arc::clone(slot);
-        }
-        let slot = Arc::new(ForgeSlot::default());
-        self.forge = Some((Arc::downgrade(index), Arc::clone(&slot)));
-        slot
-    }
-
-    /// Returns how many times Queries started reading the DataForge of the open Archive.
-    #[must_use]
-    pub fn dataforge_reads(&self) -> usize {
-        self.forge.as_ref().map_or(0, |(_, slot)| slot.reads())
     }
 
     /// Returns the bytes of the Query text to mark as an error: the span of the error of the
@@ -279,11 +235,10 @@ impl QueryTab {
         }
     }
 
-    /// Forgets the result, the running Query, its export and the DataForge read for it,
-    /// keeping the Query text, because another Archive was opened.
+    /// Forgets the result, the running Query and its export, keeping the Query text, because
+    /// another Archive was opened.
     pub(crate) fn archive_opened(&mut self) {
         self.state = State::Idle;
-        self.forge = None;
         self.export = None;
         self.completion.reset();
     }

@@ -5,6 +5,7 @@ pub mod categorical;
 pub mod desktop;
 pub mod logo;
 pub mod palette;
+mod query_metrics;
 pub mod tokens;
 
 #[cfg(test)]
@@ -13,6 +14,8 @@ mod audio_tests;
 mod comparison_tests;
 #[cfg(test)]
 mod image_tests;
+#[cfg(test)]
+mod localization_tests;
 #[cfg(test)]
 mod query_tests;
 #[cfg(test)]

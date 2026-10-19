@@ -14,8 +14,9 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, section_header};
+use crate::widgets::scroll_region;
 use crate::widgets::text::{line, plain};
-use crate::{QueryText, Texts};
+use crate::{QueryText, ScrollText, Texts};
 
 /// What the user did with a saved Query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,20 +67,29 @@ pub(super) fn show(
         return None;
     }
     let mut action = None;
-    ScrollArea::vertical()
+    let area = ScrollArea::vertical()
         .id_salt("p4kx-saved-queries-list")
         .max_height(SAVED_LIST_HEIGHT)
-        .auto_shrink([false, true])
-        .show_rows(ui, ROW_HEIGHT, laid.rows.len(), |ui, range| {
-            ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
-            for index in range {
-                if let Some(row) = laid.rows.get(index)
-                    && let Some(done) = saved_row(ui, index, row, &laid)
-                {
-                    action = Some(done);
+        .auto_shrink([false, true]);
+    let id = ui.scope_id().with("p4kx-saved-queries-list");
+    scroll_region::show(
+        ui,
+        (id, || texts.get(ScrollText::SavedQueries)),
+        ROW_HEIGHT,
+        area,
+        |area, ui| {
+            area.show_rows(ui, ROW_HEIGHT, laid.rows.len(), |ui, range| {
+                ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                for index in range {
+                    if let Some(row) = laid.rows.get(index)
+                        && let Some(done) = saved_row(ui, index, row, &laid)
+                    {
+                        action = Some(done);
+                    }
                 }
-            }
-        });
+            })
+        },
+    );
     action
 }
 

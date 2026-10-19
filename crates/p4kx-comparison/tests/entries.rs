@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use p4kx_comparison::{
     Archive, Build, CancelToken, ChangeKind, CompareOptions, ComparisonError, ComparisonProgress,
-    EntryChange, Filter, Levels, compare,
+    DEFAULT_CONTEXT, EntryChange, Filter, Levels, compare, line_diff,
 };
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 
@@ -180,6 +180,31 @@ fn identical_archives_have_no_differences() -> TestResult {
 
     assert!(comparison.entry_changes().is_empty(), "no Entry changed");
     assert!(!comparison.has_differences(), "no differences");
+    Ok(())
+}
+
+#[test]
+fn the_entry_level_reads_no_entry_data() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let data = b"<config speed=\"1\"/>".to_vec();
+    let corrupt = ArchiveBuilder::new().entry(
+        TestEntry::zstd("Data\\config.xml", data.clone()).with_payload(b"no zstd frame".to_vec()),
+    );
+    let intact = ArchiveBuilder::v2().entry(TestEntry::stored("Data\\config.xml", data));
+    let old = Archive::open(write(dir.path(), "LIVE", &corrupt)?)?;
+    let new = Archive::open(write(dir.path(), "PTU", &intact)?)?;
+
+    let comparison = compare(&old, &new, None, &entries_only())?;
+
+    assert!(
+        !comparison.has_differences(),
+        "equal by size and CRC: {:?}",
+        comparison.entry_changes()
+    );
+    assert!(
+        line_diff(&old, &new, "Data\\config.xml", DEFAULT_CONTEXT).is_err(),
+        "the data of the old side does not decompress"
+    );
     Ok(())
 }
 

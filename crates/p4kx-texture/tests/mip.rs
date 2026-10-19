@@ -72,6 +72,95 @@ fn an_unsplit_texture_reads_every_mip_from_the_header() -> Result<(), TextureErr
 }
 
 #[test]
+fn the_cryengine_trailer_of_a_cubemap_is_not_read_as_a_mip() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8).cubemap();
+    let mut header = dds.header_bytes();
+    header.extend_from_slice(b"CExtCEnd");
+
+    for level in 0..4 {
+        let mip = read_mip(
+            header.as_slice(),
+            header.len() as u64,
+            &Parts::of(&dds),
+            level,
+        )?;
+        assert_eq!(mip.data(), dds.mip(level).as_slice(), "mip {level}");
+    }
+    Ok(())
+}
+
+fn read_with_trailer(dds: &SplitDds, trailer: [u8; 8], level: u32) -> Result<Mip, TextureError> {
+    let mut header = dds.header_bytes();
+    header.extend_from_slice(&trailer);
+    read_mip(
+        header.as_slice(),
+        header.len() as u64,
+        &Parts::of(dds),
+        level,
+    )
+}
+
+#[test]
+fn the_cryengine_trailer_of_a_split_texture_is_not_read_as_a_mip() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 64, 32).split(4);
+
+    for level in 0..7 {
+        let mip = read_with_trailer(&dds, *b"CExtCEnd", level)?;
+        assert_eq!(mip.data(), dds.mip(level).as_slice(), "mip {level}");
+    }
+    Ok(())
+}
+
+#[test]
+fn the_trailer_of_a_split_cubemap_is_checked_behind_the_last_face() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 16, 16)
+        .cubemap()
+        .split(2);
+
+    for level in 0..5 {
+        let mip = read_with_trailer(&dds, *b"CExtCEnd", level)?;
+        assert_eq!(mip.data(), dds.mip(level).as_slice(), "mip {level}");
+    }
+    let result = read_with_trailer(&dds, *b"CExtXXXX", 2);
+    assert!(
+        matches!(result, Err(TextureError::UnknownTrailer { .. })),
+        "{result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn eight_wrong_trailer_bytes_are_rejected_for_a_mip_of_the_header_tail() {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 64, 32).split(4);
+
+    for level in 4..7 {
+        let result = read_with_trailer(&dds, *b"CExtXXXX", level);
+        assert!(
+            matches!(
+                result,
+                Err(TextureError::UnknownTrailer { found }) if &found == b"CExtXXXX"
+            ),
+            "level {level}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn a_cut_trailer_behind_a_mip_of_the_header_tail_is_truncated() {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 64, 32).split(4);
+    let mut header = dds.header_bytes();
+    header.extend_from_slice(b"CExtCEnd");
+    let cut = header.get(..header.len() - 3).unwrap_or_default();
+
+    let result = read_mip(cut, header.len() as u64, &Parts::of(&dds), 6);
+
+    assert!(
+        matches!(result, Err(TextureError::TruncatedHeader { .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
 fn a_mip_beyond_the_chain_is_named() {
     let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 16, 16).split(2);
 

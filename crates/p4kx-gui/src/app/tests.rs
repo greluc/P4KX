@@ -4,7 +4,7 @@ use p4kx_channels::SearchPaths;
 use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, SavedQueries, Settings};
 
 use super::{App, remember};
-use crate::{ChannelList, Language, Model};
+use crate::{ChannelList, Language, Model, RecordTextChoice, TextLanguage};
 
 #[test]
 fn the_language_stays_unset_until_the_user_chooses_one() {
@@ -21,6 +21,28 @@ fn the_language_stays_unset_until_the_user_chooses_one() {
 
     assert_eq!(unchosen, None, "follows the system");
     assert_eq!(settings.language.as_deref(), Some("en-GB"), "chosen");
+}
+
+#[test]
+fn the_record_text_choice_is_stored_and_stays_unset_until_made() {
+    let mut model = Model::new(Language::German);
+    let mut settings = Settings::default();
+
+    remember(&mut settings, &model, false, None);
+    let unchosen = settings.record_language.clone();
+    model.set_record_text_choice(Some(RecordTextChoice::Language(TextLanguage::French)));
+    remember(&mut settings, &model, false, None);
+    let french = settings.record_language.clone();
+    model.set_record_text_choice(Some(RecordTextChoice::KeysOnly));
+    remember(&mut settings, &model, false, None);
+
+    assert_eq!(unchosen, None, "follows the interface");
+    assert_eq!(french.as_deref(), Some("fr"), "a language");
+    assert_eq!(
+        settings.record_language.as_deref(),
+        Some("none"),
+        "keys only"
+    );
 }
 
 #[test]

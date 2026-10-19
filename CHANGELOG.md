@@ -4,13 +4,56 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
-## [Unreleased]
+## [0.2.0]
+
+The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the
+Basetool catalog, the Comparison of two Archives, textures and localisation, and first commands
+for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server.
 
 ### Added
 
 - Query tab: completion of struct and field names from the DataForge schema while typing, after
   `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
   settings, run with one click, renamed and deleted.
+- Verification of textures and localisation against all installed Channels, recorded in
+  `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
+  `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer
+  refused with "not a whole number of mips": the trailer is left out of the merged DDS and of
+  the mips read. Opening a texture only checks the trailer's size; `merge` and `read_mip` of a
+  mip from the header Entry's tail verify its bytes (`TextureError::UnknownTrailer`), `read_mip`
+  of a mip from a part does not.
+- GUI: the menu "Record texts" chooses the language of the texts the Record preview shows next
+  to localisation keys, in the Record tab and in the Record XML. It lists the languages whose
+  `global.ini` the open Archive holds plus "Keys only", follows the interface language until
+  one is chosen, and stores the choice in the settings (`record_language`). A key without a text
+  in the language is marked "Missing"; control, bidirectional and line feed characters of the
+  texts are shown as escapes. A language is read, indexed and copied once per Archive; switching
+  it re-renders the open Record from the DataForge already held, without reading it again.
+  `LanguageTexts::owned` resolves with an `OwnedTextSet`.
+- GUI: a Localisation tab next to Query. It reads the `global.ini` of every language of the open
+  Archive off the UI thread behind a loading indicator and shows one row per localisation key
+  and one column per language, with missing translations marked. The search matches keys and
+  texts of all languages ignoring case, runs off the UI thread while typing and keeps the
+  window responsive on a full table; control and bidirectional characters in texts are shown as
+  escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C, and
+  the table scrolls with the keyboard. All texts are in the German and British English interface
+  files.
+- Verification of the Basetool catalog against all installed Channels: Records with the words
+  `debug`, `deprecated` or `dev` in their path are left out as development leftovers, and the
+  measured sizes (at most 21.1 MB against the 64 MB upload limit) are recorded in
+  `docs/basetool-catalog.md`.
+- An unreadable selected Record no longer aborts `p4kx catalog` and the desktop app's Basetool
+  catalog: it is left out and counted as a failure, the catalog is still written, `p4kx catalog`
+  lists the failed Records on stderr and under `failed` in `--json` and exits with code 1, and the
+  summary window lists them.
+- `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
+  localisation key next to the key, in the `global.ini` of that language; a key without a text is
+  marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte
+  for byte the same as before, and the export report names the `language` only with it.
+  `RecordXml::write_with`, `RecordJson::write_with` and `TextResolver` in `p4kx-dataforge`,
+  `LanguageTexts` and `RecordExportOptions::texts` in `p4kx-extraction`; the Record JSON Schema
+  allows the new `{"key", "text"|"missing"}` object. `RecordFileFormat::write_file` takes the
+  texts as an extra parameter.
 - `p4kx model info|glb <archive> <entry>`: static `#ivo` models (`.cgf` with their `.cgfm`
   geometry companion) shown with their nodes, LODs, meshes, materials, bones and chunks, and
   exported as one glTF 2.0 binary file (GLB) that Blender opens upright and in metres: one node
@@ -68,6 +111,13 @@ fails while its section is missing.
   new or an existing folder with a Conflict policy, in the background with progress, cancel and a
   summary of the Records written and those with error values. DataForge and the planned files are
   read once per open Archive and reused by every later export.
+- **Export › Basetool catalog…** in the window: the Basetool catalog of the open Archive into a
+  file chosen in the save dialog, in the background with progress and cancel, writing no partial
+  file, and a summary of the entities and skipped Records per kind, the resolved and missing texts
+  per language and the size with a warning near or over the basetool upload limit. The Record
+  export and the catalog share the DataForge read once per open Archive.
+- `p4kx_export::build_catalog_from`: builds the Basetool catalog from a DataForge Entry already
+  read.
 - `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
   `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
   the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record
@@ -101,9 +151,9 @@ fails while its section is missing.
   and is counted as unresolved in the result summary; `->` where no Reference stands is marked
   as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
-  Channel, Build and completeness per kind, starting with the manufacturers; test, template and
-  dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
-  the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
+  Channel, Build and completeness per kind, starting with the manufacturers; test, template,
+  dummy, debug, deprecated and dev Records are left out and counted, `--filter` makes it partial,
+  and a warning comes before the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
 - English and German names and descriptions in the Basetool catalog, resolved from the Archive's
   `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or
@@ -212,12 +262,26 @@ fails while its section is missing.
   is reloaded or changes on disk; an unsupported version or a load error is named on the node. The
   new DataForge tab of the preview shows the version, the numbers of Records, structs and enums and
   the first Records.
-
 - Archive menu entries "Reload" (F5) and "Extract selected…" (Ctrl+E), with the same keyboard
   shortcuts working anywhere in the window.
+- Texture groups in the window: a split texture (`.dds` with `.dds.N` parts and an Alpha tail)
+  is one row with its total size, its parts one level in below it. Checking a row checks all its
+  Entries, a search that matches a part shows the whole texture, sorting by size uses the total
+  size, and "Selected" and "Shown" extract every part. Parts without a header stay single rows.
+- The long views of the preview and the Comparison scroll with the keyboard: Tab focuses the Text,
+  Hex and Image previews, the line diff, the field list of a Record change and the field list of
+  the Record preview, and the arrow keys, Page Up, Page Down, Home and End scroll them like the XML
+  view.
+- The Extraction summary lists the Records that were not written with their record path, GUID and
+  reason, as it lists failed Entries.
 
 ### Changed
 
+- `p4kx list` folds the parts of a split texture into the row of its header: sizes of the whole
+  texture, a ` (+N parts)` suffix on the path and a `parts` field in `--json`. `--parts` restores
+  one row per Entry.
+- `p4kx extract --filter` and `p4kx socpak extract --filter` now also take every Entry of a
+  texture whose header, part or Alpha tail matches.
 - The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
   tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
   icon and header mark, an empty state with an "Open Archive" action.

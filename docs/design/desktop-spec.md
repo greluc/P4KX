@@ -84,6 +84,7 @@ sind keine neuen Farben.
 | Seitenwahl | `.pagination` / `.page-btn` / `.page-status` | 44 | Knopf x 8, Status x 12 | 6,4 | Status 12,8 / 400, aktuelle Seite 700 `color-primary` | nein | Knopf `control-fg` auf `control-bg`; Hover Rand + Chevron `color-primary`; gesperrt Deckkraft 0,4; Chevron des Icon-Sets 17,6 (1,1 em), Strich 2/24, doppelt mit −6 überlappend | 1 `control-border` | – | 2 / +2 |
 | Listenfuß | `.list-panel__footer` | – | x 16, y 12 | Anzahl links, Seitenwahl rechts | 14,4 / 400 | nein | `color-gray-2-text` | oben 1 `color-gray-3` | – | – |
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
+| Record-Vorschau (Tab „Record") | Vorschau-Panel + `.facts-bar` + Tabellenkopf + Tabellenzeile + `a` | 36 | Zelle x 12,8; 12 je Ebene | zwei gleiche Spalten Feld, Wert; Typ nach dem Link 8 | Werte 13,76 / 400; Link 12,8 / 700 | Kopf und Schlüssel ja, Daten nein | Wert `color-gray-1`, `null` `color-gray-2-text`, Fehler `color-danger-text`; Link `color-primary`, Hover `color-accent-light` + Unterstrich; Ebenen-Schiene 1 `color-gray-3` | unten 1 `color-gray-3` | – | Link 2 / +2; Alt+←, Alt+→, Maustasten zurück/vor |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 | Abfrage-Vervollständigung | `.krt-combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
 | Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700, max. 240 breit mit Auslassung; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
@@ -279,33 +280,26 @@ nach 64 MiB an einer Zeilengrenze gekürzt und trägt dann den Kürzungshinweis 
 wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-danger-text` im Tab;
 „Text" und „Hex" zeigen die Daten weiter. „Kopieren" kopiert im Tab „XML" das umgewandelte XML.
 
-**D.21 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
-öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
-Struct-Namen nach `from` und in `[…]` (der Typ der Elemente, seine Basen und alles, was davon
-erbt), Feldnamen am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in
-`color-gray-2-text`. Die Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der
-Editor mehrzeilig ist und ein Name mitten im Text ergänzt wird; reicht der Platz darunter nicht,
-klappt sie über die Zeile. Weil sie nicht am Feld hängt, trägt sie den 1-px-Rand in
-`color-primary` auf allen vier Seiten, nicht `border-top: none` der Combobox unter einem Feld;
-sonst sind Farben, Einträge und Schatten die der Combobox. Der getippte Anfang ist fett wie
-`<mark>`, der per Tastatur gewählte Eintrag orange gefüllt, Hover wie im Dropdown. Der Fokus
-bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen das ganze Wort um die
-Schreibmarke, Esc schließt, Strg+Leertaste öffnet wieder; steht der gewählte Name schon so da,
-bricht Enter die Zeile wie ohne Liste. Höchstens 50 Namen stehen in der Liste, darunter „n weitere
-Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
-der Editor den Fokus bekommt, einmal je Archiv; bis dahin, und wo kein Name passt, bleibt die
-Liste zu, statt einen leeren Zustand zu zeigen. „Abfrage speichern …" ist Ghost neben der CTA
-„Abfrage ausführen" (D.7, D.15). Die gespeicherten Abfragen stehen darunter als aufgeklappter
-`.panel-header` mit 36-px-Zeilen: Name fett, nach 240 px mit Auslassung, dahinter die Abfrage
-einzeilig in `color-gray-2-text`. Ohne gespeicherte Abfrage steht unter dem Kopf ein Satz in
-`color-gray-2-text`, der sagt, wie man eine speichert, kein `.empty-state`: der Abschnitt ist
-klein und der Editor darüber die Aktion. Ein Klick auf die Zeile lädt und startet sie;
-„Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
-die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem
-`.krt-modal` ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in
-`color-gray-2-text`) und sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt
-in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
-und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
+**D.20 Basetool-Katalog im Export-Menü ohne eigenen Dialog.** „Basetool-Katalog …" steht im
+Menü „Export" unter „Record-Export …" und ist gesperrt, solange das Archiv kein DataForge hat oder
+DataForge nicht geladen werden konnte, und während ein Katalog erstellt wird. Es gibt nichts zu
+entscheiden außer der Zieldatei, deshalb öffnet der Eintrag direkt den Speichern-Dialog des
+Systems mit `basetool-catalog.json` (D.3); erst die gewählte Datei startet den Katalog. Fortschritt
+und Ergebnis sind wie beim Record-Export nicht modal mit je genau einer Aktion im Fuß (D.7, D.17):
+Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit geprüften Records.
+Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
+vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
+aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
+Datei, alles in `color-gray-1`. Größe und Limit stehen in Dezimaleinheiten, das Limit wie in der
+Dokumentation als „64 MB". Nahe am Upload-Limit steht oben `.alert-warning`, darüber
+`.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
+lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Ist die gewählte
+Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
+Der Katalog liest DataForge aus dem einen Cache des offenen Archivs (D.22), also nur einmal.
+
+**D.22 bis D.30** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte,
+Abfrage-Vervollständigung)
+stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 
 ## Bewusste Abweichungen von den Web-Specimens
 
@@ -332,7 +326,7 @@ und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
 | Range gezeichnet statt nativ: Spur des Fortschrittsbalkens, quadratischer Griff, Trefferzeile 32 px | egui hat kein `input[type="range"]`; der Griff ist eckig wie alles im DS (ADR-0006), die Zeile hat die Höhe von `btn-xs`, damit die 18 px hohe Range sich treffen lässt (D.18) |
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
-| Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.21) |
+| Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.30) |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte

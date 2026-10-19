@@ -20,6 +20,7 @@ The shape of one Entry in `list` and `search`:
 | `encrypted` | bool | Whether the data is encrypted |
 | `compressed_size` | number | Size of the data in the Archive |
 | `size` | number | Size after decompression |
+| `parts` | array of string | Only on the header of a Texture group in `list`: the paths of its parts and Alpha tail; `compressed_size` and `size` are then those of the whole group |
 
 ## Build
 
@@ -38,7 +39,8 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 {"archive": "C:\\…\\LIVE\\Data.p4k", "entries": [Entry, …]}
 ```
 
-Entries are in Archive order.
+Entries are in Archive order. A Texture group is one Entry; `--parts` lists every part as an Entry
+of its own, without `parts` fields.
 
 ## `p4kx search <archive> <filter> --json`
 
@@ -88,6 +90,9 @@ and its causes joined by `: `. Both are in definition order for `xml` and `json`
 [record-xml.md](record-xml.md#child-elements)) in the Records written or kept, and
 `records_with_errors` the Records holding at least one. The exit code is 1 when `failed` is not
 empty or `error` is set.
+
+With `--lang <language>` the report also holds `"language": "de"`, the code of the language the
+texts were resolved in; without it the field is absent.
 
 With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
 `target`, and `exported` counts the Records written into it. When an existing file is kept under
@@ -235,21 +240,27 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21052438, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
- {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
- "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
- "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
- "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
+ "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
+ {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1204,
+ "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
+ "item_classes": {"classified": 347, "other": 408, "missing": 22525},
+ "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
+ "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
+ "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
+them. `failed` lists the selected Records that could not be read and are left out of the catalog,
+with GUID, record path (empty when it cannot be read) and the reason and its causes joined by
+`: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
+all the same, and the exit code is 1 when `failed` is not empty. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
@@ -257,6 +268,51 @@ each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty,
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands
 for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
 unresolved texts of every language.
+
+## `p4kx loc languages <archive> --json`
+
+```json
+{"archive": "…", "languages": [{"code": "en", "folder": "english", "entry": "Data\\Localization\\english\\global.ini"}, …]}
+```
+
+`languages` lists the languages the Archive holds a `global.ini` for, in the order `en`, `de`,
+`fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`.
+
+## `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>] --json`
+
+```json
+{"key": "item_Name", "language": "de", "fallback": "en", "status": "fallback",
+ "text_language": "en", "text": "Rifle"}
+```
+
+`key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
+`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
+for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
+the command with exit code 2.
+
+## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
+
+Without `--out` the table goes to stdout and `--json` changes nothing. The JSON format is
+
+```json
+{"languages": ["en", "de"], "entries": [
+{"key": "item_Name", "texts": {"en": "Rifle", "de": null}}, …]}
+```
+
+with one entry per key, sorted by key ignoring case; a language without a text for the key is
+`null`, a text the `global.ini` holds empty is `""`. CSV starts with a UTF-8 byte order mark, so
+Excel shows non-ASCII text correctly, has CRLF line ends, the header `key,en,de` and the same
+rows, with an empty cell for either; cells with a comma, quote or line break are quoted. A key is
+left out only when none of the chosen languages' `global.ini` holds a line for it; a key held
+only with an empty text stays.
+
+CSV cells are written as they are. A text that starts with `=`, `+`, `-` or `@` is read as a
+formula by a spreadsheet program, so open a table of untrusted texts as text, not as formulas, or
+use the JSON format.
+
+With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
+"languages": ["en"], "keys": 101234}`.
 
 ## `p4kx channels --json`
 

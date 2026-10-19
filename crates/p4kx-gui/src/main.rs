@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use p4kx_channels::SearchPaths;
-use p4kx_gui::{App, ChannelList, Language, Model, Text, theme, window};
+use p4kx_gui::{App, ChannelList, Language, Model, RecordTextChoice, Text, theme, window};
 use p4kx_settings::{Settings, default_settings_file};
 
 fn main() -> Result<()> {
@@ -26,6 +26,12 @@ fn main() -> Result<()> {
     model.set_extraction_textures(settings.extraction_textures);
     model.set_update_check(settings.update_check);
     model.query_mut().set_saved(settings.queries.clone());
+    model.set_record_text_choice(
+        settings
+            .record_language
+            .as_deref()
+            .and_then(RecordTextChoice::from_code),
+    );
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),

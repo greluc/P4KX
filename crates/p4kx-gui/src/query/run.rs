@@ -7,10 +7,10 @@ use p4kx_extraction::query::{ColumnKind, Query, QueryRun};
 use p4kx_extraction::{CancelToken, DataForgeEntry, QUERY_PAGE_SIZE};
 use rayon::prelude::*;
 
-use super::forge_slot::{ForgeSlot, ReadFailure};
 use super::result::{QueryResult, ResultColumn, ResultRow};
 use super::{QueryInvalid, QueryStage};
 use crate::EntryIndex;
+use crate::forge_cache::ReadFailure;
 use crate::model::describe;
 
 /// How a Query run ended.
@@ -53,20 +53,19 @@ impl Run {
     }
 }
 
-/// What a run needs: the open Archive, the parsed Query and its text, and the slot of the
-/// Archive's DataForge.
+/// What a run needs: the open Archive, whose cache holds its DataForge, and the parsed Query and
+/// its text.
 pub(crate) struct Job {
     pub(crate) index: Arc<EntryIndex>,
     pub(crate) query: Query,
     pub(crate) text: String,
-    pub(crate) forge: Arc<ForgeSlot>,
 }
 
 /// Starts running `job` on a background thread, calling `wake` from it as it advances and once
 /// it ended.
 pub(crate) fn start(job: Job, wake: impl Fn() + Send + Sync + 'static) -> Result<Run, String> {
     let cancel = CancelToken::new();
-    let first = if job.forge.is_read() {
+    let first = if job.index.forge().is_read() {
         QueryStage::Selecting
     } else {
         QueryStage::Loading
@@ -99,9 +98,13 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
     if job.index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let entry = match job.forge.read(&job.index, || set(QueryStage::Loading)) {
-        Ok(entry) => entry,
-        Err(ReadFailure::ArchiveChanged) => return Outcome::ArchiveChanged,
+    let entry = match job
+        .index
+        .forge()
+        .read(&job.index, || set(QueryStage::Loading))
+    {
+        Ok(source) => Arc::clone(&source.entry),
+        Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
         Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
     };
     let source = Source {
@@ -110,7 +113,7 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
     };
     let outcome = query_over(source, &job.query, job.text, cancel, set);
     if matches!(outcome, Outcome::Finished(_)) && job.index.watch().check().is_err() {
-        job.forge.clear();
+        job.index.forge().clear();
         return Outcome::ArchiveChanged;
     }
     outcome

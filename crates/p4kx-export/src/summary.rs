@@ -1,6 +1,6 @@
 use p4kx_extraction::Language;
 
-use crate::Kind;
+use crate::{ItemClassSummary, Kind};
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
 /// upload limit (`docs/basetool-catalog.md`).
@@ -67,10 +67,17 @@ pub struct TextSummary {
 pub struct CatalogSummary {
     pub(crate) kinds: Vec<KindSummary>,
     pub(crate) texts: Vec<TextSummary>,
+    pub(crate) item_classes: ItemClassSummary,
     pub(crate) size: u64,
 }
 
 impl CatalogSummary {
+    /// Returns how the item classes of the items were read.
+    #[must_use]
+    pub const fn item_classes(&self) -> ItemClassSummary {
+        self.item_classes
+    }
+
     /// Returns how the texts resolved per language, English first.
     #[must_use]
     pub fn texts(&self) -> &[TextSummary] {

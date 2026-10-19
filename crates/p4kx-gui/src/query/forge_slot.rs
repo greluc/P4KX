@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, TryLockError};
 
 use p4kx_extraction::DataForgeEntry;
@@ -20,9 +21,15 @@ pub(crate) enum ReadFailure {
 #[derive(Debug, Default)]
 pub(crate) struct ForgeSlot {
     entry: Mutex<Option<Arc<DataForgeEntry>>>,
+    reads: AtomicUsize,
 }
 
 impl ForgeSlot {
+    /// Returns how many reads of the DataForge started, those that failed included.
+    pub(crate) fn reads(&self) -> usize {
+        self.reads.load(Ordering::Relaxed)
+    }
+
     /// Returns whether the DataForge was read; `false` while it is being read.
     pub(crate) fn is_read(&self) -> bool {
         match self.entry.try_lock() {
@@ -47,6 +54,7 @@ impl ForgeSlot {
         if let Some(entry) = entry.as_ref() {
             return Ok(Arc::clone(entry));
         }
+        self.reads.fetch_add(1, Ordering::Relaxed);
         reading();
         let read = DataForgeEntry::read(index.archive())
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;

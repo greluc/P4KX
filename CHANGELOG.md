@@ -8,6 +8,14 @@ fails while its section is missing.
 
 ### Added
 
+- Audio Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch of
+  the window, WEM sounds are written as Ogg (Wwise Vorbis and Opus without re-encoding, WAV for
+  other codecs), as WAV or unchanged (`--audio ogg|wav|raw`, the same choice in the Extraction
+  setup, remembered in the settings file). Each soundbank is written unchanged and unpacked into
+  a folder of the same name, its WEMs named by ID and converted alike. A sound whose codec cannot
+  be decoded is reported with the codec and written unchanged; the Extraction continues. Progress,
+  cancellation and Conflict policies cover every converted file, and sounds are converted on their
+  own threads within a memory budget.
 - `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
   the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
   matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or

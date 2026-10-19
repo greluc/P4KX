@@ -22,6 +22,8 @@ pub struct Settings {
     /// Whether an Extraction converts `CryXml` Entries and textures; off until the user switches
     /// it on.
     pub extraction_conversion: bool,
+    /// What a Conversion writes for a sound and for each WEM a soundbank embeds.
+    pub extraction_audio: ExtractionAudio,
     /// What a Conversion writes for a texture.
     pub extraction_textures: ExtractionTextures,
     /// Whether the GUI asks GitHub for a newer Release at start; off until the user switches it on.
@@ -60,6 +62,19 @@ impl Default for ExtractionTextures {
             keep_raw: false,
         }
     }
+}
+
+/// What a Conversion writes for a WEM sound and for each WEM a soundbank embeds.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExtractionAudio {
+    /// Ogg where the codec has an Ogg form, WAV otherwise.
+    #[default]
+    Ogg,
+    /// WAV.
+    Wav,
+    /// The WEM unchanged.
+    Raw,
 }
 
 /// Position and size of the main window in logical points.

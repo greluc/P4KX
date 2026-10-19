@@ -20,7 +20,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>]]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>] [--audio <format>]]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -57,6 +57,16 @@ Early development (milestone M1). Available today:
   reason, its raw Entries are written (the parts only when the merged DDS was written), and the
   Extraction continues with exit code 1. A part selected without its header is written
   unchanged.
+  `--convert` also converts WEM sounds (`<name>.wem`) as `--audio` says, by default `ogg`: Wwise
+  Vorbis is rebuilt as Ogg Vorbis and Opus repackaged as Ogg Opus, `<name>.ogg`, without
+  re-encoding, and every other codec decoded to a 16-bit PCM WAV `<name>.wav`; `wav` decodes every
+  sound to WAV, and `raw` keeps the WEMs. Each soundbank (`<name>.bnk`) is written unchanged and
+  unpacked into the folder `<name>` next to it, each embedded WEM named by its ID and written in
+  the same format. A sound whose codec cannot be decoded is reported as not converted, naming the
+  codec, and written unchanged as `.wem`; plug-in media and the prefetched start of a streamed WEM
+  are written unchanged without a report. Every file follows `--conflict`, `if-changed` comparing
+  with the converted output. Sounds and soundbanks are converted on a few threads of their own,
+  within a memory budget of 1 GiB.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its

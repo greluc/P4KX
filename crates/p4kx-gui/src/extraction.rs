@@ -3,8 +3,8 @@ mod summary;
 
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::{ConflictPolicy, TextureConversion};
-use p4kx_settings::ExtractionTextures;
+use p4kx_extraction::{AudioConversion, ConflictPolicy, TextureConversion};
+use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use crate::ComparisonSide;
 
@@ -54,6 +54,7 @@ pub struct ExtractionSetup {
     policy: ConflictPolicy,
     convert: bool,
     textures: ExtractionTextures,
+    audio: ExtractionAudio,
     confirmation: Option<Confirmation>,
 }
 
@@ -63,6 +64,7 @@ impl ExtractionSetup {
         folder: Option<PathBuf>,
         convert: bool,
         textures: ExtractionTextures,
+        audio: ExtractionAudio,
     ) -> Self {
         Self {
             scope,
@@ -71,6 +73,7 @@ impl ExtractionSetup {
             policy: ConflictPolicy::Skip,
             convert,
             textures,
+            audio,
             confirmation: None,
         }
     }
@@ -142,6 +145,17 @@ impl ExtractionSetup {
         self.textures = textures;
     }
 
+    /// Returns what a Conversion writes for a sound and for each WEM a soundbank embeds.
+    #[must_use]
+    pub const fn audio(&self) -> ExtractionAudio {
+        self.audio
+    }
+
+    /// Chooses what a Conversion writes for a sound and for each WEM a soundbank embeds.
+    pub const fn set_audio(&mut self, audio: ExtractionAudio) {
+        self.audio = audio;
+    }
+
     /// Returns whether a whole-Archive Extraction waits for confirmation.
     #[must_use]
     pub const fn is_confirming(&self) -> bool {
@@ -174,7 +188,17 @@ impl ExtractionSetup {
             },
             convert: self.convert,
             textures: self.textures,
+            audio: self.audio,
         })
+    }
+}
+
+/// Returns the sound option of the Extraction service for the stored choice.
+pub(crate) const fn audio_conversion(audio: ExtractionAudio) -> AudioConversion {
+    match audio {
+        ExtractionAudio::Ogg => AudioConversion::Ogg,
+        ExtractionAudio::Wav => AudioConversion::Wav,
+        ExtractionAudio::Raw => AudioConversion::Raw,
     }
 }
 

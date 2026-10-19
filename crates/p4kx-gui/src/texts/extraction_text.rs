@@ -37,7 +37,7 @@ pub enum ExtractionText {
     PolicyOverwrite,
     /// Replaces existing files only when they differ.
     PolicyIfChanged,
-    /// The switch that converts `CryXml` Entries and DataForge to XML and textures.
+    /// The switch that converts `CryXml` Entries and DataForge to XML, textures and sounds.
     Conversion,
     /// The switch that merges a split texture into one DDS file.
     TextureMerge,
@@ -49,6 +49,16 @@ pub enum ExtractionText {
     TextureMipLevel,
     /// The switch that also writes the raw Entries of a texture.
     TextureRaw,
+    /// The label of the sound formats.
+    AudioLabel,
+    /// The choice of Ogg for sounds, WAV where a codec has no Ogg form.
+    AudioOgg,
+    /// The choice of WAV for sounds.
+    AudioWav,
+    /// The choice of unchanged WEMs for sounds.
+    AudioRaw,
+    /// The note on the Ogg fallback and that soundbanks are unpacked into a folder per bank.
+    AudioBanks,
     /// The action that starts the Extraction.
     Start,
     /// The action that closes a window.
@@ -91,7 +101,7 @@ pub enum ExtractionText {
     SummarySkipped,
     /// The heading of the cancelled Entries; takes `number`.
     SummaryCancelled,
-    /// The heading of the textures that were not converted; takes `number`.
+    /// The heading of the textures and sounds that were not converted; takes `number`.
     SummaryUnconverted,
     /// One failed Entry; takes `path` and `reason`.
     SummaryFailure,
@@ -105,7 +115,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 49] = [
+    pub const ALL: [Self; 54] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -130,6 +140,11 @@ impl ExtractionText {
         Self::TextureMipLargest,
         Self::TextureMipLevel,
         Self::TextureRaw,
+        Self::AudioLabel,
+        Self::AudioOgg,
+        Self::AudioWav,
+        Self::AudioRaw,
+        Self::AudioBanks,
         Self::Start,
         Self::Close,
         Self::ConfirmAll,
@@ -185,6 +200,11 @@ impl ExtractionText {
             Self::TextureMipLargest => "extraction-texture-mip-largest",
             Self::TextureMipLevel => "extraction-texture-mip-level",
             Self::TextureRaw => "extraction-texture-raw",
+            Self::AudioLabel => "extraction-audio-label",
+            Self::AudioOgg => "extraction-audio-ogg",
+            Self::AudioWav => "extraction-audio-wav",
+            Self::AudioRaw => "extraction-audio-raw",
+            Self::AudioBanks => "extraction-audio-banks",
             Self::Start => "extraction-start",
             Self::Close => "extraction-close",
             Self::ConfirmAll => "extraction-confirm-all",

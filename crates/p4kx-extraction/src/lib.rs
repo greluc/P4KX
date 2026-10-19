@@ -2,6 +2,7 @@
 //! texture, audio, chunk file and UI movie APIs front-ends use.
 
 mod bank;
+mod budget;
 mod buffers;
 mod chunk_source;
 mod conversion_error;
@@ -16,7 +17,6 @@ mod filter;
 mod localization;
 mod options;
 mod output_file;
-mod pixel_budget;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -27,6 +27,11 @@ mod record_report;
 mod report;
 mod selection;
 mod sound;
+mod sound_convert;
+mod sound_job;
+mod sound_output;
+mod sound_workers;
+mod soundbank_convert;
 mod target;
 mod text_window;
 mod texture;
@@ -59,7 +64,9 @@ pub use entry_content::{
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};
-pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
+pub use options::{
+    AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
+};
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
     MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,

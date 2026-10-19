@@ -190,6 +190,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
     settings.extraction_conversion = model.extraction_conversion();
     settings.extraction_textures = model.extraction_textures();
+    settings.extraction_audio = model.extraction_audio();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }
@@ -199,7 +200,9 @@ mod tests {
     use std::path::PathBuf;
 
     use p4kx_channels::SearchPaths;
-    use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, Settings};
+    use p4kx_settings::{
+        ExtractionAudio, ExtractionTextures, ManualChannels, RecentArchives, Settings,
+    };
 
     use super::remember;
     use crate::{ChannelList, Language, Model};
@@ -291,6 +294,17 @@ mod tests {
         remember(&mut settings, &model, false, None);
 
         assert_eq!(settings.extraction_textures, textures, "stored");
+    }
+
+    #[test]
+    fn the_sound_format_is_stored() {
+        let mut model = Model::new(Language::German);
+        model.set_extraction_audio(ExtractionAudio::Raw);
+        let mut settings = Settings::default();
+
+        remember(&mut settings, &model, false, None);
+
+        assert_eq!(settings.extraction_audio, ExtractionAudio::Raw, "stored");
     }
 
     #[test]

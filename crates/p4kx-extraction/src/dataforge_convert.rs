@@ -90,7 +90,7 @@ impl EntryWriter<'_> {
 
     /// Reads the Entry into `bytes` through `chunk`, up to `len` bytes, counting half of each chunk
     /// as progress in `credited`; returns `false` once the run is to stop.
-    fn read_all(
+    pub(crate) fn read_all(
         &self,
         reader: &mut impl Read,
         bytes: &mut Vec<u8>,

@@ -1,7 +1,9 @@
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, Entry, TextureConversion, UnknownEntries, select_entries};
+use p4kx_extraction::{
+    Archive, AudioConversion, Entry, TextureConversion, UnknownEntries, select_entries,
+};
 use serde::Serialize;
 
 use crate::cli::{SocpakAction, SocpakArgs, SocpakSource};
@@ -54,6 +56,7 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
                     png: Some(0),
                     keep_raw: false,
                 },
+                audio: AudioConversion::Ogg,
                 cancel_after: None,
             };
             extract::execute(&container, &entries, &settings, as_json)

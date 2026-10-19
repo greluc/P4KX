@@ -42,5 +42,9 @@ fn the_xml_preview_names_its_classes_and_colours() {
     ] {
         assert_eq!(spec[key].as_str(), Some(expected), "xmlPreview.{key}");
     }
-    assert_eq!(spec["tabular"].as_bool(), Some(false), "Lato figures, ADR-0006");
+    assert_eq!(
+        spec["tabular"].as_bool(),
+        Some(false),
+        "Lato figures, ADR-0006"
+    );
 }

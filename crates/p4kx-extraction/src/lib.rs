@@ -20,6 +20,7 @@ mod record_combined;
 mod record_export;
 mod record_files;
 mod record_format;
+mod record_plan;
 mod record_report;
 mod report;
 mod selection;
@@ -78,8 +79,9 @@ pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };
 pub use record_combined::export_combined;
-pub use record_export::{export_record_files, export_records};
+pub use record_export::{export_planned_record_files, export_record_files, export_records};
 pub use record_format::RecordFileFormat;
+pub use record_plan::RecordFilePlan;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };

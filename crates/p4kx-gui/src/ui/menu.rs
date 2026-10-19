@@ -12,7 +12,7 @@ use crate::theme::tokens::{FS_SM, FS_XS, TOUCH_TARGET, TRACKING_DISPLAY, Weight,
 use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
-use crate::{ExtractionScope, ExtractionText, Language, Model, Text, Texts};
+use crate::{ExtractionScope, ExtractionText, Language, Model, RecordExportText, Text, Texts};
 
 /// Shows the header: the brand and the menus.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -35,6 +35,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         MenuBar::new().ui(ui, |ui| {
             ui.spacing_mut().button_padding.x = MENU_LINK_PADDING_X;
             pick = archive_menu(ui, model, requests);
+            if export_menu(ui, model) {
+                pick = Some(Pick::RecordExport);
+            }
             let response = ui.menu_button(link(&language_menu), |ui| {
                 dropdown(ui);
                 for (language, name) in &names {
@@ -112,6 +115,7 @@ enum Pick {
     Reopen(PathBuf),
     Reload,
     ExtractSelected,
+    RecordExport,
 }
 
 fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
@@ -122,6 +126,7 @@ fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
             model.reload(move || ctx.request_repaint());
         }
         Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
+        Pick::RecordExport => model.begin_record_export(),
     }
 }
 
@@ -168,6 +173,22 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
     });
     label(&response.response, &title);
     pick
+}
+
+/// Shows the Export menu; returns whether Record export was picked.
+fn export_menu(ui: &mut Ui, model: &Model) -> bool {
+    let texts = model.texts();
+    let title = texts.get(RecordExportText::Menu);
+    let mut picked = false;
+    let response = ui.menu_button(link(&title), |ui| {
+        dropdown(ui);
+        let entry = Button::new(entry(&texts.get(RecordExportText::Action)));
+        picked = ui
+            .add_enabled(model.record_export_available(), entry)
+            .clicked();
+    });
+    label(&response.response, &title);
+    picked
 }
 
 fn recent_menu(ui: &mut Ui, texts: &Texts, model: &Model) -> Option<PathBuf> {

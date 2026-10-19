@@ -31,6 +31,15 @@ fails while its section is missing.
   moved, changed and unreadable Record with its record path and type, sorted and filtered like the
   Entries, and a selected Record shows its field changes with old and new value, links by the
   record path of their target and unreadable values with their reason.
+- The Export menu of the window with **Record export…**: the Records selected in the Record tree
+  or matching a record-path filter as Record JSON, one file per Record or one NDJSON file, into a
+  new or an existing folder with a Conflict policy, in the background with progress, cancel and a
+  summary of the Records written and those with error values. DataForge and the planned files are
+  read once per open Archive and reused by every later export.
+- `p4kx_export::write_planned_record_export` with `RecordFilePlans`, and
+  `p4kx_extraction::export_planned_record_files` with `RecordFilePlan`: Record exports that plan
+  the files of a DataForge's Records once; `RecordExportOptions::progress` reports every Record
+  as it ends.
 - `p4kx entity loadout <archive> <entity> [--json]`: the default Loadout tree of an Entity found
   by class name, GUID or record path, resolved recursively through nested and overriding
   Loadouts, XML Loadouts and port default items, with each port's sizes, types and helper; a port

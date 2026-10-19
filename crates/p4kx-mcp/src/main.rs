@@ -1,6 +1,8 @@
 //! `p4kx-mcp`: the read-only MCP server of P4K-Extractor, spoken to over stdio.
 
 mod archives;
+mod content;
+mod content_tools;
 mod entries;
 mod error;
 mod locate;

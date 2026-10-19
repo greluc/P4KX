@@ -38,7 +38,8 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
 }
 
 /// Returns one message per profile of `table` with `panic = "abort"`; the Vorbis validation and
-/// decoding catch decoder panics, which needs unwinding (ADR-0011, ADR-0013).
+/// decoding and the JPEG decoding catch decoder panics, which needs unwinding (ADR-0011, ADR-0013,
+/// ADR-0015).
 fn aborting_profiles(file: &str, table: &Table) -> Vec<String> {
     table
         .get("profile")

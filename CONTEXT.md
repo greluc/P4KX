@@ -207,6 +207,22 @@ A second split texture `.dds.a` with parts `.dds.1a` … `.dds.Na` that holds a 
 smoothness channel, merged into the alpha channel on export.
 _Avoid_: attached alpha, gloss map, smoothness map
 
+**UI movie**:
+A Scaleform GFx (`GFX`, `CFX`) or Flash SWF (`FWS`, `CWS`, `ZWS`) file of the game's user
+interface: a stream of tags that define shapes, bitmaps, fonts and sprites and place them on
+timelines.
+_Avoid_: Flash file, SWF (alone), GFx asset
+
+**Definition**:
+A shape, morph shape, bitmap, font or sprite a UI movie defines under a numeric ID, which
+placements and other definitions refer to; an export name may name it.
+_Avoid_: character (a Character is a human body), symbol
+
+**External image**:
+A bitmap of a GFx UI movie stored outside it, as a texture file named relative to the movie; the
+game ships it as DDS even where the movie names a TIFF or TGA.
+_Avoid_: linked image, imported bitmap
+
 ### Operations
 
 **Extraction**:

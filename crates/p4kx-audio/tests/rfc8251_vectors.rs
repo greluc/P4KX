@@ -65,8 +65,12 @@ fn compare(reference: &[i16], decoded: &[i16]) -> Option<(u16, f64)> {
 
 #[test]
 #[ignore = "RFC 8251 vectors: set P4KX_OPUS_VECTORS and pass --ignored"]
+#[expect(clippy::print_stderr, reason = "the skip note of an optional test")]
 fn wav_decoding_matches_the_rfc_8251_test_vectors() -> TestResult {
-    let folder = PathBuf::from(env::var_os("P4KX_OPUS_VECTORS").ok_or("set P4KX_OPUS_VECTORS")?);
+    let Some(folder) = env::var_os("P4KX_OPUS_VECTORS").map(PathBuf::from) else {
+        eprintln!("skipped: set P4KX_OPUS_VECTORS to the folder of the RFC 8251 test vectors");
+        return Ok(());
+    };
     let mut failures = Vec::new();
     for vector in 1..=VECTORS {
         let name = |suffix: &str| folder.join(format!("testvector{vector:02}{suffix}"));

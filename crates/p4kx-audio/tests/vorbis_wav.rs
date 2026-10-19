@@ -69,6 +69,7 @@ fn a_vorbis_tone_decodes_to_the_known_signal() {
             sample_rate: 48_000,
             sample_count: frames,
             size: 44 + 2 * frames,
+            loop_points: None,
         },
         "the report"
     );

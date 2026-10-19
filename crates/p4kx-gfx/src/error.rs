@@ -81,6 +81,27 @@ pub enum GfxError {
         /// The type byte.
         kind: u8,
     },
+    /// The stage of the movie has no area.
+    #[error("the stage of the movie has no area")]
+    EmptyStage,
+    /// The canvas to render on is empty or too large.
+    #[error(
+        "a canvas of {width} x {height} pixels is empty or larger than allowed (at most {} pixels a side and {} pixels)",
+        crate::MAX_CANVAS_SIDE,
+        crate::MAX_CANVAS_PIXELS
+    )]
+    CanvasSize {
+        /// The width in pixels.
+        width: u32,
+        /// The height in pixels.
+        height: u32,
+    },
+    /// A filter of a placement has an unknown type.
+    #[error("unknown filter type {kind}")]
+    Filter {
+        /// The type byte.
+        kind: u8,
+    },
     /// A bitmap has more pixels than the limit.
     #[error("the bitmap has {width} x {height} pixels, more than {limit}")]
     BitmapTooLarge {

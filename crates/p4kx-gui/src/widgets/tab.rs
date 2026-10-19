@@ -5,14 +5,17 @@ use egui::{
     Ui, WidgetInfo, WidgetText, pos2, vec2,
 };
 
-use super::button::focus_ring;
+use super::focus::focus_ring_square;
+use super::frames::accent_edge;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
     ACTIVE_BAR, FOCUS_WIDTH, SEGMENT_FOCUS_OFFSET, SEGMENT_HEIGHT, SEGMENT_PADDING_X,
     TAB_BAR_PADDING_LEFT, TAB_COUNT_GAP, TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, TOUCH_TARGET, Weight};
+use crate::theme::tokens::{CORNER_NONE, CORNER_SM, FS_XS, RADIUS_SM_POINTS, TOUCH_TARGET, Weight};
+
+const INNER_RADIUS: u8 = RADIUS_SM_POINTS - 1;
 
 /// One tab of a `.tab-nav` laid out once: its label and an optional `.tab-count`.
 #[derive(Clone)]
@@ -64,7 +67,7 @@ pub(crate) fn tabs(ui: &mut Ui, labels: &[TabLabel], current: usize) -> Option<u
     let width = ui.available_width();
     let (bar, _) = ui.allocate_exact_size(vec2(width, TOUCH_TARGET), Sense::hover());
     let painter = ui.painter();
-    painter.rect_filled(bar, CornerRadius::ZERO, palette::BG_DARK_GRAY);
+    painter.rect_filled(bar, CORNER_NONE, palette::SURFACE_BAR);
     painter.hline(
         bar.x_range(),
         bar.bottom() - 0.5,
@@ -109,10 +112,10 @@ pub(crate) fn tabs(ui: &mut Ui, labels: &[TabLabel], current: usize) -> Option<u
             let underline =
                 Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
             ui.painter()
-                .rect_filled(underline, CornerRadius::ZERO, palette::PRIMARY);
+                .rect_filled(underline, CORNER_NONE, palette::PRIMARY);
         }
         if response.has_focus() {
-            focus_ring(ui, rect, palette::PRIMARY, -FOCUS_WIDTH);
+            focus_ring_square(ui, rect, palette::PRIMARY, -FOCUS_WIDTH);
         }
         if response.clicked() {
             clicked = Some(index);
@@ -133,7 +136,11 @@ pub(crate) fn segments<S: AsRef<str>>(
     let mut group = Rect::NOTHING;
     for (index, item) in items.iter().enumerate() {
         let pressed = active == Some(index);
-        let response = segment(ui, item.as_ref(), pressed, index > 0);
+        let place = Place {
+            first: index == 0,
+            last: index + 1 == items.len(),
+        };
+        let response = segment(ui, item.as_ref(), pressed, place);
         group = group.union(response.rect);
         if response.clicked() {
             clicked = Some(index);
@@ -142,14 +149,33 @@ pub(crate) fn segments<S: AsRef<str>>(
     ui.spacing_mut().item_spacing.x = spacing;
     ui.painter().rect_stroke(
         group,
-        CornerRadius::ZERO,
+        CORNER_SM,
         Stroke::new(1.0, palette::CONTROL_BORDER),
         StrokeKind::Inside,
     );
     clicked
 }
 
-fn segment(ui: &mut Ui, item: &str, pressed: bool, divided: bool) -> Response {
+/// Where a segment sits in its group, which decides the corners it shares with the group frame.
+#[derive(Debug, Clone, Copy)]
+struct Place {
+    first: bool,
+    last: bool,
+}
+
+impl Place {
+    /// Returns the corners of the whole segment, rounded at the group's outer corners.
+    const fn corner(self) -> CornerRadius {
+        CornerRadius {
+            nw: if self.first { INNER_RADIUS } else { 0 },
+            sw: if self.first { INNER_RADIUS } else { 0 },
+            ne: if self.last { INNER_RADIUS } else { 0 },
+            se: if self.last { INNER_RADIUS } else { 0 },
+        }
+    }
+}
+
+fn segment(ui: &mut Ui, item: &str, pressed: bool, place: Place) -> Response {
     let weight = if pressed {
         Weight::Bold
     } else {
@@ -171,9 +197,9 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, divided: bool) -> Response {
         (palette::CONTROL_BG, palette::CONTROL_FG)
     };
     let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, palette::CONTROL_BG);
-    painter.rect_filled(rect, CornerRadius::ZERO, fill);
-    if divided {
+    painter.rect_filled(rect, place.corner(), palette::CONTROL_BG);
+    painter.rect_filled(rect, place.corner(), fill);
+    if !place.first {
         painter.vline(
             rect.left() + 0.5,
             rect.y_range(),
@@ -184,16 +210,16 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, divided: bool) -> Response {
         let border = palette::CONTROL_SELECTED_BORDER;
         painter.rect_stroke(
             rect,
-            CornerRadius::ZERO,
+            place.corner(),
             Stroke::new(1.0, border),
             StrokeKind::Inside,
         );
         let underline = Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
-        painter.rect_filled(underline, CornerRadius::ZERO, border);
+        accent_edge(painter, (rect, place.corner()), underline, border);
     }
     paint_left(ui, rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0)), galley, text);
     if response.has_focus() {
-        focus_ring(ui, rect, palette::PRIMARY, SEGMENT_FOCUS_OFFSET);
+        focus_ring_square(ui, rect, palette::PRIMARY, SEGMENT_FOCUS_OFFSET);
     }
     response
 }

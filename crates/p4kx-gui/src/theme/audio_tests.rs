@@ -58,7 +58,7 @@ fn the_slider_is_the_quality_row_range_in_a_compact_row() {
         "accent fill"
     );
     assert_eq!(slider["track"].as_str(), Some("progressBar"), "track");
-    assert_eq!(slider["thumb"]["shape"].as_str(), Some("square"), "thumb");
+    assert_eq!(slider["thumb"]["shape"].as_str(), Some("circle"), "thumb");
     assert_eq!(
         slider["thumb"]["size"].as_f64(),
         Some(f64::from(d::SLIDER_HEIGHT)),

@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use egui::{
-    Color32, CornerRadius, Galley, Painter, Pos2, Rect, Stroke, StrokeKind, Ui, pos2, vec2,
-};
+use egui::{Color32, Galley, Painter, Pos2, Rect, Stroke, StrokeKind, Ui, pos2, vec2};
 
 use super::text::{caps, line};
 use crate::theme::desktop::{
@@ -10,7 +8,7 @@ use crate::theme::desktop::{
     CHIP_TRACKING, CHIP_WARNING_FILL,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_2XS, Weight};
+use crate::theme::tokens::{CORNER_SM, FS_2XS, Weight};
 
 /// The tone of a `.chip`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,7 +97,7 @@ fn paint_with(painter: &Painter, left_centre: Pos2, galley: Arc<Galley>, tone: T
     let rect = Rect::from_min_size(pos2(left_centre.x, left_centre.y - size.y / 2.0), size);
     painter.rect(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         colours.fill,
         Stroke::new(1.0, colours.border),
         StrokeKind::Inside,

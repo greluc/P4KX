@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-gfx"
-description = "Reads the GFx and SWF user-interface movies of Star Citizen Archives."
+description = "Reads the GFx and SWF user-interface movies of Star Citizen Archives and renders their first frame."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -19,6 +19,7 @@ png.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tiny-skia.workspace = true
 zune-core.workspace = true
 zune-jpeg.workspace = true
 

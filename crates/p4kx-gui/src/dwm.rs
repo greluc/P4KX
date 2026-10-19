@@ -29,7 +29,7 @@ pub fn tint(window: &impl HasWindowHandle) {
     };
     let hwnd = win32.hwnd.get() as HWND;
     set(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, 1);
-    set(hwnd, DWMWA_CAPTION_COLOR, colorref(palette::GRAY_4));
+    set(hwnd, DWMWA_CAPTION_COLOR, colorref(palette::SURFACE_BAR));
     set(hwnd, DWMWA_TEXT_COLOR, colorref(palette::GRAY_1));
     set(hwnd, DWMWA_BORDER_COLOR, colorref(palette::GRAY_3));
 }
@@ -72,8 +72,8 @@ mod tests {
 
     #[test]
     fn a_colorref_holds_blue_green_red_from_the_high_byte_down() {
-        let orange = Color32::from_rgb(0xE7, 0x7E, 0x23);
+        let orange = Color32::from_rgb(0xFB, 0x8A, 0x28);
 
-        assert_eq!(colorref(orange), 0x0023_7EE7, "0x00BBGGRR");
+        assert_eq!(colorref(orange), 0x0028_8AFB, "0x00BBGGRR");
     }
 }

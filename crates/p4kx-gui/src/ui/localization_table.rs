@@ -1,148 +1,19 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::Arc;
 
-use egui::{Align, Galley, Id, Layout, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2};
+use egui::scroll_area::ScrollAreaOutput;
+use egui::{Align, Layout, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2};
 use egui_extras::{Column, TableBuilder, TableRow};
 
-use super::diff_line::display;
+use super::localization_laid::{Cell, Laid};
 use super::table::head_fill;
 use crate::theme::desktop::{
     CELL_PADDING_X, LOCALIZATION_KEY_WIDTH, LOCALIZATION_TEXT_WIDTH, QUERY_COLUMN_MIN_WIDTH,
-    ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+    ROW_HEIGHT,
 };
-use crate::theme::tokens::{Weight, font};
 use crate::widgets::chip::{self, Tone};
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
-use crate::widgets::text::{caps, line};
-use crate::{LocalizationTab, LocalizationTable, LocalizationText, Text, TextLanguage, Texts};
-
-const MAX_CACHED: usize = 8192;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Key {
-    serial: u64,
-    language: crate::Language,
-    pixels_per_point: u32,
-}
-
-enum Cell {
-    Missing,
-    Text(Arc<Galley>),
-}
-
-struct Cache {
-    key: Option<Key>,
-    heads: Vec<(Arc<str>, Arc<Galley>)>,
-    missing: Option<(Arc<str>, Arc<Galley>)>,
-    cells: HashMap<(u32, usize), Arc<Cell>>,
-}
-
-/// The laid-out heads and cells of the table, kept until the shown rows, the table or the
-/// interface language change.
-#[derive(Clone)]
-pub(super) struct Laid(Arc<Mutex<Cache>>);
-
-impl Laid {
-    pub(super) fn get(
-        ui: &Ui,
-        texts: &Texts,
-        tab: &LocalizationTab,
-        table: &LocalizationTable,
-    ) -> Self {
-        let id = Id::unique("p4kx-localization-table");
-        let laid = ui.data_mut(|data| {
-            data.get_temp_mut_or_insert_with(id, || {
-                Self(Arc::new(Mutex::new(Cache {
-                    key: None,
-                    heads: Vec::new(),
-                    missing: None,
-                    cells: HashMap::new(),
-                })))
-            })
-            .clone()
-        });
-        let key = Key {
-            serial: tab.serial(),
-            language: texts.language(),
-            pixels_per_point: ui.ctx().pixels_per_point().to_bits(),
-        };
-        let mut cache = laid.lock();
-        let stale = cache.key.is_none_or(|known| {
-            known.language != key.language || known.pixels_per_point != key.pixels_per_point
-        });
-        if stale {
-            let missing = texts.get(LocalizationText::Missing);
-            *cache = Cache {
-                key: Some(key),
-                heads: heads(ui, texts, table),
-                missing: Some((Arc::from(missing.as_str()), chip::galley(ui, &missing))),
-                cells: HashMap::new(),
-            };
-        } else if cache.key != Some(key) || cache.cells.len() > MAX_CACHED {
-            cache.key = Some(key);
-            cache.cells.clear();
-        }
-        drop(cache);
-        laid
-    }
-
-    fn lock(&self) -> MutexGuard<'_, Cache> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    fn cell(&self, ui: &Ui, table: &LocalizationTable, (row, column): (u32, usize)) -> Arc<Cell> {
-        if let Some(cell) = self.lock().cells.get(&(row, column)) {
-            return Arc::clone(cell);
-        }
-        let text = text_of(table, row, column);
-        let cell = Arc::new(text.map_or(Cell::Missing, |text| {
-            Cell::Text(layout(ui, text, Weight::Regular))
-        }));
-        self.lock().cells.insert((row, column), Arc::clone(&cell));
-        cell
-    }
-
-    fn head(&self, column: usize) -> Option<(Arc<str>, Arc<Galley>)> {
-        self.lock().heads.get(column).cloned()
-    }
-
-    fn missing(&self) -> Option<(Arc<str>, Arc<Galley>)> {
-        self.lock().missing.clone()
-    }
-}
-
-fn layout(ui: &Ui, text: &str, weight: Weight) -> Arc<Galley> {
-    let job = display(text.as_bytes()).job(&font(ROW_FONT, weight));
-    ui.fonts_mut(|fonts| fonts.layout_job(job))
-}
-
-fn heads(ui: &Ui, texts: &Texts, table: &LocalizationTable) -> Vec<(Arc<str>, Arc<Galley>)> {
-    std::iter::once(texts.get(LocalizationText::ColumnKey))
-        .chain(
-            table
-                .languages()
-                .iter()
-                .map(|&language| language_name(texts, language)),
-        )
-        .map(|name| {
-            let text = caps(&name, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING);
-            (Arc::from(name.as_str()), line(ui, text, f32::INFINITY))
-        })
-        .collect()
-}
-
-/// Returns the name of `language` in the interface language.
-pub(super) fn language_name(texts: &Texts, language: TextLanguage) -> String {
-    let known = LocalizationText::LanguageName(language);
-    if known.id() == LocalizationText::OtherLanguage.id() {
-        return format!(
-            "{} ({})",
-            texts.get(LocalizationText::OtherLanguage),
-            language.code()
-        );
-    }
-    texts.get(Text::Localization(known))
-}
+use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row};
+use crate::widgets::scroll_region::{self, Stand};
+use crate::{LocalizationTab, LocalizationTable, ScrollText, TextLanguage, Texts};
 
 /// What the user did in the table.
 pub(super) struct Picked {
@@ -154,56 +25,51 @@ pub(super) struct Picked {
 /// returns the cell that was clicked.
 pub(super) fn show(
     ui: &mut Ui,
+    texts: &Texts,
     tab: &LocalizationTab,
     table: &LocalizationTable,
     laid: &Laid,
 ) -> Option<Picked> {
-    let columns = table.languages().len() + 1;
     let hovered_id = ui.scope_id().with("localization-hovered-row");
     let hovered = ui.data(|data| data.get_temp::<usize>(hovered_id));
-    let mut hovered_now = None;
-    let mut picked = None;
-    ScrollArea::horizontal()
+    let region = scroll_region::begin(
+        ui,
+        (ui.scope_id().with("localization-region"), || {
+            texts.get(ScrollText::Localization)
+        }),
+        ROW_HEIGHT,
+    );
+    let wanted = region.requested();
+    let mut area = ScrollArea::horizontal()
         .id_salt("localization")
-        .auto_shrink(false)
-        .show(ui, |ui| {
-            ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-            let left = ui.max_rect().left();
-            builder(ui, columns)
-                .header(ROW_HEIGHT, |mut header| {
-                    for column in 0..columns {
-                        header.col(|ui| {
-                            let from = if column == 0 {
-                                left
-                            } else {
-                                ui.max_rect().left()
-                            };
-                            head_cell(ui, laid, column, from);
-                        });
-                    }
-                })
-                .body(|body| {
-                    body.rows(ROW_HEIGHT, tab.shown_len(), |row| {
-                        let index = row.index();
-                        let Some(id) = tab.row_at(index) else {
-                            return;
-                        };
-                        let shown = Shown {
-                            tab,
-                            table,
-                            laid,
-                            hovered: hovered == Some(index),
-                        };
-                        let (click, is_hovered) = show_row(row, &shown, id);
-                        if click.is_some() {
-                            picked = click;
-                        }
-                        if is_hovered {
-                            hovered_now = Some(index);
-                        }
-                    });
-                });
-        });
+        .auto_shrink(false);
+    if let Some(wanted) = wanted {
+        area = area.scroll_offset(vec2(wanted.x, 0.0));
+    }
+    let mut outcome = Outcome::default();
+    let output = area.show(ui, |ui| {
+        let parts = Parts { tab, table, laid };
+        grid(
+            ui,
+            &parts,
+            (wanted.map(|wanted| wanted.y), hovered),
+            &mut outcome,
+        )
+    });
+    let Outcome {
+        picked,
+        hovered: hovered_now,
+    } = outcome;
+    let rows = &output.inner;
+    let stand = Stand {
+        offset: vec2(
+            output.state.clamped_offset().x,
+            rows.state.clamped_offset().y,
+        ),
+        view: vec2(output.inner_rect.width(), rows.inner_rect.height()),
+        content: vec2(output.content_size.x, rows.content_size.y),
+    };
+    region.finish(ui, output.inner_rect, stand);
     ui.data_mut(|data| {
         if let Some(index) = hovered_now {
             data.insert_temp(hovered_id, index);
@@ -212,6 +78,68 @@ pub(super) fn show(
         }
     });
     picked
+}
+
+#[derive(Default)]
+struct Outcome {
+    picked: Option<Picked>,
+    hovered: Option<usize>,
+}
+
+#[derive(Clone, Copy)]
+struct Parts<'a> {
+    tab: &'a LocalizationTab,
+    table: &'a LocalizationTable,
+    laid: &'a Laid,
+}
+
+fn grid(
+    ui: &mut Ui,
+    parts: &Parts<'_>,
+    (offset, hovered): (Option<f32>, Option<usize>),
+    outcome: &mut Outcome,
+) -> ScrollAreaOutput<()> {
+    let Parts { tab, table, laid } = *parts;
+    let columns = table.languages().len() + 1;
+    ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
+    let left = ui.max_rect().left();
+    let mut rows = builder(ui, columns);
+    if let Some(offset) = offset {
+        rows = rows.vertical_scroll_offset(offset);
+    }
+    rows.header(ROW_HEIGHT, |mut header| {
+        for column in 0..columns {
+            header.col(|ui| {
+                let from = if column == 0 {
+                    left
+                } else {
+                    ui.max_rect().left()
+                };
+                head_cell(ui, laid, column, from);
+            });
+        }
+    })
+    .body(|body| {
+        body.rows(ROW_HEIGHT, tab.shown_len(), |row| {
+            let index = row.index();
+            let Some(id) = tab.row_at(index) else {
+                return;
+            };
+            let shown = Shown {
+                tab,
+                table,
+                laid,
+                hovered: hovered == Some(index),
+            };
+            let (click, is_hovered) = show_row(row, &shown, id);
+            if click.is_some() {
+                outcome.picked = click;
+            }
+            if is_hovered {
+                outcome.hovered = Some(index);
+            }
+        });
+    })
 }
 
 struct Shown<'a> {
@@ -314,15 +242,14 @@ fn cell(ui: &Ui, shown: &Shown<'_>, (id, column): (u32, usize), state: RowState)
     match &*content {
         Cell::Text(galley) => {
             let galley = if active {
-                text_of(shown.table, id, column).map_or_else(
-                    || Arc::clone(galley),
-                    |text| layout(ui, text, row_weight(true)),
-                )
+                shown
+                    .laid
+                    .active(ui, shown.table, (id, column))
+                    .unwrap_or_else(|| Arc::clone(galley))
             } else {
                 Arc::clone(galley)
             };
-            let name = galley.text().to_owned();
-            response.widget_info(|| WidgetInfo::selected(Role::Cell, true, active, &name));
+            response.widget_info(|| WidgetInfo::selected(Role::Cell, true, active, galley.text()));
             let painter = ui.painter().with_clip_rect(inner.intersect(ui.clip_rect()));
             let at = pos2(inner.left(), inner.center().y - galley.size().y / 2.0);
             painter.galley(at, galley, state.colours().1);
@@ -340,16 +267,4 @@ fn cell(ui: &Ui, shown: &Shown<'_>, (id, column): (u32, usize), state: RowState)
     }
     focus_inside(ui.painter(), rect, &response);
     response
-}
-
-fn text_of(table: &LocalizationTable, id: u32, column: usize) -> Option<&str> {
-    column.checked_sub(1).map_or_else(
-        || table.key(id),
-        |index| {
-            table
-                .languages()
-                .get(index)
-                .and_then(|&language| table.text(id, language))
-        },
-    )
 }

@@ -363,10 +363,16 @@ fehlende, leere oder Platzhalter-Übersetzung ist ein `.chip--warning` „Fehlt"
 sind der Sinn der Tabelle und sollen auffallen, die Farbe ist nie der einzige Hinweis (D.11).
 Ein Klick oder Fokus plus Enter wählt eine Zelle: ihre Zeile steht in `control-selected-bg`, die
 Zelle selbst wie die aktive Zeile (Balken links, Weiß, Bold); Strg+C kopiert den Text der Zelle,
-sonst den Schlüssel, solange kein Textfeld den Fokus hat. Kopiert wird der Text mit echten
-Zeilenumbrüchen. Die Suche findet Schlüssel und Texte aller Sprachen ohne Beachtung der
-Groß-/Kleinschreibung (ein führendes `@` wird ignoriert), läuft bei jedem Tastendruck in einem
-Hintergrund-Thread und lässt bis zum Ergebnis die vorherigen Zeilen stehen; der
+sonst den Schlüssel, solange kein Textfeld den Fokus hat und kein Labeltext markiert ist. Kopiert
+wird der Text mit echten Zeilenumbrüchen. Die Tabelle rollt wie jede lange Fläche mit der
+Tastatur (D.27): sie ist eine fokussierbare Rollfläche mit dem Namen „Lokalisierungszeilen", der
+Fokusring sitzt innen (−2); Pfeil auf/ab rollt um eine Zeile (36 px), links/rechts ebenso zur
+Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende zum Anfang und Ende. Die Suche
+findet Schlüssel und die in den Zellen gezeigten Texte aller Sprachen (ein als „Fehlt" gezeigter
+Text zählt nicht) ohne Beachtung der Groß-/Kleinschreibung (ein führendes `@` wird ignoriert),
+läuft bei jedem Tastendruck in einem Hintergrund-Thread, bricht die vorige Suche wirklich ab und
+lässt bis zum Ergebnis die vorherigen Zeilen stehen; verschwindet die gewählte Zeile aus dem
+Ergebnis, ist nichts mehr gewählt, damit „Kopieren" nie eine verborgene Zeile kopiert; der
 `.list-panel__footer` nennt „n von m Schlüsseln" und, solange sie läuft, „Suche läuft …" mit
 Spinner. Wurde eine Datei mit ungültigen Bytes oder übersprungenen Zeilen gelesen, steht darüber
 ein `.alert-warning` mit den Hinweisen. Gezeichnet und im Cache gehalten werden nur die sichtbaren

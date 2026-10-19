@@ -1,7 +1,9 @@
+use egui::text_selection::LabelSelectionState;
 use egui::{Align, Event, Label, Layout, Margin, Ui, vec2};
 use fluent_bundle::FluentValue;
 
-use super::localization_table::{self, Laid, Picked};
+use super::localization_laid::Laid;
+use super::localization_table::{self, Picked};
 use super::search::{eyebrow, field};
 use super::{empty, list_footer};
 use crate::theme::desktop::{SPINNER, SPINNER_INLINE, TOOLBAR_PADDING};
@@ -174,7 +176,7 @@ fn ready(ui: &mut Ui, model: &Model, table: &LocalizationTable) -> Option<Picked
         return None;
     }
     let laid = Laid::get(ui, texts, tab, table);
-    localization_table::show(ui, tab, table, &laid)
+    localization_table::show(ui, texts, tab, table, &laid)
 }
 
 fn count(texts: &Texts, shown: usize, total: usize) -> String {
@@ -220,6 +222,12 @@ fn message(ui: &mut Ui, text: String, colour: egui::Color32) {
     });
 }
 
+fn label_text_selected(ui: &Ui) -> bool {
+    ui.ctx()
+        .plugin_opt::<LabelSelectionState>()
+        .is_some_and(|plugin| plugin.lock().has_selection())
+}
+
 fn copy_shortcut(ui: &Ui, model: &Model) {
     let asked = ui.input(|input| {
         input
@@ -227,7 +235,7 @@ fn copy_shortcut(ui: &Ui, model: &Model) {
             .iter()
             .any(|event| matches!(event, Event::Copy))
     });
-    if !asked || ui.ctx().egui_wants_keyboard_input() {
+    if !asked || ui.ctx().text_edit_focused() || label_text_selected(ui) {
         return;
     }
     let tab = model.localization();

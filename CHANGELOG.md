@@ -13,8 +13,9 @@ fails while its section is missing.
   and one column per language, with missing translations marked. The search matches keys and
   texts of all languages ignoring case, runs off the UI thread while typing and keeps the
   window responsive on a full table; control and bidirectional characters in texts are shown as
-  escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C. All
-  texts are in the German and British English interface files.
+  escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C, and
+  the table scrolls with the keyboard. All texts are in the German and British English interface
+  files.
 - `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
   localisation key next to the key, in the `global.ini` of that language; a key without a text is
   marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte

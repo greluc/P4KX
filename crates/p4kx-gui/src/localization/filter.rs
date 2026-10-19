@@ -4,8 +4,6 @@ use rayon::prelude::*;
 
 use super::table::LocalizationTable;
 
-const CHECK_EVERY: usize = 4096;
-
 /// A search text, folded to lower case once, matched against keys and texts without allocating.
 #[derive(Debug, Clone)]
 pub(super) struct Needle {
@@ -79,48 +77,19 @@ impl Needle {
     }
 }
 
-/// Returns the rows whose key or text in any language contains `needle`, in row order; `None`
-/// once `cancelled` is set.
+/// Returns the rows whose key or the shown text in any language contains `needle`, in row
+/// order; `None` once `cancelled` is set. Both passes stop scanning as soon as it is set.
 pub(super) fn matching(
     table: &LocalizationTable,
     needle: &Needle,
     cancelled: &AtomicBool,
 ) -> Option<Vec<u32>> {
-    let mut hit = vec![false; table.len()];
-    let by_key: Vec<u32> = (0..table.len())
-        .into_par_iter()
-        .filter(|&row| {
-            u32::try_from(row)
-                .ok()
-                .and_then(|row| table.key(row))
-                .is_some_and(|key| needle.is_in(key))
-        })
-        .filter_map(|row| u32::try_from(row).ok())
-        .collect();
-    let by_text: Vec<Vec<u32>> = table
-        .languages()
-        .par_iter()
-        .map(|&language| {
-            table
-                .texts()
-                .iter(language)
-                .enumerate()
-                .filter_map(|(count, (key, text))| {
-                    if count % CHECK_EVERY == 0 && cancelled.load(Ordering::Relaxed) {
-                        return None;
-                    }
-                    if needle.is_in(text) {
-                        table.position(key)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        })
-        .collect();
+    let by_key = rows_by_key(table, needle, cancelled);
+    let by_text = rows_by_text(table, needle, cancelled);
     if cancelled.load(Ordering::Relaxed) {
         return None;
     }
+    let mut hit = vec![false; table.len()];
     for row in by_key.into_iter().chain(by_text.into_iter().flatten()) {
         if let Some(slot) = usize::try_from(row).ok().and_then(|row| hit.get_mut(row)) {
             *slot = true;
@@ -135,9 +104,89 @@ pub(super) fn matching(
     )
 }
 
+fn rows_by_key(table: &LocalizationTable, needle: &Needle, cancelled: &AtomicBool) -> Vec<u32> {
+    (0..table.len())
+        .into_par_iter()
+        .take_any_while(|_| !cancelled.load(Ordering::Relaxed))
+        .filter_map(|row| u32::try_from(row).ok())
+        .filter(|&row| table.key(row).is_some_and(|key| needle.is_in(key)))
+        .collect()
+}
+
+fn rows_by_text(
+    table: &LocalizationTable,
+    needle: &Needle,
+    cancelled: &AtomicBool,
+) -> Vec<Vec<u32>> {
+    table
+        .languages()
+        .par_iter()
+        .map(|&language| {
+            table
+                .texts()
+                .iter(language)
+                .take_while(|_| !cancelled.load(Ordering::Relaxed))
+                .filter(|&(key, text)| {
+                    needle.is_in(text) && table.texts().is_translated(key, language)
+                })
+                .filter_map(|(key, _)| table.position(key))
+                .collect()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Needle;
+    use std::sync::atomic::AtomicBool;
+
+    use p4kx_extraction::Language;
+
+    use super::{Needle, matching, rows_by_key, rows_by_text};
+    use crate::localization::table::LocalizationTable;
+
+    const ENGLISH: &str = "item_a=alpha\nitem_b=\nitem_c=beta\nitem_d=alphabet\n";
+    const GERMAN: &str = "item_a=alpha\nitem_b=hidden alpha\nLOC_EMPTY=zzz\n";
+
+    fn table() -> LocalizationTable {
+        LocalizationTable::from_inis(&[(Language::English, ENGLISH), (Language::German, GERMAN)])
+    }
+
+    fn needle(query: &str) -> Needle {
+        Needle::new(query).unwrap_or_else(|| unreachable!("a non-empty query"))
+    }
+
+    #[test]
+    fn a_cancelled_search_returns_none_and_both_passes_scan_nothing() {
+        let table = table();
+        let cancelled = AtomicBool::new(true);
+        let needle = needle("item");
+        assert_eq!(matching(&table, &needle, &cancelled), None, "result");
+        assert!(rows_by_key(&table, &needle, &cancelled).is_empty(), "keys");
+        assert!(
+            rows_by_text(&table, &needle, &cancelled)
+                .iter()
+                .all(Vec::is_empty),
+            "texts"
+        );
+        let running = AtomicBool::new(false);
+        assert_eq!(matching(&table, &needle, &running), Some(vec![0, 1, 2, 3]));
+    }
+
+    #[test]
+    fn a_text_the_cell_shows_as_missing_is_not_matched() {
+        let table = table();
+        let running = AtomicBool::new(false);
+        assert_eq!(
+            matching(&table, &needle("hidden"), &running),
+            Some(vec![1]),
+            "a translated German text is found"
+        );
+        assert_eq!(
+            matching(&table, &needle("zzz"), &running),
+            Some(vec![]),
+            "a placeholder text is not"
+        );
+    }
 
     fn finds(query: &str, haystack: &str) -> bool {
         Needle::new(query).is_some_and(|needle| needle.is_in(haystack))

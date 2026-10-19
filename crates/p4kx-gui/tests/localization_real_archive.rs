@@ -10,7 +10,7 @@ use p4kx_testkit::real_archive_path;
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(600);
+    let deadline = Instant::now() + Duration::from_secs(120);
     while !done(model) {
         if Instant::now() > deadline {
             return Err("the window did not settle in time".into());
@@ -55,7 +55,7 @@ fn the_texts_of_a_real_archive_are_listed_and_searched() -> TestResult {
     let found = model.localization().shown_len();
     assert!(found > 0 && found < total, "{found} of {total} match");
     assert!(
-        started.elapsed() < Duration::from_secs(10),
+        started.elapsed() < Duration::from_secs(5),
         "searched the full table in {:?}",
         started.elapsed()
     );

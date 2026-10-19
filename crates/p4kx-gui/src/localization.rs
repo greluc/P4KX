@@ -52,6 +52,17 @@ struct Loaded {
     search: Option<Search>,
     selected: Option<(u32, Option<GameLanguage>)>,
     generation: u64,
+    table_serial: u64,
+}
+
+impl Loaded {
+    fn drop_hidden_selection(&mut self) {
+        if let (Shown::Rows(rows), Some((row, _))) = (&self.shown, self.selected)
+            && rows.binary_search(&row).is_err()
+        {
+            self.selected = None;
+        }
+    }
 }
 
 /// The localisation tab: the table of every key with its text in every language of the open
@@ -61,6 +72,7 @@ pub struct LocalizationTab {
     state: State,
     query: String,
     generation: u64,
+    tables: u64,
 }
 
 impl LocalizationTab {
@@ -109,8 +121,8 @@ impl LocalizationTab {
         true
     }
 
-    /// Forgets the table and the selection, keeping the search text, because another Archive
-    /// was opened.
+    /// Forgets the table, the selection and the search text, because another Archive was
+    /// opened.
     pub(crate) fn archive_opened(&mut self) {
         self.state = State::Idle;
         self.query.clear();
@@ -125,6 +137,7 @@ impl LocalizationTab {
                     return false;
                 };
                 self.generation += 1;
+                self.tables += 1;
                 self.state = match outcome {
                     Outcome::Ready(table) => State::Ready(Box::new(Loaded {
                         table,
@@ -132,6 +145,7 @@ impl LocalizationTab {
                         search: None,
                         selected: None,
                         generation: self.generation,
+                        table_serial: self.tables,
                     })),
                     Outcome::Failed(reason) => State::Failed(reason),
                     Outcome::ArchiveChanged => State::ArchiveChanged,
@@ -146,6 +160,7 @@ impl LocalizationTab {
                 loaded.generation = self.generation;
                 loaded.search = None;
                 loaded.shown = Shown::Rows(rows);
+                loaded.drop_hidden_selection();
                 true
             }
             _ => false,
@@ -176,6 +191,7 @@ impl LocalizationTab {
                 self.generation += 1;
                 loaded.generation = self.generation;
                 loaded.shown = Shown::Rows(rows);
+                loaded.drop_hidden_selection();
             }
         }
     }
@@ -218,6 +234,16 @@ impl LocalizationTab {
     pub fn serial(&self) -> u64 {
         match &self.state {
             State::Ready(loaded) => loaded.generation,
+            _ => 0,
+        }
+    }
+
+    /// Returns a number that changes whenever another table was read, to tell a cache of laid-out
+    /// heads when to start over.
+    #[must_use]
+    pub fn table_serial(&self) -> u64 {
+        match &self.state {
+            State::Ready(loaded) => loaded.table_serial,
             _ => 0,
         }
     }

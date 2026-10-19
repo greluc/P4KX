@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use p4kx_extraction::{
     Archive, Language, LocalizationError, LocalizationLoadError, LocalizationSet,
-    MAX_GLOBAL_INI_KEYS, OwnedTextSet, decode_line_breaks,
+    MAX_GLOBAL_INI_KEYS, OwnedTextSet, TextSet, decode_line_breaks,
 };
 
 /// The localisation keys of every language of an Archive with their texts, read once.
@@ -36,6 +36,10 @@ impl LocalizationTable {
             .iter()
             .map(ToString::to_string)
             .collect();
+        Self::from_texts(&indexed, notes)
+    }
+
+    fn from_texts(indexed: &TextSet<'_>, notes: Vec<String>) -> Result<Self, TableError> {
         let sorted = indexed.keys();
         let too_many = || LocalizationError::TooManyKeys {
             limit: MAX_GLOBAL_INI_KEYS,
@@ -118,6 +122,17 @@ impl LocalizationTable {
     #[must_use]
     pub fn notes(&self) -> &[String] {
         &self.notes
+    }
+
+    #[cfg(test)]
+    pub(super) fn from_inis(files: &[(Language, &str)]) -> Self {
+        let parsed = files.iter().filter_map(|&(language, text)| {
+            p4kx_extraction::GlobalIni::parse(text)
+                .ok()
+                .map(|ini| (language, ini))
+        });
+        Self::from_texts(&TextSet::new(parsed), Vec::new())
+            .unwrap_or_else(|error| unreachable!("a small table is within the limits: {error}"))
     }
 
     pub(super) const fn texts(&self) -> &OwnedTextSet {

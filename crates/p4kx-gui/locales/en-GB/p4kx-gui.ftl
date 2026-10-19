@@ -403,6 +403,7 @@ scroll-image = Picture
 scroll-diff = Line differences
 scroll-fields = Changed fields
 scroll-lines = Record fields
+scroll-localization = Localisation rows
 
 preview-tab-audio = Audio
 audio-codec = Codec

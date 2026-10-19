@@ -26,6 +26,7 @@ mod image_preview;
 mod licence;
 mod list_footer;
 mod localization;
+mod localization_laid;
 mod localization_table;
 mod menu;
 mod moved_path;

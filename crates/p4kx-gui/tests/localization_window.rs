@@ -13,6 +13,9 @@ use localizing::{
 use p4kx_gui::{Language, LocalizationStatus, Model, TextLanguage, WorkTab};
 use p4kx_testkit::{ArchiveBuilder, GlobalIniBuilder, TestEntry};
 
+const FRAME_BUDGET: Duration = Duration::from_millis(500);
+const FRAME_AND_SEARCH_BUDGET: Duration = Duration::from_secs(10);
+
 #[test]
 fn the_localisation_tab_sits_next_to_the_others_and_asks_for_an_archive() {
     let mut harness = harness(Model::new(Language::BritishEnglish));
@@ -331,11 +334,23 @@ fn a_big_table_is_searched_without_blocking_the_window() -> TestResult {
 
     harness.get_by_role(Role::TextInput).click();
     harness.run_steps(2);
-    let started = Instant::now();
     harness
         .get_by_role(Role::TextInput)
         .type_text("nummer 3999");
-    let typed = started.elapsed();
+    let started = Instant::now();
+    let mut slowest = Duration::ZERO;
+    loop {
+        let frame = Instant::now();
+        harness.step();
+        slowest = slowest.max(frame.elapsed());
+        if !harness.state().localization().is_searching() {
+            break;
+        }
+        if started.elapsed() > FRAME_AND_SEARCH_BUDGET {
+            return Err("the search did not end in time".into());
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
     wait_until(&mut harness, |model| !model.localization().is_searching())?;
 
     assert_eq!(
@@ -344,8 +359,8 @@ fn a_big_table_is_searched_without_blocking_the_window() -> TestResult {
         "3999 and 39990 to 39999"
     );
     assert!(
-        typed < Duration::from_secs(30),
-        "typing took {typed:?} with a search per key"
+        slowest < FRAME_BUDGET,
+        "a frame took {slowest:?} while the table was searched"
     );
     Ok(())
 }

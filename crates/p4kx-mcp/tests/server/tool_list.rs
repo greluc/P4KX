@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use crate::support::{Install, TestResult};
 
 #[test]
-fn the_tool_list_holds_the_archive_tools_all_read_only() -> TestResult {
+fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestResult {
     let install = Install::standard()?;
     let mut server = install.serve(&[])?;
     let tools = server.tools()?;
@@ -16,13 +16,18 @@ fn the_tool_list_holds_the_archive_tools_all_read_only() -> TestResult {
         names,
         [
             "archive_info",
+            "get_record",
             "list_channels",
             "list_entries",
+            "list_enums",
+            "list_structs",
             "read_entry_bytes",
             "read_entry_text",
-            "search_entries"
+            "run_query",
+            "search_entries",
+            "search_records"
         ],
-        "the Archive tools"
+        "the Archive and DataForge tools"
     );
     for tool in &tools {
         let annotations = tool.get("annotations").cloned().unwrap_or_default();

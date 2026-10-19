@@ -39,6 +39,16 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Folder**:
+A path prefix that Entries share, e.g. `Data\Libs`; spellings that differ only by ASCII case or
+separator kind are one folder, named as its first Entry in path order spells it (ADR-0023).
+_Avoid_: directory, Record folder (a Record folder groups Records)
+
+**Path order**:
+The order of Entries in folder listings: by path ignoring ASCII case with `\` as `/`, then byte by
+byte.
+_Avoid_: Archive order (the order of the Archive's directory), sort order
+
 **Container**:
 An Entry that is itself a plain ZIP archive, e.g. a `.socpak`, opened in place and read like an
 Archive; it may hold further containers.

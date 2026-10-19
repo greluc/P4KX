@@ -92,6 +92,31 @@ impl<'f> Property<'f> {
     pub const fn is_array(&self) -> bool {
         self.def.conversion != CONVERSION_ATTRIBUTE
     }
+
+    /// Returns the struct the field's values are instances of, point to or refer to, for class,
+    /// pointer and typed Reference fields; `None` for any other field.
+    #[must_use]
+    pub fn target_struct(&self) -> Option<Struct<'f>> {
+        matches!(
+            self.data_type(),
+            Ok(DataType::Class
+                | DataType::StrongPointer
+                | DataType::WeakPointer
+                | DataType::Reference)
+        )
+        .then(|| self.forge.struct_at(u32::from(self.def.target)))
+        .flatten()
+    }
+
+    /// Returns the enum of an enum field; `None` for any other field.
+    #[must_use]
+    pub fn target_enum(&self) -> Option<Enum<'f>> {
+        let forge = self.forge;
+        matches!(self.data_type(), Ok(DataType::Enum))
+            .then(|| forge.enums.get(usize::from(self.def.target)))
+            .flatten()
+            .map(|def| Enum { forge, def })
+    }
 }
 
 /// An enum definition with its option names.

@@ -3,7 +3,8 @@ use std::time::SystemTime;
 
 use serde_json::{Value, json};
 
-use crate::support::{Install, TestResult};
+use crate::forge::{AVENGER_TEXT, dataforge, install};
+use crate::support::TestResult;
 
 type Snapshot = Vec<(PathBuf, u64, Option<SystemTime>, Vec<u8>)>;
 
@@ -29,20 +30,22 @@ fn snapshot(root: &Path) -> TestResult<Snapshot> {
 
 #[test]
 fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
-    let install = Install::standard()?;
+    let install = install(dataforge(1, 16))?;
     let before = snapshot(install.path())?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
     let tools = server.tools()?;
     let calls = [
         ("list_channels", json!({})),
         ("archive_info", json!({})),
-        ("list_entries", json!({ "folder": "Data/Libs" })),
+        ("list_entries", json!({ "folder": "Data" })),
         ("search_entries", json!({ "filter": "*" })),
         ("read_entry_text", json!({ "path": "readme.txt" })),
-        (
-            "read_entry_bytes",
-            json!({ "path": "Data/Libs/Other/c.txt" }),
-        ),
+        ("read_entry_bytes", json!({ "path": "Data/Game2.dcb" })),
+        ("get_record", json!({ "guid": AVENGER_TEXT })),
+        ("search_records", json!({ "type": "Ship" })),
+        ("list_structs", json!({})),
+        ("list_enums", json!({})),
+        ("run_query", json!({ "query": "from Ship select crew" })),
     ];
     for (name, arguments) in &calls {
         server.ok(name, arguments)?;

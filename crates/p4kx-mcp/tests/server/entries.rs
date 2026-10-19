@@ -62,7 +62,7 @@ fn the_top_level_lists_folders_then_entries() -> TestResult {
 }
 
 #[test]
-fn a_folder_lists_its_subfolders_by_name_and_its_entries_in_archive_order() -> TestResult {
+fn a_folder_lists_its_subfolders_by_name_and_its_entries_in_path_order() -> TestResult {
     let install = Install::standard()?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
     let data = server.ok("list_entries", &json!({ "folder": "data/" }))?;

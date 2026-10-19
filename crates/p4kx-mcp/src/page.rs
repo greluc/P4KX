@@ -57,11 +57,27 @@ impl Page {
     /// Returns the cursor of the next page of a listing of `total` items, or `None` on the last
     /// page; an offset beyond `total` is a bad cursor.
     pub(crate) fn next_cursor(self, total: usize) -> Result<Option<String>, ToolError> {
+        self.next_cursor_after(self.limit, total)
+    }
+
+    /// Returns the cursor of the page after the first `taken` items of this page, of a listing
+    /// of `total` items, or `None` when no item follows; an offset beyond `total` is a bad
+    /// cursor.
+    pub(crate) fn next_cursor_after(
+        self,
+        taken: usize,
+        total: usize,
+    ) -> Result<Option<String>, ToolError> {
         if self.offset > total {
             return Err(ToolError::BadCursor(self.cursor(self.offset)));
         }
-        let end = self.offset.saturating_add(self.limit);
+        let end = self.offset.saturating_add(taken);
         Ok((end < total).then(|| self.cursor(end)))
+    }
+
+    /// Returns the position of the first item of the page in the listing.
+    pub(crate) const fn offset(self) -> usize {
+        self.offset
     }
 
     /// Returns the page size.

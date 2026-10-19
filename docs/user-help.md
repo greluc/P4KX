@@ -121,7 +121,9 @@ existing file stays as it was. The summary lists per kind the entities written, 
 out as development leftovers and whether the kind is complete, per language the texts resolved,
 missing and placeholders, the size against the basetool upload limit of 64 MB and the file. A
 catalog close to the upload limit gets a warning, one over it an error note, because the basetool
-rejects it.
+rejects it. A selected Record that cannot be read does not stop the catalog: it is left out and
+listed in the summary under "Records that could not be read and were left out", with its record
+path, GUID and reason.
 
 ## Running Queries
 

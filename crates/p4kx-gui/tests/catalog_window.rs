@@ -107,6 +107,25 @@ fn the_summary_shows_the_kinds_the_texts_the_size_and_the_file() -> TestResult {
 }
 
 #[test]
+fn an_unreadable_record_is_listed_in_the_summary_and_the_catalog_is_written() -> TestResult {
+    let (_dir, mut model, out) = opened(&cataloging::unreadable())?;
+    let file = out.join("basetool-catalog.json");
+    model.start_catalog(file.clone(), || {});
+    let mut harness = harness(model);
+
+    wait_for_the_end(&mut harness)?;
+
+    harness.get_by_label("Basetool catalog created");
+    harness.get_by_label_contains("Records that could not be read and were left out (1)");
+    harness.get_by_label_contains(
+        "libs/foundry/records/crafting/blueprints/crafting/broken (90000000-0000-4000-8000-000000000009)",
+    );
+    harness.get_by_label("Manufacturers: 1 written, 0 skipped, complete");
+    assert!(file.is_file(), "the catalog is written");
+    Ok(())
+}
+
+#[test]
 fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
     let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
     model.start_catalog(out.join("catalog.json"), || {});

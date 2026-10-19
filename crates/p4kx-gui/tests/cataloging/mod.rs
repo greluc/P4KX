@@ -71,6 +71,27 @@ pub(crate) fn makers() -> ArchiveBuilder {
     archive(&forge, &english, &german)
 }
 
+/// One manufacturer and a blueprint whose struct layout cannot be read.
+pub(crate) fn unreadable() -> ArchiveBuilder {
+    let forge = structures()
+        .structure(
+            TestStruct::new("CraftingBlueprintRecord")
+                .field("a", TestType::Int8)
+                .declared_size(3),
+        )
+        .record(manufacturer(1, "ACAS", "@manufacturer_Desc"))
+        .record(TestRecord::new(
+            BROKEN,
+            "CraftingBlueprintRecord",
+            "CraftingBlueprintRecord.broken",
+            "libs/foundry/records/crafting/blueprints/crafting/broken.xml",
+        ));
+    let texts = GlobalIniBuilder::new().text("manufacturer_Desc", "Ships.");
+    archive(&forge, &texts, &texts)
+}
+
+const BROKEN: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0009;
+
 /// `count` manufacturers, enough to keep a catalog busy for a while.
 pub(crate) fn many(count: u32) -> ArchiveBuilder {
     let forge = (0..count).fold(structures(), |builder, number| {

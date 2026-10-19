@@ -16,6 +16,14 @@ fails while its section is missing.
   escapes. The key or the text of the selected cell is copied with two actions or Ctrl+C, and
   the table scrolls with the keyboard. All texts are in the German and British English interface
   files.
+- Verification of the Basetool catalog against all installed Channels: Records with the words
+  `debug`, `deprecated` or `dev` in their path are left out as development leftovers, and the
+  measured sizes (at most 21.1 MB against the 64 MB upload limit) are recorded in
+  `docs/basetool-catalog.md`.
+- An unreadable selected Record no longer aborts `p4kx catalog` and the desktop app's Basetool
+  catalog: it is left out and counted as a failure, the catalog is still written, `p4kx catalog`
+  lists the failed Records on stderr and under `failed` in `--json` and exits with code 1, and the
+  summary window lists them.
 - `p4kx dcb export --lang <language>`: Record XML, Record JSON and NDJSON with the text of every
   localisation key next to the key, in the `global.ini` of that language; a key without a text is
   marked missing, a placeholder key stays alone. Additive: without `--lang` the output is byte
@@ -121,9 +129,9 @@ fails while its section is missing.
   and is counted as unresolved in the result summary; `->` where no Reference stands is marked
   as an error.
 - `p4kx catalog <archive> --out <file>`: the Basetool catalog in its new, versioned format with
-  Channel, Build and completeness per kind, starting with the manufacturers; test, template and
-  dummy Records are left out and counted, `--filter` makes it partial, and a warning comes before
-  the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
+  Channel, Build and completeness per kind, starting with the manufacturers; test, template,
+  dummy, debug, deprecated and dev Records are left out and counted, `--filter` makes it partial,
+  and a warning comes before the 64 MB upload limit. `p4kx catalog schema` prints its JSON Schema, checked in as
   `schemas/basetool-catalog.schema.json`.
 - English and German names and descriptions in the Basetool catalog, resolved from the Archive's
   `global.ini` files next to their localisation keys, with `\n` as a line feed; a key or

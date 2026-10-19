@@ -1,5 +1,5 @@
 use p4kx_extraction::{
-    DataForgeError, DataForgeLoadError, Guid, LocalizationError, LocalizationLoadError,
+    DataForgeError, DataForgeLoadError, LocalizationError, LocalizationLoadError,
 };
 use thiserror::Error;
 
@@ -13,15 +13,6 @@ pub enum CatalogError {
     /// The DataForge has an unsupported version or is corrupt.
     #[error(transparent)]
     DataForge(DataForgeError),
-    /// A Record cannot be read.
-    #[error("cannot read the Record {guid}")]
-    Record {
-        /// The GUID of the Record.
-        guid: Guid,
-        /// Why it cannot be read.
-        #[source]
-        source: DataForgeError,
-    },
     /// A `global.ini` the Archive holds cannot be read.
     #[error(transparent)]
     LoadTexts(LocalizationLoadError),

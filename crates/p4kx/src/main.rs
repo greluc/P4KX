@@ -65,7 +65,7 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),
-        Command::Catalog(args) => catalog::run(&args, json).map(success),
+        Command::Catalog(args) => catalog::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {

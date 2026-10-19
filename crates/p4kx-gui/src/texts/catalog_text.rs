@@ -22,6 +22,10 @@ pub enum CatalogText {
     SummaryKind,
     /// The Records left out as development leftovers over every kind; takes `number`.
     SummarySkipped,
+    /// The heading of the Records that could not be read; takes `number`.
+    SummaryFailed,
+    /// One Record that could not be read; takes `path`, `guid` and `reason`.
+    SummaryFailure,
     /// The heading of the texts per language.
     TextsHeading,
     /// How the texts resolved in one language; takes `language`, `resolved`, `missing` and
@@ -55,7 +59,7 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 26] = [
         Self::Action,
         Self::FileFilter,
         Self::RunningTitle,
@@ -66,6 +70,8 @@ impl CatalogText {
         Self::KindsHeading,
         Self::SummaryKind,
         Self::SummarySkipped,
+        Self::SummaryFailed,
+        Self::SummaryFailure,
         Self::TextsHeading,
         Self::SummaryTexts,
         Self::SummaryTextsUnavailable,
@@ -96,6 +102,8 @@ impl CatalogText {
             Self::KindsHeading => "catalog-kinds-heading",
             Self::SummaryKind => "catalog-summary-kind",
             Self::SummarySkipped => "catalog-summary-skipped",
+            Self::SummaryFailed => "catalog-summary-failed",
+            Self::SummaryFailure => "catalog-summary-failure",
             Self::TextsHeading => "catalog-texts-heading",
             Self::SummaryTexts => "catalog-summary-texts",
             Self::SummaryTextsUnavailable => "catalog-summary-texts-unavailable",

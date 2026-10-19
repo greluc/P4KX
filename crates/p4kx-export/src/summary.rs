@@ -1,6 +1,6 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
-use crate::{ItemClassSummary, Kind};
+use crate::{CatalogFailure, ItemClassSummary, Kind};
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
 /// upload limit (`docs/basetool-catalog.md`).
@@ -69,10 +69,24 @@ pub struct CatalogSummary {
     pub(crate) texts: Vec<TextSummary>,
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
+    pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) size: u64,
 }
 
 impl CatalogSummary {
+    /// Returns the selected Records that could not be read and are left out of the catalog,
+    /// ordered by GUID.
+    #[must_use]
+    pub fn failures(&self) -> &[CatalogFailure] {
+        &self.failures
+    }
+
+    /// Returns whether every selected Record could be read.
+    #[must_use]
+    pub const fn is_complete(&self) -> bool {
+        self.failures.is_empty()
+    }
+
     /// Returns how the item classes of the items were read.
     #[must_use]
     pub const fn item_classes(&self) -> ItemClassSummary {

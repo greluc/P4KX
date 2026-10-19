@@ -37,9 +37,11 @@ cargo test --release --workspace --locked -- --ignored
 
 That runs every real-Archive test in the workspace, whatever test file it lives in. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
-and takes the path from `p4kx_testkit::real_archive_path`. A test over two Archives takes both
-from `p4kx_testkit::real_archive_pair` and returns early when it gives `None`, so it skips
-cleanly without `P4KX_DATA_P4K_B`. A timing test that must not share the cores with other tests
+and takes the path from `p4kx_testkit::real_archive_path`, and from
+`p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`. A test
+needing the second Archive returns early when it is not set (`real_archive_b_path` gives `None`),
+so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::real_archive_pair`
+and returns early when it gives `None`. A timing test that must not share the cores with other tests
 gets its own test file.
 
 ## Plan and decisions

@@ -367,6 +367,8 @@ catalog-summary-kind = { $kind ->
    *[no] teilweise
 }
 catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-summary-failed = Nicht lesbare und weggelassene Records ({ $number })
+catalog-summary-failure = { $path } ({ $guid }): { $reason }
 catalog-texts-heading = Texte
 catalog-summary-texts = { $language ->
     [en] Englisch

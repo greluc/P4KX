@@ -3,15 +3,26 @@
 //!
 //! Each language's texts are the Entry `Data\Localization\<folder>\global.ini`; the folder is
 //! `<language>_(<region>)` in lower case, e.g. `german_(germany)`, except plain `english`.
-//! [`Language::global_ini_path`] names the Entry of a language's `global.ini` in the Archive;
-//! [`GlobalIni::parse`] indexes its bytes without copying the texts, and
-//! [`GlobalIni::resolve`] looks a key up in constant time, ignoring ASCII case.
+//! [`Language`] names the eleven languages a Build holds; [`Language::global_ini_path`] names
+//! the Entry of a language's `global.ini` and [`Language::from_global_ini_path`] tells which
+//! language an Entry path belongs to. [`IniText::decode`] turns the bytes in any of their
+//! encodings into text, [`GlobalIni`] indexes the text without copying the texts and looks a key
+//! up in constant time, ignoring ASCII case, and a [`TextSet`] resolves keys across languages
+//! with a fallback language ([`Lookup`]) and lists every key.
 
 mod error;
 mod global_ini;
+mod ini_text;
 mod key;
 mod language;
+mod lookup;
+mod owned_text_set;
+mod text_set;
 
 pub use error::LocalizationError;
 pub use global_ini::{GlobalIni, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE};
-pub use language::Language;
+pub use ini_text::{IniEncoding, IniText};
+pub use language::{Language, ParseLanguageError};
+pub use lookup::{Lookup, PLACEHOLDER_KEYS, decode_line_breaks, is_placeholder_key};
+pub use owned_text_set::OwnedTextSet;
+pub use text_set::TextSet;

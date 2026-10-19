@@ -1,4 +1,4 @@
-use p4kx_extraction::Language;
+use p4kx_extraction::{Language, LocalizationNote};
 
 use crate::{ItemClassSummary, Kind};
 
@@ -67,6 +67,7 @@ pub struct TextSummary {
 pub struct CatalogSummary {
     pub(crate) kinds: Vec<KindSummary>,
     pub(crate) texts: Vec<TextSummary>,
+    pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) size: u64,
 }
@@ -91,6 +92,12 @@ impl CatalogSummary {
             .iter()
             .copied()
             .find(|summary| summary.language == language)
+    }
+
+    /// Returns a note for every `global.ini` Entry that was read lossily or had lines skipped.
+    #[must_use]
+    pub fn text_notes(&self) -> &[LocalizationNote] {
+        &self.notes
     }
 
     /// Returns the unresolved texts over every language.

@@ -7,12 +7,6 @@ use std::fmt;
 /// `contestant` does not.
 pub const EXCLUDED_TOKENS: [&str; 6] = ["test", "template", "dummy", "debug", "deprecated", "dev"];
 
-/// The localisation keys that stand for no text, matched ignoring ASCII case and the leading `@`.
-///
-/// A name or description with one of them keeps the key, has `null` texts and is counted as a
-/// placeholder, neither resolved nor unresolved.
-pub const PLACEHOLDER_KEYS: [&str; 3] = ["@LOC_EMPTY", "@LOC_PLACEHOLDER", "@LOC_UNINITIALIZED"];
-
 /// A kind of entity in the Basetool catalog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -152,16 +146,6 @@ pub(crate) fn is_leftover(record_path: &str, name: &str) -> bool {
                     .iter()
                     .any(|token| word.eq_ignore_ascii_case(token))
             })
-    })
-}
-
-/// Returns whether `key` is one of the [`PLACEHOLDER_KEYS`].
-pub(crate) fn is_placeholder_key(key: &str) -> bool {
-    let key = key.strip_prefix('@').unwrap_or(key);
-    PLACEHOLDER_KEYS.iter().any(|placeholder| {
-        placeholder
-            .strip_prefix('@')
-            .is_some_and(|placeholder| placeholder.eq_ignore_ascii_case(key))
     })
 }
 

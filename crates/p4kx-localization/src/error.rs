@@ -12,6 +12,12 @@ pub enum LocalizationError {
         /// The largest size that is read.
         limit: u64,
     },
+    /// The memory to decode the file to UTF-8 cannot be reserved.
+    #[error("cannot reserve the memory to decode the {size} bytes of the global.ini")]
+    DecodeOutOfMemory {
+        /// The size of the file in bytes.
+        size: u64,
+    },
     /// The memory for the index of the file's keys cannot be reserved.
     #[error("cannot reserve the memory to index {keys} keys of the global.ini")]
     OutOfMemory {
@@ -23,11 +29,5 @@ pub enum LocalizationError {
     TooManyKeys {
         /// The most keys that are read.
         limit: usize,
-    },
-    /// A line is not UTF-8.
-    #[error("line {line} of the global.ini is not UTF-8")]
-    InvalidUtf8 {
-        /// The line, counted from 1.
-        line: usize,
     },
 }

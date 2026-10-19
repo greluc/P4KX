@@ -64,6 +64,9 @@ fn looping_wems_keep_their_loop_in_wav_and_ogg() -> TestResult {
     }
     assert!(parsed > 1_000, "{parsed} loose WEMs");
     assert!(looping > 1_000, "{looping} of {parsed} loose WEMs loop");
-    println!("{looping} of {parsed} loose WEMs loop, {single_frame} of them for one frame or less");
+    assert_eq!(
+        single_frame, 0,
+        "{single_frame} of {looping} loops hold one frame or less"
+    );
     Ok(())
 }

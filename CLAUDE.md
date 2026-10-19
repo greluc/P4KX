@@ -40,6 +40,10 @@ real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --i
 and takes the path from `p4kx_testkit::real_archive_path` (and `real_archive_b_path` for a second
 Archive, from `P4KX_DATA_P4K_B`).
 
+The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
+of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
+when the variable is unset.
+
 ## Plan and decisions
 
 - [docs/ROADMAP.md](docs/ROADMAP.md): product decisions and milestones M1–M14.

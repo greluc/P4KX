@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use p4kx_extraction::{Guid, RecordTree, Value};
+use p4kx_extraction::{Guid, RecordTree, Value, is_placeholder_key};
 
 use crate::contract::Commodity;
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{class_name, component, element, elements, locale_key, reference};
-use crate::selection::is_placeholder_key;
 use crate::texts::Texts;
 
 /// Returns the GUID of the `ResourceType` Record the default composition of the commodity

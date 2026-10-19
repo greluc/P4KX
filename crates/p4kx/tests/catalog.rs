@@ -146,22 +146,35 @@ fn catalog_without_a_german_global_ini_leaves_german_null_and_counts_it() -> Tes
 }
 
 #[test]
-fn catalog_with_a_corrupt_german_global_ini_cannot_read_the_archive() -> TestResult {
+fn catalog_reads_a_german_global_ini_with_invalid_bytes_lossily() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let corrupt = TestEntry::zstd(
+    let damaged = TestEntry::zstd(
         "Data\\Localization\\german_(germany)\\global.ini",
-        b"manufacturer_NameACAS=\xff\xfe\r\n".to_vec(),
+        b"manufacturer_NameACAS=Ace\xff\r\nstray line\r\n".to_vec(),
     );
-    let archive = write_archive_with(dir.path(), &[english(), corrupt])?;
+    let archive = write_archive_with(dir.path(), &[english(), damaged])?;
+    let out = dir.path().join("damaged.json");
     let output = p4kx(&["catalog"])?
         .arg(&archive)
         .arg("--out")
-        .arg(dir.path().join("corrupt.json"))
+        .arg(&out)
         .output()?;
-    assert_eq!(output.status.code(), Some(3), "exit code: {output:?}");
+    assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
     assert!(
-        String::from_utf8(output.stderr)?.contains("german_(germany)"),
-        "names the Entry"
+        stderr.contains(
+            "note: Data\\Localization\\german_(germany)\\global.ini: invalid bytes replaced, 1 line skipped\n"
+        ),
+        "the Entry is named on stderr: {stderr}"
+    );
+    assert!(
+        !stderr.contains("english"),
+        "the clean Entry is not named: {stderr}"
+    );
+    let catalog: serde_json::Value = serde_json::from_str(&fs::read_to_string(out)?)?;
+    assert_eq!(
+        catalog["manufacturers"][1]["name"]["de"], "Ace\u{fffd}",
+        "the bad byte is replaced, the text kept"
     );
     Ok(())
 }

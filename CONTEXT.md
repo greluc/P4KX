@@ -121,7 +121,8 @@ _Avoid_: CryXmlB, binary XML
 **Localisation key**:
 The name a Record gives a text instead of the text itself, e.g. `@manufacturer_NameACAS`; it
 resolves to one text per language in that language's `global.ini` Entry
-(`Data\Localization\<language>\global.ini`). Code follows the game's spelling `Localization`.
+(`Data\Localization\<folder>\global.ini`), of which a Build holds eleven. Code follows the game's
+spelling `Localization`.
 _Avoid_: loc string, text id
 
 ### Assets

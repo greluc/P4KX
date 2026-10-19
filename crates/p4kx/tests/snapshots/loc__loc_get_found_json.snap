@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/loc.rs
+expression: own
+---
+{"key":"item_NameRifle","language":"de","fallback":"en","status":"found","text_language":"de","text":"Gewehr"}

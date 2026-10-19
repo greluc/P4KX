@@ -104,6 +104,7 @@ pub fn build_catalog_from(
         summary: CatalogSummary {
             kinds,
             texts: texts.summary(),
+            notes: texts.notes().to_vec(),
             item_classes,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },

@@ -1,11 +1,10 @@
-use p4kx_extraction::{RecordTree, StructValue, Value};
+use p4kx_extraction::{RecordTree, StructValue, Value, is_placeholder_key};
 
 use crate::contract::{Blueprint, Ingredient};
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{
     class_name, elements, integer, locale_key, reference, single, structure, text,
 };
-use crate::selection::is_placeholder_key;
 use crate::texts::Texts;
 
 const MAX_DEPTH: usize = 32;

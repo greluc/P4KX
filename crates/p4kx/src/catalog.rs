@@ -15,6 +15,7 @@ use thiserror::Error;
 use crate::cli::{CatalogArgs, CatalogCommand};
 use crate::extract::cancel_on_interrupt;
 use crate::json;
+use crate::loc::print_notes;
 use crate::progress::ProgressLine;
 
 /// An export time that no system time can hold.
@@ -96,6 +97,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<()> {
     line.finish();
     let built = built.map_err(into_anyhow)?;
     let summary = built.summary();
+    print_notes(summary.text_notes());
     warn_about_size(summary)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
     let printed = if as_json {

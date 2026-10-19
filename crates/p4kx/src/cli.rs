@@ -11,6 +11,7 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
@@ -64,6 +65,10 @@ pub(crate) enum Command {
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
     Compare(CompareArgs),
+    /// Lists the languages of an Archive, looks up the text of a localisation key or exports all
+    /// keys with their texts.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Loc(LocArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
     #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
     CryXml(CryXmlArgs),

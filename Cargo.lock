@@ -1960,6 +1960,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "gltf"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3ce1918195723ce6ac74e80542c5a96a40c2b26162c1957a5cd70799b8cacf7"
+dependencies = [
+ "byteorder",
+ "gltf-json",
+ "lazy_static",
+ "serde_json",
+]
+
+[[package]]
+name = "gltf-derive"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14070e711538afba5d6c807edb74bcb84e5dbb9211a3bf5dea0dfab5b24f4c51"
+dependencies = [
+ "inflections",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "gltf-json"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6176f9d60a7eab0a877e8e96548605dedbde9190a7ae1e80bbcc1c9af03ab14"
+dependencies = [
+ "gltf-derive",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "glutin"
 version = "0.32.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2307,6 +2343,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "inflections"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
+
+[[package]]
 name = "inout"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2538,6 +2580,12 @@ dependencies = [
  "polycool",
  "smallvec",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 
 [[package]]
 name = "lebe"
@@ -3570,7 +3618,9 @@ dependencies = [
  "p4kx-dataforge",
  "p4kx-foundation",
  "p4kx-gfx",
+ "p4kx-gltf",
  "p4kx-localization",
+ "p4kx-model",
  "p4kx-testkit",
  "p4kx-texture",
  "png",
@@ -3602,6 +3652,18 @@ dependencies = [
  "thiserror 2.0.21",
  "zune-core",
  "zune-jpeg",
+]
+
+[[package]]
+name = "p4kx-gltf"
+version = "0.1.0"
+dependencies = [
+ "gltf-json",
+ "p4kx-chunks",
+ "p4kx-model",
+ "p4kx-testkit",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3662,6 +3724,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "p4kx-model"
+version = "0.1.0"
+dependencies = [
+ "half",
+ "p4kx-chunks",
+ "p4kx-foundation",
+ "p4kx-testkit",
+ "proptest",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "p4kx-settings"
 version = "0.1.0"
 dependencies = [
@@ -3681,6 +3755,8 @@ dependencies = [
  "crc32c",
  "crc32fast",
  "flate2",
+ "gltf",
+ "half",
  "lzma-rs",
  "opus-pure",
  "p4kx-foundation",

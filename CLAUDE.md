@@ -50,7 +50,8 @@ gets its own test file.
 
 ## Architecture
 
-- `p4kx-*` crates in three layers (ADR-0003): format crates depend only on `p4kx-foundation`,
+- `p4kx-*` crates in three layers (ADR-0003, ADR-0019): format crates depend only on
+  `p4kx-foundation` and the format crates they declare in `builds-on` (never `p4kx-archive`),
   service crates on format crates, front-ends (`p4kx`, `p4kx-gui`, `p4kx-mcp`) only on services.
   Never add a dependency against this direction.
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.

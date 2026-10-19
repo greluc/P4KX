@@ -56,7 +56,11 @@ fn minimal_catalog() -> serde_json::Value {
             "toolVersion": "0.1.0",
             "exportedAt": "2026-10-18T00:00:00Z"
         },
-        "completeness": {"manufacturers": {"status": "complete"}},
+        "completeness": {
+            "manufacturers": {"status": "complete"},
+            "items": {"status": "complete"},
+            "ships": {"status": "partial", "filter": "*/spaceships/*"}
+        },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
             "className": "ACAS",
@@ -64,6 +68,34 @@ fn minimal_catalog() -> serde_json::Value {
             "code": "ACAS",
             "name": {"key": "@manufacturer_NameACAS", "en": "Ace Astrogation", "de": null},
             "description": {"key": null, "en": null, "de": null}
+        }],
+        "items": [{
+            "guid": "30000000-0000-4000-8000-000000000001",
+            "className": "POWR_ACAS_S01",
+            "recordPath": "libs/foundry/records/entities/scitem/ships/powerplant/powr_acas_s01",
+            "name": {"key": "@item_NamePOWR_ACAS_S01", "en": "Lumen", "de": null},
+            "description": {"key": null, "en": null, "de": null},
+            "type": "PowerPlant",
+            "subType": "Power",
+            "size": 1,
+            "grade": 3,
+            "mass": 125.5,
+            "manufacturerGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
+            "tags": ["flightReady"],
+            "displayType": {"key": null, "en": null, "de": null},
+            "itemClass": "Military"
+        }],
+        "ships": [{
+            "guid": "90000000-0000-4000-8000-000000000001",
+            "className": "ACAS_Ship",
+            "recordPath": "libs/foundry/records/entities/spaceships/acas_ship",
+            "name": {"key": null, "en": null, "de": null},
+            "description": {"key": null, "en": null, "de": null},
+            "role": {"key": "@vehicle_class_lightfreight", "en": "Light Freight", "de": null},
+            "career": {"key": null, "en": null, "de": null},
+            "crewSize": 2,
+            "manufacturerGuid": null,
+            "vehicleDefinition": null
         }]
     })
 }
@@ -82,8 +114,27 @@ fn the_schema_accepts_a_catalog_and_rejects_unknown_versions_and_guids() -> Test
     upper_case["manufacturers"][0]["guid"] = json!("CFC0122D-5275-415A-A656-3DCB3346FEB5");
     assert!(!validator.is_valid(&upper_case), "lower-case GUIDs only");
 
-    let mut unknown = catalog;
-    unknown["manufacturers"][0]["extra"] = json!(true);
-    assert!(!validator.is_valid(&unknown), "no unknown fields");
+    let mut unknown_class = catalog.clone();
+    unknown_class["items"][0]["itemClass"] = json!("Ballistic");
+    assert!(
+        !validator.is_valid(&unknown_class),
+        "only EItemClass options"
+    );
+
+    let mut no_class = catalog.clone();
+    no_class["items"][0]["itemClass"] = json!(null);
+    assert!(validator.is_valid(&no_class), "the item class may be null");
+
+    for kind in ["manufacturers", "items", "ships"] {
+        let mut unknown = catalog.clone();
+        unknown[kind][0]["extra"] = json!(true);
+        assert!(!validator.is_valid(&unknown), "no unknown fields in {kind}");
+    }
+
+    let mut missing = catalog;
+    if let Some(ship) = missing["ships"][0].as_object_mut() {
+        ship.remove("crewSize");
+    }
+    assert!(!validator.is_valid(&missing), "every field is present");
     Ok(())
 }

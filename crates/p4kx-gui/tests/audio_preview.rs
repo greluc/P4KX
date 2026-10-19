@@ -96,17 +96,62 @@ fn wwise_vorbis_decodes_and_plays() -> TestResult {
     Ok(())
 }
 
+/// Returns the signal-to-noise ratio in dB of channel `channel` of `decoded` against `signal`.
+fn snr(signal: &[i16], decoded: &[i16], channels: usize, channel: usize) -> f64 {
+    let (mut power, mut noise) = (0.0_f64, 0.0_f64);
+    for (expected, got) in signal
+        .iter()
+        .skip(channel)
+        .step_by(channels)
+        .zip(decoded.iter().skip(channel).step_by(channels))
+    {
+        power += f64::from(*expected).powi(2);
+        noise += (f64::from(*expected) - f64::from(*got)).powi(2);
+    }
+    10.0 * (power / noise.max(1.0)).log10()
+}
+
+#[test]
+fn opus_decodes_to_the_known_signal_and_plays() -> TestResult {
+    let output = FakeOutput::default();
+    let (_folder, mut harness) = opened(Language::BritishEnglish, &output)?;
+
+    select(&mut harness, "voice.wem")?;
+    press(&mut harness, "Play");
+    let played = output.pull(4096).ok_or("no output started")?;
+
+    assert!(
+        harness
+            .query_by_label("Codec Opus Channels 2 Sample rate 48,000 Hz Duration 0:00.200")
+            .is_some(),
+        "facts"
+    );
+    let pcm = player(harness.state()).ok_or("no player")?.pcm();
+    let signal = sounding::opus().signal();
+    assert_eq!(pcm.channels(), 2, "channels");
+    assert_eq!(pcm.samples().len(), signal.len(), "every frame decoded");
+    for channel in 0..2 {
+        let snr = snr(&signal, pcm.samples(), 2, channel);
+        assert!(snr > 20.0, "channel {channel}: {snr:.1} dB");
+    }
+    assert!(
+        played.iter().any(|&sample| sample != 0.0),
+        "the voice plays"
+    );
+    Ok(())
+}
+
 #[test]
 fn a_codec_without_a_decoder_is_named() -> TestResult {
     let (_folder, mut harness) = opened(Language::BritishEnglish, &FakeOutput::default())?;
 
-    select(&mut harness, "voice.wem")?;
+    select(&mut harness, "console.wem")?;
 
     assert!(
         harness
             .query_by_label(
                 "The preview cannot play AAC sounds. The Text and Hex tabs still show the \
-                 data of Data\\Sounds\\voice.wem."
+                 data of Data\\Sounds\\console.wem."
             )
             .is_some(),
         "message"

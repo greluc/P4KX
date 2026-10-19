@@ -38,5 +38,24 @@ fn the_tools_read_a_real_archive() -> TestResult {
         "many XML Entries page: {}",
         page["total"]
     );
+    let xml = page["entries"][0]["path"].as_str().unwrap_or_default();
+    let text = server.ok(
+        "read_entry_text",
+        &json!({ "path": xml, "max_bytes": 4096 }),
+    )?;
+    assert!(
+        text["text"].as_str().is_some_and(|text| text.contains('<')),
+        "an XML Entry reads as XML: {text}"
+    );
+    let dcb = found["entries"][0]["path"].as_str().unwrap_or_default();
+    let bytes = server.ok(
+        "read_entry_bytes",
+        &json!({ "path": dcb, "offset": 1_000_000, "max_bytes": 64 }),
+    )?;
+    assert_eq!(
+        (&bytes["length"], &bytes["more"]),
+        (&json!(64), &json!(true)),
+        "a range inside the DataForge: {bytes}"
+    );
     Ok(())
 }

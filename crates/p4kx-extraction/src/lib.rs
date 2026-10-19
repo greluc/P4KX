@@ -9,6 +9,7 @@ mod convert;
 mod dataforge;
 mod dataforge_convert;
 mod dependent;
+mod entry_content;
 mod entry_path;
 mod extract;
 mod filter;
@@ -26,6 +27,7 @@ mod report;
 mod selection;
 mod sound;
 mod target;
+mod text_window;
 mod texture;
 mod texture_convert;
 mod texture_exr;
@@ -44,6 +46,10 @@ pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, W
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
+pub use entry_content::{
+    EntryBytes, EntryReadError, EntryText, MIN_TEXT_LEN, TextEncoding, find_entry, read_bytes,
+    read_text,
+};
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};

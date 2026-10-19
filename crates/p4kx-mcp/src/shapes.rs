@@ -155,3 +155,59 @@ pub(crate) struct SearchResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) next_cursor: Option<String>,
 }
+
+/// A range of the text of an Entry; offsets and lengths count bytes of its UTF-8 form.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct TextResult {
+    /// The path of the Archive.
+    pub(crate) archive: String,
+    /// The Entry path in the Archive.
+    pub(crate) path: String,
+    /// How the Entry was decoded: `utf-8`, `utf-16le`, `utf-16be`, or `cryxml` converted to XML.
+    pub(crate) encoding: &'static str,
+    /// The size of the whole text in UTF-8 bytes.
+    pub(crate) size: u64,
+    /// The offset of `text` in the whole text; an offset inside a character moves to the next one.
+    pub(crate) offset: u64,
+    /// The length of `text` in UTF-8 bytes.
+    pub(crate) length: usize,
+    /// The text read.
+    pub(crate) text: String,
+    /// Whether more text follows.
+    pub(crate) more: bool,
+    /// The offset to continue at; absent at the end.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) next_offset: Option<u64>,
+    /// Whether `max_bytes` was raised or lowered to the allowed range.
+    pub(crate) clamped: bool,
+    /// The `max_bytes` used.
+    pub(crate) max_bytes: usize,
+}
+
+/// A range of the data of an Entry, base64 encoded.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct BytesResult {
+    /// The path of the Archive.
+    pub(crate) archive: String,
+    /// The Entry path in the Archive.
+    pub(crate) path: String,
+    /// The size of the Entry data in bytes.
+    pub(crate) size: u64,
+    /// The offset of the first byte in the Entry data.
+    pub(crate) offset: u64,
+    /// The number of bytes read.
+    pub(crate) length: usize,
+    /// The encoding of `data`: always `base64`, the standard alphabet with padding.
+    pub(crate) encoding: &'static str,
+    /// The bytes read.
+    pub(crate) data: String,
+    /// Whether more bytes follow.
+    pub(crate) more: bool,
+    /// The offset to continue at; absent at the end.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) next_offset: Option<u64>,
+    /// Whether `max_bytes` was raised or lowered to the allowed range.
+    pub(crate) clamped: bool,
+    /// The `max_bytes` used.
+    pub(crate) max_bytes: usize,
+}

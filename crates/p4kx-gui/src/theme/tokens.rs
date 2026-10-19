@@ -73,22 +73,22 @@ pub const CORNER_NONE: CornerRadius = CornerRadius::ZERO;
 pub const GLOW_PRIMARY: Shadow = glow(
     0,
     5,
-    Color32::from_rgba_unmultiplied_const(251, 138, 40, 77),
+    Color32::from_rgba_unmultiplied_const(231, 126, 35, 77),
 );
 /// `glow-primary-lg`: the large orange bloom of modals and the hovered CTA.
 pub const GLOW_PRIMARY_LG: Shadow = glow(
     0,
     20,
-    Color32::from_rgba_unmultiplied_const(251, 138, 40, 51),
+    Color32::from_rgba_unmultiplied_const(231, 126, 35, 51),
 );
 /// `glow-danger-lg`: the red bloom of the danger modal.
 pub const GLOW_DANGER_LG: Shadow =
     glow(0, 20, Color32::from_rgba_unmultiplied_const(163, 0, 10, 51));
-/// The orange glow of a tooltip, `0 0 10px rgb(251 138 40 / 30%)`.
+/// The orange glow of a tooltip, `0 0 10px rgb(231 126 35 / 30%)`.
 pub const GLOW_TOOLTIP: Shadow = glow(
     0,
     10,
-    Color32::from_rgba_unmultiplied_const(251, 138, 40, 77),
+    Color32::from_rgba_unmultiplied_const(231, 126, 35, 77),
 );
 /// `shadow-drawer`: the separation of a drawer.
 pub const SHADOW_DRAWER: Shadow = Shadow {

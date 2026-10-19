@@ -10,7 +10,7 @@ its machine-readable [p4kx-desktop-spec.json](../design/p4kx-desktop-spec.json).
 - `p4kx_gui::theme` mirrors the design system's `tokens.json` 1:1: `palette` and `categorical`
   every colour token, `tokens` the type scale, weights, tracking, line height, spacing, radii,
   glows and shadows, `desktop` the metrics of the desktop spec. A copy of `tokens.json` lives in
-  `crates/p4kx-gui/src/theme/fixtures/` (design system `e456702`); unit tests compare every token
+  `crates/p4kx-gui/src/theme/fixtures/` (design system `20aa9da`); unit tests compare every token
   and the desktop metrics against it and against the desktop spec. When the design system
   changes, the fixture is replaced and the theme follows until the tests pass.
 - The window ships Lato Light, Regular and Bold. Text below 16 points is Regular, Light only

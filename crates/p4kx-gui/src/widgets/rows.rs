@@ -7,7 +7,7 @@ use super::frames::accent_edge;
 use super::text::{caps, line, paint_left};
 use crate::theme::desktop::{
     ACCENT_BAR, ACTIVE_BAR, CHEVRON_STROKE, FOCUS_WIDTH, LIST_ROW_HOVER, SECTION_CHEVRON,
-    SECTION_TRACKING, TITLE_SIZE, ZEBRA,
+    SECTION_TRACKING, TITLE_SIZE, TREE_ROW_HOVER, ZEBRA,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{CORNER_SM, SPACE_4, TOUCH_TARGET, Weight};
@@ -18,6 +18,7 @@ pub(crate) enum RowState {
     Rest,
     Hovered,
     ListHovered,
+    TreeHovered,
     Checked,
     Active,
 }
@@ -30,6 +31,18 @@ impl RowState {
             Self::Active
         } else if hovered {
             Self::ListHovered
+        } else {
+            Self::Rest
+        }
+    }
+
+    /// Returns the state of a `.tree-row` from its flags: like [`RowState::of_list`], but hovered in
+    /// the 2.5 % white of the tree.
+    pub(crate) const fn of_tree(active: bool, hovered: bool) -> Self {
+        if active {
+            Self::Active
+        } else if hovered {
+            Self::TreeHovered
         } else {
             Self::Rest
         }
@@ -54,6 +67,7 @@ impl RowState {
             Self::Rest => (Color32::TRANSPARENT, palette::GRAY_1),
             Self::Hovered => (palette::CONTROL_BG, palette::GRAY_1),
             Self::ListHovered => (LIST_ROW_HOVER, palette::GRAY_1),
+            Self::TreeHovered => (TREE_ROW_HOVER, palette::GRAY_1),
             Self::Checked => (palette::CONTROL_SELECTED_BG, palette::GRAY_1),
             Self::Active => (palette::SURFACE_BAR, palette::WHITE),
         }
@@ -194,7 +208,7 @@ pub(crate) fn section_header(ui: &mut Ui, id: Id, title: &str, default_open: boo
 #[cfg(test)]
 mod tests {
     use super::RowState;
-    use crate::theme::desktop::LIST_ROW_HOVER;
+    use crate::theme::desktop::{LIST_ROW_HOVER, TREE_ROW_HOVER};
     use crate::theme::palette;
 
     #[test]
@@ -217,6 +231,11 @@ mod tests {
             "list hover"
         );
         assert_eq!(RowState::of_list(true, true), RowState::Active, "active");
+        assert_eq!(
+            RowState::of_tree(false, true).colours().0,
+            TREE_ROW_HOVER,
+            "tree hover"
+        );
         assert_eq!(
             RowState::Checked.colours().0,
             palette::CONTROL_SELECTED_BG,

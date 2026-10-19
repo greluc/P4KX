@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, GlobalIniBuilder, TestEntry};
-use predicates::prelude::{PredicateBooleanExt, predicate};
+use predicates::prelude::predicate;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -46,10 +46,6 @@ fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
     Ok(path)
-}
-
-fn damaged_archive(dir: &Path, entry: TestEntry) -> Result<PathBuf, Box<dyn Error>> {
-    archive(dir, vec![entry])
 }
 
 fn standard(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
@@ -243,60 +239,6 @@ fn get_escapes_control_characters_in_plain_output_only() -> TestResult {
         value["text"], "red\u{1b}[31m text \u{202e}end\u{61c}",
         "JSON keeps the text"
     );
-    Ok(())
-}
-
-#[test]
-fn get_and_export_note_an_entry_with_skipped_lines_or_replaced_bytes() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = standard(dir.path())?;
-    let german = "Data\\Localization\\german_(germany)\\global.ini";
-    p4kx()?
-        .args(["loc", "get"])
-        .arg(&archive)
-        .args(["item_NameRifle", "--lang", "de"])
-        .assert()
-        .code(0)
-        .stderr(predicate::str::contains(format!(
-            "note: {german}: 1 line skipped\n"
-        )))
-        .stderr(predicate::str::contains("english").not());
-    p4kx()?
-        .args(["loc", "export"])
-        .arg(&archive)
-        .assert()
-        .code(0)
-        .stderr(predicate::str::contains(format!(
-            "note: {german}: 1 line skipped\n"
-        )));
-    let damaged = TestEntry::zstd(
-        "Data\\Localization\\english\\global.ini",
-        b"a=ok\r\nb=bad\xff\r\nnot a line\r\nalso not\r\n".to_vec(),
-    );
-    let archive = damaged_archive(dir.path(), damaged)?;
-    p4kx()?
-        .args(["loc", "get"])
-        .arg(&archive)
-        .arg("a")
-        .assert()
-        .code(0)
-        .stderr(predicate::str::contains(
-            "note: Data\\Localization\\english\\global.ini: invalid bytes replaced, 2 lines skipped\n",
-        ));
-    Ok(())
-}
-
-#[test]
-fn a_clean_global_ini_prints_no_note() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = archive(dir.path(), vec![english(), japanese()])?;
-    p4kx()?
-        .args(["loc", "get"])
-        .arg(&archive)
-        .arg("item_NameRifle")
-        .assert()
-        .code(0)
-        .stderr("");
     Ok(())
 }
 

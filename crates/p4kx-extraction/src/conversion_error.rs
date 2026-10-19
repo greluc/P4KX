@@ -5,6 +5,8 @@ use p4kx_archive::ArchiveError;
 use p4kx_audio::{AudioError, BankError};
 use p4kx_chunks::ChunkError;
 use p4kx_gfx::GfxError;
+use p4kx_gltf::GltfError;
+use p4kx_model::ModelError;
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
@@ -215,7 +217,25 @@ pub enum ConversionError {
         /// The number of chunks.
         count: usize,
     },
-    /// The output file is the header or one of its parts, or the sound file.
+    /// The model or one of its companions is missing, unreadable or corrupt.
+    #[error("{file}")]
+    Model {
+        /// The Entry path or file of the model.
+        file: String,
+        /// What is wrong.
+        #[source]
+        source: ModelError,
+    },
+    /// The model cannot be exported as GLB.
+    #[error("{file}")]
+    Glb {
+        /// The Entry path or file of the model.
+        file: String,
+        /// What is wrong.
+        #[source]
+        source: GltfError,
+    },
+    /// The output file is the header or one of its parts, the sound file, or a file of the model.
     #[error("{} is one of the inputs", path.display())]
     OutputIsInput {
         /// The output file.

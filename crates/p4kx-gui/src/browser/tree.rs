@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use p4kx_extraction::Entry;
 
-use crate::containers::{ContainerId, ContainerStatus, Place};
+use crate::containers::{ContainerFailure, ContainerId, ContainerStatus, Place};
 use crate::record_search::Wake;
 use crate::sort::file_name;
 use crate::{Browser, EntryIndex, FolderId};
@@ -186,8 +186,13 @@ impl Browser {
                 ContainerStatus::Open => self
                     .place_index(node.place)
                     .is_some_and(|index| index.has_children(ROOT)),
-                ContainerStatus::Closed | ContainerStatus::Opening => true,
-                ContainerStatus::Failed(_) | ContainerStatus::ArchiveChanged => false,
+                ContainerStatus::Closed
+                | ContainerStatus::Opening
+                | ContainerStatus::Failed(
+                    ContainerFailure::OverBudget | ContainerFailure::Stopped,
+                ) => true,
+                ContainerStatus::Failed(ContainerFailure::Unreadable(_))
+                | ContainerStatus::ArchiveChanged => false,
             };
         }
         self.place_index(node.place)
@@ -259,6 +264,7 @@ impl Browser {
     fn open_container(&mut self, id: ContainerId, wake: Wake) {
         let keep = self.in_use();
         self.containers.open(id, &self.index, &keep, wake);
+        self.forget_closed();
         self.refresh_tree();
     }
 
@@ -266,11 +272,13 @@ impl Browser {
         if !self.containers.is_opening() {
             return false;
         }
-        let keep = self.in_use();
-        let finished = self.containers.poll(&keep);
-        if finished.is_empty() {
+        let ended = self.containers.collect();
+        if ended.is_empty() {
             return false;
         }
+        let keep = self.in_use();
+        let finished = self.containers.settle(ended, &keep);
+        self.forget_closed();
         if let Place::Container(shown) = self.place
             && let Some((_, wake)) = finished.iter().find(|(id, _)| *id == shown)
         {
@@ -298,6 +306,22 @@ impl Browser {
             .filter_map(|row| row.node.as_container())
             .chain(shown)
             .collect()
+    }
+
+    /// Collapses the containers that are closed or were refused, with the folders inside them,
+    /// so expanding them again opens them anew.
+    fn forget_closed(&mut self) {
+        let containers = &self.containers;
+        self.expanded.retain(|node| match node.place {
+            Place::Archive => true,
+            Place::Container(id) => !matches!(
+                containers.status(id),
+                ContainerStatus::Closed
+                    | ContainerStatus::Failed(
+                        ContainerFailure::OverBudget | ContainerFailure::Stopped
+                    )
+            ),
+        });
     }
 
     pub(super) fn refresh_tree(&mut self) {

@@ -1,0 +1,26 @@
+[package]
+name = "p4kx-model"
+description = "Interprets CryEngine chunk files as models: nodes, meshes, submeshes and materials."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "format"
+builds-on = ["p4kx-chunks"]
+
+[dependencies]
+half.workspace = true
+p4kx-chunks.workspace = true
+p4kx-foundation.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true

@@ -182,3 +182,66 @@ fn the_whole_archive_stays_the_scope_of_all() -> TestResult {
     assert_eq!(model.scope_len(ExtractionScope::Shown), 4, "the container");
     Ok(())
 }
+
+#[test]
+fn all_still_asks_for_the_whole_archive_confirmation_while_a_container_is_shown() -> TestResult {
+    let (dir, _, mut model) = opened(&archive())?;
+    let out = dir.path().join("out");
+    fs::create_dir(&out)?;
+    show_containers(&mut model)?;
+    enter(&mut model, "room.socpak")?;
+
+    model.begin_extraction(ExtractionScope::All);
+    if let Some(setup) = model.extraction_setup_mut() {
+        setup.set_kind(TargetKind::ExistingFolder);
+        setup.set_folder(out);
+    }
+    let first = model.submit_extraction(|| {});
+
+    assert!(!first, "nothing starts before the confirmation");
+    assert!(
+        model
+            .extraction_setup()
+            .is_some_and(p4kx_gui::ExtractionSetup::is_confirming),
+        "it asks"
+    );
+    assert!(model.submit_extraction(|| {}), "starts once confirmed");
+    Ok(())
+}
+
+#[test]
+fn if_changed_skips_the_unchanged_entries_of_a_container() -> TestResult {
+    let (dir, _, mut model) = opened(&archive())?;
+    let out = dir.path().join("out");
+    fs::create_dir_all(below(&out, "room\\props"))?;
+    fs::write(below(&out, "room\\layout.xml"), LAYOUT)?;
+    fs::write(below(&out, "room\\props\\chair.cgf"), "old")?;
+    show_containers(&mut model)?;
+    enter(&mut model, "room.socpak")?;
+
+    model.begin_extraction(ExtractionScope::Shown);
+    let setup = model
+        .extraction_setup_mut()
+        .ok_or("the Extraction setup did not open")?;
+    setup.set_kind(TargetKind::ExistingFolder);
+    setup.set_folder(out.clone());
+    setup.set_policy(p4kx_extraction::ConflictPolicy::IfChanged);
+    if !model.submit_extraction(|| {}) {
+        return Err("the Extraction did not start".into());
+    }
+    wait_until(&mut model, |model| {
+        model
+            .extraction()
+            .is_some_and(|extraction| !extraction.is_running())
+    })?;
+
+    let summary = summary(&model)?;
+    assert_eq!(summary.skipped(), ["room\\layout.xml"], "the same data");
+    assert_eq!(summary.extracted(), 3, "the new and the changed Entries");
+    assert_eq!(
+        fs::read_to_string(below(&out, "room\\props\\chair.cgf"))?,
+        "chair",
+        "the changed file is replaced"
+    );
+    Ok(())
+}

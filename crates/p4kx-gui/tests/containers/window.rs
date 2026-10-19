@@ -154,3 +154,22 @@ fn the_notes_are_german_in_german() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_refused_container_still_offers_to_expand() -> TestResult {
+    let (_dir, mut harness) = window(Language::BritishEnglish)?;
+    if let Some(browser) = harness.state_mut().browser_mut() {
+        browser.set_container_budget(100);
+    }
+
+    harness.get_by_label("Expand packed.socpak").click();
+    settle(&mut harness, |harness| {
+        harness.query_by_label("Not opened: memory limit").is_some()
+    })?;
+
+    assert!(
+        harness.query_by_label("Expand packed.socpak").is_some(),
+        "the chevron stays, so expanding again retries"
+    );
+    Ok(())
+}

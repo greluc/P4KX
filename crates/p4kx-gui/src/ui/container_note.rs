@@ -98,10 +98,10 @@ fn note_text(texts: &Texts, status: ContainerStatus<'_>) -> Option<(String, Colo
             (ContainerText::Unreadable, palette::DANGER_TEXT)
         }
         ContainerStatus::Failed(ContainerFailure::OverBudget) => {
-            (ContainerText::OverBudget, palette::DANGER_TEXT)
+            (ContainerText::OverBudget, palette::WARNING)
         }
         ContainerStatus::Failed(ContainerFailure::Stopped) => {
-            (ContainerText::Stopped, palette::DANGER_TEXT)
+            (ContainerText::Stopped, palette::WARNING)
         }
         ContainerStatus::ArchiveChanged => (ContainerText::ArchiveChanged, palette::WARNING),
     };
@@ -133,12 +133,12 @@ pub(super) fn detail(
                     ContainerText::OverBudgetDetail,
                     &[name_arg(), ("limit", limit.into())],
                 ),
-                palette::DANGER_TEXT,
+                palette::WARNING,
             ))
         }
         ContainerStatus::Failed(ContainerFailure::Stopped) => Some((
             texts.format(ContainerText::StoppedDetail, &[name_arg()]),
-            palette::DANGER_TEXT,
+            palette::WARNING,
         )),
         ContainerStatus::ArchiveChanged => Some((
             texts.format(ContainerText::ArchiveChangedDetail, &[name_arg()]),

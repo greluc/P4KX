@@ -187,63 +187,6 @@ fn a_corrupt_container_shows_why_on_its_node() -> TestResult {
 }
 
 #[test]
-fn collapsing_a_container_while_it_opens_cancels_the_opening() -> TestResult {
-    let (_dir, _, mut model) = opened(&archive())?;
-    show_containers(&mut model)?;
-    let id = container(&model, "packed.socpak")?;
-
-    browser_mut(&mut model)?.toggle_expanded(TreeNode::container(id));
-    browser_mut(&mut model)?.toggle_expanded(TreeNode::container(id));
-    std::thread::sleep(std::time::Duration::from_millis(50));
-    browser_mut(&mut model)?.poll();
-
-    let browser = browser(&model)?;
-    assert!(
-        matches!(browser.container_status(id), ContainerStatus::Closed),
-        "closed again: {:?}",
-        browser.container_status(id)
-    );
-    assert_eq!(browser.containers_used(), 0, "the reservation is returned");
-    Ok(())
-}
-
-#[test]
-fn containers_not_in_use_are_closed_to_stay_within_the_budget() -> TestResult {
-    let (_dir, _, mut model) = opened(&archive())?;
-    show_containers(&mut model)?;
-    let room = expand(&mut model, "room.socpak")?;
-    let held = browser(&model)?.containers_used();
-    browser_mut(&mut model)?.set_container_budget(held + 4096 + 64);
-
-    let packed = expand(&mut model, "packed.socpak")?;
-    let refused = matches!(
-        browser(&model)?.container_status(packed),
-        ContainerStatus::Failed(ContainerFailure::OverBudget)
-    );
-    browser_mut(&mut model)?.toggle_expanded(TreeNode::container(room));
-    browser_mut(&mut model)?.toggle_expanded(TreeNode::container(packed));
-    browser_mut(&mut model)?.toggle_expanded(TreeNode::container(packed));
-    wait_until(&mut model, |model| socpak::settled(model, packed))?;
-
-    let browser = browser(&model)?;
-    assert!(refused, "the expanded room keeps its memory");
-    assert!(
-        matches!(browser.container_status(room), ContainerStatus::Closed),
-        "the collapsed room is closed for the packed one"
-    );
-    assert!(
-        matches!(browser.container_status(packed), ContainerStatus::Open),
-        "open now: {:?}",
-        browser.container_status(packed)
-    );
-    assert!(
-        browser.containers_used() <= browser.container_budget(),
-        "within the budget"
-    );
-    Ok(())
-}
-
-#[test]
 fn checks_belong_to_the_shown_place() -> TestResult {
     let (_dir, _, mut model) = opened(&archive())?;
     browser_mut(&mut model)?.set_checked(0, true);

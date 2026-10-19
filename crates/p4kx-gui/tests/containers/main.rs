@@ -2,6 +2,7 @@
 //! previewed and extracted like those of the Archive.
 
 mod browsing;
+mod budget;
 mod entries;
 mod socpak;
 mod window;

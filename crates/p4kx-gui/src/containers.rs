@@ -1,4 +1,5 @@
 mod budget;
+mod lifecycle;
 mod opening;
 
 use std::collections::{HashMap, HashSet};
@@ -9,7 +10,7 @@ use p4kx_extraction::{Compression, Entry, MAX_CONTAINER_LEN};
 use crate::EntryIndex;
 use crate::checks::Checks;
 use crate::record_search::Wake;
-use opening::{Opening, Outcome, Polled};
+use opening::{Opening, Outcome};
 
 /// How many bytes the open containers of the path tree may hold in memory together, their
 /// decoded data and their indexes, unless set otherwise.
@@ -58,7 +59,14 @@ pub enum ContainerStatus<'a> {
 struct Open {
     index: Arc<EntryIndex>,
     cost: u64,
-    checks: Option<Checks>,
+}
+
+/// An opening that ended, before its result is settled against the budget.
+pub(crate) struct Finished {
+    id: ContainerId,
+    reserved: u64,
+    outcome: Option<Outcome>,
+    wake: Wake,
 }
 
 enum State {
@@ -74,6 +82,7 @@ struct Node {
     entry: u32,
     state: State,
     used: u64,
+    checks: Option<Checks>,
 }
 
 /// The containers of the open Archive that the path tree showed, opened once and kept while the
@@ -82,6 +91,7 @@ pub(crate) struct Containers {
     nodes: Vec<Node>,
     ids: HashMap<(Place, u32), ContainerId>,
     openings: Vec<ContainerId>,
+    draining: Vec<(ContainerId, Opening)>,
     used: u64,
     budget: u64,
     tick: u64,
@@ -93,6 +103,7 @@ impl std::fmt::Debug for Containers {
         f.debug_struct("Containers")
             .field("nodes", &self.nodes.len())
             .field("openings", &self.openings)
+            .field("draining", &self.draining.len())
             .field("used", &self.used)
             .field("budget", &self.budget)
             .field("changed", &self.changed)
@@ -106,6 +117,7 @@ impl Default for Containers {
             nodes: Vec::new(),
             ids: HashMap::new(),
             openings: Vec::new(),
+            draining: Vec::new(),
             used: 0,
             budget: OPEN_CONTAINERS_BUDGET,
             tick: 0,
@@ -156,6 +168,7 @@ impl Containers {
             entry,
             state,
             used: 0,
+            checks: None,
         });
         self.ids.insert((parent, entry), id);
         id
@@ -206,157 +219,38 @@ impl Containers {
         }
     }
 
-    /// Starts opening the container `id` on a background thread unless it is open or opening
-    /// already, or the Archive changed; `archive` is the open Archive, and `wake` is called from
-    /// the thread once the result is ready. Containers outside `keep`, which are not in use, are
-    /// closed first when its decoded data would not fit the budget.
-    pub(crate) fn open(
-        &mut self,
-        id: ContainerId,
-        archive: &Arc<EntryIndex>,
-        keep: &HashSet<ContainerId>,
-        wake: Wake,
-    ) {
-        let Some(node) = self.nodes.get(id.0) else {
-            return;
-        };
-        if !matches!(node.state, State::Closed | State::Failed(_)) {
-            return;
-        }
-        let Some(parent) = self.index_of(node.parent, archive).map(Arc::clone) else {
-            return;
-        };
-        let entry = node.entry;
-        let reserved = parent.entry(entry).map_or(0, decoded_len);
-        self.touch(id);
-        let state = if self.make_room(reserved, &with(keep, id)) {
-            match opening::start(parent, entry, reserved, wake) {
-                Ok(opening) => {
-                    self.used = self.used.saturating_add(reserved);
-                    self.openings.push(id);
-                    State::Opening(opening)
-                }
-                Err(reason) => State::Failed(ContainerFailure::Unreadable(reason)),
-            }
-        } else {
-            State::Failed(ContainerFailure::OverBudget)
-        };
-        if let Some(node) = self.nodes.get_mut(id.0) {
-            node.state = state;
-        }
-    }
-
-    /// Cancels opening the container `id`, which becomes closed again.
-    pub(crate) fn cancel(&mut self, id: ContainerId) {
-        if let Some(node) = self.nodes.get_mut(id.0)
-            && let State::Opening(opening) = &node.state
-        {
-            self.used = self.used.saturating_sub(opening.reserved);
-            node.state = State::Closed;
-            self.openings.retain(|&other| other != id);
-        }
-    }
-
-    /// Takes the results of finished openings, closing containers outside `keep` when an index
-    /// does not fit the budget; returns the containers that finished with the wake of each.
-    pub(crate) fn poll(&mut self, keep: &HashSet<ContainerId>) -> Vec<(ContainerId, Wake)> {
-        let mut finished = Vec::new();
-        let mut position = 0;
-        while let Some(&id) = self.openings.get(position) {
-            let Some(State::Opening(opening)) = self.nodes.get(id.0).map(|node| &node.state) else {
-                self.openings.remove(position);
-                continue;
-            };
-            let outcome = match opening.poll() {
-                Polled::Running => {
-                    position += 1;
-                    continue;
-                }
-                Polled::Done(outcome) => Some(outcome),
-                Polled::Lost => None,
-            };
-            let (reserved, wake) = (opening.reserved, Arc::clone(&opening.wake));
-            self.openings.remove(position);
-            self.used = self.used.saturating_sub(reserved);
-            let state = self.settle(id, reserved, outcome, keep);
-            if let Some(node) = self.nodes.get_mut(id.0) {
-                node.state = state;
-            }
-            finished.push((id, wake));
-        }
-        finished
-    }
-
-    fn settle(
-        &mut self,
-        id: ContainerId,
-        decoded: u64,
-        outcome: Option<Outcome>,
-        keep: &HashSet<ContainerId>,
-    ) -> State {
-        match outcome {
-            Some(Outcome::Opened(index)) => {
-                let cost = decoded.saturating_add(index.footprint());
-                if self.make_room(cost, &with(keep, id)) {
-                    self.used = self.used.saturating_add(cost);
-                    State::Open(Open {
-                        index: Arc::from(index),
-                        cost,
-                        checks: None,
-                    })
-                } else {
-                    State::Failed(ContainerFailure::OverBudget)
-                }
-            }
-            Some(Outcome::Failed(reason)) => State::Failed(ContainerFailure::Unreadable(reason)),
-            Some(Outcome::ArchiveChanged) => State::ArchiveChanged,
-            Some(Outcome::Cancelled) => State::Closed,
-            None => State::Failed(ContainerFailure::Stopped),
-        }
-    }
-
-    /// Keeps `checks` with the open container `id` while other Entries are shown.
+    /// Keeps `checks` with the container `id` while other Entries are shown, also when the
+    /// container is closed to free memory.
     pub(crate) fn park(&mut self, id: ContainerId, checks: Checks) {
-        if let Some(Node {
-            state: State::Open(open),
-            ..
-        }) = self.nodes.get_mut(id.0)
-        {
-            open.checks = Some(checks);
+        if let Some(node) = self.nodes.get_mut(id.0) {
+            node.checks = Some(checks);
         }
     }
 
     /// Takes the checks kept with the container `id`: none checked when it was not shown
     /// before, and empty when it is not open.
     pub(crate) fn take_checks(&mut self, id: ContainerId) -> Checks {
-        match self.nodes.get_mut(id.0).map(|node| &mut node.state) {
-            Some(State::Open(open)) => open
-                .checks
-                .take()
-                .unwrap_or_else(|| Checks::new(open.index.len())),
-            _ => Checks::default(),
+        let Some(node) = self.nodes.get_mut(id.0) else {
+            return Checks::default();
+        };
+        let State::Open(open) = &node.state else {
+            return Checks::default();
+        };
+        let len = open.index.len();
+        match node.checks.take() {
+            Some(checks) if checks.marks().len() == len => checks,
+            _ => Checks::new(len),
         }
     }
 
-    /// Returns whether a container is being opened.
+    /// Returns whether a container is being opened, or a cancelled opening still holds memory.
     pub(crate) const fn is_opening(&self) -> bool {
-        !self.openings.is_empty()
+        !self.openings.is_empty() || !self.draining.is_empty()
     }
 
     /// Returns whether the containers were dropped because the Archive changed on disk.
     pub(crate) const fn is_dropped(&self) -> bool {
         self.changed
-    }
-
-    /// Drops every open and opening container because the Archive changed on disk; none opens
-    /// again until the Archive is reloaded.
-    pub(crate) fn archive_changed(&mut self) {
-        for node in &mut self.nodes {
-            node.state = State::ArchiveChanged;
-        }
-        self.openings.clear();
-        self.used = 0;
-        self.changed = true;
     }
 }
 

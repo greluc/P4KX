@@ -85,6 +85,43 @@ fn utf16_without_a_byte_order_mark_is_recognised_by_its_zero_bytes() -> TestResu
 }
 
 #[test]
+fn utf16_without_a_byte_order_mark_and_a_blank_first_line_is_recognised() -> TestResult {
+    let blank_first = format!("\r\n{SAMPLE}");
+    assert_sample(
+        &IniText::decode(&utf16(&blank_first, false))?,
+        IniEncoding::Utf16Le,
+    )?;
+    assert_sample(
+        &IniText::decode(&utf16(&blank_first, true))?,
+        IniEncoding::Utf16Be,
+    )?;
+    assert_sample(
+        &IniText::decode_vec(utf16(&blank_first, false))?,
+        IniEncoding::Utf16Le,
+    )?;
+    Ok(())
+}
+
+#[test]
+fn valid_utf8_stays_utf8_whatever_it_starts_with() -> TestResult {
+    for text in [
+        SAMPLE,
+        "\u{e4}=1\n",
+        "\u{1f680}=1\n",
+        "\n\n\u{4e2d}=1\n",
+        "a",
+    ] {
+        let borrowed = IniText::decode(text.as_bytes())?;
+        assert_eq!(borrowed.encoding(), IniEncoding::Utf8, "{text:?}");
+        assert!(!borrowed.is_lossy(), "{text:?}");
+        let owned = IniText::decode_vec(text.as_bytes().to_vec())?;
+        assert_eq!(owned.encoding(), IniEncoding::Utf8, "{text:?} owned");
+        assert_eq!(owned.text(), text, "{text:?} text");
+    }
+    Ok(())
+}
+
+#[test]
 fn broken_utf16_is_replaced_not_rejected() -> TestResult {
     let mut bytes = with_bom(b"\xff\xfe", utf16("a=1\nb=2\n", false));
     bytes.splice(6..8, [0x00, 0xd8]);

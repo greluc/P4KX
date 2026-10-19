@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
-use crate::lookup::{Lookup, is_placeholder_key};
-use crate::{GlobalIni, Language};
+use crate::lookup::{Lookup, resolve};
+use crate::{GlobalIni, Language, OwnedTextSet};
 
 /// The indexed `global.ini` files of several languages, to resolve keys with a fallback language
 /// and to list every key with its texts.
@@ -46,23 +46,27 @@ impl<'a> TextSet<'a> {
     /// language; a language the set holds no file for has no text for any key.
     #[must_use]
     pub fn lookup(&self, key: &str, language: Language, fallback: Option<Language>) -> Lookup<'a> {
-        if is_placeholder_key(key) {
-            return Lookup::Placeholder;
-        }
-        [Some(language), fallback]
-            .into_iter()
-            .flatten()
-            .find_map(|candidate| {
-                let text = self
-                    .ini(candidate)?
-                    .resolve(key)
-                    .filter(|text| !text.is_empty())?;
-                Some(Lookup::Found {
-                    text,
-                    language: candidate,
-                })
-            })
-            .unwrap_or(Lookup::Missing)
+        resolve(key, language, fallback, |key, language| {
+            self.text(key, language)
+        })
+    }
+
+    /// Returns whether `key` has a translation in `language`: [`TextSet::lookup`] without a
+    /// fallback finds a text, so an empty text, a placeholder key and a language the set holds no
+    /// file for are not translated.
+    #[must_use]
+    pub fn is_translated(&self, key: &str, language: Language) -> bool {
+        matches!(self.lookup(key, language, None), Lookup::Found { .. })
+    }
+
+    /// Copies the texts into a set that borrows nothing, to keep after the files are dropped.
+    #[must_use]
+    pub fn to_owned_set(&self) -> OwnedTextSet {
+        OwnedTextSet::from_files(
+            self.languages
+                .iter()
+                .map(|(language, ini)| (*language, ini.iter().collect())),
+        )
     }
 
     /// Returns the text of `key` in `language` as the file holds it, also when it is empty;

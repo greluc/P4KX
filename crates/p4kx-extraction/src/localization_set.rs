@@ -1,8 +1,53 @@
+use std::fmt;
+
 use p4kx_archive::{Archive, Entry};
 use p4kx_localization::{Language, TextSet};
 use rayon::prelude::*;
 
 use crate::localization::{LocalizationEntry, LocalizationLoadError};
+
+/// A `global.ini` Entry whose text was not read cleanly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalizationNote {
+    path: String,
+    lossy: bool,
+    skipped: usize,
+}
+
+impl LocalizationNote {
+    /// Returns the path of the Entry.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Returns whether bytes that are no valid text were replaced by U+FFFD.
+    #[must_use]
+    pub const fn is_lossy(&self) -> bool {
+        self.lossy
+    }
+
+    /// Returns the number of non-blank lines that were skipped.
+    #[must_use]
+    pub const fn skipped(&self) -> usize {
+        self.skipped
+    }
+}
+
+impl fmt::Display for LocalizationNote {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:", self.path)?;
+        if self.lossy {
+            write!(f, " invalid bytes replaced")?;
+        }
+        if self.skipped > 0 {
+            let separator = if self.lossy { "," } else { "" };
+            let noun = if self.skipped == 1 { "line" } else { "lines" };
+            write!(f, "{separator} {} {noun} skipped", self.skipped)?;
+        }
+        Ok(())
+    }
+}
 
 /// The `global.ini` Entries of several languages of an Archive, read into memory.
 ///
@@ -69,6 +114,26 @@ impl LocalizationSet {
     #[must_use]
     pub fn entries(&self) -> &[LocalizationEntry] {
         &self.entries
+    }
+
+    /// Returns a note for every Entry that was read lossily or whose index in `texts` skipped
+    /// lines, in the order of [`Language::ALL`]; `texts` must come from [`LocalizationSet::index`].
+    #[must_use]
+    pub fn notes(&self, texts: &TextSet<'_>) -> Vec<LocalizationNote> {
+        self.entries
+            .iter()
+            .filter_map(|entry| {
+                let skipped = texts
+                    .ini(entry.language())
+                    .map_or(0, p4kx_localization::GlobalIni::skipped);
+                let lossy = entry.text().is_lossy();
+                (lossy || skipped > 0).then(|| LocalizationNote {
+                    path: entry.path().to_owned(),
+                    lossy,
+                    skipped,
+                })
+            })
+            .collect()
     }
 
     /// Indexes every Entry in parallel and returns the set to resolve keys in.

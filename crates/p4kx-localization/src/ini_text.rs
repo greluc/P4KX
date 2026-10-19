@@ -24,8 +24,9 @@ pub enum IniEncoding {
 /// The text of a `global.ini` decoded to UTF-8, borrowed from the bytes where they already are.
 ///
 /// UTF-8 with or without a byte order mark and UTF-16 of either byte order, with a byte order
-/// mark or, when the file starts with an ASCII character, without, are read. Bytes that are no
-/// valid text become U+FFFD instead of ending the read, so one malformed line costs only itself.
+/// mark or, when the first byte is non-zero and the second zero (or the reverse), without, are
+/// read. Bytes that are no valid text become U+FFFD instead of ending the read, so one malformed
+/// line costs only itself.
 #[derive(Debug, Clone)]
 pub struct IniText<'a> {
     text: Cow<'a, str>,
@@ -153,7 +154,7 @@ fn detect(bytes: &[u8]) -> (IniEncoding, &[u8]) {
 fn decode_utf16(body: &[u8], big_endian: bool) -> Result<(String, bool), LocalizationError> {
     let (pairs, rest) = body.as_chunks::<2>();
     let mut text = String::new();
-    text.try_reserve(pairs.len())
+    text.try_reserve(pairs.len().saturating_mul(3))
         .map_err(|_| LocalizationError::DecodeOutOfMemory {
             size: u64::try_from(body.len()).unwrap_or(u64::MAX),
         })?;

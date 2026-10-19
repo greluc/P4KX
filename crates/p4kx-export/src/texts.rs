@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::{
-    Archive, Language, LocalizationLoadError, LocalizationSet, Lookup, TextSet, decode_line_breaks,
-    is_placeholder_key,
+    Archive, Language, LocalizationLoadError, LocalizationNote, LocalizationSet, Lookup, TextSet,
+    decode_line_breaks, is_placeholder_key,
 };
 
 use crate::contract::LocalisedText;
@@ -32,6 +32,7 @@ impl TextSources {
 /// called from any worker thread.
 pub(crate) struct Texts<'e> {
     set: TextSet<'e>,
+    notes: Vec<LocalizationNote>,
     languages: [LanguageCount; CATALOG_LANGUAGES.len()],
     placeholders: AtomicUsize,
 }
@@ -59,8 +60,10 @@ impl<'e> Texts<'e> {
             LocalizationLoadError::Index { path, source } => CatalogError::Texts { path, source },
             other => CatalogError::LoadTexts(other),
         })?;
+        let notes = sources.set.notes(&set);
         Ok(Self {
             set,
+            notes,
             languages: CATALOG_LANGUAGES.map(LanguageCount::new),
             placeholders: AtomicUsize::new(0),
         })
@@ -89,6 +92,11 @@ impl<'e> Texts<'e> {
             en: self.resolve(Language::English, key),
             de: self.resolve(Language::German, key),
         }
+    }
+
+    /// Returns a note for every `global.ini` that was read lossily or had lines skipped.
+    pub(crate) fn notes(&self) -> &[LocalizationNote] {
+        &self.notes
     }
 
     /// Returns what resolved per language, in the order of [`CATALOG_LANGUAGES`].

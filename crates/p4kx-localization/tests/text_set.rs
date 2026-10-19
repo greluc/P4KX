@@ -99,6 +99,90 @@ fn a_key_without_a_text_is_missing() -> TestResult {
 }
 
 #[test]
+fn is_translated_treats_an_empty_text_as_missing_like_lookup() -> TestResult {
+    let (english, german) = (english(), german());
+    let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);
+    let set = TextSet::new([
+        (Language::English, en.index()?),
+        (Language::German, de.index()?),
+    ]);
+    let owned = set.to_owned_set();
+    let cases = [
+        ("@item_Name_Rifle", Language::German, true),
+        ("item_name_rifle", Language::English, true),
+        ("Only_English", Language::German, false),
+        ("empty_in_german", Language::German, false),
+        ("empty_in_german", Language::English, true),
+        ("LOC_EMPTY", Language::English, false),
+        ("nowhere", Language::English, false),
+        ("item_Name_Rifle", Language::French, false),
+    ];
+    for (key, language, translated) in cases {
+        assert_eq!(
+            set.is_translated(key, language),
+            translated,
+            "{key} {language}"
+        );
+        assert_eq!(
+            owned.is_translated(key, language),
+            translated,
+            "owned {key} {language}"
+        );
+        assert_eq!(
+            set.is_translated(key, language),
+            matches!(set.lookup(key, language, None), Lookup::Found { .. }),
+            "same as lookup {key} {language}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn an_owned_set_resolves_like_the_borrowed_one_and_outlives_it() -> TestResult {
+    let owned = {
+        let (english, german) = (english(), german());
+        let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);
+        TextSet::new([
+            (Language::English, en.index()?),
+            (Language::German, de.index()?),
+        ])
+        .to_owned_set()
+    };
+    assert_eq!(
+        owned.languages().collect::<Vec<_>>(),
+        [Language::English, Language::German],
+        "languages"
+    );
+    assert_eq!(owned.len(Language::German), 3, "German keys");
+    assert!(owned.is_empty(Language::French), "no French file");
+    assert_eq!(
+        owned.text("@ITEM_name_rifle", Language::German),
+        Some("Gewehr"),
+        "case and @"
+    );
+    assert_eq!(
+        owned.text("empty_in_german", Language::German),
+        Some(""),
+        "empty kept"
+    );
+    assert_eq!(owned.text("nowhere", Language::German), None, "absent");
+    assert_eq!(
+        owned.lookup("Only_English", Language::German, Some(Language::English)),
+        Lookup::Found {
+            text: "English only",
+            language: Language::English
+        },
+        "fallback"
+    );
+    assert_eq!(
+        owned.lookup("@LOC_EMPTY", Language::English, None),
+        Lookup::Placeholder,
+        "placeholder"
+    );
+    Ok(())
+}
+
+#[test]
 fn keys_lists_each_key_once_sorted_ignoring_case() -> TestResult {
     let (english, german) = (english(), german());
     let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);

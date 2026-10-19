@@ -29,6 +29,28 @@ pub fn decode_line_breaks(text: &str) -> Cow<'_, str> {
     }
 }
 
+pub(crate) fn resolve<'a>(
+    key: &str,
+    language: Language,
+    fallback: Option<Language>,
+    text_of: impl Fn(&str, Language) -> Option<&'a str>,
+) -> Lookup<'a> {
+    if is_placeholder_key(key) {
+        return Lookup::Placeholder;
+    }
+    [Some(language), fallback]
+        .into_iter()
+        .flatten()
+        .find_map(|candidate| {
+            let text = text_of(key, candidate).filter(|text| !text.is_empty())?;
+            Some(Lookup::Found {
+                text,
+                language: candidate,
+            })
+        })
+        .unwrap_or(Lookup::Missing)
+}
+
 /// The result of resolving one localisation key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]

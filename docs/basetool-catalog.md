@@ -95,12 +95,18 @@ ignoring case; a suffix after a comma (`ASD_01,P`) is not part of the key. The t
 the line as the game stores it, except that the escape `\n` becomes a line feed; markup, a lone
 carriage return and every other sequence stay as they are.
 
+A `global.ini` is read as UTF-8 with or without a byte order mark, or as UTF-16. Bytes that are no
+valid text become U+FFFD and lines without `=` are skipped, so a damaged line costs only itself;
+`p4kx catalog` names every such Entry in a `note:` line on stderr and the catalog stays as it is.
+Only a `global.ini` over 64 MiB or with more than 1,048,576 keys fails the catalog, with exit
+code 3.
+
 A key the language's `global.ini` lacks or holds with an empty text (`key=`), or a language the
 Archive holds no `global.ini` for, leaves that text `null` and keeps the key, so the basetool can
 resolve it later; it counts as unresolved.
 
 The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` (ignoring case,
-`PLACEHOLDER_KEYS` in `crates/p4kx-export/src/selection.rs`) mean "no text": the key stays,
+`PLACEHOLDER_KEYS` in `crates/p4kx-localization/src/lookup.rs`) mean "no text": the key stays,
 `en` and `de` are `null` even where the `global.ini` holds a text for them such as
 `<= PLACEHOLDER =>`, and they count as placeholders, neither resolved nor unresolved.
 

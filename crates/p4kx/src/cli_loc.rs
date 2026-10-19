@@ -41,7 +41,8 @@ pub(crate) struct LocGetArgs {
     /// folder name of the Archive such as `german_(germany)`.
     #[arg(long, value_name = "LANGUAGE", default_value = "en", value_parser = clap::value_parser!(Language))]
     pub(crate) lang: Language,
-    /// The language to resolve in when --lang has no text for the key.
+    /// The language to resolve in when --lang has no text for the key; there is none unless
+    /// given, and `--fallback en` is the usual choice.
     #[arg(long, value_name = "LANGUAGE", value_parser = clap::value_parser!(Language))]
     pub(crate) fallback: Option<Language>,
 }
@@ -74,7 +75,7 @@ pub(crate) struct LocExportArgs {
 pub(crate) enum TableOutput {
     /// One JSON object with the languages and one entry per key.
     Json,
-    /// RFC 4180 CSV, one row per key.
+    /// CSV with a UTF-8 byte order mark and CRLF line ends, one row per key.
     Csv,
 }
 

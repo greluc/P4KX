@@ -63,7 +63,7 @@ pub use entry_content::{
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};
-pub use localization_set::LocalizationSet;
+pub use localization_set::{LocalizationNote, LocalizationSet};
 pub use model_source::ModelSource;
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{

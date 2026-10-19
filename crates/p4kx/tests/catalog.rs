@@ -370,7 +370,7 @@ fn catalog_reads_a_german_global_ini_with_invalid_bytes_lossily() -> TestResult 
     let dir = tempfile::tempdir()?;
     let damaged = TestEntry::zstd(
         "Data\\Localization\\german_(germany)\\global.ini",
-        b"manufacturer_NameACAS=Ace\xff\r\n".to_vec(),
+        b"manufacturer_NameACAS=Ace\xff\r\nstray line\r\n".to_vec(),
     );
     let archive = write_archive_with(dir.path(), &[english(), damaged])?;
     let out = dir.path().join("damaged.json");
@@ -380,6 +380,17 @@ fn catalog_reads_a_german_global_ini_with_invalid_bytes_lossily() -> TestResult 
         .arg(&out)
         .output()?;
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains(
+            "note: Data\\Localization\\german_(germany)\\global.ini: invalid bytes replaced, 1 line skipped\n"
+        ),
+        "the Entry is named on stderr: {stderr}"
+    );
+    assert!(
+        !stderr.contains("english"),
+        "the clean Entry is not named: {stderr}"
+    );
     let catalog: serde_json::Value = serde_json::from_str(&fs::read_to_string(out)?)?;
     assert_eq!(
         catalog["manufacturers"][1]["name"]["de"], "Ace\u{fffd}",

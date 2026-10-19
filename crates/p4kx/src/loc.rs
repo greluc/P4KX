@@ -5,7 +5,9 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use p4kx_export::{Language, write_localization_table};
-use p4kx_extraction::{Archive, LocalizationEntry, LocalizationSet, Lookup, decode_line_breaks};
+use p4kx_extraction::{
+    Archive, LocalizationEntry, LocalizationNote, LocalizationSet, Lookup, decode_line_breaks,
+};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -30,6 +32,15 @@ pub(crate) fn run(args: &LocArgs, as_json: bool) -> Result<ExitCode> {
         LocAction::Languages { archive } => languages(archive, as_json).map(|()| exit_success()),
         LocAction::Get(args) => get(args, as_json),
         LocAction::Export(args) => export(args, as_json).map(|()| exit_success()),
+    }
+}
+
+/// Prints a note on stderr for every `global.ini` Entry that was read lossily or had lines
+/// skipped.
+pub(crate) fn print_notes(notes: &[LocalizationNote]) {
+    let mut err = io::stderr().lock();
+    for note in notes {
+        let _ignored = writeln!(err, "note: {note}");
     }
 }
 
@@ -106,6 +117,7 @@ fn get(args: &LocGetArgs, as_json: bool) -> Result<ExitCode> {
         }
     }
     let texts = set.index()?;
+    print_notes(&set.notes(&texts));
     let lookup = texts.lookup(&args.key, args.lang, args.fallback);
     let decoded = lookup.text().map(decode_line_breaks);
     let status = match lookup {
@@ -147,7 +159,7 @@ fn get(args: &LocGetArgs, as_json: bool) -> Result<ExitCode> {
 fn printable(text: &str) -> Cow<'_, str> {
     let unsafe_char = |c: char| {
         (c.is_control() && c != '\n' && c != '\t')
-            || matches!(c, '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+            || matches!(c, '\u{061c}' | '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
     };
     if !text.chars().any(unsafe_char) {
         return Cow::Borrowed(text);
@@ -198,6 +210,7 @@ fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
         columns
     };
     let texts = set.index()?;
+    print_notes(&set.notes(&texts));
     let format = args.format.into();
     let Some(path) = &args.out else {
         let mut out = BufWriter::new(io::stdout().lock());

@@ -9,7 +9,8 @@ pub enum TableFormat {
     /// One JSON object: `languages`, the language codes in column order, and `entries`, one
     /// object per key with `key` and `texts`, whose members are the language codes.
     Json,
-    /// RFC 4180 CSV with the header `key` followed by the language codes.
+    /// CSV with a UTF-8 byte order mark, CRLF line ends and the header `key` followed by the
+    /// language codes.
     Csv,
 }
 
@@ -84,12 +85,12 @@ fn write_csv<'a>(
     rows: impl Iterator<Item = &'a str>,
     out: &mut impl Write,
 ) -> io::Result<usize> {
-    out.write_all(b"key")?;
+    out.write_all(b"\xef\xbb\xbfkey")?;
     for language in languages {
         out.write_all(b",")?;
         out.write_all(language.code().as_bytes())?;
     }
-    out.write_all(b"\n")?;
+    out.write_all(b"\r\n")?;
     let mut count = 0;
     for key in rows {
         write_csv_cell(out, key)?;
@@ -99,7 +100,7 @@ fn write_csv<'a>(
                 write_csv_cell(out, &decode_line_breaks(text))?;
             }
         }
-        out.write_all(b"\n")?;
+        out.write_all(b"\r\n")?;
         count += 1;
     }
     Ok(count)

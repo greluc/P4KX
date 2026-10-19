@@ -103,8 +103,10 @@ Early development (milestone M1). Available today:
   nothing and succeeds. `p4kx loc export <archive> [--lang <language>,…] [--format json|csv]
   [--out <file>]` writes every key with its text per language, sorted by key. A `--lang` is a
   code, a folder name such as `german_(germany)` or a name such as `german` where one language has
-  it. UTF-8 with or without a byte order mark and UTF-16 files are read, and malformed lines are
-  skipped. `--json` gives the shapes in [docs/cli-json.md](docs/cli-json.md).
+  it. UTF-8 with or without a byte order mark and UTF-16 files are read; invalid bytes become
+  U+FFFD and lines without `=` are skipped, and a `note:` line on stderr names each such Entry
+  (also for `catalog`). `loc export --format csv` writes a UTF-8 byte order mark and CRLF line
+  ends. `--fallback en` is the usual choice; there is no default. `--json` gives the shapes in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx catalog <archive> --out <file> [--filter <filter>] [--exported-at <seconds>]` writes the
   Basetool catalog for the basetool's P4K import ([docs/basetool-catalog.md](docs/basetool-catalog.md)):
   schema version, Channel and Build, completeness per kind and the manufacturers, items (with
@@ -233,8 +235,8 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the target or the settings cannot be written, a texture cannot be read, merged or written, or a tag or definition of a UI movie cannot be read or written; `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF |
-| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` that cannot be read or is corrupt; a missing texture or UI movie file is 2 |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |

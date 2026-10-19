@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, GlobalIniBuilder, TestEntry};
-use predicates::prelude::predicate;
+use predicates::prelude::{PredicateBooleanExt, predicate};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -46,6 +46,10 @@ fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
     Ok(path)
+}
+
+fn damaged_archive(dir: &Path, entry: TestEntry) -> Result<PathBuf, Box<dyn Error>> {
+    archive(dir, vec![entry])
 }
 
 fn standard(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
@@ -212,7 +216,7 @@ fn get_escapes_control_characters_in_plain_output_only() -> TestResult {
         vec![TestEntry::zstd(
             "Data\\Localization\\english\\global.ini",
             GlobalIniBuilder::new()
-                .text("item_Escape", "red\u{1b}[31m text \u{202e}end")
+                .text("item_Escape", "red\u{1b}[31m text \u{202e}end\u{61c}")
                 .build(),
         )],
     )?;
@@ -224,7 +228,7 @@ fn get_escapes_control_characters_in_plain_output_only() -> TestResult {
         0,
     )?;
     assert_eq!(
-        plain, "red\\u{1b}[31m text \\u{202e}end\n",
+        plain, "red\\u{1b}[31m text \\u{202e}end\\u{61c}\n",
         "no raw escape or bidi character reaches the terminal"
     );
     let json = stdout_of(
@@ -236,9 +240,63 @@ fn get_escapes_control_characters_in_plain_output_only() -> TestResult {
     )?;
     let value: serde_json::Value = serde_json::from_str(&json)?;
     assert_eq!(
-        value["text"], "red\u{1b}[31m text \u{202e}end",
+        value["text"], "red\u{1b}[31m text \u{202e}end\u{61c}",
         "JSON keeps the text"
     );
+    Ok(())
+}
+
+#[test]
+fn get_and_export_note_an_entry_with_skipped_lines_or_replaced_bytes() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = standard(dir.path())?;
+    let german = "Data\\Localization\\german_(germany)\\global.ini";
+    p4kx()?
+        .args(["loc", "get"])
+        .arg(&archive)
+        .args(["item_NameRifle", "--lang", "de"])
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(format!(
+            "note: {german}: 1 line skipped\n"
+        )))
+        .stderr(predicate::str::contains("english").not());
+    p4kx()?
+        .args(["loc", "export"])
+        .arg(&archive)
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(format!(
+            "note: {german}: 1 line skipped\n"
+        )));
+    let damaged = TestEntry::zstd(
+        "Data\\Localization\\english\\global.ini",
+        b"a=ok\r\nb=bad\xff\r\nnot a line\r\nalso not\r\n".to_vec(),
+    );
+    let archive = damaged_archive(dir.path(), damaged)?;
+    p4kx()?
+        .args(["loc", "get"])
+        .arg(&archive)
+        .arg("a")
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(
+            "note: Data\\Localization\\english\\global.ini: invalid bytes replaced, 2 lines skipped\n",
+        ));
+    Ok(())
+}
+
+#[test]
+fn a_clean_global_ini_prints_no_note() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), vec![english(), japanese()])?;
+    p4kx()?
+        .args(["loc", "get"])
+        .arg(&archive)
+        .arg("item_NameRifle")
+        .assert()
+        .code(0)
+        .stderr("");
     Ok(())
 }
 
@@ -302,7 +360,18 @@ fn export_writes_csv_for_the_chosen_languages_to_stdout() -> TestResult {
             .args(["--format", "csv", "--lang", "de,en"]),
         0,
     )?;
-    insta::assert_snapshot!("loc_export_csv", csv);
+    assert_eq!(
+        csv,
+        concat!(
+            "\u{feff}key,de,en\r\n",
+            "item_DescRifle,\"Schie\u{df}t.\nGut.\",\"Shoots.\nWell, \"\"very\"\" well.\"\r\n",
+            "item_EmptyGerman,,Filled\r\n",
+            "item_NameRifle,Gewehr,Rifle\r\n",
+            "item_OnlyEnglish,,Only in English\r\n",
+            "LOC_EMPTY,,\r\n",
+        ),
+        "BOM, CRLF and quoting"
+    );
     let japanese_only = stdout_of(
         p4kx()?
             .args(["loc", "export"])
@@ -311,7 +380,7 @@ fn export_writes_csv_for_the_chosen_languages_to_stdout() -> TestResult {
         0,
     )?;
     assert_eq!(
-        japanese_only, "key,ja\nitem_NameRifle,\u{30e9}\u{30a4}\u{30d5}\u{30eb}\n",
+        japanese_only, "\u{feff}key,ja\r\nitem_NameRifle,\u{30e9}\u{30a4}\u{30d5}\u{30eb}\r\n",
         "keys without a text in the chosen languages are left out"
     );
     Ok(())

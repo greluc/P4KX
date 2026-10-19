@@ -16,6 +16,7 @@ mod ini_text;
 mod key;
 mod language;
 mod lookup;
+mod owned_text_set;
 mod text_set;
 
 pub use error::LocalizationError;
@@ -23,4 +24,5 @@ pub use global_ini::{GlobalIni, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE};
 pub use ini_text::{IniEncoding, IniText};
 pub use language::{Language, ParseLanguageError};
 pub use lookup::{Lookup, PLACEHOLDER_KEYS, decode_line_breaks, is_placeholder_key};
+pub use owned_text_set::OwnedTextSet;
 pub use text_set::TextSet;

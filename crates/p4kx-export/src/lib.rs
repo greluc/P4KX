@@ -44,8 +44,8 @@ pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};
 pub use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, PLACEHOLDER_KEYS,
-    RecordExportError, RecordExportOptions, RecordFailure, TextSet,
+    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, LocalizationNote,
+    PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TextSet,
 };
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;

@@ -60,7 +60,7 @@ fn csv_quotes_cells_and_leaves_missing_texts_empty() -> TestResult {
     assert_eq!(keys, 4, "four keys");
     assert_eq!(
         text,
-        "key,de,en\nA_key,,\"line\nbreak\"\nb_key,B de,\"B, \"\"quoted\"\"\"\nonly_de,,\nonly_en,,x\n",
+        "\u{feff}key,de,en\r\nA_key,,\"line\nbreak\"\r\nb_key,B de,\"B, \"\"quoted\"\"\"\r\nonly_de,,\r\nonly_en,,x\r\n",
         "CSV"
     );
     Ok(())
@@ -70,7 +70,7 @@ fn csv_quotes_cells_and_leaves_missing_texts_empty() -> TestResult {
 fn keys_without_a_text_in_the_chosen_languages_are_left_out() -> TestResult {
     let (keys, text) = written(TableFormat::Csv, &[Language::German])?;
     assert_eq!(keys, 2, "two keys have a German line");
-    assert_eq!(text, "key,de\nb_key,B de\nonly_de,\n", "CSV");
+    assert_eq!(text, "\u{feff}key,de\r\nb_key,B de\r\nonly_de,\r\n", "CSV");
     Ok(())
 }
 

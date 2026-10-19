@@ -290,9 +290,15 @@ Without `--out` the table goes to stdout and `--json` changes nothing. The JSON 
 ```
 
 with one entry per key, sorted by key ignoring case; a language without a text for the key is
-`null`, a text the `global.ini` holds empty is `""`. CSV has the header `key,en,de` and the same
-rows, with an empty cell for either; cells with a comma, quote or line break are quoted. Keys
-without a text in any chosen language are left out.
+`null`, a text the `global.ini` holds empty is `""`. CSV starts with a UTF-8 byte order mark, so
+Excel shows non-ASCII text correctly, has CRLF line ends, the header `key,en,de` and the same
+rows, with an empty cell for either; cells with a comma, quote or line break are quoted. A key is
+left out only when none of the chosen languages' `global.ini` holds a line for it; a key held
+only with an empty text stays.
+
+CSV cells are written as they are. A text that starts with `=`, `+`, `-` or `@` is read as a
+formula by a spreadsheet program, so open a table of untrusted texts as text, not as formulas, or
+use the JSON format.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.

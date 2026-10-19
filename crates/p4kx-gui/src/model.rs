@@ -7,15 +7,18 @@ use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
+mod catalog_control;
 mod extraction_control;
 mod record_export_control;
 mod update;
 mod work_tab;
 
+use catalog_control::CatalogState;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
+use crate::forge_cache::ForgeCache;
 use crate::{
     Browser, ChannelList, ComparisonTab, EntryIndex, Extraction, ExtractionSetup, Language,
     PreviewTab, QueryTab, Texts,
@@ -57,6 +60,8 @@ pub struct Model {
     stopped_by_change: bool,
     query: QueryTab,
     record_export: RecordExportState,
+    catalog: CatalogState,
+    forge: ForgeCache,
 }
 
 impl std::fmt::Debug for Model {
@@ -81,6 +86,8 @@ impl std::fmt::Debug for Model {
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
             .field("record_export", &self.record_export)
+            .field("catalog", &self.catalog)
+            .field("forge", &self.forge)
             .finish()
     }
 }
@@ -109,6 +116,8 @@ impl Model {
             stopped_by_change: false,
             query: QueryTab::default(),
             record_export: RecordExportState::default(),
+            catalog: CatalogState::default(),
+            forge: ForgeCache::default(),
         }
     }
 

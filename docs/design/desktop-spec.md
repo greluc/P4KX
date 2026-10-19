@@ -239,6 +239,20 @@ Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht 
 und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" als CTA. Der Balken
 zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
 bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
+**D.20 Basetool-Katalog im Export-Menü ohne eigenen Dialog.** „Basetool-Katalog …" steht im
+Menü „Export" unter „Record-Export …" und ist gesperrt, solange das Archiv kein DataForge hat oder
+DataForge nicht geladen werden konnte, und während ein Katalog erstellt wird. Es gibt nichts zu
+entscheiden außer der Zieldatei, deshalb öffnet der Eintrag direkt den Speichern-Dialog des
+Systems mit `basetool-catalog.json` (D.3); erst die gewählte Datei startet den Katalog. Fortschritt
+und Ergebnis sind wie beim Record-Export nicht modal mit je genau einer Aktion im Fuß (D.7, D.17):
+Spinner beim Lesen von DataForge und beim Schreiben, dazwischen der Balken mit geprüften Records.
+Die Zusammenfassung gliedert sich mit Gruppenlabels in „Arten" (je Art geschrieben, übersprungen,
+vollständig oder teilweise, darunter die übersprungenen Entwicklungsreste) und „Texte" (je Sprache
+aufgelöst, fehlend, Platzhalter, darunter die fehlenden Texte), dann Größe mit Upload-Limit und
+Datei, alles in `color-gray-1`. Nahe am Upload-Limit steht oben `.alert-warning`, darüber
+`.alert-danger`, weil das Basetool den Upload dann ablehnt. Ein Abbruch schreibt keine Datei und
+lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`. Record-Export und
+Katalog teilen sich das einmal gelesene DataForge des offenen Archivs.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

@@ -1,24 +1,21 @@
 use std::sync::Arc;
 
 use super::Model;
-use crate::record_export::{ForgeCache, TreeSelection, records_below, start};
+use crate::record_export::{TreeSelection, records_below, start};
 use crate::{RecordExport, RecordExportSetup, RecordTree, RecordTreeStatus, Texts};
 
-/// The Record export of the window: the open setup, the running or finished export and the
-/// DataForge read for it.
+/// The Record export of the window: the open setup and the running or finished export.
 #[derive(Debug, Default)]
 pub(crate) struct RecordExportState {
     setup: Option<RecordExportSetup>,
     run: Option<RecordExport>,
-    cache: ForgeCache,
 }
 
 impl RecordExportState {
-    /// Closes the setup and forgets the DataForge read, because the Archive changed on disk; a
-    /// running export goes on with what it read.
+    /// Closes the setup, because the Archive changed on disk; a running export goes on with what
+    /// it read.
     pub(super) fn archive_changed(&mut self) {
         self.setup = None;
-        self.cache.forget();
     }
 }
 
@@ -27,17 +24,7 @@ impl Model {
     /// not fail to load, and no Record export runs.
     #[must_use]
     pub fn record_export_available(&self) -> bool {
-        let has_dataforge = self
-            .browser
-            .as_ref()
-            .and_then(crate::Browser::records)
-            .is_some_and(|tree| {
-                !matches!(
-                    tree.status(),
-                    RecordTreeStatus::Failed(_) | RecordTreeStatus::ArchiveChanged
-                )
-            });
-        has_dataforge
+        self.has_dataforge()
             && !self
                 .record_export
                 .run
@@ -105,7 +92,7 @@ impl Model {
         };
         let index = Arc::clone(browser.shared_index());
         self.extraction_folder = Some(request.folder.clone());
-        let source = self.record_export.cache.slot(&index);
+        let source = self.forge.slot(&index);
         self.record_export.run = Some(start(&index, source, request, wake));
         self.record_export.setup = None;
         true
@@ -117,18 +104,18 @@ impl Model {
         self.record_export.run.as_ref()
     }
 
-    /// Returns whether DataForge of the open Archive was read for a Record export and is kept
-    /// for the next one.
+    /// Returns whether DataForge of the open Archive was read for a Record export or a Basetool
+    /// catalog and is kept for the next one.
     #[must_use]
     pub fn record_export_keeps_dataforge(&self) -> bool {
         self.browser
             .as_ref()
-            .is_some_and(|browser| self.record_export.cache.is_read_for(browser.shared_index()))
+            .is_some_and(|browser| self.forge.is_read_for(browser.shared_index()))
     }
 
     /// Takes the outcome of a Record export that ended; returns whether one ended.
     pub fn poll_record_export(&mut self) -> bool {
-        self.record_export.cache.forget_closed();
+        self.forge.forget_closed();
         self.record_export
             .run
             .as_mut()

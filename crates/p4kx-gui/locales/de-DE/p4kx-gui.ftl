@@ -344,3 +344,45 @@ record-export-summary-failure = { $path } ({ $guid }): { $reason }
 record-export-failed-title = Record-Export fehlgeschlagen
 record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
 record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.
+
+catalog-action = Basetool-Katalog …
+catalog-file-filter = Basetool-Katalog
+catalog-running-title = Erstelle Basetool-Katalog
+catalog-reading = Lese DataForge …
+catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
+catalog-writing = Schreibe { $path } …
+catalog-summary-title = Basetool-Katalog erstellt
+catalog-kinds-heading = Arten
+catalog-summary-kind = { $kind ->
+    [manufacturers] Hersteller
+    [items] Items
+    [ships] Schiffe
+    [commodities] Waren
+    [blueprints] Blaupausen
+   *[other] { $kind }
+}: { $written } geschrieben, { $skipped } übersprungen, { $complete ->
+    [yes] vollständig
+   *[no] teilweise
+}
+catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-texts-heading = Texte
+catalog-summary-texts = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: { $resolved } aufgelöst, { $missing } fehlen, { $placeholders } Platzhalter
+catalog-summary-texts-unavailable = { $language ->
+    [en] Englisch
+    [de] Deutsch
+   *[other] { $language }
+}: das Archiv enthält keine global.ini, { $missing } fehlen
+catalog-summary-missing = Fehlende Texte: { $number }
+catalog-summary-size = Größe: { $size } vom Upload-Limit { $limit }
+catalog-near-limit = Der Katalog liegt nahe am Upload-Limit des Basetools von { $limit }.
+catalog-over-limit = Der Katalog liegt über dem Upload-Limit des Basetools von { $limit }; das Basetool lehnt den Upload ab.
+catalog-summary-file = Datei: { $path }
+catalog-cancelled-title = Basetool-Katalog abgebrochen
+catalog-cancelled = Der Basetool-Katalog wurde abgebrochen. Es wurde keine Datei geschrieben.
+catalog-failed-title = Basetool-Katalog fehlgeschlagen
+catalog-failed = Der Basetool-Katalog { $path } ließ sich nicht erstellen: { $reason }
+catalog-stopped = Der Basetool-Katalog { $path } brach ohne Ergebnis ab.

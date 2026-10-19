@@ -55,6 +55,7 @@ impl Model {
         let path = browser.index().archive().path().to_path_buf();
         browser.drop_records();
         self.record_export.archive_changed();
+        self.forge.forget();
         if self
             .extraction_setup
             .as_ref()

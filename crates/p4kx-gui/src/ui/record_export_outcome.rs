@@ -55,7 +55,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             } else {
                 T::SummaryTitle
             };
-            close = outcome_window(ui, texts, (title, Tone::Normal), |ui| {
+            close = outcome_window(ui, texts, (WINDOW, title.into(), Tone::Normal), |ui| {
                 finished(ui, &laid);
             });
         }
@@ -67,9 +67,14 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 }
                 None => texts.format(T::Stopped, &[path]),
             };
-            close = outcome_window(ui, texts, (T::FailedTitle, Tone::Danger), |ui| {
-                ui.colored_label(palette::DANGER_TEXT, text);
-            });
+            close = outcome_window(
+                ui,
+                texts,
+                (WINDOW, T::FailedTitle.into(), Tone::Danger),
+                |ui| {
+                    ui.colored_label(palette::DANGER_TEXT, text);
+                },
+            );
         }
     }
     if cancel {
@@ -80,19 +85,19 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-/// Shows a non-modal outcome window titled `title` with `body` and a Close CTA; returns whether
-/// it was closed.
-fn outcome_window(
+/// Shows the non-modal outcome window `id` titled `title` with `body` and a Close CTA; returns
+/// whether it was closed.
+pub(super) fn outcome_window(
     ui: &Ui,
     texts: &Texts,
-    (title, tone): (T, Tone),
+    (id, title, tone): (&'static str, Text, Tone),
     body: impl FnOnce(&mut Ui),
 ) -> bool {
     let mut close = false;
     let title = texts.get(title);
     let close_dialog = texts.get(Text::CloseDialog);
     let shown = frames::window(&title, tone)
-        .id(Id::unique(WINDOW))
+        .id(Id::unique(id))
         .collapsible(false)
         .default_width(MODAL_WIDE_WIDTH)
         .show(ui.ctx(), |ui| {

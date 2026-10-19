@@ -3,8 +3,8 @@
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use p4kx_export::{CatalogOptions, Language, TextSummary, build_catalog};
-use p4kx_extraction::Archive;
+use p4kx_export::{CatalogOptions, Language, TextSummary, build_catalog, build_catalog_from};
+use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
     TestStruct, TestType, TestValue,
@@ -219,5 +219,26 @@ fn the_line_break_escape_becomes_a_line_feed_and_a_lone_cr_stays() -> TestResult
         "Line one\nLine two\rkept",
         "\\n decoded in a CRLF file, the lone CR kept"
     );
+    Ok(())
+}
+
+#[test]
+fn a_catalog_from_a_read_entry_equals_one_read_from_the_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\Game2.dcb", database()))
+        .entry(english())
+        .entry(german())
+        .write_to(&path)?;
+    let archive = Archive::open(&path)?;
+    let options = CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT);
+
+    let read = build_catalog(&archive, &options)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let from = build_catalog_from(&archive, &entry, &options)?;
+
+    assert_eq!(from.json(), read.json(), "identical bytes");
+    assert_eq!(from.summary(), read.summary(), "identical summary");
     Ok(())
 }

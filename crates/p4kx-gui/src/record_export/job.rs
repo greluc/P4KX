@@ -15,8 +15,8 @@ use rayon::prelude::*;
 
 use super::RecordExportSummary;
 use super::progress::{RecordExportProgress, RecordExportStage, Shared};
-use super::source::{ForgeSlot, ForgeSource};
 use crate::extraction::target_naming;
+use crate::forge_cache::{ForgeSlot, ForgeSource};
 use crate::model::describe;
 use crate::{EntryIndex, TargetKind};
 

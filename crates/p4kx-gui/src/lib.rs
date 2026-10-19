@@ -5,6 +5,7 @@
 
 mod app;
 mod browser;
+mod catalog_export;
 mod channel_list;
 mod comparison;
 #[cfg(windows)]
@@ -12,6 +13,7 @@ pub mod dwm;
 mod entry_index;
 mod extraction;
 mod folder_tree;
+mod forge_cache;
 mod format;
 mod language;
 mod model;
@@ -31,6 +33,10 @@ pub mod window;
 
 pub use app::App;
 pub use browser::{Browser, TreeRow};
+pub use catalog_export::{
+    CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
+    CatalogExportSummary,
+};
 pub use channel_list::ChannelList;
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonList, ComparisonSide, ComparisonStage,
@@ -67,6 +73,6 @@ pub use record_index::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText, ImageText,
-    QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
+    CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
+    ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
 };

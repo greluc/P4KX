@@ -616,6 +616,12 @@
     "cta": "buttonCta Start export; Close is buttonGhost",
     "progress": "non-modal modal frame, width 440: spinner while DataForge is read and Records are chosen, then progressBar with done of total; Cancel buttonGhost alone in the foot",
     "summary": "non-modal modal frame, width 600: cancel note in color-warning, counts and target in color-gray-1, failed Records as collapsibleSection rows with the reason in color-danger-text; Close buttonCta alone in the foot; no target line when none was created"
+  },
+  "basetoolCatalog": {
+    "menu": "Export menu entry dropdownItem below Record export; disabled without a DataForge and while a catalog is created; opens the system save dialog with basetool-catalog.json",
+    "progress": "non-modal modal frame, width 440: spinner while DataForge is read and while the file is written, progressBar with Records checked of total between; Cancel buttonGhost alone in the foot",
+    "summary": "non-modal modal frame, width 600: alertWarning near the upload limit or alertDanger over it on top; group labels Kinds and Texts with one color-gray-1 line per kind and language, then size with the upload limit and the file; Close buttonCta alone in the foot",
+    "cancelled": "non-modal modal frame: note in color-warning, no file written"
   },  "factsBar": {
     "dsClass": "facts-bar",
     "paddingX": 16,

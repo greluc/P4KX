@@ -39,11 +39,28 @@ pub fn build_catalog(
     archive: &Archive,
     options: &CatalogOptions<'_>,
 ) -> Result<BuiltCatalog, CatalogError> {
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
+        return Err(CatalogError::Cancelled);
+    }
+    let entry = DataForgeEntry::read(archive).map_err(CatalogError::Load)?;
+    build_catalog_from(archive, &entry, options)
+}
+
+/// Builds the Basetool catalog like [`build_catalog`] from `entry`, the DataForge Entry already
+/// read from `archive`, so that a caller holding it does not read it again.
+///
+/// # Errors
+///
+/// As [`build_catalog`], except that the DataForge Entry is not read here.
+pub fn build_catalog_from(
+    archive: &Archive,
+    entry: &DataForgeEntry,
+    options: &CatalogOptions<'_>,
+) -> Result<BuiltCatalog, CatalogError> {
     let cancelled = || options.cancel.is_some_and(CancelToken::is_cancelled);
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
-    let entry = DataForgeEntry::read(archive).map_err(CatalogError::Load)?;
     let forge = entry.open().map_err(CatalogError::DataForge)?;
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;

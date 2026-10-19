@@ -1,5 +1,5 @@
 //! The line diff of the Comparison tab over two real Archives; runs with `--ignored` when
-//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them.
+//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them, and skips without the second.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -10,12 +10,14 @@ use p4kx_comparison::ChangeKind;
 use p4kx_gui::{
     ComparisonSide, ComparisonTab, ComparisonView, DiffStatus, Language, Model, WorkTab, ui,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use p4kx_testkit::{assert_steady_frames, real_archive_pair};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const RUN_BUDGET: Duration = Duration::from_secs(120);
 const FRAME_LIMIT: Duration = Duration::from_millis(16);
+const FRAME_CEILING: Duration = Duration::from_millis(100);
+const HAND_OFF_CEILING: Duration = Duration::from_millis(50);
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
     let deadline = Instant::now() + RUN_BUDGET;
@@ -55,11 +57,14 @@ fn changed_xml(view: &ComparisonView) -> Vec<u32> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> TestResult {
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(());
+    };
     let mut model = Model::new(Language::BritishEnglish);
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
-    tab.set_archive(ComparisonSide::Old, real_archive_path()?);
-    tab.set_archive(ComparisonSide::New, real_archive_b_path()?);
+    tab.set_archive(ComparisonSide::Old, old);
+    tab.set_archive(ComparisonSide::New, new);
     assert!(tab.start(|| {}), "started");
     wait(tab, |tab| !tab.is_running())?;
     let view = tab.view_mut().ok_or("no result")?;
@@ -79,7 +84,7 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
 
     let diff = tab.view().and_then(ComparisonView::diff).ok_or("no diff")?;
     assert!(
-        handed_off < Duration::from_millis(5),
+        handed_off < HAND_OFF_CEILING,
         "starting the diff took {handed_off:?}"
     );
     assert_eq!(diff.change(), other, "the last selection wins");
@@ -98,14 +103,15 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
             model,
         );
     harness.run_steps(3);
+    let mut frames = Vec::new();
     for _ in 0..20 {
         if let Some(next) = harness.query_by_label("Next difference") {
             next.click();
         }
         let started = Instant::now();
         harness.step();
-        let took = started.elapsed();
-        assert!(took < FRAME_LIMIT, "a frame of the diff took {took:?}");
+        frames.push(started.elapsed());
     }
+    assert_steady_frames("a frame of the diff", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
 }

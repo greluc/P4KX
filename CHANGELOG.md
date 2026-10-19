@@ -8,6 +8,14 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
+  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
+  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
+  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
+  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
+  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
+  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
+  children.
 - `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
   the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
   matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or

@@ -16,6 +16,7 @@ use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
 use crate::texture;
+use crate::wwise::UnknownTrigger;
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
@@ -60,8 +61,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      file that does not exist, a mip level the texture or a chunk the chunk file does not
      have, an output that is one of its inputs, --json without --out for cryxml or chf
      to-json, an invalid Query, --json with another --format and without --out for dcb query,
-     an Entity that no Record or several Records match, or a CHF JSON file that is invalid, has
-     an unknown version or holds values a CHF file cannot store
+     an Entity that no Record or several Records match, an audio trigger no ATL definition
+     has, or a CHF JSON file that is invalid, has an unknown version or holds values a CHF
+     file cannot store
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, with a CHF CRC-32C mismatch or unknown CHF
      version, a sound, soundbank, chunk file or UI movie too large to read into memory, or with
@@ -130,6 +132,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<EntityLookupError>().is_some()
+        || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<InvalidChfJson>().is_some()
         || error.downcast_ref::<InvalidExportTime>().is_some()
         || error.downcast_ref::<MissingCatalogArgs>().is_some()

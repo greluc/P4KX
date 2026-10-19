@@ -201,7 +201,7 @@ fn put_section(out: &mut Vec<u8>, id: [u8; 4], body: &[u8]) {
 
 /// Encodes `value` as Wwise writes variable-length integers: 7 bits per byte, most significant
 /// first, the high bit set on every byte but the last.
-fn variable_length(value: u32) -> Vec<u8> {
+pub(crate) fn variable_length(value: u32) -> Vec<u8> {
     let mut groups = vec![u8::try_from(value & 0x7F).unwrap_or(0)];
     let mut rest = value >> 7;
     while rest > 0 {

@@ -205,6 +205,51 @@ definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of i
 `soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
+## `p4kx wwise resolve <archive> <trigger> --json`
+
+```json
+{"archive": "…",
+ "trigger": {"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
+             "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false}]},
+ "variants": [Variant, …], "breaks": [Break, …],
+ "counts": {"variants": 14, "located": 0, "unlocated": 14, "plugins": 0, "breaks": 0},
+ "issues": [Issue, …]}
+```
+
+`<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
+ATL definition has exits with code 2. The audio index is built as for `p4kx entity audio`, with
+the same `issues`; each soundbank holding one of the trigger's events is then read again and its
+`HIRC` section followed from the Event object through Play actions (other actions lead to no
+sound) and random, sequence, switch and blend containers to Sound objects. Variants and breaks
+come in the order of the trigger's events, their soundbanks in path order and each container's
+children in bank order. Broken links do not change the exit code.
+
+A **Variant**:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `event` | string | The Wwise event it is reached from |
+| `soundbank` | object | `path` and `language` of the soundbank whose `HIRC` section leads to it |
+| `sound_id` | number | ID of the Sound object |
+| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
+| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
+| `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`; `null` when no soundbank embeds the WEM |
+| `path` | array | Container path from the Event object to the Sound object, each step with `kind` and `id` |
+
+An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in
+every other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
+`event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
+not followed its `HIRC` type, e.g. `music_track`.
+
+A **Break** has `event`, `soundbank` (or `null` when no soundbank holds the event), `object` (the
+step where the chain breaks, the last of `path`), `path`, `kind` and `message`. The kinds are
+`no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
+an ID the soundbank does not hold), `malformed`, `unknown_layout` (a sound or container of a bank
+version other than 154), `unsupported` (an object kind that is not followed, e.g. music), `cycle`,
+`too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a
+container are followed) and `too_many_objects` (at most 16,384 objects per event and soundbank).
+New kinds may be added in later versions.
+
 ## `p4kx dcb query <archive> <query> --json`
 
 Without `--out`, the line is the Query result itself in its JSON format, as `--format json`

@@ -1,0 +1,72 @@
+---
+source: crates/p4kx/tests/wwise_resolve.rs
+expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
+---
+[
+  {
+    "event": "Play_Broken",
+    "kind": "missing",
+    "message": "the soundbank holds no object 999",
+    "object": {
+      "id": 3,
+      "kind": "action"
+    },
+    "path": [
+      {
+        "id": 3138548149,
+        "kind": "event"
+      },
+      {
+        "id": 3,
+        "kind": "action"
+      }
+    ],
+    "soundbank": {
+      "language": null,
+      "path": "Data\\Sounds\\wwise\\Ship.bnk"
+    }
+  },
+  {
+    "event": "Play_Broken",
+    "kind": "unsupported",
+    "message": "objects of this kind are not followed",
+    "object": {
+      "id": 400,
+      "kind": "music_track"
+    },
+    "path": [
+      {
+        "id": 3138548149,
+        "kind": "event"
+      },
+      {
+        "id": 4,
+        "kind": "action"
+      },
+      {
+        "id": 400,
+        "kind": "music_track"
+      }
+    ],
+    "soundbank": {
+      "language": null,
+      "path": "Data\\Sounds\\wwise\\Ship.bnk"
+    }
+  },
+  {
+    "event": "Play_In_No_Bank",
+    "kind": "no_soundbank",
+    "message": "no soundbank holds the Wwise event",
+    "object": {
+      "id": 950752116,
+      "kind": "event"
+    },
+    "path": [
+      {
+        "id": 950752116,
+        "kind": "event"
+      }
+    ],
+    "soundbank": null
+  }
+]

@@ -13,6 +13,7 @@ pub struct IndexedSoundbank {
     id: u32,
     language_id: u32,
     event_count: u32,
+    pub(crate) entry: usize,
 }
 
 impl IndexedSoundbank {
@@ -57,11 +58,25 @@ impl IndexedSoundbank {
     }
 }
 
-/// Parses a soundbank and returns it with the IDs of its Event objects.
-pub(crate) fn read(
-    path: &str,
-    bytes: &[u8],
-) -> Result<(IndexedSoundbank, Vec<u32>), AudioFileError> {
+/// A WEM a soundbank embeds: its ID, its offset in the `DATA` section and its length.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct EmbeddedMedia {
+    pub(crate) id: u32,
+    pub(crate) offset: u64,
+    pub(crate) len: u64,
+}
+
+/// What the audio index keeps of one soundbank.
+#[derive(Debug)]
+pub(crate) struct BankContents {
+    pub(crate) soundbank: IndexedSoundbank,
+    pub(crate) events: Vec<u32>,
+    pub(crate) media: Vec<EmbeddedMedia>,
+}
+
+/// Parses the soundbank at the Archive position `entry` and returns it with the IDs of its Event
+/// objects and the WEMs it embeds.
+pub(crate) fn read(path: &str, entry: usize, bytes: &[u8]) -> Result<BankContents, AudioFileError> {
     let bank = Soundbank::parse(bytes)?;
     let events: Vec<u32> = bank
         .objects()
@@ -69,14 +84,24 @@ pub(crate) fn read(
         .filter(|object| object.kind == HircKind::Event)
         .map(|object| object.id)
         .collect();
+    let media = bank
+        .wems()
+        .map(|wem| EmbeddedMedia {
+            id: wem.id(),
+            offset: wem.offset(),
+            len: wem.bytes().len() as u64,
+        })
+        .collect();
     let header = bank.header();
-    Ok((
-        IndexedSoundbank {
+    Ok(BankContents {
+        soundbank: IndexedSoundbank {
             path: path.into(),
             id: header.id,
             language_id: header.language_id,
             event_count: u32::try_from(events.len()).unwrap_or(u32::MAX),
+            entry,
         },
         events,
-    ))
+        media,
+    })
 }

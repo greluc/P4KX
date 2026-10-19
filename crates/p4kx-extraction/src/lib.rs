@@ -65,8 +65,8 @@ pub use p4kx_archive::{
     MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
-    ActionTarget, BankError, BankHeader, EmbeddedWem, HircKind, HircObject, HircValue,
-    MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,
+    HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,

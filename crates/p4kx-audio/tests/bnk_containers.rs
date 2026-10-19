@@ -1,0 +1,167 @@
+//! Random, sequence, switch and blend containers of the `HIRC` section, decoded to their children.
+
+use p4kx_audio::{BankError, Container, ContainerKind, HircKind, HircValue, SectionId, Soundbank};
+use p4kx_testkit::{TestBank, TestContainerKind, TestHircObject, TestNodeBase};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn decoded(object: TestHircObject, version: u32) -> Result<(HircKind, HircValue), BankError> {
+    let bytes = TestBank::new(1).version(version).object(object).bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+    Ok(bank
+        .objects()
+        .first()
+        .map_or((HircKind::Other(0), HircValue::Raw), |object| {
+            (object.kind, object.value.clone())
+        }))
+}
+
+#[test]
+fn every_container_kind_is_decoded_with_its_children_in_order() -> TestResult {
+    for (kind, base, expected_kind, type_byte) in [
+        (
+            TestContainerKind::Random,
+            TestNodeBase::Plain,
+            ContainerKind::Random,
+            HircKind::RandomSequenceContainer,
+        ),
+        (
+            TestContainerKind::Sequence,
+            TestNodeBase::Full,
+            ContainerKind::Sequence,
+            HircKind::RandomSequenceContainer,
+        ),
+        (
+            TestContainerKind::Switch,
+            TestNodeBase::Full,
+            ContainerKind::Switch,
+            HircKind::SwitchContainer,
+        ),
+        (
+            TestContainerKind::Blend,
+            TestNodeBase::Plain,
+            ContainerKind::Blend,
+            HircKind::LayerContainer,
+        ),
+    ] {
+        let object = TestHircObject::container(kind, 77, &[30, 10, 20], base);
+        assert_eq!(
+            decoded(object, 154)?,
+            (
+                type_byte,
+                HircValue::Container(Container {
+                    kind: expected_kind,
+                    parent_id: 0x2C21_1B2E,
+                    children: vec![30, 10, 20],
+                })
+            ),
+            "{kind:?} with a {base:?} node base"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_container_without_children_is_decoded_empty() -> TestResult {
+    let object = TestHircObject::container(TestContainerKind::Switch, 5, &[], TestNodeBase::Plain);
+    assert_eq!(
+        decoded(object, 154)?.1,
+        HircValue::Container(Container {
+            kind: ContainerKind::Switch,
+            parent_id: 0x2C21_1B2E,
+            children: Vec::new(),
+        }),
+        "no children"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_container_of_another_bank_version_stays_raw() -> TestResult {
+    let object = TestHircObject::container(TestContainerKind::Random, 5, &[1], TestNodeBase::Plain);
+    assert_eq!(
+        decoded(object, 150)?,
+        (HircKind::RandomSequenceContainer, HircValue::Raw),
+        "layout unknown"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_truncated_or_overlong_container_is_malformed_and_the_bank_still_parses() -> TestResult {
+    let full = TestHircObject::container(TestContainerKind::Blend, 5, &[1, 2], TestNodeBase::Full);
+    let bytes = TestBank::new(1).object(full).bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+    let body = bank
+        .objects()
+        .first()
+        .map(|object| {
+            bank.object_body(object)
+                .get(4..)
+                .unwrap_or_default()
+                .to_vec()
+        })
+        .ok_or("one object")?;
+    for (name, cut) in [
+        (
+            "truncated",
+            body.get(..body.len() - 3).unwrap_or_default().to_vec(),
+        ),
+        ("overlong", [body.as_slice(), &[0]].concat()),
+        (
+            "half",
+            body.get(..body.len() / 2).unwrap_or_default().to_vec(),
+        ),
+    ] {
+        let (kind, value) = decoded(TestHircObject::raw(9, 5, cut), 154)?;
+        assert_eq!(kind, HircKind::LayerContainer, "{name}: kind kept");
+        assert!(
+            matches!(
+                value,
+                HircValue::Malformed(BankError::Truncated { section, .. }
+                    | BankError::InvalidSection { section, .. }) if section == SectionId::HIRC
+            ),
+            "{name}: {value:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_child_count_beyond_the_body_is_malformed_without_allocating_it() -> TestResult {
+    let mut body = vec![0; 8];
+    body.extend_from_slice(&0x2C21_1B2E_u32.to_le_bytes());
+    body.extend_from_slice(&[0; 5]);
+    body.extend_from_slice(&[0; 4]);
+    body.extend_from_slice(&[0, 1, 0, 0, 3, 0x0C]);
+    body.extend_from_slice(&[0, 0, 0, 0]);
+    body.extend_from_slice(&u32::MAX.to_le_bytes());
+    let (_, value) = decoded(TestHircObject::raw(9, 5, body), 154)?;
+    assert!(
+        matches!(
+            value,
+            HircValue::Malformed(BankError::InvalidSection { .. })
+        ),
+        "{value:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_plugin_source_is_told_apart_from_a_codec_source() -> TestResult {
+    let bytes = TestBank::new(1)
+        .object(TestHircObject::plugin_sound(1, 2))
+        .object(TestHircObject::sound(3, 4, 0, 5))
+        .bytes();
+    let bank = Soundbank::parse(bytes.as_slice())?;
+    let plugins: Vec<bool> = bank
+        .objects()
+        .iter()
+        .filter_map(|object| match &object.value {
+            HircValue::Sound(source) => Some(source.is_source_plugin()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(plugins, [true, false], "plug-in, then Vorbis");
+    Ok(())
+}

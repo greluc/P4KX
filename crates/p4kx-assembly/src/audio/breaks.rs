@@ -1,0 +1,125 @@
+use p4kx_audio::BankError;
+use thiserror::Error;
+
+use super::{AudioFileError, IndexedSoundbank, PathStep, WwiseEvent};
+
+/// Why the way from a Wwise event to a WEM breaks.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum BreakReason {
+    /// No soundbank holds the Wwise event.
+    #[error("no soundbank holds the Wwise event")]
+    NoSoundbank,
+    /// The soundbank holding the event cannot be read again.
+    #[error("the soundbank cannot be read: {0}")]
+    Unreadable(AudioFileError),
+    /// The object refers to an object the soundbank does not hold.
+    #[error("the soundbank holds no object {id}")]
+    Missing {
+        /// The ID referred to.
+        id: u32,
+    },
+    /// The object's body does not hold its fields.
+    #[error("the object cannot be read: {0}")]
+    Malformed(BankError),
+    /// The object is a sound or container in a bank version whose layout this reader does not
+    /// know.
+    #[error("the object's layout in soundbank version {version} is not known")]
+    UnknownLayout {
+        /// The bank version.
+        version: u32,
+    },
+    /// The object is of a kind that is not followed, e.g. a music track.
+    #[error("objects of this kind are not followed")]
+    Unsupported,
+    /// The object refers back to an object on its own path.
+    #[error("the object refers back to object {id} on its own path")]
+    Cycle {
+        /// The ID referred to.
+        id: u32,
+    },
+    /// The path is as long as [`MAX_PATH_DEPTH`](super::MAX_PATH_DEPTH) allows.
+    #[error("the path is deeper than {limit} objects")]
+    TooDeep {
+        /// The limit.
+        limit: usize,
+    },
+    /// The container has more children than
+    /// [`MAX_CONTAINER_CHILDREN`](super::MAX_CONTAINER_CHILDREN); the rest are left out.
+    #[error("the container has {count} children; only the first {limit} are followed")]
+    TooManyChildren {
+        /// How many children it has.
+        count: usize,
+        /// The limit.
+        limit: usize,
+    },
+    /// The event leads to more objects than [`MAX_EVENT_OBJECTS`](super::MAX_EVENT_OBJECTS); the
+    /// rest are left out.
+    #[error("the event leads to more than {limit} objects; the rest are left out")]
+    TooManyObjects {
+        /// The limit.
+        limit: usize,
+    },
+}
+
+impl BreakReason {
+    /// Returns a stable code for the reason, e.g. `missing`, for scripts.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::NoSoundbank => "no_soundbank",
+            Self::Unreadable(_) => "unreadable",
+            Self::Missing { .. } => "missing",
+            Self::Malformed(_) => "malformed",
+            Self::UnknownLayout { .. } => "unknown_layout",
+            Self::Unsupported => "unsupported",
+            Self::Cycle { .. } => "cycle",
+            Self::TooDeep { .. } => "too_deep",
+            Self::TooManyChildren { .. } => "too_many_children",
+            Self::TooManyObjects { .. } => "too_many_objects",
+        }
+    }
+}
+
+/// A place where the way from a Wwise event to a WEM breaks: the object it breaks at, the path
+/// to it and the reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkBreak<'i> {
+    pub(crate) event: &'i WwiseEvent,
+    pub(crate) soundbank: Option<&'i IndexedSoundbank>,
+    pub(crate) path: Box<[PathStep]>,
+    pub(crate) reason: BreakReason,
+}
+
+impl<'i> LinkBreak<'i> {
+    /// Returns the Wwise event the way starts at.
+    #[must_use]
+    pub const fn event(&self) -> &'i WwiseEvent {
+        self.event
+    }
+
+    /// Returns the soundbank whose `HIRC` section was followed, or `None` when no soundbank
+    /// holds the event.
+    #[must_use]
+    pub const fn soundbank(&self) -> Option<&'i IndexedSoundbank> {
+        self.soundbank
+    }
+
+    /// Returns the container path from the Event object to the object the way breaks at.
+    #[must_use]
+    pub fn path(&self) -> &[PathStep] {
+        &self.path
+    }
+
+    /// Returns the object the way breaks at, the last step of the path.
+    #[must_use]
+    pub fn object(&self) -> Option<PathStep> {
+        self.path.last().copied()
+    }
+
+    /// Returns why the way breaks.
+    #[must_use]
+    pub const fn reason(&self) -> &BreakReason {
+        &self.reason
+    }
+}

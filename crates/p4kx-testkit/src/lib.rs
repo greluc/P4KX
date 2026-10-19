@@ -25,6 +25,7 @@ mod gfx;
 mod gfx_shape;
 mod gfx_tags;
 mod global_ini;
+mod hirc_node;
 mod layout_v1;
 mod layout_v2;
 mod opus;
@@ -58,6 +59,7 @@ pub use gfx_tags::{
     sub_image_body,
 };
 pub use global_ini::GlobalIniBuilder;
+pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,

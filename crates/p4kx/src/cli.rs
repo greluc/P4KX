@@ -13,6 +13,7 @@ pub(crate) use crate::cli_dcb::{
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
@@ -87,6 +88,9 @@ pub(crate) enum Command {
     /// Lists the chunks of a CryEngine chunk file, #ivo or CrCh, or writes the bytes of one.
     #[command(after_help = EXIT_CODES_HELP)]
     Chunks(ChunksArgs),
+    /// Resolves Wwise audio triggers through the soundbank hierarchy to their sounds.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Wwise(WwiseArgs),
 }
 
 /// Arguments of `p4kx cryxml`.

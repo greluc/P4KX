@@ -1,4 +1,4 @@
-//! Split textures whose parts sit in a folder of another spelling than their header.
+//! Split textures whose parts sit in a folder of another case than their header: one folder.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -45,7 +45,7 @@ fn select(browser: &mut Browser, path: &str) -> TestResult {
 }
 
 #[test]
-fn the_folder_of_the_header_counts_a_part_from_another_folder() -> TestResult {
+fn the_folder_of_the_header_counts_its_parts_once() -> TestResult {
     let (_folder, mut model) = opened()?;
     let browser = browser(&mut model)?;
 
@@ -68,21 +68,28 @@ fn the_folder_of_the_header_counts_a_part_from_another_folder() -> TestResult {
 }
 
 #[test]
-fn the_folder_of_the_part_does_not_show_or_count_it() -> TestResult {
+fn folders_of_another_spelling_are_one_folder_that_folds_the_part() -> TestResult {
     let (_folder, mut model) = opened()?;
     let browser = browser(&mut model)?;
-    select(browser, "Data\\tex")?;
-    browser.set_all_shown_checked(true);
+    let header = browser.index().find_folder("Data\\tex");
+    let part = browser.index().find_folder("data\\tex");
+    assert_eq!(header, part, "the spellings are one folder");
 
     select(browser, "data\\tex")?;
 
-    assert!(browser.shown().is_empty(), "the part is folded away");
-    assert_eq!(browser.scope_len(ExtractionScope::Shown), 0);
-    assert_eq!(browser.scope_entries(ExtractionScope::Shown).len(), 0);
-    assert!(
-        !browser.all_shown_checked(),
-        "nothing shown, nothing checked"
+    assert_eq!(
+        browser.shown().len(),
+        1,
+        "the part is folded into the header"
     );
-    assert_eq!(browser.hidden_checked_count(), 3, "all three are elsewhere");
+    assert_eq!(browser.scope_len(ExtractionScope::Shown), 3, "counted once");
+    assert_eq!(
+        browser.scope_entries(ExtractionScope::Shown).len(),
+        browser.scope_len(ExtractionScope::Shown),
+        "the count and the Entries agree"
+    );
+    browser.set_all_shown_checked(true);
+    assert!(browser.all_shown_checked(), "every Entry of the view");
+    assert_eq!(browser.hidden_checked_count(), 0, "none is elsewhere");
     Ok(())
 }

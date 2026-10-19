@@ -4,6 +4,8 @@ use p4kx_archive::{Archive, ArchiveError, Entry};
 use p4kx_dataforge::{DataForge, DataForgeError};
 use thiserror::Error;
 
+use crate::ArchiveChanged;
+
 /// The Entries that may hold DataForge, the preferred one first.
 pub const DATAFORGE_ENTRIES: [&str; 2] = ["Data\\Game2.dcb", "Data\\Game.dcb"];
 
@@ -120,8 +122,32 @@ pub enum DataForgeLoadError {
         #[source]
         source: io::Error,
     },
+    /// The Entry was read but holds no DataForge that can be opened.
+    #[error("the DataForge cannot be opened")]
+    Corrupt(#[source] DataForgeError),
+    /// The Archive changed on disk while its DataForge was read.
+    #[error(transparent)]
+    ArchiveChanged(ArchiveChanged),
+    /// No thread could be started to hold the DataForge.
+    #[error("cannot start the DataForge thread")]
+    Thread(#[source] io::Error),
 }
 
+impl DataForgeLoadError {
+    /// Returns whether reading again could succeed: the failure came from the disk, a changed
+    /// file or a missing thread, not from the content of the Entry.
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::Missing | Self::TooLarge { .. } | Self::Corrupt(_) => false,
+            Self::Read { source, .. } => !matches!(
+                source.kind(),
+                io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
+            ),
+            Self::Archive(_) | Self::ArchiveChanged(_) | Self::Thread(_) => true,
+        }
+    }
+}
 fn same_path(left: &str, right: &str) -> bool {
     let key = |byte: u8| {
         if byte == b'/' {

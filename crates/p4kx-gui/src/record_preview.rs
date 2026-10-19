@@ -115,6 +115,7 @@ pub struct RecordView {
     lines: Vec<FieldLine>,
     errors: usize,
     xml: XmlDocument,
+    xml_error: Option<Box<str>>,
 }
 
 impl RecordView {
@@ -158,6 +159,12 @@ impl RecordView {
     #[must_use]
     pub const fn xml(&self) -> &XmlDocument {
         &self.xml
+    }
+
+    /// Returns why the Record XML could not be written, or None when it was.
+    #[must_use]
+    pub fn xml_error(&self) -> Option<&str> {
+        self.xml_error.as_deref()
     }
 }
 

@@ -6,9 +6,13 @@ mod model;
 mod previewing_records;
 
 use std::error::Error;
+use std::time::{Duration, Instant};
 
 use model::{opened, previewed, select, selected_path, wait_until};
-use p4kx_gui::{Browser, FieldLine, LineValue, Model, RecordLink, RecordPreviewStatus, RecordView};
+use p4kx_gui::{
+    Browser, FieldLine, LineValue, Model, RecordExport, RecordExportStatus, RecordForm, RecordLink,
+    RecordPreviewStatus, RecordView, TargetKind,
+};
 use previewing_records::{ITEM_PATH, MAKER_PATH, SHIP_PATH, TestResult, archive, database};
 
 fn view(model: &mut Model) -> Result<&RecordView, Box<dyn Error>> {
@@ -237,14 +241,36 @@ fn record_tree_query_and_record_export_share_one_read_of_dataforge() -> TestResu
     model.query_mut().set_text("from Item select speed");
     model.run_query(|| {});
     wait_until(&mut model, |model| !model.query().is_running())?;
+    let out = tempfile::tempdir()?;
+    model.begin_record_export();
+    let setup = model.record_export_setup_mut().ok_or("no setup")?;
+    setup.set_form(RecordForm::Json);
+    setup.set_kind(TargetKind::ExistingFolder);
+    setup.set_folder(out.path().to_path_buf());
+    setup.set_filter("*items*");
+    let started = model.submit_record_export(|| {});
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while model.record_export().is_none_or(RecordExport::is_running) {
+        if Instant::now() > deadline {
+            return Err("the export did not end in time".into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+        model.poll_record_export();
+    }
+    let exported = match model.record_export().map(RecordExport::status) {
+        Some(RecordExportStatus::Finished(summary)) => summary.written(),
+        other => return Err(format!("the export did not finish: {other:?}").into()),
+    };
     let reads = model.browser().map(Browser::dataforge_reads);
 
     assert!(kept, "the Record tree read it for everyone");
     assert!(model.query().result().is_some(), "the Query ran");
+    assert!(started, "the export started");
+    assert_eq!(exported, 1, "the export wrote the Item");
     assert_eq!(
         reads,
         Some(1),
-        "one read for the tree, the preview and the Query"
+        "one read for the tree, the preview, the Query and the export"
     );
     Ok(())
 }

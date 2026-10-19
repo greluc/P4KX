@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, pos2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{Browser, Language, Model, PreviewTab, RecordPreviewStatus, ui};
 use previewing_records::{ITEM_PATH, MAKER_PATH, SHIP_PATH, TestResult, archive, database};
 use tempfile::TempDir;
@@ -157,6 +157,37 @@ fn back_and_forward_work_with_buttons_keys_and_mouse_buttons() -> TestResult {
     wait_until(&mut harness, selected_is(MAKER_PATH))?;
 
     assert_eq!(harness.state().preview_tab(), PreviewTab::Record, "the tab");
+    Ok(())
+}
+
+#[test]
+fn alt_left_goes_back_after_a_link_was_followed_with_the_keyboard() -> TestResult {
+    let (_dir, mut harness) = window(Language::BritishEnglish)?;
+    open_record(&mut harness, "ships", "hauler")?;
+
+    let mut focused = false;
+    for _ in 0..60 {
+        harness.key_press(Key::Tab);
+        harness.run_steps(2);
+        focused = harness
+            .get_by_role_and_label(Role::Link, "Follow the Reference to libs/items/sample")
+            .accesskit_node()
+            .is_focused();
+        if focused {
+            break;
+        }
+    }
+    assert!(focused, "Tab reaches the link");
+    harness.key_press(Key::Enter);
+    wait_until(&mut harness, selected_is(ITEM_PATH))?;
+    harness.key_press_modifiers(Modifiers::ALT, Key::ArrowLeft);
+    wait_until(&mut harness, selected_is(SHIP_PATH))?;
+
+    assert_eq!(
+        selected_path(harness.state()).as_deref(),
+        Some(SHIP_PATH),
+        "back to the Ship"
+    );
     Ok(())
 }
 

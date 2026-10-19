@@ -1,6 +1,6 @@
 use std::fmt;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError, TryLockError};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use p4kx_export::RecordFilePlans;
 use p4kx_extraction::DataForgeEntry;
@@ -45,23 +45,24 @@ impl ReadFailure {
 /// The one DataForge cache of an open Archive, shared by the Record tree, the Record preview, the
 /// Query tab and the Record export.
 ///
-/// The first consumer that needs DataForge reads it under the lock; the others wait for that read
-/// instead of reading it again. A read is kept even when the consumer that started it was
-/// cancelled, until the Archive changes on disk.
+/// The first consumer that needs DataForge reads it; the others wait for that read instead of
+/// reading it again. A read is kept even when the consumer that started it was cancelled, until
+/// the Archive changes on disk. [`clear`](Self::clear) never waits for a read.
 #[derive(Debug, Default)]
 pub(crate) struct ForgeCache {
+    reading: Mutex<()>,
     source: Mutex<Option<Arc<ForgeSource>>>,
+    generation: AtomicU64,
     reads: AtomicUsize,
 }
 
 impl ForgeCache {
     /// Returns whether DataForge was read; `false` while it is being read.
     pub(crate) fn is_read(&self) -> bool {
-        match self.source.try_lock() {
-            Ok(source) => source.is_some(),
-            Err(TryLockError::Poisoned(source)) => source.into_inner().is_some(),
-            Err(TryLockError::WouldBlock) => false,
-        }
+        self.source
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
     }
 
     /// Returns how often DataForge was read from the Archive, whether or not the read succeeded.
@@ -74,39 +75,63 @@ impl ForgeCache {
     ///
     /// # Errors
     ///
-    /// Returns why DataForge cannot be read, or that the Archive changed on disk while it was.
-    #[expect(
-        clippy::significant_drop_tightening,
-        reason = "the lock is held through the read so that another consumer waits for it"
-    )]
+    /// Returns why DataForge cannot be read, or that the Archive changed on disk before or while
+    /// it was read.
     pub(crate) fn read(
         &self,
         index: &EntryIndex,
         reading: impl FnOnce(),
     ) -> Result<Arc<ForgeSource>, ReadFailure> {
-        let mut source = self.source.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(source) = source.as_ref() {
-            return Ok(Arc::clone(source));
+        let _turn = self.reading.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(source) = self.cached() {
+            return Ok(source);
         }
-        reading();
         self.reads.fetch_add(1, Ordering::Relaxed);
+        let generation = self.generation.load(Ordering::Acquire);
+        let changed = |error| ReadFailure::ArchiveChanged(describe(&error));
+        index.watch().check().map_err(changed)?;
+        reading();
         let entry = DataForgeEntry::read(index.archive())
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        index
-            .watch()
-            .check()
-            .map_err(|error| ReadFailure::ArchiveChanged(describe(&error)))?;
+        index.watch().check().map_err(changed)?;
         let read = Arc::new(ForgeSource {
             entry: Arc::new(entry),
             plans: RecordFilePlans::default(),
         });
-        *source = Some(Arc::clone(&read));
-        Ok(read)
+        if self.store(generation, &read) {
+            Ok(read)
+        } else {
+            Err(ReadFailure::ArchiveChanged(
+                "the DataForge cache was cleared while it was read".to_owned(),
+            ))
+        }
     }
 
-    /// Forgets the DataForge read, because the Archive changed on disk; consumers that hold it
-    /// keep their copy until they end.
+    /// Forgets the DataForge read, because the Archive changed on disk, and makes a read still
+    /// running discard its result; consumers that hold the DataForge keep their copy until they
+    /// end. Returns at once, whatever reads.
     pub(crate) fn clear(&self) {
-        *self.source.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        let mut source = self.source.lock().unwrap_or_else(PoisonError::into_inner);
+        self.generation.fetch_add(1, Ordering::AcqRel);
+        *source = None;
+    }
+
+    fn store(&self, generation: u64, read: &Arc<ForgeSource>) -> bool {
+        let mut source = self.source.lock().unwrap_or_else(PoisonError::into_inner);
+        let current = self.generation.load(Ordering::Acquire) == generation;
+        if current {
+            *source = Some(Arc::clone(read));
+        }
+        current
+    }
+
+    fn cached(&self) -> Option<Arc<ForgeSource>> {
+        self.source
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
+
+#[cfg(test)]
+mod tests;

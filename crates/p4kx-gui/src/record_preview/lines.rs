@@ -3,6 +3,7 @@ use std::fmt::Write as _;
 use p4kx_extraction::{DataForge, Field, RecordTree, RecordXml, Reference, Value, ValueError};
 
 use super::{FieldLine, LineValue, RecordLink, RecordView};
+use crate::model::describe;
 use crate::{RecordId, XmlDocument};
 
 /// Builds the preview of the Record `tree` of `forge`, resolving each Reference to the Record it
@@ -15,8 +16,11 @@ pub(super) fn view(forge: &DataForge<'_>, tree: &RecordTree<'_>) -> RecordView {
     };
     lines.fields(tree.fields(), 0);
     let mut xml = Vec::new();
-    let written = RecordXml::new().write(tree, &mut xml).is_ok();
-    if !written {
+    let xml_error = RecordXml::new()
+        .write(tree, &mut xml)
+        .err()
+        .map(|error| describe(&error).into_boxed_str());
+    if xml_error.is_some() {
         xml.clear();
     }
     lines.out.shrink_to_fit();
@@ -28,6 +32,7 @@ pub(super) fn view(forge: &DataForge<'_>, tree: &RecordTree<'_>) -> RecordView {
         lines: lines.out,
         errors: tree.error_count(),
         xml: XmlDocument::new(xml, false),
+        xml_error,
     }
 }
 

@@ -385,3 +385,4 @@ record-dangling = Die Referenz zeigt auf den Record { $guid }, den es in diesem 
 record-follow = Der Referenz auf { $path } folgen
 record-row = { $field }: { $value }
 record-no-fields = Der Record hat keine Felder.
+record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }

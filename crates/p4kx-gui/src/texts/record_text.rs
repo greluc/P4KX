@@ -31,11 +31,13 @@ pub enum RecordText {
     Row,
     /// Shown instead of the field rows of a Record without fields.
     NoFields,
+    /// Shown instead of the Record XML when it cannot be written; takes `path` and `reason`.
+    XmlFailed,
 }
 
 impl RecordText {
     /// Every text of the Record preview.
-    pub(crate) const ALL: [Self; 15] = [
+    pub(crate) const ALL: [Self; 16] = [
         Self::Tab,
         Self::Back,
         Self::Forward,
@@ -51,6 +53,7 @@ impl RecordText {
         Self::Follow,
         Self::Row,
         Self::NoFields,
+        Self::XmlFailed,
     ];
 
     /// Returns the Fluent message id.
@@ -72,6 +75,7 @@ impl RecordText {
             Self::Follow => "record-follow",
             Self::Row => "record-row",
             Self::NoFields => "record-no-fields",
+            Self::XmlFailed => "record-xml-failed",
         }
     }
 }

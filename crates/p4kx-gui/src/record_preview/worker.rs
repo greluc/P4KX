@@ -45,27 +45,7 @@ impl Worker {
         let index = Arc::clone(index);
         thread::Builder::new()
             .name("record-preview".to_owned())
-            .spawn(move || {
-                let source = match index.forge().read(&index, || {}) {
-                    Ok(source) => source,
-                    Err(failure) => {
-                        let unread = || match &failure {
-                            ReadFailure::ArchiveChanged(_) => Unread::ArchiveChanged,
-                            ReadFailure::Unreadable(reason) => Unread::Failed(reason.clone()),
-                        };
-                        return serve(&waiting, &answer, &*wake, |_| Err(unread()));
-                    }
-                };
-                match source.entry.open() {
-                    Ok(forge) => serve(&waiting, &answer, &*wake, |id| read(&index, &forge, id)),
-                    Err(error) => {
-                        let reason = describe(&error);
-                        serve(&waiting, &answer, &*wake, |_| {
-                            Err(Unread::Failed(reason.clone()))
-                        });
-                    }
-                }
-            })
+            .spawn(move || run(&index, &waiting, &answer, &*wake))
             .map_err(|error| describe(&error))?;
         Ok(Self { requests, answers })
     }
@@ -85,6 +65,38 @@ impl Worker {
     }
 }
 
+fn run(
+    index: &EntryIndex,
+    waiting: &Receiver<(u64, RecordId)>,
+    answer: &Sender<Answer>,
+    wake: &dyn Fn(),
+) {
+    let mut first = None;
+    loop {
+        let reason = match index.forge().read(index, || {}) {
+            Ok(source) => match source.entry.open() {
+                Ok(forge) => {
+                    return serve(waiting, answer, wake, first, |id| read(index, &forge, id));
+                }
+                Err(error) => Unread::Failed(describe(&error)),
+            },
+            Err(ReadFailure::ArchiveChanged(_)) => Unread::ArchiveChanged,
+            Err(ReadFailure::Unreadable(reason)) => Unread::Failed(reason),
+        };
+        let Some(request) = first.take().or_else(|| next(waiting)) else {
+            return;
+        };
+        if answer.send((request.0, Err(reason))).is_err() {
+            return;
+        }
+        wake();
+        let Some(retry) = next(waiting) else {
+            return;
+        };
+        first = Some(retry);
+    }
+}
+
 fn read(index: &EntryIndex, forge: &DataForge<'_>, id: RecordId) -> Result<RecordView, Unread> {
     let record = forge
         .record(id.0)
@@ -99,16 +111,22 @@ fn read(index: &EntryIndex, forge: &DataForge<'_>, id: RecordId) -> Result<Recor
     Ok(view)
 }
 
+fn next(waiting: &Receiver<(u64, RecordId)>) -> Option<(u64, RecordId)> {
+    let mut request = waiting.recv().ok()?;
+    while let Ok(newer) = waiting.try_recv() {
+        request = newer;
+    }
+    Some(request)
+}
+
 fn serve(
     waiting: &Receiver<(u64, RecordId)>,
     answer: &Sender<Answer>,
     wake: &dyn Fn(),
+    mut first: Option<(u64, RecordId)>,
     mut read: impl FnMut(RecordId) -> Result<RecordView, Unread>,
 ) {
-    while let Ok(mut request) = waiting.recv() {
-        while let Ok(newer) = waiting.try_recv() {
-            request = newer;
-        }
+    while let Some(request) = first.take().or_else(|| next(waiting)) {
         let (generation, id) = request;
         if answer.send((generation, read(id))).is_err() {
             return;

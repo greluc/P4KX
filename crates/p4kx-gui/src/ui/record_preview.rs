@@ -58,19 +58,18 @@ pub(super) fn apply(model: &mut Model, step: &RecordStep) {
 }
 
 /// Applies Alt+Left and Alt+Right and the back and forward mouse buttons while the Archive tab
-/// shows the Records and no text field has the keyboard.
+/// shows the Records; the keys wait while a text field has the keyboard.
 pub(super) fn handle_shortcuts(ui: &Ui, model: &mut Model) {
-    if model.work_tab() != WorkTab::Archive
-        || !model.browser().is_some_and(Browser::shows_records)
-        || ui.ctx().egui_wants_keyboard_input()
+    if model.work_tab() != WorkTab::Archive || !model.browser().is_some_and(Browser::shows_records)
     {
         return;
     }
+    let typing = ui.ctx().text_edit_focused();
     let (back, forward) = ui.input_mut(|input| {
-        let back =
-            input.consume_shortcut(&BACK) || input.pointer.button_pressed(PointerButton::Extra1);
-        let forward =
-            input.consume_shortcut(&FORWARD) || input.pointer.button_pressed(PointerButton::Extra2);
+        let back = (!typing && input.consume_shortcut(&BACK))
+            || input.pointer.button_pressed(PointerButton::Extra1);
+        let forward = (!typing && input.consume_shortcut(&FORWARD))
+            || input.pointer.button_pressed(PointerButton::Extra2);
         (back, forward)
     });
     if back {
@@ -112,7 +111,15 @@ pub(super) fn show_xml(ui: &mut Ui, texts: &Texts, browser: &Browser) {
     let (path, name) = heading(browser);
     path_line(ui, path, name);
     if let Some(view) = status_body(ui, texts, browser, path) {
-        frames::preview_body().show(ui, |ui| xml_view::show(ui, texts, view.xml()));
+        frames::preview_body().show(ui, |ui| match view.xml_error() {
+            Some(reason) => {
+                let reason = ("reason", FluentValue::from(reason.to_owned()));
+                let path = ("path", FluentValue::from(path.to_owned()));
+                let text = texts.format(RecordText::XmlFailed, &[path, reason]);
+                ui.colored_label(palette::DANGER_TEXT, text);
+            }
+            None => xml_view::show(ui, texts, view.xml()),
+        });
     }
 }
 
@@ -121,6 +128,7 @@ pub(super) fn xml_bytes(browser: &Browser) -> Option<&[u8]> {
     browser
         .record_preview()
         .and_then(|preview| preview.view())
+        .filter(|view| view.xml_error().is_none())
         .map(|view| view.xml().bytes())
 }
 

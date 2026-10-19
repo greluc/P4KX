@@ -1,3 +1,4 @@
+mod entry_search;
 mod navigation;
 mod records;
 
@@ -5,11 +6,9 @@ use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::Arc;
 
-use p4kx_extraction::Filter;
-
 use crate::record_preview::Navigation;
 use crate::record_search::RecordSearch;
-use crate::search::{self, Matches, Outcome, Pending, Started};
+use crate::search::{Matches, Pending};
 use crate::{
     AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
     SortColumn, SortDirection,
@@ -252,27 +251,6 @@ impl Browser {
         self.pending.is_some()
     }
 
-    /// Searches the whole Archive for `text` as a Filter on a background thread, replacing a
-    /// search still running; `wake` is called from that thread once the result is ready. The
-    /// shown Entries change when [`Browser::poll`] takes the result; empty text shows the
-    /// selected folder again at once.
-    pub fn search(&mut self, text: &str, wake: impl Fn() + Send + 'static) {
-        text.clone_into(&mut self.search_text);
-        self.pending = None;
-        if let Some(records) = self.records.as_mut().filter(|_| !text.is_empty()) {
-            records.clear_selection();
-        }
-        if text.is_empty() {
-            self.matches = None;
-            self.refresh_shown();
-            return;
-        }
-        match search::start(&self.index, &Filter::new(text), wake) {
-            Started::Running(pending) => self.pending = Some(pending),
-            Started::Finished(matches) => self.show_matches(matches),
-        }
-    }
-
     /// Returns the Entry selected for the preview, or `None` when none is.
     #[must_use]
     pub fn selected_entry(&self) -> Option<u32> {
@@ -316,29 +294,6 @@ impl Browser {
         let found = self.poll_record_search(loaded);
         let read = self.navigation.poll();
         self.poll_search() || previewed || loaded || found || read
-    }
-
-    fn poll_search(&mut self) -> bool {
-        let Some(pending) = &self.pending else {
-            return false;
-        };
-        match pending.poll() {
-            Outcome::Running => false,
-            Outcome::Finished(matches) => {
-                self.pending = None;
-                self.show_matches(matches);
-                true
-            }
-            Outcome::Lost => {
-                self.pending = None;
-                true
-            }
-        }
-    }
-
-    fn show_matches(&mut self, matches: Matches) {
-        self.matches = Some(matches);
-        self.refresh_shown();
     }
 
     fn folder_range(&self) -> Range<u32> {

@@ -10,7 +10,7 @@ use fluent_bundle::FluentValue;
 use super::record_preview::RecordStep;
 use super::table::head_fill;
 use crate::theme::desktop::{
-    CELL_PADDING_X, FOCUS_OFFSET, FOCUS_WIDTH, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE,
+    CELL_PADDING_X, FOCUS_OFFSET, HAIRLINE, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE,
     TABLE_HEAD_TRACKING, TREE_INDENT, TREE_RAIL_OFFSET, ZEBRA,
 };
 use crate::theme::palette;
@@ -332,11 +332,8 @@ fn link_cell(
     };
     ui.painter().galley(link.min, Arc::clone(galley), shown);
     if hovered {
-        ui.painter().hline(
-            link.x_range(),
-            link.bottom(),
-            Stroke::new(FOCUS_WIDTH / 2.0, shown),
-        );
+        ui.painter()
+            .hline(link.x_range(), link.bottom(), Stroke::new(HAIRLINE, shown));
     }
     if response.has_focus() {
         focus_ring(ui, link, palette::PRIMARY, FOCUS_OFFSET);

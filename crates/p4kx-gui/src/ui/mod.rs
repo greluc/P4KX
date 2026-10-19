@@ -14,6 +14,7 @@ mod comparison_lists;
 mod comparison_rows;
 mod comparison_summary;
 mod comparison_table;
+mod container_note;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;

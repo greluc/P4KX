@@ -125,7 +125,17 @@
     "activeBar": {"width": 3, "color": "color-primary", "side": "left", "inset": true},
     "activeColor": "color-white",
     "activeFontWeight": "fw-bold",
-    "overflow": "ellipsis, full path in tooltip"
+    "overflow": "ellipsis, full path in tooltip",
+    "container": {
+      "decision": "D.31",
+      "row": "ordinary tree row after the subfolders of its folder, name unchanged, no icon",
+      "noteGap": 8,
+      "opening": "spinner 14, then Opening label in color-gray-2-text",
+      "unreadable": "color-danger-text, no chevron",
+      "overBudgetOrStopped": "color-warning, chevron kept, expanding retries",
+      "archiveChanged": "color-warning, no chevron",
+      "tooltip": "full reason"
+    }
   },
   "resizeHandle": {
     "thickness": 6,

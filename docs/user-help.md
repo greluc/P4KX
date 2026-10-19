@@ -32,6 +32,24 @@ the window stays responsive while it loads.
 
 The limits are fixed.
 
+## Containers
+
+A socpak container (`.socpak`) is an Entry that holds Entries of its own. In the path tree it
+follows the subfolders of its folder and expands like a folder: expanding or selecting it opens
+it in the background, with a spinner and *Opening…* on its row, and shows its folders and the
+containers inside it, which expand the same way. Selecting a container or one of its folders lists
+its Entries in the table; the search, the checkboxes, **Extract selected…**, **Extract shown…** and
+the preview then work on the Entries of that container, which are written at their paths inside
+it. **Extract all…** always extracts the whole Archive, and a container is not opened by it.
+
+Each container is opened once and kept while the Archive is open. The open containers may hold
+1 GiB of memory together; when another one needs room, containers whose rows are collapsed and
+whose Entries are not shown are closed first, and they open again when expanded. A container that
+cannot be opened says so on its row, *Cannot open* for a corrupt one, *Not opened: memory limit*
+when the open containers need their memory; hovering the row gives the reason. Collapsing a
+container while it opens cancels the opening. When the Archive changes on disk, its containers
+are closed until you reload it.
+
 ## Comparing two Archives
 
 The **Comparison** tab next to **Browse** compares two Archives, for example LIVE against PTU.

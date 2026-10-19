@@ -7,8 +7,8 @@ use p4kx_extraction::Filter;
 
 use crate::EntryIndex;
 
-/// The Entries a Filter matched, indexed by id.
-#[derive(Debug)]
+/// The Entries a Filter matched, indexed by id; by default none.
+#[derive(Debug, Default)]
 pub(crate) struct Matches {
     mask: Vec<bool>,
 }

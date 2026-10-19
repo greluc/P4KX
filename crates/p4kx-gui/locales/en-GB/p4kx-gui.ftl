@@ -347,6 +347,20 @@ image-decoding = Decoding mip { $level } of { $path }…
 image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
 image-failed = Cannot decode { $path }: { $reason }
 image-unshowable = Every mip of { $path } is larger than the preview can show.
+container-opening = Opening…
+container-unreadable = Cannot open
+container-unreadable-detail = Cannot open { $name }: { $reason }
+container-over-budget = Not opened: memory limit
+container-over-budget-detail = { $name } was not opened: the open containers already hold { $limit }. Collapse other containers and expand it again.
+container-stopped = Opening stopped
+container-stopped-detail = Opening { $name } stopped without a result. Expand it again to retry.
+container-archive-changed = Archive changed
+container-archive-changed-detail = The Archive changed on disk. Reload it to open { $name }.
+container-status-entries =
+    { $count ->
+        [one] Container: { $number } Entry
+       *[other] Container: { $number } Entries
+    }
 
 menu-export = Export
 record-export-action = Record export…

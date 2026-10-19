@@ -46,18 +46,20 @@ impl Browser {
     }
 
     pub(super) fn shown_with_parts(&self) -> Vec<u32> {
+        let index = self.shown_index();
         let mut ids = Vec::with_capacity(self.view_len);
         for &id in &self.shown {
             ids.push(id);
-            ids.extend_from_slice(self.index.texture_parts(id));
+            ids.extend_from_slice(index.texture_parts(id));
         }
         ids
     }
 
     pub(super) fn refresh_rows(&mut self) {
+        let index = self.shown_index();
         let mut rows = Vec::with_capacity(self.shown.len());
         for &id in &self.shown {
-            let parts = self.index.texture_parts(id);
+            let parts = index.texture_parts(id);
             if parts.is_empty() {
                 rows.push(EntryRow {
                     id,

@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- socpak containers in the path tree of the window: a container expands like a folder, opened in
+  the background with a spinner and cancelled by collapsing it, and nested containers expand too.
+  Selecting a container lists its Entries for search, preview and the extraction of the selected
+  or shown Entries. Opened containers are kept per Archive within 1 GiB of memory, closing the
+  least recently used collapsed ones first; a corrupt container says so on its row, and a change
+  of the Archive on disk closes them.
 - Audio Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch of
   the window, WEM sounds are written as Ogg (Wwise Vorbis and Opus without re-encoding, WAV for
   other codecs), as WAV or unchanged (`--audio ogg|wav|raw`, the same choice in the Extraction

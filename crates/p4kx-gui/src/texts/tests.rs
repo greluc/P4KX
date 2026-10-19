@@ -55,6 +55,11 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("line", "12".into()),
         ("text", "<a/>".into()),
         ("lines", "4,194,304".into()),
+        ("old", "libs/ships/old".into()),
+        ("new", "libs/ships/new".into()),
+        ("type", "Hull".into()),
+        ("at", "nodes[0]".into()),
+        ("field", "hull.armor".into()),
         ("level", "2".into()),
         ("width", "512".into()),
         ("height", "256".into()),
@@ -62,6 +67,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),
+        ("guid", "cbee34fd-6441-4000-b99f-924f7f26e19f".into()),
     ]
 }
 

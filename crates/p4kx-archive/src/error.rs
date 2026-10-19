@@ -51,6 +51,32 @@ pub enum ArchiveError {
         #[source]
         source: ParseError,
     },
+    /// The offset lies behind the end of the Entry data.
+    #[error("{path}: offset {offset} lies beyond the end of Entry {entry} at {size}")]
+    OffsetBeyondEnd {
+        /// Path of the Archive.
+        path: PathBuf,
+        /// Path of the Entry inside the Archive.
+        entry: String,
+        /// The requested offset.
+        offset: u64,
+        /// The Entry size.
+        size: u64,
+    },
+    /// Reaching the offset in a compressed Entry would decode too much data.
+    #[error(
+        "{path}: Entry {entry} is compressed; reaching offset {offset} would decode more than {limit} bytes"
+    )]
+    SkipTooLong {
+        /// Path of the Archive.
+        path: PathBuf,
+        /// Path of the Entry inside the Archive.
+        entry: String,
+        /// The requested offset.
+        offset: u64,
+        /// [`MAX_DECODED_SKIP`](crate::MAX_DECODED_SKIP).
+        limit: u64,
+    },
     /// A container exceeds a limit that guards against nesting, size and compression bombs.
     #[error("{path} exceeds a container limit: {reason}")]
     LimitExceeded {

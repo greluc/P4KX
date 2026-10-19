@@ -16,8 +16,10 @@ p4kx-archive.workspace = true
 p4kx-audio.workspace = true
 p4kx-chunks.workspace = true
 p4kx-foundation.workspace = true
+p4kx-gfx.workspace = true
 p4kx-dataforge.workspace = true
 p4kx-cryxml.workspace = true
+p4kx-localization.workspace = true
 p4kx-texture.workspace = true
 crc32c.workspace = true
 crc32fast.workspace = true
@@ -31,6 +33,7 @@ p4kx-testkit.workspace = true
 png.workspace = true
 rayon.workspace = true
 roxmltree.workspace = true
+serde_json.workspace = true
 tempfile.workspace = true
 
 [lints]

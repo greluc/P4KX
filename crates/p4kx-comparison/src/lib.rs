@@ -30,7 +30,7 @@ pub use entry_change::{ChangeKind, DirectoryCounts, EntryChange, EntryCounts};
 pub use error::{ComparisonError, LineDiffError};
 pub use line_diff::{DiffBody, LineDiff, NotText, line_diff, line_diff_cancellable};
 pub use options::{CompareOptions, ComparisonProgress, DataForges, Level, Levels};
-pub use owned::{OwnedComparison, OwnedDataForges, RecompareError};
+pub use owned::{OwnedComparison, OwnedDataForges, RecompareError, RecordLookup};
 pub use p4kx_archive::{Archive, ArchiveError, Build, Entry};
 pub use p4kx_cryxml::Signature;
 pub use p4kx_dataforge::{
@@ -39,7 +39,8 @@ pub use p4kx_dataforge::{
 };
 pub use p4kx_extraction::{CancelToken, DataForgeEntry, DataForgeLoadError, Filter};
 pub use record_change::{
-    FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordError, RecordSide, RecordState,
+    FieldChange, RecordChange, RecordChangeKind, RecordCounts, RecordError, RecordKey, RecordSide,
+    RecordState,
 };
 pub use report::{REPORT_FORMAT_VERSION, Report, report_schema};
 pub use text_diff::{DEFAULT_CONTEXT, DiffLine, Hunk, LineKind, TextDiff};

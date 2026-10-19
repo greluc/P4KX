@@ -122,7 +122,7 @@ fn stream(
                     trees: TreeBuilder::new(),
                     json: RecordJson::new(JsonLayout::Compact),
                 },
-                write_part,
+                |scratch, lines| write_part(scratch, lines, options.progress),
             )
             .collect();
         batch_len = next_batch_len(batch.len(), parts.iter().map(|part| part.bytes.len()).sum());
@@ -189,7 +189,11 @@ fn ordered_lines<'r, 'f>(
     lines.extend(selected.into_iter().flatten().map(|record| Line { record }));
     lines
 }
-fn write_part<'r, 'f>(scratch: &mut Scratch<'f>, lines: &[Line<'r, 'f>]) -> Part<'r, 'f> {
+fn write_part<'r, 'f>(
+    scratch: &mut Scratch<'f>,
+    lines: &[Line<'r, 'f>],
+    progress: Option<&(dyn Fn() + Sync)>,
+) -> Part<'r, 'f> {
     let mut part = Part {
         bytes: Vec::new(),
         error_counts: Vec::with_capacity(lines.len()),
@@ -218,6 +222,9 @@ fn write_part<'r, 'f>(scratch: &mut Scratch<'f>, lines: &[Line<'r, 'f>]) -> Part
                 }
             }
             Err(error) => part.failures.push((line.record, error.into())),
+        }
+        if let Some(progress) = progress {
+            progress();
         }
     }
     part

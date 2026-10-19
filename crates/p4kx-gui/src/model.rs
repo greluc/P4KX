@@ -8,9 +8,11 @@ use p4kx_settings::{ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod extraction_control;
+mod record_export_control;
 mod update;
 mod work_tab;
 
+use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
@@ -54,6 +56,7 @@ pub struct Model {
     comparison: ComparisonTab,
     stopped_by_change: bool,
     query: QueryTab,
+    record_export: RecordExportState,
 }
 
 impl std::fmt::Debug for Model {
@@ -77,6 +80,7 @@ impl std::fmt::Debug for Model {
             .field("comparison", &self.comparison)
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
+            .field("record_export", &self.record_export)
             .finish()
     }
 }
@@ -104,6 +108,7 @@ impl Model {
             comparison: ComparisonTab::default(),
             stopped_by_change: false,
             query: QueryTab::default(),
+            record_export: RecordExportState::default(),
         }
     }
 

@@ -1,3 +1,5 @@
+mod follow;
+
 use std::sync::Arc;
 
 use crate::query::reader::{Column, Elements, Reader, Select, Step, Walk};
@@ -24,8 +26,8 @@ enum At {
     Pointer { target: usize },
     /// An array header at the current offset, with elements of `data_type`.
     Array { data_type: DataType, target: u16 },
-    /// A Reference or weak pointer.
-    Link(DataType),
+    /// A Reference or weak pointer at the current offset, declared to link to `target`.
+    Link { data_type: DataType, target: u16 },
     /// A scalar of `size` bytes at the current offset.
     Scalar {
         data_type: DataType,
@@ -72,12 +74,17 @@ pub(crate) fn resolve(
             Segment::Index { index, span } => resolver.elements(Select::Index(*index), *span)?,
             Segment::All(span) => resolver.elements(Select::All, *span)?,
             Segment::Type { name, span } => resolver.typed(name, *span)?,
+            Segment::Follow { arrow, name } => resolver.follow(*arrow, name)?,
         }
-        if !matches!(segment, Segment::Field(_)) {
+        if !matches!(segment, Segment::Field(_) | Segment::Follow { .. }) {
             resolver.name.push_str(&segment.written());
         }
     }
-    let span = path.tail.last().map_or(path.head.span, Segment::span);
+    let span = match path.tail.last() {
+        Some(Segment::Follow { name, .. }) => name.span,
+        Some(segment) => segment.span(),
+        None => path.head.span,
+    };
     resolver.finish(span, path.is_multi_valued())
 }
 
@@ -97,7 +104,7 @@ impl Resolver<'_, '_> {
                 DataType::StrongPointer => At::Pointer {
                     target: usize::from(target),
                 },
-                DataType::WeakPointer | DataType::Reference => At::Link(data_type),
+                DataType::WeakPointer | DataType::Reference => At::Link { data_type, target },
                 _ => At::Scalar {
                     data_type,
                     target,
@@ -144,7 +151,7 @@ impl Resolver<'_, '_> {
                     next,
                 }
             }),
-            At::Link(data_type) => (data_type, |name, owner, data_type, next| {
+            At::Link { data_type, .. } => (data_type, |name, owner, data_type, next| {
                 QueryErrorKind::LinkHasNoFields {
                     name,
                     owner,
@@ -215,7 +222,7 @@ impl Resolver<'_, '_> {
                     size: kind.element_len() as u64,
                 },
             ),
-            Some(kind) => (Elements::Values(kind), At::Link(data_type)),
+            Some(kind) => (Elements::Values(kind), At::Link { data_type, target }),
         };
         self.leave(Step::Array {
             at: self.offset,
@@ -288,9 +295,9 @@ impl Resolver<'_, '_> {
         let data_type = match self.at {
             At::Struct { holds, .. } => holds,
             At::Pointer { .. } => DataType::StrongPointer,
-            At::Link(data_type) | At::Scalar { data_type, .. } | At::Array { data_type, .. } => {
-                data_type
-            }
+            At::Link { data_type, .. }
+            | At::Scalar { data_type, .. }
+            | At::Array { data_type, .. } => data_type,
         };
         self.error(
             |name, owner| QueryErrorKind::NotAnArray {
@@ -332,7 +339,7 @@ impl Resolver<'_, '_> {
             }
             At::Struct { holds, .. } => (holds, false),
             At::Pointer { .. } => (DataType::StrongPointer, false),
-            At::Link(data_type) => (data_type, false),
+            At::Link { data_type, .. } => (data_type, false),
             At::Array { data_type, .. } => (data_type, true),
         };
         Err(self.error(

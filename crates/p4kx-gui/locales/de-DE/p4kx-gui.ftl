@@ -212,6 +212,11 @@ query-rows-failed =
         [one] { $number } Record, { $failed } fehlgeschlagen
        *[other] { $number } Records, { $failed } fehlgeschlagen
     }
+query-unresolved =
+    { $count ->
+        [one] , { $number } nicht aufgelöste Referenz
+       *[other] , { $number } nicht aufgelöste Referenzen
+    }
 query-export-csv = CSV exportieren …
 query-export-json = JSON exportieren …
 query-filter-csv = CSV-Datei
@@ -255,6 +260,39 @@ dataforge-enums = Enums
 dataforge-first-records = Erste Records
 column-type = Typ
 column-record-path = Record-Pfad
+record-change-progress = { $done } von { $total } Records, { $percent } %
+record-change-moved = Verschoben
+record-change-unreadable = Unlesbar
+record-change-moved-path = { $old } zu { $new }
+record-change-no-differences = Kein Record unterscheidet sich zwischen den DataForges.
+record-change-head-field = Feld
+record-change-field-count =
+    { $count ->
+        [one] { $number } Änderung
+       *[other] { $number } Änderungen
+    }
+record-change-loading = Die Felder von { $path } werden verglichen …
+record-change-failed = Die Felder von { $path } lassen sich nicht vergleichen: { $reason }
+record-change-stopped = Der Feldvergleich von { $path } endete ohne Ergebnis.
+record-change-only-new = Den Record gibt es nur im neuen Archiv.
+record-change-only-old = Den Record gibt es nur im alten Archiv.
+record-change-only-path = Nur der Record-Pfad hat sich geändert; die Felder sind gleich.
+record-change-no-field-changes = Kein Feld unterscheidet sich.
+record-change-unreadable-old = Der alte Record lässt sich nicht lesen: { $reason }
+record-change-unreadable-new = Der neue Record lässt sich nicht lesen: { $reason }
+record-change-record-name = Record-Name
+record-change-record-type = Record-Typ
+record-change-value-missing = –
+record-change-value-null = null
+record-change-value-struct = { $type } (Struct)
+record-change-value-array =
+    { $count ->
+        [one] { $number } Element
+       *[other] { $number } Elemente
+    }
+record-change-value-reference-at = { $path } · { $at }
+record-change-value-error = Fehler: { $reason }
+record-change-field-row = { $field }: { $old } zu { $new }
 change-extraction-action-old = Alt extrahieren ({ $number }) …
 change-extraction-action-new = Neu extrahieren ({ $number }) …
 change-extraction-scope-old = Geänderte Einträge des alten Archivs, in ihrer alten Fassung ({ $number })
@@ -284,3 +322,34 @@ container-stopped = Öffnen abgebrochen
 container-stopped-detail = Das Öffnen von { $name } brach ohne Ergebnis ab. Klappe ihn erneut auf, um es noch einmal zu versuchen.
 container-archive-changed = Archiv geändert
 container-archive-changed-detail = Das Archiv hat sich auf der Festplatte geändert. Lade es neu, um { $name } zu öffnen.
+
+menu-export = Export
+record-export-action = Record-Export …
+record-export-title = Records exportieren
+record-export-scope-heading = Records
+record-export-scope-tree = Im Record-Baum ausgewählt: { $name } ({ $number })
+record-export-scope-tree-none = Im Record-Baum ausgewählt (nichts ausgewählt)
+record-export-scope-filter = Filter nach Record-Pfad
+record-export-filter-hint = Glob mit * oder ?, sonst ein beliebiger Teil des Record-Pfads
+record-export-form-heading = Form
+record-export-form-json = JSON, eine Datei je Record unter seinem Record-Pfad
+record-export-form-ndjson = NDJSON, eine Datei { $name } mit einem Record je Zeile
+record-export-start = Export starten
+record-export-running-title = Exportiere Records
+record-export-reading = Lese DataForge …
+record-export-selecting = Wähle Records aus …
+record-export-progress = { $done } von { $total } Records, { $percent } %
+record-export-summary-title = Record-Export abgeschlossen
+record-export-summary-cancelled-title = Record-Export abgebrochen
+record-export-summary-cancelled = Der Record-Export wurde abgebrochen, bevor alle Records geschrieben waren.
+record-export-summary-counts = Records geschrieben { $written }, übersprungen { $skipped }, fehlgeschlagen { $failed }, abgebrochen { $cancelled }
+record-export-summary-errors = Records mit Fehlerwerten: { $erroneous }, Fehlerwerte: { $errors }
+record-export-summary-no-match = Kein Record passt zum Filter.
+record-export-summary-target = Ziel: { $path }
+record-export-summary-file-failed = { $path } lässt sich nicht schreiben: { $reason }
+record-export-summary-failed = Fehlgeschlagen ({ $number })
+record-export-summary-skipped = Übersprungen ({ $number })
+record-export-summary-failure = { $path } ({ $guid }): { $reason }
+record-export-failed-title = Record-Export fehlgeschlagen
+record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
+record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.

@@ -4,9 +4,8 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_chunks::{Chunk, ChunkFile};
-use rayon::prelude::*;
 
-use crate::entry_path::same_entry_path;
+use crate::entry_content::find_entry;
 use crate::output_file::{read_error, write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::sound::read_capped;
@@ -34,11 +33,8 @@ impl ChunkSource {
     /// [`ConversionError::ChunkFile`] when it is no valid chunk file, and another
     /// [`ConversionError`] when it cannot be read.
     pub fn from_archive(archive: &Archive, path: &str) -> Result<Self, ConversionError> {
-        let entry = archive
-            .entries()
-            .par_iter()
-            .find_first(|entry| same_entry_path(entry.path(), path))
-            .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        let entry =
+            find_entry(archive, path).ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         Self::from_entry(archive, entry)
     }
 

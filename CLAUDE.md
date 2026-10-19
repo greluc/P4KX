@@ -48,7 +48,7 @@ Archive, from `P4KX_DATA_P4K_B`).
 
 ## Architecture
 
-- `p4kx-*` crates in three layers (ADR-0003, ADR-0016): format crates depend only on
+- `p4kx-*` crates in three layers (ADR-0003, ADR-0019): format crates depend only on
   `p4kx-foundation` and other format crates, service crates on format crates, front-ends (`p4kx`,
   `p4kx-gui`, `p4kx-mcp`) only on services.
   Never add a dependency against this direction.

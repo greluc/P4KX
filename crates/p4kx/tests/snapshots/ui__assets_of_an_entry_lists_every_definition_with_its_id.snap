@@ -1,0 +1,46 @@
+---
+source: crates/p4kx/tests/ui.rs
+expression: "String::from_utf8(output.stdout)?"
+---
+Movie:        Data\UI\Screens\SWF\Panel.gfx
+Format:       CFX version 10, zlib-compressed, 512 bytes uncompressed
+Stage:        1024 x 768 px, 30 fps, 1 frames
+Exporter:     GFx 0x036F, from Panel
+Tags:         21, 1 unknown, 1 unreadable
+
+  CODE  TAG                               COUNT
+     0  End                                   2
+     1  ShowFrame                             3
+     2  DefineShape                           1
+    21  DefineBitsJPEG2                       1
+    26  PlaceObject2                          2
+    32  DefineShape3                          1
+    36  DefineBitsLossless2                   1
+    39  DefineSprite                          1
+    43  FrameLabel                            1
+    46  DefineMorphShape                      1
+    56  ExportAssets                          1
+    75  DefineFont3                           1
+   777  unknown                               1
+  1000  ExporterInfo                          1
+  1008  DefineSubImage                        1
+  1009  DefineExternalImage2                  2
+
+Shapes: 2
+     4  shape        v3  100 x 50.50 px, 2 edges  -
+     6  morph shape  v1  10 x 10 px, 0 edges  -
+
+Bitmaps: 5
+     1  lossless           2 x 1  argb32  icon_alert
+     2  external           8 x 4  ../Textures/panel_bg.tif  -
+     3  sub_image          4 x 2  of bitmap 2  -
+     5  external         16 x 16  ../Textures/gone.dds  -
+     7  jpeg                   -  opaque  -
+
+Fonts: 1
+     8  DefineFont3              1 glyphs  Electrolize
+
+Sprites: 1
+     9      2 frames, 1 placed  PanelButton
+unknown tag 777 at offset 498, 6 bytes
+unreadable tag 2 at offset 508: unexpected end of data at offset 510: needed 1 bytes, 0 left

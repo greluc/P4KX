@@ -14,6 +14,13 @@ fails while its section is missing.
   per model node with its transform, one primitive per submesh with positions, normals and
   texture coordinates, and one material per material ID. Unknown chunks are skipped and listed.
   Both commands also take a model file on disk with its companion next to it.
+- `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
+  <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
+  movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
+  twips. Compressed (zlib, LZMA) and uncompressed movies are read, unknown tags are kept and
+  counted, a broken tag is reported without failing the movie (exit code 1), and GFx external
+  images are decoded from the DDS textures next to the movie, on disk only inside the movie's
+  `Data` folder. Also for movie files on disk.
 - `p4kx socpak list <archive> <container…>` and `p4kx socpak extract <archive> <container…>`:
   socpak containers, also nested ones, are read from the Archive without extracting them first,
   listed like Archives and extracted with `--filter`, `--out`, `--conflict` and `--convert`.
@@ -29,6 +36,12 @@ fails while its section is missing.
   `archive_info`, `list_entries` and `search_entries`. An Archive is named by Channel or by
   absolute path, per call or with `--archive`; listings page with a cursor, at most 1000 items a
   page. `p4kx-mcp.exe` ships in the portable ZIP and the MSI next to `p4kx.exe`.
+- `p4kx-mcp` tools `read_entry_text` and `read_entry_bytes`: read an Entry in ranges from a byte
+  offset, as text (CryXml converted to XML, UTF-16 by its byte order mark, otherwise UTF-8;
+  binary Entries are an error) or as base64. A range is at most 256 KiB of text or 192 KiB of
+  bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
+  Stored Entries, encrypted or not, are read from the offset directly; compressed ones decode at
+  most 1 GiB to reach it. At most four Entries are decoded whole for text at a time.
 - The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,

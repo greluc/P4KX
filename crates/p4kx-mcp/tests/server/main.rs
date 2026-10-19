@@ -3,7 +3,9 @@
 
 mod archives;
 mod entries;
+mod read;
 mod read_only;
+mod read_text;
 mod real_archive;
 mod reopen;
 mod support;

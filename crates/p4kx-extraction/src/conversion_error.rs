@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use p4kx_archive::ArchiveError;
 use p4kx_audio::{AudioError, BankError};
 use p4kx_chunks::ChunkError;
+use p4kx_gfx::GfxError;
 use p4kx_gltf::GltfError;
 use p4kx_model::ModelError;
 use p4kx_texture::TextureError;
@@ -11,7 +12,7 @@ use thiserror::Error;
 
 use crate::UnknownEntries;
 
-/// A failure to convert a texture or a sound.
+/// A failure to convert a texture, a sound or a UI movie.
 #[derive(Debug, Error)]
 pub enum ConversionError {
     /// The Archive holds no Entry with the requested path.
@@ -123,6 +124,71 @@ pub enum ConversionError {
         bank: String,
         /// The WEM ID.
         id: u32,
+    },
+    /// The UI movie is larger than the limit for reading it into memory.
+    #[error("{movie} is larger than {limit} bytes")]
+    UiMovieTooLarge {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The limit in bytes.
+        limit: u64,
+    },
+    /// The UI movie is no valid GFx or SWF movie.
+    #[error("{movie}")]
+    UiMovie {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// What is wrong.
+        #[source]
+        source: GfxError,
+    },
+    /// A definition of the UI movie cannot be decoded or written.
+    #[error("{movie} definition {id}")]
+    UiAsset {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The ID of the definition.
+        id: u16,
+        /// What is wrong.
+        #[source]
+        source: GfxError,
+    },
+    /// A sub-image cuts a bitmap that is missing or cannot be decoded, or a rectangle outside it.
+    #[error(
+        "{movie} definition {id} cuts bitmap {image_id}, which is missing, cannot be decoded or is smaller"
+    )]
+    UiSubImage {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The ID of the sub-image.
+        id: u16,
+        /// The ID of the bitmap it cuts.
+        image_id: u16,
+    },
+    /// The texture an external image of a UI movie refers to does not exist.
+    #[error("{movie} definition {id} refers to {file}, which does not exist; tried {}", tried.join(", "))]
+    ExternalImageMissing {
+        /// The Entry path or file of the movie.
+        movie: String,
+        /// The ID of the external image.
+        id: u16,
+        /// The file name the movie gives.
+        file: String,
+        /// The Entry paths or files looked for.
+        tried: Vec<String>,
+    },
+    /// The file an external image of a UI movie on disk refers to lies outside the folder it must
+    /// stay in: the nearest ancestor folder named `Data`, or else the movie's folder.
+    #[error("{movie} definition {id} refers to {file}, which lies outside {}; it is not read", root.display())]
+    ExternalImageOutside {
+        /// The file of the movie.
+        movie: String,
+        /// The ID of the external image.
+        id: u16,
+        /// The file name the movie gives.
+        file: String,
+        /// The folder the file must stay in.
+        root: PathBuf,
     },
     /// The chunk file is larger than the limit for reading it into memory.
     #[error("{file} is larger than {limit} bytes")]

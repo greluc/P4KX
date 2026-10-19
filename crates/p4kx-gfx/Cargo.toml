@@ -1,0 +1,29 @@
+[package]
+name = "p4kx-gfx"
+description = "Reads the GFx and SWF user-interface movies of Star Citizen Archives."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.p4kx]
+layer = "format"
+
+[dependencies]
+flate2.workspace = true
+lzma-rs.workspace = true
+p4kx-foundation.workspace = true
+png.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zune-core.workspace = true
+zune-jpeg.workspace = true
+
+[dev-dependencies]
+p4kx-testkit.workspace = true
+
+[lints]
+workspace = true

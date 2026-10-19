@@ -1,5 +1,5 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
-//! texture, audio, chunk file and model APIs front-ends use.
+//! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -9,6 +9,7 @@ mod convert;
 mod dataforge;
 mod dataforge_convert;
 mod dependent;
+mod entry_content;
 mod entry_path;
 mod extract;
 mod filter;
@@ -18,6 +19,7 @@ mod model_source;
 mod options;
 mod output_file;
 mod path_index;
+mod pixel_budget;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -29,6 +31,7 @@ mod report;
 mod selection;
 mod sound;
 mod target;
+mod text_window;
 mod texture;
 mod texture_convert;
 mod texture_exr;
@@ -40,6 +43,11 @@ mod texture_png;
 mod texture_preview;
 mod texture_siblings;
 mod tracker;
+mod ui_disk_path;
+mod ui_external;
+mod ui_extract;
+mod ui_jobs;
+mod ui_movie;
 mod watch;
 mod write;
 
@@ -47,6 +55,10 @@ pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, W
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
+pub use entry_content::{
+    EntryBytes, EntryReadError, EntryText, MIN_TEXT_LEN, TextEncoding, find_entry, read_bytes,
+    read_text,
+};
 pub use extract::extract;
 pub use filter::Filter;
 pub use localization::{LocalizationEntry, LocalizationLoadError};
@@ -72,6 +84,7 @@ pub use p4kx_dataforge::{
     RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
     ValueKind,
 };
+pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
     GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
@@ -99,4 +112,6 @@ pub use target::{create_default_target, default_target_name, utc_rfc3339};
 pub use texture::Texture;
 pub use texture_exr::ExrReport;
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
+pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

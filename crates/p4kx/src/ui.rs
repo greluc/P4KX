@@ -7,14 +7,17 @@ use p4kx_extraction::{Archive, UiMovie};
 use crate::cli::{UiAction, UiArgs};
 use crate::ui_extract::extract;
 use crate::ui_json::{AssetsJson, describe};
+use crate::ui_render::render;
 use crate::{exit, json};
 
 const NONE: &str = "-";
 
-/// Runs `p4kx ui assets` or `p4kx ui extract`.
+/// Runs `p4kx ui assets`, `p4kx ui extract` or `p4kx ui render`.
 pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
     let source = match &args.action {
-        UiAction::Assets(source) | UiAction::Extract { source, .. } => source,
+        UiAction::Assets(source)
+        | UiAction::Extract { source, .. }
+        | UiAction::Render { source, .. } => source,
     };
     let archive;
     let movie = match &source.entry {
@@ -40,6 +43,12 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             }))
         }
         UiAction::Extract { out, .. } => extract(&movie, out, as_json),
+        UiAction::Render {
+            out,
+            size,
+            background,
+            ..
+        } => render(&movie, out, *size, *background, as_json),
     }
 }
 

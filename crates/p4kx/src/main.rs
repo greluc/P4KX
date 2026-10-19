@@ -40,6 +40,7 @@ mod texture_image;
 mod ui;
 mod ui_extract;
 mod ui_json;
+mod ui_render;
 
 use std::io::{self, Write};
 use std::process::ExitCode;

@@ -178,6 +178,13 @@ Early development (milestone M1). Available today:
   movie (on disk only inside the movie's `Data` folder), a sub-image is cut from its bitmap.
   Both also take a movie file on disk, compressed (`CWS`, `CFX`, `ZWS`) or not (`FWS`,
   `GFX`).
+- `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
+  transparent|movie|#RRGGBB[AA]]` renders the first frame of a UI movie, with its sprites, as a
+  PNG: shapes with solid, gradient and bitmap fills (external images included) and strokes, with
+  the transforms, colour transforms and masks of their placements, and morph shapes at their
+  ratio. `--size` with both sides fits the stage centred into them, with one side keeps its
+  aspect ratio; the default is the stage size. Texts, buttons and videos are skipped, filters and
+  blend modes are not applied, and every element left out is listed (exit code 1).
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

@@ -200,6 +200,7 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
                 | ConversionError::NoSuchFile { .. }
                 | ConversionError::OutputIsInput { .. }
                 | ConversionError::NoSuchChunk { .. }
+                | ConversionError::UiCanvas { .. }
                 | ConversionError::Texture {
                     source: TextureError::NoSuchMip { .. },
                     ..

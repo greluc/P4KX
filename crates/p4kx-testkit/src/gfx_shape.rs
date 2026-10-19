@@ -1,4 +1,5 @@
 use crate::gfx::{BitWriter, rect, signed_bits, translation};
+use crate::gfx_place::write_matrix;
 
 /// A fill style of a [`TestShape`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,6 +10,43 @@ pub enum TestFill {
     Linear([u8; 4], [u8; 4]),
     /// A repeating, smoothed bitmap fill of the bitmap with this ID, moved by (x, y) twips.
     Bitmap(u16, i32, i32),
+    /// A gradient of the first colour at ratio 0 and the second at 255, laid out as the [`TestGradient`] says.
+    Gradient([u8; 4], [u8; 4], TestGradient),
+    /// A bitmap fill of the bitmap `id`, `scale` twips per pixel, its corner at `at`.
+    ScaledBitmap {
+        /// The ID of the bitmap.
+        id: u16,
+        /// The twips per bitmap pixel.
+        scale: i32,
+        /// The position of its top left corner in twips.
+        at: (i32, i32),
+        /// Whether it repeats.
+        repeating: bool,
+        /// Whether it is smoothed.
+        smoothed: bool,
+    },
+}
+
+/// How a [`TestFill::Gradient`] lies on its shape.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestGradient {
+    /// A linear gradient from x to x + width twips, along the x axis.
+    Linear {
+        /// The start in twips.
+        x: i32,
+        /// The length in twips.
+        width: i32,
+    },
+    /// A radial gradient around a centre with a radius in twips; `focal` moves its focal point,
+    /// 256 being the right edge, and makes it a focal gradient when not 0.
+    Radial {
+        /// The centre in twips.
+        center: (i32, i32),
+        /// The radius in twips.
+        radius: i32,
+        /// The focal point in 8.8 fixed point.
+        focal: i16,
+    },
 }
 
 /// A record of a [`TestShape`].
@@ -151,6 +189,61 @@ fn write_fill(bits: &mut BitWriter, fill: TestFill, alpha: bool) {
             bits.bytes(&id.to_le_bytes());
             translation(bits, x, y);
         }
+        TestFill::Gradient(start, end, layout) => {
+            write_gradient(bits, (start, end), layout, alpha);
+        }
+        TestFill::ScaledBitmap {
+            id,
+            scale,
+            at,
+            repeating,
+            smoothed,
+        } => {
+            bits.bytes(&[0x40 | u8::from(!repeating) | u8::from(!smoothed) << 1]);
+            bits.bytes(&id.to_le_bytes());
+            let factor = ratio(scale, 1);
+            write_matrix(bits, [factor, factor, 0.0, 0.0], at);
+        }
+    }
+}
+
+fn ratio(numerator: i32, denominator: i32) -> f32 {
+    #[expect(clippy::cast_precision_loss, reason = "test sizes are small")]
+    let value = numerator as f32 / denominator as f32;
+    value
+}
+
+fn write_gradient(
+    bits: &mut BitWriter,
+    (start, end): ([u8; 4], [u8; 4]),
+    layout: TestGradient,
+    alpha: bool,
+) {
+    match layout {
+        TestGradient::Linear { x, width } => {
+            bits.bytes(&[0x10]);
+            let scale = ratio(width, 32_768);
+            write_matrix(bits, [scale, scale, 0.0, 0.0], (x + width / 2, 0));
+        }
+        TestGradient::Radial {
+            center,
+            radius,
+            focal,
+        } => {
+            bits.bytes(&[if focal == 0 { 0x12 } else { 0x13 }]);
+            let scale = ratio(radius, 16_384);
+            write_matrix(bits, [scale, scale, 0.0, 0.0], center);
+        }
+    }
+    bits.bytes(&[0x02]);
+    bits.bytes(&[0]);
+    write_color(bits, start, alpha);
+    bits.bytes(&[255]);
+    write_color(bits, end, alpha);
+    if let TestGradient::Radial { focal, .. } = layout
+        && focal != 0
+    {
+        bits.bytes(&focal.to_le_bytes());
     }
 }
 

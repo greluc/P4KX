@@ -170,7 +170,8 @@ impl UiMovie<'_> {
         outcomes
     }
 
-    fn decode_bitmap<'b>(
+    /// Decodes a bitmap that is no sub-image within the pixel budget.
+    pub(crate) fn decode_bitmap<'b>(
         &self,
         assets: &Assets<'_>,
         bitmap: &Bitmap<'_>,

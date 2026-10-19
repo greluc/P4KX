@@ -223,6 +223,17 @@ A bitmap of a GFx UI movie stored outside it, as a texture file named relative t
 game ships it as DDS even where the movie names a TIFF or TGA.
 _Avoid_: linked image, imported bitmap
 
+**Placement**:
+A definition put on a timeline of a UI movie at a depth, with a transform, a colour transform
+and, for a mask, the depths it clips; the placements of a frame form its display list.
+_Avoid_: instance
+
+**Scene**:
+A frame of a UI movie composed into drawing instructions independent of the output: each shape
+once, its placements with transforms, colour transforms and masks, and what was skipped. It is
+rasterised to PNG.
+_Avoid_: render tree, stage (the stage is the area of the movie)
+
 ### Operations
 
 **Extraction**:

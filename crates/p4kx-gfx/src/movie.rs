@@ -1,6 +1,8 @@
 use crate::GfxError;
 use crate::assets::Assets;
 use crate::header::{Header, read_movie};
+use crate::scene::Scene;
+use crate::scene_compose::Composer;
 use crate::walker::Walker;
 
 /// A GFx or SWF movie, decompressed in memory.
@@ -49,5 +51,14 @@ impl Movie {
     #[must_use]
     pub fn assets(&self) -> Assets<'_> {
         Walker::read(self.data.get(self.tags..).unwrap_or_default(), self.tags)
+    }
+
+    /// Composes the first frame of the main timeline from `assets`, read from this movie, into
+    /// a scene on its stage.
+    ///
+    /// Placements that cannot be drawn are skipped and listed in [`Scene::skipped`].
+    #[must_use]
+    pub fn first_frame(&self, assets: &Assets<'_>) -> Scene {
+        Composer::compose(assets, self.header.frame_size)
     }
 }

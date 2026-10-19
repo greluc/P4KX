@@ -1,4 +1,7 @@
+use std::collections::BTreeMap;
+
 use crate::GfxError;
+use crate::place::{PlaceCommand, Placement};
 use crate::tag::Tag;
 
 const PLACE_HAS_CHARACTER: u8 = 0x02;
@@ -6,7 +9,7 @@ const PLACE3_HAS_CLASS_NAME: u8 = 0x08;
 const PLACE3_HAS_IMAGE: u8 = 0x10;
 
 /// A sprite: a movie clip with its own timeline, defined under an ID.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Sprite {
     /// The ID of the sprite.
     pub id: u16,
@@ -17,7 +20,7 @@ pub struct Sprite {
 }
 
 /// What a timeline holds: its frames, labels and the definitions it places.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Timeline {
     /// The `ShowFrame` tags.
     pub frames: u32,
@@ -25,15 +28,42 @@ pub struct Timeline {
     pub labels: Vec<String>,
     /// The IDs of the definitions placed on it, each once, in ascending order.
     pub placed: Vec<u16>,
+    /// The display list of the first frame in ascending depth order.
+    pub first_frame: Vec<Placement>,
     /// The tags, End included.
     pub tag_count: u32,
 }
 
+/// The display list a timeline builds up to the end of its first frame.
+#[derive(Debug, Default)]
+pub(crate) struct DisplayList(BTreeMap<u16, Placement>);
+
+impl DisplayList {
+    /// Applies a `PlaceObject` tag.
+    pub(crate) fn place(&mut self, command: PlaceCommand) {
+        let depth = command.depth;
+        if let Some(placement) = command.apply(self.0.remove(&depth)) {
+            self.0.insert(depth, placement);
+        }
+    }
+
+    /// Applies a `RemoveObject` or `RemoveObject2` tag.
+    pub(crate) fn remove(&mut self, tag: &Tag<'_>) -> Result<(), GfxError> {
+        let mut reader = tag.reader();
+        if tag.code == 5 {
+            reader.u16()?;
+        }
+        self.0.remove(&reader.u16()?);
+        Ok(())
+    }
+}
+
 impl Timeline {
-    /// Sorts the placed IDs and removes repeats once the timeline is read.
-    pub(crate) fn finish(&mut self) {
+    /// Sorts the placed IDs, removes repeats and keeps the first frame once the timeline is read.
+    pub(crate) fn finish(&mut self, display_list: DisplayList) {
         self.placed.sort_unstable();
         self.placed.dedup();
+        self.first_frame = display_list.0.into_values().collect();
     }
 }
 

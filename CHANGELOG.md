@@ -8,6 +8,14 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
+  transparent|movie|#RRGGBB[AA]]`: renders the first frame of a UI movie with its sprites as a
+  PNG, drawn with tiny-skia. Shapes with solid, gradient and bitmap fills (external images and
+  sub-images included) and strokes are drawn with the transforms, colour transforms and masks
+  of their placements, morph shapes at their ratio. Texts, buttons and videos are skipped,
+  filters and blend modes are not applied, and every element left out is listed with its
+  reason, plain or with `--json` (exit code 1). Placements, paths, masks, gradient stops, sprite
+  nesting and the canvas size are bounded. Also for movie files on disk.
 - `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
   <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
   movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in

@@ -105,6 +105,11 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx wwise resolve <archive> <trigger>` lists every sound variant of an audio trigger with
+  its soundbank, WEM ID, source and container path, e.g. `Play_QDrive_Spool in SSQD_QDrive.bnk:
+  WEM 98393519 embedded, not located; event 2178236557 > action 98720655 > blend 228967944 > …`;
+  broken links are listed with the object where the chain breaks, and `--json` gives the shape in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are

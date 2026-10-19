@@ -17,6 +17,7 @@ mod cryxml;
 mod dataforge_builder;
 mod dataforge_instances;
 mod dataforge_schema;
+mod dataforge_strings;
 mod dataforge_value;
 mod entity;
 mod entity_sample;

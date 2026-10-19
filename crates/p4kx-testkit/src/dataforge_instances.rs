@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use crate::bytes::put_u32;
-use crate::dataforge_builder::{Writer, guid_bytes};
+use crate::dataforge_builder::Writer;
 use crate::dataforge_schema::{TestPool, TestProperty, TestType};
+use crate::dataforge_strings::guid_bytes;
 use crate::{TestInstance, TestValue};
 
 const NULL: u32 = u32::MAX;
@@ -231,6 +232,7 @@ impl Writer<'_> {
             name: String::new(),
             ty: ty.clone(),
             array: false,
+            flags: 0,
         };
         let first = if let TestType::Class(name) = ty {
             let index = self.lookup(name);

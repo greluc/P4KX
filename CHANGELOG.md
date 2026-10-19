@@ -8,6 +8,15 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
+  transparent|movie|#RRGGBB[AA]]`: renders the first frame of a UI movie with its sprites as a
+  PNG, drawn with tiny-skia. Shapes with solid, gradient and bitmap fills (external images and
+  sub-images included) and strokes are drawn with the transforms, colour transforms and masks
+  of their placements, morph shapes at their ratio. Texts, buttons and videos are skipped,
+  filters and blend modes are not applied, and every element left out is listed with its
+  reason, plain or with `--json` (exit code 1). Placements, paths, shape conversions, masks,
+  gradient stops, sprite nesting, the canvas size and the area the fills cover (64 times the
+  canvas) are bounded. Also for movie files on disk.
 - `p4kx-mcp` DataForge tools: `get_record` returns a Record by GUID, or every Record of a record
   path, as Record JSON; `search_records` finds Records by record path and type name with Filters,
   in Record order; `list_structs` and `list_enums` list the struct definitions with parent and

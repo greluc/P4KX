@@ -1,6 +1,7 @@
 use crate::GfxError;
 use crate::bitmap::{Bitmap, BitmapSource};
 use crate::font::Font;
+use crate::geometry::Rgba;
 use crate::image::RgbaImage;
 use crate::jpeg::{decode_jpeg, jpeg_size};
 use crate::lossless::decode_lossless;
@@ -37,8 +38,21 @@ pub struct Assets<'a> {
     pub exporter_info: Option<ExporterInfo>,
     /// The JPEG tables `DefineBits` images share.
     pub jpeg_tables: Option<&'a [u8]>,
+    /// The buttons, texts and videos in file order, whose tags are not read beyond their ID.
+    pub other_definitions: Vec<OtherDefinition>,
+    /// The background colour of the first `SetBackgroundColor` tag.
+    pub background: Option<Rgba>,
     /// The tags that could not be read.
     pub failures: Vec<TagFailure>,
+}
+
+/// A definition whose tag is not read beyond its ID: a button, a text or a video.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct OtherDefinition {
+    /// The ID of the definition.
+    pub id: u16,
+    /// The code of its tag.
+    pub code: u16,
 }
 
 /// How often one tag code occurs.

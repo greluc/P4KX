@@ -56,6 +56,14 @@ impl TestMovie {
         }
     }
 
+    /// Sets the stage size in pixels.
+    #[must_use]
+    pub const fn stage(mut self, width: i32, height: i32) -> Self {
+        self.width = width * 20;
+        self.height = height * 20;
+        self
+    }
+
     /// Sets the frame count the header declares.
     #[must_use]
     pub const fn frame_count(mut self, frame_count: u16) -> Self {

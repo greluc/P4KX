@@ -7,7 +7,10 @@ use crate::guid_text::CatalogGuid;
 
 pub(crate) use crate::contract_entities::{Item, Ship};
 
-/// The version of the catalog shape; it grows with every change of the shape.
+/// The version of the catalog shape.
+///
+/// Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
+/// until M3 is complete; from then on every change of the shape raises it.
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// The Basetool catalog: the game data the basetool's P4K import reads.

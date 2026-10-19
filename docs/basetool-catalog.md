@@ -5,7 +5,8 @@ is the JSON Schema (draft 2020-12) in
 [`schemas/basetool-catalog.schema.json`](../schemas/basetool-catalog.schema.json), generated from
 the Rust types in `crates/p4kx-export/src/contract.rs`. A test fails when the checked-in schema and
 the types drift apart; `P4KX_BLESS=1 cargo test -p p4kx-export --test catalog_schema` regenerates
-it. Every change of the shape raises `schemaVersion`.
+it. Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
+until M3 is complete; from then on every change of the shape raises `schemaVersion`.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
@@ -29,7 +30,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `completeness.<kind>` | `{"status": "complete"}`, or `{"status": "partial", "filter": "…"}` when a Filter selected the Records |
 | `manufacturers` | The manufacturers, ordered by GUID |
 | `items` | The items, ordered by GUID |
-| `ships` | The ships, ordered by GUID |
+| `ships` | The ships and ground vehicles, ordered by GUID |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -65,7 +66,7 @@ DataForge field carries it: it is read from the first line of the English `descr
 starts with `Class:`, its value trimmed of white space and matched ignoring case. Any other value
 (FPS weapons use the line for the damage type, e.g. `Ballistic`), an item without that line and
 an item without an English description leave it `null`. `p4kx catalog` counts the items with a
-class, with another value and without the line.
+class, with another value, and without the line or an English description.
 
 A ship takes its fields from `VehicleComponentParams`:
 
@@ -111,7 +112,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` (
 |------|--------------------|------|
 | `manufacturers` | `libs/foundry/records/scitemmanufacturer/` | `SCItemManufacturer` |
 | `items` | `libs/foundry/records/entities/scitem/`, `libs/foundry/records/entities/legacyitems/` | `EntityClassDefinition` |
-| `ships` | `libs/foundry/records/entities/spaceships/` | `EntityClassDefinition` |
+| `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
 
 An item without an `SAttachableComponentParams` component, such as a door or a shop counter, is
 still an item; its definition fields are then `null` and `tags` is empty.

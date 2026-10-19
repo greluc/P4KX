@@ -73,6 +73,40 @@ pub(crate) const ITEMS: [ItemSpec; 7] = [
 ];
 
 const SHIP: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0001;
+const ROVER: u128 = 0x9300_0000_0000_4000_8000_0000_0000_0004;
+
+/// How the items and ships of the fixture give their manufacturer.
+#[derive(Clone, Copy)]
+pub(crate) enum Maker {
+    /// A Reference to the manufacturer Record.
+    Reference,
+    /// A strong pointer owning an embedded manufacturer instance.
+    StrongPointer,
+    /// A weak pointer to a manufacturer instance.
+    WeakPointer,
+}
+
+impl Maker {
+    fn field_type(self) -> TestType {
+        match self {
+            Self::Reference => TestType::Reference,
+            Self::StrongPointer => pointer("SCItemManufacturer"),
+            Self::WeakPointer => TestType::WeakPointer("SCItemManufacturer".to_owned()),
+        }
+    }
+
+    fn value(self) -> TestValue {
+        match self {
+            Self::Reference => TestValue::Reference(ACAS),
+            Self::StrongPointer => TestValue::Struct(
+                TestInstance::new("SCItemManufacturer").value("Code", TestValue::text("ACAS")),
+            ),
+            Self::WeakPointer => TestValue::pointer(MAKER_INSTANCE),
+        }
+    }
+}
+
+const MAKER_INSTANCE: &str = "maker";
 const SHIP_TEMPLATE: u128 = 0x9100_0000_0000_4000_8000_0000_0000_0002;
 const LANDING_GEAR: u128 = 0x9200_0000_0000_4000_8000_0000_0000_0003;
 
@@ -88,7 +122,7 @@ fn component(name: &str) -> TestStruct {
     TestStruct::new(name).parent("DataForgeComponentParams")
 }
 
-fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
+fn structures(builder: DataForgeBuilder, maker: Maker) -> DataForgeBuilder {
     [
         TestStruct::new("SCItemLocalization")
             .field("Name", TestType::Locale)
@@ -107,7 +141,7 @@ fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             .field("Size", TestType::Int32)
             .field("Grade", TestType::Int32)
             .field("Tags", TestType::String)
-            .field("Manufacturer", TestType::Reference)
+            .field("Manufacturer", maker.field_type())
             .field("Localization", class("SCItemLocalization")),
         component("SEntityPhysicsControllerParams")
             .field("PhysType", pointer("SEntityPhysicsControllerParamsBase")),
@@ -123,7 +157,7 @@ fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             .field("vehicleDescription", TestType::Locale)
             .field("vehicleCareer", TestType::Locale)
             .field("vehicleRole", TestType::Locale)
-            .field("manufacturer", TestType::Reference),
+            .field("manufacturer", maker.field_type()),
         TestStruct::new("VehicleLandingGearSystem").field("Name", TestType::String),
     ]
     .into_iter()
@@ -138,7 +172,7 @@ fn localization(name: &str, description: &str) -> TestValue {
     )
 }
 
-fn attach(spec: &ItemSpec) -> TestValue {
+fn attach(spec: &ItemSpec, maker: Maker) -> TestValue {
     TestValue::Struct(
         TestInstance::new("SAttachableComponentParams").value(
             "AttachDef",
@@ -149,7 +183,7 @@ fn attach(spec: &ItemSpec) -> TestValue {
                     .value("Size", TestValue::Int32(1))
                     .value("Grade", TestValue::Int32(3))
                     .value("Tags", TestValue::text(" flightReady  $Small "))
-                    .value("Manufacturer", TestValue::Reference(ACAS))
+                    .value("Manufacturer", maker.value())
                     .value(
                         "Localization",
                         localization(&format!("@item_Name{}", spec.class), spec.description),
@@ -182,11 +216,11 @@ fn entity(guid: u128, class: &str, path: &str, components: Vec<TestValue>) -> Te
     .value("Components", TestValue::Array(components))
 }
 
-fn item(spec: &ItemSpec) -> TestRecord {
+fn item(spec: &ItemSpec, maker: Maker) -> TestRecord {
     let components = if spec.attach {
         vec![
             physics(125.5),
-            attach(spec),
+            attach(spec, maker),
             TestValue::Struct(TestInstance::new("SCItemPurchasableParams").value(
                 "displayType",
                 TestValue::text("@item_DisplayType_PowerPlant"),
@@ -198,7 +232,7 @@ fn item(spec: &ItemSpec) -> TestRecord {
     entity(spec.guid, spec.class, spec.path, components)
 }
 
-fn ship(guid: u128, class: &str, path: &str) -> TestRecord {
+fn ship(guid: u128, class: &str, path: &str, maker: Maker) -> TestRecord {
     entity(
         guid,
         class,
@@ -220,18 +254,23 @@ fn ship(guid: u128, class: &str, path: &str) -> TestRecord {
                     TestValue::text("@vehicle_focus_transporter"),
                 )
                 .value("vehicleRole", TestValue::text("@LOC_PLACEHOLDER"))
-                .value("manufacturer", TestValue::Reference(ACAS)),
+                .value("manufacturer", maker.value()),
         )],
     )
 }
 
-/// Returns the DataForge of the fixture.
-pub(crate) fn database() -> DataForgeBuilder {
+/// Returns the DataForge of the fixture, whose items and ships give their manufacturer as `maker`.
+pub(crate) fn database(maker: Maker) -> DataForgeBuilder {
     let builder = structures(
         DataForgeBuilder::new()
             .version(8)
             .enumeration("EItemType", ["PowerPlant"])
             .enumeration("EItemSubType", ["Power"]),
+        maker,
+    )
+    .instance(
+        MAKER_INSTANCE,
+        TestInstance::new("SCItemManufacturer").value("Code", TestValue::text("ACAS")),
     )
     .record(
         TestRecord::new(
@@ -246,11 +285,18 @@ pub(crate) fn database() -> DataForgeBuilder {
             localization("@manufacturer_NameACAS", "@manufacturer_DescACAS"),
         ),
     )
-    .record(ship(SHIP, "ACAS_Ship", "spaceships/acas_ship"))
+    .record(ship(SHIP, "ACAS_Ship", "spaceships/acas_ship", maker))
+    .record(ship(
+        ROVER,
+        "ACAS_Rover",
+        "groundvehicles/acas_rover",
+        maker,
+    ))
     .record(ship(
         SHIP_TEMPLATE,
         "ACAS_Ship_Template",
         "spaceships/acas_ship_template",
+        maker,
     ))
     .record(
         TestRecord::new(
@@ -263,7 +309,7 @@ pub(crate) fn database() -> DataForgeBuilder {
     );
     ITEMS
         .iter()
-        .fold(builder, |builder, spec| builder.record(item(spec)))
+        .fold(builder, |builder, spec| builder.record(item(spec, maker)))
 }
 
 /// Returns the English `global.ini` of the fixture.
@@ -290,13 +336,23 @@ pub(crate) fn english() -> TestEntry {
 
 /// Writes the fixture Archive with `texts` into `dir` and returns its path.
 pub(crate) fn write_archive(dir: &Path, texts: &[TestEntry]) -> Result<PathBuf, Box<dyn Error>> {
+    write_archive_with(dir, texts, Maker::Reference)
+}
+
+/// Writes the fixture Archive with `texts`, whose manufacturers are given as `maker`, into `dir`
+/// and returns its path.
+pub(crate) fn write_archive_with(
+    dir: &Path,
+    texts: &[TestEntry],
+    maker: Maker,
+) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     texts
         .iter()
         .cloned()
         .fold(
             ArchiveBuilder::new()
-                .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted()),
+                .entry(TestEntry::zstd("Data\\Game2.dcb", database(maker).build()).encrypted()),
             ArchiveBuilder::entry,
         )
         .write_to(&path)?;

@@ -204,7 +204,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let classes = summary.item_classes();
     writeln!(
         stdout,
-        "item classes: {} read, {} other values, {} without a Class: line",
+        "item classes: {} read, {} other values, {} without a Class: line or English description",
         classes.classified, classes.other, classes.missing
     )?;
     for text in summary.texts() {

@@ -6,7 +6,7 @@ mod catalog_fixture;
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use catalog_fixture::{english, write_archive};
+use catalog_fixture::{Maker, english, write_archive, write_archive_with};
 use p4kx_export::{
     BuiltCatalog, CatalogOptions, Filter, ItemClass, ItemClassSummary, Kind, build_catalog,
 };
@@ -27,6 +27,54 @@ fn catalog_with(options: &CatalogOptions<'_>) -> Result<(BuiltCatalog, Value), B
     let built = build_catalog(&archive, options)?;
     let json = serde_json::from_slice(built.json())?;
     Ok((built, json))
+}
+
+fn catalog_of(maker: Maker) -> Result<Value, Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archive = Archive::open(write_archive_with(dir.path(), &[english()], maker)?)?;
+    let built = build_catalog(&archive, &options())?;
+    Ok(serde_json::from_slice(built.json())?)
+}
+
+fn manufacturer_guids<'c>(catalog: &'c Value, kind: &str) -> Vec<&'c Value> {
+    catalog[kind]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter(|entry| entry["className"] != "Counter_Shop")
+                .map(|entry| &entry["manufacturerGuid"])
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn a_manufacturer_given_by_reference_is_its_guid() -> TestResult {
+    let catalog = catalog_of(Maker::Reference)?;
+    for kind in ["items", "ships"] {
+        let guids = manufacturer_guids(&catalog, kind);
+        assert!(!guids.is_empty(), "{kind} present");
+        assert!(
+            guids
+                .iter()
+                .all(|guid| **guid == "10000000-0000-4000-8000-000000000001"),
+            "{kind}: {guids:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_manufacturer_given_by_a_strong_or_weak_pointer_is_null() -> TestResult {
+    for maker in [Maker::StrongPointer, Maker::WeakPointer] {
+        let catalog = catalog_of(maker)?;
+        for kind in ["items", "ships"] {
+            let guids = manufacturer_guids(&catalog, kind);
+            assert!(!guids.is_empty(), "{kind} present");
+            assert!(guids.iter().all(|guid| guid.is_null()), "{kind}: {guids:?}");
+        }
+    }
+    Ok(())
 }
 
 fn class_names<'c>(catalog: &'c Value, kind: &str) -> Vec<&'c str> {
@@ -172,13 +220,18 @@ fn the_item_classes_are_the_options_of_e_item_class() {
 }
 
 #[test]
-fn ships_are_entity_class_definitions_under_spaceships_without_leftovers() -> TestResult {
+fn ships_are_entity_class_definitions_under_spaceships_and_groundvehicles_without_leftovers()
+-> TestResult {
     let (built, catalog) = catalog_with(&options())?;
-    assert_eq!(class_names(&catalog, "ships"), ["ACAS_Ship"], "the ship");
+    assert_eq!(
+        class_names(&catalog, "ships"),
+        ["ACAS_Ship", "ACAS_Rover"],
+        "the ship and the ground vehicle, by GUID"
+    );
     let kind = built.summary().kind(Kind::Ships);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((1, 1, true)),
+        Some((2, 1, true)),
         "the template is skipped"
     );
     Ok(())

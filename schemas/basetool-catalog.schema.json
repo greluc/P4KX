@@ -318,7 +318,7 @@
     },
     "Ship": {
       "additionalProperties": false,
-      "description": "A ship: an `EntityClassDefinition` Record under `entities/spaceships`.",
+      "description": "A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or\n`entities/groundvehicles`.",
       "properties": {
         "career": {
           "$ref": "#/$defs/LocalisedText",

@@ -21,7 +21,8 @@ pub enum Kind {
     Manufacturers,
     /// Items: `EntityClassDefinition` Records under `entities/scitem` and `entities/legacyitems`.
     Items,
-    /// Ships: `EntityClassDefinition` Records under `entities/spaceships`.
+    /// Ships and ground vehicles: `EntityClassDefinition` Records under `entities/spaceships` and
+    /// `entities/groundvehicles`.
     Ships,
 }
 
@@ -55,7 +56,10 @@ impl Kind {
                 type_name: "EntityClassDefinition",
             },
             Self::Ships => KindRule {
-                prefixes: &["libs/foundry/records/entities/spaceships/"],
+                prefixes: &[
+                    "libs/foundry/records/entities/spaceships/",
+                    "libs/foundry/records/entities/groundvehicles/",
+                ],
                 type_name: "EntityClassDefinition",
             },
         }
@@ -87,6 +91,7 @@ impl fmt::Display for Kind {
 
 /// How the Records of one kind are selected: by record-path prefix and by type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct KindRule {
     /// The starts of the record path of which one must match, ignoring ASCII case and the kind
     /// of separator.

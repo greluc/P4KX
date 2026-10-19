@@ -235,14 +235,14 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 19257967, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
- {"kind": "ships", "count": 1048, "skipped": 56, "complete": true}], "skipped": 1183,
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
  "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37388, "unresolved": 160,
- "placeholder": 22086}, {"language": "de", "available": true, "resolved": 24982,
- "unresolved": 12566, "placeholder": 22086}], "unresolved": 12726}
+ "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
+ "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
+ "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
@@ -250,7 +250,8 @@ in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limi
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
 them. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
-holds another value (`other`) or is missing (`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+holds another value (`other`) or is missing, also for an item without an English description
+(`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands

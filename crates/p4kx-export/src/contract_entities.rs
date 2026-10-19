@@ -43,7 +43,8 @@ pub(crate) struct Item<'a> {
     pub(crate) class: Option<ItemClass>,
 }
 
-/// A ship: an `EntityClassDefinition` Record under `entities/spaceships`.
+/// A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or
+/// `entities/groundvehicles`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(transform = every_field_required)]

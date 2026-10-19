@@ -1,5 +1,5 @@
 //! The line diff of the Comparison tab over two real Archives; runs with `--ignored` when
-//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them.
+//! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them, and skips without the second.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -10,7 +10,7 @@ use p4kx_comparison::ChangeKind;
 use p4kx_gui::{
     ComparisonSide, ComparisonTab, ComparisonView, DiffStatus, Language, Model, WorkTab, ui,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use p4kx_testkit::real_archive_pair;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -55,11 +55,14 @@ fn changed_xml(view: &ComparisonView) -> Vec<u32> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> TestResult {
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(());
+    };
     let mut model = Model::new(Language::BritishEnglish);
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
-    tab.set_archive(ComparisonSide::Old, real_archive_path()?);
-    tab.set_archive(ComparisonSide::New, real_archive_b_path()?);
+    tab.set_archive(ComparisonSide::Old, old);
+    tab.set_archive(ComparisonSide::New, new);
     assert!(tab.start(|| {}), "started");
     wait(tab, |tab| !tab.is_running())?;
     let view = tab.view_mut().ok_or("no result")?;

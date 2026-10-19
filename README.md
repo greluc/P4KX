@@ -281,15 +281,19 @@ Tests use synthetic Archives from `p4kx-testkit`; no game files are needed or co
 A second suite checks a real `Data.p4k`: opening and listing it within 10 seconds, its Build,
 reading Entries of every compression method and encryption state present (size and CRC-32C),
 extracting a small subset, and sorting and scrolling every Entry in the window within one 60 Hz
-frame, and comparing the Entries of two Archives within 5 seconds. Its tests are ignored by
-default, so `cargo test` and CI report them as `ignored`. Point `P4KX_DATA_P4K` to an Archive,
-and `P4KX_DATA_P4K_B` to a second one for the Comparison, and pass `--ignored`; without the
-variables the suite fails and says so.
+frame. It compares two Archives on both levels with plausible counts and a report that is valid
+against `schemas/comparison-report.schema.json`, the Entries in less time than reading both
+Archives at 8 GB/s would take (about 1.5 seconds against 37 for LIVE and PTU), produces the line
+diffs of changed text Entries, and compares one Archive with itself without a difference on
+either level. Its tests are ignored by default, so `cargo test` and CI report them as `ignored`.
+Point `P4KX_DATA_P4K` to an Archive, and `P4KX_DATA_P4K_B` to a second one for the Comparison,
+and pass `--ignored`; without `P4KX_DATA_P4K` the suite fails and says so, without
+`P4KX_DATA_P4K_B` the tests over two Archives pass without checking anything.
 
 ```powershell
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
-cargo test --release -p p4kx-archive -p p4kx-extraction -p p4kx-comparison -p p4kx-gui --test real_archive -- --ignored
+cargo test --release --workspace --locked -- --ignored
 ```
 
 The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is

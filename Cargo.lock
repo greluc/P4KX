@@ -3324,6 +3324,7 @@ dependencies = [
 name = "p4kx-comparison"
 version = "0.1.0"
 dependencies = [
+ "jsonschema",
  "p4kx-archive",
  "p4kx-channels",
  "p4kx-cryxml",

@@ -1,5 +1,5 @@
 //! The Comparison tab over two real Archives; runs with `--ignored` when `P4KX_DATA_P4K` and
-//! `P4KX_DATA_P4K_B` name them.
+//! `P4KX_DATA_P4K_B` name them; the tests over two Archives skip without the second.
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -10,7 +10,7 @@ use p4kx_gui::{
     ChangeColumn, ComparisonLevels, ComparisonSide, ComparisonStatus, ComparisonTab, Language,
     Model, ReportStatus, WorkTab, ui,
 };
-use p4kx_testkit::{ArchiveBuilder, real_archive_b_path, real_archive_path};
+use p4kx_testkit::{ArchiveBuilder, real_archive_pair, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -33,7 +33,9 @@ fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestR
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn two_real_archives_compare_and_the_list_stays_quick_to_sort_and_filter() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(());
+    };
     let mut model = Model::new(Language::BritishEnglish);
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);
@@ -175,12 +177,15 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn two_real_archives_compare_on_both_levels_and_save_the_report() -> TestResult {
+    let Some((old, new)) = real_archive_pair()? else {
+        return Ok(());
+    };
     let out = tempfile::tempdir()?;
     let report = out.path().join("report.json");
     let mut model = Model::new(Language::BritishEnglish);
     let tab = model.comparison_mut();
-    tab.set_archive(ComparisonSide::Old, real_archive_path()?);
-    tab.set_archive(ComparisonSide::New, real_archive_b_path()?);
+    tab.set_archive(ComparisonSide::Old, old);
+    tab.set_archive(ComparisonSide::New, new);
     tab.set_levels(ComparisonLevels {
         entries: true,
         records: true,

@@ -1,21 +1,23 @@
 //! The nested field diff over two real Archives; runs with `--ignored` when `P4KX_DATA_P4K` and
-//! `P4KX_DATA_P4K_B` name them.
+//! `P4KX_DATA_P4K_B` name them, and skips without the second.
+
+mod real_pair;
 
 use std::error::Error;
 
 use p4kx_comparison::{
-    Archive, CompareOptions, DataForgeEntry, DataForges, Levels, RecordChange, Step, compare,
+    CompareOptions, DataForgeEntry, DataForges, Levels, RecordChange, Step, compare,
 };
-use p4kx_testkit::{real_archive_b_path, real_archive_path};
+use real_pair::{open_pair, schema_violations};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_nested_field_diff_of_two_real_archives_is_deterministic_and_well_formed() -> TestResult {
-    let (old, new) = (real_archive_path()?, real_archive_b_path()?);
-    let (old, new) = rayon::join(|| Archive::open(old), || Archive::open(new));
-    let (old, new) = (old?, new?);
+    let Some((old, new)) = open_pair()? else {
+        return Ok(());
+    };
     let (old_entry, new_entry) =
         rayon::join(|| DataForgeEntry::read(&old), || DataForgeEntry::read(&new));
     let (old_entry, new_entry) = (old_entry?, new_entry?);
@@ -60,5 +62,7 @@ fn the_nested_field_diff_of_two_real_archives_is_deterministic_and_well_formed()
         nested,
         fields.len()
     );
+    let violations = schema_violations(&first)?;
+    assert!(violations.is_empty(), "the report is valid: {violations:?}");
     Ok(())
 }

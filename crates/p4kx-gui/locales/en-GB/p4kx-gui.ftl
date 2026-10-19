@@ -345,6 +345,48 @@ record-export-failed-title = Record export failed
 record-export-failed = The Record export into { $path } failed: { $reason }
 record-export-stopped = The Record export into { $path } stopped without a result.
 
+catalog-action = Basetool catalog…
+catalog-file-filter = Basetool catalog
+catalog-running-title = Creating the Basetool catalog
+catalog-reading = Reading DataForge…
+catalog-progress = { $done } of { $total } Records checked, { $percent } %
+catalog-writing = Writing { $path }…
+catalog-summary-title = Basetool catalog created
+catalog-kinds-heading = Kinds
+catalog-summary-kind = { $kind ->
+    [manufacturers] Manufacturers
+    [items] Items
+    [ships] Ships
+    [commodities] Commodities
+    [blueprints] Blueprints
+   *[other] { $kind }
+}: { $written } written, { $skipped } skipped, { $complete ->
+    [yes] complete
+   *[no] partial
+}
+catalog-summary-skipped = Records skipped as development leftovers: { $number }
+catalog-texts-heading = Texts
+catalog-summary-texts = { $language ->
+    [en] English
+    [de] German
+   *[other] { $language }
+}: { $resolved } resolved, { $missing } missing, { $placeholders } placeholders
+catalog-summary-texts-unavailable = { $language ->
+    [en] English
+    [de] German
+   *[other] { $language }
+}: the Archive holds no global.ini, { $missing } missing
+catalog-summary-missing = Missing texts: { $number }
+catalog-summary-size = Size: { $size } of the upload limit of { $limit }
+catalog-near-limit = The catalog is close to the basetool upload limit of { $limit }.
+catalog-over-limit = The catalog is over the basetool upload limit of { $limit }; the basetool will reject the upload.
+catalog-summary-file = File: { $path }
+catalog-cancelled-title = Basetool catalog cancelled
+catalog-cancelled = The Basetool catalog was cancelled. No file was written.
+catalog-failed-title = Basetool catalog failed
+catalog-failed = The Basetool catalog { $path } could not be created: { $reason }
+catalog-stopped = The Basetool catalog { $path } stopped without a result.
+catalog-output-is-archive = The Basetool catalog cannot be written to { $path }, because that is the open Archive. Choose another file.
 preview-tab-xml = XML
 xml-converting = Converting { $path } to XML…
 xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.

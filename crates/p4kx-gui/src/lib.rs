@@ -6,6 +6,7 @@
 mod app;
 mod audio;
 mod browser;
+mod catalog_export;
 mod channel_list;
 mod comparison;
 #[cfg(windows)]
@@ -20,6 +21,7 @@ mod language;
 mod model;
 mod preview;
 mod query;
+mod read_gate;
 mod record_export;
 mod record_index;
 mod record_preview;
@@ -39,6 +41,10 @@ pub use audio::{
     StreamGuard,
 };
 pub use browser::{Browser, EntryRow, EntryRowKind, TreeRow};
+pub use catalog_export::{
+    CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
+    CatalogExportSummary,
+};
 pub use channel_list::ChannelList;
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonList, ComparisonSide, ComparisonStage,
@@ -80,7 +86,7 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
-    GroupText, ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText,
-    RecordText, Text, Texts, XmlText,
+    AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
+    ExtractionText, GroupText, ImageText, QueryText, RecordChangeText, RecordExportText,
+    RecordSearchText, RecordText, Text, Texts, XmlText,
 };

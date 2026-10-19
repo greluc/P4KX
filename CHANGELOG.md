@@ -8,6 +8,12 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx entity audio <archive> <entity> [--json]`: the audio triggers an Entity names, each with
+  the Wwise events its ATL definition posts and the soundbanks whose `HIRC` section holds them,
+  matched by the events' Wwise short IDs (FNV-1). Triggers without definition, without event or
+  in no soundbank are listed with the reason; ATL definitions and soundbanks that cannot be read
+  are warned about. The audio index reads every ATL definition and soundbank of the Archive once,
+  in parallel.
 - `p4kx ui assets <archive> <entry> [--json]` and `p4kx ui extract <archive> <entry> --out
   <folder>`: list the tags, shapes, morph shapes, bitmaps, fonts and sprites of a GFx or SWF UI
   movie with their IDs and export names, and write its bitmaps as PNG and its shapes as JSON in
@@ -146,6 +152,14 @@ fails while its section is missing.
   the sound's exact duration, with the codebooks the Ogg export picks; the channels keep the
   order and speaker mask of the WEM. A sound that cannot be decoded fails with an error naming
   the WEM and the reason.
+- `p4kx audio ogg` and `p4kx bnk extract --format ogg` repackage Opus WEMs (Wwise Opus, Ogg Opus
+  in a WEM and Switch Opus) as standard Ogg Opus files without re-encoding, with the pre-skip,
+  the channel mapping of the Wwise layout and the sound's exact duration; `p4kx audio wav` and
+  `p4kx bnk extract --format wav` decode them at 48 kHz to 16-bit WAV in the speaker order of the
+  WEM, with the pure-Rust decoder opus-pure under the BSD 3-Clause licence, whose notice ships in
+  `THIRD-PARTY-NOTICES`. The `OggReport` of `p4kx-audio` gains a `codec` field and its
+  `codebooks` becomes an `Option`, `None` for Opus; `p4kx audio ogg --json` reports `codec` and a
+  `null` `codebooks` for Opus.
 - `p4kx bnk list` and `p4kx bnk extract`: list the WEMs a Wwise BNK soundbank from an Archive or
   from disk embeds, with ID, codec and duration, and write them as `<id>.wem`, converted to WAV or
   rebuilt as Ogg Vorbis; the `BKHD`, `DIDX`, `DATA`, `HIRC` and `STID` sections are parsed, and a

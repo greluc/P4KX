@@ -67,7 +67,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("rate", "48,000".into()),
         ("position", "0:03".into()),
         ("duration", "1:12".into()),
-        ("codec", "Opus".into()),
+        ("codec", "AAC".into()),
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),

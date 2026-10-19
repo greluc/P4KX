@@ -7,21 +7,28 @@
 //!
 //! [`build_catalog`] reads the DataForge of an open Archive, selects the Records of every kind by
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
-//! descriptions in English and German from the Archive's `global.ini` files and writes the
+//! descriptions in English and German from the Archive's `global.ini` files, reads each item's
+//! [`ItemClass`] from its English description and writes the
 //! catalog as deterministic UTF-8 JSON. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 
 mod build;
+mod collected;
 mod contract;
+mod contract_entities;
 mod error;
 mod form;
 mod guid_text;
+mod item;
+mod item_class;
 mod manufacturer;
 mod ndjson;
 mod options;
 mod record_export;
+mod record_fields;
 mod record_summary;
 mod selection;
+mod ship;
 mod summary;
 mod texts;
 
@@ -29,6 +36,7 @@ pub use build::build_catalog;
 pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use error::CatalogError;
 pub use form::{NDJSON_FILE, RecordForm};
+pub use item_class::{ItemClass, ItemClassSummary};
 pub use options::{CatalogOptions, CatalogProgress};
 pub use p4kx_extraction::{
     CancelToken, ConflictPolicy, ExtractionError, Filter, Language, RecordExportError,

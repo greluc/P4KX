@@ -19,14 +19,23 @@ pub const PLACEHOLDER_KEYS: [&str; 3] = ["@LOC_EMPTY", "@LOC_PLACEHOLDER", "@LOC
 pub enum Kind {
     /// Manufacturers: `SCItemManufacturer` Records.
     Manufacturers,
+    /// Items: `EntityClassDefinition` Records under `entities/scitem` and `entities/legacyitems`.
+    Items,
+    /// Ships: `EntityClassDefinition` Records under `entities/spaceships`.
+    Ships,
 }
 
 impl Kind {
+    /// Every kind, in the order of the catalog.
+    pub const ALL: [Self; 3] = [Self::Manufacturers, Self::Items, Self::Ships];
+
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Manufacturers => "manufacturers",
+            Self::Items => "items",
+            Self::Ships => "ships",
         }
     }
 
@@ -35,9 +44,37 @@ impl Kind {
     pub const fn rule(self) -> KindRule {
         match self {
             Self::Manufacturers => KindRule {
-                prefix: "libs/foundry/records/scitemmanufacturer/",
+                prefixes: &["libs/foundry/records/scitemmanufacturer/"],
                 type_name: "SCItemManufacturer",
             },
+            Self::Items => KindRule {
+                prefixes: &[
+                    "libs/foundry/records/entities/scitem/",
+                    "libs/foundry/records/entities/legacyitems/",
+                ],
+                type_name: "EntityClassDefinition",
+            },
+            Self::Ships => KindRule {
+                prefixes: &["libs/foundry/records/entities/spaceships/"],
+                type_name: "EntityClassDefinition",
+            },
+        }
+    }
+
+    /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
+    /// kinds do not overlap.
+    pub(crate) fn by_path(record_path: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|kind| kind.rule().matches_path(record_path))
+    }
+
+    /// Returns the position of the kind in [`Kind::ALL`].
+    pub(crate) const fn index(self) -> usize {
+        match self {
+            Self::Manufacturers => 0,
+            Self::Items => 1,
+            Self::Ships => 2,
         }
     }
 }
@@ -51,14 +88,15 @@ impl fmt::Display for Kind {
 /// How the Records of one kind are selected: by record-path prefix and by type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KindRule {
-    /// The start of the record path, ignoring ASCII case and the kind of separator.
-    pub prefix: &'static str,
+    /// The starts of the record path of which one must match, ignoring ASCII case and the kind
+    /// of separator.
+    pub prefixes: &'static [&'static str],
     /// The name of the Records' struct, matched exactly.
     pub type_name: &'static str,
 }
 
 impl KindRule {
-    /// Returns whether `record_path` starts with the prefix.
+    /// Returns whether `record_path` starts with one of the prefixes.
     #[must_use]
     pub fn matches_path(&self, record_path: &str) -> bool {
         let fold = |byte: u8| {
@@ -68,11 +106,13 @@ impl KindRule {
                 byte.to_ascii_lowercase()
             }
         };
-        record_path.len() >= self.prefix.len()
-            && record_path
-                .bytes()
-                .zip(self.prefix.bytes())
-                .all(|(have, want)| fold(have) == fold(want))
+        self.prefixes.iter().any(|prefix| {
+            record_path.len() >= prefix.len()
+                && record_path
+                    .bytes()
+                    .zip(prefix.bytes())
+                    .all(|(have, want)| fold(have) == fold(want))
+        })
     }
 }
 

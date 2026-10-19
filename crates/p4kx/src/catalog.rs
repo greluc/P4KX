@@ -37,8 +37,16 @@ struct SummaryJson {
     size_warning: Option<&'static str>,
     kinds: Vec<KindJson>,
     skipped: usize,
+    item_classes: ItemClassJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct ItemClassJson {
+    classified: usize,
+    other: usize,
+    missing: usize,
 }
 
 #[derive(Serialize)]
@@ -161,6 +169,11 @@ fn summary_json(archive: &Archive, out: &Path, summary: &CatalogSummary) -> Summ
             })
             .collect(),
         skipped: summary.skipped(),
+        item_classes: ItemClassJson {
+            classified: summary.item_classes().classified,
+            other: summary.item_classes().other,
+            missing: summary.item_classes().missing,
+        },
         texts: summary
             .texts()
             .iter()
@@ -188,6 +201,12 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
             if kind.complete { "complete" } else { "partial" }
         )?;
     }
+    let classes = summary.item_classes();
+    writeln!(
+        stdout,
+        "item classes: {} read, {} other values, {} without a Class: line",
+        classes.classified, classes.other, classes.missing
+    )?;
     for text in summary.texts() {
         writeln!(
             stdout,

@@ -15,9 +15,9 @@ for every Entity; only the Entity's own Record tree is searched. The reverse ind
 to Entities that #144 needs will be built lazily, on its first use, in its own `OnceLock` next to
 the audio index, so listing one Entity never pays for it.
 
-Each Entry is read whole and dropped once parsed, below a cap per kind: 16 MiB for a soundbank
-and 8 MiB for an ATL definition, against a largest live soundbank of 5.2 MiB and a largest live
-ATL definition of 1.32 MiB; a text ATL definition may hold at most 2^20 XML nodes. The buffer is
+Each Entry is read whole and dropped once parsed, below a cap per kind: 64 MiB for a soundbank
+and 8 MiB for an ATL definition, against a largest live soundbank of 5.2 MiB (surveyed on LIVE,
+PTU and TECH-PREVIEW, see `docs/audio-survey.md`) and a largest live ATL definition of 1.32 MiB; a text ATL definition may hold at most 2^20 XML nodes. The buffer is
 allocated for the stated size up to the cap, so the build holds at most one capped Entry per
 rayon thread. Entries above the cap or that cannot be read are kept as issues; the rest of the
 index still builds.

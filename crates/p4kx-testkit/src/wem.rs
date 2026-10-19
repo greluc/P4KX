@@ -32,6 +32,7 @@ pub struct TestWem {
     block_align: u16,
     big_endian: bool,
     chunks: Vec<([u8; 4], Vec<u8>)>,
+    tail: Vec<([u8; 4], Vec<u8>)>,
     vorbis_fields: Vec<u8>,
     extension: Vec<u8>,
     data: Vec<u8>,
@@ -50,6 +51,7 @@ impl TestWem {
             block_align: channels.saturating_mul(2),
             big_endian: false,
             chunks: Vec::new(),
+            tail: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data: samples
@@ -70,6 +72,7 @@ impl TestWem {
             block_align: 0,
             big_endian: false,
             chunks: Vec::new(),
+            tail: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data: (0..=255).collect(),
@@ -118,6 +121,7 @@ impl TestWem {
             block_align,
             big_endian: false,
             chunks: Vec::new(),
+            tail: Vec::new(),
             vorbis_fields: Vec::new(),
             extension: Vec::new(),
             data,
@@ -142,6 +146,14 @@ impl TestWem {
     #[must_use]
     pub fn chunk(mut self, id: [u8; 4], body: impl Into<Vec<u8>>) -> Self {
         self.chunks.push((id, body.into()));
+        self
+    }
+
+    /// Appends a chunk after `data`, e.g. `smpl`, `cue ` or `LIST`; an odd-sized chunk gets a pad
+    /// byte.
+    #[must_use]
+    pub fn tail_chunk(mut self, id: [u8; 4], body: impl Into<Vec<u8>>) -> Self {
+        self.tail.push((id, body.into()));
         self
     }
 
@@ -184,6 +196,9 @@ impl TestWem {
             self.data.clone()
         };
         self.put_chunk(&mut body, *b"data", &data);
+        for (id, chunk) in &self.tail {
+            self.put_chunk(&mut body, *id, chunk);
+        }
         let mut out = if self.big_endian { b"RIFX" } else { b"RIFF" }.to_vec();
         self.put_u32(&mut out, len_u32(&body));
         out.extend_from_slice(&body);

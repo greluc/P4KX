@@ -38,6 +38,16 @@ fails while its section is missing.
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
 
+### Fixed
+
+- Soundbanks with a quirk that leaves the rest readable are no longer rejected whole: bytes after
+  the last `HIRC` object, a repeated `DIDX` WEM ID (the first entry is kept), `DIDX` without
+  `DATA` and a non-UTF-8 name in `STID` are worked around and listed by `Soundbank::warnings`.
+  The audio index reads soundbanks up to 64 MiB instead of 16 MiB, and `Wem::chunks` and
+  `Wem::chunk` list every RIFF chunk of a WEM, `smpl`, `cue ` and `LIST` after `data` included.
+  No soundbank or WEM of the LIVE, PTU and TECH-PREVIEW Archives has any of these quirks
+  (`docs/audio-survey.md`).
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

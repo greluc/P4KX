@@ -242,6 +242,33 @@ query-page-first = Erste Seite
 query-page-previous = Vorherige Seite
 query-page-next = Nächste Seite
 query-page-last = Letzte Seite
+query-completion-more =
+    { $count ->
+        [one] { $number } weiterer Name, weiter tippen
+       *[other] { $number } weitere Namen, weiter tippen
+    }
+query-save = Abfrage speichern …
+query-saved-title = Gespeicherte Abfragen
+query-saved-none = Noch keine gespeicherten Abfragen. Speichern Sie die Abfrage im Editor, um sie mit einem Klick erneut auszuführen.
+query-saved-run = Gespeicherte Abfrage { $name } ausführen
+query-saved-rename = Umbenennen
+query-saved-delete = Löschen
+query-save-title = Abfrage speichern
+query-rename-title = Gespeicherte Abfrage umbenennen
+query-delete-title = Gespeicherte Abfrage löschen
+query-name-label = Name
+query-name-hint = z. B. Schwere Schiffe
+query-save-action = Speichern
+query-rename-action = Umbenennen
+query-delete-action = Löschen
+query-delete-question = Die gespeicherte Abfrage „{ $name }“ wird gelöscht. Die Abfrage im Editor bleibt.
+query-name-replaces = Ersetzt die gespeicherte Abfrage dieses Namens.
+query-name-empty = Geben Sie einen Namen ein.
+query-name-too-long = Der Name ist länger als { $max } Zeichen.
+query-name-taken = Eine andere gespeicherte Abfrage hat diesen Namen.
+query-name-control = Der Name darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.
+query-name-full = Die gespeicherten Abfragen sind voll: höchstens { $max } Abfragen und { $size } insgesamt. Löschen Sie zuerst eine.
+query-name-bad-text = Die Abfrage im Editor ist leer oder zu lang zum Speichern.
 
 dataforge-node = DataForge
 dataforge-node-loading = Wird geladen …
@@ -411,6 +438,7 @@ scroll-diff = Zeilenunterschiede
 scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
 scroll-localization = Lokalisierungszeilen
+scroll-saved-queries = Gespeicherte Abfragen
 
 preview-tab-audio = Audio
 audio-codec = Codec

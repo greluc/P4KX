@@ -158,6 +158,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    query::saved_dialog(ui, model, &mut requests);
     requests
 }
 

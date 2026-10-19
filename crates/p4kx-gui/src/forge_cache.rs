@@ -1,18 +1,63 @@
 use std::fmt;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::thread;
 
 use p4kx_export::RecordFilePlans;
 use p4kx_extraction::DataForgeEntry;
+use p4kx_extraction::query::QuerySchema;
 
 use crate::EntryIndex;
 use crate::model::describe;
 
-/// The DataForge of one open Archive as every consumer reads it: its Entry, read once, and the
-/// files of its Records, planned once per form.
+/// The DataForge of one open Archive as every consumer reads it: its Entry, read once, the files
+/// of its Records, planned once per form, and the Query completion schema, built once.
 pub(crate) struct ForgeSource {
     pub(crate) entry: Arc<DataForgeEntry>,
     pub(crate) plans: RecordFilePlans,
+    schema: OnceLock<Arc<QuerySchema>>,
+    schema_turn: Mutex<()>,
+    schema_builds: AtomicUsize,
+}
+
+impl ForgeSource {
+    fn new(entry: DataForgeEntry) -> Self {
+        Self {
+            entry: Arc::new(entry),
+            plans: RecordFilePlans::default(),
+            schema: OnceLock::new(),
+            schema_turn: Mutex::new(()),
+            schema_builds: AtomicUsize::new(0),
+        }
+    }
+
+    /// Returns the completion schema if it was built.
+    pub(crate) fn schema_if_built(&self) -> Option<Arc<QuerySchema>> {
+        self.schema.get().cloned()
+    }
+
+    /// Returns the completion schema, building it from the DataForge already read unless it was
+    /// built before. The build runs outside the [`OnceLock`], because it uses rayon.
+    ///
+    /// # Errors
+    ///
+    /// Returns why the DataForge cannot be opened.
+    pub(crate) fn schema(&self) -> Result<Arc<QuerySchema>, ReadFailure> {
+        let _turn = self
+            .schema_turn
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(schema) = self.schema.get() {
+            return Ok(Arc::clone(schema));
+        }
+        let forge = self
+            .entry
+            .open()
+            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        self.schema_builds.fetch_add(1, Ordering::Relaxed);
+        let built = Arc::new(QuerySchema::of(&forge));
+        Ok(Arc::clone(self.schema.get_or_init(|| built)))
+    }
 }
 
 impl fmt::Debug for ForgeSource {
@@ -20,7 +65,9 @@ impl fmt::Debug for ForgeSource {
         f.debug_struct("ForgeSource")
             .field("entry", &self.entry.path())
             .field("plans", &self.plans)
-            .finish()
+            .field("schema", &self.schema.get().is_some())
+            .field("schema_builds", &self.schema_builds)
+            .finish_non_exhaustive()
     }
 }
 
@@ -54,6 +101,8 @@ pub(crate) struct ForgeCache {
     source: Mutex<Option<Arc<ForgeSource>>>,
     generation: AtomicU64,
     reads: AtomicUsize,
+    schema_asked: AtomicBool,
+    schema_attempted: AtomicU64,
 }
 
 impl ForgeCache {
@@ -94,16 +143,64 @@ impl ForgeCache {
         let entry = DataForgeEntry::read(index.archive())
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
         index.watch().check().map_err(changed)?;
-        let read = Arc::new(ForgeSource {
-            entry: Arc::new(entry),
-            plans: RecordFilePlans::default(),
-        });
+        let read = Arc::new(ForgeSource::new(entry));
         if self.store(generation, &read) {
             Ok(read)
         } else {
             Err(ReadFailure::ArchiveChanged(
                 "the DataForge cache was cleared while it was read".to_owned(),
             ))
+        }
+    }
+
+    /// Returns the completion schema once it was built from the DataForge held now.
+    pub(crate) fn schema(&self) -> Option<Arc<QuerySchema>> {
+        self.cached()?.schema_if_built()
+    }
+
+    /// Returns how often the completion schema was built for the DataForge held now.
+    pub(crate) fn schema_builds(&self) -> usize {
+        self.cached()
+            .map_or(0, |source| source.schema_builds.load(Ordering::Relaxed))
+    }
+
+    /// Returns whether the completion schema is missing, no build runs and none was started
+    /// since the cache was last cleared.
+    pub(crate) fn schema_unattempted(&self) -> bool {
+        let current = self.generation.load(Ordering::Acquire).wrapping_add(1);
+        !self.schema_asked.load(Ordering::Acquire)
+            && self.schema_attempted.load(Ordering::Acquire) != current
+            && self.schema().is_none()
+    }
+
+    /// Builds the completion schema of `index` on a background thread, reading its DataForge
+    /// unless it was read before, and calls `wake` once it is there. Nothing starts while a build
+    /// runs or after one succeeded; after a failed build or spawn the next call tries again. A
+    /// schema built for a DataForge that was cleared meanwhile is dropped with it.
+    pub(crate) fn prepare_schema(index: &Arc<EntryIndex>, wake: impl Fn() + Send + 'static) {
+        let cache = index.forge();
+        if cache.schema().is_some() || cache.schema_asked.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        cache.schema_attempted.store(
+            cache.generation.load(Ordering::Acquire).wrapping_add(1),
+            Ordering::Release,
+        );
+        let thread_index = Arc::clone(index);
+        let spawned = thread::Builder::new()
+            .name("query-schema".to_owned())
+            .spawn(move || {
+                let cache = thread_index.forge();
+                let built = cache
+                    .read(&thread_index, || {})
+                    .and_then(|source| source.schema());
+                cache.schema_asked.store(false, Ordering::Release);
+                if built.is_ok() {
+                    wake();
+                }
+            });
+        if spawned.is_err() {
+            cache.schema_asked.store(false, Ordering::Release);
         }
     }
 

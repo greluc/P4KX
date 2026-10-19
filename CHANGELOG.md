@@ -25,6 +25,9 @@ fails while its section is missing.
   unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
   the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
   children.
+- Query tab: completion of struct and field names from the DataForge schema while typing, after
+  `from`, `.`, `->` and in `[…]`, with the field types; and saved Queries that are kept in the
+  settings, run with one click, renamed and deleted.
 
 ## [0.2.0]
 

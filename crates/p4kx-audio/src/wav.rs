@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use crate::adpcm::Layout;
-use crate::{AudioError, ByteOrder, Codec, Wem};
+use crate::loops::SMPL_CHUNK_LEN;
+use crate::{AudioError, ByteOrder, Codec, Loop, Wem};
 
 const BITS_PER_SAMPLE: u16 = 16;
 const FORMAT_PCM: u16 = 0x0001;
@@ -25,12 +26,16 @@ pub struct WavReport {
     pub sample_count: u64,
     /// Size of the whole WAV file in bytes.
     pub size: u64,
+    /// The loop the `smpl` chunk holds, `None` for a sound without a loop that fits the frames.
+    pub loop_points: Option<Loop>,
 }
 
 impl<B: AsRef<[u8]>> Wem<B> {
     /// Writes the sound as a 16-bit PCM WAV file to `out`: a canonical `WAVE_FORMAT_PCM` header
     /// for one or two channels, `WAVE_FORMAT_EXTENSIBLE` with the channel mask for more. PCM is
     /// copied, IMA ADPCM and PTADPCM are decoded. A trailing partial frame or block is dropped.
+    /// The loop of a looping sound that fits the written frames goes into a `smpl` chunk before
+    /// the samples, which are written once.
     /// Wwise Vorbis is rebuilt as for [`Wem::write_ogg`] and decoded to the same sample count,
     /// the channels in the order of the WEM. Opus is decoded at 48 kHz, its pre-skip dropped and
     /// its streams mapped to the speaker order of the WEM's channel mask.
@@ -78,7 +83,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             .checked_mul(u64::from(block_align))
             .and_then(|len| usize::try_from(len).ok())
             .ok_or(AudioError::WavTooLarge)?;
-        let header = self.wav_header(block_align, data_len)?;
+        let (header, loop_points) = self.wav_header(block_align, data_len)?;
         let size = header
             .len()
             .checked_add(data_len)
@@ -88,6 +93,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             sample_rate: self.sample_rate(),
             sample_count: frames,
             size,
+            loop_points,
         };
         Ok((header, report))
     }
@@ -100,7 +106,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             .data()
             .get(..frames * usize::from(block_align))
             .unwrap_or_default();
-        let header = self.wav_header(block_align, data.len())?;
+        let (header, loop_points) = self.wav_header(block_align, data.len())?;
         out.write_all(&header).map_err(AudioError::Write)?;
         match self.byte_order() {
             ByteOrder::Little => out.write_all(data).map_err(AudioError::Write)?,
@@ -111,10 +117,15 @@ impl<B: AsRef<[u8]>> Wem<B> {
             sample_rate: self.sample_rate(),
             sample_count: frames as u64,
             size: (header.len() + data.len()) as u64,
+            loop_points,
         })
     }
 
-    fn wav_header(&self, block_align: u16, data_len: usize) -> Result<Vec<u8>, AudioError> {
+    fn wav_header(
+        &self,
+        block_align: u16,
+        data_len: usize,
+    ) -> Result<(Vec<u8>, Option<Loop>), AudioError> {
         let channels = self.channels();
         let extensible = channels > 2;
         let fmt_len = if extensible {
@@ -122,15 +133,24 @@ impl<B: AsRef<[u8]>> Wem<B> {
         } else {
             PCM_FMT_LEN
         };
+        let frames = data_len
+            .checked_div(usize::from(block_align))
+            .unwrap_or_default() as u64;
+        let smpl = self
+            .loop_points()
+            .filter(|points| points.fits(frames))
+            .and_then(|points| Some((points, points.smpl_chunk(self.sample_rate())?)));
+        let smpl_len = u32::try_from(smpl.as_ref().map_or(0, |(_, chunk)| chunk.len()))
+            .map_err(|_| AudioError::WavTooLarge)?;
         let data_len = u32::try_from(data_len).map_err(|_| AudioError::WavTooLarge)?;
-        let riff_len = (4 + 8 + 8 + fmt_len)
+        let riff_len = (4 + 8 + 8 + fmt_len + smpl_len)
             .checked_add(data_len)
             .ok_or(AudioError::WavTooLarge)?;
         let byte_rate = self
             .sample_rate()
             .checked_mul(u32::from(block_align))
             .ok_or(AudioError::InvalidFormat("the byte rate exceeds 32 bits"))?;
-        let mut header = Vec::with_capacity(68);
+        let mut header = Vec::with_capacity(68 + SMPL_CHUNK_LEN);
         header.extend_from_slice(b"RIFF");
         header.extend_from_slice(&riff_len.to_le_bytes());
         header.extend_from_slice(b"WAVEfmt ");
@@ -158,9 +178,12 @@ impl<B: AsRef<[u8]>> Wem<B> {
             header.extend_from_slice(&mask.to_le_bytes());
             header.extend_from_slice(&SUBTYPE_PCM);
         }
+        if let Some((_, chunk)) = &smpl {
+            header.extend_from_slice(chunk);
+        }
         header.extend_from_slice(b"data");
         header.extend_from_slice(&data_len.to_le_bytes());
-        Ok(header)
+        Ok((header, smpl.map(|(points, _)| points)))
     }
 }
 

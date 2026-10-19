@@ -2,6 +2,7 @@ use std::ops::Range;
 use std::time::Duration;
 
 use crate::adpcm::Layout;
+use crate::loops::Loop;
 use crate::opus::{OPUS_RATE, TAG_SWITCH};
 use crate::riff::{Chunk, Chunks};
 use crate::{AudioError, ByteOrder, Codec};
@@ -23,6 +24,7 @@ pub struct Wem<B> {
     block_align: u16,
     channel_mask: u32,
     sample_count: Option<u64>,
+    loop_points: Option<Loop>,
     data: Range<usize>,
 }
 
@@ -49,12 +51,14 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let (order, chunks) = Chunks::of(all)?;
         let mut fmt = None;
         let mut vorb = None;
+        let mut smpl = None;
         let mut data = None;
         for chunk in chunks {
             let Chunk { id, body } = chunk?;
             match &id {
                 b"fmt " => fmt = Some(body),
                 b"vorb" => vorb = Some(body),
+                b"smpl" => smpl = Some(body),
                 b"data" => {
                     data = Some(body);
                     break;
@@ -68,6 +72,9 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let codec = Codec::from_tag(format.tag);
         let vorb_sample_count = vorb.and_then(|vorb| order.u32_at(all, vorb.start));
         let sample_count = sample_count(codec, &format, vorb_sample_count, data.len() as u64)?;
+        let loop_points = smpl.and_then(|smpl| {
+            Loop::from_smpl(order, all.get(smpl).unwrap_or_default(), sample_count)
+        });
         let sample_rate = if codec == Codec::Opus {
             OPUS_RATE
         } else {
@@ -82,6 +89,7 @@ impl<B: AsRef<[u8]>> Wem<B> {
             block_align: format.block_align,
             channel_mask: format.channel_mask,
             sample_count,
+            loop_points,
             data,
             bytes,
         })
@@ -102,6 +110,13 @@ impl<B: AsRef<[u8]>> Wem<B> {
     #[must_use]
     pub const fn sample_count(&self) -> Option<u64> {
         self.sample_count
+    }
+
+    /// Returns the loop of a looping sound: the first forward loop of its `smpl` chunk, when it
+    /// is non-empty and ends within the known sample count.
+    #[must_use]
+    pub const fn loop_points(&self) -> Option<Loop> {
+        self.loop_points
     }
 
     /// Returns the playing time, when the sample count is known.

@@ -22,11 +22,13 @@ pub enum ContainerText {
     ArchiveChanged,
     /// The full message of that; takes `name`.
     ArchiveChangedDetail,
+    /// The status bar's number of Entries of the shown container; takes `count` and `number`.
+    StatusEntries,
 }
 
 impl ContainerText {
     /// Every text of the containers.
-    pub(crate) const ALL: [Self; 9] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::Opening,
         Self::Unreadable,
         Self::UnreadableDetail,
@@ -36,6 +38,7 @@ impl ContainerText {
         Self::StoppedDetail,
         Self::ArchiveChanged,
         Self::ArchiveChangedDetail,
+        Self::StatusEntries,
     ];
 
     /// Returns the Fluent message id.
@@ -51,6 +54,7 @@ impl ContainerText {
             Self::StoppedDetail => "container-stopped-detail",
             Self::ArchiveChanged => "container-archive-changed",
             Self::ArchiveChangedDetail => "container-archive-changed-detail",
+            Self::StatusEntries => "container-status-entries",
         }
     }
 }

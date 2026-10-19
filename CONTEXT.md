@@ -188,6 +188,12 @@ A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one au
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
 
+**Loop**:
+The part of a looping WEM that repeats, from its start frame up to, not including, its end frame;
+read from the WEM's `smpl` chunk and kept as a `smpl` chunk in WAV and as `LOOPSTART` and
+`LOOPLENGTH` comments in Ogg, while the sound itself is exported once.
+_Avoid_: repeat, cycle
+
 **Codebook library**:
 The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
 (libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.
@@ -290,6 +296,17 @@ _Avoid_: character (a Character is a human body), symbol
 A bitmap of a GFx UI movie stored outside it, as a texture file named relative to the movie; the
 game ships it as DDS even where the movie names a TIFF or TGA.
 _Avoid_: linked image, imported bitmap
+
+**Placement**:
+A definition put on a timeline of a UI movie at a depth, with a transform, a colour transform
+and, for a mask, the depths it clips; the placements of a frame form its display list.
+_Avoid_: instance
+
+**Scene**:
+A frame of a UI movie composed into drawing instructions independent of the output: each shape
+once, its placements with transforms, colour transforms and masks, and what was skipped. It is
+rasterised to PNG.
+_Avoid_: render tree, stage (the stage is the area of the movie)
 
 ### Operations
 

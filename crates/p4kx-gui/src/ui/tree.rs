@@ -1,4 +1,4 @@
-use egui::{Id, Rect, Role, ScrollArea, Sense, Stroke, Ui, WidgetInfo, pos2, vec2};
+use egui::{Id, Rect, RichText, Role, ScrollArea, Sense, Stroke, Ui, WidgetInfo, pos2, vec2};
 
 use super::container_note::{self, Notes};
 use super::record_tree::{self, Labels, RecordAction};
@@ -8,9 +8,10 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::SPACE_2;
-use crate::widgets::button::focus_ring;
+use crate::widgets::focus::focus_ring_square;
 use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{Browser, Model, PreviewTab, RecordTree, Text, Texts, TreeNode, TreeRow};
 
 enum Action {
@@ -114,7 +115,7 @@ fn show_row(
         && browser.selected_node() == node
         && browser.records().and_then(RecordTree::selected).is_none();
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of(active, false, response.hovered());
+    let state = RowState::of_list(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let expanded = browser.is_expanded(node);
@@ -144,17 +145,16 @@ fn show_row(
         container_note::show(ui, (texts, notes), container, note_rect);
     }
     focus_inside(ui.painter(), rect, &response);
-    if response
-        .on_hover_ui(|ui| {
-            ui.label(name);
-            if let Some((_, status)) = container
-                && let Some((text, colour)) =
-                    container_note::detail(texts, name, status, browser.container_budget())
-            {
-                ui.colored_label(colour, text);
-            }
-        })
-        .clicked()
+    if tooltip::hover(response, |ui| {
+        tooltip::line(ui, name);
+        if let Some((_, status)) = container
+            && let Some((text, colour)) =
+                container_note::detail(texts, name, status, browser.container_budget())
+        {
+            tooltip::line(ui, RichText::new(text).color(colour));
+        }
+    })
+    .clicked()
         && action.is_none()
     {
         action = Some(Action::Select(node));
@@ -212,7 +212,7 @@ pub(super) fn toggle(
     chevron(ui.painter(), centre, CHEVRON, expanded, palette::PRIMARY);
     if response.has_focus() {
         let mark = Rect::from_center_size(centre, vec2(CHEVRON, CHEVRON));
-        focus_ring(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_square(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
     }
     response.clicked()
 }

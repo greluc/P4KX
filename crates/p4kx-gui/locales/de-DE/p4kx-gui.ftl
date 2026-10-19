@@ -351,6 +351,11 @@ container-stopped = Öffnen abgebrochen
 container-stopped-detail = Das Öffnen von { $name } brach ohne Ergebnis ab. Klappe ihn erneut auf, um es noch einmal zu versuchen.
 container-archive-changed = Archiv geändert
 container-archive-changed-detail = Das Archiv hat sich auf der Festplatte geändert. Lade es neu, um { $name } zu öffnen.
+container-status-entries =
+    { $count ->
+        [one] Container: { $number } Eintrag
+       *[other] Container: { $number } Einträge
+    }
 
 menu-export = Export
 record-export-action = Record-Export …

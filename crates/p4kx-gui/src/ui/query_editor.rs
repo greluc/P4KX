@@ -4,9 +4,8 @@ use std::sync::Arc;
 use egui::text::{CCursor, CCursorRange, CharIndex, LayoutJob, TextFormat};
 use egui::text_edit::{TextEditOutput, TextEditState};
 use egui::{
-    CornerRadius, Event, EventFilter, Galley, Id, InputState, Key, LayerId, Margin, Modifiers,
-    PopupKind, Rect, Response, ScrollArea, Shape, Stroke, SurrenderFocusOn, TextBuffer, TextEdit,
-    Ui, vec2,
+    Event, EventFilter, Frame, Galley, Id, InputState, Key, LayerId, Margin, Modifiers, PopupKind,
+    Rect, Response, ScrollArea, Stroke, SurrenderFocusOn, TextBuffer, TextEdit, Ui, vec2,
 };
 
 use crate::query::CompletionState;
@@ -15,7 +14,8 @@ use crate::theme::desktop::{
     TEXTAREA_LINE_HEIGHT, TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, GLOW_PRIMARY, Weight, font};
+use crate::theme::tokens::{FS_BODY, Weight, font};
+use crate::widgets::field;
 use crate::widgets::frames::px;
 use crate::widgets::text::plain;
 
@@ -69,17 +69,14 @@ pub(super) fn show(
     let open = completion.shown().is_some();
     let (submitted, asked) = keys(ui, completion, text);
     let (on_popup, surrender) = hold_focus_on_popup(ui, open);
-    let glow = ui.painter().add(Shape::Noop);
+    let bloom = field::bloom_slot(ui);
     let open = completion.shown().is_some();
     let output = text_area(ui, text, hint, mark, open);
     ui.ctx()
         .options_mut(|options| options.input_options.surrender_focus_on = surrender);
     let response = output.response.response.clone().labelled_by(label);
     if response.has_focus() {
-        ui.painter().set(
-            glow,
-            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
-        );
+        field::paint_bloom(ui, bloom, response.rect);
     }
     let char_cursor = output
         .cursor_range
@@ -169,10 +166,10 @@ fn text_area(
         .id(editor_id())
         .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
-        .margin(Margin::symmetric(
+        .frame(Frame::NONE.inner_margin(Margin::symmetric(
             px(TEXTAREA_PADDING_X),
             px(TEXTAREA_PADDING_Y),
-        ))
+        )))
         .min_size(vec2(0.0, height))
         .desired_width(f32::INFINITY)
         .event_filter(EventFilter {
@@ -186,7 +183,12 @@ fn text_area(
         .id_salt("p4kx-query-editor-scroll")
         .max_height(rows(QUERY_EDITOR_MAX_ROWS))
         .auto_shrink([false, true])
-        .show(ui, |ui| edit.show(ui))
+        .show(ui, |ui| {
+            let frame = field::frame_slot(ui);
+            let output = edit.show(ui);
+            field::paint_frame(ui, frame, output.response.rect, output.response.has_focus());
+            output
+        })
         .inner
 }
 

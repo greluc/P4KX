@@ -351,6 +351,11 @@ container-stopped = Opening stopped
 container-stopped-detail = Opening { $name } stopped without a result. Expand it again to retry.
 container-archive-changed = Archive changed
 container-archive-changed-detail = The Archive changed on disk. Reload it to open { $name }.
+container-status-entries =
+    { $count ->
+        [one] Container: { $number } Entry
+       *[other] Container: { $number } Entries
+    }
 
 menu-export = Export
 record-export-action = Record export…

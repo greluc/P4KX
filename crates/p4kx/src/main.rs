@@ -47,6 +47,7 @@ mod texture_image;
 mod ui;
 mod ui_extract;
 mod ui_json;
+mod ui_render;
 mod wwise;
 mod wwise_json;
 

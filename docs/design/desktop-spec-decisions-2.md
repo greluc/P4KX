@@ -159,4 +159,7 @@ zeigt die Tabelle dessen Einträge. Suche, Auswahl, „Ausgewählte extrahieren 
 extrahieren …" und Vorschau gelten dann diesem Container, „Alle extrahieren …" weiter dem ganzen
 Archiv. Container liegen in den gefalteten Ordnern des Eintragsbaums (ADR-0023): Schreibweise und
 Trennzeichen (`/` oder `\`) ändern nicht, in welchem Ordner ein Container steht; das gilt auch in
-einem Container.
+einem Container. Ein `.socpak`, dessen Ordnerpfad ein leeres Segment hat, steht im nächsten
+vorhandenen Ordner darüber, sonst an der Wurzel. Die Statusleiste nennt Pfad und Build weiter des
+Archivs; zeigt die Tabelle einen Container, steht an der Stelle der Eintragszahl des Archivs
+„Container: n Einträge" mit der Zahl seiner Einträge, passend zu „n angezeigt".

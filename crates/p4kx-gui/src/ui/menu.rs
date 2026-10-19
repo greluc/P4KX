@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use egui::{Button, MenuBar, Response, Role, Ui, WidgetInfo};
+use egui::{Button, Color32, MenuBar, Response, Role, Ui, WidgetInfo};
 
 use super::{Dialog, Requests, shortcuts};
 use crate::texts::language_name;
@@ -39,6 +39,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         ui.spacing_mut().interact_size.y = TOUCH_TARGET;
         MenuBar::new().ui(ui, |ui| {
             ui.spacing_mut().button_padding.x = MENU_LINK_PADDING_X;
+            ui.visuals_mut().widgets.hovered.weak_bg_fill = Color32::TRANSPARENT;
             pick = archive_menu(ui, model, requests);
             if export_menu(ui, model, requests) {
                 pick = Some(Pick::RecordExport);
@@ -118,6 +119,7 @@ fn shortcut_entry(texts: &Texts, text: Text, hint: Text) -> Button<'static> {
 pub(super) fn dropdown(ui: &mut Ui) {
     ui.set_min_width(DROPDOWN_MIN_WIDTH);
     ui.spacing_mut().button_padding.x = DROPDOWN_ITEM_PADDING_X;
+    ui.visuals_mut().widgets.hovered.weak_bg_fill = palette::GRAY_3;
 }
 
 fn indented<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {

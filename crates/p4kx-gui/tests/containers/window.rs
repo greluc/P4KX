@@ -107,6 +107,17 @@ fn clicking_a_container_lists_and_previews_its_entries() -> TestResult {
     })?;
     assert!(harness.query_by_label("chair.cgf").is_some(), "every Entry");
     assert!(harness.query_by_label("4 shown").is_some(), "status bar");
+    assert!(
+        harness.query_by_label("Container: 4 Entries").is_some(),
+        "the status bar labels the container's Entry count"
+    );
+    assert!(
+        harness
+            .query_all_by_label_contains("Data.p4k")
+            .next()
+            .is_some(),
+        "and still names the Archive"
+    );
     harness.get_by_label("layout.xml").click();
     settle(&mut harness, |harness| {
         harness.query_by_label_contains("rooms=").is_some()

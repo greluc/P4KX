@@ -11,7 +11,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::Weight;
-use crate::widgets::rows::{RowState, paint_divider, paint_row};
+use crate::widgets::rows::{RowState, paint_divider, paint_table_row};
 use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
 use crate::{CellLook, DataForgeText, Language, QueryResult, ResultColumn, Texts};
 
@@ -166,7 +166,7 @@ pub(super) fn show(ui: &mut Ui, result: &QueryResult, laid: &Laid) -> Option<usi
 fn builder(ui: &mut Ui, columns: usize) -> TableBuilder<'_> {
     let mut table = TableBuilder::new(ui)
         .id_salt("query-rows")
-        .striped(true)
+        .striped(false)
         .resizable(true)
         .auto_shrink(false)
         .sense(Sense::hover())
@@ -209,7 +209,7 @@ fn show_row(
         row.col(|ui| {
             let rect = ui.max_rect();
             let row_rect = rect.with_max_x(ui.clip_rect().right().max(rect.right()));
-            paint_row(ui.painter(), row_rect, state);
+            paint_table_row(ui.painter(), row_rect, state, position % 2 == 1);
             paint_divider(ui.painter(), row_rect);
             let text = result.cell(position, column).unwrap_or_default();
             let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));

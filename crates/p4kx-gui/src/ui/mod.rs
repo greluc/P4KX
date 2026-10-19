@@ -165,6 +165,10 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     work_tabs(ui, model);
+    frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+}
+
+fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     match model.work_tab() {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),

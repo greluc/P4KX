@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use egui::{Color32, Galley, Id, Rect, Role, Sense, Ui, UiBuilder, WidgetInfo, vec2};
+use egui::{Color32, Galley, Id, Rect, Role, Sense, Ui, WidgetInfo};
 use fluent_bundle::FluentValue;
 
-use crate::theme::desktop::{ROW_FONT, ROW_HEIGHT, SPINNER_INLINE};
+use crate::theme::desktop::ROW_FONT;
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_2, Weight};
-use crate::widgets::indicator::spinner;
+use crate::theme::tokens::Weight;
+use crate::widgets::indicator::{note_text_rect, row_spinner};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::{
     ContainerFailure, ContainerId, ContainerStatus, ContainerText, Language, Texts, format,
@@ -156,21 +156,13 @@ pub(super) fn show(
     rect: Rect,
 ) {
     let opening = matches!(status, ContainerStatus::Opening);
-    let text_rect = if opening {
-        rect.with_min_x(rect.left() + SPINNER_INLINE + SPACE_2)
-    } else {
-        rect
-    };
+    let text_rect = note_text_rect(rect, opening);
     let Some((galley, colour)) = notes.note(ui, texts, (id, status), text_rect.width().max(0.0))
     else {
         return;
     };
     if opening {
-        let spot = Rect::from_min_size(rect.min, vec2(SPINNER_INLINE, rect.height()));
-        ui.scope_builder(
-            UiBuilder::new().max_rect(spot.shrink2(vec2(0.0, (ROW_HEIGHT - SPINNER_INLINE) / 2.0))),
-            |ui| spinner(ui, SPINNER_INLINE),
-        );
+        row_spinner(ui, rect);
     }
     let response = ui.interact(
         text_rect,

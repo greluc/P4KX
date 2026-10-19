@@ -11,8 +11,10 @@ mod dataforge_convert;
 mod dependent;
 mod entry_content;
 mod entry_path;
+mod entry_tree;
 mod extract;
 mod filter;
+mod loaded_dataforge;
 mod localization;
 mod options;
 mod output_file;
@@ -56,8 +58,10 @@ pub use entry_content::{
     EntryBytes, EntryReadError, EntryText, MIN_TEXT_LEN, TextEncoding, find_entry, read_bytes,
     read_text,
 };
+pub use entry_tree::{EntryTree, Folder, FolderId};
 pub use extract::extract;
 pub use filter::Filter;
+pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{

@@ -3499,6 +3499,7 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-settings",
  "p4kx-testkit",
+ "rayon",
  "rmcp",
  "schemars",
  "serde",

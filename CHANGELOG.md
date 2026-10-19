@@ -36,6 +36,15 @@ fails while its section is missing.
   bytes; a larger `max_bytes` is clamped and the result says so, and `next_offset` continues.
   Stored Entries, encrypted or not, are read from the offset directly; compressed ones decode at
   most 1 GiB to reach it. At most four Entries are decoded whole for text at a time.
+- `p4kx-mcp` DataForge tools: `get_record` returns a Record by GUID, or every Record of a record
+  path, as Record JSON; `search_records` finds Records by record path and type name with Filters,
+  in Record order; `list_structs` and `list_enums` list the struct definitions with parent and
+  fields (data type, array, target struct or enum) and the enums with their values; `run_query`
+  runs a Query and returns its typed columns and one page of rows as `p4kx dcb query --format
+  json` writes them, the failed Records and the unresolved References, and an invalid Query as an
+  error with its byte span. Every result pages with a cursor and holds at most 256 KiB of items;
+  a single Record or row larger than that is an error. The DataForge is read once per open
+  Archive, kept open with its indexes and read again when the Archive file changes.
 - The Query tab of the window: run Queries over the DataForge of the open Archive in the
   background with progress and cancel, see an invalid Query explained with its line and column
   and underlined in the editor, sort the result table by any column, page through large results,
@@ -194,6 +203,10 @@ fails while its section is missing.
 - The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
   tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
   icon and header mark, an empty state with an "Open Archive" action.
+- Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
+  folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
+  path order spells it (ADR-0016). `list_entries` lists the Entries of a folder in path order and
+  pages in time proportional to the page; the window and the server share one folder index.
 
 ## [0.1.0]
 

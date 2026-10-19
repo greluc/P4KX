@@ -210,7 +210,11 @@ fn failed_entries_are_reported_with_their_reason() -> TestResult {
 
     assert_eq!(summary.extracted(), 1, "the good Entry");
     let failed: Vec<&str> = summary.failures().iter().map(|f| f.path.as_str()).collect();
-    assert_eq!(failed, ["Data\\NUL", "Data\\cut.txt"], "both failures");
+    assert_eq!(
+        failed,
+        ["Data\\cut.txt", "Data\\NUL"],
+        "both failures, in path order"
+    );
     assert!(
         summary
             .failures()
@@ -219,7 +223,7 @@ fn failed_entries_are_reported_with_their_reason() -> TestResult {
         "every failure has a reason"
     );
     assert_eq!(
-        summary.failures().first().map(|f| f.reason.as_str()),
+        summary.failures().get(1).map(|f| f.reason.as_str()),
         Some("the path would leave the target folder"),
         "the reason of the service"
     );

@@ -1,4 +1,5 @@
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::slice::Chunks;
 
 use rayon::prelude::*;
@@ -89,6 +90,20 @@ impl<'f> QueryRun<'_, 'f> {
         self.records
             .iter()
             .filter_map(move |&record| forge.path_of(record))
+    }
+
+    /// Returns the rows at `range` of the row order, built in parallel; the part of `range` past
+    /// the last row is left out.
+    #[must_use]
+    pub fn rows(&self, range: Range<usize>) -> Vec<Row<'f>> {
+        let end = range.end.min(self.records.len());
+        let start = range.start.min(end);
+        self.records
+            .get(start..end)
+            .unwrap_or_default()
+            .par_iter()
+            .filter_map(|&record| self.query.row(record))
+            .collect()
     }
 
     /// Returns the rows in pages of at most `page_size`; each page is built in parallel when it

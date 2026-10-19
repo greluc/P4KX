@@ -31,9 +31,9 @@ impl Server {
         let runtime = Handle::current();
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
-            let archive = state.archive(params.archive.as_deref())?;
+            let opened = state.archive(params.archive.as_deref())?;
             content::text(
-                &archive,
+                opened.archive(),
                 path,
                 params.offset.unwrap_or_default(),
                 params.max_bytes,
@@ -61,9 +61,9 @@ impl Server {
     ) -> Result<Json<BytesResult>, String> {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
-            let archive = state.archive(params.archive.as_deref())?;
+            let opened = state.archive(params.archive.as_deref())?;
             content::bytes(
-                &archive,
+                opened.archive(),
                 path,
                 params.offset.unwrap_or_default(),
                 params.max_bytes,

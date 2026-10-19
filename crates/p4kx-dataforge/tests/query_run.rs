@@ -4,7 +4,7 @@
 use std::error::Error;
 use std::num::NonZeroUsize;
 
-use p4kx_dataforge::query::{Query, QueryError, QueryErrorKind};
+use p4kx_dataforge::query::{Query, QueryError, QueryErrorKind, Row};
 use p4kx_dataforge::{DataForge, Value};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
@@ -126,6 +126,27 @@ fn pages_of_any_size_give_the_same_rows() -> TestResult {
     for size in [1, 7, 64, 299, 300] {
         assert_eq!(rows(&forge, text, size)?, whole, "page size {size}");
     }
+    Ok(())
+}
+
+#[test]
+fn any_range_of_rows_is_built_on_its_own() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+    let compiled = Query::parse("from Leaf select id")?.compile(&forge)?;
+    let run = compiled.run();
+    let paths: Vec<&str> = run.record_paths().collect();
+
+    let middle: Vec<&str> = run.rows(10..13).iter().map(Row::record_path).collect();
+    let tail = run.rows(73..500);
+
+    assert_eq!(
+        middle,
+        paths.get(10..13).unwrap_or_default(),
+        "rows 10 to 12"
+    );
+    assert_eq!(tail.len(), 2, "cut at the last row");
+    assert!(run.rows(500..600).is_empty(), "past the end");
     Ok(())
 }
 

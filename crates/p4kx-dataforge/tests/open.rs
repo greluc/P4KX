@@ -185,6 +185,54 @@ fn enumerates_structs_with_parent_and_properties() -> TestResult {
 }
 
 #[test]
+fn properties_name_the_struct_or_enum_their_values_belong_to() -> TestResult {
+    let bytes = sample()
+        .structure(
+            TestStruct::new("Hangar")
+                .field("ship", TestType::Class("Ship".to_owned()))
+                .field("best", TestType::ReferenceTo("Item".to_owned()))
+                .field("any", TestType::Reference),
+        )
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let named = |name: &str| {
+        forge
+            .structs()
+            .find(|structure| structure.name().is_ok_and(|found| found == name))
+    };
+    let targets = named("Hangar")
+        .ok_or("no Hangar")?
+        .properties()
+        .map(|property| {
+            Ok((
+                property
+                    .target_struct()
+                    .map(|target| target.name())
+                    .transpose()?,
+                property
+                    .target_enum()
+                    .map(|target| target.name())
+                    .transpose()?,
+            ))
+        })
+        .collect::<Result<Vec<_>, DataForgeError>>()?;
+    let size = named("Item")
+        .ok_or("no Item")?
+        .properties()
+        .find_map(|property| property.target_enum())
+        .map(|target| target.name())
+        .transpose()?;
+
+    assert_eq!(
+        targets,
+        [(Some("Ship"), None), (Some("Item"), None), (None, None)],
+        "the struct of a class and of a typed Reference"
+    );
+    assert_eq!(size, Some("Size"), "the enum of an enum field");
+    Ok(())
+}
+
+#[test]
 fn enumerates_enums_with_their_options() -> TestResult {
     let bytes = sample().build();
     let forge = DataForge::open(&bytes)?;

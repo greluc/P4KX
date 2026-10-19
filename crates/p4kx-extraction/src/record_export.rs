@@ -10,6 +10,7 @@ use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
 use crate::record_files::{RecordFiles, fold};
 use crate::record_format::RecordFileFormat;
+use crate::record_plan::RecordFilePlan;
 use crate::write::{create_folders, create_temporary, read_existing_error, write_error};
 use crate::{
     ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions, RecordExportReport,
@@ -48,13 +49,47 @@ pub fn export_record_files<F: RecordFileFormat>(
     target: &Path,
     options: &RecordExportOptions<'_>,
 ) -> RecordExportReport {
-    let cancel = options.cancel;
+    let plan = RecordFiles::plan(forge, F::EXTENSION);
+    write_with_options::<F>(forge, &plan, records, target, options)
+}
+
+/// Writes `records` of `forge` like [`export_record_files`], with the files of `plan`.
+///
+/// `plan` must have been made from `forge`; a plan for a DataForge with another number of
+/// Records or another size is not used, and the files are planned again.
+#[must_use]
+pub fn export_planned_record_files<F: RecordFileFormat>(
+    forge: &DataForge<'_>,
+    plan: &RecordFilePlan<F>,
+    records: &[Record<'_>],
+    target: &Path,
+    options: &RecordExportOptions<'_>,
+) -> RecordExportReport {
+    if plan.fits(forge) {
+        write_with_options::<F>(forge, plan.files(), records, target, options)
+    } else {
+        export_record_files::<F>(forge, records, target, options)
+    }
+}
+
+fn write_with_options<F: RecordFileFormat>(
+    forge: &DataForge<'_>,
+    plan: &RecordFiles,
+    records: &[Record<'_>],
+    target: &Path,
+    options: &RecordExportOptions<'_>,
+) -> RecordExportReport {
+    let (cancel, progress) = (options.cancel, options.progress);
     let run = RecordRun {
         policy: options.policy,
         stop: &|| cancel.is_some_and(crate::CancelToken::is_cancelled),
-        ended: &|| {},
+        ended: &|| {
+            if let Some(progress) = progress {
+                progress();
+            }
+        },
     };
-    write_records::<F>(forge, records, target, &run)
+    write_records::<F>(forge, plan, records, target, &run)
 }
 
 /// How a run writes Record files: the Conflict policy, whether to stop before the next Record,
@@ -65,16 +100,16 @@ pub(crate) struct RecordRun<'a> {
     pub(crate) ended: &'a (dyn Fn() + Sync),
 }
 
-/// Writes `records` of `forge` in the format `F` like [`export_record_files`], under the control
-/// of `run`.
+/// Writes `records` of `forge` in the format `F` to the files of `plan` like
+/// [`export_record_files`], under the control of `run`.
 pub(crate) fn write_records<'f, F: RecordFileFormat>(
     forge: &DataForge<'_>,
+    plan: &RecordFiles,
     records: &[Record<'f>],
     target: &Path,
     run: &RecordRun<'_>,
 ) -> RecordExportReport {
-    let plan = RecordFiles::plan(forge, F::EXTENSION);
-    let files = select_files(forge, &plan, records);
+    let files = select_files(forge, plan, records);
     let (independent, dependent) = split_dependent(files.iter().map(|file| match file {
         Selected::File(file) => *file,
         Selected::Taken(_) | Selected::Unsafe => "",

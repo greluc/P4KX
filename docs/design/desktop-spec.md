@@ -229,6 +229,20 @@ zeigen statt der Zeilen einen Satz im Panel-Körper, unlesbare den Grund je Seit
 verglichen, von einem Arbeits-Thread je Vergleich, der beide DataForges offen hält und nur die
 neueste Anfrage beantwortet; die Liste hält nur Pfade und Typen.
 
+**D.17 Export-Menü und Record-Export-Dialog.** Ein eigenes Menü „Export" rechts von „Archiv"
+sammelt die Exporte aus DataForge; ein Export ist keine Extraktion von Einträgen (CONTEXT.md),
+deshalb steht er nicht im Archiv-Menü. „Record-Export …" ist gesperrt, solange das Archiv kein
+DataForge hat oder DataForge nicht geladen werden konnte, und während ein Record-Export läuft.
+Der Dialog ist wie „Einträge extrahieren" ein breites Modal (D.3) mit drei Gruppen: Records
+(Auswahl im Record-Baum mit Name und Anzahl, oder Filter nach Record-Pfad im Suchfeld-Muster;
+Tippen in das Feld wählt den Filter), Form (JSON oder NDJSON als Radios) und Ziel (wie bei der
+Extraktion, mit Konfliktregel für einen vorhandenen Ordner). Die eine CTA heißt „Export
+starten", nicht „Exportieren", damit sie sich vom Menü „Export" unterscheidet, auch für
+Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht modal (D.3, D.7)
+und haben je genau eine Aktion im Fuß: „Abbrechen" als Ghost, „Schließen" als CTA. Der Balken
+zeigt erst beim Schreiben einen Anteil (D.5); davor steht ein Spinner mit „Lese DataForge …"
+bzw. „Wähle Records aus …". Der Hinweis auf einen Abbruch steht in `color-warning` (D.8, D.11).
+
 **D.21 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
 öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
 Struct-Namen nach `from` und in `[…]` (der Typ der Elemente und alles, was davon erbt), Feldnamen

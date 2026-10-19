@@ -12,7 +12,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, Weight, font};
-use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::rows::{paint_divider, section_header};
@@ -83,7 +83,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
+pub(super) fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
     if let Some(shown) = shown {
         frames::modal_decoration(ui.ctx(), shown.response.layer_id, shown.response.rect, tone);
     }
@@ -116,10 +116,7 @@ fn outcome_window(
 
 fn close_foot(ui: &mut Ui, texts: &Texts) -> bool {
     frames::foot_rule(ui);
-    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-        button::button(ui, Kind::Cta, Size::Normal, &texts.get(T::Close), true).clicked()
-    })
-    .inner
+    frames::foot_action(ui, &texts.get(T::Close), Kind::Cta)
 }
 
 fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> bool {
@@ -148,10 +145,7 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
         });
         false
     } else {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            button::button(ui, Kind::Ghost, Size::Normal, &texts.get(T::Cancel), true).clicked()
-        })
-        .inner
+        frames::foot_action(ui, &texts.get(T::Cancel), Kind::Ghost)
     }
 }
 
@@ -159,7 +153,7 @@ fn running(ui: &mut Ui, texts: &Texts, progress: Progress, cancelling: bool) -> 
     clippy::cast_precision_loss,
     reason = "a progress bar needs no more than f32 precision"
 )]
-fn ratio(done: u64, total: u64) -> f32 {
+pub(super) fn ratio(done: u64, total: u64) -> f32 {
     (done as f32 / total as f32).clamp(0.0, 1.0)
 }
 
@@ -304,7 +298,7 @@ fn list(
         });
 }
 
-fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {
+pub(super) fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {
     let size = vec2(ui.available_width(), ROW_HEIGHT);
     let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, text));

@@ -15,6 +15,7 @@ mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
 mod cli_socpak;
+mod cli_ui;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -36,6 +37,9 @@ mod query_table;
 mod socpak;
 mod texture;
 mod texture_image;
+mod ui;
+mod ui_extract;
+mod ui_json;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
@@ -67,6 +71,7 @@ fn main() -> ExitCode {
         Command::Texture(args) => texture::run(&args, json).map(success),
         Command::Audio(args) => audio::run(&args, json).map(success),
         Command::Bnk(args) => bnk::run(&args, json),
+        Command::Ui(args) => ui::run(&args, json),
         Command::Socpak(args) => socpak::run(&args, json),
         Command::Chf(args) => chf::run(&args, json).map(success),
         Command::Chunks(args) => chunks::run(&args, json).map(success),

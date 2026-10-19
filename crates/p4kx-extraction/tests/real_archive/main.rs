@@ -22,6 +22,8 @@ mod texture;
 mod texture_conversion;
 mod texture_hdr;
 mod texture_hdr_cube;
+mod texture_known;
+mod texture_survey;
 mod verification;
 
 type TestResult = Result<(), Box<dyn Error>>;

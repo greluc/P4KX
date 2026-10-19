@@ -70,6 +70,7 @@ where
     let prefix_len = read_prefix(&mut header, prefix.get_mut(..limit).unwrap_or_default())?;
     let start = prefix.get(..prefix_len).unwrap_or_default();
     let dds = DdsHeader::parse(start)?;
+    let header_size = dds.data_len(header_size);
     let parts = dds.part_count(header_size)?;
     let sizes = part_sizes(&dds, parts, siblings)?;
     let (own_header, own_tail) = start

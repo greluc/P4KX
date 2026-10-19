@@ -186,6 +186,43 @@ fn a_long_part_is_oversized() {
     );
 }
 
+fn merge_with_trailer(dds: &SplitDds) -> Result<(MergeReport, Vec<u8>), TextureError> {
+    let mut header = dds.header_bytes();
+    header.extend_from_slice(b"CExtCEnd");
+    let mut out = Vec::new();
+    let report = merge(
+        header.as_slice(),
+        header.len() as u64,
+        &Parts::of(dds),
+        &mut out,
+    )?;
+    Ok((report, out))
+}
+
+#[test]
+fn the_cryengine_trailer_of_an_unsplit_cubemap_is_not_merged() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8).cubemap();
+
+    let (report, merged) = merge_with_trailer(&dds)?;
+
+    assert_eq!(merged, dds.header_bytes(), "the trailer is dropped");
+    assert_eq!(report.parts, 0, "no parts");
+    assert_eq!(report.size, merged.len() as u64, "size of the merged DDS");
+    Ok(())
+}
+
+#[test]
+fn the_cryengine_trailer_of_a_split_texture_is_not_merged() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4);
+
+    let (report, merged) = merge_with_trailer(&dds)?;
+
+    assert_eq!(merged, standard_layout(&dds, 7), "header, then mips 0 to 6");
+    assert_eq!(report.parts, 4, "four parts were read");
+    assert_eq!(report.size, merged.len() as u64, "size of the merged DDS");
+    Ok(())
+}
+
 #[test]
 fn a_header_tail_that_is_no_whole_mip_is_rejected() {
     let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 64).split(3);

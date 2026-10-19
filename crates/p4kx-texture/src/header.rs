@@ -15,6 +15,7 @@ const CAPS2_VOLUME: u32 = 0x20_0000;
 const CUBE_FACES: u32 = 6;
 const DIMENSION_TEXTURE3D: u32 = 4;
 const MISC_TEXTURECUBE: u32 = 0x4;
+const CRYENGINE_TRAILER_LEN: u64 = 8;
 
 /// The longest DDS header: magic, the 124-byte header and the DX10 extension.
 pub const MAX_HEADER_LEN: usize = MAGIC_LEN + HEADER_SIZE as usize + DX10_LEN;
@@ -235,7 +236,8 @@ impl DdsHeader {
     }
 
     /// Returns the number of sibling parts a header Entry of `header_size` bytes is split into:
-    /// the mips that do not follow the header in the Entry itself, one per part.
+    /// the mips that do not follow the header in the Entry itself, one per part. The CryEngine
+    /// trailer `CExtCEnd` after the last mip is not a mip and is ignored.
     ///
     /// # Errors
     ///
@@ -252,21 +254,33 @@ impl DdsHeader {
                 needed: self.header_len as u64,
             },
         )?;
+        self.parts_for(tail)
+            .or_else(|| self.parts_for(tail.checked_sub(CRYENGINE_TRAILER_LEN)?))
+            .ok_or(TextureError::TailMismatch { tail })
+    }
+
+    /// Returns the length of the data of a header Entry of `header_size` bytes without the
+    /// CryEngine trailer `CExtCEnd` that follows the mips of some textures, or `header_size`
+    /// when the Entry has no such trailer.
+    #[must_use]
+    pub fn data_len(&self, header_size: u64) -> u64 {
+        let trailer_free = header_size
+            .checked_sub(self.header_len as u64)
+            .filter(|&tail| self.parts_for(tail).is_none())
+            .and_then(|tail| self.parts_for(tail.checked_sub(CRYENGINE_TRAILER_LEN)?))
+            .map(|_| header_size - CRYENGINE_TRAILER_LEN);
+        trailer_free.unwrap_or(header_size)
+    }
+
+    fn parts_for(&self, tail: u64) -> Option<u32> {
         let mut sum = 0_u64;
         for level in (0..self.mip_count).rev() {
             if sum == tail {
-                return Ok(level + 1);
+                return Some(level + 1);
             }
-            sum = self
-                .mip_size(level)
-                .and_then(|size| sum.checked_add(size))
-                .ok_or(TextureError::TailMismatch { tail })?;
+            sum = sum.checked_add(self.mip_size(level)?)?;
         }
-        if sum == tail {
-            Ok(0)
-        } else {
-            Err(TextureError::TailMismatch { tail })
-        }
+        (sum == tail).then_some(0)
     }
 }
 

@@ -8,6 +8,11 @@ fails while its section is missing.
 
 ### Added
 
+- Verification of textures and localisation against all installed Channels, recorded in
+  `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
+  `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer
+  refused with "not a whole number of mips": the trailer is left out of the merged DDS and of
+  the mips read.
 - GUI: a Localisation tab next to Query. It reads the `global.ini` of every language of the open
   Archive off the UI thread behind a loading indicator and shows one row per localisation key
   and one column per language, with missing translations marked. The search matches keys and

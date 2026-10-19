@@ -188,6 +188,26 @@ fn a_size_that_overflows_is_invalid() {
 }
 
 #[test]
+fn eight_bytes_after_the_mips_are_the_cryengine_trailer() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).split(4);
+    let header = parse(&dds)?;
+    let size = dds.header_bytes().len() as u64;
+
+    assert_eq!(header.part_count(size + 8)?, 4, "the trailer is no mip");
+    assert_eq!(header.data_len(size + 8), size, "the data ends before it");
+    assert_eq!(header.data_len(size), size, "no trailer, nothing cut");
+    assert!(
+        matches!(
+            header.part_count(size + 7),
+            Err(TextureError::TailMismatch { .. })
+        ),
+        "seven bytes are not the trailer"
+    );
+    assert_eq!(header.data_len(size + 7), size + 7, "nothing cut");
+    Ok(())
+}
+
+#[test]
 fn a_legacy_luminance_alpha_header_is_l8a8() -> Result<(), TextureError> {
     let header = parse(&SplitDds::new(TestTextureFormat::LegacyL8A8, 8, 8))?;
 

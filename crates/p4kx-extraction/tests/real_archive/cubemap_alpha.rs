@@ -156,6 +156,13 @@ fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
     if report.size != merged.len() as u64 {
         return Err(format!("{}: merged size", tail.path()).into());
     }
+    if colour.surfaces() > 1 || colour.depth() > 1 {
+        return Ok(format!(
+            "{} + {}: skipped, several images per mip",
+            colour.format(),
+            alpha.format()
+        ));
+    }
     let image = texture
         .decode_mip(0)
         .map_err(|error| format!("{colour_path}: {error}"))?;

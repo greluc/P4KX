@@ -72,6 +72,24 @@ fn an_unsplit_texture_reads_every_mip_from_the_header() -> Result<(), TextureErr
 }
 
 #[test]
+fn the_cryengine_trailer_of_a_cubemap_is_not_read_as_a_mip() -> Result<(), TextureError> {
+    let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 8, 8).cubemap();
+    let mut header = dds.header_bytes();
+    header.extend_from_slice(b"CExtCEnd");
+
+    for level in 0..4 {
+        let mip = read_mip(
+            header.as_slice(),
+            header.len() as u64,
+            &Parts::of(&dds),
+            level,
+        )?;
+        assert_eq!(mip.data(), dds.mip(level).as_slice(), "mip {level}");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_mip_beyond_the_chain_is_named() {
     let dds = SplitDds::new(TestTextureFormat::LegacyDxt1, 16, 16).split(2);
 

@@ -188,6 +188,7 @@ where
             images: dds.surfaces().saturating_mul(dds.depth()),
         });
     }
+    let header_size = dds.data_len(header_size);
     let parts = dds.part_count(header_size)?;
     let data = if level < parts {
         let size = dds

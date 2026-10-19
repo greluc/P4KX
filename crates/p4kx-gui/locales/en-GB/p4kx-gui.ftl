@@ -367,6 +367,8 @@ catalog-summary-kind = { $kind ->
    *[no] partial
 }
 catalog-summary-skipped = Records skipped as development leftovers: { $number }
+catalog-summary-failed = Records that could not be read and were left out ({ $number })
+catalog-summary-failure = { $path } ({ $guid }): { $reason }
 catalog-texts-heading = Texts
 catalog-summary-texts = { $language ->
     [en] English

@@ -3,12 +3,13 @@ use p4kx_extraction::RecordTree;
 use crate::blueprint::blueprint;
 use crate::commodity::{Groups, commodity};
 use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
+use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
 use crate::ship::ship;
 use crate::texts::Texts;
-use crate::{ItemClassSummary, Kind, KindSummary};
+use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
 
 /// A Record a kind selected: its entity, or a development leftover of the kind.
 pub(crate) enum Picked<'f> {
@@ -24,6 +25,8 @@ pub(crate) enum Picked<'f> {
     Blueprint(Blueprint<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
+    /// A Record that could not be read.
+    Failed(CatalogFailure),
 }
 
 impl<'f> Picked<'f> {
@@ -59,6 +62,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) commodities: Vec<Commodity<'f>>,
     pub(crate) blueprints: Vec<Blueprint<'f>>,
     pub(crate) item_classes: ItemClassSummary,
+    pub(crate) failures: Vec<CatalogFailure>,
     skipped: [usize; Kind::ALL.len()],
 }
 
@@ -81,8 +85,15 @@ impl<'f> Collected<'f> {
                         *skipped = skipped.saturating_add(1);
                     }
                 }
+                Picked::Failed(failure) => collected.failures.push(failure),
             }
         }
+        collected
+            .failures
+            .sort_by_cached_key(|failure| CatalogGuid(failure.guid).text());
+        collected
+            .failures
+            .dedup_by(|later, earlier| later.guid == earlier.guid);
         collected
             .manufacturers
             .sort_by_cached_key(|entity| entity.guid.text());

@@ -1,18 +1,20 @@
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
+use std::process::ExitCode;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogOptions, CatalogSummary, Filter, SCHEMA_VERSION, SizeWarning,
-    UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, SCHEMA_VERSION,
+    SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{CatalogArgs, CatalogCommand};
+use crate::exit;
 use crate::extract::cancel_on_interrupt;
 use crate::json;
 use crate::loc::print_notes;
@@ -29,7 +31,7 @@ pub(crate) struct InvalidExportTime(u64);
 pub(crate) struct MissingCatalogArgs;
 
 #[derive(Serialize)]
-struct SummaryJson {
+struct SummaryJson<'a> {
     archive: String,
     out: String,
     schema_version: u32,
@@ -38,9 +40,17 @@ struct SummaryJson {
     size_warning: Option<&'static str>,
     kinds: Vec<KindJson>,
     skipped: usize,
+    failed: Vec<FailureJson<'a>>,
     item_classes: ItemClassJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct FailureJson<'a> {
+    guid: String,
+    path: &'a str,
+    error: &'a str,
 }
 
 #[derive(Serialize)]
@@ -68,10 +78,11 @@ struct KindJson {
 }
 
 /// Writes the Basetool catalog of the Archive to the output file and prints its summary, or
-/// prints the catalog's JSON Schema.
-pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<()> {
+/// prints the catalog's JSON Schema; the exit code is 1 when a selected Record could not be read.
+pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     if matches!(args.command, Some(CatalogCommand::Schema)) {
-        return print_schema();
+        print_schema()?;
+        return Ok(ExitCode::from(exit::SUCCESS));
     }
     let (Some(archive), Some(out)) = (&args.archive, &args.out) else {
         return Err(MissingCatalogArgs.into());
@@ -98,6 +109,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<()> {
     let built = built.map_err(into_anyhow)?;
     let summary = built.summary();
     print_notes(summary.text_notes());
+    print_failures(summary.failures())?;
     warn_about_size(summary)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
     let printed = if as_json {
@@ -105,10 +117,28 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<()> {
     } else {
         print_summary(summary, out)
     };
-    match printed {
-        Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
-        _ => Ok(()),
+    if let Err(error) = printed
+        && error.kind() != io::ErrorKind::BrokenPipe
+    {
+        return Err(error.into());
     }
+    Ok(ExitCode::from(if summary.is_complete() {
+        exit::SUCCESS
+    } else {
+        exit::PARTIAL_FAILURE
+    }))
+}
+
+fn print_failures(failures: &[CatalogFailure]) -> io::Result<()> {
+    let mut err = io::stderr().lock();
+    for failure in failures {
+        writeln!(
+            err,
+            "failed {} ({}): {}",
+            failure.record_path, failure.guid, failure.reason
+        )?;
+    }
+    Ok(())
 }
 
 fn print_schema() -> Result<()> {
@@ -123,9 +153,6 @@ fn into_anyhow(error: CatalogError) -> anyhow::Error {
         CatalogError::Load(error) => error.into(),
         CatalogError::LoadTexts(error) => error.into(),
         CatalogError::DataForge(error) => error.into(),
-        CatalogError::Record { guid, source } => {
-            anyhow::Error::from(source).context(format!("cannot read the Record {guid}"))
-        }
         other => other.into(),
     }
 }
@@ -152,7 +179,7 @@ const fn warning_name(warning: SizeWarning) -> &'static str {
     }
 }
 
-fn summary_json(archive: &Archive, out: &Path, summary: &CatalogSummary) -> SummaryJson {
+fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) -> SummaryJson<'a> {
     SummaryJson {
         archive: json::path(archive.path()),
         out: json::path(out),
@@ -171,6 +198,15 @@ fn summary_json(archive: &Archive, out: &Path, summary: &CatalogSummary) -> Summ
             })
             .collect(),
         skipped: summary.skipped(),
+        failed: summary
+            .failures()
+            .iter()
+            .map(|failure| FailureJson {
+                guid: failure.guid.to_string(),
+                path: &failure.record_path,
+                error: &failure.reason,
+            })
+            .collect(),
         item_classes: ItemClassJson {
             classified: summary.item_classes().classified,
             other: summary.item_classes().other,
@@ -226,9 +262,10 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     }
     writeln!(
         stdout,
-        "wrote {}: {} bytes, {} Records skipped",
+        "wrote {}: {} bytes, {} Records skipped, {} failed",
         out.display(),
         summary.size(),
-        summary.skipped()
+        summary.skipped(),
+        summary.failures().len()
     )
 }

@@ -285,7 +285,7 @@ fn finished(ui: &mut Ui, laid: &Laid) {
     );
 }
 
-fn list(
+pub(super) fn list(
     ui: &mut Ui,
     (heading, salt): (&str, &str),
     lines: &[String],

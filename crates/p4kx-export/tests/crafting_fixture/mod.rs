@@ -125,6 +125,48 @@ fn blueprint(spec: &BlueprintSpec) -> TestRecord {
     )
 }
 
+fn nested_blueprint() -> BlueprintSpec {
+    BlueprintSpec {
+        guid: NESTED,
+        class: "BP_CRAFT_nested",
+        path: "crafting/fpsgear/armour/bp_craft_nested",
+        produces: PRODUCT,
+        mandatory: select(
+            "OUTER",
+            "@crafting_ui_slotname_outer",
+            vec![select(
+                "",
+                "@LOC_PLACEHOLDER",
+                vec![select("", "", vec![resource(RESOURCE_GOLD, 3.0, 200)])],
+            )],
+        ),
+        optional: vec![
+            resource(RESOURCE_IRON, 0.75, 400),
+            select("EXTRA", "@LOC_PLACEHOLDER", vec![item(ORE, 2, 0)]),
+        ],
+    }
+}
+
+fn extra_blueprints() -> Vec<BlueprintSpec> {
+    let template = BlueprintSpec {
+        guid: TEMPLATE,
+        class: "BP_CRAFT_weapon",
+        path: "crafting/fpsgear/weapons/$templates/bp_craft_weapon",
+        produces: PRODUCT,
+        mandatory: resource(RESOURCE_IRON, 1.0, 0),
+        optional: Vec::new(),
+    };
+    let leftover = BlueprintSpec {
+        guid: 0x1500_0000_0000_4000_8000_0000_0000_0005,
+        class: "BP_CRAFT_dev_test",
+        path: "crafting/fpsgear/bp_craft_dev_test",
+        produces: PRODUCT,
+        mandatory: resource(RESOURCE_IRON, 1.0, 0),
+        optional: Vec::new(),
+    };
+    vec![template, leftover, nested_blueprint()]
+}
+
 /// The blueprints of the fixture in the order of their GUIDs.
 pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
     let magazine = BlueprintSpec {
@@ -151,25 +193,6 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         ),
         optional: Vec::new(),
     };
-    let nested = BlueprintSpec {
-        guid: NESTED,
-        class: "BP_CRAFT_nested",
-        path: "crafting/fpsgear/armour/bp_craft_nested",
-        produces: PRODUCT,
-        mandatory: select(
-            "OUTER",
-            "@crafting_ui_slotname_outer",
-            vec![select(
-                "",
-                "@LOC_PLACEHOLDER",
-                vec![select("", "", vec![resource(RESOURCE_GOLD, 3.0, 200)])],
-            )],
-        ),
-        optional: vec![
-            resource(RESOURCE_IRON, 0.75, 400),
-            select("EXTRA", "@LOC_PLACEHOLDER", vec![item(ORE, 2, 0)]),
-        ],
-    };
     let core = BlueprintSpec {
         guid: CORE,
         class: "BP_CRAFT_core",
@@ -186,23 +209,9 @@ pub(crate) fn blueprints() -> Vec<BlueprintSpec> {
         mandatory: item(ORE, 1, 0),
         optional: Vec::new(),
     };
-    let template = BlueprintSpec {
-        guid: TEMPLATE,
-        class: "BP_CRAFT_weapon",
-        path: "crafting/fpsgear/weapons/$templates/bp_craft_weapon",
-        produces: PRODUCT,
-        mandatory: resource(RESOURCE_IRON, 1.0, 0),
-        optional: Vec::new(),
-    };
-    let leftover = BlueprintSpec {
-        guid: 0x1500_0000_0000_4000_8000_0000_0000_0005,
-        class: "BP_CRAFT_dev_test",
-        path: "crafting/fpsgear/bp_craft_dev_test",
-        produces: PRODUCT,
-        mandatory: resource(RESOURCE_IRON, 1.0, 0),
-        optional: Vec::new(),
-    };
-    vec![magazine, core, dangling, template, leftover, nested]
+    let mut specs = vec![magazine, core, dangling];
+    specs.extend(extra_blueprints());
+    specs
 }
 
 /// Returns the DataForge of the fixture.

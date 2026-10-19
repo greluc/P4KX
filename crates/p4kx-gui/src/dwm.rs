@@ -72,8 +72,8 @@ mod tests {
 
     #[test]
     fn a_colorref_holds_blue_green_red_from_the_high_byte_down() {
-        let orange = Color32::from_rgb(0xFB, 0x8A, 0x28);
+        let orange = Color32::from_rgb(0xE7, 0x7E, 0x23);
 
-        assert_eq!(colorref(orange), 0x0028_8AFB, "0x00BBGGRR");
+        assert_eq!(colorref(orange), 0x0023_7EE7, "0x00BBGGRR");
     }
 }

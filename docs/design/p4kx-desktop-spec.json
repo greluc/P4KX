@@ -1,6 +1,6 @@
 {
   "meta": {
-    "source": "krt-profit/design-system main e456702 (2026-10 website palette, radius-sm)",
+    "source": "krt-profit/design-system main 20aa9da (measured website palette, radius-sm)",
     "unit": "px; colours, glows and fonts as token names from tokens.json",
     "rem": 16,
     "rowDensity": 36,
@@ -239,7 +239,7 @@
     "background": "transparent",
     "color": "color-primary",
     "border": {"width": 1, "color": "color-primary"},
-    "hoverBackground": "rgba(251,138,40,0.12)",
+    "hoverBackground": "rgba(231,126,35,0.12)",
     "hoverColor": "color-accent-light",
     "hoverBorder": "color-accent-light",
     "pressedBackground": "control-selected-bg"
@@ -249,7 +249,7 @@
     "background": "control-bg",
     "color": "control-fg",
     "border": {"width": 1, "color": "control-border"},
-    "hoverBackground": "rgba(251,138,40,0.07)",
+    "hoverBackground": "rgba(231,126,35,0.07)",
     "hoverColor": "color-accent-light",
     "hoverBorder": "color-primary",
     "pressedBackground": "control-selected-bg"
@@ -440,7 +440,7 @@
     "textColor": "color-gray-2-text",
     "textMaxWidthCh": 48,
     "dropTargetBorder": "color-primary",
-    "dropTargetBackground": "rgba(251,138,40,0.10)",
+    "dropTargetBackground": "rgba(231,126,35,0.10)",
     "action": "buttonOutline"
   },
   "noticeBar": {
@@ -535,7 +535,7 @@
     "size": 20,
     "sizeInline": 14,
     "ringWidth": 2,
-    "track": "rgba(251,138,40,0.25)",
+    "track": "rgba(231,126,35,0.25)",
     "arc": "color-primary",
     "periodMs": 900
   },
@@ -580,10 +580,10 @@
     "maxWidth": 272,
     "paddingX": 9.6,
     "paddingY": 8,
-    "background": "rgba(0,0,0,0.95)",
+    "background": "color-control",
     "border": {"width": 1, "color": "color-primary"},
     "radius": "radius-none",
-    "shadow": {"x": 0, "y": 0, "blur": 10, "spread": 0, "color": "rgba(251,138,40,0.3)"},
+    "shadow": {"x": 0, "y": 0, "blur": 10, "spread": 0, "color": "rgba(231,126,35,0.3)"},
     "fontSize": 12.48,
     "fontWeight": "fw-regular",
     "lineHeight": 1.4,
@@ -990,8 +990,8 @@
     }
   },
   "shadows": {
-    "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(251,138,40,0.3)"},
-    "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(251,138,40,0.2)"},
+    "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},
+    "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},
     "glow-danger-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(163,0,10,0.2)"},
     "shadow-dropdown": {"x": 0, "y": 8, "blur": 16, "spread": 0, "color": "rgba(0,0,0,0.8)"}
   },

@@ -1,6 +1,6 @@
 # P4K-Extractor · Desktop-Vorgaben aus dem KRT Design System
 
-Quelle: `krt-profit/design-system` `main` bis `e456702` (Website-Palette 2026-10, `radius-sm` 4 px). Maschinenlesbar:
+Quelle: `krt-profit/design-system` `main` bis `20aa9da` (gemessene Website-Palette, `radius-sm` 4 px). Maschinenlesbar:
 [`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4K-Extractor Desktop".
 Logo: [`p4kx-logo.svg`](p4kx-logo.svg) (ab 64 px), [`p4kx-glyph.svg`](p4kx-glyph.svg) (bis 32 px).
 
@@ -55,17 +55,17 @@ sind keine neuen Farben.
 | Vorschau-Panel | Fläche + `.tab-nav` | Start 236, min. 120 | Pfadzeile 32, x 16; Inhalt x 16 y 8 | – | Pfad 12,8 / 400 | nein | bg `surface-panel`; Pfad `color-gray-1`, Größe `color-gray-2-text` | 1 `color-gray-3`, Radius `radius-sm` | – | – |
 | Hex-Zeile | – | 20 | – | Offset 88; Byte-Zelle 22 + 2; nach 8 Bytes 10; ASCII-Abstand 16, Zelle 10 | 12,8 / 400, Ziffern tabellarisch | Hex in Großbuchstaben | Offset und `00` `color-gray-2-text`; Bytes/ASCII `color-gray-1`; nicht druckbar „." gedämpft | – | – | – |
 | Statusleiste | `.krt-footer` (Desktop-Dichte) | 32 | x 16; Einträge x 12 | Trenner 1 `color-gray-3` | 12,8 / 400 | nein | bg `surface-bar`, `color-gray-2-text`; Pfad `color-gray-1`; „Suche …" `color-primary` | oben 1 `color-gray-3` | – | – |
-| Leerzustand | `.empty-state` | füllt | 24 | 12 | Titel 13,6 / 700 / 0,06 em; Text 12,8 | Titel ja | bg `color-bg-dark-gray`, Titel `color-gray-1`, Text `color-gray-2-text`; Ziehen: `rgba(251,138,40,0.10)` | 1 gestrichelt `color-gray-3`, Radius `radius-sm`; Ziehen `color-primary` | – | Aktion |
+| Leerzustand | `.empty-state` | füllt | 24 | 12 | Titel 13,6 / 700 / 0,06 em; Text 12,8 | Titel ja | bg `color-bg-dark-gray`, Titel `color-gray-1`, Text `color-gray-2-text`; Ziehen: `rgba(231,126,35,0.10)` | 1 gestrichelt `color-gray-3`, Radius `radius-sm`; Ziehen `color-primary` | – | Aktion |
 | Hinweisleiste | `.alert.alert-warning` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(255,210,63,0.15)`, Text `color-gray-1`, Icon `color-warning` | 1 `color-warning`, links 4 | – | Aktion |
 | Modal | `.krt-modal` (`--wide` 600) | – | Kopf 16 / 12, Körper 16, Fuß 16 / 12 | Gruppen 20, Fuß 8 | Titel 13,6 / 700 / 0,06 em; Körper 14,4 / 400 | Titel ja | bg `color-bg-dark-gray`, Titel `color-white`; Scrim `rgba(0,0,0,0.8)` flach | 1 `color-gray-3`, oben 3 `color-primary`, Ecken 13 × 2 | `glow-primary-lg` | Fokusfalle, Esc |
 | Modal Danger | `.krt-modal--danger` | – | wie Modal | – | Titel `color-danger-text` | ja | – | oben 3 + Ecken `color-danger` | `glow-danger-lg` | wie Modal |
 | Aufklappbarer Abschnitt | `.panel-header` | 44 | x 16, y 12,8 | Liste max. 180 hoch | 13,6 / 700 / 1 px | ja | bg `color-surface-input`, Titel `color-white`, Chevron `color-primary`; Hover `color-gray-3` | 1 `color-gray-3`, Radius `radius-sm`, links 4 `color-primary` | – | 2 / +2 |
 | Fortschrittsbalken | `.attendance-meter` | 8 | – | Text→Balken 12 | Text 14,4 / 400, tabellarisch | nein | Spur `color-surface-input`; Füllung `color-primary`; beim Abbrechen `color-gray-2` | 1 `color-gray-3` | – | – |
-| Spinner | `.krt-spinner` | 20 (inline 14) | – | Text 8 | – | – | Spur `rgba(251,138,40,0.25)`, Bogen `color-primary` | Ring 2 | – | – |
+| Spinner | `.krt-spinner` | 20 (inline 14) | – | Text 8 | – | – | Spur `rgba(231,126,35,0.25)`, Bogen `color-primary` | Ring 2 | – | – |
 | Detailliste | `.kv-list.kv-ruled` | – | unten 8,8 | Zeilen 8,8, Spalten 20; Schlüsselspalte min. 140 | Schlüssel 14,4 / 700 / 0,04 em; Wert 16,8 / 300 | Schlüssel ja | Schlüssel `color-gray-2-text`, Wert `data-fg` | unten 1 `color-gray-3` | – | – |
 | Abschnittstitel | `.section-title` | – | unten 8 | oben 32 (als Erstes 0), unten 16 | 16 / 700 / 0,05 em | ja | `color-gray-1` | unten 1 `color-gray-3` | – | – |
 | Link | `a` | Text | – | – | 12,8 / 700 | nein | `color-primary`; Hover `color-accent-light` + Unterstrich | – | – | 2 / +2, quadratisch |
-| Tooltip | `.scu-hint__bubble` | – | x 9,6, y 8; max. 272 breit | 500 ms Verzögerung | 12,48 / 400, Zeilenhöhe 1,4 | nein | bg `rgba(0,0,0,0.95)`, `color-gray-1` | 1 `color-primary`, Ecken quadratisch | 0 0 10 0 `rgba(251,138,40,0.3)` | – |
+| Tooltip | `.scu-hint__bubble` | – | x 9,6, y 8; max. 272 breit | 500 ms Verzögerung | 12,48 / 400, Zeilenhöhe 1,4 | nein | bg `color-control`, `color-gray-1` | 1 `color-primary`, Ecken quadratisch | 0 0 10 0 `rgba(231,126,35,0.3)` | – |
 | Scrollbar | `::-webkit-scrollbar` | 12 (Seitenleiste 8) | Griff ohne Einzug | Griff min. 32 | – | – | Spur `color-gray-4`; Griff `color-gray-2`, Hover `color-accent-light`, Ziehen `color-primary` | keine Haarlinie | – | – |
 | Größenänderungs-Griff | – | 6 | Griff 2 × 24 mittig | – | – | – | Feld `surface-canvas`; Griff `color-gray-2`; Hover volle Länge `color-accent-light`; Ziehen `color-primary` | – | – | 2 / +2, Pfeiltasten |
 | Arbeitsbereich-Tabs | `.tab-nav` / `.tab` | 44 | wie Tab-Leiste | – | wie Tab-Leiste | ja | wie Tab-Leiste | wie Tab-Leiste | – | innen −2 |

@@ -37,6 +37,7 @@ bit-flipped packets for robustness:
   60.8 s; no release since March 2026.
 - opus-rs 0.1.37 (BSD-3-Clause): fails most SILK and hybrid vectors through its decoder API.
 - opuscule 0.2.1 (MPL-2.0): its repository is gone.
-- symphonia: its Opus crate is an empty stub.
+- symphonia: `symphonia-codec-opus` on its main branch is an empty `lib.rs` and was never published
+  to crates.io, so there is no Opus decoder to use.
 - libopus through `audiopus` or `opus`: the reference, but C code on untrusted input against
   ADR-0001, and `audiopus_sys` is unmaintained (RUSTSEC-2026-0150).

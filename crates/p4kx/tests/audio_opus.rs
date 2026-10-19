@@ -23,9 +23,9 @@ const fn sound() -> TestOpus {
 
 fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = folder.join("Data.p4k");
-    let bank = TestBank::new(1).wem(600, sound().wem().bytes()).bytes();
+    let bank = TestBank::new(1).wem(600, sound().wem()?.bytes()).bytes();
     ArchiveBuilder::new()
-        .entry(TestEntry::zstd(OPUS_ENTRY, sound().wem().bytes()))
+        .entry(TestEntry::zstd(OPUS_ENTRY, sound().wem()?.bytes()))
         .entry(TestEntry::zstd(BANK_ENTRY, bank))
         .write_to(&path)?;
     Ok(path)

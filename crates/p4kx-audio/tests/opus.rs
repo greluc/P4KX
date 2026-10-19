@@ -1,10 +1,12 @@
 //! Opus WEMs of every framing: WAV decoding against the known signal and Ogg Opus repackaging.
 
+mod opus_signal;
 mod pages;
 
 use std::io::Cursor;
 
 use opus_pure::{OggOpusReader, OpusMSDecoder};
+use opus_signal::{snr, wav_samples};
 use p4kx_audio::{AudioError, Codec, OpusError, Wem};
 use p4kx_testkit::{TestOpus, TestOpusFraming};
 
@@ -13,34 +15,8 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 const FRAMES: u32 = 9_600;
 const MIN_SNR_DB: f64 = 20.0;
 
-/// Returns the signal-to-noise ratio in dB of channel `channel` of `decoded` against `signal`.
-fn snr(signal: &[i16], decoded: &[i16], channels: usize, channel: usize) -> f64 {
-    let (mut power, mut noise) = (0.0_f64, 0.0_f64);
-    for (expected, got) in signal
-        .iter()
-        .skip(channel)
-        .step_by(channels)
-        .zip(decoded.iter().skip(channel).step_by(channels))
-    {
-        power += f64::from(*expected).powi(2);
-        noise += (f64::from(*expected) - f64::from(*got)).powi(2);
-    }
-    10.0 * (power / noise.max(1.0)).log10()
-}
-
-fn wav_samples(wav: &[u8], channels: u16) -> Vec<i16> {
-    let header_len = if channels > 2 { 68 } else { 44 };
-    wav.get(header_len..)
-        .unwrap_or_default()
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|pair| i16::from_le_bytes(*pair))
-        .collect()
-}
-
 fn assert_wav_matches(sound: &TestOpus, channels: u16) -> TestResult {
-    let bytes = sound.wem().bytes();
+    let bytes = sound.wem()?.bytes();
     let wem = Wem::parse(bytes.as_slice())?;
     assert_eq!(wem.codec(), Codec::Opus, "codec");
     assert_eq!(wem.sample_rate(), 48_000, "rate");
@@ -65,7 +41,7 @@ fn assert_wav_matches(sound: &TestOpus, channels: u16) -> TestResult {
 
 #[test]
 fn wwise_opus_decodes_to_the_known_signal_in_mono_stereo_and_surround() -> TestResult {
-    for channels in [1, 2, 4, 6, 8] {
+    for channels in [1, 2, 3, 4, 5, 6, 8] {
         assert_wav_matches(
             &TestOpus::new(TestOpusFraming::Wwise, channels, FRAMES),
             channels,
@@ -102,7 +78,7 @@ fn assert_playable_ogg(sound: &TestOpus, ogg: &[u8]) -> TestResult {
         "whole header pages"
     );
     let packets = pages::packets(&pages);
-    let encoded = sound.packets();
+    let encoded = sound.packets()?;
     assert_eq!(
         packets.len(),
         2 + encoded.packets.len(),
@@ -140,12 +116,12 @@ fn assert_plays_the_signal(sound: &TestOpus, ogg: &[u8], pre_skip: u16) -> TestR
         .get(usize::from(pre_skip) * channels..)
         .unwrap_or_default();
     let signal = sound.signal();
-    let order: &[usize] = if channels == 6 {
-        &[0, 2, 1, 4, 5, 3]
-    } else {
-        &[0, 1]
-    };
-    for (vorbis, &wave) in order.iter().enumerate().take(channels) {
+    for wave in 0..channels {
+        let vorbis = if head.mapping_family == 1 {
+            vorbis_position(channels, wave)
+        } else {
+            wave
+        };
         let wave_signal: Vec<i16> = signal
             .iter()
             .skip(wave)
@@ -169,11 +145,14 @@ fn wwise_opus_becomes_a_playable_ogg_opus_with_its_pre_skip_and_length() -> Test
     for (framing, channels) in [
         (TestOpusFraming::Wwise, 1),
         (TestOpusFraming::Wwise, 2),
+        (TestOpusFraming::Wwise, 3),
+        (TestOpusFraming::Wwise, 5),
+        (TestOpusFraming::Wwise, 8),
         (TestOpusFraming::Ogg, 2),
         (TestOpusFraming::Switch, 2),
     ] {
         let sound = TestOpus::new(framing, channels, FRAMES);
-        let bytes = sound.wem().bytes();
+        let bytes = sound.wem()?.bytes();
         let wem = Wem::parse(bytes.as_slice())?;
         let mut ogg = Vec::new();
         let report = wem.write_ogg(&mut ogg)?;
@@ -189,7 +168,7 @@ fn wwise_opus_becomes_a_playable_ogg_opus_with_its_pre_skip_and_length() -> Test
 #[test]
 fn surround_opus_gets_the_vorbis_channel_mapping_of_the_wwise_layout() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Wwise, 6, FRAMES);
-    let bytes = sound.wem().bytes();
+    let bytes = sound.wem()?.bytes();
     let mut ogg = Vec::new();
     Wem::parse(bytes.as_slice())?.write_ogg(&mut ogg)?;
     let reader = OggOpusReader::new(Cursor::new(ogg.clone()))?;
@@ -211,7 +190,7 @@ fn surround_opus_gets_the_vorbis_channel_mapping_of_the_wwise_layout() -> TestRe
 #[test]
 fn a_shorter_declared_sample_count_trims_wav_and_ogg_alike() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Wwise, 1, FRAMES).declared_sample_count(5_000);
-    let bytes = sound.wem().bytes();
+    let bytes = sound.wem()?.bytes();
     let wem = Wem::parse(bytes.as_slice())?;
     assert_eq!(wem.sample_count(), Some(5_000), "declared");
     let wav = wem.write_wav(&mut Vec::new())?;
@@ -232,7 +211,7 @@ fn a_shorter_declared_sample_count_trims_wav_and_ogg_alike() -> TestResult {
         granules.is_sorted(),
         "granules never decrease: {granules:?}"
     );
-    let end = u64::from(sound.packets().pre_skip) + 5_000;
+    let end = u64::from(sound.packets()?.pre_skip) + 5_000;
     assert_eq!(granules.last(), Some(&end), "end granule");
     Ok(())
 }
@@ -240,7 +219,7 @@ fn a_shorter_declared_sample_count_trims_wav_and_ogg_alike() -> TestResult {
 #[test]
 fn a_switch_opus_at_another_rate_counts_its_samples_from_the_packets() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Switch, 1, FRAMES);
-    let mut bytes = sound.wem().bytes();
+    let mut bytes = sound.wem()?.bytes();
     let rate = bytes
         .windows(4)
         .position(|window| window == 48_000_u32.to_le_bytes())
@@ -256,7 +235,7 @@ fn a_switch_opus_at_another_rate_counts_its_samples_from_the_packets() -> TestRe
         "header"
     );
     let report = wem.write_wav(&mut Vec::new())?;
-    let packets = sound.packets();
+    let packets = sound.packets()?;
     let expected = packets.packets.len() as u64 * 960 - u64::from(packets.pre_skip);
     assert_eq!(
         report.sample_count, expected,
@@ -269,7 +248,7 @@ fn a_switch_opus_at_another_rate_counts_its_samples_from_the_packets() -> TestRe
 fn a_layout_without_an_opus_mapping_is_a_typed_error() -> TestResult {
     let bytes = TestOpus::new(TestOpusFraming::Wwise, 6, FRAMES)
         .mapping(0)
-        .wem()
+        .wem()?
         .bytes();
     let wem = Wem::parse(bytes.as_slice())?;
     let expected = OpusError::UnsupportedLayout {
@@ -291,7 +270,9 @@ fn a_layout_without_an_opus_mapping_is_a_typed_error() -> TestResult {
 
 #[test]
 fn ogg_opus_in_a_wem_keeps_its_own_header_and_tags_packets() -> TestResult {
-    let bytes = TestOpus::new(TestOpusFraming::Ogg, 2, FRAMES).wem().bytes();
+    let bytes = TestOpus::new(TestOpusFraming::Ogg, 2, FRAMES)
+        .wem()?
+        .bytes();
     let wem = Wem::parse(bytes.as_slice())?;
     let source = pages::packets(&pages::pages(wem.data())?);
     let mut ogg = Vec::new();
@@ -307,4 +288,25 @@ fn ogg_opus_in_a_wem_keeps_its_own_header_and_tags_packets() -> TestResult {
         "OpusHead and OpusTags"
     );
     Ok(())
+}
+
+/// For each channel count, the position in the Vorbis channel order of each WAVE channel.
+const VORBIS_ORDER: [&[usize]; 8] = [
+    &[0],
+    &[0, 1],
+    &[0, 2, 1],
+    &[0, 1, 2, 3],
+    &[0, 2, 1, 3, 4],
+    &[0, 2, 1, 5, 3, 4],
+    &[0, 2, 1, 6, 5, 3, 4],
+    &[0, 2, 1, 7, 5, 6, 3, 4],
+];
+
+/// Returns the position in the Vorbis channel order of WAVE channel `wave` of `channels`.
+fn vorbis_position(channels: usize, wave: usize) -> usize {
+    VORBIS_ORDER
+        .get(channels.saturating_sub(1))
+        .and_then(|order| order.get(wave))
+        .copied()
+        .unwrap_or(wave)
 }

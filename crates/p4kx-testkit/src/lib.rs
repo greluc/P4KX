@@ -24,6 +24,7 @@ mod global_ini;
 mod layout_v1;
 mod layout_v2;
 mod opus;
+mod opus_encode;
 mod real_archive;
 mod split_dds;
 mod test_entry;
@@ -44,7 +45,7 @@ pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;
 pub use global_ini::GlobalIniBuilder;
-pub use opus::{TestOpus, TestOpusFraming, TestOpusPackets};
+pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
     MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
     real_archive_path,

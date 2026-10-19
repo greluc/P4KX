@@ -33,8 +33,8 @@ fn find(bytes: &[u8], needle: &[u8]) -> Result<usize, Box<dyn std::error::Error>
 #[test]
 fn a_seek_chunk_shorter_than_the_packet_count_is_an_invalid_header() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Wwise, 1, FRAMES);
-    let mut bytes = sound.wem().bytes();
-    let count = u32::try_from(sound.packets().packets.len())?;
+    let mut bytes = sound.wem()?.bytes();
+    let count = u32::try_from(sound.packets()?.packets.len())?;
     let at = find(&bytes, b"fmt ")? + 8 + 0x1C;
     bytes
         .get_mut(at..at + 4)
@@ -52,7 +52,7 @@ fn a_seek_chunk_shorter_than_the_packet_count_is_an_invalid_header() -> TestResu
 #[test]
 fn a_packet_size_beyond_the_data_is_out_of_bounds() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Wwise, 1, FRAMES);
-    let mut bytes = sound.wem().bytes();
+    let mut bytes = sound.wem()?.bytes();
     let at = find(&bytes, b"seek")? + 8 + 2;
     bytes
         .get_mut(at..at + 2)
@@ -71,7 +71,7 @@ fn a_packet_size_beyond_the_data_is_out_of_bounds() -> TestResult {
 #[test]
 fn an_unknown_wwise_opus_version_is_an_invalid_header() -> TestResult {
     let mut bytes = TestOpus::new(TestOpusFraming::Wwise, 2, FRAMES)
-        .wem()
+        .wem()?
         .bytes();
     let at = find(&bytes, b"fmt ")? + 8 + 0x22;
     *bytes.get_mut(at).ok_or("version")? = 2;
@@ -84,7 +84,9 @@ fn an_unknown_wwise_opus_version_is_an_invalid_header() -> TestResult {
 
 #[test]
 fn an_embedded_ogg_page_with_a_wrong_crc_is_rejected() -> TestResult {
-    let mut bytes = TestOpus::new(TestOpusFraming::Ogg, 2, FRAMES).wem().bytes();
+    let mut bytes = TestOpus::new(TestOpusFraming::Ogg, 2, FRAMES)
+        .wem()?
+        .bytes();
     let first_page = find(&bytes, b"OggS")?;
     let second_page = first_page + 4 + find(bytes.get(first_page + 4..).ok_or("rest")?, b"OggS")?;
     *bytes.get_mut(second_page + 30).ok_or("tags")? ^= 0x20;
@@ -98,7 +100,7 @@ fn an_embedded_ogg_page_with_a_wrong_crc_is_rejected() -> TestResult {
 #[test]
 fn a_garbage_toc_is_an_invalid_packet() -> TestResult {
     let sound = TestOpus::new(TestOpusFraming::Switch, 1, FRAMES);
-    let mut bytes = sound.wem().bytes();
+    let mut bytes = sound.wem()?.bytes();
     let first_packet = find(&bytes, b"data")? + 8 + 4 + 8;
     *bytes.get_mut(first_packet).ok_or("toc")? = 0x03;
     *bytes.get_mut(first_packet + 1).ok_or("count")? = 0;
@@ -115,7 +117,7 @@ fn a_garbage_toc_is_an_invalid_packet() -> TestResult {
 #[test]
 fn opus_without_packets_holds_no_samples() -> TestResult {
     let bytes = TestOpus::new(TestOpusFraming::Wwise, 1, FRAMES)
-        .wem()
+        .wem()?
         .data(Vec::new())
         .bytes();
     let error = opus_error(&bytes)?;
@@ -130,14 +132,16 @@ fn opus_without_packets_holds_no_samples() -> TestResult {
 }
 
 #[test]
-fn flipped_and_truncated_bytes_never_panic() {
+fn flipped_and_truncated_bytes_never_panic() -> TestResult {
     for (framing, channels) in [
         (TestOpusFraming::Wwise, 6),
         (TestOpusFraming::Wwise, 2),
         (TestOpusFraming::Ogg, 2),
         (TestOpusFraming::Switch, 2),
     ] {
-        let bytes = TestOpus::new(framing, channels, SWEEP_FRAMES).wem().bytes();
+        let bytes = TestOpus::new(framing, channels, SWEEP_FRAMES)
+            .wem()?
+            .bytes();
         let mut mutated = bytes.clone();
         for position in (0..bytes.len()).step_by(5) {
             for mask in [0x01, 0xFF] {
@@ -152,6 +156,7 @@ fn flipped_and_truncated_bytes_never_panic() {
             convert(bytes.get(..len).unwrap_or_default());
         }
     }
+    Ok(())
 }
 
 fn convert(bytes: &[u8]) {

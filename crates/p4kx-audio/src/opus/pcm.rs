@@ -33,6 +33,7 @@ impl OpusStream<'_> {
         let mut skip = usize::from(self.pre_skip);
         let mut remaining = self.frames;
         let mut bytes = Vec::new();
+        let gain = Gain::new(self.output_gain);
         while remaining > 0 {
             let index = packets.index();
             let Some(packet) = packets.next_packet() else {
@@ -54,7 +55,7 @@ impl OpusStream<'_> {
                     } else {
                         frame.get(usize::from(channel)).copied().unwrap_or_default()
                     };
-                    bytes.extend_from_slice(&sample.to_le_bytes());
+                    bytes.extend_from_slice(&gain.apply(sample).to_le_bytes());
                 }
             }
             out.write_all(&bytes).map_err(AudioError::Write)?;
@@ -67,6 +68,27 @@ impl OpusStream<'_> {
             }));
         }
         Ok(())
+    }
+}
+
+/// The output gain of an `OpusHead`, applied to every decoded sample.
+struct Gain(Option<f32>);
+
+impl Gain {
+    fn new(q8_db: i16) -> Self {
+        Self((q8_db != 0).then(|| 10_f32.powf(f32::from(q8_db) / (256.0 * 20.0))))
+    }
+
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the product is clamped to the i16 range first"
+    )]
+    fn apply(&self, sample: i16) -> i16 {
+        self.0.map_or(sample, |factor| {
+            (f32::from(sample) * factor)
+                .round()
+                .clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16
+        })
     }
 }
 

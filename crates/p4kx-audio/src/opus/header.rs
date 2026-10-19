@@ -22,6 +22,7 @@ pub(crate) struct Header<'a> {
     pub(crate) declared: Option<u64>,
     pub(crate) head: Option<Vec<u8>>,
     pub(crate) tags: Option<Vec<u8>>,
+    pub(crate) output_gain: i16,
 }
 
 /// The `fmt` chunk of an Opus WEM in its byte order.
@@ -108,6 +109,7 @@ impl<'a> Header<'a> {
             declared: fmt.u32_at(0x18).map(u64::from),
             head: None,
             tags: None,
+            output_gain: 0,
         })
     }
 
@@ -136,6 +138,7 @@ impl<'a> Header<'a> {
             declared,
             head: None,
             tags: None,
+            output_gain: 0,
         })
     }
 
@@ -146,6 +149,10 @@ impl<'a> Header<'a> {
             .ok_or(OpusError::InvalidOgg("the OpusHead packet is missing"))??
             .to_vec();
         let (pre_skip, layout) = read_head(&head, channels)?;
+        let output_gain = head
+            .get(16..18)
+            .and_then(<[u8]>::first_chunk::<2>)
+            .map_or(0, |gain| i16::from_le_bytes(*gain));
         let tags = packets
             .next_packet()
             .ok_or(OpusError::InvalidOgg("the OpusTags packet is missing"))??
@@ -161,6 +168,7 @@ impl<'a> Header<'a> {
             declared: fmt.u32_at(0x18).map(u64::from),
             head: Some(head),
             tags: Some(tags),
+            output_gain,
         })
     }
 }

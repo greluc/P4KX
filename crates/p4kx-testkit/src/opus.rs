@@ -1,23 +1,13 @@
-use opus_pure::{
-    Application, ChannelLayout, MAX_PACKET_BYTES, OggOpusWriter, OpusEncoder, OpusHead,
-    OpusMSEncoder,
-};
+use std::error::Error;
+use std::fmt;
 
+use opus_pure::{Application, ChannelLayout, OggOpusWriter, OpusHead};
+
+use crate::opus_encode::{Encoder, FRAME};
 use crate::wem::{TestCodec, TestWem, test_signal};
 
 const RATE: u32 = 48_000;
-const FRAME: usize = 960;
-const BITRATE_PER_CHANNEL: i32 = 96_000;
-const VORBIS_ORDER: [&[usize]; 8] = [
-    &[0],
-    &[0, 1],
-    &[0, 2, 1],
-    &[0, 1, 2, 3],
-    &[0, 2, 1, 3, 4],
-    &[0, 2, 1, 5, 3, 4],
-    &[0, 2, 1, 6, 5, 3, 4],
-    &[0, 2, 1, 7, 5, 6, 3, 4],
-];
+const WWISE_MAPPING_UNDEFINED: u8 = 255;
 
 /// How a synthetic Opus WEM stores its packets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,6 +20,24 @@ pub enum TestOpusFraming {
     Switch,
 }
 
+/// A synthetic Opus WEM that cannot be built as configured.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestOpusError(String);
+
+impl TestOpusError {
+    pub(crate) fn encoder(error: impl fmt::Display) -> Self {
+        Self(format!("the encoder fails: {error}"))
+    }
+}
+
+impl fmt::Display for TestOpusError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl Error for TestOpusError {}
+
 /// A synthetic Opus WEM of [`test_signal`], encoded with opus-pure in 20 ms packets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestOpus {
@@ -39,6 +47,7 @@ pub struct TestOpus {
     declared: Option<u32>,
     mapping: u8,
     raw_layout: Option<u32>,
+    output_gain: i16,
 }
 
 /// The packets of a [`TestOpus`] and the samples its decoder skips at the start.
@@ -51,8 +60,9 @@ pub struct TestOpusPackets {
 }
 
 impl TestOpus {
-    /// Creates a WEM of `frames` frames of [`test_signal`] with `channels` channels, 1 to 6 or 8,
-    /// in the speaker order of the channel mask Wwise writes for that count.
+    /// Creates a WEM of `frames` frames of [`test_signal`] with `channels` channels in the
+    /// speaker order of the channel mask Wwise writes for that count; the Wwise mapping 1 needs
+    /// 1 to 6 or 8 channels.
     #[must_use]
     pub const fn new(framing: TestOpusFraming, channels: u16, frames: u32) -> Self {
         Self {
@@ -62,6 +72,7 @@ impl TestOpus {
             declared: None,
             mapping: 1,
             raw_layout: None,
+            output_gain: 0,
         }
     }
 
@@ -72,7 +83,8 @@ impl TestOpus {
         self
     }
 
-    /// Sets the Wwise mapping family byte of a Wwise Opus `fmt` chunk; 1 by default.
+    /// Sets the Wwise mapping family byte of a Wwise Opus `fmt` chunk; 1 by default. Mapping
+    /// 255 codes every channel as its own mono stream, in channel order.
     #[must_use]
     pub const fn mapping(mut self, mapping: u8) -> Self {
         self.mapping = mapping;
@@ -86,45 +98,68 @@ impl TestOpus {
         self
     }
 
+    /// Sets the output gain of the embedded `OpusHead` of the Ogg framing, in 1/256 dB.
+    #[must_use]
+    pub const fn output_gain(mut self, gain: i16) -> Self {
+        self.output_gain = gain;
+        self
+    }
+
     /// Returns the signal the WEM encodes, interleaved in the speaker order of its mask.
     #[must_use]
     pub fn signal(&self) -> Vec<i16> {
         test_signal(self.frames, self.channels)
     }
 
-    /// Returns the channel mask Wwise writes for this channel count.
+    /// Returns the channel mask Wwise writes for this channel count, `None` for 7 or more than
+    /// 8 channels.
     #[must_use]
-    pub const fn channel_mask(&self) -> u32 {
+    pub const fn channel_mask(&self) -> Option<u32> {
         match self.channels {
-            1 => 0x004,
-            2 => 0x003,
-            3 => 0x007,
-            4 => 0x603,
-            5 => 0x607,
-            6 => 0x60F,
-            _ => 0x63F,
+            1 => Some(0x004),
+            2 => Some(0x003),
+            3 => Some(0x007),
+            4 => Some(0x603),
+            5 => Some(0x607),
+            6 => Some(0x60F),
+            8 => Some(0x63F),
+            _ => None,
         }
     }
 
+    const fn separate_streams(&self) -> bool {
+        self.mapping == WWISE_MAPPING_UNDEFINED
+    }
+
     /// Encodes the signal, flushed with silence for the encoder delay.
-    #[must_use]
-    #[expect(clippy::cast_possible_truncation, reason = "the delay is below 1000")]
-    pub fn packets(&self) -> TestOpusPackets {
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`TestOpusError`] for 7 or more than 8 channels with Wwise mapping 1, for more
+    /// than two channels of Switch Opus and when the encoder fails.
+    pub fn packets(&self) -> Result<TestOpusPackets, TestOpusError> {
         let channels = usize::from(self.channels);
-        let signal = self.signal();
+        if channels == 0 || (!self.separate_streams() && self.channel_mask().is_none()) {
+            return Err(TestOpusError(format!(
+                "Wwise mapping 1 has no layout for {channels} channels"
+            )));
+        }
+        if self.framing == TestOpusFraming::Switch && channels > 2 {
+            return Err(TestOpusError("Switch Opus has at most two channels".into()));
+        }
         let application = if self.framing == TestOpusFraming::Switch {
             Application::RestrictedLowDelay
         } else {
             Application::Audio
         };
-        let mut encoder = Encoder::new(channels, application);
+        let mut encoder = Encoder::new(channels, self.separate_streams(), application)?;
         let pre_skip = encoder.lookahead();
         let total = self.frames as usize + pre_skip;
         let mut input = vec![0_i16; total.div_ceil(FRAME) * FRAME * channels];
-        let order = VORBIS_ORDER.get(channels - 1).copied().unwrap_or_default();
+        let order = encoder.input_order(channels);
         for (target, frame) in input
             .chunks_exact_mut(channels)
-            .zip(signal.chunks_exact(channels))
+            .zip(self.signal().chunks_exact(channels))
         {
             for (&position, &sample) in order.iter().zip(frame) {
                 if let Some(slot) = target.get_mut(position) {
@@ -132,28 +167,29 @@ impl TestOpus {
                 }
             }
         }
-        let mut output = vec![0; MAX_PACKET_BYTES * channels];
-        let packets = input
-            .chunks_exact(FRAME * channels)
-            .map(|frame| {
-                let len = encoder.encode(frame, &mut output);
-                output.get(..len).unwrap_or_default().to_vec()
-            })
-            .collect();
-        TestOpusPackets {
-            packets,
-            pre_skip: pre_skip as u16,
+        let mut packets = Vec::new();
+        for frame in input.chunks_exact(FRAME * channels) {
+            let mut packet = Vec::new();
+            encoder.encode(frame, &mut packet)?;
+            packets.push(packet);
         }
+        Ok(TestOpusPackets {
+            packets,
+            pre_skip: u16::try_from(pre_skip).unwrap_or(u16::MAX),
+        })
     }
 
     /// Returns the WEM.
-    #[must_use]
-    pub fn wem(&self) -> TestWem {
-        let encoded = self.packets();
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`TestOpus::packets`].
+    pub fn wem(&self) -> Result<TestWem, TestOpusError> {
+        let encoded = self.packets()?;
         let count = self.declared.unwrap_or(self.frames);
-        let layout = self
-            .raw_layout
-            .unwrap_or_else(|| (self.channel_mask() << 12) | (1 << 8) | u32::from(self.channels));
+        let layout = self.raw_layout.unwrap_or_else(|| {
+            (self.channel_mask().unwrap_or_default() << 12) | (1 << 8) | u32::from(self.channels)
+        });
         let fields = |extra: u16, at_12: u16, tail: &[&[u8]]| {
             let mut fmt = Vec::new();
             put(&mut fmt, &[&extra.to_le_bytes(), &at_12.to_le_bytes()]);
@@ -162,23 +198,9 @@ impl TestOpus {
             fmt
         };
         let wem = |tag| TestWem::encoded(TestCodec::Opus(tag), self.channels, RATE, count);
-        match self.framing {
+        Ok(match self.framing {
             TestOpusFraming::Wwise => {
-                let sizes: Vec<u8> = encoded
-                    .packets
-                    .iter()
-                    .flat_map(|packet| len_u16(packet).to_le_bytes())
-                    .collect();
-                let table = u32::try_from(encoded.packets.len()).unwrap_or(u32::MAX);
-                let skip = encoded.pre_skip.to_le_bytes();
-                wem(0x3041)
-                    .fmt_extension(fields(
-                        0x10,
-                        960,
-                        &[&table.to_le_bytes(), &skip, &[1, self.mapping]],
-                    ))
-                    .chunk(*b"seek", sizes)
-                    .data(encoded.packets.concat())
+                wwise_opus_wem(self.channels, &encoded, count, layout, self.mapping)
             }
             TestOpusFraming::Ogg => wem(0x3040)
                 .fmt_extension(fields(0x12, 0, &[&[0; 8]]))
@@ -198,7 +220,7 @@ impl TestOpus {
                     .fmt_extension(fields(0x16, 0, &tail))
                     .data(data)
             }
-        }
+        })
     }
 
     fn ogg(&self, encoded: &TestOpusPackets) -> Vec<u8> {
@@ -208,6 +230,7 @@ impl TestOpus {
         };
         let mut head = OpusHead::for_layout(&layout, RATE);
         head.pre_skip = encoded.pre_skip;
+        head.output_gain_q8 = self.output_gain;
         let Ok(mut writer) = OggOpusWriter::new(Vec::new(), head) else {
             return Vec::new();
         };
@@ -219,49 +242,45 @@ impl TestOpus {
         writer.finish().unwrap_or_default()
     }
 }
+
+/// Returns a Wwise Opus WEM (tag `0x3041`) of `encoded` that declares `count` frames, the raw
+/// channel `layout` field and the Wwise `mapping` family byte.
+#[must_use]
+pub fn wwise_opus_wem(
+    channels: u16,
+    encoded: &TestOpusPackets,
+    count: u32,
+    layout: u32,
+    mapping: u8,
+) -> TestWem {
+    let sizes: Vec<u8> = encoded
+        .packets
+        .iter()
+        .flat_map(|packet| len_u16(packet).to_le_bytes())
+        .collect();
+    let table = u32::try_from(encoded.packets.len()).unwrap_or(u32::MAX);
+    let mut fmt = Vec::new();
+    put(
+        &mut fmt,
+        &[
+            &0x10_u16.to_le_bytes(),
+            &960_u16.to_le_bytes(),
+            &layout.to_le_bytes(),
+            &count.to_le_bytes(),
+            &table.to_le_bytes(),
+            &encoded.pre_skip.to_le_bytes(),
+            &[1, mapping],
+        ],
+    );
+    TestWem::encoded(TestCodec::Opus(0x3041), channels, RATE, count)
+        .fmt_extension(fmt)
+        .chunk(*b"seek", sizes)
+        .data(encoded.packets.concat())
+}
+
 fn put(out: &mut Vec<u8>, parts: &[&[u8]]) {
     for part in parts {
         out.extend_from_slice(part);
-    }
-}
-
-enum Encoder {
-    Single(Box<OpusEncoder>),
-    Multi(Box<OpusMSEncoder>),
-    None,
-}
-
-impl Encoder {
-    fn new(channels: usize, application: Application) -> Self {
-        let bitrate = BITRATE_PER_CHANNEL * i32::try_from(channels).unwrap_or(1);
-        let rate = RATE.cast_signed();
-        if channels <= 2 {
-            OpusEncoder::new(rate, channels, application).map_or(Self::None, |mut encoder| {
-                encoder.bitrate_bps = bitrate;
-                Self::Single(Box::new(encoder))
-            })
-        } else {
-            OpusMSEncoder::new(rate, channels, 1, application).map_or(Self::None, |mut encoder| {
-                encoder.set_bitrate(bitrate);
-                Self::Multi(Box::new(encoder))
-            })
-        }
-    }
-
-    fn lookahead(&self) -> usize {
-        match self {
-            Self::Single(encoder) => encoder.lookahead(),
-            Self::Multi(encoder) => encoder.streams().first().map_or(0, OpusEncoder::lookahead),
-            Self::None => 0,
-        }
-    }
-
-    fn encode(&mut self, frame: &[i16], output: &mut [u8]) -> usize {
-        match self {
-            Self::Single(encoder) => encoder.encode_s16(frame, FRAME, output).unwrap_or_default(),
-            Self::Multi(encoder) => encoder.encode_s16(frame, FRAME, output).unwrap_or_default(),
-            Self::None => 0,
-        }
     }
 }
 

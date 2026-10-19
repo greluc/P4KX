@@ -30,6 +30,7 @@ pub(crate) struct OpusStream<'a> {
     pre_skip: u16,
     head: Option<Vec<u8>>,
     tags: Option<Vec<u8>>,
+    output_gain: i16,
     frames: u64,
 }
 
@@ -80,6 +81,7 @@ impl<'a> OpusStream<'a> {
             declared,
             head,
             tags,
+            output_gain,
         } = header;
         let mut packets = Packets::new(data, framing)?;
         let mut total = 0_u64;
@@ -115,6 +117,7 @@ impl<'a> OpusStream<'a> {
             pre_skip,
             head,
             tags,
+            output_gain,
             frames,
         })
     }

@@ -240,23 +240,27 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 21064214, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21052438, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
- "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
+ "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
- {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1184,
- "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37969, "unresolved": 160,
- "placeholder": 23704}, {"language": "de", "available": true, "resolved": 25503,
- "unresolved": 12626, "placeholder": 23704}], "unresolved": 12786}
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1204,
+ "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
+ "item_classes": {"classified": 347, "other": 408, "missing": 22525},
+ "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
+ "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
+ "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
 in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
 `null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
-them. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
+them. `failed` lists the selected Records that could not be read and are left out of the catalog,
+with GUID, record path (empty when it cannot be read) and the reason and its causes joined by
+`: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
+all the same, and the exit code is 1 when `failed` is not empty. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for

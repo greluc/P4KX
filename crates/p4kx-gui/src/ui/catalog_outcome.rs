@@ -7,7 +7,7 @@ use p4kx_export::{CatalogSummary, SizeWarning, UPLOAD_LIMIT};
 
 use super::extraction::{group_label, number};
 use super::extraction_outcome::{decorate, ratio};
-use super::record_export_outcome::outcome_window;
+use super::record_export_outcome::{list, outcome_window};
 use crate::theme::desktop::{MODAL_GROUP_GAP, MODAL_WIDTH, SPINNER_INLINE};
 use crate::theme::palette;
 use crate::theme::tokens::SPACE_3;
@@ -169,6 +169,9 @@ struct Laid {
     warning: Option<(String, SizeWarning)>,
     kinds: Vec<String>,
     skipped: String,
+    failed_heading: String,
+    failures: Vec<String>,
+    reasons: Vec<usize>,
     texts: Vec<String>,
     missing: String,
     size: String,
@@ -202,6 +205,7 @@ impl Laid {
                 warning,
             )
         });
+        let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,
             headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
@@ -211,6 +215,12 @@ impl Laid {
                 T::SummarySkipped,
                 &[("number", number(texts, summary.skipped()))],
             ),
+            failed_heading: texts.format(
+                T::SummaryFailed,
+                &[("number", number(texts, summary.failures().len()))],
+            ),
+            failures,
+            reasons,
             texts: languages(texts, summary),
             missing: texts.format(
                 T::SummaryMissing,
@@ -232,6 +242,26 @@ impl Laid {
             ),
         }
     }
+}
+
+/// Returns the line of every Record that could not be read and where its reason starts.
+fn failure_lines(texts: &Texts, summary: &CatalogSummary) -> (Vec<String>, Vec<usize>) {
+    summary
+        .failures()
+        .iter()
+        .map(|failure| {
+            let line = texts.format(
+                T::SummaryFailure,
+                &[
+                    ("path", failure.record_path.clone().into()),
+                    ("guid", failure.guid.to_string().into()),
+                    ("reason", failure.reason.clone().into()),
+                ],
+            );
+            let reason = line.len().saturating_sub(failure.reason.len());
+            (line, reason)
+        })
+        .unzip()
 }
 
 fn kinds(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
@@ -290,6 +320,13 @@ fn finished(ui: &mut Ui, laid: &Laid) {
     group_label(ui, &laid.headings[0]);
     lines(ui, &laid.kinds);
     note(ui, &laid.skipped);
+    list(
+        ui,
+        (&laid.failed_heading, "catalog-failed"),
+        &laid.failures,
+        Some(&laid.reasons),
+        true,
+    );
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &laid.headings[1]);
     lines(ui, &laid.texts);

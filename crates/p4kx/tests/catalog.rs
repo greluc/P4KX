@@ -42,8 +42,11 @@ fn manufacturer(guid: u128, class: &str, path: &str, code: &str) -> TestRecord {
 }
 
 fn database() -> DataForgeBuilder {
-    DataForgeBuilder::new()
-        .version(8)
+    entities(manufacturers(DataForgeBuilder::new().version(8)))
+}
+
+fn manufacturers(builder: DataForgeBuilder) -> DataForgeBuilder {
+    builder
         .structure(
             TestStruct::new("SCItemLocalization")
                 .field("Name", TestType::Locale)
@@ -77,6 +80,100 @@ fn database() -> DataForgeBuilder {
         ))
 }
 
+fn entities(builder: DataForgeBuilder) -> DataForgeBuilder {
+    builder
+        .structure(TestStruct::new("EntityClassDefinition").array(
+            "Components",
+            TestType::StrongPointer("DataForgeComponentParams".to_owned()),
+        ))
+        .structure(TestStruct::new("DataForgeComponentParams"))
+        .structure(
+            TestStruct::new("SAttachableComponentParams")
+                .parent("DataForgeComponentParams")
+                .field("AttachDef", TestType::Class("SItemDefinition".to_owned())),
+        )
+        .structure(
+            TestStruct::new("SItemDefinition")
+                .field("Type", TestType::String)
+                .field("Size", TestType::Int32)
+                .field("Tags", TestType::String)
+                .field("Manufacturer", TestType::Reference)
+                .field(
+                    "Localization",
+                    TestType::Class("SCItemLocalization".to_owned()),
+                ),
+        )
+        .structure(
+            TestStruct::new("VehicleComponentParams")
+                .parent("DataForgeComponentParams")
+                .field("vehicleDefinition", TestType::String)
+                .field("crewSize", TestType::Int32)
+                .field("vehicleName", TestType::Locale)
+                .field("vehicleRole", TestType::Locale)
+                .field("manufacturer", TestType::Reference),
+        )
+        .record(entity(
+            0x3333_0000_0000_4000_8000_0000_0000_0003,
+            "scitem/ships/cooler/cool_acas_s01",
+            cooler(),
+        ))
+        .record(entity(
+            0x4444_0000_0000_4000_8000_0000_0000_0004,
+            "spaceships/acas_hauler",
+            TestInstance::new("VehicleComponentParams")
+                .value(
+                    "vehicleDefinition",
+                    TestValue::text(
+                        "scripts/entities/vehicles/implementations/xml/acas_hauler.xml",
+                    ),
+                )
+                .value("crewSize", TestValue::Int32(2))
+                .value("vehicleName", TestValue::text("@vehicle_NameACAS_Hauler"))
+                .value(
+                    "vehicleRole",
+                    TestValue::text("@vehicle_class_lightfreight"),
+                )
+                .value("manufacturer", TestValue::Reference(ACAS)),
+        ))
+}
+
+const ACAS: u128 = 0xcfc0_122d_5275_415a_a656_3dcb_3346_feb5;
+
+fn cooler() -> TestInstance {
+    TestInstance::new("SAttachableComponentParams").value(
+        "AttachDef",
+        TestValue::Struct(
+            TestInstance::new("SItemDefinition")
+                .value("Type", TestValue::text("Cooler"))
+                .value("Size", TestValue::Int32(1))
+                .value("Tags", TestValue::text("flightReady"))
+                .value("Manufacturer", TestValue::Reference(ACAS))
+                .value(
+                    "Localization",
+                    TestValue::Struct(
+                        TestInstance::new("SCItemLocalization")
+                            .value("Name", TestValue::text("@item_NameCOOL_ACAS_S01"))
+                            .value("Description", TestValue::text("@item_DescCOOL_ACAS_S01")),
+                    ),
+                ),
+        ),
+    )
+}
+
+fn entity(guid: u128, path: &str, component: TestInstance) -> TestRecord {
+    let class = path.rsplit('/').next().unwrap_or(path);
+    TestRecord::new(
+        guid,
+        "EntityClassDefinition",
+        format!("EntityClassDefinition.{class}"),
+        format!("libs/foundry/records/entities/{path}.xml"),
+    )
+    .value(
+        "Components",
+        TestValue::Array(vec![TestValue::Struct(component)]),
+    )
+}
+
 fn english() -> TestEntry {
     TestEntry::zstd(
         "Data\\Localization\\english\\global.ini",
@@ -84,6 +181,13 @@ fn english() -> TestEntry {
             .text("manufacturer_NameACAS", "Ace Astrogation")
             .text("manufacturer_DescACAS", "Power plants.")
             .text("manufacturer_NameAEGS,P", "Aegis Dynamics")
+            .text("item_NameCOOL_ACAS_S01", "Blizzard")
+            .text(
+                "item_DescCOOL_ACAS_S01",
+                "Item Type: Cooler\\nClass: Industrial\\n\\nKeeps cool.",
+            )
+            .text("vehicle_NameACAS_Hauler", "Ace Hauler")
+            .text("vehicle_class_lightfreight", "Light Freight")
             .build(),
     )
 }

@@ -2,7 +2,7 @@ use serde_json::{Value, json};
 
 use crate::forge::{dataforge, install, many_items};
 use crate::records::every_page;
-use crate::support::TestResult;
+use crate::support::{TestResult, key_order, member};
 
 #[test]
 fn a_query_returns_typed_columns_and_rows_in_record_order() -> TestResult {
@@ -155,13 +155,15 @@ fn invalid_queries_are_errors_with_their_span() -> TestResult {
 fn row_keys_keep_the_column_order() -> TestResult {
     let install = install(dataforge(0, 0))?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
-    let result = server.ok(
+    let text = server.ok_text(
         "run_query",
         &json!({ "query": "from Ship select tags[*], crew, maker->code" }),
     )?;
-    let row = result["rows"][0].as_object().ok_or("a row")?;
+    let rows: Vec<Box<serde_json::value::RawValue>> =
+        serde_json::from_str(&member(&text, "rows")?)?;
+    let row = rows.first().ok_or("a row")?.get();
     assert_eq!(
-        row.keys().map(String::as_str).collect::<Vec<_>>(),
+        key_order(row)?,
         ["record path", "tags[*]", "crew", "maker->code"],
         "the record path, then the columns as selected"
     );

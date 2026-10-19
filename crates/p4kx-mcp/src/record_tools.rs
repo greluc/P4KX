@@ -7,6 +7,7 @@ use crate::forge_params::{
     DefinitionParams, MAX_GUID_LEN, MAX_NAME_LEN, RecordParams, RecordSearchParams,
 };
 use crate::forge_shapes::{EnumsResult, RecordResult, RecordSearchResult, StructsResult};
+use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::MAX_PATH_LEN;
 use crate::records::{self, Selector};
@@ -18,6 +19,7 @@ impl Server {
         description = "Get a Record of the Archive's DataForge by GUID, or every Record with a record path, as Record JSON: \
         $type, $guid, $path and the fields; References are links with guid, path and type, never the linked Record. \
         Large results page: pass next_cursor back as cursor.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<RecordResult>(),
         annotations(
             title = "Get Record",
             read_only_hint = true,
@@ -29,9 +31,9 @@ impl Server {
     async fn get_record(
         &self,
         Parameters(params): Parameters<RecordParams>,
-    ) -> Result<Json<RecordResult>, String> {
+    ) -> Result<Ordered<RecordResult>, String> {
         self.preload(params.archive.clone()).await?;
-        self.run(move |state| {
+        self.run_ordered(move |state| {
             if let Some(guid) = &params.guid {
                 capped("guid", guid, MAX_GUID_LEN)?;
             }

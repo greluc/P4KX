@@ -5,6 +5,7 @@ use p4kx_extraction::query::{
     CompiledQuery, Condition, Query, QueryError, ResultFormat, ResultWriter, Row,
 };
 use p4kx_extraction::{CancelToken, DataForge};
+use serde_json::value::RawValue;
 
 use crate::archives::Opened;
 use crate::budget::{Counter, MAX_RESPONSE_LEN, json_len};
@@ -60,7 +61,7 @@ pub(crate) fn run(
         query: canonical,
         columns: columns(&compiled),
         total,
-        rows: serde_json::from_slice(&written.json)?,
+        rows: RawValue::from_string(String::from_utf8(written.json)?)?,
         failed: written.failed,
         unresolved_references: written.unresolved,
         next_cursor,

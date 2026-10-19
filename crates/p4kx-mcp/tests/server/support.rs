@@ -11,6 +11,50 @@ use serde_json::{Value, json};
 
 pub(crate) type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
+/// The members of the JSON object `json` as written, in order, each with its raw JSON.
+pub(crate) fn members(json: &str) -> TestResult<Vec<(String, String)>> {
+    struct Ordered(Vec<(String, String)>);
+    impl<'de> serde::Deserialize<'de> for Ordered {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct Visit;
+            impl<'de> serde::de::Visitor<'de> for Visit {
+                type Value = Ordered;
+                fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_str("a JSON object")
+                }
+                fn visit_map<A: serde::de::MapAccess<'de>>(
+                    self,
+                    mut map: A,
+                ) -> Result<Ordered, A::Error> {
+                    let mut out = Vec::new();
+                    while let Some((key, value)) =
+                        map.next_entry::<String, Box<serde_json::value::RawValue>>()?
+                    {
+                        out.push((key, value.get().to_owned()));
+                    }
+                    Ok(Ordered(out))
+                }
+            }
+            deserializer.deserialize_map(Visit)
+        }
+    }
+    Ok(serde_json::from_str::<Ordered>(json)?.0)
+}
+
+/// The keys of the JSON object `json` as written, in order.
+pub(crate) fn key_order(json: &str) -> TestResult<Vec<String>> {
+    Ok(members(json)?.into_iter().map(|(key, _)| key).collect())
+}
+
+/// The raw JSON of the member `key` of the JSON object `json`.
+pub(crate) fn member(json: &str, key: &str) -> TestResult<String> {
+    members(json)?
+        .into_iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value)
+        .ok_or_else(|| format!("no member {key}").into())
+}
+
 const TIMEOUT: Duration = Duration::from_secs(30);
 
 /// A temporary install: a default Library folder with a `LIVE` Channel, an empty launcher folder,
@@ -194,6 +238,16 @@ impl Server {
             .get("structuredContent")
             .cloned()
             .ok_or_else(|| format!("{name} has no structured content: {result}").into())
+    }
+
+    /// Calls a tool that has to succeed and returns its result as the JSON text of the server.
+    pub(crate) fn ok_text(&mut self, name: &str, arguments: &Value) -> TestResult<String> {
+        let result = self.call(name, arguments)?;
+        Ok(result
+            .pointer("/content/0/text")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("{name} has no text: {result}"))?
+            .to_owned())
     }
 
     /// Calls a tool that has to fail and returns its error text.

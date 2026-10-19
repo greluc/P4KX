@@ -12,6 +12,7 @@ use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
 use crate::locate::Locations;
+use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
@@ -90,6 +91,23 @@ impl Server {
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
     {
+        self.run_plain(work).await.map(Json)
+    }
+
+    /// Like [`Server::run`], with the key order of the result kept in its text content.
+    pub(crate) async fn run_ordered<T, F>(&self, work: F) -> Result<Ordered<T>, String>
+    where
+        T: Send + 'static,
+        F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
+    {
+        self.run_plain(work).await.map(Ordered)
+    }
+
+    async fn run_plain<T, F>(&self, work: F) -> Result<T, String>
+    where
+        T: Send + 'static,
+        F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
+    {
         let Ok(permit) = Arc::clone(&self.workers).acquire_owned().await else {
             return Err(ToolError::Stopped.message());
         };
@@ -101,7 +119,7 @@ impl Server {
         })
         .await;
         match outcome {
-            Ok(Ok(value)) => Ok(Json(value)),
+            Ok(Ok(value)) => Ok(value),
             Ok(Err(error)) => Err(error.message()),
             Err(_) => Err(ToolError::Stopped.message()),
         }

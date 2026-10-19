@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use crate::forge::{AEGS_TEXT, AVENGER_TEXT, dataforge, install, many_items};
-use crate::support::{Server, TestResult};
+use crate::support::{Server, TestResult, key_order, member};
 
 fn texts(items: &Value, key: &str) -> Vec<String> {
     items
@@ -208,28 +208,23 @@ fn an_archive_without_dataforge_says_so() -> TestResult {
     Ok(())
 }
 
-fn keys(value: &Value) -> Vec<&str> {
-    value
-        .as_object()
-        .map(|object| object.keys().map(String::as_str).collect())
-        .unwrap_or_default()
-}
-
 #[test]
 fn record_keys_keep_the_record_xml_order() -> TestResult {
     let install = install(dataforge(0, 0))?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
-    let result = server.ok("get_record", &json!({ "guid": AVENGER_TEXT }))?;
-    let record = &result["records"][0];
+    let text = server.ok_text("get_record", &json!({ "guid": AVENGER_TEXT }))?;
+    let records: Vec<Box<serde_json::value::RawValue>> =
+        serde_json::from_str(&member(&text, "records")?)?;
+    let record = records.first().ok_or("a record")?.get();
     assert_eq!(
-        keys(record),
+        key_order(record)?,
         [
-            "$type", "$guid", "$path", "mass", "size", "maker", "crew", "tags"
+            "$type", "$guid", "$path", "mass", "size", "crew", "maker", "tags"
         ],
         "the fields in definition order, not sorted"
     );
     assert_eq!(
-        keys(&record["maker"]),
+        key_order(&member(record, "maker")?)?,
         ["guid", "path", "type"],
         "a Reference link"
     );

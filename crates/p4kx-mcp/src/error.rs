@@ -125,6 +125,9 @@ pub(crate) enum ToolError {
     /// A result cannot be converted to JSON.
     #[error("cannot convert the result to JSON")]
     Json(#[from] serde_json::Error),
+    /// A result is not valid UTF-8.
+    #[error("the result is not valid UTF-8")]
+    Utf8(#[from] std::string::FromUtf8Error),
     /// A result cannot be written.
     #[error("cannot write the result")]
     Write(#[from] std::io::Error),

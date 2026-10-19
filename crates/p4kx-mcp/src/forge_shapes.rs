@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::Serialize;
+use serde_json::value::RawValue;
 
 /// The Records with one GUID or one record path, each as Record JSON.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -11,7 +12,8 @@ pub(crate) struct RecordResult {
     /// The Records on this page in definition order, each as Record JSON (`docs/record-json.md`):
     /// `$type`, `$guid`, `$path` and the fields; References are objects with `guid`, `path` and
     /// `type`, never the Record they link to.
-    pub(crate) records: Vec<serde_json::Value>,
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub(crate) records: Vec<Box<RawValue>>,
     /// The cursor of the next page; absent on the last page.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) next_cursor: Option<String>,
@@ -147,7 +149,8 @@ pub(crate) struct QueryResult {
     pub(crate) total: usize,
     /// The rows on this page in Record order, each an object keyed `record path` and by column
     /// heading, as `p4kx dcb query --format json` writes them.
-    pub(crate) rows: serde_json::Value,
+    #[schemars(with = "serde_json::Value")]
+    pub(crate) rows: Box<RawValue>,
     /// The selected Records on this page whose values cannot be read.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) failed: Vec<FailedRow>,

@@ -10,6 +10,7 @@ mod error;
 mod forge_params;
 mod forge_shapes;
 mod locate;
+mod ordered;
 mod page;
 mod params;
 mod query;

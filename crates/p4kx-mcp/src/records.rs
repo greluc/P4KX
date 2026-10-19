@@ -1,5 +1,6 @@
 use p4kx_extraction::{DataForge, Filter, Guid, JsonLayout, Record, RecordJson, TreeBuilder};
 use rayon::prelude::*;
+use serde_json::value::RawValue;
 
 use crate::budget::{Budget, Capped, MAX_RESPONSE_LEN, fill};
 use crate::error::ToolError;
@@ -55,7 +56,7 @@ pub(crate) fn get(
             }
             break;
         }
-        taken.push(serde_json::from_slice(&bytes)?);
+        taken.push(RawValue::from_string(String::from_utf8(bytes)?)?);
     }
     let next_cursor = page.next_cursor_after(taken.len(), total)?;
     Ok(RecordResult {

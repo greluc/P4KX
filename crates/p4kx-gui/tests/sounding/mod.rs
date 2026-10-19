@@ -71,14 +71,14 @@ fn sounds() -> Vec<TestEntry> {
     let pcm = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone()).bytes();
     let ima = TestWem::ima_adpcm(1, 48_000, &test_signal(640, 1)).bytes();
     let ptadpcm = TestWem::ptadpcm(1, 48_000, 36, &test_signal(640, 1)).bytes();
-    let opus = TestWem::encoded(TestCodec::Tag(0x3040), 1, 48_000, 960).bytes();
+    let xma = TestWem::encoded(TestCodec::Tag(0x0166), 1, 48_000, 960).bytes();
     let endless = TestWem::encoded(TestCodec::Vorbis, 2, 48_000, u32::MAX).bytes();
     vec![
         TestEntry::stored("Data\\Sounds\\tone.wem", pcm),
         TestEntry::zstd("Data\\Sounds\\ima.WEM", ima),
         TestEntry::stored("Data\\Sounds\\platinum.wem", ptadpcm),
         TestEntry::stored("Data\\Sounds\\engine.wem", vorbis().wem().bytes()),
-        TestEntry::stored("Data\\Sounds\\voice.wem", opus),
+        TestEntry::stored("Data\\Sounds\\voice.wem", xma),
         TestEntry::stored("Data\\Sounds\\endless.wem", endless),
         TestEntry::stored(
             "Data\\Sounds\\broken.wem",

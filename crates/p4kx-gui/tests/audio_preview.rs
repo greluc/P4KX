@@ -105,7 +105,7 @@ fn a_codec_without_a_decoder_is_named() -> TestResult {
     assert!(
         harness
             .query_by_label(
-                "The preview cannot play Opus sounds. The Text and Hex tabs still show the \
+                "The preview cannot play XMA2 sounds. The Text and Hex tabs still show the \
                  data of Data\\Sounds\\voice.wem."
             )
             .is_some(),

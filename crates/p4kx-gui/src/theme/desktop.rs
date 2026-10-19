@@ -338,6 +338,16 @@ pub const XML_FONT: f32 = FS_XS;
 /// The horizontal padding around the line numbers of the XML view.
 pub const XML_GUTTER_PADDING_X: f32 = CELL_PADDING_X;
 
+/// The height of a range input, `.quality-row input[type="range"]`, and the side of its thumb.
+pub const SLIDER_HEIGHT: f32 = 18.0;
+/// The width of a range input, `.quality-row input[type="range"]`.
+pub const SLIDER_WIDTH: f32 = 200.0;
+/// The gap between a range input and its label, the `.quality-row` gap.
+pub const SLIDER_LABEL_GAP: f32 = SPACE_2;
+/// The height of the row a range input takes, the compact button height, with it centred.
+pub const SLIDER_HIT_HEIGHT: f32 = BUTTON_XS_HEIGHT;
+/// The gap between the controls of the audio preview.
+pub const AUDIO_CONTROL_GAP: f32 = SPACE_3;
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);
 /// The underline of the marked error in the Query editor.

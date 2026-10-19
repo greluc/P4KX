@@ -13,6 +13,7 @@ mod image_text;
 mod query_text;
 mod record_change_text;
 mod record_export_text;
+mod record_language_text;
 mod record_text;
 mod text_ids;
 mod xml_text;
@@ -29,6 +30,7 @@ pub use image_text::ImageText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
+pub use record_language_text::RecordLanguageText;
 pub use record_text::RecordText;
 pub use xml_text::XmlText;
 
@@ -190,6 +192,8 @@ pub enum Text {
     Catalog(CatalogText),
     /// A text of the Record preview.
     Record(RecordText),
+    /// A text of the language selection for Record previews.
+    RecordLanguage(RecordLanguageText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

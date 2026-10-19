@@ -7,6 +7,7 @@ use egui::{
 };
 use fluent_bundle::FluentValue;
 
+use super::record_key::Trailer;
 use super::record_preview::RecordStep;
 use super::table::head_fill;
 use crate::theme::desktop::{
@@ -18,7 +19,10 @@ use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
 use crate::widgets::button::focus_ring;
 use crate::widgets::rows::paint_divider;
 use crate::widgets::text::{caps, line, paint_left, plain};
-use crate::{FieldLine, LineValue, RecordChangeText, RecordText, RecordView, Text, Texts, format};
+use crate::{
+    FieldLine, KeyText, LineValue, RecordChangeText, RecordLanguageText, RecordText, RecordView,
+    Text, Texts, format,
+};
 
 const MAX_ROWS: usize = 512;
 const HEADS: [Text; 2] = [
@@ -38,6 +42,14 @@ pub(super) fn value_text(texts: &Texts, value: &LineValue) -> (String, Color32) 
     };
     match value {
         LineValue::Scalar(text) => (text.to_string(), palette::GRAY_1),
+        LineValue::Key { key, text } => (
+            key.to_string(),
+            if matches!(text, KeyText::None) {
+                palette::GRAY_1
+            } else {
+                palette::GRAY_2_TEXT
+            },
+        ),
         LineValue::Struct(type_name) => (
             texts.format(
                 RecordChangeText::ValueStruct,
@@ -76,13 +88,38 @@ pub(super) fn value_text(texts: &Texts, value: &LineValue) -> (String, Color32) 
     }
 }
 
+/// Returns the value of `line` for assistive technology and the tooltip: a localisation key with
+/// its text, or the mark that it has none.
+fn spoken_value(texts: &Texts, value: &LineValue) -> String {
+    match value {
+        LineValue::Key {
+            key,
+            text: KeyText::Text(text),
+        } => texts.format(
+            RecordLanguageText::KeyRow,
+            &[
+                ("key", key.to_string().into()),
+                ("text", text.to_string().into()),
+            ],
+        ),
+        LineValue::Key {
+            key,
+            text: KeyText::Missing,
+        } => texts.format(
+            RecordLanguageText::KeyRowMissing,
+            &[("key", key.to_string().into())],
+        ),
+        _ => value_text(texts, value).0,
+    }
+}
+
 /// The laid-out cells of one line.
 #[derive(Clone)]
 struct Laid {
     width: f32,
     name: Arc<Galley>,
     value: (Arc<Galley>, Color32),
-    type_name: Option<Arc<Galley>>,
+    trailer: Option<Trailer>,
 }
 
 /// The laid-out heads and the lines shown recently, kept until the Record, the language or the
@@ -158,22 +195,17 @@ impl LineCache {
         } else {
             line(ui, plain(text, ROW_FONT, Weight::Regular), width)
         };
-        let type_name = match field.value() {
-            LineValue::Reference(link) => {
-                let room = (width - value.size().x - SPACE_2).max(0.0);
-                Some(line(
-                    ui,
-                    plain(link.type_name(), ROW_FONT, Weight::Regular),
-                    room,
-                ))
-            }
+        let room = (width - value.size().x - SPACE_2).max(0.0);
+        let trailer = match field.value() {
+            LineValue::Reference(link) => Some(Trailer::type_name(ui, link.type_name(), room)),
+            LineValue::Key { text, .. } => Trailer::key(ui, texts, text, room),
             _ => None,
         };
         let laid = Laid {
             width,
             name,
             value: (value, colour),
-            type_name,
+            trailer,
         };
         self.rows.insert(index, laid.clone());
         laid
@@ -261,7 +293,7 @@ fn row(
             RecordText::Row,
             &[
                 ("field", field.name().to_owned().into()),
-                ("value", value_text(texts, field.value()).0.into()),
+                ("value", spoken_value(texts, field.value()).into()),
             ],
         )
     };
@@ -288,6 +320,10 @@ fn row(
         _ => {
             let (galley, colour) = &laid.value;
             paint_left(ui, value_cell, Arc::clone(galley), *colour);
+            if let Some(trailer) = &laid.trailer {
+                let after = value_cell.left() + galley.size().x + SPACE_2;
+                trailer.paint(ui, value_cell.with_min_x(after.min(value_cell.right())));
+            }
             None
         }
     }
@@ -338,9 +374,11 @@ fn link_cell(
     if response.has_focus() {
         focus_ring(ui, link, palette::PRIMARY, FOCUS_OFFSET);
     }
-    if let Some(type_name) = &laid.type_name {
-        let after = cell.with_min_x((link.right() + SPACE_2).min(cell.right()));
-        paint_left(ui, after, Arc::clone(type_name), palette::GRAY_2_TEXT);
+    if let Some(trailer) = &laid.trailer {
+        trailer.paint(
+            ui,
+            cell.with_min_x((link.right() + SPACE_2).min(cell.right())),
+        );
     }
     response.clicked()
 }

@@ -1,23 +1,31 @@
 use std::fmt::Write as _;
 
-use p4kx_extraction::{DataForge, Field, RecordTree, RecordXml, Reference, Value, ValueError};
+use p4kx_extraction::{
+    DataForge, Field, RecordTree, RecordXml, Reference, Resolution, TextResolver, Value, ValueError,
+};
 
-use super::{FieldLine, LineValue, RecordLink, RecordView};
+use super::{FieldLine, KeyText, LineValue, RecordLink, RecordView};
 use crate::model::describe;
+use crate::shown_line::display_text;
 use crate::{RecordId, XmlDocument};
 
 /// Builds the preview of the Record `tree` of `forge`, resolving each Reference to the Record it
-/// selects.
-pub(super) fn view(forge: &DataForge<'_>, tree: &RecordTree<'_>) -> RecordView {
+/// selects and, with `texts`, each localisation key to its text.
+pub(super) fn view(
+    forge: &DataForge<'_>,
+    tree: &RecordTree<'_>,
+    texts: Option<&dyn TextResolver>,
+) -> RecordView {
     let mut lines = Lines {
         forge,
+        texts,
         out: Vec::new(),
         text: String::new(),
     };
     lines.fields(tree.fields(), 0);
     let mut xml = Vec::new();
     let xml_error = RecordXml::new()
-        .write(tree, &mut xml)
+        .write_with(tree, texts, &mut xml)
         .err()
         .map(|error| describe(&error).into_boxed_str());
     if xml_error.is_some() {
@@ -33,11 +41,14 @@ pub(super) fn view(forge: &DataForge<'_>, tree: &RecordTree<'_>) -> RecordView {
         errors: tree.error_count(),
         xml: XmlDocument::new(xml, false),
         xml_error,
+        language: None,
+        texts_failure: None,
     }
 }
 
 struct Lines<'a, 'f> {
     forge: &'a DataForge<'f>,
+    texts: Option<&'a dyn TextResolver>,
     out: Vec<FieldLine>,
     text: String,
 }
@@ -56,6 +67,7 @@ impl Lines<'_, '_> {
             Value::Array(items) => LineValue::Array(items.len()),
             Value::Null => LineValue::Null,
             Value::Reference(reference) => LineValue::Reference(self.link(reference)),
+            Value::Locale(key) => self.key(key),
             Value::Error(ValueError::DanglingReference { guid }) => LineValue::Dangling {
                 guid: *guid,
                 reason: self.shown(value_error(value)),
@@ -92,6 +104,21 @@ impl Lines<'_, '_> {
             let _infallible = write!(self.text, "{error}");
         }
         self.text.as_str().into()
+    }
+
+    fn key(&self, key: &str) -> LineValue {
+        let text = match self.texts {
+            Some(texts) if !key.is_empty() => match texts.resolve(key) {
+                Resolution::Text(text) => KeyText::Text(display_text(&text).text.into()),
+                Resolution::Missing => KeyText::Missing,
+                _ => KeyText::None,
+            },
+            _ => KeyText::None,
+        };
+        LineValue::Key {
+            key: display_text(key).text.into(),
+            text,
+        }
     }
 
     fn link(&self, reference: &Reference<'_>) -> RecordLink {

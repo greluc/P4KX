@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_extraction::Guid;
 
-use super::worker::{Answered, Unread, Worker};
+use super::worker::{Answered, Request, Unread, Worker};
 use super::{RecordPreview, State};
-use crate::{EntryIndex, RecordId};
+use crate::{EntryIndex, RecordId, TextLanguage};
 
 /// The most Records back and forward each keep.
 const HISTORY_LIMIT: usize = 256;
@@ -42,10 +42,13 @@ impl Navigation {
         self.current
     }
 
-    /// Returns whether the Record `id` is previewed or read for the preview already.
-    pub(crate) fn previews(&self, id: RecordId) -> bool {
+    /// Returns whether the Record `id` is previewed or read for the preview already, with its
+    /// localisation keys resolved in `language`.
+    pub(crate) fn previews(&self, id: RecordId, language: Option<TextLanguage>) -> bool {
         self.preview.as_ref().is_some_and(|preview| {
-            preview.record == id && !matches!(preview.state, State::Failed(_))
+            preview.record == id
+                && preview.language == language
+                && !matches!(preview.state, State::Failed(_))
         })
     }
 
@@ -98,27 +101,37 @@ impl Navigation {
         Some(id)
     }
 
-    /// Reads the Record `id` of `index` for the preview unless it is previewed already, starting
-    /// the preview thread first, which calls `wake` after each Record it read.
+    /// Reads the Record `id` of `index` for the preview unless it is previewed already, with its
+    /// localisation keys resolved in `language`, starting the preview thread first, which calls
+    /// `wake` after each Record it read.
+    ///
+    /// A Record that is shown already stays on screen while it is read again for another
+    /// `language`; the thread reads it from the DataForge it holds open.
     pub(crate) fn show(
         &mut self,
         id: RecordId,
+        language: Option<TextLanguage>,
         index: &Arc<EntryIndex>,
         wake: Arc<dyn Fn() + Send + Sync>,
     ) {
-        if self.previews(id) {
+        if self.previews(id, language) {
             return;
         }
         let generation = GENERATIONS.fetch_add(1, Ordering::Relaxed);
+        let request = Request {
+            generation,
+            id,
+            language,
+        };
         let mut state = State::Loading;
         let sent = self
             .worker
             .as_ref()
-            .is_some_and(|worker| worker.request(generation, id));
+            .is_some_and(|worker| worker.request(request));
         if !sent {
             match Worker::start(index, wake) {
                 Ok(worker) => {
-                    if !worker.request(generation, id) {
+                    if !worker.request(request) {
                         state = State::Failed(None);
                     }
                     self.worker = Some(worker);
@@ -126,9 +139,20 @@ impl Navigation {
                 Err(reason) => state = State::Failed(Some(reason)),
             }
         }
+        if let Some(shown) = &mut self.preview
+            && shown.record == id
+            && matches!(shown.state, State::Ready(_))
+            && !matches!(state, State::Failed(_))
+        {
+            shown.language = language;
+            shown.pending = Some(generation);
+            return;
+        }
         self.preview = Some(RecordPreview {
             record: id,
             generation,
+            language,
+            pending: None,
             state,
         });
     }
@@ -141,8 +165,10 @@ impl Navigation {
                 Answered::Nothing => break,
                 Answered::Answer((generation, read)) => {
                     if let Some(preview) = &mut self.preview
-                        && preview.generation == generation
+                        && (preview.generation == generation || preview.pending == Some(generation))
                     {
+                        preview.generation = generation;
+                        preview.pending = None;
                         preview.state = match read {
                             Ok(view) => State::Ready(Box::new(view)),
                             Err(Unread::Failed(reason)) => State::Failed(Some(reason)),

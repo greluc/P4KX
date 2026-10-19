@@ -13,7 +13,8 @@ use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
-    CatalogText, ExtractionScope, ExtractionText, Language, Model, RecordExportText, Text, Texts,
+    CatalogText, ExtractionScope, ExtractionText, Language, Model, RecordExportText,
+    RecordLanguageText, RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -27,6 +28,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let licence = texts.get(Text::FontLicence);
     let update_check = texts.get(Text::UpdateCheck);
     let mut chosen = None;
+    let mut text_choice = None;
     let mut show_licence = false;
     let mut enabled = model.update_check();
     let mut pick = None;
@@ -40,6 +42,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             if export_menu(ui, model, requests) {
                 pick = Some(Pick::RecordExport);
             }
+            text_choice = record_text_menu(ui, model);
             let response = ui.menu_button(link(&language_menu), |ui| {
                 dropdown(ui);
                 for (language, name) in &names {
@@ -68,6 +71,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     }
     if let Some(pick) = pick {
         apply(ui, model, pick);
+    }
+    if let Some(choice) = text_choice {
+        model.set_record_text_choice(Some(choice));
+        requests.settings_changed = true;
     }
     if show_licence {
         model.set_licence_shown(true);
@@ -194,6 +201,39 @@ fn export_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> bool {
             requests.dialog = Some(Dialog::CatalogFile);
         }
     });
+    label(&response.response, &title);
+    picked
+}
+
+/// Shows the menu that chooses the language of the texts next to localisation keys in Record
+/// previews, one radio per language the open Archive holds; returns the choice that was made.
+fn record_text_menu(ui: &mut Ui, model: &Model) -> Option<RecordTextChoice> {
+    let texts = model.texts();
+    let title = texts.get(RecordLanguageText::Menu);
+    let languages = model.record_text_languages();
+    let current = model.record_text_language();
+    let mut picked = None;
+    let response = ui
+        .add_enabled_ui(!languages.is_empty(), |ui| {
+            ui.menu_button(link(&title), |ui| {
+                dropdown(ui);
+                let keys_only = texts.get(RecordLanguageText::KeysOnly);
+                if indented(ui, |ui| {
+                    toggle::radio(ui, current.is_none(), &keys_only, true).clicked()
+                }) {
+                    picked = Some(RecordTextChoice::KeysOnly);
+                }
+                for &language in languages {
+                    let name = texts.get(RecordLanguageText::Name(language));
+                    if indented(ui, |ui| {
+                        toggle::radio(ui, current == Some(language), &name, true).clicked()
+                    }) {
+                        picked = Some(RecordTextChoice::Language(language));
+                    }
+                }
+            })
+        })
+        .inner;
     label(&response.response, &title);
     picked
 }

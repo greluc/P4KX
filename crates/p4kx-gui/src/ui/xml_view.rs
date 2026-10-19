@@ -6,7 +6,7 @@ use egui::{
     WidgetInfo, pos2, vec2,
 };
 
-use super::diff_line::display;
+use crate::shown_line::display;
 use crate::theme::desktop::{XML_FONT, XML_GUTTER_PADDING_X, XML_ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{Weight, font};

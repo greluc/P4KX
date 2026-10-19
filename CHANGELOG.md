@@ -4,11 +4,7 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
-## [0.2.0]
-
-The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the
-Basetool catalog, the Comparison of two Archives, textures and localisation, and first commands
-for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server.
+## [Unreleased]
 
 ### Added
 
@@ -20,6 +16,15 @@ for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP 
   unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
   the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
   children.
+
+## [0.2.0]
+
+The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the
+Basetool catalog, the Comparison of two Archives, textures and localisation, and first commands
+for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server.
+
+### Added
+
 - Verification of textures and localisation against all installed Channels, recorded in
   `docs/m5-verification.md`. A texture header Entry that ends with the 8-byte CryEngine trailer
   `CExtCEnd` after its last mip (`cm_inventory_probe_cm.dds`, in every Channel) is no longer

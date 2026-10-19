@@ -370,3 +370,11 @@ record-export-summary-failure = { $path } ({ $guid }): { $reason }
 record-export-failed-title = Record-Export fehlgeschlagen
 record-export-failed = Der Record-Export nach { $path } ist fehlgeschlagen: { $reason }
 record-export-stopped = Der Record-Export nach { $path } brach ohne Ergebnis ab.
+
+preview-tab-xml = XML
+xml-converting = { $path } wird in XML umgewandelt …
+xml-too-large = { $path } ist { $size } groß. CryXml-Einträge über { $limit } werden in der Vorschau nicht umgewandelt; zum Lesen mit Umwandlung extrahieren.
+xml-failed = { $path } kann nicht in XML umgewandelt werden: { $reason }
+xml-stopped = Das Umwandeln von { $path } brach ohne Ergebnis ab.
+xml-truncated = Gekürzt: angezeigt werden die ersten { $lines } Zeilen, die ersten { $limit } des XML.
+xml-view = Umgewandeltes XML

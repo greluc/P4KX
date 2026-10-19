@@ -104,13 +104,13 @@ impl PreviewContents {
     }
 
     /// Returns what copying `tab` puts on the clipboard: the text, every hex row, or nothing for
-    /// the image and DataForge tabs, which show no text.
+    /// the XML, image and DataForge tabs, which do not show these bytes.
     #[must_use]
     pub fn copied(&self, tab: PreviewTab) -> String {
         match tab {
             PreviewTab::Text => self.text.clone(),
             PreviewTab::Hex => self.hex_dump(),
-            PreviewTab::Image | PreviewTab::DataForge => String::new(),
+            PreviewTab::Xml | PreviewTab::Image | PreviewTab::DataForge => String::new(),
         }
     }
 

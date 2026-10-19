@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, Sound};
+use p4kx_extraction::{Archive, Codebooks, Codec, Sound};
 use serde::Serialize;
 
 use crate::cli::{AudioAction, AudioArgs, AudioSource};
@@ -37,11 +37,12 @@ struct WavJson<'a> {
 struct OggJson<'a> {
     sound: &'a str,
     output: String,
+    codec: &'static str,
     channels: u16,
     sample_rate: u32,
     sample_count: u64,
     duration_seconds: f64,
-    codebooks: &'static str,
+    codebooks: Option<&'static str>,
     size: u64,
 }
 
@@ -130,18 +131,24 @@ fn ogg(sound: &Sound, out: &Path, as_json: bool) -> Result<()> {
         json::print(&OggJson {
             sound: sound.name(),
             output: json::path(out),
+            codec: report.codec.id(),
             channels: report.channels,
             sample_rate: report.sample_rate,
             sample_count: report.sample_count,
             duration_seconds: duration.as_secs_f64(),
-            codebooks: report.codebooks.id(),
+            codebooks: report.codebooks.map(Codebooks::id),
             size: report.size,
         })?;
     } else {
         writeln!(
             io::stdout().lock(),
-            "wrote {} as Ogg Vorbis to {}, {}, {} bytes",
+            "wrote {} as Ogg {} to {}, {}, {} bytes",
             sound.name(),
+            if report.codec == Codec::Opus {
+                "Opus"
+            } else {
+                "Vorbis"
+            },
             out.display(),
             format_duration(duration),
             report.size

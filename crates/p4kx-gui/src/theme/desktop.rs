@@ -333,6 +333,12 @@ pub const IMAGE_LABEL_GAP: f32 = SPACE_3;
 pub const IMAGE_SELECTOR_GAP: f32 = SPACE_2;
 /// The offset of the focus ring of a segment, inside it.
 pub const SEGMENT_FOCUS_OFFSET: f32 = -3.0;
+/// The height of a line of the XML view, the density of a hex row.
+pub const XML_ROW_HEIGHT: f32 = HEX_ROW_HEIGHT;
+/// The font size of the XML view.
+pub const XML_FONT: f32 = FS_XS;
+/// The horizontal padding around the line numbers of the XML view.
+pub const XML_GUTTER_PADDING_X: f32 = CELL_PADDING_X;
 
 /// The fill of a danger alert and of the marked error in the Query editor, `rgba(163,0,10,0.2)`.
 pub const ALERT_DANGER_FILL: Color32 = Color32::from_rgba_unmultiplied_const(163, 0, 10, 51);

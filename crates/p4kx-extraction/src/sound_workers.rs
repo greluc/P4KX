@@ -17,11 +17,7 @@ const MAX_SOUND_WORKERS: usize = 8;
 const SOUND_BUDGET: u64 = 1 << 30;
 
 /// Runs `items` in parallel: sounds and soundbanks on their own worker threads within
-/// [`SOUND_BUDGET`], every other item on the current rayon pool.
-///
-/// The sound workers are plain threads, not rayon workers, so a worker waiting for the budget
-/// never holds a stolen job, and the decoders' own rayon work cannot start a second sound on a
-/// worker that already holds one.
+/// [`SOUND_BUDGET`], every other item on the current rayon pool (ADR-0021).
 pub(crate) fn run_parallel<'a, F>(items: Vec<Item<'a>>, run: &F) -> Vec<Ended>
 where
     F: Fn(&mut Buffers, Item<'a>) -> Ended + Sync,

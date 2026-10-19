@@ -70,11 +70,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         conflict: args.conflict,
         convert: args.convert,
         textures: textures(args),
-        audio: match args.audio {
-            AudioOutput::Ogg => AudioConversion::Ogg,
-            AudioOutput::Wav => AudioConversion::Wav,
-            AudioOutput::Raw => AudioConversion::Raw,
-        },
+        audio: audio(args.audio),
         cancel_after: args.cancel_after,
     };
     execute(&archive, &entries, &settings, as_json)
@@ -183,6 +179,14 @@ fn textures(args: &ExtractArgs) -> TextureConversion {
             .contains(&TextureOutput::Png)
             .then_some(args.mip),
         keep_raw: args.textures.contains(&TextureOutput::Raw),
+    }
+}
+
+const fn audio(output: AudioOutput) -> AudioConversion {
+    match output {
+        AudioOutput::Ogg => AudioConversion::Ogg,
+        AudioOutput::Wav => AudioConversion::Wav,
+        AudioOutput::Raw => AudioConversion::Raw,
     }
 }
 

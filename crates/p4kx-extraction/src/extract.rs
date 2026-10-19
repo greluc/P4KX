@@ -9,7 +9,10 @@ use crate::sound_workers::run_parallel;
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
-use crate::{DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport};
+use crate::{
+    DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport, MAX_SOUND_LEN,
+    MAX_SOUNDBANK_LEN,
+};
 
 /// The outcome of one Entry of an Extraction: its position, its path and how it ended.
 pub(crate) type EntryEnded = (usize, String, Outcome);
@@ -50,8 +53,8 @@ pub(crate) enum Ended {
 /// With Conversion on, WEM sounds and the WEMs of soundbanks are written as
 /// [`AudioConversion`](crate::AudioConversion) says, each soundbank also unchanged; a sound that
 /// cannot be converted is reported among the [`unconverted`](ExtractionReport::unconverted) ones
-/// and written unchanged. Sounds and soundbanks are converted on their own few worker threads,
-/// each holding at most one of them in memory, within a shared memory budget.
+/// and written unchanged. Sounds and soundbanks held in memory at once stay within 1 GiB, unless
+/// a single one is larger.
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -94,8 +97,18 @@ pub fn extract(
             Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
         }
         Item::Texture(job) => writer.write_texture(&job, buffers),
-        Item::Sound(indexed) => writer.write_sound_entry(indexed, buffers),
-        Item::Bank(indexed) => writer.write_bank_entry(indexed, buffers),
+        Item::Sound(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUND_LEN,
+            EntryWriter::try_write_sound,
+        ),
+        Item::Bank(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUNDBANK_LEN,
+            EntryWriter::try_write_bank,
+        ),
     };
     let mut ended = run_parallel(independent, &run);
     let mut buffers = Buffers::new();

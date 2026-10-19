@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
@@ -9,11 +8,11 @@ use p4kx_audio::{AudioError, Codec, Wem};
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
 use crate::extract::Ended;
+use crate::sound_job::sound_role;
 use crate::texture_convert::Step;
 use crate::texture_job::Indexed;
 use crate::write::{Destination, EntryWriter, Outcome, create_folders};
-use crate::{AudioConversion, ConflictPolicy, ConversionError, EntryFailure, ExtractionError};
-use crate::{MAX_SOUND_LEN, sound_job::sound_role};
+use crate::{AudioConversion, ConversionError, EntryFailure, ExtractionError};
 
 /// One sound to write: the folder it goes to, its file name without extension, the name its
 /// errors carry and whether it is only the prefetched start of a streamed WEM.
@@ -58,44 +57,52 @@ impl Form {
     }
 }
 
+/// How converting one sound or Soundbank Entry ended, and what it could not convert.
+pub(crate) type Converted = (Outcome, Vec<ConversionError>);
+
 impl EntryWriter<'_> {
-    /// Converts the WEM sound `entry` as the run's audio option says and reports its end; a sound
-    /// that cannot be converted is reported and written unchanged.
-    pub(crate) fn write_sound_entry(
+    /// Converts the sound or Soundbank `entry` through `convert` and reports its end; an Entry
+    /// larger than `limit` is written unchanged and reported as not converted.
+    ///
+    /// `convert` counts the bytes it reports as progress in its `AtomicU64`.
+    pub(crate) fn convert_sound_entry(
         &self,
         (index, entry): Indexed<'_>,
         buffers: &mut Buffers,
+        limit: u64,
+        convert: impl FnOnce(
+            &Self,
+            &Entry,
+            &mut Buffers,
+            &AtomicU64,
+        ) -> Result<Converted, ExtractionError>,
     ) -> Ended {
         let path = entry.path().to_owned();
-        if entry.uncompressed_size() > MAX_SOUND_LEN {
+        if entry.uncompressed_size() > limit {
             let outcome = self.write_raw(entry, buffers);
             let error = ExtractionError::TooLargeToConvert {
                 size: entry.uncompressed_size(),
-                limit: MAX_SOUND_LEN,
+                limit,
             };
-            let unconverted = vec![EntryFailure {
-                path: path.clone(),
-                error,
-            }];
             return Ended::Sound {
-                entry: (index, path, outcome),
-                unconverted,
+                entry: (index, path.clone(), outcome),
+                unconverted: vec![EntryFailure { path, error }],
             };
         }
         let credited = AtomicU64::new(0);
-        let (outcome, unconverted) = match self.try_write_sound(entry, buffers, &credited) {
+        let (outcome, unconverted) = match convert(self, entry, buffers, &credited) {
             Ok(done) => done,
-            Err(_) if self.tracker.archive_file_changed() => (Outcome::Cancelled, None),
-            Err(error) => (Outcome::Failed(error), None),
+            Err(_) if self.tracker.archive_file_changed() => (Outcome::Cancelled, Vec::new()),
+            Err(error) => (Outcome::Failed(error), Vec::new()),
         };
         buffers.trim();
         self.tracker.ended(entry, credited.into_inner());
         let unconverted = unconverted
+            .into_iter()
             .map(|error| EntryFailure {
                 path: path.clone(),
                 error: ExtractionError::Sound(Box::new(error)),
             })
-            .into_iter()
             .collect();
         Ended::Sound {
             entry: (index, path, outcome),
@@ -103,29 +110,39 @@ impl EntryWriter<'_> {
         }
     }
 
-    fn try_write_sound(
+    /// Reads the whole Entry into `buffers.data`, counting half of it as progress in `credited`;
+    /// returns `false` once the run is to stop.
+    pub(crate) fn read_sound(
         &self,
         entry: &Entry,
         buffers: &mut Buffers,
         credited: &AtomicU64,
-    ) -> Result<(Outcome, Option<ConversionError>), ExtractionError> {
+    ) -> Result<bool, ExtractionError> {
+        let len = usize::try_from(entry.uncompressed_size()).unwrap_or(usize::MAX);
+        let mut reader = self.archive.open_entry(entry)?;
+        let Buffers { chunk, data, .. } = buffers;
+        data.clear();
+        self.read_all(&mut reader, data, len, chunk, credited)
+    }
+
+    /// Converts the WEM sound `entry` as the run's audio option says; a sound that cannot be
+    /// converted is written unchanged and returned.
+    pub(crate) fn try_write_sound(
+        &self,
+        entry: &Entry,
+        buffers: &mut Buffers,
+        credited: &AtomicU64,
+    ) -> Result<Converted, ExtractionError> {
         if self.tracker.should_stop() {
-            return Ok((Outcome::Cancelled, None));
+            return Ok((Outcome::Cancelled, Vec::new()));
         }
         let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
         let stem = sound_role(entry.path())
             .and_then(|(_, stem)| stem.rsplit(['\\', '/']).next())
             .ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
-        if self.policy == ConflictPolicy::Skip && self.preferred_exists(&folder, stem) {
-            return Ok((Outcome::Kept, None));
-        }
-        let len = usize::try_from(entry.uncompressed_size()).unwrap_or(usize::MAX);
-        let mut reader = self.archive.open_entry(entry)?;
-        let Buffers { chunk, data, .. } = buffers;
-        data.clear();
-        if !self.read_all(&mut reader, data, len, chunk, credited)? {
-            return Ok((Outcome::Cancelled, None));
+        if !self.read_sound(entry, buffers, credited)? {
+            return Ok((Outcome::Cancelled, Vec::new()));
         }
         let sound = SoundFile {
             folder: &folder,
@@ -133,22 +150,15 @@ impl EntryWriter<'_> {
             name: entry.path(),
             prefetch: false,
         };
-        let end = self.write_sound(data, &sound, chunk)?;
+        let end = self.write_sound(&buffers.data, &sound, &mut buffers.chunk)?;
         let outcome = match end.step {
             Step::Written if end.converted => Outcome::Converted,
             Step::Written => Outcome::Written,
             Step::Kept => Outcome::Kept,
             Step::Cancelled => Outcome::Cancelled,
         };
-        Ok((outcome, end.unconverted))
+        Ok((outcome, end.unconverted.into_iter().collect()))
     }
-
-    /// Returns whether the file the run's audio option writes first for a sound exists.
-    fn preferred_exists(&self, folder: &Path, stem: &str) -> bool {
-        let form = Form::first(self.audio);
-        fs::symlink_metadata(folder.join(format!("{stem}.{}", form.extension()))).is_ok()
-    }
-
     /// Writes the WEM `bytes` into its folder: as Ogg where the audio option asks for it and the
     /// codec has an Ogg form, else as WAV unless the option keeps sounds unchanged; a sound that
     /// cannot be converted, plug-in media and a prefetched start are written unchanged as `.wem`,
@@ -194,9 +204,11 @@ impl EntryWriter<'_> {
         Ok(SoundEnd {
             step,
             converted: false,
-            unconverted: failure.map(|source| ConversionError::Audio {
-                sound: sound.name.to_owned(),
-                source,
+            unconverted: failure.filter(|_| step != Step::Cancelled).map(|source| {
+                ConversionError::Audio {
+                    sound: sound.name.to_owned(),
+                    source,
+                }
             }),
         })
     }

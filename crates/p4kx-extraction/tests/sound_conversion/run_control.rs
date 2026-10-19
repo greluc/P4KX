@@ -26,6 +26,23 @@ fn skip_keeps_existing_converted_files() -> TestResult {
 }
 
 #[test]
+fn skip_writes_a_sound_whose_own_output_is_missing_beside_a_file_of_another_format() -> TestResult {
+    let fixture = Fixture::sounds()?;
+    let stale = fixture.target.join("Data/Sounds/wwise/Media/600.ogg");
+    fs::create_dir_all(stale.parent().ok_or("folder")?)?;
+    fs::write(&stale, b"stale")?;
+
+    let report = fixture.run(AudioConversion::Ogg, ConflictPolicy::Skip);
+
+    assert!(
+        fixture.exists("Data\\Sounds\\wwise\\Media\\600.wav"),
+        "the WAV is written"
+    );
+    assert!(!report.skipped().contains(&PCM.to_owned()), "not kept");
+    Ok(())
+}
+
+#[test]
 fn if_changed_keeps_unchanged_files_and_replaces_changed_ones() -> TestResult {
     let fixture = Fixture::sounds()?;
     fixture.run(AudioConversion::Ogg, ConflictPolicy::Skip);

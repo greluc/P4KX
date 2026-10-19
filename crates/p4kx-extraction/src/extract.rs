@@ -55,8 +55,8 @@ pub(crate) enum Ended {
 /// With Conversion on, WEM sounds and the WEMs of soundbanks are written as
 /// [`AudioConversion`](crate::AudioConversion) says, each soundbank also unchanged; a sound that
 /// cannot be converted is reported among the [`unconverted`](ExtractionReport::unconverted) ones
-/// and written unchanged. Sounds and soundbanks held in memory at once stay within 1 GiB, unless
-/// a single one is larger.
+/// and written unchanged. Sounds and soundbanks held in memory at once stay within 1 GiB; one
+/// larger than 512 MiB is not read whole but written unchanged and reported as unconverted.
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is

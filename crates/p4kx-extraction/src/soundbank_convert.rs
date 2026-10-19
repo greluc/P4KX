@@ -15,12 +15,14 @@ use crate::texture_convert::Step;
 use crate::write::{EntryWriter, Outcome, create_folders};
 use crate::{ConversionError, ExtractionError};
 
-/// What unpacking a soundbank got done: how its files ended, the first error that stopped a file,
+/// What unpacking a soundbank got done: how its files ended, whether a WEM was written converted,
+/// the first error that stopped a file,
 /// the WEMs written unchanged because they could not be converted and the WEMs a cancelled run
 /// left unwritten.
 #[derive(Default)]
 struct Unpacked {
     steps: Vec<Step>,
+    converted: bool,
     error: Option<ExtractionError>,
     unconverted: Vec<ConversionError>,
     cancelled: Vec<String>,
@@ -34,8 +36,10 @@ impl Unpacked {
     fn into_converted(self) -> Converted {
         let outcome = if let Some(error) = self.error {
             Outcome::Failed(error)
-        } else if self.steps.contains(&Step::Written) {
+        } else if self.converted {
             Outcome::Converted
+        } else if self.steps.contains(&Step::Written) {
+            Outcome::Written
         } else {
             Outcome::Kept
         };
@@ -112,9 +116,6 @@ impl EntryWriter<'_> {
                 };
                 let mut converted = unpacked.into_converted();
                 converted.unconverted.push(error);
-                if matches!(converted.outcome, Outcome::Converted) {
-                    converted.outcome = Outcome::Written;
-                }
                 Ok(converted)
             }
         }
@@ -152,6 +153,7 @@ impl EntryWriter<'_> {
             };
             match self.write_sound(wem.bytes(), &sound, chunk) {
                 Ok(end) => {
+                    unpacked.converted |= end.converted && end.step == Step::Written;
                     unpacked.steps.push(end.step);
                     unpacked.unconverted.extend(end.unconverted);
                     if end.step == Step::Cancelled {

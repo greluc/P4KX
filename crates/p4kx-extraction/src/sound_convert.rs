@@ -12,7 +12,7 @@ use crate::sound_job::sound_role;
 use crate::texture_convert::Step;
 use crate::texture_job::Indexed;
 use crate::write::{Destination, EntryWriter, Outcome, create_folders};
-use crate::{AudioConversion, ConversionError, EntryFailure, ExtractionError};
+use crate::{AudioConversion, ConflictPolicy, ConversionError, EntryFailure, ExtractionError};
 
 /// One sound to write: the folder it goes to, its file name without extension, the name its
 /// errors carry and whether it is only the prefetched start of a streamed WEM.
@@ -144,7 +144,9 @@ impl EntryWriter<'_> {
     }
 
     /// Converts the WEM sound `entry` as the run's audio option says; a sound that cannot be
-    /// converted is written unchanged and returned.
+    /// converted is written unchanged and returned. Under [`ConflictPolicy::Skip`] an existing
+    /// output is kept without reading the sound, except for Ogg, whose output depends on the
+    /// codec only the sound tells.
     pub(crate) fn try_write_sound(
         &self,
         entry: &Entry,
@@ -159,15 +161,23 @@ impl EntryWriter<'_> {
             .and_then(|(_, stem)| stem.rsplit(['\\', '/']).next())
             .ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
-        if !self.read_sound(entry, buffers, credited)? {
-            return Ok(Converted::of(Outcome::Cancelled));
-        }
         let sound = SoundFile {
             folder: &folder,
             stem,
             name: entry.path(),
             prefetch: false,
         };
+        if self.policy == ConflictPolicy::Skip
+            && self.audio != AudioConversion::Ogg
+            && sound_destination(&sound, Form::first(self.audio))?
+                .existing
+                .is_some()
+        {
+            return Ok(Converted::of(Outcome::Kept));
+        }
+        if !self.read_sound(entry, buffers, credited)? {
+            return Ok(Converted::of(Outcome::Cancelled));
+        }
         let end = self.write_sound(&buffers.data, &sound, &mut buffers.chunk)?;
         let outcome = match end.step {
             Step::Written if end.converted => Outcome::Converted,

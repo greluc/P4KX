@@ -139,7 +139,23 @@ fn raw_keeps_the_sounds_and_unpacks_the_soundbank_unchanged() -> TestResult {
         "nothing to report: {:?}",
         report.unconverted()
     );
-    assert_eq!(report.converted(), Some(1), "the soundbank was unpacked");
+    assert_eq!(report.converted(), Some(0), "nothing was converted");
+    assert_eq!(report.extracted(), 4, "the soundbank was still written");
+    Ok(())
+}
+
+#[test]
+fn a_soundbank_whose_wems_all_fall_back_to_raw_is_not_counted_converted() -> TestResult {
+    let fixture = Fixture::new(vec![TestEntry::zstd(
+        BANK,
+        TestBank::new(1).wem(30, xma()).bytes(),
+    )])?;
+
+    let report = fixture.run(AudioConversion::Ogg, ConflictPolicy::Skip);
+
+    assert_eq!(fixture.names(BANK_FOLDER)?, ["30.wem"], "written unchanged");
+    assert_eq!(report.converted(), Some(0), "not converted");
+    assert_eq!(report.unconverted().len(), 1, "listed as not converted");
     Ok(())
 }
 

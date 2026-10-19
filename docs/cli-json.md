@@ -656,8 +656,8 @@ code 2.
 ```
 
 With `--convert` the report also holds `"converted": 1`, the number of Entries written converted
-(CryXml Entries as XML, the Entries of converted textures, sounds, soundbanks and the DataForge
-Entry as Records); they count among `extracted`. It also holds `"unconverted": [{"path":
+(CryXml Entries as XML, the Entries of converted textures, sounds, soundbanks with at least one
+converted WEM and the DataForge Entry as Records); they count among `extracted`. It also holds `"unconverted": [{"path":
 "Data\\Textures\\hull_ddna.dds", "error": "cannot convert the texture: …"}]`, the textures by
 their header Entry that could not be converted, whose raw Entries were written instead (except a
 header whose path the merged DDS already took), and the sounds that could not be converted, e.g.

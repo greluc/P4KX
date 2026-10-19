@@ -5,7 +5,7 @@ use p4kx_extraction::{AudioConversion, CancelToken, ConflictPolicy, ExtractOptio
 
 use p4kx_testkit::{TestBank, TestEntry};
 
-use crate::fixture::{BANK, Fixture, PCM, TestResult, VORBIS, XMA, bank, partial_files};
+use crate::fixture::{BANK, Fixture, PCM, TestResult, VORBIS, XMA, bank, partial_files, pcm};
 
 const OGG: &str = "Data/Sounds/wwise/Media/500.ogg";
 const EMBEDDED: &str = "Data/Sounds/wwise/Ship/20.wav";
@@ -24,6 +24,29 @@ fn skip_keeps_existing_converted_files() -> TestResult {
         [VORBIS, PCM, XMA, BANK],
         "every sound kept"
     );
+    Ok(())
+}
+
+#[test]
+fn skip_keeps_an_existing_output_without_reading_the_sound() -> TestResult {
+    let fixture = Fixture::new(vec![
+        TestEntry::zstd(PCM, pcm()).with_payload(vec![0xFF; 16]),
+    ])?;
+    let output = fixture.target.join("Data/Sounds/wwise/Media/600.wav");
+
+    let read = fixture.run(AudioConversion::Wav, ConflictPolicy::Skip);
+    fs::create_dir_all(output.parent().ok_or("folder")?)?;
+    fs::write(&output, b"old")?;
+    let kept = fixture.run(AudioConversion::Wav, ConflictPolicy::Skip);
+
+    assert_eq!(
+        read.failures().len(),
+        1,
+        "an unreadable sound fails when read"
+    );
+    assert!(kept.failures().is_empty(), "{:?}", kept.failures());
+    assert_eq!(kept.skipped(), [PCM], "kept");
+    assert_eq!(fs::read(&output)?, b"old", "untouched");
     Ok(())
 }
 

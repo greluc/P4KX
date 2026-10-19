@@ -13,11 +13,14 @@ use crate::texture_job::Item;
 /// The most sound workers of one Extraction.
 const MAX_SOUND_WORKERS: usize = 8;
 /// The bytes of sounds and soundbanks the sound workers may hold in memory at the same time; a
-/// larger one runs alone.
+/// larger item takes all of it.
 const SOUND_BUDGET: u64 = 1 << 30;
 
 /// Runs `items` in parallel: sounds and soundbanks on their own worker threads within
 /// [`SOUND_BUDGET`], every other item on the current rayon pool (ADR-0022).
+///
+/// A sound worker thread the system refuses to spawn is not reported: the calling thread also
+/// drains the sound queue, so the run only loses parallelism and every item still ends.
 pub(crate) fn run_parallel<'a, F>(items: Vec<Item<'a>>, run: &F) -> Vec<Ended>
 where
     F: Fn(&mut Buffers, Item<'a>) -> Ended + Sync,

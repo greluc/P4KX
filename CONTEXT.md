@@ -188,6 +188,12 @@ A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one au
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).
 _Avoid_: audio file, sound file
 
+**Loop**:
+The part of a looping WEM that repeats, from its start frame up to, not including, its end frame;
+read from the WEM's `smpl` chunk and kept as a `smpl` chunk in WAV and as `LOOPSTART` and
+`LOOPLENGTH` comments in Ogg, while the sound itself is exported once.
+_Avoid_: repeat, cycle
+
 **Codebook library**:
 The Vorbis codebooks a Wwise Vorbis WEM refers to by id instead of storing them: the default
 (libvorbis) or the aoTuV library; needed to rebuild the WEM as Ogg Vorbis.

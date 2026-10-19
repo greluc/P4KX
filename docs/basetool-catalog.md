@@ -31,6 +31,8 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `manufacturers` | The manufacturers, ordered by GUID |
 | `items` | The items, ordered by GUID |
 | `ships` | The ships and ground vehicles, ordered by GUID |
+| `commodities` | The commodities, ordered by GUID |
+| `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -78,6 +80,69 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 
+A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
+an ingredient uses and no commodity Record carries (see below). A commodity Record takes its fields
+from the entity:
+
+| Field | Source |
+|-------|--------|
+| `name` | `SCItemPurchasableParams.displayName` |
+| `description` | `EntityUIDisplayParams.displayDescription` in `StaticEntityClassData` |
+| `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
+| `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
+| `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+
+A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
+`subtypeGuid` links to (`displayName`, `description`) instead. The game holds no field named type
+or subtype for a commodity; the groups of `ResourceType` Records are the types, the `ResourceType`
+is the subtype.
+
+A `ResourceType` Record that the ingredients of a blueprint use and that no commodity Record
+carries is listed as a commodity as well, so that every resource ingredient points at a catalog
+entry (LIVE: Aslarite, Ouratite, Iron, Stileron, Lindinium, Riccite, Tin, Torite, Savrilium and
+Pressurized Ice). Its `guid` is the GUID of the `ResourceType`, `className`, `recordPath`, `name`
+and `description` are those of the `ResourceType`, `typeGuid` is its group, `subtypeGuid` is its own
+GUID and `displayType` has no key. With a `--filter`, such an entry is listed only when its record
+path matches.
+
+The join from an ingredient to its commodity is `resourceGuid` = `subtypeGuid`. A `ResourceType`
+that a commodity Record carries yields no second entry, so every `resourceGuid` of the catalog
+matches exactly one commodity (checked against LIVE). A `ResourceType` that several commodity
+Records share (on LIVE the Slam variants and the med pens) matches several; no recipe uses one.
+
+A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
+
+| Field | Source |
+|-------|--------|
+| `className`, `key` | The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`; both hold it |
+| `name` | `blueprintName` |
+| `categoryGuid` | The GUID `category` links to |
+| `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
+| `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
+| `ingredients` | The costs of the first tier, see below |
+
+An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
+`optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
+
+| Field | Meaning |
+|-------|---------|
+| `resourceGuid` | The GUID of the `ResourceType` Record of a resource line, otherwise `null` |
+| `itemGuid` | The GUID of the entity of an item line, otherwise `null` |
+| `quantityScu` | `quantity.standardCargoUnits` of a resource line, otherwise `null` |
+| `quantityUnits` | `quantity` of an item line, otherwise `null` |
+| `minQuality` | `minQuality` |
+| `slot`, `slotKey` | `debugName` and `displayName` of the nearest enclosing selection that has a name; a placeholder `slotKey` is `null` |
+
+Not represented:
+
+- The count of a selection ("choose n"): every option is listed, though 3 of the 1,618 LIVE
+  blueprints let the player choose fewer than they offer.
+- The `CraftingCostContext_QuantityMultiplier` (factor 1.15 on 3 lines of LIVE): the quantities are
+  the stored ones, the multiplier is ignored.
+
+A blueprint's `name` is almost always a placeholder key. The Basetool names a blueprint through
+`producedItemGuid`, the item it produces, not through `name`.
+
 Manufacturer GUIDs are always taken from References, never from embedded Records (ADR-0004).
 
 ### Texts
@@ -113,6 +178,16 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and `@LOC_UNINITIALIZED` (
 | `manufacturers` | `libs/foundry/records/scitemmanufacturer/` | `SCItemManufacturer` |
 | `items` | `libs/foundry/records/entities/scitem/`, `libs/foundry/records/entities/legacyitems/` | `EntityClassDefinition` |
 | `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
+| `commodities` | `libs/foundry/records/entities/commodities/` | `EntityClassDefinition` |
+| `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
+
+The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record is no recipe. The
+`$templates` folders below it hold 27 real blueprints, each the only recipe for its item, and
+stay: the token `templates` is not `template`.
+
+`mining/mineableelements` is not a kind. Its 46 Records only link a mineable to its `ResourceType`
+and hold no commodity of their own; the `ResourceType` Records enter through the ingredients that
+use them.
 
 An item without an `SAttachableComponentParams` component, such as a door or a shop counter, is
 still an item; its definition fields are then `null` and `tags` is empty.

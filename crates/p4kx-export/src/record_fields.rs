@@ -37,6 +37,30 @@ pub(crate) fn component<'t, 'f>(
     })
 }
 
+/// Returns the elements of the array the field `name` of `parent` holds, none for a field that is
+/// absent or no array.
+pub(crate) fn elements<'t, 'f>(parent: Option<&'t StructValue<'f>>, name: &str) -> &'t [Value<'f>] {
+    match parent.and_then(|parent| parent.field(name)) {
+        Some(Value::Array(items)) => items,
+        _ => &[],
+    }
+}
+
+/// Returns the first struct of type `type_name` among the elements of the array the field `name`
+/// of `parent` holds.
+pub(crate) fn element<'t, 'f>(
+    parent: Option<&'t StructValue<'f>>,
+    name: &str,
+    type_name: &str,
+) -> Option<&'t StructValue<'f>> {
+    elements(parent, name)
+        .iter()
+        .find_map(|element| match element {
+            Value::Struct(value) if value.type_name() == type_name => Some(value),
+            _ => None,
+        })
+}
+
 /// Returns the localisation key the field `name` of `parent` holds; an empty key is none.
 pub(crate) fn locale_key<'f>(parent: Option<&StructValue<'f>>, name: &str) -> Option<&'f str> {
     match parent?.field(name)? {

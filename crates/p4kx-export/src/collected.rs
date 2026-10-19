@@ -1,6 +1,8 @@
 use p4kx_extraction::RecordTree;
 
-use crate::contract::{Item, Manufacturer, Ship};
+use crate::blueprint::blueprint;
+use crate::commodity::{Groups, commodity};
+use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
@@ -16,14 +18,25 @@ pub(crate) enum Picked<'f> {
     Item(Item<'f>, ClassLine),
     /// A ship.
     Ship(Ship<'f>),
+    /// A commodity.
+    Commodity(Commodity<'f>),
+    /// A blueprint.
+    Blueprint(Blueprint<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
 }
 
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
-    /// `texts`.
-    pub(crate) fn entity(kind: Kind, tree: &RecordTree<'f>, texts: &Texts<'f>) -> Self {
+    /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
+    /// type from `groups`.
+    pub(crate) fn entity(
+        kind: Kind,
+        tree: &RecordTree<'f>,
+        texts: &Texts<'f>,
+        resource_type: Option<&RecordTree<'f>>,
+        groups: &Groups,
+    ) -> Self {
         match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
             Kind::Items => {
@@ -31,6 +44,8 @@ impl<'f> Picked<'f> {
                 Self::Item(item, line)
             }
             Kind::Ships => Self::Ship(ship(tree, texts)),
+            Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
+            Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
         }
     }
 }
@@ -41,6 +56,8 @@ pub(crate) struct Collected<'f> {
     pub(crate) manufacturers: Vec<Manufacturer<'f>>,
     pub(crate) items: Vec<Item<'f>>,
     pub(crate) ships: Vec<Ship<'f>>,
+    pub(crate) commodities: Vec<Commodity<'f>>,
+    pub(crate) blueprints: Vec<Blueprint<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     skipped: [usize; Kind::ALL.len()],
 }
@@ -57,6 +74,8 @@ impl<'f> Collected<'f> {
                     collected.items.push(entity);
                 }
                 Picked::Ship(entity) => collected.ships.push(entity),
+                Picked::Commodity(entity) => collected.commodities.push(entity),
+                Picked::Blueprint(entity) => collected.blueprints.push(entity),
                 Picked::Skipped(kind) => {
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
@@ -74,6 +93,12 @@ impl<'f> Collected<'f> {
             .ships
             .sort_by_cached_key(|entity| entity.guid.text());
         collected
+            .commodities
+            .sort_by_cached_key(|entity| entity.guid.text());
+        collected
+            .blueprints
+            .sort_by_cached_key(|entity| entity.guid.text());
+        collected
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -86,6 +111,8 @@ impl<'f> Collected<'f> {
                     Kind::Manufacturers => self.manufacturers.len(),
                     Kind::Items => self.items.len(),
                     Kind::Ships => self.ships.len(),
+                    Kind::Commodities => self.commodities.len(),
+                    Kind::Blueprints => self.blueprints.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

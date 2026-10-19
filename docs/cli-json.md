@@ -237,14 +237,16 @@ reach `null` and change no exit code.
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 19303075, "upload_limit": 64000000,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 21064214, "upload_limit": 64000000,
  "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23300, "skipped": 1125, "complete": true},
- {"kind": "ships", "count": 1087, "skipped": 57, "complete": true}], "skipped": 1184,
+ {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
+ {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1184,
  "item_classes": {"classified": 347, "other": 409, "missing": 22544},
- "texts": [{"language": "en", "available": true, "resolved": 37544, "unresolved": 160,
- "placeholder": 22086}, {"language": "de", "available": true, "resolved": 25104,
- "unresolved": 12600, "placeholder": 22086}], "unresolved": 12760}
+ "texts": [{"language": "en", "available": true, "resolved": 37969, "unresolved": 160,
+ "placeholder": 23704}, {"language": "de", "available": true, "resolved": 25503,
+ "unresolved": 12626, "placeholder": 23704}], "unresolved": 12786}
 ```
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size

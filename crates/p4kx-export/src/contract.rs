@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use schemars::{JsonSchema, Schema};
 use serde::Serialize;
 
@@ -98,17 +100,20 @@ pub(crate) struct Manufacturer<'a> {
     pub(crate) description: LocalisedText<'a>,
 }
 
-/// A text the game localises: its localisation key and the resolved English and German texts.
-#[derive(Debug, Clone, Copy, Default, Serialize, JsonSchema)]
+/// A text the game localises: its localisation key and the resolved English and German texts,
+/// as the language's `global.ini` stores them with the escape `\n` decoded to a line feed.
+#[derive(Debug, Clone, Default, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LocalisedText<'a> {
     /// The localisation key, e.g. `@manufacturer_NameACAS`, `null` when it is unknown.
     pub(crate) key: Option<&'a str>,
-    /// The English text, `null` when the key is not resolved.
-    pub(crate) en: Option<&'a str>,
-    /// The German text, `null` when the key is not resolved.
-    pub(crate) de: Option<&'a str>,
+    /// The English text, `null` for no key, a placeholder key, or a key the English `global.ini`
+    /// lacks or holds empty.
+    pub(crate) en: Option<Cow<'a, str>>,
+    /// The German text, `null` for no key, a placeholder key, or a key the German `global.ini`
+    /// lacks or holds empty.
+    pub(crate) de: Option<Cow<'a, str>>,
 }
 
 /// Makes every property of an object schema required: the catalog writes `null`, never omits.

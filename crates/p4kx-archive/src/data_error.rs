@@ -27,6 +27,13 @@ pub enum DataError {
         /// The uncompressed size from the central directory.
         expected: u64,
     },
+    /// The data goes on after the uncompressed size given in the central directory; reported only
+    /// by a reader that [rejects overlong data](crate::EntryReader::reject_overlong).
+    #[error("Entry data holds more than its {expected} bytes")]
+    TooLong {
+        /// The uncompressed size from the central directory.
+        expected: u64,
+    },
 }
 
 impl From<DataError> for io::Error {

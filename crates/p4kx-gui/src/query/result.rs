@@ -117,6 +117,7 @@ pub struct QueryResult {
     columns: Vec<ResultColumn>,
     rows: Vec<ResultRow>,
     failed: u64,
+    unresolved: u64,
     order: Vec<u32>,
     sort: Option<(usize, SortDirection)>,
     page: usize,
@@ -132,6 +133,7 @@ impl std::fmt::Debug for QueryResult {
             .field("columns", &self.columns)
             .field("rows", &self.rows.len())
             .field("failed", &self.failed)
+            .field("unresolved", &self.unresolved)
             .field("sort", &self.sort)
             .field("page", &self.page)
             .finish_non_exhaustive()
@@ -142,7 +144,7 @@ impl QueryResult {
     pub(crate) fn new(
         (query, columns): (String, Vec<ResultColumn>),
         rows: Vec<ResultRow>,
-        failed: u64,
+        (failed, unresolved): (u64, u64),
         (forge, archive): (Arc<DataForgeEntry>, PathBuf),
     ) -> Self {
         let order = (0..rows.len())
@@ -153,6 +155,7 @@ impl QueryResult {
             columns,
             rows,
             failed,
+            unresolved,
             order,
             sort: None,
             page: 0,
@@ -190,6 +193,12 @@ impl QueryResult {
     #[must_use]
     pub const fn failed(&self) -> u64 {
         self.failed
+    }
+
+    /// Returns the null or dangling links `->` met in the rows, each counted once per row.
+    #[must_use]
+    pub const fn unresolved_references(&self) -> u64 {
+        self.unresolved
     }
 
     /// Returns the text of `column` in the `position`th row of the sorted result: column 0 is

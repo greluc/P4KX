@@ -59,7 +59,10 @@ impl DataForgeEntry {
                     }
                 })
             });
-        read.map(|_| Self { path, bytes })
+        read.map(|_| {
+            bytes.shrink_to_fit();
+            Self { path, bytes }
+        })
     }
 
     /// Returns the Entry [`DataForgeEntry::read`] reads, or `None` when the Archive holds no

@@ -1,10 +1,11 @@
 use p4kx_extraction::{Field, RecordTree, StructValue, Value};
 
-use crate::contract::{LocalisedText, Manufacturer};
+use crate::contract::Manufacturer;
 use crate::guid_text::CatalogGuid;
+use crate::texts::Texts;
 
-/// Returns the manufacturer the Record tree `tree` describes.
-pub(crate) fn manufacturer<'f>(tree: &RecordTree<'f>) -> Manufacturer<'f> {
+/// Returns the manufacturer the Record tree `tree` describes, its texts resolved by `texts`.
+pub(crate) fn manufacturer<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Manufacturer<'f> {
     let localization = match field(tree, "Localization") {
         Some(Value::Struct(localization)) => Some(localization),
         _ => None,
@@ -17,8 +18,8 @@ pub(crate) fn manufacturer<'f>(tree: &RecordTree<'f>) -> Manufacturer<'f> {
             Some(Value::String(code)) => Some(*code),
             _ => None,
         },
-        name: localised(localization, "Name"),
-        description: localised(localization, "Description"),
+        name: texts.localised(locale_key(localization, "Name")),
+        description: texts.localised(locale_key(localization, "Description")),
     }
 }
 
@@ -39,17 +40,12 @@ fn field<'t, 'f>(tree: &'t RecordTree<'f>, name: &str) -> Option<&'t Value<'f>> 
         .map(Field::value)
 }
 
-/// Returns the text whose localisation key the field `name` of `localization` holds; an empty
-/// key is none.
-fn localised<'f>(localization: Option<&StructValue<'f>>, name: &str) -> LocalisedText<'f> {
-    let key = localization
+/// Returns the localisation key the field `name` of `localization` holds; an empty key is none.
+fn locale_key<'f>(localization: Option<&StructValue<'f>>, name: &str) -> Option<&'f str> {
+    localization
         .and_then(|localization| localization.field(name))
         .and_then(|value| match value {
             Value::Locale(key) if !key.is_empty() => Some(*key),
             _ => None,
-        });
-    LocalisedText {
-        key,
-        ..LocalisedText::default()
-    }
+        })
 }

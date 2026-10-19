@@ -9,9 +9,11 @@ use p4kx_settings::{ExtractionTextures, RecentArchives};
 mod archive_change;
 mod audio_control;
 mod extraction_control;
+mod record_export_control;
 mod update;
 mod work_tab;
 
+use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
 
@@ -57,6 +59,7 @@ pub struct Model {
     audio_output: Box<dyn AudioOutput>,
     audio_volume: f32,
     query: QueryTab,
+    record_export: RecordExportState,
 }
 
 impl std::fmt::Debug for Model {
@@ -80,6 +83,7 @@ impl std::fmt::Debug for Model {
             .field("comparison", &self.comparison)
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
+            .field("record_export", &self.record_export)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -110,6 +114,7 @@ impl Model {
             audio_output: Box::new(DeviceOutput),
             audio_volume: 1.0,
             query: QueryTab::default(),
+            record_export: RecordExportState::default(),
         }
     }
 

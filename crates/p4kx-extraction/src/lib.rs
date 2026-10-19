@@ -1,5 +1,5 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, texture, audio and chunk
-//! file APIs front-ends use.
+//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
+//! texture, audio and chunk file APIs front-ends use.
 
 mod bank;
 mod buffers;
@@ -12,6 +12,7 @@ mod dependent;
 mod entry_path;
 mod extract;
 mod filter;
+mod localization;
 mod options;
 mod output_file;
 mod query_export;
@@ -19,6 +20,7 @@ mod record_combined;
 mod record_export;
 mod record_files;
 mod record_format;
+mod record_plan;
 mod record_report;
 mod report;
 mod selection;
@@ -44,6 +46,7 @@ pub use conversion_error::ConversionError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use extract::extract;
 pub use filter::Filter;
+pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
@@ -65,6 +68,9 @@ pub use p4kx_dataforge::{
     RecordTree, RecordXml, Reference, Struct, StructValue, TreeBuilder, Value, ValueError,
     ValueKind,
 };
+pub use p4kx_localization::{
+    GlobalIni, Language, LocalizationError, MAX_GLOBAL_INI_KEYS, MAX_GLOBAL_INI_SIZE,
+};
 pub use p4kx_texture::{
     BlockLayout, DdsHeader, DxgiFormat, HdrImage, MergeReport, Mip, RgbaImage, TextureError,
     TextureFormat,
@@ -73,8 +79,9 @@ pub use query_export::{
     QUERY_PAGE_SIZE, QueryExport, QueryExportError, QueryExportOptions, export_query, is_same_file,
 };
 pub use record_combined::export_combined;
-pub use record_export::{export_record_files, export_records};
+pub use record_export::{export_planned_record_files, export_record_files, export_records};
 pub use record_format::RecordFileFormat;
+pub use record_plan::RecordFilePlan;
 pub use record_report::{
     RecordExportError, RecordExportOptions, RecordExportReport, RecordFailure,
 };

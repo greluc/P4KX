@@ -71,6 +71,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),
+        ("guid", "cbee34fd-6441-4000-b99f-924f7f26e19f".into()),
     ]
 }
 

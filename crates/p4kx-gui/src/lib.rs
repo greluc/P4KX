@@ -18,6 +18,7 @@ mod language;
 mod model;
 mod preview;
 mod query;
+mod record_export;
 mod record_index;
 mod record_search;
 mod record_tree;
@@ -51,6 +52,7 @@ pub use extraction::{
 pub use folder_tree::{Folder, FolderId};
 pub use language::Language;
 pub use model::{Failure, Model, WorkTab};
+pub use p4kx_export::RecordForm;
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
@@ -61,6 +63,10 @@ pub use query::{
     CellLook, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid, QueryResult,
     QueryStage, QueryStatus, QueryTab, ResultColumn,
 };
+pub use record_export::{
+    FailedRecord, RECORD_FORMS, RecordExport, RecordExportProgress, RecordExportSetup,
+    RecordExportStage, RecordExportStatus, RecordExportSummary, RecordScope, TreeSelection,
+};
 pub use record_index::{
     DataForgeSummary, RecordId, RecordInfo, RecordNodeId, RecordNodeKind, SUMMARY_RECORDS,
 };
@@ -68,5 +74,5 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText, ExtractionText,
-    ImageText, QueryText, RecordChangeText, RecordSearchText, Text, Texts,
+    ImageText, QueryText, RecordChangeText, RecordExportText, RecordSearchText, Text, Texts,
 };

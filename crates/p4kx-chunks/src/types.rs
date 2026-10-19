@@ -2,26 +2,40 @@
 pub mod ivo {
     use crate::{ChunkType, Container};
 
+    /// The `RigLogic` chunk type: the face rig of a head `.skin`.
+    pub const RIG_LOGIC: ChunkType = ChunkType::new(Container::Ivo, 0x0A24_85B6);
     /// The `DbaData` chunk type.
     pub const DBA_DATA: ChunkType = ChunkType::new(Container::Ivo, 0x194F_BC50);
-    /// The `BoundingData` chunk type.
-    pub const BOUNDING_DATA: ChunkType = ChunkType::new(Container::Ivo, 0x2B7E_CF9F);
+    /// The `Skeleton` chunk type: the skeleton reference of an `.aim` file.
+    pub const SKELETON: ChunkType = ChunkType::new(Container::Ivo, 0x1BBC_4103);
+    /// The `VfxHelpers` chunk type.
+    pub const VFX_HELPERS: ChunkType = ChunkType::new(Container::Ivo, 0x1E14_A062);
+    /// The `PositionBonemap` chunk type: a square map of bone indices and weights, 8 bytes a cell.
+    pub const POSITION_BONEMAP: ChunkType = ChunkType::new(Container::Ivo, 0x2B7E_CF9F);
+    /// The `SimTopology` chunk type.
+    pub const SIM_TOPOLOGY: ChunkType = ChunkType::new(Container::Ivo, 0x2B8A_2C29);
     /// The `AnimInfo` chunk type.
     pub const ANIM_INFO: ChunkType = ChunkType::new(Container::Ivo, 0x4733_C6ED);
-    /// The `BShapesGpu` chunk type.
-    pub const BSHAPES_GPU: ChunkType = ChunkType::new(Container::Ivo, 0x57A3_BEFD);
-    /// The `LodMeshData` chunk type.
-    pub const LOD_MESH_DATA: ChunkType = ChunkType::new(Container::Ivo, 0x58DE_1772);
+    /// The `BShapesGpu` chunk type of the geometry companion `.skinm`.
+    pub const BSHAPES_GPU: ChunkType = ChunkType::new(Container::Ivo, 0x57A3_8888);
+    /// The earlier form of [`BSHAPES_GPU`], in none of the measured Archives.
+    pub const BSHAPES_GPU_EARLY: ChunkType = ChunkType::new(Container::Ivo, 0x57A3_BEFD);
+    /// The `StatObjPhysics` chunk type: the physics geometry of a static model, one blob per mesh.
+    pub const STAT_OBJ_PHYSICS: ChunkType = ChunkType::new(Container::Ivo, 0x58DE_1772);
     /// The `NodeMeshCombo` chunk type.
     pub const NODE_MESH_COMBO: ChunkType = ChunkType::new(Container::Ivo, 0x7069_7FDA);
+    /// The `RigInfo` chunk type.
+    pub const RIG_INFO: ChunkType = ChunkType::new(Container::Ivo, 0x7E03_5555);
     /// The `MtlName320` chunk type.
     pub const MTL_NAME_320: ChunkType = ChunkType::new(Container::Ivo, 0x8335_3333);
     /// The `MtlNameVariant` chunk type.
     pub const MTL_NAME_VARIANT: ChunkType = ChunkType::new(Container::Ivo, 0x8335_3533);
     /// The `MtlName` chunk type.
     pub const MTL_NAME: ChunkType = ChunkType::new(Container::Ivo, 0x8335_674E);
-    /// The `BShapes` chunk type.
-    pub const BSHAPES: ChunkType = ChunkType::new(Container::Ivo, 0x875C_CB28);
+    /// The earlier form of [`BSHAPES`], in none of the measured Archives.
+    pub const BSHAPES_EARLY: ChunkType = ChunkType::new(Container::Ivo, 0x875C_CB28);
+    /// The `PhysicalHierarchy` chunk type.
+    pub const PHYSICAL_HIERARCHY: ChunkType = ChunkType::new(Container::Ivo, 0x90C6_2222);
     /// The `CompiledPhysicalBones320` chunk type.
     pub const COMPILED_PHYSICAL_BONES_320: ChunkType = ChunkType::new(Container::Ivo, 0x90C6_6666);
     /// The `CompiledPhysicalBones` chunk type.
@@ -34,20 +48,30 @@ pub mod ivo {
     pub const LOD_DISTANCES: ChunkType = ChunkType::new(Container::Ivo, 0x9351_756F);
     /// The `CafData` chunk type.
     pub const CAF_DATA: ChunkType = ChunkType::new(Container::Ivo, 0xA949_6CB5);
+    /// The `VisAreas` chunk type.
+    pub const VIS_AREAS: ChunkType = ChunkType::new(Container::Ivo, 0xB324_59D2);
     /// The `Skin2` chunk type.
     pub const SKIN_2: ChunkType = ChunkType::new(Container::Ivo, 0xB875_7777);
     /// The `Skin` chunk type.
     pub const SKIN: ChunkType = ChunkType::new(Container::Ivo, 0xB875_B2D9);
-    /// The `AssetMetadata` chunk type.
-    pub const ASSET_METADATA: ChunkType = ChunkType::new(Container::Ivo, 0xBE5E_493E);
+    /// The `ExportFlags` chunk type: the export flags and tool version, one per model file.
+    pub const EXPORT_FLAGS: ChunkType = ChunkType::new(Container::Ivo, 0xBE5E_493E);
+    /// The `VisibilityGroups` chunk type.
+    pub const VISIBILITY_GROUPS: ChunkType = ChunkType::new(Container::Ivo, 0xC1C3_6AFE);
     /// The `CompiledBones2` chunk type.
     pub const COMPILED_BONES_2: ChunkType = ChunkType::new(Container::Ivo, 0xC201_1111);
     /// The `CompiledBones` chunk type.
     pub const COMPILED_BONES: ChunkType = ChunkType::new(Container::Ivo, 0xC201_973C);
     /// The `Terminator` chunk type.
     pub const TERMINATOR: ChunkType = ChunkType::new(Container::Ivo, 0xE018_1074);
+    /// The `BShapes` chunk type of an `.aim` file.
+    pub const BSHAPES: ChunkType = ChunkType::new(Container::Ivo, 0xF5C6_EB5B);
+    /// The `ProtosInfo` chunk type.
+    pub const PROTOS_INFO: ChunkType = ChunkType::new(Container::Ivo, 0xF708_6666);
     /// The `DbaMetadata` chunk type.
     pub const DBA_METADATA: ChunkType = ChunkType::new(Container::Ivo, 0xF735_1608);
+    /// The `SimDeformation` chunk type.
+    pub const SIM_DEFORMATION: ChunkType = ChunkType::new(Container::Ivo, 0xFF27_7A9A);
 }
 
 /// The known chunk types of the `CrCh` container.

@@ -77,6 +77,15 @@ fails while its section is missing.
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 
+### Fixed
+
+- The `#ivo` chunk type table follows a survey of LIVE, PTU and TECH-PREVIEW
+  (docs/chunk-types.md): `0x2B7ECF9F` is `PositionBonemap` (was `BoundingData`), `0x58DE1772`
+  `StatObjPhysics` (was `LodMeshData`), `0xBE5E493E` `ExportFlags` (was `AssetMetadata`),
+  `0x57A38888` is `BShapesGpu` and `0xF5C6EB5B` `BShapes`, and twelve types `p4kx chunks list`
+  reported as unknown are named (`RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`,
+  `VisAreas`, `Skeleton` and others).
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

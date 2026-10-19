@@ -39,7 +39,7 @@ impl VertexStream<'_> {
     /// Returns the position and texture coordinate of vertex `index`.
     pub(crate) fn vertex(&self, index: usize) -> Result<([f32; 3], [f32; 2]), CorruptChunk> {
         let stride = self.stride();
-        let bytes = element(self.data, index, stride)?;
+        let bytes = element(self.data, index, stride, "vertex")?;
         let word = |at: usize| u32_at(bytes, at);
         let position = match self.layout {
             VertexLayout::Quantised { min, max } => {
@@ -96,7 +96,7 @@ impl NormalKind {
 impl NormalStream<'_> {
     /// Returns the unit normal of vertex `index`.
     pub(crate) fn normal(&self, index: usize) -> Result<[f32; 3], CorruptChunk> {
-        let bytes = element(self.data, index, self.kind.stride())?;
+        let bytes = element(self.data, index, self.kind.stride(), "normal")?;
         let word = |at: usize| u32_at(bytes, at);
         let normal = match self.kind {
             NormalKind::Float => normalise([0, 4, 8].map(|at| f32::from_bits(word(at)))),
@@ -124,9 +124,9 @@ impl IndexStream<'_> {
     /// Returns index `position` of the list.
     pub(crate) fn index(&self, position: usize) -> Result<u32, CorruptChunk> {
         if self.wide {
-            element(self.data, position, 4).map(|bytes| u32_at(bytes, 0))
+            element(self.data, position, 4, "index").map(|bytes| u32_at(bytes, 0))
         } else {
-            element(self.data, position, 2).map(|bytes| u32::from(u16_at(bytes, 0)))
+            element(self.data, position, 2, "index").map(|bytes| u32::from(u16_at(bytes, 0)))
         }
     }
 }
@@ -248,11 +248,16 @@ const fn name(tag: u32) -> &'static str {
     }
 }
 
-fn element(data: &[u8], index: usize, stride: usize) -> Result<&[u8], CorruptChunk> {
+fn element<'a>(
+    data: &'a [u8],
+    index: usize,
+    stride: usize,
+    stream: &'static str,
+) -> Result<&'a [u8], CorruptChunk> {
     index
         .checked_mul(stride)
         .and_then(|start| data.get(start..start.checked_add(stride)?))
-        .ok_or(CorruptChunk::MissingStream("vertex"))
+        .ok_or(CorruptChunk::MissingStream(stream))
 }
 
 fn u16_at(bytes: &[u8], at: usize) -> u16 {

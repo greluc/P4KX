@@ -11,7 +11,7 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
-use crate::texture;
+use crate::{model, texture};
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
@@ -91,6 +91,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
     let dataforge = error.downcast_ref::<DataForgeLoadError>();
     if error.downcast_ref::<ArchiveError>().is_some()
         || texture::is_archive_error(error)
+        || model::is_archive_error(error)
         || error.downcast_ref::<CryXmlError>().is_some()
         || error.downcast_ref::<UnreadableInput>().is_some()
         || matches!(
@@ -111,6 +112,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<NoRecordMatch>().is_some()
         || error.downcast_ref::<CombinedNeedsXml>().is_some()
         || texture::is_invalid_input(error)
+        || model::is_invalid_input(error)
         || error.downcast_ref::<JsonNeedsOut>().is_some()
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()

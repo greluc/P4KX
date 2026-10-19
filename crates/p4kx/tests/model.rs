@@ -170,6 +170,25 @@ fn glb_of_a_file_on_disk_takes_its_companion_from_the_same_folder() -> TestResul
 }
 
 #[test]
+fn info_of_a_file_on_disk_names_its_companion() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    fs::write(dir.path().join("cube.cgf"), cube().cgf())?;
+    fs::write(dir.path().join("cube.cgfm"), cube().cgfm())?;
+
+    let output = p4kx()?
+        .current_dir(dir.path())
+        .args(["--json", "model", "info", "cube.cgf"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let info: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(info["model"], "cube.cgf", "the path given");
+    assert_eq!(info["geometry"], "cube.cgfm", "the companion next to it");
+    assert_eq!(info["lods"][0]["triangles"], 12, "its mesh");
+    Ok(())
+}
+
+#[test]
 fn a_missing_companion_is_invalid_input() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;

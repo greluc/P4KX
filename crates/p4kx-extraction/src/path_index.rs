@@ -8,8 +8,7 @@ const FNV_PRIME: u64 = 0x0000_0100_0000_01B3;
 
 /// The Entries of an Archive looked up by path, ignoring ASCII case and the separator kind.
 ///
-/// Building the index hashes every path once; each lookup is then a binary search, so a model
-/// with several companions reads the Entry table only once.
+/// Building the index hashes every path once; each lookup is then a binary search.
 #[derive(Debug)]
 pub struct PathIndex<'a> {
     archive: &'a Archive,

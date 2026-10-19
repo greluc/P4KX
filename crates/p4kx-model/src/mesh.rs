@@ -11,8 +11,16 @@ pub(crate) fn split_by_node(
     nodes: Option<usize>,
 ) -> Result<Vec<Mesh>, CorruptChunk> {
     let mut order: Vec<(usize, usize)> = Vec::with_capacity(skin.submeshes.len());
+    let mut drawn = 0u64;
     for (position, submesh) in skin.submeshes.iter().enumerate() {
         check_range(position, submesh, skin.index_count)?;
+        drawn += u64::from(submesh.index_count);
+        if drawn > u64::from(skin.index_count) {
+            return Err(CorruptChunk::IndexTotal {
+                drawn,
+                indices: skin.index_count,
+            });
+        }
         let node = match nodes {
             Some(count) if usize::from(submesh.node) >= count => {
                 return Err(CorruptChunk::NodeRange {

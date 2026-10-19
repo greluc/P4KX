@@ -136,14 +136,15 @@ pub struct ModelChunk {
 
 impl Model {
     /// Reads the model `file`, named `name`, fetching its geometry companion `<name>m` from
-    /// `companions` unless the file holds its mesh itself.
+    /// `companions` unless the file holds its mesh itself; a file without `MeshInfo` chunk whose
+    /// companion does not exist is read as helper nodes without meshes.
     ///
     /// # Errors
     ///
     /// Returns [`ModelError::UnsupportedContainer`] for a `CrCh` file,
     /// [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
     /// [`ModelError::CompanionChunks`] when the companion is missing or unreadable,
-    /// [`ModelError::NoMesh`] when no file holds a mesh, and [`ModelError::Corrupt`] when a chunk
+    /// [`ModelError::NoMesh`] when the companion holds no mesh, and [`ModelError::Corrupt`] when a chunk
     /// the model reads is corrupt.
     pub fn read<B: AsRef<[u8]>>(
         name: &str,

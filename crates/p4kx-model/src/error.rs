@@ -89,6 +89,14 @@ pub enum CorruptChunk {
         /// The number of indices of the mesh.
         total: u32,
     },
+    /// The submeshes draw more indices than the mesh has.
+    #[error("the submeshes draw {drawn} indices of {indices}")]
+    IndexTotal {
+        /// The indices drawn by the submeshes so far.
+        drawn: u64,
+        /// The number of indices of the mesh.
+        indices: u32,
+    },
     /// A submesh's index count is no whole number of triangles.
     #[error("submesh {submesh} has {count} indices, which are no whole triangles")]
     NotTriangles {

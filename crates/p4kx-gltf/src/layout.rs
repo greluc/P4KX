@@ -5,6 +5,7 @@ use p4kx_model::{Lod, Mesh};
 use crate::axes::to_y_up;
 
 const ALIGNMENT: u64 = 4;
+const BATCH: usize = 1 << 14;
 
 /// What one block of the binary chunk holds.
 #[derive(Debug, Clone, Copy)]
@@ -21,7 +22,7 @@ pub(crate) enum BlockData<'m> {
     Wide(&'m [u32]),
 }
 
-impl BlockData<'_> {
+impl<'m> BlockData<'m> {
     const fn len(&self) -> u64 {
         let (count, size) = match self {
             Self::Positions(values) | Self::Normals(values) => (values.len(), 12),
@@ -37,6 +38,18 @@ impl BlockData<'_> {
             Self::Positions(values) | Self::Normals(values) => values.len(),
             Self::Uvs(values) => values.len(),
             Self::Short(values) | Self::Wide(values) => values.len(),
+        }
+    }
+
+    /// Returns the elements `start..end` of the block.
+    fn slice(&self, start: usize, end: usize) -> Self {
+        let part = |values: &'m [_]| values.get(start..end).unwrap_or_default();
+        match *self {
+            Self::Positions(values) => Self::Positions(part(values)),
+            Self::Normals(values) => Self::Normals(part(values)),
+            Self::Uvs(values) => Self::Uvs(values.get(start..end).unwrap_or_default()),
+            Self::Short(values) => Self::Short(values.get(start..end).unwrap_or_default()),
+            Self::Wide(values) => Self::Wide(values.get(start..end).unwrap_or_default()),
         }
     }
 
@@ -175,15 +188,26 @@ impl<'m> Layout<'m> {
         self.blocks.len() - 1
     }
 
-    /// Writes every block with its padding to `out`, reusing one buffer.
+    /// Writes every block with its padding to `out`, a batch of elements at a time through one
+    /// reused buffer.
     pub(crate) fn write(&self, out: &mut impl Write) -> std::io::Result<()> {
         let mut buffer = Vec::new();
         for block in &self.blocks {
-            buffer.clear();
-            block.data.encode(&mut buffer);
-            let padded = block.len.next_multiple_of(ALIGNMENT);
-            buffer.resize(usize::try_from(padded).unwrap_or(buffer.len()), 0);
-            out.write_all(&buffer)?;
+            let count = block.data.count();
+            for start in (0..count).step_by(BATCH) {
+                buffer.clear();
+                block
+                    .data
+                    .slice(start, (start + BATCH).min(count))
+                    .encode(&mut buffer);
+                out.write_all(&buffer)?;
+            }
+            let padding = block.len.next_multiple_of(ALIGNMENT) - block.len;
+            out.write_all(
+                [0; 4]
+                    .get(..usize::try_from(padding).unwrap_or(0))
+                    .unwrap_or_default(),
+            )?;
         }
         Ok(())
     }

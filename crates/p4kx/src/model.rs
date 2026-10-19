@@ -2,8 +2,8 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::model::{ChunkUsage, Model};
-use p4kx_extraction::{Archive, GlbOptions, GlbSummary, ModelSource};
+use p4kx_extraction::model::{ChunkUsage, Model, ModelError};
+use p4kx_extraction::{Archive, ConversionError, GlbOptions, GlbSummary, GltfError, ModelSource};
 use serde::Serialize;
 
 use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
@@ -220,4 +220,36 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> Gl
         bytes: summary.bytes,
         unknown_chunks: source.model().unknown_chunks().map(ChunkJson::of).collect(),
     }
+}
+
+/// Returns whether `error` is a model failure caused by the command line: a geometry companion
+/// that does not exist or a LOD the model does not have.
+pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<ConversionError>(),
+        Some(
+            ConversionError::Model {
+                source: ModelError::MissingGeometry { .. },
+                ..
+            } | ConversionError::Glb {
+                source: GltfError::NoSuchLod { .. },
+                ..
+            }
+        )
+    )
+}
+
+/// Returns whether `error` is a model failure caused by an unreadable or corrupt model or
+/// companion.
+pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<ConversionError>(),
+        Some(ConversionError::Model {
+            source: ModelError::Companion { .. }
+                | ModelError::CompanionChunks { .. }
+                | ModelError::NoMesh { .. }
+                | ModelError::Corrupt { .. },
+            ..
+        })
+    )
 }

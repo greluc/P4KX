@@ -140,6 +140,18 @@ fn submesh_ranges_must_fit_and_be_triangles() -> TestResult {
         matches!(ragged, CorruptChunk::NotTriangles { .. }),
         "{ragged:?}"
     );
+    let overlapping =
+        corrupt_of(&TestModel::cube().with_submeshes(vec![submesh(0, 36, 1), submesh(0, 36, 1)]))?;
+    assert!(
+        matches!(
+            overlapping,
+            CorruptChunk::IndexTotal {
+                drawn: 72,
+                indices: 36
+            }
+        ),
+        "{overlapping:?}"
+    );
     let orphan = corrupt_of(&TestModel::cube().with_submeshes(vec![submesh(0, 36, 7)]))?;
     assert!(
         matches!(orphan, CorruptChunk::NodeRange { node: 7, .. }),

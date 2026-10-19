@@ -68,6 +68,11 @@ archive-changed =
         [yes] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Eine laufende Extraktion wurde gestoppt; lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
        *[no] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
     }
+archive-issues =
+    { $kind ->
+        [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
+       *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
+    }
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …

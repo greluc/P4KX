@@ -14,5 +14,6 @@ expression: json
   "compressed_size": 35,
   "encrypted_count": 1,
   "entry_count": 4,
+  "issue_count": 0,
   "size": 118
 }

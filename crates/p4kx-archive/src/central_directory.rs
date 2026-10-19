@@ -1,8 +1,8 @@
 use p4kx_foundation::{ByteReader, ParseError};
 
-use crate::entry::DataStart;
 use crate::format_error::FormatError;
-use crate::{Checksum, Compression, Entry};
+use crate::issue::{Directory, IssueLog, decode_path};
+use crate::{Checksum, Compression, Entry, EntryIssue};
 
 const CENTRAL_HEADER_SIGNATURE: u32 = 0x0201_4B50;
 const CENTRAL_HEADER_LEN: usize = 46;
@@ -13,6 +13,7 @@ const ZIP64_MARKER_32: u32 = 0xFFFF_FFFF;
 const BLOCK_ZIP64: u16 = 0x0001;
 const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
 const BLOCK_HEADER_LEN: usize = 4;
+const ENCRYPTION_BLOCK_LEN: u16 = 6;
 
 struct FixedFields {
     method: u16,
@@ -33,40 +34,43 @@ struct ExtraFields {
 }
 
 /// Parses `count` Entries from the central directory bytes, which start at file offset `base`.
-pub(crate) fn parse_entries(
-    bytes: &[u8],
-    base: u64,
-    count: u64,
-) -> Result<Vec<Entry>, FormatError> {
+pub(crate) fn parse_entries(bytes: &[u8], base: u64, count: u64) -> Result<Directory, FormatError> {
     let mut reader = ByteReader::with_base(bytes, base);
     let capacity = usize::try_from(count)
         .unwrap_or(0)
         .min(bytes.len() / CENTRAL_HEADER_LEN);
     let mut entries = Vec::with_capacity(capacity);
+    let mut log = IssueLog::default();
     for _ in 0..count {
-        entries.push(parse_entry(&mut reader)?);
+        let entry = parse_entry(&mut reader, entries.len(), &mut log)?;
+        entries.push(entry);
     }
-    Ok(entries)
+    Ok(Directory { entries, log })
 }
 
-fn parse_entry(reader: &mut ByteReader<'_>) -> Result<Entry, FormatError> {
+fn parse_entry(
+    reader: &mut ByteReader<'_>,
+    index: usize,
+    log: &mut IssueLog,
+) -> Result<Entry, FormatError> {
     let offset = reader.offset();
     let fixed = read_fixed_fields(reader, offset)?;
     let name = reader.read_bytes(fixed.name_len)?;
-    let path = String::from_utf8(name.to_vec())
-        .map_err(|_| FormatError::corrupt(offset, "Entry path is not UTF-8"))?;
+    let path = decode_path(name, index, log).into_owned();
     let extra_offset = reader.offset();
     let extra = reader.read_bytes(fixed.extra_len)?;
     reader.skip(fixed.comment_len)?;
-    let extra = parse_extra(extra, extra_offset, &fixed)?;
+    let extra = parse_extra(extra, extra_offset, &fixed, index, log)?;
     Ok(Entry {
         path,
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
         checksum: Checksum::Crc32c(fixed.crc32c),
-        data: DataStart::LocalHeader(extra.local_header_offset),
+        data_offset: extra.local_header_offset,
         compression: Compression::from_method(fixed.method),
+        index: u32::try_from(index).unwrap_or(u32::MAX),
         encrypted: extra.encrypted,
+        local_header: true,
     })
 }
 
@@ -100,7 +104,13 @@ fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFi
     })
 }
 
-fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFields, FormatError> {
+fn parse_extra(
+    extra: &[u8],
+    base: u64,
+    fixed: &FixedFields,
+    index: usize,
+    log: &mut IssueLog,
+) -> Result<ExtraFields, FormatError> {
     let mut fields = ExtraFields {
         compressed_size: u64::from(fixed.compressed_size),
         uncompressed_size: u64::from(fixed.uncompressed_size),
@@ -111,7 +121,8 @@ fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFiel
     while reader.remaining() >= BLOCK_HEADER_LEN {
         let block_offset = reader.offset();
         let id = reader.read_u16()?;
-        let len = usize::from(reader.read_u16()?);
+        let stored_len = reader.read_u16()?;
+        let len = usize::from(stored_len);
         let data_len = len.checked_sub(BLOCK_HEADER_LEN).ok_or_else(|| {
             FormatError::corrupt(
                 block_offset,
@@ -122,7 +133,9 @@ fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFiel
         let mut block = ByteReader::with_base(data, block_offset + BLOCK_HEADER_LEN as u64);
         match id {
             BLOCK_ZIP64 => read_zip64(&mut block, fixed, &mut fields)?,
-            BLOCK_CIG_ENCRYPTION => fields.encrypted = block.read_u16()? != 0,
+            BLOCK_CIG_ENCRYPTION => {
+                fields.encrypted = read_encryption(&mut block, stored_len, index, log);
+            }
             _ => {}
         }
     }
@@ -133,6 +146,38 @@ fn parse_extra(extra: &[u8], base: u64, fixed: &FixedFields) -> Result<ExtraFiel
         ));
     }
     Ok(fields)
+}
+
+/// Reads the CIG encryption block: 0 is plain and 1 encrypted. Any other value and a block of
+/// another length than 6 bytes are recorded in `log`; a value that is not 0 or 1, and a block
+/// too short to hold one, count as encrypted.
+fn read_encryption(
+    block: &mut ByteReader<'_>,
+    stored_len: u16,
+    index: usize,
+    log: &mut IssueLog,
+) -> bool {
+    match (stored_len, block.read_u16()) {
+        (ENCRYPTION_BLOCK_LEN, Ok(0)) => false,
+        (ENCRYPTION_BLOCK_LEN, Ok(1)) => true,
+        (len, value) => encryption_defect(len, value.ok(), index, log),
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn encryption_defect(len: u16, value: Option<u16>, index: usize, log: &mut IssueLog) -> bool {
+    if len != ENCRYPTION_BLOCK_LEN {
+        log.record(index, EntryIssue::EncryptionBlockSize { size: len });
+    }
+    match value {
+        Some(0) => false,
+        Some(1) | None => true,
+        Some(value) => {
+            log.record(index, EntryIssue::UnknownEncryption { value });
+            true
+        }
+    }
 }
 
 fn read_zip64(

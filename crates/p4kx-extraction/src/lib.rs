@@ -82,8 +82,9 @@ pub use options::{
     AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
 };
 pub use p4kx_archive::{
-    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
-    MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
+    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryIssue,
+    EntryReader, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,
+    MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,

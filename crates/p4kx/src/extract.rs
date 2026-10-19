@@ -64,6 +64,7 @@ struct FailureJson<'a> {
 /// the Archive to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
     let archive = Archive::open(&args.archive)?;
+    crate::issues::warn(&archive)?;
     let entries = requested_entries(args, &archive)?;
     let settings = Settings {
         out: args.out.as_deref(),

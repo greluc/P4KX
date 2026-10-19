@@ -39,6 +39,12 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Entry issue**:
+A defect of one Entry found while the Archive's directory is read, such as data outside the file,
+an encryption field other than 0 or 1, or a path that is not UTF-8. The Archive still opens and the
+Entry stays listed (ADR-0025).
+_Avoid_: warning, error (an error stops the open)
+
 **Folder**:
 A path prefix that Entries share, e.g. `Data\Libs`; spellings that differ only by ASCII case or
 separator kind are one folder, named as its first Entry in path order spells it (ADR-0023).

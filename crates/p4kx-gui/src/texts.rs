@@ -169,6 +169,9 @@ pub enum Text {
     /// The notice that the open Archive changed on disk; takes `path` and `stopped`, `yes` when
     /// the change stopped a running Extraction.
     ArchiveChanged,
+    /// The notice that Entries of the open Archive have defects; takes `count`, the number of
+    /// defects, and `kind`, `one` for a single defect.
+    ArchiveIssues,
     /// The action that opens the changed Archive again.
     ActionReload,
     /// A text of the Extraction windows.

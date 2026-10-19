@@ -91,6 +91,20 @@ fails while its section is missing.
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 
+### Fixed
+
+- Archives with a malformed field in the directory record of a single Entry now open instead of
+  failing as a whole, and the Entry is reported as an Entry issue (ADR-0025): an Entry path that
+  is not UTF-8 is listed with its invalid bytes replaced and extracted under a name that spells
+  them as `%XX`, so Entries with equal replaced paths no longer overwrite one another; an
+  encryption field or 0x5002 block value other than 0 or 1 is read as encrypted, and a 0x5002
+  block of another length than 6 bytes is reported; a v2 Entry whose data lies outside the file is
+  reported when the directory is read and fails only when it is read. `p4kx info`, `list` and
+  `extract` print the issues to stderr, `p4kx info` counts them, and `archive_info` of `p4kx-mcp`
+  lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
+  stand right before the end record is found by searching backwards. Extraction now also rejects
+  the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

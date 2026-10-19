@@ -817,6 +817,7 @@
     "maxHeight": 288,
     "minWidth": 240,
     "item": "dropdownItem; the typed start in fw-bold (mark), the field type right in 12.8 color-gray-2-text",
+    "optionFontSize": 14.4,
     "keyboardBackground": "color-primary",
     "keyboardColor": "color-bg-black",
     "noticePadding": 12,

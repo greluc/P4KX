@@ -327,6 +327,7 @@ stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.30) |
+| Vervollständigungs-Einträge 14,4 px (`fs-sm`) statt der von `.krt-combobox__option` geerbten 16 px | gleiche Schrift und Zeilenhöhe wie die Dropdown-Einträge (36 px, D.1), damit Name und Typ in eine Zeile passen (D.30) |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte

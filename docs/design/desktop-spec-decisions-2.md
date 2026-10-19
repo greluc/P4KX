@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.29
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.30
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -121,14 +121,17 @@ bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen das gan
 Schreibmarke, Esc schließt, Strg+Leertaste öffnet wieder; steht der gewählte Name schon so da,
 bricht Enter die Zeile wie ohne Liste. Höchstens 50 Namen stehen in der Liste, darunter „n weitere
 Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
-der Editor den Fokus bekommt, einmal je Archiv; bis dahin, und wo kein Name passt, bleibt die
-Liste zu, statt einen leeren Zustand zu zeigen. „Abfrage speichern …" ist Ghost neben der CTA
+der Editor den Fokus bekommt, einmal je Archiv, und einmal je Cache-Stand noch einmal, wenn der
+Editor den Fokus hat und kein Schema da ist (nach einem Fehler oder „Neu laden"); bis dahin, und
+wo kein Name passt, bleibt die Liste zu, statt einen leeren Zustand zu zeigen. Sie öffnet sich
+nicht von selbst, wenn das Schema ankommt, außer Tippen oder Strg+Leertaste fanden es fehlend;
+bei geschlossener Liste bewegt Tab den Fokus weiter. „Abfrage speichern …" ist Ghost neben der CTA
 „Abfrage ausführen" (D.7, D.15). Die gespeicherten Abfragen stehen darunter als aufgeklappter
 `.panel-header` mit 36-px-Zeilen: Name fett, nach 240 px mit Auslassung, dahinter die Abfrage
 einzeilig in `color-gray-2-text`. Die Liste ist eine fokussierbare Rollfläche („Gespeicherte
 Abfragen", D.27), ihre Zeilen bleiben eigene Tabulatorziele; die Vervollständigungsliste nimmt nie
-den Fokus, der gewählte Eintrag rollt mit ↑ und ↓ in Sicht. Ohne gespeicherte Abfrage steht unter dem Kopf ein Satz in
-`color-gray-2-text`, der sagt, wie man eine speichert, kein `.empty-state`: der Abschnitt ist
+den Fokus, der gewählte Eintrag rollt mit ↑ und ↓ in Sicht. Ohne gespeicherte Abfrage steht
+unter dem Kopf ein Satz in `color-gray-2-text`, der sagt, wie man eine speichert, kein `.empty-state`: der Abschnitt ist
 klein und der Editor darüber die Aktion. Ein Klick auf die Zeile lädt und startet sie;
 „Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
 die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem

@@ -35,7 +35,7 @@ pub(super) fn show(
     (caret, generation): (Rect, u64),
     texts: &Texts,
 ) -> Option<usize> {
-    let laid = laid(ui, completion, generation, texts);
+    let (laid, fresh) = laid(ui, completion, generation, texts);
     let mut clicked = None;
     Popup::from_response(editor)
         .id(super::super::query_editor::popup_id())
@@ -55,7 +55,7 @@ pub(super) fn show(
                     for (index, (name, detail)) in laid.names.iter().enumerate() {
                         let shown = (name, detail.as_ref(), completion.candidates().get(index));
                         let response = option(ui, shown, index == active, index < last);
-                        if index == active {
+                        if fresh && index == active {
                             response.scroll_to_me(None);
                         }
                         if response.clicked() {
@@ -117,13 +117,14 @@ fn notice_row(ui: &mut Ui, notice: &Arc<Galley>) {
         .galley(at, Arc::clone(notice), palette::GRAY_2_TEXT);
 }
 
-fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> Arc<Laid> {
+/// Returns the laid-out candidates and whether they were laid out again this frame.
+fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> (Arc<Laid>, bool) {
     let key = (generation, ui.ctx().pixels_per_point().to_bits());
     let id = Id::unique("p4kx-query-completion-laid");
     if let Some(laid) = ui.data(|data| data.get_temp::<Arc<Laid>>(id))
         && laid.key == key
     {
-        return laid;
+        return (laid, false);
     }
     let typed = completion.replace().len();
     let names: Vec<(Arc<Galley>, Option<Arc<Galley>>)> = completion
@@ -169,7 +170,7 @@ fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> Arc
         notice,
     });
     ui.data_mut(|data| data.insert_temp(id, Arc::clone(&laid)));
-    laid
+    (laid, true)
 }
 
 /// Lays `name` out with its first `typed` bytes in bold, the `<mark>` of the design system,

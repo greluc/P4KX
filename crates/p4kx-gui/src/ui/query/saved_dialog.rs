@@ -23,19 +23,7 @@ pub(in crate::ui) fn show(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     ui.data_mut(|data| data.insert_temp(shown_id, true));
     let note = model.query().name_note();
     let texts = model.texts();
-    let (title, action, tone) = match &dialog {
-        SavedDialog::Save { .. } => (QueryText::SaveTitle, QueryText::SaveAction, Tone::Normal),
-        SavedDialog::Rename { .. } => (
-            QueryText::RenameTitle,
-            QueryText::RenameAction,
-            Tone::Normal,
-        ),
-        SavedDialog::Delete { .. } => (
-            QueryText::DeleteTitle,
-            QueryText::DeleteAction,
-            Tone::Danger,
-        ),
-    };
+    let (id, title, action, tone) = parts(&dialog);
     let title = texts.get(title);
     let close_dialog = texts.get(crate::Text::CloseDialog);
     let question = match &dialog {
@@ -52,7 +40,7 @@ pub(in crate::ui) fn show(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         SavedDialog::Delete { .. } => None,
     };
     let ready = matches!(note, NameNote::Free | NameNote::Replaces);
-    let shown = frames::modal(frames::modal_id("query-saved-dialog"), tone).show(ui.ctx(), |ui| {
+    let shown = frames::modal(frames::modal_id(id), tone).show(ui.ctx(), |ui| {
         ui.set_width(frames::MODAL_BODY_WIDTH);
         let closed = frames::head(ui, (&title, tone), true, Some(&close_dialog));
         let submit = body(ui, texts, (name.as_mut(), note, first), question.as_deref());
@@ -71,6 +59,30 @@ pub(in crate::ui) fn show(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         requests.settings_changed |= model.query_mut().submit_saved_dialog();
     } else if closed || pressed == Some(false) || shown.should_close() {
         model.query_mut().close_saved_dialog();
+    }
+}
+
+/// Returns the modal id, the title, the action and the tone of `dialog`.
+const fn parts(dialog: &SavedDialog) -> (&'static str, QueryText, QueryText, Tone) {
+    match dialog {
+        SavedDialog::Save { .. } => (
+            "query-save-dialog",
+            QueryText::SaveTitle,
+            QueryText::SaveAction,
+            Tone::Normal,
+        ),
+        SavedDialog::Rename { .. } => (
+            "query-rename-dialog",
+            QueryText::RenameTitle,
+            QueryText::RenameAction,
+            Tone::Normal,
+        ),
+        SavedDialog::Delete { .. } => (
+            "query-delete-dialog",
+            QueryText::DeleteTitle,
+            QueryText::DeleteAction,
+            Tone::Danger,
+        ),
     }
 }
 

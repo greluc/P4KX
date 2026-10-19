@@ -5,6 +5,7 @@ pub mod categorical;
 pub mod desktop;
 pub mod logo;
 pub mod palette;
+mod query_metrics;
 pub mod tokens;
 
 #[cfg(test)]

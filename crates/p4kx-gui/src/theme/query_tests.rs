@@ -6,7 +6,7 @@ use super::tokens::{FS_BODY, FS_SM, FS_XS, TOUCH_TARGET};
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
 
-const METRICS: [(&str, &str, f32); 20] = [
+const METRICS: [(&str, &str, f32); 28] = [
     ("queryEditor", "paddingX", d::TEXTAREA_PADDING_X),
     ("queryEditor", "paddingY", d::TEXTAREA_PADDING_Y),
     ("queryEditor", "fontSize", FS_BODY),
@@ -27,6 +27,18 @@ const METRICS: [(&str, &str, f32); 20] = [
     ("queryTable", "columnWidth", d::QUERY_COLUMN_WIDTH),
     ("queryTable", "columnMinWidth", d::QUERY_COLUMN_MIN_WIDTH),
     ("errorAlert", "borderLeft", d::ACCENT_BAR),
+    ("queryCompletion", "maxHeight", d::COMPLETION_MAX_HEIGHT),
+    ("queryCompletion", "minWidth", d::DROPDOWN_MIN_WIDTH),
+    (
+        "queryCompletion",
+        "noticePadding",
+        d::COMBOBOX_NOTICE_PADDING,
+    ),
+    ("savedQueries", "listHeight", d::SAVED_LIST_HEIGHT),
+    ("savedQueries", "rowHeight", d::ROW_HEIGHT),
+    ("savedQueries", "paddingX", d::SIDEBAR_PADDING_X),
+    ("savedQueries", "gap", d::CHANNEL_GAP),
+    ("savedQueries", "nameMaxWidth", d::SAVED_NAME_MAX_WIDTH),
 ];
 
 fn spec() -> Value {
@@ -87,5 +99,56 @@ fn the_danger_alert_takes_the_fill_of_the_design_system() {
         d::ALERT_DANGER_FILL,
         Color32::from_rgba_unmultiplied(163, 0, 10, 51),
         "0.2 of 255"
+    );
+}
+
+#[test]
+fn the_quiet_danger_button_takes_the_tints_of_the_design_system() {
+    let json = spec();
+
+    assert_eq!(
+        json["buttonQuietDanger"]["hoverBackground"].as_str(),
+        Some("rgba(163,0,10,0.12)"),
+        "hover"
+    );
+    assert_eq!(
+        json["buttonQuietDanger"]["pressedBackground"].as_str(),
+        Some("rgba(163,0,10,0.2)"),
+        "pressed"
+    );
+    assert_eq!(
+        d::QUIET_DANGER_HOVER,
+        Color32::from_rgba_unmultiplied(163, 0, 10, 31),
+        "0.12 of 255"
+    );
+}
+
+#[test]
+fn the_danger_button_is_filled_red_after_the_design_system() {
+    use crate::theme::palette;
+    use crate::widgets::button::{Kind, Phase, look};
+
+    let json = spec();
+    assert_eq!(
+        json["buttonDanger"]["background"].as_str(),
+        Some("color-danger"),
+        "spec fill"
+    );
+    assert_eq!(
+        json["buttonDanger"]["hoverBackground"].as_str(),
+        Some("color-danger-hover"),
+        "spec hover"
+    );
+
+    let rest = look(Kind::Danger, Phase::Rest);
+    assert_eq!(
+        (rest.fill, rest.text),
+        (palette::DANGER, palette::WHITE),
+        "rest"
+    );
+    assert_eq!(
+        look(Kind::Danger, Phase::Hover).fill,
+        palette::DANGER_HOVER,
+        "hover"
     );
 }

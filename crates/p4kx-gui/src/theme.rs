@@ -1,5 +1,5 @@
 //! The KRT look after the binding design system `krt-profit/design-system`: its tokens, Lato in
-//! three weights, square corners and the desktop metrics of `docs/design/desktop-spec.md`.
+//! three weights, the `radius-sm` corner and the desktop metrics of `docs/design/desktop-spec.md`.
 
 pub mod categorical;
 pub mod desktop;
@@ -161,11 +161,11 @@ fn visuals() -> Visuals {
         code_bg_color: palette::SURFACE_INPUT,
         warn_fg_color: palette::WARNING,
         error_fg_color: palette::DANGER_TEXT,
-        window_corner_radius: CornerRadius::ZERO,
+        window_corner_radius: tokens::CORNER_SM,
         window_shadow: tokens::GLOW_PRIMARY_LG,
         window_fill: palette::GRAY_4,
         window_stroke: Stroke::new(1.0, palette::PRIMARY),
-        menu_corner_radius: CornerRadius::ZERO,
+        menu_corner_radius: tokens::CORNER_SM,
         panel_fill: palette::GRAY_4,
         popup_shadow: tokens::SHADOW_DROPDOWN,
         text_cursor: TextCursorStyle {
@@ -177,6 +177,9 @@ fn visuals() -> Visuals {
 }
 
 /// The egui widget states; `bg_fill` carries the scrollbar thumb, `weak_bg_fill` the control fill.
+///
+/// The corner stays square because egui rounds the scrollbar with it; the drawn controls and the
+/// text fields set `radius-sm` themselves.
 fn widgets() -> Widgets {
     let widget = |thumb: Color32, fill: Color32, border: Color32, text: Color32| WidgetVisuals {
         bg_fill: thumb,
@@ -201,7 +204,7 @@ fn widgets() -> Widgets {
         ),
         hovered: widget(
             palette::ACCENT_LIGHT,
-            palette::CONTROL_BG_HOVER,
+            palette::GRAY_3,
             palette::PRIMARY,
             palette::PRIMARY,
         ),

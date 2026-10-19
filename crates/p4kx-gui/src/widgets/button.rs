@@ -11,7 +11,9 @@ use crate::theme::desktop::{
     TRANSITION,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
+use crate::theme::tokens::{
+    CORNER_NONE, CORNER_SM, FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, RADIUS_SM, Weight,
+};
 
 /// A rung of the design system's action hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,10 +100,10 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             glow: None,
         },
         (Kind::Ghost, Phase::Hover) => Look {
-            fill: palette::CONTROL_BG,
+            fill: none,
             tint: GHOST_HOVER,
             border: palette::PRIMARY,
-            text: palette::PRIMARY,
+            text: palette::ACCENT_LIGHT,
             glow: None,
         },
         (Kind::Outline | Kind::Ghost, Phase::Pressed) => Look {
@@ -230,30 +232,50 @@ pub(crate) fn close_icon(ui: &Ui, rect: Rect, label: &str) -> Response {
     response
 }
 
-/// Paints the fill, tint, border and glow of `look` over `rect`.
+/// Paints the fill, tint, border and glow of `look` over `rect` with the `radius-sm` corner.
 pub(crate) fn paint(ui: &Ui, rect: Rect, look: Look) {
     let painter = ui.painter();
     if let Some(glow) = look.glow {
-        painter.add(glow.as_shape(rect, CornerRadius::ZERO));
+        painter.add(glow.as_shape(rect, CORNER_SM));
     }
-    painter.rect_filled(rect, CornerRadius::ZERO, look.fill);
-    painter.rect_filled(rect, CornerRadius::ZERO, look.tint);
+    painter.rect_filled(rect, CORNER_SM, look.fill);
+    painter.rect_filled(rect, CORNER_SM, look.tint);
     painter.rect_stroke(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         Stroke::new(1.0, look.border),
         StrokeKind::Inside,
     );
 }
 
-/// Paints the 2 point focus ring `offset` outside `rect`; a negative offset draws it inside.
+/// Paints the 2 point focus ring `offset` outside `rect`, following the `radius-sm` corner of
+/// the control; a negative offset draws it inside.
 pub(crate) fn focus_ring(ui: &Ui, rect: Rect, colour: Color32, offset: f32) {
+    focus_ring_with(ui, rect, colour, offset, ring_corner(offset));
+}
+
+/// Paints the 2 point focus ring like [`focus_ring`] with square corners, for rows, tabs and
+/// other parts without a radius.
+pub(crate) fn focus_ring_square(ui: &Ui, rect: Rect, colour: Color32, offset: f32) {
+    focus_ring_with(ui, rect, colour, offset, CORNER_NONE);
+}
+
+fn focus_ring_with(ui: &Ui, rect: Rect, colour: Color32, offset: f32, corner: CornerRadius) {
     ui.painter().rect_stroke(
         rect.expand(offset),
-        CornerRadius::ZERO,
+        corner,
         Stroke::new(FOCUS_WIDTH, colour),
         StrokeKind::Outside,
     );
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the corner is clamped to the u8 range first"
+)]
+fn ring_corner(offset: f32) -> CornerRadius {
+    CornerRadius::same((RADIUS_SM + offset).clamp(0.0, f32::from(u8::MAX)).round() as u8)
 }
 
 #[cfg(test)]
@@ -288,9 +310,10 @@ mod tests {
         assert_eq!(rest.fill, palette::CONTROL_BG, "fill");
         assert_eq!(rest.border, palette::CONTROL_BORDER, "border");
         assert_eq!(rest.text, palette::CONTROL_FG, "text");
+        assert_eq!(hover.fill.a(), 0, "hover replaces the fill");
         assert_eq!(hover.tint, GHOST_HOVER, "hover tint");
         assert_eq!(hover.border, palette::PRIMARY, "hover border");
-        assert_eq!(hover.text, palette::PRIMARY, "hover text");
+        assert_eq!(hover.text, palette::ACCENT_LIGHT, "hover text");
     }
 
     #[test]

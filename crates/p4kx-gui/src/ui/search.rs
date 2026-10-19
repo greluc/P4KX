@@ -1,16 +1,14 @@
-use egui::{Align, CornerRadius, Frame, Id, Layout, Margin, Rect, Shape, TextEdit, Ui, pos2, vec2};
+use egui::{Align, Frame, Id, Layout, Margin, Rect, TextEdit, Ui, pos2, vec2};
 
 use super::extraction;
 use crate::theme::desktop::{
     ICON, SEARCH_ICON_INSET, SEARCH_PADDING_LEFT, SEARCH_WIDTH, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{
-    FS_2XS, FS_BODY, GLOW_PRIMARY, TOUCH_TARGET, TRACKING_OVERLINE, Weight, font,
-};
+use crate::theme::tokens::{FS_2XS, FS_BODY, TOUCH_TARGET, TRACKING_OVERLINE, Weight, font};
 use crate::widgets::frames::px;
 use crate::widgets::text::{caps, hairline_below, plain};
-use crate::widgets::{indicator, tab};
+use crate::widgets::{field, indicator, tab};
 use crate::{Model, Text};
 
 /// The Filters the quick-filter chips apply.
@@ -68,25 +66,24 @@ pub(super) fn eyebrow(text: &str) -> egui::RichText {
 }
 
 pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
-    let glow = ui.painter().add(Shape::Noop);
+    let bloom = field::bloom_slot(ui);
+    let frame = field::frame_slot(ui);
     let edit = TextEdit::singleline(text)
         .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
-        .margin(Margin {
+        .frame(Frame::NONE.inner_margin(Margin {
             left: px(SEARCH_PADDING_LEFT),
             right: px(TOOLBAR_PADDING),
             top: 0,
             bottom: 0,
-        })
+        }))
         .min_size(vec2(SEARCH_WIDTH, TOUCH_TARGET))
         .desired_width(ui.available_width().max(SEARCH_WIDTH))
         .align(egui::Align2::LEFT_CENTER);
     let response = ui.add(edit).labelled_by(label);
+    field::paint_frame(ui, frame, response.rect, response.has_focus());
     if response.has_focus() {
-        ui.painter().set(
-            glow,
-            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
-        );
+        field::paint_bloom(ui, bloom, response.rect);
     }
     let icon = Rect::from_min_size(
         pos2(

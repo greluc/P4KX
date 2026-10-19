@@ -9,7 +9,7 @@ use crate::theme::desktop::{
     TITLE_SIZE,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_4, TOUCH_TARGET, Weight};
+use crate::theme::tokens::{CORNER_LEFT, CORNER_SM, SPACE_4, TOUCH_TARGET, Weight};
 
 /// How a data row is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,9 +38,9 @@ impl RowState {
     pub(crate) const fn colours(self) -> (Color32, Color32) {
         match self {
             Self::Rest => (Color32::TRANSPARENT, palette::GRAY_1),
-            Self::Hovered => (palette::GRAY_3, palette::GRAY_1),
+            Self::Hovered => (palette::CONTROL_BG, palette::GRAY_1),
             Self::Checked => (palette::CONTROL_SELECTED_BG, palette::GRAY_1),
-            Self::Active => (palette::SURFACE_INPUT, palette::WHITE),
+            Self::Active => (palette::SURFACE_BAR, palette::WHITE),
         }
     }
 }
@@ -131,18 +131,18 @@ pub(crate) fn section_header(ui: &mut Ui, id: Id, title: &str, default_open: boo
     let fill = if response.hovered() {
         palette::GRAY_3
     } else {
-        palette::SURFACE_INPUT
+        palette::SURFACE_BAR
     };
     let painter = ui.painter();
     painter.rect(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         fill,
         Stroke::new(1.0, palette::GRAY_3),
         egui::StrokeKind::Inside,
     );
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
-    painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+    painter.rect_filled(bar, CORNER_LEFT, palette::PRIMARY);
     let text = caps(
         title,
         TITLE_SIZE,
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn rows_use_the_surface_ladder_and_never_a_solid_orange_block() {
-        assert_eq!(RowState::Hovered.colours().0, palette::GRAY_3, "hover");
+        assert_eq!(RowState::Hovered.colours().0, palette::CONTROL_BG, "hover");
         assert_eq!(
             RowState::Checked.colours().0,
             palette::CONTROL_SELECTED_BG,
@@ -192,7 +192,7 @@ mod tests {
         );
         assert_eq!(
             RowState::Active.colours(),
-            (palette::SURFACE_INPUT, palette::WHITE),
+            (palette::SURFACE_BAR, palette::WHITE),
             "active"
         );
     }

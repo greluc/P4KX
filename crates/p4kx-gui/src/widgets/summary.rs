@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use egui::{
-    CornerRadius, Galley, Rect, Role, Sense, Stroke, StrokeKind, Ui, WidgetInfo, pos2, vec2,
-};
+use egui::{Galley, Rect, Role, Sense, Stroke, StrokeKind, Ui, WidgetInfo, pos2, vec2};
 
 use super::chip::{self, Tone};
 use super::rows::chevron;
@@ -13,7 +11,7 @@ use crate::theme::desktop::{
     KPI_VALUE_SIZE,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_1, Weight};
+use crate::theme::tokens::{CORNER_LEFT, CORNER_SM, RADIUS_SM, SPACE_1, Weight};
 
 /// One fact of a `.facts-bar`: an upper-case key and a value.
 #[derive(Debug, Clone, Copy)]
@@ -43,13 +41,7 @@ pub(crate) fn facts_bar(ui: &mut Ui, old: Fact<'_>, new: Fact<'_>) {
         let label = format!("{} {} {} {}", old.key, old.value, new.key, new.value);
         WidgetInfo::labeled(Role::Label, true, label)
     });
-    let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
-    painter.hline(
-        rect.x_range(),
-        rect.bottom() - 0.5,
-        Stroke::new(1.0, palette::GRAY_3),
-    );
+    paint_bar(ui, rect);
     let mut left = rect.left() + FACTS_PADDING_X;
     let [old_key, old_value, new_key, new_value] = galleys;
     for (index, (galley, colour)) in [
@@ -75,6 +67,18 @@ pub(crate) fn facts_bar(ui: &mut Ui, old: Fact<'_>, new: Fact<'_>) {
                 FACTS_GAP
             };
     }
+}
+
+/// Paints the `radius-sm` bar surface of a `.facts-bar` with its hairline under it, which ends
+/// where the corners begin.
+fn paint_bar(ui: &Ui, rect: Rect) {
+    let painter = ui.painter();
+    painter.rect_filled(rect, CORNER_SM, palette::SURFACE_BAR);
+    painter.hline(
+        rect.x_range().shrink(RADIUS_SM),
+        rect.bottom() - 0.5,
+        Stroke::new(1.0, palette::GRAY_3),
+    );
 }
 
 /// The laid-out facts of a `.facts-bar` without a direction, kept across frames.
@@ -116,13 +120,7 @@ impl FactsStrip {
         let (rect, response) =
             ui.allocate_exact_size(vec2(ui.available_width(), self.height), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &self.label));
-        let painter = ui.painter();
-        painter.rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
-        painter.hline(
-            rect.x_range(),
-            rect.bottom() - 0.5,
-            Stroke::new(1.0, palette::GRAY_3),
-        );
+        paint_bar(ui, rect);
         let mut left = rect.left() + FACTS_PADDING_X;
         for (key, value) in &self.facts {
             let key_width = key.size().x;
@@ -154,13 +152,13 @@ pub(crate) fn kpi_tile(ui: &mut Ui, label: &str, value: &str, tone: Tone, width:
     let painter = ui.painter();
     painter.rect(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         palette::BG_DARK_GRAY,
         Stroke::new(1.0, palette::GRAY_3),
         StrokeKind::Inside,
     );
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
-    painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+    painter.rect_filled(bar, CORNER_LEFT, palette::PRIMARY);
     let inner = rect.shrink2(vec2(KPI_PADDING_X, KPI_PADDING_Y));
     chip::paint(
         ui,

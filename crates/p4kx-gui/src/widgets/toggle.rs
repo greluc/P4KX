@@ -6,7 +6,7 @@ use egui::{
 use super::button::focus_ring;
 use super::text::{centred, line, paint_left, plain};
 use crate::theme::desktop::{
-    DISABLED_OPACITY, FOCUS_OFFSET, RADIO_DOT, ROW_HEIGHT, TOGGLE_GAP, TOGGLE_SIZE,
+    CHECKBOX_RADIUS, DISABLED_OPACITY, FOCUS_OFFSET, RADIO_DOT, ROW_HEIGHT, TOGGLE_GAP, TOGGLE_SIZE,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
@@ -23,12 +23,8 @@ pub(crate) enum Check {
 pub(crate) const fn colours(on: bool, hovered: bool) -> (Color32, Color32, Color32) {
     match (on, hovered) {
         (true, _) => (palette::PRIMARY, palette::PRIMARY, palette::BLACK),
-        (false, true) => (palette::SURFACE_INPUT, palette::PRIMARY, palette::BLACK),
-        (false, false) => (
-            palette::SURFACE_INPUT,
-            palette::CONTROL_BORDER,
-            palette::BLACK,
-        ),
+        (false, true) => (palette::CONTROL_BG, palette::PRIMARY, palette::BLACK),
+        (false, false) => (palette::CONTROL_BG, palette::CONTROL_BORDER, palette::BLACK),
     }
 }
 
@@ -140,7 +136,7 @@ fn paint_checkbox(ui: &Ui, rect: Rect, check: Check, hovered: bool, enabled: boo
     let painter = ui.painter();
     painter.rect(
         rect,
-        CornerRadius::ZERO,
+        CornerRadius::same(CHECKBOX_RADIUS),
         fill,
         Stroke::new(1.0, border),
         StrokeKind::Inside,

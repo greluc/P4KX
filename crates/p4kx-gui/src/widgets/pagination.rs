@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use egui::{
-    Align, Color32, CornerRadius, Galley, Layout, Pos2, Rect, Response, Role, Sense, Stroke,
-    StrokeKind, Ui, WidgetInfo, pos2, vec2,
+    Align, Color32, Galley, Layout, Pos2, Rect, Response, Role, Sense, Stroke, StrokeKind, Ui,
+    WidgetInfo, pos2, vec2,
 };
 
 use super::button::focus_ring;
@@ -11,7 +11,7 @@ use crate::theme::desktop::{
     PAGE_STATUS_PADDING_X, TRANSITION,
 };
 use crate::theme::palette;
-use crate::theme::tokens::TOUCH_TARGET;
+use crate::theme::tokens::{CORNER_SM, TOUCH_TARGET};
 
 /// The accessible names of the page buttons and of the page status.
 #[derive(Debug, Clone, Copy)]
@@ -122,10 +122,10 @@ fn page_button(ui: &mut Ui, step: Step, name: &str, enabled: bool) -> Response {
     let border = dim(palette::CONTROL_BORDER.lerp_to_gamma(palette::PRIMARY, hover));
     let colour = dim(palette::CONTROL_FG.lerp_to_gamma(palette::PRIMARY, hover));
     let painter = ui.painter();
-    painter.rect_filled(rect, CornerRadius::ZERO, dim(palette::CONTROL_BG));
+    painter.rect_filled(rect, CORNER_SM, dim(palette::CONTROL_BG));
     painter.rect_stroke(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         Stroke::new(1.0, border),
         StrokeKind::Inside,
     );

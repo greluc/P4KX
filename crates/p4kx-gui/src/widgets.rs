@@ -3,6 +3,7 @@
 
 pub(crate) mod button;
 pub(crate) mod chip;
+pub(crate) mod field;
 pub(crate) mod frames;
 pub(crate) mod indicator;
 pub(crate) mod number;

@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    CornerRadius, Galley, Id, Key, Margin, Modifiers, ScrollArea, Shape, Stroke, TextBuffer,
-    TextEdit, Ui, vec2,
+    Frame, Galley, Id, Key, Margin, Modifiers, ScrollArea, Stroke, TextBuffer, TextEdit, Ui, vec2,
 };
 
 use crate::theme::desktop::{
@@ -12,7 +11,8 @@ use crate::theme::desktop::{
     TEXTAREA_LINE_HEIGHT, TEXTAREA_PADDING_X, TEXTAREA_PADDING_Y,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, GLOW_PRIMARY, Weight, font};
+use crate::theme::tokens::{FS_BODY, Weight, font};
+use crate::widgets::field;
 use crate::widgets::frames::px;
 use crate::widgets::text::plain;
 
@@ -46,7 +46,7 @@ pub(super) fn show(
     let id = Id::unique("p4kx-query-editor");
     let submitted = ui.memory(|memory| memory.has_focus(id))
         && ui.input_mut(|input| input.consume_key(Modifiers::COMMAND, Key::Enter));
-    let glow = ui.painter().add(Shape::Noop);
+    let bloom = field::bloom_slot(ui);
     let rows = |rows: usize| {
         let line_height = FS_BODY * TEXTAREA_LINE_HEIGHT;
         line_height.mul_add(
@@ -61,10 +61,10 @@ pub(super) fn show(
         .id(id)
         .hint_text(plain(hint, FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
-        .margin(Margin::symmetric(
+        .frame(Frame::NONE.inner_margin(Margin::symmetric(
             px(TEXTAREA_PADDING_X),
             px(TEXTAREA_PADDING_Y),
-        ))
+        )))
         .min_size(vec2(0.0, height))
         .desired_width(f32::INFINITY)
         .layouter(&mut layouter);
@@ -72,13 +72,15 @@ pub(super) fn show(
         .id_salt("p4kx-query-editor-scroll")
         .max_height(rows(QUERY_EDITOR_MAX_ROWS))
         .auto_shrink([false, true])
-        .show(ui, |ui| ui.add(edit).labelled_by(label))
+        .show(ui, |ui| {
+            let frame = field::frame_slot(ui);
+            let response = ui.add(edit).labelled_by(label);
+            field::paint_frame(ui, frame, response.rect, response.has_focus());
+            response
+        })
         .inner;
     if response.has_focus() {
-        ui.painter().set(
-            glow,
-            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
-        );
+        field::paint_bloom(ui, bloom, response.rect);
     }
     Edited {
         changed: response.changed(),

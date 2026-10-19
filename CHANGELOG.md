@@ -4,6 +4,20 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+## [Unreleased]
+
+### Changed
+
+- GUI: the window follows the design system after its adaptation to the das-kartell.org website
+  (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+  with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
+  greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
+  chips, alerts, modals, dropdowns and tiles. Header, status bar and tab bar use the bar
+  surface, rows hover in `control-bg`, the ghost button hovers in `color-accent-light`, and the
+  range thumb is round. The empty state no longer hides the work tabs, the dialogs' foot no
+  longer stretches the dialog to the window height, and read-only and text fields draw the
+  rounded input frame. The desktop spec and its JSON follow.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

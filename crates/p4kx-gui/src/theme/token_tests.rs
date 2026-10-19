@@ -15,6 +15,7 @@ fn colours() -> BTreeMap<String, Color32> {
         ("color-primary", p::PRIMARY),
         ("color-white", p::WHITE),
         ("color-bg-black", p::BLACK),
+        ("color-canvas", p::CANVAS),
         ("color-accent-light", p::ACCENT_LIGHT),
         ("color-accent-dark", p::ACCENT_DARK),
         ("color-gray-1", p::GRAY_1),
@@ -23,6 +24,9 @@ fn colours() -> BTreeMap<String, Color32> {
         ("color-gray-4", p::GRAY_4),
         ("color-bg-dark-gray", p::BG_DARK_GRAY),
         ("color-surface-input", p::SURFACE_INPUT),
+        ("color-control", p::CONTROL),
+        ("color-control-hover", p::CONTROL_HOVER),
+        ("color-count-badge", p::COUNT_BADGE),
         ("color-dept-raumueberlegenheit", c::DEPT_RAUMUEBERLEGENHEIT),
         ("color-dept-forschung", c::DEPT_FORSCHUNG),
         ("color-dept-sub-radar", c::DEPT_SUB_RADAR),
@@ -48,6 +52,7 @@ fn colours() -> BTreeMap<String, Color32> {
         ("surface-canvas", p::SURFACE_CANVAS),
         ("surface-panel", p::SURFACE_PANEL),
         ("surface-inset", p::SURFACE_INSET),
+        ("surface-bar", p::SURFACE_BAR),
         ("surface-raised", p::SURFACE_RAISED),
         ("control-bg", p::CONTROL_BG),
         ("control-bg-hover", p::CONTROL_BG_HOVER),
@@ -214,6 +219,7 @@ fn type_spacing_and_radius_tokens_match_the_design_system() {
         ("touch-target", t::TOUCH_TARGET),
         ("content-max", t::CONTENT_MAX),
         ("radius-none", t::RADIUS_NONE),
+        ("radius-sm", t::RADIUS_SM),
         ("radius-pill", t::RADIUS_PILL),
     ]
     .into();

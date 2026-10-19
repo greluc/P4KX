@@ -4,13 +4,14 @@ use std::collections::hash_map::Entry as Slot;
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
+use super::banks::BankContents;
 use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
 use super::{
     ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, IndexedSoundbank, MAX_ATL_LEN,
-    MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, atl, banks,
+    MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, WemLocation, atl, banks,
 };
 
-type BankRead = Result<(IndexedSoundbank, Vec<u32>), AudioFileError>;
+type BankRead = Result<BankContents, AudioFileError>;
 
 /// The audio data of one Archive: every ATL trigger with its Wwise events, and for every Wwise
 /// event ID the soundbanks whose `HIRC` section holds the event.
@@ -26,6 +27,7 @@ pub struct AudioIndex {
     by_name: HashMap<Box<str>, usize>,
     soundbanks: Vec<IndexedSoundbank>,
     events: HashMap<u32, Box<[u32]>>,
+    media: HashMap<u32, Box<[MediaSpot]>>,
     issues: Vec<AudioIssue>,
 }
 
@@ -40,13 +42,14 @@ impl AudioIndex {
                 starts_with_folder(entry.path(), ATL_FOLDER) && has_extension(entry.path(), "xml")
             })
             .collect();
-        let mut bank_entries: Vec<&Entry> = archive
+        let mut bank_entries: Vec<(usize, &Entry)> = archive
             .entries()
             .iter()
-            .filter(|entry| has_extension(entry.path(), "bnk"))
+            .enumerate()
+            .filter(|(_, entry)| has_extension(entry.path(), "bnk"))
             .collect();
         atl_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
-        bank_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
+        bank_entries.sort_by(|(_, a), (_, b)| folded_order(a.path(), b.path()));
         let definitions: Vec<_> = atl_entries
             .par_iter()
             .enumerate()
@@ -57,9 +60,9 @@ impl AudioIndex {
             .collect();
         let soundbanks: Vec<BankRead> = bank_entries
             .par_iter()
-            .map(|entry| {
+            .map(|&(position, entry)| {
                 entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
-                    .and_then(|bytes| banks::read(entry.path(), &bytes))
+                    .and_then(|bytes| banks::read(entry.path(), position, &bytes))
             })
             .collect();
         let mut index = Self::default();
@@ -102,18 +105,26 @@ impl AudioIndex {
         Ok(())
     }
 
-    fn add_soundbanks(&mut self, entries: &[&Entry], soundbanks: Vec<BankRead>) {
+    fn add_soundbanks(&mut self, entries: &[(usize, &Entry)], soundbanks: Vec<BankRead>) {
         let mut events: HashMap<u32, Vec<u32>> = HashMap::new();
-        for (entry, soundbank) in entries.iter().zip(soundbanks) {
+        let mut media: HashMap<u32, Vec<MediaSpot>> = HashMap::new();
+        for ((_, entry), soundbank) in entries.iter().zip(soundbanks) {
             match soundbank {
-                Ok((soundbank, ids)) => {
+                Ok(contents) => {
                     let position = u32::try_from(self.soundbanks.len()).unwrap_or(u32::MAX);
-                    self.soundbanks.push(soundbank);
-                    for id in ids {
+                    self.soundbanks.push(contents.soundbank);
+                    for id in contents.events {
                         let holders = events.entry(id).or_default();
                         if holders.last() != Some(&position) {
                             holders.push(position);
                         }
+                    }
+                    for wem in contents.media {
+                        media.entry(wem.id).or_default().push(MediaSpot {
+                            soundbank: position,
+                            offset: wem.offset,
+                            len: wem.len,
+                        });
                     }
                 }
                 Err(error) => self.issues.push(AudioIssue {
@@ -125,6 +136,10 @@ impl AudioIndex {
         self.events = events
             .into_iter()
             .map(|(id, holders)| (id, holders.into_boxed_slice()))
+            .collect();
+        self.media = media
+            .into_iter()
+            .map(|(id, spots)| (id, spots.into_boxed_slice()))
             .collect();
     }
 
@@ -177,7 +192,30 @@ impl AudioIndex {
         &self.issues
     }
 
+    /// Returns where the soundbanks embed the WEM `id` in their `DATA` sections, in path order.
+    pub fn embedded_wem(&self, id: u32) -> impl Iterator<Item = WemLocation<'_>> {
+        self.media
+            .get(&id)
+            .map_or(&[][..], |spots| spots)
+            .iter()
+            .filter_map(|spot| {
+                Some(WemLocation::Soundbank {
+                    soundbank: self.soundbanks.get(usize::try_from(spot.soundbank).ok()?)?,
+                    offset: spot.offset,
+                    len: spot.len,
+                })
+            })
+    }
+
     pub(crate) fn event_holders(&self, id: u32) -> &[u32] {
         self.events.get(&id).map_or(&[], |holders| holders)
     }
+}
+
+/// Where a soundbank embeds a WEM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MediaSpot {
+    soundbank: u32,
+    offset: u64,
+    len: u64,
 }

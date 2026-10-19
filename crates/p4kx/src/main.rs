@@ -18,6 +18,7 @@ mod cli_loc;
 mod cli_model;
 mod cli_socpak;
 mod cli_ui;
+mod cli_wwise;
 mod compare;
 mod cryxml;
 mod dataforges;
@@ -46,6 +47,8 @@ mod texture_image;
 mod ui;
 mod ui_extract;
 mod ui_json;
+mod wwise;
+mod wwise_json;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
@@ -82,6 +85,7 @@ fn main() -> ExitCode {
         Command::Socpak(args) => socpak::run(&args, json),
         Command::Chf(args) => chf::run(&args, json).map(success),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
+        Command::Wwise(args) => wwise::run(&args, json).map(success),
         Command::Model(args) => model::run(&args, json).map(success),
     };
     match result {

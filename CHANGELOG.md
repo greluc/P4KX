@@ -4,6 +4,19 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+## [Unreleased]
+
+### Added
+
+- `p4kx wwise resolve <archive> <trigger> [--json]`: resolves an audio trigger to its sound
+  variants. Each Wwise event is followed through its Play actions and random, sequence, switch and
+  blend containers to the Sound objects; every variant is listed with its soundbank, WEM ID,
+  source (embedded, prefetched, streamed or plug-in) and container path, and an embedded WEM is
+  located in the soundbank that holds it, with its offset and length. Broken links (a missing,
+  unreadable or unfollowed object, a cycle, or a limit of depth, fan-out or size) are listed with
+  the object where the chain breaks. Soundbank containers of version 154 are now decoded to their
+  children.
+
 ## [0.2.0]
 
 The second Release: readable game data. CryXml and DataForge Records as XML and JSON, the

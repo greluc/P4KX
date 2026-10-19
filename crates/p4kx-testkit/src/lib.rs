@@ -28,6 +28,7 @@ mod gfx_tags;
 mod glb;
 mod glb_container;
 mod global_ini;
+mod hirc_node;
 mod layout_v1;
 mod layout_v2;
 mod model;
@@ -68,6 +69,7 @@ pub use gfx_tags::{
 pub use glb::{CheckedGlb, check_glb};
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
+pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,

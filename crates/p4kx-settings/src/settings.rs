@@ -1,4 +1,4 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -115,7 +115,7 @@ pub enum SettingsError {
         #[source]
         source: toml::de::Error,
     },
-    /// The file is larger than [`MAX_SETTINGS_SIZE`].
+    /// The file is, or would be written, larger than [`MAX_SETTINGS_SIZE`].
     #[error("the settings file {path} is larger than {MAX_SETTINGS_SIZE} bytes")]
     TooLarge {
         /// Path of the settings file.
@@ -162,17 +162,34 @@ impl Settings {
         })
     }
 
-    /// Writes the settings to `file`, creating its folder when missing.
+    /// Writes the settings to `file`, creating its folder when missing. The text goes to a
+    /// temporary file next to it first, which then replaces `file`, so a crash never leaves a
+    /// half-written file.
     ///
     /// # Errors
     ///
-    /// Returns a [`SettingsError`] when the folder or the file cannot be written.
+    /// Returns a [`SettingsError`] when the text would be larger than [`MAX_SETTINGS_SIZE`],
+    /// so that it could not be read again, or when the folder or the file cannot be written.
     pub fn save(&self, file: &Path) -> Result<(), SettingsError> {
         let text = toml::to_string(self)?;
+        if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_SETTINGS_SIZE {
+            return Err(SettingsError::TooLarge {
+                path: file.to_path_buf(),
+            });
+        }
         if let Some(folder) = file.parent() {
             std::fs::create_dir_all(folder).map_err(|source| io_error(file, source))?;
         }
-        std::fs::write(file, text).map_err(|source| io_error(file, source))
+        let mut temporary = file.as_os_str().to_owned();
+        temporary.push(format!(".{}.tmp", std::process::id()));
+        let temporary = PathBuf::from(temporary);
+        let written = write_synced(&temporary, text.as_bytes())
+            .and_then(|()| std::fs::rename(&temporary, file));
+        if let Err(source) = written {
+            let _ignored = std::fs::remove_file(&temporary);
+            return Err(io_error(file, source));
+        }
+        Ok(())
     }
 }
 
@@ -221,6 +238,12 @@ fn same_path(stored: &Path, path: &Path) -> bool {
             (std::fs::canonicalize(stored), std::fs::canonicalize(path)),
             (Ok(a), Ok(b)) if a == b
         )
+}
+
+fn write_synced(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let mut file = std::fs::File::create(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
 }
 
 fn io_error(path: &Path, source: io::Error) -> SettingsError {

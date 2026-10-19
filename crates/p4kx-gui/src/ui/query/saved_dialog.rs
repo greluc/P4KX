@@ -9,7 +9,7 @@ use crate::theme::tokens::{FS_BODY, FS_SM, SPACE_3, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
-use crate::{Model, NameNote, QueryText, SavedDialog, Texts};
+use crate::{Model, NameNote, QueryText, SavedDialog, Texts, format};
 
 /// Shows the open dialog of the saved Queries: the name to save or rename to, or the question
 /// before a delete.
@@ -44,7 +44,7 @@ pub(in crate::ui) fn show(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         ui.set_width(frames::MODAL_BODY_WIDTH);
         let closed = frames::head(ui, (&title, tone), true, Some(&close_dialog));
         let submit = body(ui, texts, (name.as_mut(), note, first), question.as_deref());
-        let pressed = foot(ui, texts, (action, ready));
+        let pressed = foot(ui, texts, (action, ready), tone);
         (closed, pressed, submit && ready)
     });
     frames::modal_decoration(ui.ctx(), shown.response.layer_id, shown.response.rect, tone);
@@ -144,22 +144,39 @@ fn note_text(texts: &Texts, note: NameNote) -> Option<String> {
             texts.format(QueryText::NameTooLong, &max(SavedQueries::MAX_NAME_LEN))
         }
         NameNote::Problem(NameProblem::Taken) => texts.get(QueryText::NameTaken),
+        NameNote::Problem(NameProblem::Control) => texts.get(QueryText::NameControl),
         NameNote::Problem(NameProblem::Full) => {
-            texts.format(QueryText::NameFull, &max(SavedQueries::LIMIT))
+            let size = u64::try_from(SavedQueries::MAX_TOTAL_LEN).unwrap_or(u64::MAX);
+            let [limit] = max(SavedQueries::LIMIT);
+            texts.format(
+                QueryText::NameFull,
+                &[limit, ("size", format::size(size, texts.language()).into())],
+            )
         }
         NameNote::Problem(NameProblem::BadText) => texts.get(QueryText::NameBadText),
     })
 }
 
-/// Shows the foot: the ghost Cancel and, right of it, the CTA `action`. Returns `Some(true)`
+/// Shows the foot: the ghost Cancel and, right of it, `action` as the CTA, or as the filled red
+/// `.btn-danger` in a danger modal. Returns `Some(true)`
 /// for the CTA and `Some(false)` for Cancel.
-fn foot(ui: &mut Ui, texts: &Texts, (action, enabled): (QueryText, bool)) -> Option<bool> {
+fn foot(
+    ui: &mut Ui,
+    texts: &Texts,
+    (action, enabled): (QueryText, bool),
+    tone: Tone,
+) -> Option<bool> {
+    let kind = if tone == Tone::Danger {
+        Kind::Danger
+    } else {
+        Kind::Cta
+    };
     ui.add_space(MODAL_GROUP_GAP - SPACE_3);
     frames::foot_rule(ui);
     let mut pressed = None;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         let cta = texts.get(action);
-        if button::button(ui, Kind::Cta, Size::Normal, &cta, enabled).clicked() {
+        if button::button(ui, kind, Size::Normal, &cta, enabled).clicked() {
             pressed = Some(true);
         }
         let cancel = texts.get(QueryText::Cancel);

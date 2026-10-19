@@ -3,7 +3,8 @@ use std::ops::Range;
 use crate::query::lexer::{Keyword, Lexer, Symbol, Token};
 use crate::query::{MAX_PATH_SEGMENTS, MAX_QUERY_LEN, Span};
 
-/// Where the cursor stands in a Query text: the word typed so far and what fits there.
+/// Where the cursor stands in a Query text: the word typed before it, the whole word around it
+/// that a name replaces, and what fits there.
 #[derive(Debug)]
 pub(super) struct Spot<'q> {
     pub(super) prefix: &'q str,
@@ -69,6 +70,13 @@ pub(super) fn spot(text: &str, cursor: usize) -> Option<Spot<'_>> {
         ),
         _ => ("", cursor..cursor, tokens.as_slice()),
     };
+    let rest = text
+        .get(cursor..)
+        .unwrap_or_default()
+        .bytes()
+        .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+        .count();
+    let replace = replace.start..cursor.saturating_add(rest);
     let from = from_type(&tokens);
     let want = match context.last() {
         Some((Token::Keyword(Keyword::From), _)) => Want::Type,

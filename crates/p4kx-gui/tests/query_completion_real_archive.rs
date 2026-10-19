@@ -87,5 +87,39 @@ fn components_of_a_ship_are_completed_from_the_real_schema() -> TestResult {
         shown(harness.state())
     );
     assert!(keystroke < FRAME_LIMIT, "a frame took {keystroke:?}");
+
+    for (text, expected) in [
+        ("at \"*\" select ", "Components"),
+        ("at \"*\" select Components[", "VehicleComponentParams"),
+    ] {
+        harness.state_mut().query_mut().set_text("");
+        harness.run_steps(2);
+        harness
+            .get_by_role(Role::MultilineTextInput)
+            .type_text(text);
+        let typed = Instant::now();
+        harness.step();
+        let frame = typed.elapsed();
+        harness.run_steps(2);
+        let (names, more) = harness
+            .state()
+            .query()
+            .completion_shown()
+            .map(|(completion, _)| {
+                let names: Vec<String> = completion
+                    .candidates()
+                    .iter()
+                    .map(|candidate| candidate.name().to_owned())
+                    .collect();
+                (names, completion.more())
+            })
+            .unwrap_or_default();
+        assert!(!names.is_empty(), "{text}: names offered");
+        assert!(
+            names.contains(&expected.to_owned()) || more > 0,
+            "{text}: {expected} listed or more to type"
+        );
+        assert!(frame < FRAME_LIMIT, "{text}: a frame took {frame:?}");
+    }
     Ok(())
 }

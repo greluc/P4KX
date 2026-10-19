@@ -214,3 +214,25 @@ fn nothing_is_listed_where_no_name_fits() -> TestResult {
     assert!(shown(harness.state()).is_empty(), "inside a string");
     Ok(())
 }
+
+#[test]
+fn enter_breaks_the_line_when_the_chosen_name_is_written_already() -> TestResult {
+    let (_dir, mut harness) = opened(&database())?;
+    type_text(&mut harness, "from Ship select ");
+    wait_until(&mut harness, |model| !shown(model).is_empty())?;
+    harness
+        .get_by_role(Role::MultilineTextInput)
+        .type_text("mass");
+    harness.run_steps(3);
+    assert_eq!(shown(harness.state()), ["mass"], "still offered");
+
+    harness.key_press(Key::Enter);
+    harness.run_steps(3);
+
+    assert_eq!(
+        harness.state().query().text(),
+        "from Ship select mass\n",
+        "a line break, not the name again"
+    );
+    Ok(())
+}

@@ -158,6 +158,7 @@ pub struct QueryTab {
     saved: SavedQueries,
     saved_dialog: Option<SavedDialog>,
     saved_revision: u64,
+    edits: Vec<p4kx_settings::SavedQueryEdit>,
     loaded: Option<String>,
 }
 
@@ -191,15 +192,15 @@ impl QueryTab {
         self.completion.shown()
     }
 
-    /// Starts reading the completion schema of `index` off the UI thread unless it was asked
-    /// for before; `wake` is called once it is read.
+    /// Starts reading the completion schema of `index` off the UI thread unless it is read or
+    /// being read; `wake` is called once it is read. Together with [`Self::schema`] this is the
+    /// one way the tab reaches the schema cache.
     pub(crate) fn prepare_completion(
         &mut self,
         index: &Arc<EntryIndex>,
         wake: impl Fn() + Send + 'static,
     ) {
-        let slot = self.slot_of(index);
-        completion::prepare(&slot, index, wake);
+        self.slot_of(index).prepare_schema(index, wake);
     }
 
     /// Returns the completion schema of `index` once it was read.

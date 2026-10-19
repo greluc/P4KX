@@ -109,7 +109,9 @@ pub enum QueryText {
     NameTooLong,
     /// Shown when another saved Query has the name.
     NameTaken,
-    /// Shown when no more Queries can be saved; takes `max`.
+    /// Shown when the name holds a control character.
+    NameControl,
+    /// Shown when no more Queries can be saved; takes `max` and `size`.
     NameFull,
     /// Shown when the Query of the editor cannot be saved.
     NameBadText,
@@ -117,7 +119,7 @@ pub enum QueryText {
 
 impl QueryText {
     /// Every Query text.
-    pub(crate) const ALL: [Self; 56] = [
+    pub(crate) const ALL: [Self; 57] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -172,6 +174,7 @@ impl QueryText {
         Self::NameEmpty,
         Self::NameTooLong,
         Self::NameTaken,
+        Self::NameControl,
         Self::NameFull,
         Self::NameBadText,
     ];
@@ -234,6 +237,7 @@ impl QueryText {
             Self::NameEmpty => "query-name-empty",
             Self::NameTooLong => "query-name-too-long",
             Self::NameTaken => "query-name-taken",
+            Self::NameControl => "query-name-control",
             Self::NameFull => "query-name-full",
             Self::NameBadText => "query-name-bad-text",
         }

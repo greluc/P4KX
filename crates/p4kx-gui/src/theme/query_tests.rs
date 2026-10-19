@@ -6,7 +6,7 @@ use super::tokens::{FS_BODY, FS_SM, FS_XS, TOUCH_TARGET};
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
 
-const METRICS: [(&str, &str, f32); 27] = [
+const METRICS: [(&str, &str, f32); 28] = [
     ("queryEditor", "paddingX", d::TEXTAREA_PADDING_X),
     ("queryEditor", "paddingY", d::TEXTAREA_PADDING_Y),
     ("queryEditor", "fontSize", FS_BODY),
@@ -38,6 +38,7 @@ const METRICS: [(&str, &str, f32); 27] = [
     ("savedQueries", "rowHeight", d::ROW_HEIGHT),
     ("savedQueries", "paddingX", d::SIDEBAR_PADDING_X),
     ("savedQueries", "gap", d::CHANNEL_GAP),
+    ("savedQueries", "nameMaxWidth", d::SAVED_NAME_MAX_WIDTH),
 ];
 
 fn spec() -> Value {
@@ -119,5 +120,35 @@ fn the_quiet_danger_button_takes_the_tints_of_the_design_system() {
         d::QUIET_DANGER_HOVER,
         Color32::from_rgba_unmultiplied(163, 0, 10, 31),
         "0.12 of 255"
+    );
+}
+
+#[test]
+fn the_danger_button_is_filled_red_after_the_design_system() {
+    use crate::theme::palette;
+    use crate::widgets::button::{Kind, Phase, look};
+
+    let json = spec();
+    assert_eq!(
+        json["buttonDanger"]["background"].as_str(),
+        Some("color-danger"),
+        "spec fill"
+    );
+    assert_eq!(
+        json["buttonDanger"]["hoverBackground"].as_str(),
+        Some("color-danger-hover"),
+        "spec hover"
+    );
+
+    let rest = look(Kind::Danger, Phase::Rest);
+    assert_eq!(
+        (rest.fill, rest.text),
+        (palette::DANGER, palette::WHITE),
+        "rest"
+    );
+    assert_eq!(
+        look(Kind::Danger, Phase::Hover).fill,
+        palette::DANGER_HOVER,
+        "hover"
     );
 }

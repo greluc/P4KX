@@ -24,6 +24,8 @@ pub(crate) enum Kind {
     Ghost,
     /// `.btn-quiet-danger`, a destructive action that only turns red on hover.
     QuietDanger,
+    /// `.btn-danger`, the filled red action that confirms a destructive step in a danger modal.
+    Danger,
 }
 
 /// The size of a button.
@@ -107,6 +109,7 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             glow: None,
         },
         (Kind::QuietDanger, phase) => quiet_danger(phase),
+        (Kind::Danger, phase) => danger(phase),
         (Kind::Outline | Kind::Ghost, Phase::Pressed) => Look {
             fill: palette::CONTROL_BG,
             tint: palette::CONTROL_SELECTED_BG,
@@ -114,6 +117,22 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
             text: palette::PRIMARY,
             glow: None,
         },
+    }
+}
+
+/// Returns the colours of `.btn-danger` in `phase`: `color-danger` with white text, the hover fill
+/// while hovered or pressed.
+const fn danger(phase: Phase) -> Look {
+    let fill = match phase {
+        Phase::Rest => palette::DANGER,
+        Phase::Hover | Phase::Pressed => palette::DANGER_HOVER,
+    };
+    Look {
+        fill,
+        tint: Color32::TRANSPARENT,
+        border: fill,
+        text: palette::WHITE,
+        glow: None,
     }
 }
 
@@ -195,8 +214,29 @@ pub(crate) fn width(ui: &Ui, size: Size, label: &str) -> f32 {
 /// Shows a button of `kind` and `size` with `label` set in upper case; its accessible name stays
 /// `label`. A disabled button senses no click.
 pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: bool) -> Response {
-    let (height, padding, _) = metrics(size);
     let galley = label_galley(ui, size, label);
+    button_laid(ui, (kind, size), (label, galley), enabled)
+}
+
+/// Returns the width of a button of `size` whose label is laid out as `galley`.
+pub(crate) fn width_of(size: Size, galley: &egui::Galley) -> f32 {
+    let (_, padding, _) = metrics(size);
+    padding.mul_add(2.0, galley.size().x)
+}
+
+/// Lays out `label` as a button of `size` sets it, for [`button_laid`].
+pub(crate) fn laid_label(ui: &Ui, size: Size, label: &str) -> std::sync::Arc<egui::Galley> {
+    label_galley(ui, size, label)
+}
+
+/// Shows a button as [`button`] does with the label laid out before by [`laid_label`].
+pub(crate) fn button_laid(
+    ui: &mut Ui,
+    (kind, size): (Kind, Size),
+    (label, galley): (&str, std::sync::Arc<egui::Galley>),
+    enabled: bool,
+) -> Response {
+    let (height, padding, _) = metrics(size);
     let desired = vec2(padding.mul_add(2.0, galley.size().x), height);
     let sense = if enabled {
         Sense::click()
@@ -225,7 +265,7 @@ pub(crate) fn button(ui: &mut Ui, kind: Kind, size: Size, label: &str, enabled: 
         .min;
     ui.painter().galley(text_at, galley, colours.text);
     if response.has_focus() {
-        let ring = if kind == Kind::Cta {
+        let ring = if matches!(kind, Kind::Cta | Kind::Danger) {
             palette::WHITE
         } else {
             palette::PRIMARY

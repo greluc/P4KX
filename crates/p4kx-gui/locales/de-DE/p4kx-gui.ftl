@@ -259,7 +259,8 @@ query-name-replaces = Ersetzt die gespeicherte Abfrage dieses Namens.
 query-name-empty = Geben Sie einen Namen ein.
 query-name-too-long = Der Name ist länger als { $max } Zeichen.
 query-name-taken = Eine andere gespeicherte Abfrage hat diesen Namen.
-query-name-full = Es sind bereits { $max } Abfragen gespeichert. Löschen Sie zuerst eine.
+query-name-control = Der Name darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.
+query-name-full = Die gespeicherten Abfragen sind voll: höchstens { $max } Abfragen und { $size } insgesamt. Löschen Sie zuerst eine.
 query-name-bad-text = Die Abfrage im Editor ist leer oder zu lang zum Speichern.
 
 dataforge-node = DataForge

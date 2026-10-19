@@ -1,4 +1,4 @@
-use p4kx_settings::{NameProblem, SavedQueries};
+use p4kx_settings::{NameProblem, SavedQueries, SavedQueryEdit};
 
 use super::QueryTab;
 
@@ -126,24 +126,59 @@ impl QueryTab {
     }
 
     /// Carries out the open dialog and closes it; returns whether the saved Queries changed.
+    /// The change is also kept as an edit by name until [`Self::edits_stored`].
     pub fn submit_saved_dialog(&mut self) -> bool {
         let Some(dialog) = self.saved_dialog.take() else {
             return false;
         };
-        let changed = match &dialog {
-            SavedDialog::Save { name } => self.saved.save(name, &self.text).is_ok(),
-            SavedDialog::Rename { index, name } => self.saved.rename(*index, name).is_ok(),
-            SavedDialog::Delete { index } => self.saved.remove(*index),
+        let edit = match &dialog {
+            SavedDialog::Save { name } => SavedQueryEdit::Save {
+                name: name.trim().to_owned(),
+                text: self.text.clone(),
+            },
+            SavedDialog::Rename { index, name } => SavedQueryEdit::Rename {
+                from: self
+                    .saved
+                    .get(*index)
+                    .map(|saved| saved.name().to_owned())
+                    .unwrap_or_default(),
+                to: name.trim().to_owned(),
+            },
+            SavedDialog::Delete { index } => SavedQueryEdit::Delete {
+                name: self
+                    .saved
+                    .get(*index)
+                    .map(|saved| saved.name().to_owned())
+                    .unwrap_or_default(),
+            },
         };
+        let changed = self.saved.apply(&edit);
         if changed {
             self.saved_revision = self.saved_revision.wrapping_add(1);
-            if let SavedDialog::Save { name } | SavedDialog::Rename { name, .. } = &dialog {
-                self.loaded = Some(name.trim().to_owned());
+            if let SavedQueryEdit::Save { name, .. } | SavedQueryEdit::Rename { to: name, .. } =
+                &edit
+            {
+                self.loaded = Some(name.clone());
             }
+            self.edits.push(edit);
         } else if !matches!(dialog, SavedDialog::Delete { .. }) {
             self.saved_dialog = Some(dialog);
         }
         changed
+    }
+
+    /// Returns the changes to the saved Queries not stored yet, by name and in order.
+    #[must_use]
+    pub fn saved_edits(&self) -> &[SavedQueryEdit] {
+        &self.edits
+    }
+
+    /// Takes `stored`, the saved Queries as the settings file now holds them with this window's
+    /// edits replayed, and forgets those edits.
+    pub fn edits_stored(&mut self, stored: SavedQueries) {
+        self.edits.clear();
+        self.saved_dialog = None;
+        self.set_saved(stored);
     }
 
     /// Puts the saved Query at `index` into the editor; returns whether there is one.

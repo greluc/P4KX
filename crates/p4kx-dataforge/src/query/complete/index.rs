@@ -16,6 +16,10 @@ pub struct QuerySchema {
     pub(super) names: Box<[Box<str>]>,
     pub(super) structs: Box<[Entry]>,
     pub(super) types: Box<[u32]>,
+    pub(super) all_fields: Box<[Field]>,
+    ids: HashMap<Box<str>, u32>,
+    first_struct: HashMap<u32, usize>,
+    declaring: HashMap<u32, Box<[usize]>>,
 }
 
 /// One struct: its name, its parent and its fields, inherited ones included, sorted by name.
@@ -85,7 +89,7 @@ impl QuerySchema {
                 }
             })
             .collect();
-        let names = interner.names.into_boxed_slice();
+        let names = std::mem::take(&mut interner.names).into_boxed_slice();
         entries.par_iter_mut().for_each(|entry| {
             let mut fields = std::mem::take(&mut entry.fields).into_vec();
             fields.sort_by(|a, b| by_name(name_of(&names, a.name), name_of(&names, b.name)));
@@ -95,10 +99,38 @@ impl QuerySchema {
         let mut types: Vec<u32> = entries.iter().filter_map(|entry| entry.name).collect();
         types.sort_by(|a, b| by_name(name_of(&names, *a), name_of(&names, *b)));
         types.dedup();
+        let mut first_struct = HashMap::new();
+        let mut declaring: HashMap<u32, Vec<usize>> = HashMap::new();
+        for (index, entry) in entries.iter().enumerate() {
+            if let Some(name) = entry.name {
+                first_struct.entry(name).or_insert(index);
+            }
+            for field in &entry.fields {
+                declaring.entry(field.name).or_default().push(index);
+            }
+        }
+        let mut all_fields: Vec<Field> = entries
+            .iter()
+            .flat_map(|entry| entry.fields.iter().copied())
+            .collect();
+        all_fields.sort_by(|a, b| by_name(name_of(&names, a.name), name_of(&names, b.name)));
+        all_fields.dedup_by_key(|field| field.name);
+        let ids = interner
+            .ids
+            .into_iter()
+            .map(|(name, id)| (Box::from(name), id))
+            .collect();
         Self {
             names,
             structs: entries.into_boxed_slice(),
             types: types.into_boxed_slice(),
+            all_fields: all_fields.into_boxed_slice(),
+            ids,
+            first_struct,
+            declaring: declaring
+                .into_iter()
+                .map(|(name, structs)| (name, structs.into_boxed_slice()))
+                .collect(),
         }
     }
 
@@ -124,17 +156,25 @@ impl QuerySchema {
 
     /// Returns the first struct named `name`.
     pub(super) fn position_of(&self, name: &str) -> Option<usize> {
-        self.structs
-            .iter()
-            .position(|entry| entry.name.is_some_and(|id| self.name(id) == name))
+        let id = self.ids.get(name)?;
+        self.first_struct.get(id).copied()
+    }
+
+    /// Returns the structs that declare a field named `name`, inherited fields included.
+    pub(super) fn declaring(&self, name: &str) -> &[usize] {
+        self.ids
+            .get(name)
+            .and_then(|id| self.declaring.get(id))
+            .map_or(&[], |structs| structs)
     }
 
     /// Returns the field `name` of the struct at `index`.
     pub(super) fn field(&self, index: usize, name: &str) -> Option<Field> {
-        self.entry(index)?
-            .fields
-            .iter()
-            .find(|field| self.name(field.name) == name)
+        let fields = &self.entry(index)?.fields;
+        fields
+            .binary_search_by(|field| by_name(self.name(field.name), name))
+            .ok()
+            .and_then(|at| fields.get(at))
             .copied()
     }
 
@@ -151,6 +191,12 @@ impl QuerySchema {
             }
         }
         false
+    }
+
+    /// Returns whether the struct at `index` derives from the one at `other` or the other way
+    /// round, or is it.
+    pub(super) fn related(&self, index: usize, other: usize) -> bool {
+        self.derives(index, other) || self.derives(other, index)
     }
 
     /// Returns the name of the struct at `index`, if it has one.

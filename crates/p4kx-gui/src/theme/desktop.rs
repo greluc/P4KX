@@ -383,3 +383,5 @@ pub const COMBOBOX_NOTICE_PADDING: f32 = 0.75 * REM;
 /// The tallest the list of saved Queries gets before it scrolls, the list height of a
 /// collapsible section.
 pub const SAVED_LIST_HEIGHT: f32 = SECTION_LIST_HEIGHT;
+/// The widest the name of a saved Query gets before it ends in an ellipsis, a dropdown's width.
+pub const SAVED_NAME_MAX_WIDTH: f32 = DROPDOWN_MIN_WIDTH;

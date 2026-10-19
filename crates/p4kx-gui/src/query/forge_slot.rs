@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, PoisonError, TryLockError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
+use std::thread;
 
 use p4kx_extraction::DataForgeEntry;
 use p4kx_extraction::query::QuerySchema;
@@ -22,8 +22,15 @@ pub(crate) enum ReadFailure {
 #[derive(Debug, Default)]
 pub(crate) struct ForgeSlot {
     entry: Mutex<Option<Arc<DataForgeEntry>>>,
-    schema: Mutex<Option<Arc<QuerySchema>>>,
-    schema_asked: AtomicBool,
+    schema: Mutex<SchemaState>,
+}
+
+/// The completion schema of the slot and whether a read of it runs or ran.
+#[derive(Debug, Default)]
+struct SchemaState {
+    schema: Option<Arc<QuerySchema>>,
+    asked: bool,
+    epoch: u64,
 }
 
 impl ForgeSlot {
@@ -62,35 +69,71 @@ impl ForgeSlot {
         Ok(read)
     }
 
-    /// Forgets the DataForge read and its schema, because the Archive changed on disk.
+    /// Forgets the DataForge read and its schema, because the Archive changed on disk; a schema
+    /// read still running is not kept.
     pub(crate) fn clear(&self) {
         *self.entry.lock().unwrap_or_else(PoisonError::into_inner) = None;
-        *self.schema.lock().unwrap_or_else(PoisonError::into_inner) = None;
-        self.schema_asked.store(false, Ordering::Release);
+        let mut state = self.schema_state();
+        state.schema = None;
+        state.asked = false;
+        state.epoch = state.epoch.wrapping_add(1);
     }
 
     /// Returns the completion schema once it was read.
     pub(crate) fn schema(&self) -> Option<Arc<QuerySchema>> {
-        self.schema
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+        self.schema_state().schema.clone()
     }
 
-    /// Returns whether this is the first call since the slot was made or cleared, so that the
-    /// schema is read once.
-    pub(crate) fn ask_schema(&self) -> bool {
-        !self.schema_asked.swap(true, Ordering::AcqRel)
+    /// Reads the completion schema of `index` on a background thread, reading its DataForge
+    /// unless it was read before, and calls `wake` once it is there. Nothing starts while a read
+    /// runs or after one succeeded; after a failed read or spawn the next call tries again.
+    pub(crate) fn prepare_schema(
+        self: &Arc<Self>,
+        index: &Arc<EntryIndex>,
+        wake: impl Fn() + Send + 'static,
+    ) {
+        let epoch = {
+            let mut state = self.schema_state();
+            if state.asked || state.schema.is_some() {
+                return;
+            }
+            state.asked = true;
+            state.epoch
+        };
+        let slot = Arc::clone(self);
+        let thread_index = Arc::clone(index);
+        let spawned = thread::Builder::new()
+            .name("query-schema".to_owned())
+            .spawn(move || {
+                let read = slot.read_schema(&thread_index);
+                let mut state = slot.schema_state();
+                if state.epoch != epoch {
+                    return;
+                }
+                match read {
+                    Ok(schema) => {
+                        state.schema = Some(schema);
+                        drop(state);
+                        wake();
+                    }
+                    Err(ReadFailure::Unreadable(_)) => state.asked = false,
+                    Err(ReadFailure::ArchiveChanged) => {}
+                }
+            });
+        if spawned.is_err() {
+            self.schema_state().asked = false;
+        }
     }
 
-    /// Reads the completion schema of `index`, reading its DataForge unless it was read before.
-    pub(crate) fn read_schema(&self, index: &EntryIndex) -> Result<(), ReadFailure> {
+    fn read_schema(&self, index: &EntryIndex) -> Result<Arc<QuerySchema>, ReadFailure> {
         let entry = self.read(index, || {})?;
         let forge = entry
             .open()
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        let schema = Arc::new(QuerySchema::of(&forge));
-        *self.schema.lock().unwrap_or_else(PoisonError::into_inner) = Some(schema);
-        Ok(())
+        Ok(Arc::new(QuerySchema::of(&forge)))
+    }
+
+    fn schema_state(&self) -> MutexGuard<'_, SchemaState> {
+        self.schema.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }

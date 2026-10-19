@@ -5,7 +5,8 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use p4kx_settings::{
-    MAX_SETTINGS_SIZE, NameProblem, SavedQueries, SavedQuery, Settings, SettingsError,
+    MAX_SETTINGS_SIZE, NameProblem, SavedQueries, SavedQuery, SavedQueryEdit, Settings,
+    SettingsError,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -184,5 +185,117 @@ fn a_file_larger_than_the_cap_is_refused() -> TestResult {
         matches!(Settings::load(&file), Err(SettingsError::TooLarge { .. })),
         "too large"
     );
+    Ok(())
+}
+
+#[test]
+fn names_with_control_characters_are_refused() {
+    let mut queries = SavedQueries::default();
+
+    assert_eq!(
+        queries.save("Two\nlines", "from A"),
+        Err(NameProblem::Control),
+        "line break"
+    );
+    assert_eq!(
+        queries.save("A", "from A\u{7}"),
+        Err(NameProblem::BadText),
+        "bell in the text"
+    );
+    assert_eq!(
+        queries.save("A", "from A\n\twhere x = 1"),
+        Ok(0),
+        "tab and line break"
+    );
+}
+
+#[test]
+fn the_total_size_is_budgeted() {
+    let mut queries = SavedQueries::default();
+    let text = "x".repeat(SavedQueries::MAX_TEXT_LEN);
+    let fit = SavedQueries::MAX_TOTAL_LEN / (SavedQueries::MAX_TEXT_LEN + 4);
+    for n in 0..fit {
+        assert!(queries.save(&format!("Q{n:03}"), &text).is_ok(), "{n} fits");
+    }
+
+    assert_eq!(
+        queries.check_save("one more", &text),
+        Some(NameProblem::Full),
+        "over the budget"
+    );
+    assert_eq!(
+        queries.check_save("Q001", "from A"),
+        None,
+        "replacing shrinks it"
+    );
+    assert!(
+        queries.total_len() <= SavedQueries::MAX_TOTAL_LEN,
+        "within budget"
+    );
+}
+
+#[test]
+fn edits_by_name_replay_onto_another_copy() {
+    let mut mine = SavedQueries::default();
+    let _a = mine.save("A", "from A");
+    let mut theirs = mine.clone();
+    let _b = theirs.save("B", "from B");
+
+    for edit in [
+        SavedQueryEdit::Save {
+            name: "C".to_owned(),
+            text: "from C".to_owned(),
+        },
+        SavedQueryEdit::Rename {
+            from: "A".to_owned(),
+            to: "A2".to_owned(),
+        },
+        SavedQueryEdit::Delete {
+            name: "gone".to_owned(),
+        },
+    ] {
+        theirs.apply(&edit);
+    }
+
+    assert_eq!(names(&theirs), ["A2", "B", "C"], "merged by name");
+}
+
+#[test]
+fn settings_too_large_to_read_again_are_not_written() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    let mut settings = Settings::default();
+    let huge = "d".repeat(1024 * 1024);
+    for n in 0..17 {
+        settings
+            .channels
+            .add_folder(PathBuf::from(format!("{huge}{n}")));
+    }
+
+    assert!(
+        matches!(settings.save(&file), Err(SettingsError::TooLarge { .. })),
+        "refused"
+    );
+    assert!(!file.exists(), "nothing written");
+    Ok(())
+}
+
+#[test]
+fn saving_replaces_the_file_and_leaves_no_temporary_file() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    std::fs::write(&file, "language = \"de-DE\"\n")?;
+    let settings = Settings {
+        language: Some("en-GB".to_owned()),
+        ..Settings::default()
+    };
+
+    settings.save(&file)?;
+
+    assert_eq!(Settings::load(&file)?, settings, "replaced");
+    let left: Vec<_> = std::fs::read_dir(folder.path())?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<_, _>>()?;
+    assert_eq!(left, ["settings.toml"], "only the settings file");
     Ok(())
 }

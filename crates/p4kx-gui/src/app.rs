@@ -104,7 +104,10 @@ impl App {
         }
     }
 
-    fn save_settings(&self) {
+    /// Stores the settings into the file freshly read, so that what another window stored
+    /// meanwhile stays; the saved Queries get this window's edits replayed by name. A file that
+    /// cannot be read is never written over.
+    fn save_settings(&mut self) {
         let Some(file) = &self.settings_file else {
             return;
         };
@@ -117,7 +120,14 @@ impl App {
             self.language_chosen,
             self.window,
         );
-        let _ignored = settings.save(file);
+        let edits = self.model.query().saved_edits();
+        for edit in edits {
+            settings.queries.apply(edit);
+        }
+        let edited = !edits.is_empty();
+        if settings.save(file).is_ok() && edited {
+            self.model.query_mut().edits_stored(settings.queries);
+        }
     }
 }
 
@@ -192,7 +202,6 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_textures = model.extraction_textures();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
-    settings.queries = model.query().saved().clone();
 }
 
 #[cfg(test)]
@@ -204,7 +213,7 @@ mod tests {
         ExtractionTextures, ManualChannels, RecentArchives, SavedQueries, Settings,
     };
 
-    use super::remember;
+    use super::{App, remember};
     use crate::{ChannelList, Language, Model};
 
     #[test]
@@ -313,17 +322,89 @@ mod tests {
         assert_eq!(settings.recent, recent, "the recent Archives are stored");
     }
 
+    fn app_over(file: &std::path::Path) -> App {
+        App::new(Model::new(Language::German), Some(file.to_path_buf()), None)
+    }
+
+    fn save(app: &mut App, name: &str, text: &str) {
+        let query = app.model.query_mut();
+        query.set_text(text);
+        query.begin_save();
+        if let Some(dialog) = query.saved_dialog_mut()
+            && let Some(typed) = dialog.name_mut()
+        {
+            name.clone_into(typed);
+        }
+        query.submit_saved_dialog();
+        app.save_settings();
+    }
+
+    fn names(queries: &SavedQueries) -> Vec<&str> {
+        queries
+            .iter()
+            .map(p4kx_settings::SavedQuery::name)
+            .collect()
+    }
+
     #[test]
-    fn the_saved_queries_are_stored() -> Result<(), p4kx_settings::NameProblem> {
-        let mut model = Model::new(Language::German);
-        let mut saved = SavedQueries::default();
-        saved.save("Ships", "from Ship select mass")?;
-        model.query_mut().set_saved(saved.clone());
+    fn two_windows_over_one_file_keep_each_others_saved_queries()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let file = folder.path().join("settings.toml");
+        let mut first = app_over(&file);
+        let mut second = app_over(&file);
+
+        save(&mut first, "A", "from A");
+        save(&mut second, "B", "from B");
+        assert_eq!(names(second.model.query().saved()), ["A", "B"], "merged");
+        second.model.query_mut().begin_delete(1);
+        second.model.query_mut().submit_saved_dialog();
+        second.save_settings();
+        first.save_settings();
+
+        let stored = Settings::load(&file)?;
+        assert_eq!(names(&stored.queries), ["A"], "B saved and deleted, A kept");
+        assert_eq!(
+            names(first.model.query().saved()),
+            ["A"],
+            "the window without new edits keeps its list"
+        );
+        assert!(first.model.query().saved_edits().is_empty(), "stored");
+        Ok(())
+    }
+
+    #[test]
+    fn a_window_without_edits_never_writes_the_saved_queries()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let folder = tempfile::tempdir()?;
+        let file = folder.path().join("settings.toml");
         let mut settings = Settings::default();
+        settings.queries.save("Theirs", "from A")?;
+        let mut idle = app_over(&file);
+        settings.save(&file)?;
 
-        remember(&mut settings, &model, false, None);
+        idle.save_settings();
 
-        assert_eq!(settings.queries, saved, "stored");
+        assert_eq!(names(&Settings::load(&file)?.queries), ["Theirs"], "kept");
+        Ok(())
+    }
+
+    #[test]
+    fn a_file_that_cannot_be_read_is_never_written_over() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let folder = tempfile::tempdir()?;
+        let file = folder.path().join("settings.toml");
+        std::fs::write(&file, "queries = [ broken")?;
+        let mut app = app_over(&file);
+
+        save(&mut app, "A", "from A");
+
+        assert_eq!(
+            std::fs::read_to_string(&file)?,
+            "queries = [ broken",
+            "untouched"
+        );
+        assert_eq!(app.model.query().saved_edits().len(), 1, "kept for later");
         Ok(())
     }
 }

@@ -1,10 +1,4 @@
-use std::sync::Arc;
-use std::thread;
-
 use p4kx_extraction::query::{Completion, QuerySchema};
-
-use super::forge_slot::ForgeSlot;
-use crate::EntryIndex;
 
 /// The completion of the Query editor: the names offered at the cursor and the one chosen with
 /// the arrow keys, worked out again only when the text or the cursor changes.
@@ -44,7 +38,8 @@ impl CompletionState {
             .map(|shown| (&shown.completion, shown.active))
     }
 
-    /// Returns a number that changes whenever the shown completion or its active candidate does.
+    /// Returns a number that changes whenever the shown names do, not when only the active one
+    /// moves.
     pub(crate) const fn generation(&self) -> u64 {
         self.generation
     }
@@ -103,7 +98,6 @@ impl CompletionState {
         let len = isize::try_from(len).unwrap_or(isize::MAX);
         let active = isize::try_from(shown.active).unwrap_or(0);
         shown.active = usize::try_from((active + steps).rem_euclid(len)).unwrap_or(0);
-        self.generation = self.generation.wrapping_add(1);
     }
 
     /// Chooses the candidate at `index` as the active one.
@@ -113,7 +107,6 @@ impl CompletionState {
             && shown.active != index
         {
             shown.active = index;
-            self.generation = self.generation.wrapping_add(1);
         }
     }
 
@@ -130,6 +123,21 @@ impl CompletionState {
         text.get(replace.clone())?;
         text.replace_range(replace.clone(), candidate.insert());
         Some(replace.start + candidate.insert().len())
+    }
+
+    /// Returns whether the active name is written as it is around the cursor of `text`, so that
+    /// accepting it would change nothing.
+    pub(crate) fn active_is_written(&self, text: &str) -> bool {
+        self.shown.as_ref().is_some_and(|shown| {
+            shown.text == text
+                && shown
+                    .completion
+                    .candidates()
+                    .get(shown.active)
+                    .is_some_and(|candidate| {
+                        text.get(shown.completion.replace()) == Some(candidate.insert())
+                    })
+        })
     }
 
     /// Closes the list until the text or the cursor changes or it is asked for again.
@@ -162,26 +170,4 @@ impl CompletionState {
         self.shown = shown;
         self.generation = self.generation.wrapping_add(1);
     }
-}
-
-/// Reads the completion schema of `index` into `slot` on a background thread unless it was
-/// asked for before, calling `wake` once it is read.
-pub(crate) fn prepare(
-    slot: &Arc<ForgeSlot>,
-    index: &Arc<EntryIndex>,
-    wake: impl Fn() + Send + 'static,
-) {
-    if !slot.ask_schema() {
-        return;
-    }
-    let slot = Arc::clone(slot);
-    let index = Arc::clone(index);
-    let spawned = thread::Builder::new()
-        .name("query-schema".to_owned())
-        .spawn(move || {
-            if slot.read_schema(&index).is_ok() {
-                wake();
-            }
-        });
-    drop(spawned);
 }

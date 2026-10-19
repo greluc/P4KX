@@ -1,7 +1,7 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
-use egui::{Align, Frame, Label, Layout, Margin, Panel, Stroke, Ui, vec2};
+use egui::{Align, Frame, Id, Label, Layout, Margin, Panel, Stroke, Ui, vec2};
 
 use super::{Dialog, Requests, empty, query_editor, query_table};
 use crate::query::Trigger;
@@ -97,14 +97,19 @@ fn editor(ui: &mut Ui, model: &mut Model, notes: &Notes) {
     }
 }
 
-/// Reads the completion schema once the editor has focus, keeps the list in step with the
-/// text and the cursor, and shows it.
+/// Reads the completion schema when the editor gets the focus or Ctrl+Space asks, keeps the list
+/// in step with the text and the cursor, and shows it.
 fn complete(ui: &Ui, model: &mut Model, edited: &query_editor::Edited) {
+    let focus_id = Id::unique("p4kx-query-editor-had-focus");
+    let had_focus = ui.data(|data| data.get_temp::<bool>(focus_id).unwrap_or(false));
+    ui.data_mut(|data| data.insert_temp(focus_id, edited.cursor.is_some()));
     let Some(cursor) = edited.cursor else {
         return;
     };
-    let ctx = ui.ctx().clone();
-    model.prepare_query_completion(move || ctx.request_repaint());
+    if !had_focus || edited.asked {
+        let ctx = ui.ctx().clone();
+        model.prepare_query_completion(move || ctx.request_repaint());
+    }
     let trigger = if edited.asked {
         Trigger::Asked
     } else if edited.changed {

@@ -84,8 +84,8 @@ sind keine neuen Farben.
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
 | Abfrage-Vervollständigung | `.krt-combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
-| Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
-| Abfrage speichern / umbenennen / löschen | `.krt-modal` / `.krt-modal--danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
+| Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700, max. 240 breit mit Auslassung; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
+| Abfrage speichern / umbenennen / löschen | `.krt-modal` / `.krt-modal--danger` + `.btn-danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
 
 ## Entscheidungen
 
@@ -262,23 +262,31 @@ wie der Tab „Text". Schlägt die Umwandlung fehl, steht der Grund in `color-da
 
 **D.21 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
 öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
-Struct-Namen nach `from` und in `[…]` (der Typ der Elemente und alles, was davon erbt), Feldnamen
-am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in `color-gray-2-text`. Die
-Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der Editor mehrzeilig ist und
-ein Name mitten im Text ergänzt wird; Farben, Einträge und Rahmen sind die der Combobox. Der
-getippte Anfang ist fett wie `<mark>`, der per Tastatur gewählte Eintrag orange gefüllt, Hover
-wie im Dropdown. Der Fokus bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen,
-Esc schließt, Strg+Leertaste öffnet wieder. Höchstens 50 Namen stehen in der Liste, darunter
-„n weitere Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-
-Thread, sobald der Editor den Fokus bekommt, einmal je Archiv; bis dahin bleibt die Liste zu.
-„Abfrage speichern …" ist Ghost neben der CTA „Abfrage ausführen" (D.7, D.15). Die gespeicherten
-Abfragen stehen darunter als aufgeklappter `.panel-header` mit 36-px-Zeilen: Name fett, dahinter
-die Abfrage einzeilig in `color-gray-2-text`. Ein Klick auf die Zeile lädt und startet sie;
+Struct-Namen nach `from` und in `[…]` (der Typ der Elemente, seine Basen und alles, was davon
+erbt), Feldnamen am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in
+`color-gray-2-text`. Die Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der
+Editor mehrzeilig ist und ein Name mitten im Text ergänzt wird; reicht der Platz darunter nicht,
+klappt sie über die Zeile. Weil sie nicht am Feld hängt, trägt sie den 1-px-Rand in
+`color-primary` auf allen vier Seiten, nicht `border-top: none` der Combobox unter einem Feld;
+sonst sind Farben, Einträge und Schatten die der Combobox. Der getippte Anfang ist fett wie
+`<mark>`, der per Tastatur gewählte Eintrag orange gefüllt, Hover wie im Dropdown. Der Fokus
+bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen das ganze Wort um die
+Schreibmarke, Esc schließt, Strg+Leertaste öffnet wieder; steht der gewählte Name schon so da,
+bricht Enter die Zeile wie ohne Liste. Höchstens 50 Namen stehen in der Liste, darunter „n weitere
+Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
+der Editor den Fokus bekommt, einmal je Archiv; bis dahin, und wo kein Name passt, bleibt die
+Liste zu, statt einen leeren Zustand zu zeigen. „Abfrage speichern …" ist Ghost neben der CTA
+„Abfrage ausführen" (D.7, D.15). Die gespeicherten Abfragen stehen darunter als aufgeklappter
+`.panel-header` mit 36-px-Zeilen: Name fett, nach 240 px mit Auslassung, dahinter die Abfrage
+einzeilig in `color-gray-2-text`. Ohne gespeicherte Abfrage steht unter dem Kopf ein Satz in
+`color-gray-2-text`, der sagt, wie man eine speichert, kein `.empty-state`: der Abschnitt ist
+klein und der Editor darüber die Aktion. Ein Klick auf die Zeile lädt und startet sie;
 „Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
-die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem `.krt-modal`
-ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in `color-gray-2-text`) und
-sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt in einem
-`.krt-modal--danger` nach (D.3).
+die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem
+`.krt-modal` ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in
+`color-gray-2-text`) und sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt
+in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
+und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
 
 ## Bewusste Abweichungen von den Web-Specimens
 

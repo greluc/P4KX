@@ -198,7 +198,13 @@ fn popup_keys(
 ) -> Option<usize> {
     let down = consume_plain(input, Key::ArrowDown);
     let up = consume_plain(input, Key::ArrowUp);
-    let accept = consume_plain(input, Key::Enter) + consume_plain(input, Key::Tab) > 0;
+    let enter = if completion.active_is_written(text) {
+        completion.close();
+        0
+    } else {
+        consume_plain(input, Key::Enter)
+    };
+    let accept = enter + consume_plain(input, Key::Tab) > 0;
     let dismiss = consume_plain(input, Key::Escape) > 0;
     let steps = isize::try_from(down).unwrap_or(0) - isize::try_from(up).unwrap_or(0);
     if steps != 0 {

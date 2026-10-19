@@ -260,3 +260,65 @@ fn a_long_list_is_cut_and_counts_the_rest() -> TestResult {
     assert_eq!(completion.more(), 7, "the rest");
     Ok(())
 }
+
+#[test]
+fn brackets_also_offer_the_bases_and_a_path_needs_a_related_type() -> TestResult {
+    let bytes = DataForgeBuilder::new()
+        .structure(TestStruct::new("Base").field("id", TestType::Int32))
+        .structure(
+            TestStruct::new("Mid")
+                .parent("Base")
+                .field("mid", TestType::Int32),
+        )
+        .structure(
+            TestStruct::new("Leaf")
+                .parent("Mid")
+                .field("leaf", TestType::Int32),
+        )
+        .structure(TestStruct::new("Other").field("other", TestType::Int32))
+        .structure(
+            TestStruct::new("Holder").array("parts", TestType::StrongPointer("Mid".to_owned())),
+        )
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let schema = QuerySchema::of(&forge);
+
+    assert_eq!(
+        names(&schema, "from Holder select parts["),
+        ["Base", "Leaf", "Mid"],
+        "bases, the element and its subtypes"
+    );
+    assert_eq!(
+        names(&schema, "from Holder select parts[Leaf]."),
+        ["id", "leaf", "mid"],
+        "a subtype"
+    );
+    assert!(
+        schema
+            .complete("from Holder select parts[Other].", 32)
+            .is_none(),
+        "an unrelated type"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_whole_word_around_the_cursor_is_replaced() -> TestResult {
+    let schema = schema()?;
+    let text = "from Ship select mxyz, tags";
+
+    let completion = schema.complete(text, 18).ok_or("no completion")?;
+
+    assert_eq!(completion.replace(), 17..21, "the word around the cursor");
+    assert_eq!(
+        names(&schema, "from Ship select m"),
+        ["mass"],
+        "filtered by the part before"
+    );
+    assert_eq!(
+        completion.candidates().first().map(|c| c.name()),
+        Some("mass"),
+        "candidate"
+    );
+    Ok(())
+}

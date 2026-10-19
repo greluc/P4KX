@@ -35,19 +35,54 @@ pub enum NameProblem {
     /// Another saved Query has the name.
     #[error("another saved Query has the name")]
     Taken,
-    /// [`SavedQueries::LIMIT`] Queries are saved already.
-    #[error("{} Queries are saved already", SavedQueries::LIMIT)]
+    /// The name holds a control character.
+    #[error("the name holds a control character")]
+    Control,
+    /// [`SavedQueries::LIMIT`] Queries or [`SavedQueries::MAX_TOTAL_LEN`] bytes of names and
+    /// texts are saved already.
+    #[error(
+        "at most {} Queries and {} bytes can be saved",
+        SavedQueries::LIMIT,
+        SavedQueries::MAX_TOTAL_LEN
+    )]
     Full,
-    /// The Query text is empty or longer than [`SavedQueries::MAX_TEXT_LEN`] bytes.
-    #[error("the Query text is empty or too long")]
+    /// The Query text is empty, longer than [`SavedQueries::MAX_TEXT_LEN`] bytes or holds a
+    /// control character other than tab and line breaks.
+    #[error("the Query text is empty, too long or holds a control character")]
     BadText,
+}
+
+/// One change to the saved Queries by name, replayed onto the list as another window may have
+/// stored it meanwhile.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SavedQueryEdit {
+    /// Saves `text` as `name`, replacing a Query of that name.
+    Save {
+        /// The name.
+        name: String,
+        /// The Query text.
+        text: String,
+    },
+    /// Renames the Query `from` to `to`.
+    Rename {
+        /// The old name.
+        from: String,
+        /// The new name.
+        to: String,
+    },
+    /// Deletes the Query `name`.
+    Delete {
+        /// The name.
+        name: String,
+    },
 }
 
 /// The saved Queries in the order they were saved.
 ///
-/// Names are unique and trimmed. Read from a file, an entry that is no saved Query, has no
-/// valid name or text, or repeats a name is dropped, and so is every entry beyond
-/// [`Self::LIMIT`]; a value that is no list reads as no saved Query.
+/// Names are unique, trimmed and free of control characters. Read from a file, an entry that is
+/// no saved Query, has no valid name or text, or repeats a name is dropped, and so is every entry
+/// beyond [`Self::LIMIT`] or [`Self::MAX_TOTAL_LEN`]; a value that is no list reads as no saved
+/// Query.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
 pub struct SavedQueries(Vec<SavedQuery>);
@@ -59,6 +94,9 @@ impl SavedQueries {
     pub const MAX_NAME_LEN: usize = 120;
     /// The longest Query text in bytes, the longest Query.
     pub const MAX_TEXT_LEN: usize = 65_536;
+    /// The most bytes of names and texts saved together, a quarter of the settings file cap so
+    /// that escaping never lets the file outgrow it.
+    pub const MAX_TOTAL_LEN: usize = 4 * 1024 * 1024;
 
     /// Returns the saved Queries.
     pub fn iter(&self) -> std::slice::Iter<'_, SavedQuery> {
@@ -100,7 +138,37 @@ impl SavedQueries {
         if let Some(problem) = name_problem(name) {
             return Some(problem);
         }
-        (self.position(name).is_none() && self.0.len() >= Self::LIMIT).then_some(NameProblem::Full)
+        let replaced = self.position(name).and_then(|index| self.0.get(index));
+        let total = self
+            .total_len()
+            .saturating_sub(replaced.map_or(0, |saved| saved.name.len() + saved.text.len()))
+            .saturating_add(name.trim().len() + text.len());
+        let full =
+            (replaced.is_none() && self.0.len() >= Self::LIMIT) || total > Self::MAX_TOTAL_LEN;
+        full.then_some(NameProblem::Full)
+    }
+
+    /// Returns the bytes of all names and texts together.
+    #[must_use]
+    pub fn total_len(&self) -> usize {
+        self.0
+            .iter()
+            .map(|saved| saved.name.len() + saved.text.len())
+            .sum()
+    }
+
+    /// Carries out `edit` by name; returns whether the list changed. An edit that no longer
+    /// fits, e.g. a rename to a name taken meanwhile, is left out.
+    pub fn apply(&mut self, edit: &SavedQueryEdit) -> bool {
+        match edit {
+            SavedQueryEdit::Save { name, text } => self.save(name, text).is_ok(),
+            SavedQueryEdit::Rename { from, to } => self
+                .position(from)
+                .is_some_and(|index| self.rename(index, to).is_ok()),
+            SavedQueryEdit::Delete { name } => {
+                self.position(name).is_some_and(|index| self.remove(index))
+            }
+        }
     }
 
     /// Saves `text` as `name`, replacing the text of a Query of that name; returns its position.
@@ -168,13 +236,19 @@ fn name_problem(name: &str) -> Option<NameProblem> {
         Some(NameProblem::Empty)
     } else if name.chars().count() > SavedQueries::MAX_NAME_LEN {
         Some(NameProblem::TooLong)
+    } else if name.chars().any(char::is_control) {
+        Some(NameProblem::Control)
     } else {
         None
     }
 }
 
 fn valid_text(text: &str) -> bool {
-    !text.trim().is_empty() && text.len() <= SavedQueries::MAX_TEXT_LEN
+    !text.trim().is_empty()
+        && text.len() <= SavedQueries::MAX_TEXT_LEN
+        && !text
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r'))
 }
 
 #[derive(Deserialize)]
@@ -205,6 +279,7 @@ impl<'de> Deserialize<'de> for SavedQueries {
                 && name_problem(&name).is_none()
                 && valid_text(&text)
                 && queries.position(&name).is_none()
+                && queries.total_len() + name.trim().len() + text.len() <= Self::MAX_TOTAL_LEN
             {
                 queries.0.push(SavedQuery {
                     name: name.trim().to_owned(),

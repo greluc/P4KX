@@ -259,7 +259,8 @@ query-name-replaces = Replaces the saved Query of this name.
 query-name-empty = Enter a name.
 query-name-too-long = The name is longer than { $max } characters.
 query-name-taken = Another saved Query has this name.
-query-name-full = { $max } Queries are saved already. Delete one first.
+query-name-control = The name must not hold line breaks or other control characters.
+query-name-full = The saved Queries are full: at most { $max } Queries and { $size } in all. Delete one first.
 query-name-bad-text = The Query in the editor is empty or too long to save.
 
 dataforge-node = DataForge

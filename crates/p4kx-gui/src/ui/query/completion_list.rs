@@ -16,11 +16,11 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, SPACE_3, Weight, font};
 use crate::widgets::rows::paint_divider;
 use crate::widgets::text::{line, plain};
-use crate::{QueryText, Texts, format};
+use crate::{Language, QueryText, Texts, format};
 
 /// The laid-out candidates of one shown completion, made again only when it changes.
 struct Laid {
-    key: (u64, u32),
+    key: (u64, u32, Language),
     names: Vec<(Arc<Galley>, Option<Arc<Galley>>)>,
     notice: Option<Arc<Galley>>,
     width: f32,
@@ -36,6 +36,7 @@ pub(super) fn show(
     texts: &Texts,
 ) -> Option<usize> {
     let (laid, fresh) = laid(ui, completion, generation, texts);
+    let moved = moved_to(ui, active);
     let mut clicked = None;
     Popup::from_response(editor)
         .id(super::super::query_editor::popup_id())
@@ -55,7 +56,7 @@ pub(super) fn show(
                     for (index, (name, detail)) in laid.names.iter().enumerate() {
                         let shown = (name, detail.as_ref(), completion.candidates().get(index));
                         let response = option(ui, shown, index == active, index < last);
-                        if fresh && index == active {
+                        if (fresh || moved) && index == active {
                             response.scroll_to_me(None);
                         }
                         if response.clicked() {
@@ -106,6 +107,14 @@ fn option(
     response
 }
 
+/// Returns whether the active candidate is another than in the frame before.
+fn moved_to(ui: &Ui, active: usize) -> bool {
+    let id = Id::unique("p4kx-query-completion-active");
+    let before = ui.data_mut(|data| data.get_temp::<usize>(id));
+    ui.data_mut(|data| data.insert_temp(id, active));
+    before != Some(active)
+}
+
 fn notice_row(ui: &mut Ui, notice: &Arc<Galley>) {
     let height = COMBOBOX_NOTICE_PADDING.mul_add(2.0, notice.size().y);
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
@@ -119,7 +128,11 @@ fn notice_row(ui: &mut Ui, notice: &Arc<Galley>) {
 
 /// Returns the laid-out candidates and whether they were laid out again this frame.
 fn laid(ui: &Ui, completion: &Completion, generation: u64, texts: &Texts) -> (Arc<Laid>, bool) {
-    let key = (generation, ui.ctx().pixels_per_point().to_bits());
+    let key = (
+        generation,
+        ui.ctx().pixels_per_point().to_bits(),
+        texts.language(),
+    );
     let id = Id::unique("p4kx-query-completion-laid");
     if let Some(laid) = ui.data(|data| data.get_temp::<Arc<Laid>>(id))
         && laid.key == key

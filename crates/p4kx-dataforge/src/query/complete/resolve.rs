@@ -57,8 +57,16 @@ impl QuerySchema {
 
     /// Returns the first fields of a path: those of the `from` type, or of every struct.
     fn heads(&self, from: Option<&str>) -> Vec<Named> {
-        let starts = self.starts(from);
-        self.fields_of(&starts)
+        match from {
+            Some(from) => self
+                .position_of(from)
+                .map_or_else(Vec::new, |index| self.fields_of(&[index])),
+            None => self
+                .all_fields
+                .iter()
+                .map(|field| (field.name, Some(*field)))
+                .collect(),
+        }
     }
 
     /// Returns the fields of the structs at `indices`, each name once, in name order.
@@ -111,10 +119,11 @@ impl QuerySchema {
         })
     }
 
-    /// Returns the struct names of the structs that are one of `bases` or derive from one.
+    /// Returns the struct names of the structs that are one of `bases`, derive from one or are
+    /// one of their bases: every type a component selector accepts.
     fn types_under(&self, bases: &[usize]) -> Vec<Named> {
         let mut ids: Vec<u32> = (0..self.len())
-            .filter(|&index| bases.iter().any(|&base| self.derives(index, base)))
+            .filter(|&index| bases.iter().any(|&base| self.related(index, base)))
             .filter_map(|index| self.entry(index).and_then(|entry| entry.name))
             .collect();
         ids.sort_unstable_by(|a, b| by_name(self.name(*a), self.name(*b)));
@@ -125,7 +134,11 @@ impl QuerySchema {
     /// Returns where `path` ends in the `from` type, or in each struct declaring its first
     /// field.
     fn ends(&self, from: Option<&str>, path: &Walk<'_>) -> Vec<At> {
-        self.starts(from)
+        let starts = match from {
+            Some(from) => self.position_of(from).into_iter().collect(),
+            None => self.declaring(path.head).to_vec(),
+        };
+        starts
             .into_iter()
             .filter_map(|start| {
                 let field = self.field(start, path.head)?;
@@ -134,14 +147,6 @@ impl QuerySchema {
                     .try_fold(enter(field), |at, step| self.step(at, *step))
             })
             .collect()
-    }
-
-    /// Returns the structs a path starts in: the `from` type, or every struct without `from`.
-    fn starts(&self, from: Option<&str>) -> Vec<usize> {
-        from.map_or_else(
-            || (0..self.len()).collect(),
-            |from| self.position_of(from).into_iter().collect(),
-        )
     }
 
     fn step(&self, at: At, step: Step<'_>) -> Option<At> {
@@ -153,10 +158,13 @@ impl QuerySchema {
             (
                 At::Array {
                     data_type: DataType::Class | DataType::StrongPointer,
-                    ..
+                    target,
                 },
                 Step::Type(name),
-            ) => self.position_of(name).map(At::Struct),
+            ) => self
+                .position_of(name)
+                .filter(|&index| self.related(index, usize::from(target)))
+                .map(At::Struct),
             _ => None,
         }
     }

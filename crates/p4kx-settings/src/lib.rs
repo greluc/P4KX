@@ -4,7 +4,7 @@ mod queries;
 mod recent;
 mod settings;
 
-pub use queries::{NameProblem, SavedQueries, SavedQuery};
+pub use queries::{NameProblem, SavedQueries, SavedQuery, SavedQueryEdit};
 pub use recent::RecentArchives;
 pub use settings::{
     ExtractionTextures, MAX_SETTINGS_SIZE, ManualChannels, Settings, SettingsError, WindowGeometry,

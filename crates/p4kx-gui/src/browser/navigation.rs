@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use p4kx_extraction::Guid;
 
-use crate::{Browser, RecordId, RecordLink, RecordNodeKind, RecordPreview};
+use crate::{Browser, RecordId, RecordLink, RecordNodeKind, RecordPreview, TextLanguage};
 
 impl Browser {
     /// Returns how often DataForge of the open Archive was read from the Archive; the Record
@@ -33,16 +33,32 @@ impl Browser {
             .filter(|preview| preview.record() == selected)
     }
 
+    /// Returns the language Record previews resolve localisation keys in, or `None` for the keys
+    /// alone.
+    #[must_use]
+    pub const fn record_language(&self) -> Option<TextLanguage> {
+        self.record_language
+    }
+
+    /// Makes Record previews resolve localisation keys in `language`, or show the keys alone for
+    /// `None`; the preview of the selected Record follows with the next
+    /// [`Browser::load_record_preview`].
+    pub const fn set_record_language(&mut self, language: Option<TextLanguage>) {
+        self.record_language = language;
+    }
+
     /// Reads the selected Record for the preview on a background thread unless it is previewed
-    /// already; `wake` is called from that thread once it is read.
+    /// already in the language of [`Browser::record_language`]; `wake` is called from that thread
+    /// once it is read. The Record stays on screen while a language change reads it again.
     pub fn load_record_preview(&mut self, wake: impl Fn() + Send + Sync + 'static) {
         let Some(id) = self.selected_record() else {
             return;
         };
-        if self.navigation.previews(id) {
+        if self.navigation.previews(id, self.record_language) {
             return;
         }
-        self.navigation.show(id, &self.index, Arc::new(wake));
+        self.navigation
+            .show(id, self.record_language, &self.index, Arc::new(wake));
     }
 
     /// Returns the GUID of the missing Record that the last followed Reference points at, until

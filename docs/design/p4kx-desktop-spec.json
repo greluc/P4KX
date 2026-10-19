@@ -921,7 +921,16 @@
     "focusRingOffset": 2,
     "decision": "D.27",
     "linesFocusRingOffset": -2,
-    "keyboard": "Tab focuses the field lines; arrows, Page Up, Page Down, Home and End scroll"
+    "keyboard": "Tab focuses the field lines; arrows, Page Up, Page Down, Home and End scroll",
+    "keyText": {
+      "decision": "D.29",
+      "menu": "Record texts menu link after Export, metrics menuLink; entries dropdownItem with radio, Keys only first, then the languages the Archive holds; disabled without a global.ini",
+      "key": "color-gray-2-text while a text or the mark follows, else color-gray-1",
+      "text": "after the key 8, 13.76 / fw-regular color-gray-1, cut with an ellipsis; control, bidirectional and line feed characters as escapes",
+      "missing": "chip--warning, label Missing, after the key 8",
+      "placeholder": "placeholder and empty keys stay alone",
+      "failureNotice": "alertWarning above the facts"
+    }
   },
   "shadows": {
     "glow-primary": {"x": 0, "y": 0, "blur": 5, "spread": 0, "color": "rgba(231,126,35,0.3)"},

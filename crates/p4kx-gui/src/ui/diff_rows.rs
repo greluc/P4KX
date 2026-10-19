@@ -8,7 +8,7 @@ use egui::{
 use fluent_bundle::FluentValue;
 use p4kx_comparison::LineKind;
 
-use super::diff_line::display;
+use crate::shown_line::display;
 use crate::theme::desktop::{
     ACTIVE_BAR, DIFF_ADDED_FILL, DIFF_FONT, DIFF_GUTTER_PADDING_X, DIFF_MARKER_GAP,
     DIFF_REMOVED_FILL, DIFF_ROW_HEIGHT,

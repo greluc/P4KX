@@ -14,6 +14,7 @@ mod localization_text;
 mod query_text;
 mod record_change_text;
 mod record_export_text;
+mod record_language_text;
 mod record_text;
 mod scroll_text;
 mod text_ids;
@@ -29,9 +30,11 @@ pub use extraction_text::ExtractionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
 pub use localization_text::LocalizationText;
+pub(crate) use localization_text::language_name;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
+pub use record_language_text::RecordLanguageText;
 pub use record_text::RecordText;
 pub use scroll_text::ScrollText;
 pub use xml_text::XmlText;
@@ -196,6 +199,8 @@ pub enum Text {
     Catalog(CatalogText),
     /// A text of the Record preview.
     Record(RecordText),
+    /// A text of the language selection for Record previews.
+    RecordLanguage(RecordLanguageText),
     /// A text of the localisation tab.
     Localization(LocalizationText),
 }

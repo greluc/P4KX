@@ -3,13 +3,14 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use egui::{Galley, Id, Ui};
 
-use super::diff_line::display;
+use crate::shown_line::display;
+use crate::texts::language_name;
 use crate::theme::desktop::{ROW_FONT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING};
 use crate::theme::tokens::{Weight, font};
 use crate::widgets::chip;
 use crate::widgets::rows::row_weight;
 use crate::widgets::text::{caps, line};
-use crate::{LocalizationTab, LocalizationTable, LocalizationText, Text, TextLanguage, Texts};
+use crate::{LocalizationTab, LocalizationTable, LocalizationText, Texts};
 
 const MAX_CACHED: usize = 8192;
 
@@ -162,19 +163,6 @@ fn heads(ui: &Ui, texts: &Texts, table: &LocalizationTable) -> Vec<Named> {
             (Arc::from(name.as_str()), line(ui, text, f32::INFINITY))
         })
         .collect()
-}
-
-/// Returns the name of `language` in the interface language.
-pub(super) fn language_name(texts: &Texts, language: TextLanguage) -> String {
-    let known = LocalizationText::LanguageName(language);
-    if known.id() == LocalizationText::OtherLanguage.id() {
-        return format!(
-            "{} ({})",
-            texts.get(LocalizationText::OtherLanguage),
-            language.code()
-        );
-    }
-    texts.get(Text::Localization(known))
 }
 
 /// Returns the text of the cell of table row `id` in `column`: the key for column 0, else the

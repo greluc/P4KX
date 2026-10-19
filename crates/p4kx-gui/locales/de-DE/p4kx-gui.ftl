@@ -450,6 +450,12 @@ record-row = { $field }: { $value }
 record-no-fields = Der Record hat keine Felder.
 record-xml-failed = Das Record-XML von { $path } kann nicht geschrieben werden: { $reason }
 
+record-language-menu = Record-Texte
+record-language-keys-only = Nur Schlüssel
+record-language-unavailable = Das Archiv enthält keine Texte auf { $language }, deshalb stehen nur die Schlüssel da.
+record-language-key-row = { $key }: { $text }
+record-language-key-row-missing = { $key } (kein Text in dieser Sprache)
+record-language-load-failed = Die Texte auf { $language } können nicht gelesen werden, deshalb stehen nur die Schlüssel da: { $reason }
 localization-tab = Lokalisierung
 localization-label = Suche
 localization-hint = Schlüssel oder Text, z. B. item_Name oder Aurora

@@ -6,14 +6,15 @@ use p4kx_extraction::Guid;
 
 use super::preview::path_line;
 use super::{record_lines, xml_view};
+use crate::texts::language_name;
 use crate::theme::desktop::SPINNER_INLINE;
 use crate::theme::palette;
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::summary::{Fact, FactsStrip};
 use crate::{
-    Browser, Language, Model, PreviewTab, RecordLink, RecordPreview, RecordPreviewStatus,
-    RecordText, RecordView, Texts, WorkTab,
+    Browser, Language, Model, PreviewTab, RecordLanguageText, RecordLink, RecordPreview,
+    RecordPreviewStatus, RecordText, RecordView, Texts, WorkTab,
 };
 
 /// Selects the Record before the current one on the way taken: Alt+Left.
@@ -93,6 +94,19 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, browser: &Browser) -> Option<Reco
             ui.colored_label(
                 palette::GRAY_1,
                 texts.format(RecordText::Dangling, &[("guid", guid.to_string().into())]),
+            );
+        });
+    }
+    if let Some((language, reason)) = ready.texts_failure() {
+        let language = language_name(texts, language);
+        let args = [
+            ("language", FluentValue::from(language)),
+            ("reason", FluentValue::from(reason.to_owned())),
+        ];
+        frames::warning_alert(ui, |ui| {
+            ui.colored_label(
+                palette::GRAY_1,
+                texts.format(RecordLanguageText::LoadFailed, &args),
             );
         });
     }

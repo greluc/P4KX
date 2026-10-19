@@ -5,9 +5,10 @@ use egui::{
     Color32, CornerRadius, CursorIcon, Galley, Id, Rect, Role, ScrollArea, Sense, Stroke, Ui,
     UiBuilder, Vec2, WidgetInfo, pos2, vec2,
 };
-use fluent_bundle::FluentValue;
 
+use super::record_key::Trailer;
 use super::record_preview::RecordStep;
+use super::record_value::{spoken_value, value_text};
 use super::table::head_fill;
 use crate::theme::desktop::{
     CELL_PADDING_X, FOCUS_OFFSET, HAIRLINE, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE,
@@ -20,7 +21,7 @@ use crate::widgets::rows::paint_divider;
 use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::{
-    FieldLine, LineValue, RecordChangeText, RecordText, RecordView, ScrollText, Text, Texts, format,
+    FieldLine, LineValue, RecordChangeText, RecordText, RecordView, ScrollText, Text, Texts,
 };
 
 const MAX_ROWS: usize = 512;
@@ -29,63 +30,13 @@ const HEADS: [Text; 2] = [
     Text::Record(RecordText::HeadValue),
 ];
 
-/// Returns the value of `line` as the Record preview shows it, with its colour: a Reference in
-/// the link colour, an error value in the danger tint with its reason.
-pub(super) fn value_text(texts: &Texts, value: &LineValue) -> (String, Color32) {
-    let error = |reason: &str| {
-        let reason = ("reason", FluentValue::from(reason.to_owned()));
-        (
-            texts.format(RecordChangeText::ValueError, &[reason]),
-            palette::DANGER_TEXT,
-        )
-    };
-    match value {
-        LineValue::Scalar(text) => (text.to_string(), palette::GRAY_1),
-        LineValue::Struct(type_name) => (
-            texts.format(
-                RecordChangeText::ValueStruct,
-                &[("type", type_name.to_string().into())],
-            ),
-            palette::GRAY_1,
-        ),
-        LineValue::Array(len) => {
-            let count = u64::try_from(*len).unwrap_or(u64::MAX);
-            let args = [
-                ("count", FluentValue::from(count)),
-                ("number", format::number(count, texts.language()).into()),
-            ];
-            (
-                texts.format(RecordChangeText::ValueArray, &args),
-                palette::GRAY_1,
-            )
-        }
-        LineValue::Null => (texts.get(RecordChangeText::ValueNull), palette::GRAY_2_TEXT),
-        LineValue::Reference(link) => {
-            let text = link.at().map_or_else(
-                || link.record_path().to_owned(),
-                |at| {
-                    texts.format(
-                        RecordChangeText::ValueReferenceAt,
-                        &[
-                            ("path", link.record_path().to_owned().into()),
-                            ("at", at.to_owned().into()),
-                        ],
-                    )
-                },
-            );
-            (text, palette::PRIMARY)
-        }
-        LineValue::Dangling { reason, .. } | LineValue::Error(reason) => error(reason),
-    }
-}
-
 /// The laid-out cells of one line.
 #[derive(Clone)]
 struct Laid {
     width: f32,
     name: Arc<Galley>,
     value: (Arc<Galley>, Color32),
-    type_name: Option<Arc<Galley>>,
+    trailer: Option<Trailer>,
 }
 
 /// The laid-out heads and the lines shown recently, kept until the Record, the language or the
@@ -161,22 +112,17 @@ impl LineCache {
         } else {
             line(ui, plain(text, ROW_FONT, Weight::Regular), width)
         };
-        let type_name = match field.value() {
-            LineValue::Reference(link) => {
-                let room = (width - value.size().x - SPACE_2).max(0.0);
-                Some(line(
-                    ui,
-                    plain(link.type_name(), ROW_FONT, Weight::Regular),
-                    room,
-                ))
-            }
+        let room = (width - value.size().x - SPACE_2).max(0.0);
+        let trailer = match field.value() {
+            LineValue::Reference(link) => Some(Trailer::type_name(ui, link.type_name(), room)),
+            LineValue::Key { text, .. } => Trailer::key(ui, texts, text, room),
             _ => None,
         };
         let laid = Laid {
             width,
             name,
             value: (value, colour),
-            type_name,
+            trailer,
         };
         self.rows.insert(index, laid.clone());
         laid
@@ -273,7 +219,7 @@ fn row(
             RecordText::Row,
             &[
                 ("field", field.name().to_owned().into()),
-                ("value", value_text(texts, field.value()).0.into()),
+                ("value", spoken_value(texts, field.value()).into()),
             ],
         )
     };
@@ -300,6 +246,10 @@ fn row(
         _ => {
             let (galley, colour) = &laid.value;
             paint_left(ui, value_cell, Arc::clone(galley), *colour);
+            if let Some(trailer) = &laid.trailer {
+                let after = value_cell.left() + galley.size().x + SPACE_2;
+                trailer.paint(ui, value_cell.with_min_x(after.min(value_cell.right())));
+            }
             None
         }
     }
@@ -350,9 +300,11 @@ fn link_cell(
     if response.has_focus() {
         focus_ring(ui, link, palette::PRIMARY, FOCUS_OFFSET);
     }
-    if let Some(type_name) = &laid.type_name {
-        let after = cell.with_min_x((link.right() + SPACE_2).min(cell.right()));
-        paint_left(ui, after, Arc::clone(type_name), palette::GRAY_2_TEXT);
+    if let Some(trailer) = &laid.trailer {
+        trailer.paint(
+            ui,
+            cell.with_min_x((link.right() + SPACE_2).min(cell.right())),
+        );
     }
     response.clicked()
 }

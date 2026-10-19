@@ -2,11 +2,13 @@ mod lines;
 mod navigation;
 mod worker;
 
+use std::ops::Range;
+
 use p4kx_extraction::Guid;
 
 pub(crate) use navigation::Navigation;
 
-use crate::{RecordId, XmlDocument};
+use crate::{RecordId, TextLanguage, XmlDocument};
 
 /// A Reference as the Record preview shows it: the target's GUID, record path and type, where
 /// inside the target it points, and the Record it selects.
@@ -52,11 +54,35 @@ impl RecordLink {
     }
 }
 
+/// The text a Record preview shows next to a localisation key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyText {
+    /// None: no language is chosen, or the key is empty or a placeholder.
+    None,
+    /// The key's text in the chosen language, on one line: line feeds, control characters and
+    /// bidirectional formatting characters as escapes, cut after 1,024 characters.
+    Text {
+        /// The text as shown.
+        text: Box<str>,
+        /// The byte ranges of `text` that are escapes.
+        escapes: Box<[Range<usize>]>,
+    },
+    /// The chosen language has no text for the key.
+    Missing,
+}
+
 /// The value of one line of the Record preview.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LineValue {
     /// A scalar in the text form of Record XML, e.g. `1.5`, `true` or an enum option.
     Scalar(Box<str>),
+    /// A localisation key, e.g. `@vehicle_Name`, with its text in the chosen language.
+    Key {
+        /// The key as the Record stores it, with its leading `@`.
+        key: Box<str>,
+        /// The text next to it.
+        text: KeyText,
+    },
     /// An owned struct by its type; its fields follow one level deeper.
     Struct(Box<str>),
     /// An array by its number of elements; the elements follow one level deeper.
@@ -116,6 +142,8 @@ pub struct RecordView {
     errors: usize,
     xml: XmlDocument,
     xml_error: Option<Box<str>>,
+    language: Option<TextLanguage>,
+    texts_failure: Option<(TextLanguage, Box<str>)>,
 }
 
 impl RecordView {
@@ -166,6 +194,22 @@ impl RecordView {
     pub fn xml_error(&self) -> Option<&str> {
         self.xml_error.as_deref()
     }
+
+    /// Returns the language the localisation keys were resolved in, or `None` when the view
+    /// shows the keys alone.
+    #[must_use]
+    pub const fn language(&self) -> Option<TextLanguage> {
+        self.language
+    }
+
+    /// Returns the language whose texts could not be loaded and why; the view then shows the
+    /// keys alone.
+    #[must_use]
+    pub fn texts_failure(&self) -> Option<(TextLanguage, &str)> {
+        self.texts_failure
+            .as_ref()
+            .map(|(language, reason)| (*language, &**reason))
+    }
 }
 
 /// Where the preview of the selected Record stands.
@@ -194,10 +238,19 @@ enum State {
 pub struct RecordPreview {
     record: RecordId,
     generation: u64,
+    language: Option<TextLanguage>,
+    pending: Option<u64>,
     state: State,
 }
 
 impl RecordPreview {
+    /// Returns the language the preview was asked to resolve localisation keys in; the view
+    /// shown may still be the one of the language before while the new one is read.
+    #[must_use]
+    pub const fn language(&self) -> Option<TextLanguage> {
+        self.language
+    }
+
     /// Returns the previewed Record.
     #[must_use]
     pub const fn record(&self) -> RecordId {

@@ -1,5 +1,7 @@
 use p4kx_extraction::Language;
 
+use crate::{TextLanguage, Texts};
+
 /// A text of the localisation tab, looked up in the Fluent file of the current language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LocalizationText {
@@ -127,6 +129,20 @@ const fn language_id(language: Language) -> &'static str {
         Language::ChineseTraditional => "localization-language-zh-Hant",
         _ => "localization-language-other",
     }
+}
+
+/// Returns the name of `language` in the interface language; a language this version does not
+/// know is named by its code.
+pub(crate) fn language_name(texts: &Texts, language: TextLanguage) -> String {
+    let known = LocalizationText::LanguageName(language);
+    if known.id() == LocalizationText::OtherLanguage.id() {
+        return format!(
+            "{} ({})",
+            texts.get(LocalizationText::OtherLanguage),
+            language.code()
+        );
+    }
+    texts.get(known)
 }
 
 impl From<LocalizationText> for crate::Text {

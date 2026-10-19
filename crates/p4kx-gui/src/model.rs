@@ -11,6 +11,7 @@ mod audio_control;
 mod catalog_control;
 mod extraction_control;
 mod record_export_control;
+mod record_text;
 mod update;
 mod work_tab;
 
@@ -21,7 +22,7 @@ pub use work_tab::WorkTab;
 
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
-    ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, Texts,
+    ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice, Texts,
 };
 
 /// Why an Archive could not be opened.
@@ -64,6 +65,7 @@ pub struct Model {
     localization: LocalizationTab,
     record_export: RecordExportState,
     catalog: CatalogState,
+    record_text_choice: Option<RecordTextChoice>,
 }
 
 impl std::fmt::Debug for Model {
@@ -90,6 +92,7 @@ impl std::fmt::Debug for Model {
             .field("localization", &self.localization)
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
+            .field("record_text_choice", &self.record_text_choice)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -123,6 +126,7 @@ impl Model {
             localization: LocalizationTab::default(),
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
+            record_text_choice: None,
         }
     }
 
@@ -133,8 +137,9 @@ impl Model {
     }
 
     /// Switches the interface language.
-    pub const fn set_language(&mut self, language: Language) {
+    pub fn set_language(&mut self, language: Language) {
         self.texts.set_language(language);
+        self.apply_record_language();
     }
 
     /// Returns the Channels the picker offers.
@@ -210,6 +215,7 @@ impl Model {
                 let path = opening.path;
                 self.recent.push(std::path::absolute(&path).unwrap_or(path));
                 self.browser = Some(Browser::new(index));
+                self.apply_record_language();
                 self.stopped_by_change = false;
                 self.query.archive_opened();
                 self.localization.archive_opened();

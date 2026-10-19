@@ -192,6 +192,13 @@ impl Browser {
         &self.shown
     }
 
+    /// Returns the number of Entries the shown rows stand for, a split texture counting with its
+    /// parts.
+    #[must_use]
+    pub const fn view_len(&self) -> usize {
+        self.view_len
+    }
+
     /// Returns the text of the search field.
     #[must_use]
     pub fn search_text(&self) -> &str {
@@ -261,7 +268,7 @@ impl Browser {
 
     fn is_in_view(&self, id: u32) -> bool {
         self.matches.as_ref().map_or_else(
-            || self.folder_range().contains(&id),
+            || self.folder_range().contains(&self.index.texture_header(id)),
             |matches| matches.contains(id),
         )
     }
@@ -283,11 +290,15 @@ impl Browser {
                 .count();
         } else {
             self.shown = self.index.entries_in(self.folder, self.sort);
-            let range = self.folder_range();
-            self.view_len = range.len();
-            let checked = self.checked.get(range.start as usize..range.end as usize);
-            self.shown_checked_count =
-                checked.map_or(0, |slots| slots.iter().filter(|&&c| c).count());
+            let (mut len, mut checked) = (0, 0);
+            for &id in &self.shown {
+                let parts = self.index.texture_parts(id);
+                len += 1 + parts.len();
+                checked += usize::from(self.is_checked(id))
+                    + parts.iter().filter(|&&part| self.is_checked(part)).count();
+            }
+            self.view_len = len;
+            self.shown_checked_count = checked;
         }
     }
 

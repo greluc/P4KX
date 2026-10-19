@@ -300,7 +300,15 @@
     "activeFontWeight": "fw-bold",
     "numericAlign": "right",
     "numericTabular": true,
-    "columns": {"checkbox": 44, "name": "fill", "compression": 160, "encryption": 180, "size": 130}
+    "columns": {"checkbox": 44, "name": "fill", "compression": 160, "encryption": 180, "size": 130},
+    "textureGroup": {
+      "decision": "D.26",
+      "chevronSlot": {"paddingLeft": 8, "size": 12, "gap": 6, "reservedInEveryRow": true},
+      "chevron": {"color": "color-primary", "focusRingOffset": 2},
+      "partIndent": {"perLevel": 12, "levels": 1},
+      "rail": {"width": 1, "color": "color-gray-3"},
+      "count": {"color": "color-gray-2-text", "fontWeight": "fw-regular", "gap": "space-2"}
+    }
   },
   "checkbox": {
     "dsClass": "input[type=checkbox]",

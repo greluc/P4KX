@@ -12,6 +12,7 @@ fn archive(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::stored("Data\\a.txt", vec![1; 5]))
+        .entry(TestEntry::stored("Data\\tex\\lonely.dds", vec![8; 9]))
         .entry(TestEntry::stored("Data\\tex\\orphan.dds.1", vec![2; 7]))
         .entry(TestEntry::stored("Data\\tex\\wall.dds", vec![3; 100]))
         .entry(TestEntry::stored("Data\\tex\\wall.dds.1", vec![4; 20]))
@@ -47,6 +48,7 @@ fn list_folds_the_parts_of_a_texture_into_the_row_of_its_header() -> TestResult 
         rows,
         vec![
             vec!["store", "no", "5", "5", "Data\\a.txt"],
+            vec!["store", "no", "9", "9", "Data\\tex\\lonely.dds"],
             vec!["store", "no", "7", "7", "Data\\tex\\orphan.dds.1"],
             vec![
                 "store",
@@ -58,7 +60,7 @@ fn list_folds_the_parts_of_a_texture_into_the_row_of_its_header() -> TestResult 
                 "parts)"
             ],
         ],
-        "one row per texture with the total size; an orphaned part stays visible"
+        "one row per texture with the total size; a header without parts and an orphaned part stay single rows"
     );
     Ok(())
 }
@@ -72,8 +74,8 @@ fn list_parts_lists_every_part_as_an_entry() -> TestResult {
 
     assert_eq!(
         stdout.lines().count(),
-        1 + 6,
-        "the header line and six Entries"
+        1 + 7,
+        "the header line and seven Entries"
     );
     assert!(stdout.contains("Data\\tex\\wall.dds.2"), "{stdout}");
     assert!(!stdout.contains("parts)"), "no folded row: {stdout}");
@@ -89,8 +91,8 @@ fn list_json_gives_the_parts_of_a_texture_and_its_total_sizes() -> TestResult {
 
     let value: serde_json::Value = serde_json::from_str(&stdout)?;
     let entries = value["entries"].as_array().ok_or("entries")?;
-    assert_eq!(entries.len(), 3, "three rows");
-    let wall = &entries[2];
+    assert_eq!(entries.len(), 4, "four rows");
+    let wall = &entries[3];
     assert_eq!(wall["path"], "Data\\tex\\wall.dds");
     assert_eq!(wall["size"], 127, "total size");
     assert_eq!(wall["compressed_size"], 127, "total stored size");
@@ -104,9 +106,38 @@ fn list_json_gives_the_parts_of_a_texture_and_its_total_sizes() -> TestResult {
         "the parts in order"
     );
     assert!(entries[0].get("parts").is_none(), "a plain Entry has none");
+    assert!(entries[1].get("parts").is_none(), "a header without parts");
 
     let all: serde_json::Value = serde_json::from_str(&list(&archive, &["--json", "--parts"])?)?;
-    assert_eq!(all["entries"].as_array().ok_or("entries")?.len(), 6);
+    assert_eq!(all["entries"].as_array().ok_or("entries")?.len(), 7);
+    Ok(())
+}
+
+#[test]
+fn list_json_snapshot() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+
+    let stdout = list(&archive, &["--json"])?;
+
+    let mut value: serde_json::Value = serde_json::from_str(&stdout)?;
+    value["archive"] = "[DIR]/Data.p4k".into();
+    insta::assert_snapshot!(serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+#[test]
+fn a_single_part_reads_part_not_parts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\one.dds", vec![1; 4]))
+        .entry(TestEntry::stored("Data\\one.dds.1", vec![2; 4]))
+        .write_to(&path)?;
+
+    let stdout = list(&path, &[])?;
+
+    assert!(stdout.contains("one.dds (+1 part)"), "{stdout}");
     Ok(())
 }
 

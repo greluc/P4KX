@@ -30,11 +30,10 @@ impl EntryIndex {
     #[must_use]
     pub fn build(archive: Archive) -> Self {
         let entries = archive.entries();
-        let mut by_path: Vec<u32> = (0..entries.len())
-            .filter_map(|position| u32::try_from(position).ok())
-            .collect();
-        let path = |position: u32| entries.get(position as usize).map_or("", Entry::path);
-        by_path.par_sort_unstable_by(|&a, &b| path(a).cmp(path(b)));
+        let (texture_groups, by_path) = rayon::join(
+            || TextureGroups::build(&archive),
+            || positions_by_path(entries),
+        );
         let sorted: Vec<&Entry> = by_path
             .iter()
             .filter_map(|&position| entries.get(position as usize))
@@ -45,7 +44,7 @@ impl EntryIndex {
                 *slot = u32::try_from(id).unwrap_or(u32::MAX);
             }
         }
-        let groups = EntryGroups::new(&TextureGroups::build(&archive), &id_of, by_path.len());
+        let groups = EntryGroups::new(&texture_groups, &id_of, by_path.len());
         let (folders, orders) = rayon::join(
             || folder_tree::build(sorted.iter().map(|entry| entry.path())),
             || SortOrders::build(&sorted, |id| groups.total_size(id)),
@@ -113,6 +112,17 @@ impl EntryIndex {
     #[must_use]
     pub fn texture_members(&self, id: u32) -> Option<&[u32]> {
         self.groups.members(id)
+    }
+
+    /// Returns the id of the header of the split texture `id` belongs to, or `id` itself when it
+    /// belongs to none.
+    #[must_use]
+    pub fn texture_header(&self, id: u32) -> u32 {
+        self.groups
+            .members(id)
+            .and_then(<[u32]>::first)
+            .copied()
+            .unwrap_or(id)
     }
 
     /// Returns whether `id` is a part or alpha tail Entry of a split texture, which the listing
@@ -221,4 +231,13 @@ impl EntryIndex {
             SortDirection::Descending => ascending.rev().filter(keep).copied().collect(),
         }
     }
+}
+
+fn positions_by_path(entries: &[Entry]) -> Vec<u32> {
+    let mut by_path: Vec<u32> = (0..entries.len())
+        .filter_map(|position| u32::try_from(position).ok())
+        .collect();
+    let path = |position: u32| entries.get(position as usize).map_or("", Entry::path);
+    by_path.par_sort_unstable_by(|&a, &b| path(a).cmp(path(b)));
+    by_path
 }

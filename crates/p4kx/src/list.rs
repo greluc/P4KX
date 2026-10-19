@@ -94,7 +94,11 @@ fn print_rows(rows: &[Row<'_>]) -> io::Result<()> {
         );
         let path = group.as_ref().map_or_else(
             || entry.path().to_owned(),
-            |(_, parts)| format!("{} (+{} parts)", entry.path(), parts.len()),
+            |(_, parts)| {
+                let count = parts.len();
+                let noun = if count == 1 { "part" } else { "parts" };
+                format!("{} (+{count} {noun})", entry.path())
+            },
         );
         write_row(
             &mut out,

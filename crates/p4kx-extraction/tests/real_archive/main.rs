@@ -14,6 +14,7 @@ use rayon::prelude::*;
 
 mod adpcm;
 mod audio_survey;
+mod audio_verification;
 mod combined;
 mod cubemap_alpha;
 mod dataforge_canary;

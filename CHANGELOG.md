@@ -79,6 +79,12 @@ the entries under `## [Unreleased]`.
   settings, run with one click, renamed and deleted.
 - Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
   and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
+- Soundbanks in the Audio tab: select a BNK Entry to see the WEMs it embeds as a list of ID,
+  codec, duration and size, and select one to see its facts and play it with the controls of a
+  loose WEM, without unpacking the bank. A WEM the bank holds only the prefetched start of and
+  plug-in media are marked and explained instead of played; a corrupt soundbank shows a message
+  and the rest of the window keeps working. The preview opens taller for soundbanks, and the list
+  scrolls with the keyboard.
 
 ### Changed
 

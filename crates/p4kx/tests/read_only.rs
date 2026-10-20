@@ -99,7 +99,9 @@ impl FakeGame {
         } else {
             (PathBuf::from("/bin/sleep"), "StarCitizen", &["60"])
         };
-        let copy = dir.join(name);
+        let folder = dir.join("game");
+        std::fs::create_dir_all(&folder)?;
+        let copy = folder.join(name);
         std::fs::copy(source, &copy)?;
         let child = Command::new(copy)
             .args(args)

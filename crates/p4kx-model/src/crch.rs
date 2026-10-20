@@ -32,7 +32,11 @@ pub(crate) fn build<B: AsRef<[u8]>>(
                 meshes.push(mesh);
             }
         }
-        lods.push(Lod { level: 0, meshes });
+        lods.push(Lod {
+            level: 0,
+            meshes,
+            bones: None,
+        });
     }
     if let LodSelection::Only(level) = selection
         && lods.is_empty()

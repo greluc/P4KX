@@ -99,10 +99,10 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
-    RecordText, ScrollText, Text, Texts, XmlText,
+    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
+    ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText,
+    LocalizationText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
+    RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

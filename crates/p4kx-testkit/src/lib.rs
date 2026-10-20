@@ -30,6 +30,7 @@ mod gfx_shape;
 mod gfx_tags;
 mod glb;
 mod glb_container;
+mod glb_skin;
 mod global_ini;
 mod hirc_node;
 mod layout_v1;
@@ -39,6 +40,8 @@ mod model;
 mod model_crch;
 mod model_cube;
 mod model_nmc;
+mod model_rig;
+mod model_skeleton;
 mod model_skin;
 mod mtl;
 mod opus;
@@ -85,6 +88,7 @@ pub use model::{
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
 };
 pub use model_crch::{CRCH_CUBE_ROOT_OFFSET, TestCrchModel};
+pub use model_skeleton::{TestBone, TestSkeleton};
 pub use mtl::{TestMtl, TestMtlMaterial};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{

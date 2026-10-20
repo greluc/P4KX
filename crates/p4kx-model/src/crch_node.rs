@@ -4,7 +4,7 @@ use p4kx_chunks::{ByteOrder, ChunkFile, crch};
 use p4kx_foundation::ByteReader;
 
 use crate::build::corrupt;
-use crate::nmc::check_acyclic;
+use crate::hierarchy::find_cycle;
 use crate::reader::ReadValues;
 use crate::{CorruptChunk, ModelError, ModelFile, Node, Transform};
 
@@ -73,7 +73,12 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
         });
     }
     let first = raw.first().map_or(0, |&(index, _)| index);
-    check_acyclic(&nodes).map_err(corrupt(file_name, first, "Node"))?;
+    let parents: Vec<Option<usize>> = nodes.iter().map(|node| node.parent).collect();
+    if let Some(node) = find_cycle(&parents) {
+        return Err(corrupt(file_name, first, "Node")(
+            CorruptChunk::ParentCycle(node),
+        ));
+    }
 
     Ok(nodes
         .into_iter()

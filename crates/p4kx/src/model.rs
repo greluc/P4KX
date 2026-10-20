@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction, ModelArgs, ModelFileSource};
 use crate::json;
+use crate::model_bones::write_bones;
 use crate::model_json::{ChunkJson, InfoJson, file_name, node_name, usage_name};
 use crate::model_materials_json::LibraryJson;
 
@@ -40,6 +41,8 @@ struct GlbJson<'a> {
     materials: usize,
     default_material_ids: usize,
     hidden_primitives: usize,
+    bones: usize,
+    skinned_meshes: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -103,6 +106,7 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     write_lods(&mut out, model)?;
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
+    write_bones(&mut out, model)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
     Ok(())
@@ -128,8 +132,8 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  Material IDs",
-        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours"
+        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  Material IDs",
+        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours", "Skinned"
     )?;
     for lod in &model.lods {
         for mesh in &lod.meshes {
@@ -140,7 +144,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {}",
+                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
                 lod.level,
                 clean(node_name(model, mesh.node)),
                 mesh.positions.len(),
@@ -148,6 +152,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 yes_no(mesh.normals.is_some()),
                 yes_no(mesh.tangents.is_some()),
                 yes_no(mesh.colours.is_some()),
+                yes_no(mesh.influences.is_some()),
                 ids.join(", ")
             )?;
         }
@@ -291,6 +296,19 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
         summary.triangles,
         summary.bytes
     )?;
+    write_notes(&mut stdout, model, &summary)?;
+    stdout.flush()?;
+    Ok(())
+}
+
+fn write_notes(stdout: &mut impl Write, model: &Model, summary: &GlbSummary) -> io::Result<()> {
+    if summary.bones > 0 {
+        writeln!(
+            stdout,
+            "{} bones, {} skinned meshes",
+            summary.bones, summary.skinned_meshes
+        )?;
+    }
     if let Some(problem) = model.materials.problem() {
         writeln!(stdout, "{}; the default material is used", clean(&problem))?;
     }
@@ -326,7 +344,6 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
             file_name(chunk.file)
         )?;
     }
-    stdout.flush()?;
     Ok(())
 }
 
@@ -340,6 +357,8 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> Gl
         materials: summary.materials,
         default_material_ids: summary.default_material_ids,
         hidden_primitives: summary.hidden_primitives,
+        bones: summary.bones,
+        skinned_meshes: summary.skinned_meshes,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,

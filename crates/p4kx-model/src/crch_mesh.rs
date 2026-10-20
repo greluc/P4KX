@@ -104,6 +104,7 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
         normals: None,
         tangents: None,
         colours: None,
+        influences: None,
         uvs: Vec::new(),
         indices,
         submeshes: vec![Submesh {

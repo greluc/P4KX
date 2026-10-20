@@ -8,6 +8,7 @@ mod dataforge_cache;
 mod definitions;
 mod entries;
 mod forge;
+mod legal_notice;
 mod query;
 mod read;
 mod read_only;

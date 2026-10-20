@@ -4,7 +4,16 @@ Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. S
 [docs/ROADMAP.md](docs/ROADMAP.md) for the plan, [CONTEXT.md](CONTEXT.md) for the terms and
 [docs/user-help.md](docs/user-help.md) for using the window.
 
-This is an unofficial fan tool, not affiliated with Cloud Imperium Games.
+P4K-Extractor is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium
+group of companies and not endorsed by it. It ships no game data and reads only your own Star
+Citizen installation. You are responsible for complying with the Star Citizen End User Licence
+Agreement (EULA) and Terms of Service when you use it.
+
+All content not authored by the P4K-Extractor contributors or its users is the property of its
+respective owners. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered
+trademarks of Cloud Imperium Rights LLC.
+
+Copyright (c) 2026 KRT and the P4K-Extractor contributors
 
 ## Status
 
@@ -275,10 +284,11 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
-- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
-  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
-  counts, the material library and material IDs, its bones and every chunk with whether it was
-  read, skipped or unknown, and the materials of its `.mtl` file;
+- `p4kx model info <archive> <entry>` shows an `#ivo` model (`.cgf` or `.skin` with its geometry
+  companion `.cgfm` or `.skinm`, or a skeleton file `.chr`): its nodes with their hierarchy, its
+  LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones
+  with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
+  the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours]` writes
   it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
@@ -288,7 +298,9 @@ Early development (milestone M1). Available today:
   material with base colour, opacity, roughness, metalness and emissive colour and no textures;
   submeshes whose material draws nothing (collision and helper geometry) are left out, and a
   missing or unreadable `.mtl` file is reported while the model exports with a grey default
-  material. Both also take a model file on disk with its companions next to it.
+  material. A skin (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to
+  eight bones per vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes.
+  Both also take a model file on disk with its companions next to it.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails
@@ -325,7 +337,12 @@ Early development (milestone M1). Available today:
 `p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
 stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
 (`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
-write a file:
+write a file.
+
+What the tools return is the content of the Star Citizen Archive. The AI client may forward it to
+third parties, for example the cloud model provider behind the client. Game texts and media must
+not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
+Service.
 
 | Tool | Result |
 |------|--------|

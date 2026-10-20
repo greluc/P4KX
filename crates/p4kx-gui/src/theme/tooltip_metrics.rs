@@ -3,6 +3,7 @@
 
 use egui::Color32;
 
+use super::palette::CONTROL;
 use super::tokens::{REM, SPACE_2};
 
 /// The widest a tooltip gets.
@@ -15,5 +16,5 @@ pub const TOOLTIP_PADDING_Y: f32 = SPACE_2;
 pub const TOOLTIP_SIZE: f32 = 0.78 * REM;
 /// The line height of a tooltip as a multiple of its font size.
 pub const TOOLTIP_LINE_HEIGHT: f32 = 1.4;
-/// The fill of a tooltip, `rgba(0,0,0,0.95)`.
-pub const TOOLTIP_FILL: Color32 = Color32::from_rgba_unmultiplied_const(0, 0, 0, 242);
+/// The fill of a tooltip, `color-control`.
+pub const TOOLTIP_FILL: Color32 = CONTROL;

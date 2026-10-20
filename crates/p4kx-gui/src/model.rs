@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_extraction::{Archive, ArchiveError};
-use p4kx_settings::{ExtractionTextures, RecentArchives};
+use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod audio_control;
@@ -53,6 +53,7 @@ pub struct Model {
     extraction_folder: Option<PathBuf>,
     extraction_conversion: bool,
     extraction_textures: ExtractionTextures,
+    extraction_audio: ExtractionAudio,
     extraction_setup: Option<ExtractionSetup>,
     extraction: Option<Extraction>,
     update: UpdateState,
@@ -82,6 +83,7 @@ impl std::fmt::Debug for Model {
             .field("extraction_folder", &self.extraction_folder)
             .field("extraction_conversion", &self.extraction_conversion)
             .field("extraction_textures", &self.extraction_textures)
+            .field("extraction_audio", &self.extraction_audio)
             .field("extraction_setup", &self.extraction_setup)
             .field("extraction", &self.extraction)
             .field("update", &self.update)
@@ -114,6 +116,7 @@ impl Model {
             extraction_folder: None,
             extraction_conversion: false,
             extraction_textures: ExtractionTextures::default(),
+            extraction_audio: ExtractionAudio::default(),
             extraction_setup: None,
             extraction: None,
             update: UpdateState::default(),

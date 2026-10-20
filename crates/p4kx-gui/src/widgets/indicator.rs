@@ -1,12 +1,14 @@
 use std::f32::consts::TAU;
 
-use egui::{Color32, CornerRadius, Image, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use egui::{
+    Color32, CornerRadius, Image, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2,
+};
 
 use crate::theme::desktop::{
-    BRAND_GAP, BRAND_MARK, PROGRESS_HEIGHT, SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK,
-    WORDMARK_SIZE,
+    BRAND_GAP, BRAND_MARK, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE, SPINNER_PERIOD,
+    SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
 };
-use crate::theme::tokens::{TRACKING_DISPLAY, Weight};
+use crate::theme::tokens::{SPACE_2, TRACKING_DISPLAY, Weight};
 use crate::theme::{logo, palette};
 
 use super::text::{caps, line, paint_left};
@@ -38,6 +40,26 @@ pub(crate) fn spinner(ui: &mut Ui, size: f32) {
         painter.line_segment([point(from), point(to)], stroke);
     }
     ui.ctx().request_repaint();
+}
+
+/// Returns the part of the note cell `rect` of a tree row that is left for the text, after the
+/// inline spinner while `spinning`.
+pub(crate) fn note_text_rect(rect: Rect, spinning: bool) -> Rect {
+    if spinning {
+        rect.with_min_x(rect.left() + SPINNER_INLINE + SPACE_2)
+    } else {
+        rect
+    }
+}
+
+/// Shows the inline spinner at the start of the note cell `rect` of a tree row, centred in the
+/// row.
+pub(crate) fn row_spinner(ui: &mut Ui, rect: Rect) {
+    let spot = Rect::from_min_size(rect.min, vec2(SPINNER_INLINE, rect.height()));
+    ui.scope_builder(
+        UiBuilder::new().max_rect(spot.shrink2(vec2(0.0, (ROW_HEIGHT - SPINNER_INLINE) / 2.0))),
+        |ui| spinner(ui, SPINNER_INLINE),
+    );
 }
 
 /// Shows the `.attendance-meter` progress bar at `fraction`, grey while `cancelling`.

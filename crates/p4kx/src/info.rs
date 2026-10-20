@@ -17,6 +17,7 @@ struct Summary<'a> {
     build: Option<BuildJson<'a>>,
     entry_count: usize,
     encrypted_count: usize,
+    issue_count: usize,
     compressed_size: u64,
     size: u64,
 }
@@ -27,6 +28,7 @@ pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
     if archive.build().is_none() {
         warn_about_manifest(&archive)?;
     }
+    crate::issues::warn(&archive)?;
     let entries = archive.entries();
     let info = Summary {
         archive: json::path(archive.path()),
@@ -34,6 +36,7 @@ pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
         build: archive.build().map(BuildJson::from),
         entry_count: entries.len(),
         encrypted_count: entries.iter().filter(|entry| entry.is_encrypted()).count(),
+        issue_count: archive.issue_count(),
         compressed_size: entries.iter().map(Entry::compressed_size).sum(),
         size: entries.iter().map(Entry::uncompressed_size).sum(),
     };
@@ -66,6 +69,7 @@ fn print_lines(info: &Summary<'_>, build: Option<&Build>) -> io::Result<()> {
     lines.extend([
         ("Entries", info.entry_count.to_string()),
         ("Encrypted", info.encrypted_count.to_string()),
+        ("Issues", info.issue_count.to_string()),
         ("Compressed size", info.compressed_size.to_string()),
         ("Size", info.size.to_string()),
     ]);

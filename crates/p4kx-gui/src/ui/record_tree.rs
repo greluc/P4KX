@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use egui::{Color32, Galley, Id, Rect, RichText, Role, Sense, Ui, UiBuilder, WidgetInfo, vec2};
+use egui::{Color32, Galley, Id, Rect, RichText, Role, Sense, Ui, WidgetInfo, vec2};
 
 use super::dataforge_summary::message;
 use super::tree::{rails, toggle};
-use crate::theme::desktop::{CHANNEL_GAP, ROW_FONT, ROW_HEIGHT, SPINNER_INLINE};
+use crate::theme::desktop::{CHANNEL_GAP, ROW_FONT, ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{SPACE_2, Weight};
-use crate::widgets::indicator::spinner;
+use crate::widgets::indicator::{note_text_rect, row_spinner};
 use crate::widgets::rows::{RowState, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::tooltip::{hover, line as tip};
@@ -150,7 +150,7 @@ pub(super) fn show_row(
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let active = tree.selected() == Some(row.node);
     response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, name));
-    let state = RowState::of_list(active, response.hovered());
+    let state = RowState::of_tree(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let chevron_rect = rails(ui, rect, row.depth);
     let toggle_id = ui.scope_id().with(("record-toggle", row.node));
@@ -180,20 +180,12 @@ pub(super) fn show_row(
 
 fn root_note(ui: &mut Ui, (texts, tree, labels): (&Texts, &RecordTree, &Labels), rect: Rect) {
     let loading = matches!(tree.status(), RecordTreeStatus::Loading);
-    let text_rect = if loading {
-        rect.with_min_x(rect.left() + SPINNER_INLINE + SPACE_2)
-    } else {
-        rect
-    };
+    let text_rect = note_text_rect(rect, loading);
     let Some((galley, colour)) = labels.note(ui, (texts, tree), text_rect.width().max(0.0)) else {
         return;
     };
     if loading {
-        let spot = Rect::from_min_size(rect.min, vec2(SPINNER_INLINE, rect.height()));
-        ui.scope_builder(
-            UiBuilder::new().max_rect(spot.shrink2(vec2(0.0, (ROW_HEIGHT - SPINNER_INLINE) / 2.0))),
-            |ui| spinner(ui, SPINNER_INLINE),
-        );
+        row_spinner(ui, rect);
     }
     if !matches!(
         tree.status(),

@@ -39,7 +39,7 @@ impl Model {
         let Some(browser) = &self.browser else {
             return false;
         };
-        if is_same_file(&file, browser.index().archive().path()) {
+        if is_same_file(&file, browser.archive_index().archive().path()) {
             self.catalog.run = Some(refused(file));
             return false;
         }

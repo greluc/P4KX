@@ -217,6 +217,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_folder = model.extraction_folder().map(Path::to_path_buf);
     settings.extraction_conversion = model.extraction_conversion();
     settings.extraction_textures = model.extraction_textures();
+    settings.extraction_audio = model.extraction_audio();
     settings.update_check = model.update_check();
     settings.channels.merge(model.channels().added());
 }

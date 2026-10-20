@@ -1,14 +1,18 @@
 use std::path::Path;
 
 use p4kx_archive::{Archive, Entry};
-use rayon::prelude::*;
 
 use crate::buffers::Buffers;
 use crate::dependent::Collisions;
+use crate::sound_job::mark_sounds;
+use crate::sound_workers::run_parallel;
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
-use crate::{DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport};
+use crate::{
+    DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport, MAX_SOUND_LEN,
+    MAX_SOUNDBANK_LEN,
+};
 
 /// The outcome of one Entry of an Extraction: its position, its path and how it ended.
 pub(crate) type EntryEnded = (usize, String, Outcome);
@@ -21,6 +25,13 @@ pub(crate) enum Ended {
     Texture {
         entries: Vec<EntryEnded>,
         unconverted: Option<(usize, EntryFailure)>,
+    },
+    /// A sound or soundbank Entry, the failures of what could not be converted and the names of
+    /// the sounds of a soundbank the cancelled run left unwritten.
+    Sound {
+        entry: EntryEnded,
+        unconverted: Vec<EntryFailure>,
+        cancelled: Vec<String>,
     },
 }
 
@@ -40,6 +51,12 @@ pub(crate) enum Ended {
 /// DataForge Entry, the one [`DataForgeEntry::locate`] finds, is written as one Record XML file
 /// per Record below its folder after the other Entries, each file under the Conflict policy; its
 /// Records are reported in [`records`](ExtractionReport::records).
+///
+/// With Conversion on, WEM sounds and the WEMs of soundbanks are written as
+/// [`AudioConversion`](crate::AudioConversion) says, each soundbank also unchanged; a sound that
+/// cannot be converted is reported among the [`unconverted`](ExtractionReport::unconverted) ones
+/// and written unchanged. Sounds and soundbanks held in memory at once stay within 1 GiB; one
+/// larger than 512 MiB is not read whole but written unchanged and reported as unconverted.
 ///
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
@@ -69,34 +86,33 @@ pub fn extract(
         policy: options.policy,
         convert: options.convert,
         textures: options.textures,
+        audio: options.audio,
         tracker: &tracker,
     };
     let dataforge = options
         .convert
         .then(|| dataforge_position(archive, entries))
         .flatten();
-    let mut items = if options.convert && options.textures.converts() {
-        group_textures(archive, entries)
-    } else {
-        entries
-            .iter()
-            .copied()
-            .enumerate()
-            .map(Item::Entry)
-            .collect()
-    };
-    items.retain(|item| !matches!(item, Item::Entry((index, _)) if Some(*index) == dataforge));
-    let (independent, dependent) = split_dependent(items);
+    let (independent, dependent) = split_dependent(items(archive, entries, options, dataforge));
     let run = |buffers: &mut Buffers, item: Item<'_>| match item {
         Item::Entry((index, entry)) => {
             Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
         }
         Item::Texture(job) => writer.write_texture(&job, buffers),
+        Item::Sound(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUND_LEN,
+            EntryWriter::try_write_sound,
+        ),
+        Item::Bank(indexed) => writer.convert_sound_entry(
+            indexed,
+            buffers,
+            MAX_SOUNDBANK_LEN,
+            EntryWriter::try_write_bank,
+        ),
     };
-    let mut ended: Vec<_> = independent
-        .into_par_iter()
-        .map_init(Buffers::new, run)
-        .collect();
+    let mut ended = run_parallel(independent, &run);
     let mut buffers = Buffers::new();
     ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
     let records = dataforge
@@ -112,6 +128,31 @@ pub fn extract(
     report
 }
 
+/// Splits `entries` into the items of the run: with Conversion on, textures, sounds and
+/// soundbanks; the DataForge Entry at `dataforge` is left out.
+fn items<'a>(
+    archive: &'a Archive,
+    entries: &[&'a Entry],
+    options: &ExtractOptions<'_>,
+    dataforge: Option<usize>,
+) -> Vec<Item<'a>> {
+    let mut items = if options.convert && options.textures.converts() {
+        group_textures(archive, entries)
+    } else {
+        entries
+            .iter()
+            .copied()
+            .enumerate()
+            .map(Item::Entry)
+            .collect()
+    };
+    items.retain(|item| !matches!(item, Item::Entry((index, _)) if Some(*index) == dataforge));
+    if options.convert {
+        mark_sounds(&mut items, options.audio);
+    }
+    items
+}
+
 /// Returns the position in `entries` of the DataForge Entry of `archive`, if it is requested.
 fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
     let located = DataForgeEntry::locate(archive)?;
@@ -123,6 +164,7 @@ fn dataforge_position(archive: &Archive, entries: &[&Entry]) -> Option<usize> {
 fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
     let mut outcomes = Vec::with_capacity(ended.len());
     let mut unconverted = Vec::new();
+    let mut unwritten = Vec::new();
     for item in ended {
         match item {
             Ended::Entry(outcome) => outcomes.push(outcome),
@@ -133,10 +175,21 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
                 outcomes.extend(entries);
                 unconverted.extend(failure);
             }
+            Ended::Sound {
+                entry,
+                unconverted: failures,
+                cancelled: sounds,
+            } => {
+                let index = entry.0;
+                outcomes.push(entry);
+                unconverted.extend(failures.into_iter().map(|failure| (index, failure)));
+                unwritten.extend(sounds.into_iter().map(|sound| (index, sound)));
+            }
         }
     }
     outcomes.sort_unstable_by_key(|(index, _, _)| *index);
-    unconverted.sort_unstable_by_key(|(index, _)| *index);
+    unwritten.sort_by_key(|(index, _)| *index);
+    unconverted.sort_by_key(|(index, _)| *index);
     let mut report = ExtractionReport {
         converted: convert.then_some(0),
         unconverted: unconverted
@@ -157,6 +210,9 @@ fn report(ended: Vec<Ended>, convert: bool) -> ExtractionReport {
             Outcome::Failed(error) => report.failures.push(EntryFailure { path, error }),
         }
     }
+    report
+        .cancelled
+        .extend(unwritten.into_iter().map(|(_, sound)| sound));
     report
 }
 

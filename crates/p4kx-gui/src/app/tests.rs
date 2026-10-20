@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use p4kx_channels::SearchPaths;
-use p4kx_settings::{ExtractionTextures, ManualChannels, RecentArchives, SavedQueries, Settings};
+use p4kx_settings::{
+    ExtractionAudio, ExtractionTextures, ManualChannels, RecentArchives, SavedQueries, Settings,
+};
 
 use super::{App, remember};
 use crate::{ChannelList, Language, Model, RecordTextChoice, TextLanguage};
@@ -21,6 +23,17 @@ fn the_language_stays_unset_until_the_user_chooses_one() {
 
     assert_eq!(unchosen, None, "follows the system");
     assert_eq!(settings.language.as_deref(), Some("en-GB"), "chosen");
+}
+
+#[test]
+fn the_sound_format_is_stored() {
+    let mut model = Model::new(Language::German);
+    model.set_extraction_audio(ExtractionAudio::Raw);
+    let mut settings = Settings::default();
+
+    remember(&mut settings, &model, false, None);
+
+    assert_eq!(settings.extraction_audio, ExtractionAudio::Raw, "stored");
 }
 
 #[test]

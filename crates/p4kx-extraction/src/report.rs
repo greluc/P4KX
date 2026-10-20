@@ -43,6 +43,10 @@ pub enum ExtractionError {
     /// The texture could not be converted.
     #[error("cannot convert the texture")]
     Texture(#[source] ConversionError),
+    /// The sound, or a WEM the soundbank embeds, could not be converted, naming its codec when no
+    /// decoder exists, or the soundbank could not be read.
+    #[error("cannot convert the sound")]
+    Sound(#[source] Box<ConversionError>),
     /// The Entry is DataForge that could not be opened to convert its Records.
     #[error("cannot convert the DataForge")]
     DataForge(#[source] DataForgeError),
@@ -99,8 +103,8 @@ impl ExtractionReport {
     }
 
     /// Returns the number of Entries written converted, `CryXml` as XML, the Entries of a
-    /// converted texture and the DataForge Entry as Records, or `None` when the run did not
-    /// convert; they count among the [`extracted`](Self::extracted) Entries.
+    /// converted texture, sounds, soundbanks and the DataForge Entry as Records, or `None` when
+    /// the run did not convert; they count among the [`extracted`](Self::extracted) Entries.
     #[must_use]
     pub const fn converted(&self) -> Option<usize> {
         self.converted
@@ -120,7 +124,8 @@ impl ExtractionReport {
 
     /// Returns the textures, by the path of their header Entry, that a Conversion could not
     /// fully convert, with the reason; their raw Entries were written instead, except a header
-    /// whose path the merged DDS already took.
+    /// whose path the merged DDS already took. Also returns the sounds and soundbanks that could
+    /// not be converted, once for each WEM of a soundbank, which were written unchanged.
     #[must_use]
     pub fn unconverted(&self) -> &[EntryFailure] {
         &self.unconverted

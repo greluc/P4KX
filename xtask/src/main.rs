@@ -2,10 +2,15 @@
 //! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, or all of them with
 //! `cargo xtask`.
 //!
+//! `cargo xtask changelog` also checks the fragments in `changelog.d/`; `cargo xtask changelog
+//! --release <version> [--date <YYYY-MM-DD>]` folds them and `## [Unreleased]` into the section of
+//! a version.
+//!
 //! `cargo xtask release-notes <tag> <file>` writes the `CHANGELOG.md` notes of a Release tag.
 
 mod changelog;
 mod file_size;
+mod fragments;
 mod key_needles;
 mod keys;
 mod layers;
@@ -47,7 +52,29 @@ fn run() -> Result<Vec<String>> {
         Some("layers") => layers::check(&root),
         Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
-        Some("changelog") => changelog::check(&root),
+        Some("changelog") => {
+            let mut args = std::env::args().skip(2);
+            match args.next().as_deref() {
+                None => changelog::check(&root),
+                Some("--release") => {
+                    let Some(version) = args.next() else {
+                        bail!(
+                            "usage: cargo xtask changelog --release <version> [--date <YYYY-MM-DD>]"
+                        );
+                    };
+                    let date = match (args.next().as_deref(), args.next()) {
+                        (None, _) => fragments::today()?,
+                        (Some("--date"), Some(date)) => date,
+                        _ => bail!(
+                            "usage: cargo xtask changelog --release <version> [--date <YYYY-MM-DD>]"
+                        ),
+                    };
+                    fragments::release(&root, &version, &date)?;
+                    Ok(Vec::new())
+                }
+                Some(other) => bail!("unknown option `{other}`; use `--release <version>`"),
+            }
+        }
         Some("keys") => keys::check(&root),
         Some("release-notes") => {
             let mut args = std::env::args().skip(2);

@@ -4,6 +4,10 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+New changes are not written here but as fragments in `changelog.d/` (see its `README.md`), which
+`cargo xtask changelog --release <version>` folds into the section of the Release together with
+the entries under `## [Unreleased]`.
+
 ## [Unreleased]
 
 ### Added

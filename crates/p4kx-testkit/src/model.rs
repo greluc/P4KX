@@ -3,7 +3,7 @@ use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
 use crate::model_nmc::nmc_chunk;
 use crate::model_skin::skin_chunk;
 
-const ASSET_METADATA: u32 = 0xBE5E_493E;
+const EXPORT_FLAGS: u32 = 0xBE5E_493E;
 const MTL_NAME_320: u32 = 0x8335_3333;
 const NODE_MESH_COMBO: u32 = 0x7069_7FDA;
 const MESH_INFO: u32 = 0x9291_4444;
@@ -101,6 +101,7 @@ pub struct TestModel {
     pub(crate) positions: TestPositions,
     pub(crate) normals: TestNormals,
     pub(crate) wide_indices: bool,
+    pub(crate) repeated_index_streams: usize,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
     helpers_only: bool,
@@ -128,6 +129,7 @@ impl TestModel {
             positions: TestPositions::Quantized,
             normals: TestNormals::Float,
             wide_indices: false,
+            repeated_index_streams: 0,
             extra_chunks: Vec::new(),
             single_file: false,
             helpers_only: false,
@@ -152,6 +154,13 @@ impl TestModel {
     #[must_use]
     pub const fn with_wide_indices(mut self) -> Self {
         self.wide_indices = true;
+        self
+    }
+
+    /// Writes the index stream a second time after the other streams.
+    #[must_use]
+    pub const fn with_repeated_indices(mut self) -> Self {
+        self.repeated_index_streams = 1;
         self
     }
 
@@ -232,7 +241,7 @@ impl TestModel {
     #[must_use]
     pub fn cgf(&self) -> Vec<u8> {
         let mut file = TestChunkFile::ivo()
-            .chunk(ASSET_METADATA, IVO_VERSION, [0; 128])
+            .chunk(EXPORT_FLAGS, IVO_VERSION, [0; 128])
             .chunk(MTL_NAME_320, IVO_VERSION, self.material_name_chunk());
         if !self.nodes.is_empty() {
             file = file.chunk(NODE_MESH_COMBO, IVO_VERSION, nmc_chunk(self));

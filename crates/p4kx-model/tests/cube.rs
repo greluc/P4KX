@@ -11,7 +11,7 @@ use p4kx_testkit::{
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const UNKNOWN_TYPE: u32 = 0x0A24_85B6;
+const UNKNOWN_TYPE: u32 = 0x00C0_FFEE;
 
 fn read(model: &TestModel) -> Result<Model, Box<dyn Error>> {
     let cgfm = model.cgfm();

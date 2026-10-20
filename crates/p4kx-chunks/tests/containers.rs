@@ -182,6 +182,46 @@ fn every_known_type_is_found_by_its_id() {
 }
 
 #[test]
+fn the_tables_ascend_by_id_without_repeats() {
+    for container in [Container::Ivo, Container::CrCh] {
+        let ids: Vec<u32> = KnownChunkType::table(container)
+            .iter()
+            .map(|known| known.id)
+            .collect();
+        assert!(
+            ids.windows(2).all(|pair| pair[0] < pair[1]),
+            "{container} table is strictly ascending"
+        );
+    }
+}
+
+#[test]
+fn the_ivo_ids_measured_in_real_archives_have_their_names() {
+    let named = [
+        (0x2B7E_CF9F, "PositionBonemap"),
+        (0x58DE_1772, "StatObjPhysics"),
+        (0xBE5E_493E, "ExportFlags"),
+        (0x9291_4444, "MeshInfo"),
+        (0x57A3_8888, "BShapesGpu"),
+        (0xF5C6_EB5B, "BShapes"),
+        (0x0A24_85B6, "RigLogic"),
+        (0x1BBC_4103, "Skeleton"),
+        (0x7E03_5555, "RigInfo"),
+        (0xF708_6666, "ProtosInfo"),
+        (0x90C6_2222, "PhysicalHierarchy"),
+        (0xB324_59D2, "VisAreas"),
+        (0xB875_7777, "Skin2"),
+    ];
+    for (id, name) in named {
+        assert_eq!(
+            ChunkType::new(Container::Ivo, id).name(),
+            Some(name),
+            "{id:#X}"
+        );
+    }
+}
+
+#[test]
 fn the_same_id_is_named_per_container() {
     assert_eq!(
         ChunkType::new(Container::CrCh, 0x1000).name(),

@@ -163,9 +163,9 @@ fn a_tail_inside_the_original_frame_is_not_kept() -> TestResult {
 
     assert!(crc_is_correct(&rewritten)?, "CRC-32C");
     assert_eq!(
-        rewritten.get(CHF_SIZE - 8..),
-        Some(&[0_u8; 8][..]),
-        "the bytes inside the original frame are not kept as a tail"
+        Chf::read(&rewritten)?.character,
+        edited(&reaching)?.character,
+        "the new frame is intact: the old frame bytes were not written back as a tail"
     );
     Ok(())
 }

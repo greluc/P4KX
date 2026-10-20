@@ -21,10 +21,10 @@ Chunks:      7 (3 read, 3 skipped, 1 unknown)
     1  0       cube_mesh
 
 File      Index  Type                         Type ID  Usage
-model         0  AssetMetadata             0xBE5E493E  skipped
+model         0  ExportFlags               0xBE5E493E  skipped
 model         1  MtlName320                0x83353333  read
 model         2  NodeMeshCombo             0x70697FDA  read
 model         3  MeshInfo                  0x92914444  skipped
-model         4  unknown                   0x0A2485B6  unknown
+model         4  unknown                   0x00C0FFEE  unknown
 geometry      0  Skin2                     0xB8757777  read
 geometry      1  Terminator                0xE0181074  skipped

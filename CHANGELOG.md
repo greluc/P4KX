@@ -90,6 +90,11 @@ fails while its section is missing.
   Record, at most 1024 listed, all counted by `issue_count`), and `DataForge::survey` counts the
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
+- Three `#ivo` chunk types change their name in `p4kx chunks list` and `p4kx model info`, also in
+  the `type` field of their `--json` output: `0x2B7ECF9F` is `PositionBonemap` (was
+  `BoundingData`), `0x58DE1772` `StatObjPhysics` (was `LodMeshData`) and `0xBE5E493E`
+  `ExportFlags` (was `AssetMetadata`); `0x57A38888` is now `BShapesGpu` and `0xF5C6EB5B`
+  `BShapes`.
 
 ### Fixed
 
@@ -111,6 +116,27 @@ fails while its section is missing.
   `Wem::chunk` list every RIFF chunk of a WEM, `smpl`, `cue ` and `LIST` after `data` included.
   No soundbank or WEM of the LIVE, PTU and TECH-PREVIEW Archives has any of these quirks
   (`docs/audio-survey.md`).
+- Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU compares the two boxes of
+  the mesh chunks (static models only; skins store floats). Of the about 30,000 `.cgfm` chunks
+  and about 31,000 `.cgam` chunks of each Archive whose boxes differ, the face normals can decide
+  about 6,000 in LIVE, and 99 % of those choose the second, scaling box; the rest are axis-aligned
+  and undecidable. The reader keeps the second box for every mesh, documents the evidence and its
+  limits (docs/mesh-bounding-boxes.md) and tests it with a differing model box; no exported model
+  changes.
+- Mesh streams: both normal tags now take 4-byte packed and 12-byte float vectors, and a
+  16-byte tangent stream (two quaternions) gives normals, so a mesh that stores only such a
+  stream keeps its normals; no real file has the 16-byte layout, so reading the normal from its
+  first quaternion is unverified. The packed vectors of the second normal tag rank last: in LIVE they
+  disagree with the tangent frames of the 17,902 meshes that hold both, so no exported model
+  changes.
+- Mesh streams: a mesh chunk that holds one of the streams a model reads (indices, vertices,
+  normals, tangents) twice is reported as corrupt (`RepeatedStream`) instead of the later stream
+  silently replacing the first. No mesh chunk of LIVE, PTU, TECH-PREVIEW or EPTU does.
+- The `#ivo` chunk type table follows a survey of LIVE, PTU and TECH-PREVIEW
+  (docs/chunk-types.md): twelve types that `p4kx chunks list` reported as unknown are named
+  (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,
+  `Skeleton` and four more), seven stay unknown, and the table entries that occur in no measured
+  Archive are marked unverified.
 
 ## [0.2.0]
 

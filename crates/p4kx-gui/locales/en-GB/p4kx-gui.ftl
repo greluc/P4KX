@@ -458,6 +458,7 @@ scroll-fields = Changed fields
 scroll-lines = Record fields
 scroll-localization = Localisation rows
 scroll-saved-queries = Saved Queries
+scroll-soundbank = Embedded WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -476,6 +477,21 @@ audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex 
 audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
 audio-failed = Cannot decode { $path }: { $reason }
 audio-output-failed = The sound cannot be played: { $reason }
+audio-column-id = ID
+audio-prefetched = Prefetched
+audio-prefetched-note = WEM { $id } is only prefetched in this soundbank and cannot be played here. The loose WEM Entry with the same ID holds the whole sound.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } is plug-in media, such as a convolution reverb impulse, and holds no sound to play.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } embeds no WEMs.
+audio-bank-failed = Cannot read the soundbank { $path }: { $reason }
+audio-wem-name = WEM { $id } of { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = The preview cannot play { $codec } sounds ({ $name }).
 
 texture-parts =
     { $count ->

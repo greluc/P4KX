@@ -27,9 +27,10 @@ exercises the `0x0002` tag (#301) or a pad byte (#300).
 
 ## Decisions
 
-- The cap for a soundbank Entry of the audio index rises from 16 MiB to 64 MiB, twelve times the
+- The cap for a soundbank Entry of the audio index rises from 16 MiB to 32 MiB, six times the
   largest live bank, so that a bank a few times larger than today's does not vanish from the index
-  and report its events as `no_soundbank` (ADR-0018). `p4kx-extraction` already reads up to 512 MiB.
+  and report its events as `no_soundbank` (ADR-0018); 64 MiB was rejected because a hostile bank of
+  minimal `HIRC` objects would take about 0.5 GiB per rayon thread while it is parsed. `p4kx-extraction` already reads up to 512 MiB.
 - The four quirks above degrade to `BankWarning`s of `Soundbank::warnings` instead of rejecting
   the bank, because other Wwise readers (vgmstream, wwiser) tolerate them as well. Structural
   damage still rejects the bank: a truncated section, a `DIDX` entry outside `DATA`, a `DIDX` of

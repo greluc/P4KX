@@ -105,7 +105,8 @@ impl<B: AsRef<[u8]>> Wem<B> {
     }
 
     /// Returns every chunk of the RIFF in file order, those after `data` included, e.g. `smpl`,
-    /// `cue ` and `LIST`; the iteration ends at the first chunk that runs past the end of the file.
+    /// `cue ` and `LIST`; the walk ends at the declared RIFF size, or at the first chunk that runs
+    /// past it.
     pub fn chunks(&self) -> impl Iterator<Item = WemChunk<'_>> {
         let bytes = self.bytes.as_ref();
         Chunks::of(bytes)

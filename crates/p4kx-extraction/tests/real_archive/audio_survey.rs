@@ -18,6 +18,8 @@ const EXAMPLES: usize = 5;
 const SECTION_HEADER_LEN: usize = 8;
 const DIDX_ENTRY_LEN: usize = 12;
 const MIB: usize = 1 << 20;
+const KNOWN_BANK_VERSION: u32 = 154;
+const KNOWN_WEM_TAG: &str = "0xffff";
 
 #[derive(Default)]
 struct Survey {
@@ -296,5 +298,38 @@ fn survey_the_soundbanks_and_wems_of_a_real_archive() -> TestResult {
     survey.sizes.sort_unstable_by(|a, b| b.cmp(a));
     report_banks(&survey);
     report_wems(&survey, loose.len());
+    assert_known(&survey);
     Ok(())
+}
+
+fn assert_known(survey: &Survey) {
+    assert!(survey.rejected.is_empty(), "{:?}", survey.rejected);
+    assert!(
+        survey
+            .versions
+            .keys()
+            .all(|&version| version == KNOWN_BANK_VERSION),
+        "bank versions {:?}",
+        survey.versions
+    );
+    assert!(
+        survey.trailing_hirc.is_empty()
+            && survey.duplicate_didx.is_empty()
+            && survey.didx_without_data.is_empty()
+            && survey.non_utf8_stid.is_empty(),
+        "a soundbank has a quirk"
+    );
+    let wems = &survey.wems;
+    assert!(wems.wems > 0 && survey.banks > 0, "nothing surveyed");
+    assert!(
+        wems.tags.keys().all(|tag| tag == KNOWN_WEM_TAG),
+        "format tags {:?}",
+        wems.tags
+    );
+    assert!(wems.after_data.is_empty(), "chunks after data");
+    assert!(
+        wems.odd_not_last.is_empty(),
+        "odd-sized chunks before the last"
+    );
+    assert_eq!(survey.skipped, 0, "WEMs above the size cap");
 }

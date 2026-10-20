@@ -10,7 +10,7 @@ use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
 use crate::{
-    DataForgeEntry, EntryFailure, ExtractOptions, ExtractionReport, MAX_SOUND_LEN,
+    DataForgeEntry, EntryFailure, ExtractOptions, ExtractionError, ExtractionReport, MAX_SOUND_LEN,
     MAX_SOUNDBANK_LEN,
 };
 
@@ -68,16 +68,8 @@ pub fn extract(
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
-    if options.watch.is_some_and(|watch| watch.check().is_err()) {
-        return ExtractionReport {
-            cancelled: entries
-                .iter()
-                .map(|entry| entry.path().to_owned())
-                .collect(),
-            converted: options.convert.then_some(0),
-            archive_changed: true,
-            ..ExtractionReport::default()
-        };
+    if let Some(report) = not_started(entries, target, options) {
+        return report;
     }
     let tracker = Tracker::new(entries, options.cancel, options.watch, options.progress);
     let writer = EntryWriter {
@@ -127,6 +119,39 @@ pub fn extract(
     report.records = records;
     report.archive_changed = options.watch.is_some_and(|watch| watch.check().is_err());
     report
+}
+
+/// Returns the report of a run that must not start: every Entry failed because `target` lies
+/// inside a Star Citizen installation, or was cancelled because the Archive already changed.
+fn not_started(
+    entries: &[&Entry],
+    target: &Path,
+    options: &ExtractOptions<'_>,
+) -> Option<ExtractionReport> {
+    let converted = options.convert.then_some(0);
+    if let Err(refused) = p4kx_guard::ensure_writable(target) {
+        let failures = entries.iter().map(|entry| EntryFailure {
+            path: entry.path().to_owned(),
+            error: ExtractionError::Installation(refused.clone()),
+        });
+        return Some(ExtractionReport {
+            failures: failures.collect(),
+            converted,
+            ..ExtractionReport::default()
+        });
+    }
+    options
+        .watch
+        .is_some_and(|watch| watch.check().is_err())
+        .then(|| ExtractionReport {
+            cancelled: entries
+                .iter()
+                .map(|entry| entry.path().to_owned())
+                .collect(),
+            converted,
+            archive_changed: true,
+            ..ExtractionReport::default()
+        })
 }
 
 /// Splits `entries` into the items of the run: with Conversion on, textures, sounds and

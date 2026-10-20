@@ -34,6 +34,7 @@ fn set_up_key(model: &mut Model) {
 }
 
 fn main() -> Result<()> {
+    p4kx_extraction::protect_libraries();
     let settings_file = default_settings_file();
     let settings = settings_file
         .as_deref()
@@ -50,6 +51,7 @@ fn main() -> Result<()> {
     model.set_extraction_textures(settings.extraction_textures);
     model.set_extraction_audio(settings.extraction_audio);
     model.set_update_check(settings.update_check);
+    model.watch_game(true);
     model.query_mut().set_saved(settings.queries.clone());
     model.set_record_text_choice(
         settings

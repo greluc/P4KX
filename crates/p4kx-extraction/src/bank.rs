@@ -163,6 +163,7 @@ impl Bank {
         folder: &Path,
         format: WemFormat,
     ) -> Result<BankExtraction, ConversionError> {
+        p4kx_guard::ensure_writable(folder)?;
         fs::create_dir_all(folder).map_err(|source| write_error(folder, source))?;
         let wems: Vec<EmbeddedWem<'_>> = self.soundbank.wems().collect();
         let outcomes: Vec<(u32, Result<WrittenWem, ConversionError>)> = wems

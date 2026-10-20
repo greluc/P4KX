@@ -203,11 +203,13 @@ pub(crate) fn filtered_entries<'a>(archive: &'a Archive, text: &str) -> Result<V
 /// Creates the target folder `out`, or a new default target folder in the current directory.
 pub(crate) fn prepare_target(out: Option<&Path>, archive: &Archive) -> Result<PathBuf> {
     if let Some(out) = out {
+        crate::guard::ensure_writable(out)?;
         fs::create_dir_all(out)
             .with_context(|| format!("cannot create the target folder {}", out.display()))?;
         return Ok(out.to_path_buf());
     }
     let parent = std::env::current_dir().context("cannot read the current directory")?;
+    crate::guard::ensure_writable(&parent)?;
     let channel = channel_name(archive.path());
     let version = archive.build().map(Build::version);
     create_default_target(&parent, channel.as_deref(), version, SystemTime::now())

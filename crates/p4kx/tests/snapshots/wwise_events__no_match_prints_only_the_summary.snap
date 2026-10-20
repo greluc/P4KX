@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/wwise_events.rs
+expression: run.stdout
+---
+0 of 7 triggers match: showing none of 0

@@ -41,6 +41,8 @@ pub struct AnimationSet {
     pub animations: Vec<Animation>,
     /// The Entry path or file each of `animations` was read from, in step with it.
     pub origins: Vec<String>,
+    /// The files on disk the animations were read from; empty for an Archive.
+    pub inputs: Vec<PathBuf>,
     /// The files and animations that could not be read; a source named by the caller is an
     /// error instead.
     pub unread: Vec<UnreadAnimation>,
@@ -246,9 +248,11 @@ impl AnimationSet {
                     }),
             );
         }
-        read(sources, choice, |label| {
+        let mut set = read(sources, choice, |label| {
             ChunkSource::from_file(Path::new(label))
-        })
+        })?;
+        set.inputs = set.origins.iter().map(PathBuf::from).collect();
+        Ok(set)
     }
 }
 

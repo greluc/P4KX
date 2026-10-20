@@ -236,8 +236,7 @@ fn a_character_skeleton_exports_with_the_animations_of_a_database() -> TestResul
 
     let out = tempfile::tempdir()?;
     let file = out.path().join("skeleton.glb");
-    let summary =
-        skeleton.write_glb_animated(&animations.animations, &GlbOptions::default(), &file)?;
+    let summary = skeleton.write_glb_animated(&animations, &GlbOptions::default(), &file)?;
 
     let glb = check_glb(&std::fs::read(&file)?)?;
     assert_eq!(
@@ -284,7 +283,7 @@ fn a_static_model_exports_with_the_animation_found_at_the_mirrored_path() -> Tes
 
     let out = tempfile::tempdir()?;
     let file = out.path().join("door.glb");
-    let summary = door.write_glb_animated(&animations.animations, &GlbOptions::default(), &file)?;
+    let summary = door.write_glb_animated(&animations, &GlbOptions::default(), &file)?;
 
     let glb = check_glb(&std::fs::read(&file)?)?;
     let channel = glb

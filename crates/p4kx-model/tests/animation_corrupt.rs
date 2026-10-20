@@ -107,7 +107,7 @@ fn a_frame_rate_of_zero_is_corrupt() -> TestResult {
 fn an_unknown_rotation_format_is_reported_not_decoded() -> TestResult {
     let bad = TestAnimation::new("a.caf", 30).track(
         TestTrack::new(1)
-            .rotation_code(0x83)
+            .rotation_code(0x81)
             .rotations(&[(0, IDENTITY)]),
     );
 
@@ -117,7 +117,7 @@ fn an_unknown_rotation_format_is_reported_not_decoded() -> TestResult {
         reason,
         CorruptAnimation::UnknownFormat {
             kind: "rotation",
-            code: 0x83
+            code: 0x81
         },
         "reason"
     );

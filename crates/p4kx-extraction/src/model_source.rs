@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
-use p4kx_model::{Animation, LodSelection, Model};
+use p4kx_model::{LodSelection, Model};
 
-use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
 use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::texture_parts::is_same_file;
+use crate::{AnimationSet, ConversionError};
 
 /// A model read from a chunk file Entry of an Archive or from a file on disk, with the
 /// companions next to it.
@@ -156,36 +156,36 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.write_glb_animated(&[], options, out)
+        self.write_glb_animated(&AnimationSet::default(), options, out)
     }
 
-    /// Writes the model with `animations` as a GLB file to `out`, replacing it; see
+    /// Writes the model with the `animations` as a GLB file to `out`, replacing it; see
     /// [`Self::write_glb`].
     ///
     /// # Errors
     ///
-    /// As [`Self::write_glb`].
+    /// As [`Self::write_glb`], and [`ConversionError::OutputIsInput`] also when `out` is a file
+    /// an animation was read from.
     pub fn write_glb_animated(
         &self,
-        animations: &[Animation],
+        animations: &AnimationSet,
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        if is_same_file(out, self.inputs.iter().cloned()) {
+        if is_same_file(out, self.inputs.iter().chain(&animations.inputs).cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
         write_replacing(out, |writer| {
-            p4kx_gltf::write_glb_animated(&self.model, animations, options, writer).map_err(
-                |error| match error {
+            p4kx_gltf::write_glb_animated(&self.model, &animations.animations, options, writer)
+                .map_err(|error| match error {
                     GltfError::Write(source) => write_error(out, source),
                     source => ConversionError::Glb {
                         file: self.name.clone(),
                         source,
                     },
-                },
-            )
+                })
         })
     }
 }

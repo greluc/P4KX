@@ -1,0 +1,139 @@
+use p4kx_chunks::{ChunkFile, ivo};
+use p4kx_foundation::ByteReader;
+use rayon::prelude::*;
+
+use crate::animation_read::{
+    MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS, RECORD_LEN, build, check_budget, chunk_bytes, corrupt,
+    declared_keys, decode_tracks, read_block, read_record, stem,
+};
+use crate::reader::to_usize;
+use crate::{Animation, AnimationError, CorruptAnimation};
+
+const DBA_DATA_VERSION: u32 = 0x900;
+const DBA_METADATA_VERSION: u32 = 0x902;
+const PREFIX_LEN: usize = 4;
+const METADATA_HEADER_LEN: usize = 8;
+const DBA_SIGNATURE: [u8; 4] = *b"#dba";
+/// An animation of a `.dba` database that could not be read, with the reason; the other
+/// animations of the database are unaffected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SkippedAnimation {
+    /// The animation's name.
+    pub name: String,
+    /// The path the database lists it under.
+    pub path: String,
+    /// Why it could not be read.
+    pub reason: CorruptAnimation,
+}
+
+/// The animations of a `.dba` animation database.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct Dba {
+    /// The animations that were read, in the database's order.
+    pub animations: Vec<Animation>,
+    /// The animations that could not be read.
+    pub skipped: Vec<SkippedAnimation>,
+}
+
+impl Dba {
+    /// Reads the animations of the `.dba` file `file` named `file_name`: the blocks of
+    /// controllers of its `DbaData` chunk and, from its `DbaMetadata` chunk, the name, frame rate and
+    /// end frame of each.
+    ///
+    /// An animation that cannot be read is left out of [`Self::animations`] and listed in
+    /// [`Self::skipped`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AnimationError::UnsupportedContainer`] for a `CrCh` file,
+    /// [`AnimationError::MissingChunk`] and [`AnimationError::UnsupportedVersion`] when a chunk is
+    /// absent or has a layout this reader does not know, and [`AnimationError::Corrupt`] when
+    /// the metadata or a block header is truncated or malformed or the database declares more
+    /// keys than [`MAX_DATABASE_KEYS`].
+    pub fn read<B: AsRef<[u8]>>(
+        file_name: &str,
+        file: &ChunkFile<B>,
+    ) -> Result<Self, AnimationError> {
+        let metadata = chunk_bytes(
+            file_name,
+            file,
+            ivo::DBA_METADATA,
+            DBA_METADATA_VERSION,
+            "DbaMetadata",
+        )?;
+        let data = chunk_bytes(file_name, file, ivo::DBA_DATA, DBA_DATA_VERSION, "DbaData")?;
+        read_database(metadata, data).map_err(|(chunk, source)| corrupt(file_name, chunk, source))
+    }
+}
+
+fn read_database(metadata: &[u8], data: &[u8]) -> Result<Dba, (&'static str, CorruptAnimation)> {
+    let in_metadata = |source| ("DbaMetadata", source);
+    let in_data = |source| ("DbaData", source);
+    let mut reader = ByteReader::new(metadata);
+    let count = to_usize(
+        reader
+            .read_u32()
+            .map_err(|error| in_metadata(error.into()))?,
+    );
+    reader
+        .skip(METADATA_HEADER_LEN - 4)
+        .map_err(|error| in_metadata(error.into()))?;
+    let records = reader
+        .read_bytes(count.saturating_mul(RECORD_LEN))
+        .map_err(|error| in_metadata(error.into()))?;
+    let paths = names(
+        reader
+            .read_bytes(reader.remaining())
+            .map_err(|error| in_metadata(error.into()))?,
+        count,
+    )
+    .map_err(in_metadata)?;
+
+    let mut blocks = Vec::with_capacity(count);
+    let mut position = PREFIX_LEN;
+    let mut keys = 0_u64;
+    for _ in 0..count {
+        let block = read_block(data, position, DBA_SIGNATURE).map_err(in_data)?;
+        keys = keys.saturating_add(declared_keys(data, &block).map_err(in_data)?);
+        check_budget(keys, MAX_DATABASE_KEYS).map_err(in_data)?;
+        position = block.end;
+        blocks.push(block);
+    }
+    let decoded: Vec<_> = blocks
+        .par_iter()
+        .zip(records.par_chunks_exact(RECORD_LEN))
+        .map(|(block, record)| {
+            let record = read_record(record)?;
+            check_budget(declared_keys(data, block)?, MAX_ANIMATION_KEYS)?;
+            Ok::<_, CorruptAnimation>((record, decode_tracks(data, block)?))
+        })
+        .collect();
+    let mut dba = Dba {
+        animations: Vec::with_capacity(count),
+        skipped: Vec::new(),
+    };
+    for (path, result) in paths.into_iter().zip(decoded) {
+        let name = stem(&path).to_owned();
+        match result {
+            Ok((record, tracks)) => dba.animations.push(build(name, path, record, tracks)),
+            Err(reason) => dba.skipped.push(SkippedAnimation { name, path, reason }),
+        }
+    }
+    Ok(dba)
+}
+
+fn names(table: &[u8], count: usize) -> Result<Vec<String>, CorruptAnimation> {
+    let mut parts = table.split_inclusive(|&byte| byte == 0);
+    (0..count)
+        .map(|_| {
+            parts
+                .next()
+                .and_then(<[u8]>::split_last)
+                .filter(|&(&last, _)| last == 0)
+                .map(|(_, name)| String::from_utf8_lossy(name).into_owned())
+                .ok_or(CorruptAnimation::Names { animations: count })
+        })
+        .collect()
+}

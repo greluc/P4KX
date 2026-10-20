@@ -97,19 +97,26 @@ fn read_bitmap(
     let bits = usize::from(last - first) + 1;
     let bitmap = bytes_at(data, start + 4, bits.div_ceil(8))?;
     let mut frames = Vec::with_capacity(count);
+    let mut marked = 0_usize;
     for (index, &byte) in bitmap.iter().enumerate() {
-        for bit in 0..8 {
+        let mut remaining = byte;
+        while remaining != 0 {
+            let bit = usize::try_from(remaining.trailing_zeros()).unwrap_or(0);
+            remaining &= remaining - 1;
             let position = index * 8 + bit;
-            if (byte >> bit) & 1 == 1 && position < bits {
-                frames.push(first + u16::try_from(position).unwrap_or(0));
+            if position < bits {
+                marked += 1;
+                if marked <= count {
+                    frames.push(first + u16::try_from(position).unwrap_or(0));
+                }
             }
         }
     }
-    if frames.len() != count {
+    if marked != count {
         return Err(CorruptAnimation::BitmapCount {
             controller_id,
             expected: count,
-            found: frames.len(),
+            found: marked,
         });
     }
     Ok(frames)

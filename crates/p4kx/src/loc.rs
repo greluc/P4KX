@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use anyhow::{Context, Result};
 use p4kx_export::{Language, write_localization_table};
 use p4kx_extraction::{
-    Archive, LocalizationEntry, LocalizationNote, LocalizationSet, Lookup, decode_line_breaks,
+    LocalizationEntry, LocalizationNote, LocalizationSet, Lookup, decode_line_breaks,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -62,7 +62,7 @@ struct LanguagesJson<'a> {
 }
 
 fn languages(path: &std::path::Path, as_json: bool) -> Result<()> {
-    let archive = Archive::open(path)?;
+    let archive = crate::key::open(path)?;
     let present = LocalizationEntry::languages(&archive);
     let listed: Vec<(Language, &str)> = present
         .iter()
@@ -108,7 +108,7 @@ struct GetJson<'a> {
 }
 
 fn get(args: &LocGetArgs, as_json: bool) -> Result<ExitCode> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let wanted: Vec<Language> = std::iter::once(args.lang).chain(args.fallback).collect();
     let set = LocalizationSet::read(&archive, &wanted)?;
     for &language in &wanted {
@@ -185,7 +185,7 @@ struct ExportJson<'a> {
 }
 
 fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let wanted: &[Language] = if args.lang.is_empty() {
         &Language::ALL
     } else {

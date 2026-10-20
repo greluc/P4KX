@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Weak;
 
 use p4kx_comparison::Levels;
+use p4kx_extraction::ArchiveKey;
 
 mod diff;
 mod diff_document;
@@ -127,9 +128,21 @@ pub struct ComparisonTab {
     levels: ComparisonLevels,
     state: State,
     stopping: Option<Weak<()>>,
+    key: Option<ArchiveKey>,
+    key_wanted: bool,
 }
 
 impl ComparisonTab {
+    /// Sets the key the picked Archives are opened with.
+    pub const fn set_key(&mut self, key: Option<ArchiveKey>) {
+        self.key = key;
+    }
+
+    /// Returns whether the last Comparison failed for lack of a key that fits, once.
+    pub fn take_key_request(&mut self) -> bool {
+        std::mem::take(&mut self.key_wanted)
+    }
+
     /// Returns the Archive picked for `side`, or `None` when none is.
     #[must_use]
     pub fn archive(&self, side: ComparisonSide) -> Option<&Path> {
@@ -183,7 +196,12 @@ impl ComparisonTab {
         let (Some(old), Some(new)) = (&self.old, &self.new) else {
             return false;
         };
-        self.state = match run::start((old.clone(), new.clone()), self.levels.service(), wake) {
+        self.state = match run::start(
+            (old.clone(), new.clone()),
+            self.levels.service(),
+            self.key.clone(),
+            wake,
+        ) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };
@@ -213,12 +231,13 @@ impl ComparisonTab {
         match &mut self.state {
             State::Running(run) => match run.poll() {
                 None => false,
-                Some(Outcome::Finished(view)) => {
-                    self.state = State::Finished(view);
+                Some(Outcome::Failed(reason)) => {
+                    self.key_wanted |= run.key_asked();
+                    self.state = State::Failed(reason);
                     true
                 }
-                Some(Outcome::Failed(reason)) => {
-                    self.state = State::Failed(reason);
+                Some(Outcome::Finished(view)) => {
+                    self.state = State::Finished(view);
                     true
                 }
                 Some(Outcome::Cancelled) => {

@@ -1,3 +1,5 @@
+use std::io;
+use std::path::PathBuf;
 use std::ptr;
 
 use p4kx_archive::Entry;
@@ -216,13 +218,39 @@ impl EntryWriter<'_> {
             archive: self.archive,
             header,
             parts: job.parts.clone(),
+            verify: self.verify,
         };
         let alpha = job.alpha_header.map(|alpha_header| Parts::Archive {
             archive: self.archive,
             header: alpha_header,
             parts: job.alpha_parts.clone(),
+            verify: self.verify,
         });
+        if self.verify {
+            self.verify_header(header)?;
+            if let Some(alpha_header) = job.alpha_header {
+                self.verify_header(alpha_header)?;
+            }
+        }
         let texture = Texture::from_parts(colour, alpha).map_err(ExtractionError::Texture)?;
         Source::new(texture, header)
+    }
+
+    /// Reads a header Entry to its end through the verified reader, since a Conversion parses
+    /// only a prefix of it.
+    fn verify_header(&self, header: &Entry) -> Result<(), ExtractionError> {
+        let fail = |source: io::Error| {
+            ExtractionError::Texture(ConversionError::Read {
+                path: PathBuf::from(header.path()),
+                source,
+            })
+        };
+        let mut reader = self
+            .archive
+            .open_entry_verified(header)
+            .map_err(|error| fail(io::Error::other(error)))?;
+        io::copy(&mut reader, &mut io::sink())
+            .map(drop)
+            .map_err(fail)
     }
 }

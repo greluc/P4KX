@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use p4kx_extraction::ModelSource;
 use p4kx_extraction::model::{ChunkUsage, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
 use serde::Serialize;
@@ -80,6 +82,8 @@ struct MeshJson {
     vertices: usize,
     triangles: usize,
     normals: bool,
+    tangents: bool,
+    colours: bool,
     submeshes: Vec<SubmeshJson>,
 }
 
@@ -90,6 +94,8 @@ impl MeshJson {
             vertices: mesh.positions.len(),
             triangles: mesh.indices.len() / 3,
             normals: mesh.normals.is_some(),
+            tangents: mesh.tangents.is_some(),
+            colours: mesh.colours.is_some(),
             submeshes: mesh.submeshes.iter().map(SubmeshJson::of).collect(),
         }
     }
@@ -121,7 +127,7 @@ struct BoneJson<'a> {
 /// The JSON shape of one chunk of a model's files.
 #[derive(Serialize)]
 pub(crate) struct ChunkJson {
-    file: &'static str,
+    file: Cow<'static, str>,
     index: usize,
     #[serde(rename = "type")]
     type_name: Option<&'static str>,
@@ -141,11 +147,13 @@ impl ChunkJson {
     }
 }
 
-/// Returns `model` or `geometry`.
-pub(crate) const fn file_name(file: ModelFile) -> &'static str {
+/// Returns `model`, `geometry` or `lod<n>-geometry`.
+pub(crate) fn file_name(file: ModelFile) -> Cow<'static, str> {
     match file {
-        ModelFile::Model => "model",
-        ModelFile::Geometry => "geometry",
+        ModelFile::Model => Cow::Borrowed("model"),
+        ModelFile::Geometry => Cow::Borrowed("geometry"),
+        ModelFile::LodGeometry(level) => Cow::Owned(format!("lod{level}-geometry")),
+        _ => Cow::Borrowed("other"),
     }
 }
 

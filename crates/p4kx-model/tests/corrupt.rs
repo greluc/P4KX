@@ -121,6 +121,17 @@ fn an_index_beyond_the_vertices_is_rejected() -> TestResult {
 }
 
 #[test]
+fn a_repeated_stream_is_corruption() -> TestResult {
+    let error = corrupt_of(&TestModel::cube().with_repeated_indices())?;
+    assert_eq!(
+        error,
+        CorruptChunk::RepeatedStream(0xEECD_C168),
+        "the second index stream"
+    );
+    Ok(())
+}
+
+#[test]
 fn submesh_ranges_must_fit_and_be_triangles() -> TestResult {
     let submesh = |first_index, index_count, node| TestSubmesh {
         material_id: 1,

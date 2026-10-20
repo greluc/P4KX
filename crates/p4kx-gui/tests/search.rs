@@ -74,7 +74,7 @@ fn search_results_are_the_entries_p4kx_search_lists() -> TestResult {
     let (_folder, path) = archive()?;
     let mut model = opened(&path)?;
     let browser = model.browser_mut().ok_or("no Archive open")?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     for text in [
         "*.xml",

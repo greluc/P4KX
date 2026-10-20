@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::bank_reader::SectionReader;
 use crate::soundbank::BankHeader;
-use crate::{BankError, HircObject, SectionId, hirc};
+use crate::{BankError, BankWarning, HircObject, SectionId, hirc};
 
 const SECTION_HEADER_LEN: usize = 8;
 const DIDX_ENTRY_LEN: usize = 12;
@@ -35,6 +35,7 @@ pub(crate) struct Parsed {
     pub(crate) media: Vec<MediaRange>,
     pub(crate) objects: Vec<HircObject>,
     pub(crate) names: Vec<(u32, Range<usize>)>,
+    pub(crate) warnings: Vec<BankWarning>,
 }
 
 pub(crate) fn parse(bytes: &[u8]) -> Result<Parsed, BankError> {
@@ -55,22 +56,31 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Parsed, BankError> {
     };
     let (_, header) = body(SectionId::BKHD).ok_or(BankError::NotSoundbank)?;
     let header = parse_header(header)?;
+    let mut warnings = Vec::new();
     let media = match (body(SectionId::DIDX), body(SectionId::DATA)) {
-        (Some((_, index)), Some((data, _))) => media(index, data)?,
-        (Some(_), None) => {
-            return Err(BankError::invalid(
-                SectionId::DIDX,
-                "the bank has no DATA section",
-            ));
+        (Some((_, index)), Some((data, _))) => media(index, data, &mut warnings)?,
+        (Some((_, index)), None) => {
+            warnings.push(BankWarning::MediaWithoutData {
+                entries: (index.len() / DIDX_ENTRY_LEN) as u64,
+            });
+            Vec::new()
         }
         (None, _) => Vec::new(),
     };
     let objects = match body(SectionId::HIRC) {
-        Some((range, hirc)) => hirc::parse(header.version, hirc, range.start)?,
+        Some((range, hirc)) => {
+            let hirc = hirc::parse(header.version, hirc, range.start)?;
+            if hirc.trailing > 0 {
+                warnings.push(BankWarning::TrailingHircBytes {
+                    len: hirc.trailing as u64,
+                });
+            }
+            hirc.objects
+        }
         None => Vec::new(),
     };
     let names = match body(SectionId::STID) {
-        Some((range, stid)) => names(stid, range.start)?,
+        Some((range, stid)) => names(stid, range.start, &mut warnings)?,
         None => Vec::new(),
     };
     Ok(Parsed {
@@ -79,6 +89,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Parsed, BankError> {
         media,
         objects,
         names,
+        warnings,
     })
 }
 
@@ -127,7 +138,11 @@ fn parse_header(body: &[u8]) -> Result<BankHeader, BankError> {
     })
 }
 
-fn media(index: &[u8], data: Range<usize>) -> Result<Vec<MediaRange>, BankError> {
+fn media(
+    index: &[u8],
+    data: Range<usize>,
+    warnings: &mut Vec<BankWarning>,
+) -> Result<Vec<MediaRange>, BankError> {
     if !index.len().is_multiple_of(DIDX_ENTRY_LEN) {
         return Err(BankError::invalid(
             SectionId::DIDX,
@@ -161,20 +176,22 @@ fn media(index: &[u8], data: Range<usize>) -> Result<Vec<MediaRange>, BankError>
             range: start..stop,
         });
     }
-    media.sort_unstable_by_key(|media| media.id);
-    if media
-        .windows(2)
-        .any(|pair| matches!(pair, [a, b] if a.id == b.id))
-    {
-        return Err(BankError::invalid(
-            SectionId::DIDX,
-            "a WEM ID appears twice",
-        ));
-    }
+    media.sort_by_key(|media| media.id);
+    media.dedup_by(|later, first| {
+        let repeated = later.id == first.id;
+        if repeated {
+            warnings.push(BankWarning::DuplicateMedia { id: later.id });
+        }
+        repeated
+    });
     Ok(media)
 }
 
-fn names(body: &[u8], base: usize) -> Result<Vec<(u32, Range<usize>)>, BankError> {
+fn names(
+    body: &[u8],
+    base: usize,
+    warnings: &mut Vec<BankWarning>,
+) -> Result<Vec<(u32, Range<usize>)>, BankError> {
     let mut reader = SectionReader::new(SectionId::STID, body);
     let _string_type = reader.u32()?;
     let count = usize::try_from(reader.u32()?).unwrap_or(usize::MAX);
@@ -190,7 +207,8 @@ fn names(body: &[u8], base: usize) -> Result<Vec<(u32, Range<usize>)>, BankError
         let len = usize::from(reader.u8()?);
         let range = reader.skip(len)?;
         if std::str::from_utf8(body.get(range.clone()).unwrap_or_default()).is_err() {
-            return Err(BankError::invalid(SectionId::STID, "a name is not UTF-8"));
+            warnings.push(BankWarning::NonUtf8BankName { id });
+            continue;
         }
         names.push((id, base + range.start..base + range.end));
     }

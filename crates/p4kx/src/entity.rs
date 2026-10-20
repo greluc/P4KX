@@ -4,7 +4,7 @@ use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, Attachment, EntityNode, LoadoutResolver, PortDefinition, PortNode, PortSource,
 };
-use p4kx_extraction::{Archive, DataForgeEntry};
+use p4kx_extraction::DataForgeEntry;
 
 use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
@@ -21,7 +21,7 @@ pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<()> {
 
 /// Prints the Loadout tree of an Entity.
 fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let files = ArchiveFiles::new(&archive);

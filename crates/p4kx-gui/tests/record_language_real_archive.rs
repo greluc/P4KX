@@ -72,9 +72,11 @@ fn count(view: &RecordView, wanted: impl Fn(&KeyText) -> bool) -> usize {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario over a real Archive")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_real_ship_shows_its_texts_in_the_chosen_language_without_reading_again() -> TestResult {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, |model| model.browser().is_some())?;
     let languages = model.record_text_languages().to_vec();

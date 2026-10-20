@@ -87,6 +87,7 @@ pub fn extract(
         convert: options.convert,
         textures: options.textures,
         audio: options.audio,
+        verify: options.verify,
         tracker: &tracker,
     };
     let dataforge = options

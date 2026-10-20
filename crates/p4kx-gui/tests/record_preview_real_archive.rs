@@ -56,6 +56,7 @@ fn selected_path(model: &Model) -> Option<String> {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_real_ship_is_previewed_and_its_references_are_followed_and_back() -> TestResult {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, |model| model.browser().is_some())?;
     browser(&mut model)?.load_records(|| {});

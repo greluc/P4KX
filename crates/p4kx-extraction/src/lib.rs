@@ -1,6 +1,7 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
+mod archive_cause;
 mod bank;
 mod budget;
 mod buffers;
@@ -60,9 +61,11 @@ mod ui_jobs;
 mod ui_movie;
 mod ui_render;
 mod ui_render_bitmaps;
+mod verify;
 mod watch;
 mod write;
 
+pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
@@ -83,15 +86,16 @@ pub use options::{
 };
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryIssue,
-    EntryReader, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,
+    EntryReader, KeyCheck, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,
     MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
-    ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,
-    HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
+    HircKind, HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
+    WemChunk,
 };
 pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
@@ -103,6 +107,7 @@ pub use p4kx_dataforge::{
     Reference, Resolution, Struct, StructValue, TextResolver, TrailingSurvey, TreeBuilder, Value,
     ValueError, ValueKind,
 };
+pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 pub use p4kx_localization::{
@@ -138,4 +143,5 @@ pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
+pub use verify::{VerificationReport, VerifyOptions, verify};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

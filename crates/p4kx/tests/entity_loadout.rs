@@ -4,7 +4,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntity,
     TestEntry, TestLoadout, TestLoadoutEntry, TestRecord, TestStruct, TestType, entity_schema,
@@ -35,7 +34,7 @@ struct Run {
 }
 
 fn loadout(archive: &Path, entity: &str, json: bool, code: i32) -> Result<Run, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
     }

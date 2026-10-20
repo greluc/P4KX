@@ -28,7 +28,7 @@ fn open_container(
     ArchiveBuilder::new()
         .entry(TestEntry::stored(SOCPAK, container(room).build()))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let entry = archive
         .entries()
         .iter()

@@ -61,6 +61,9 @@ fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<
             },
             Model::new(language),
         );
+    harness
+        .state_mut()
+        .set_archive_key(Some(p4kx_testkit::test_key()));
     harness.state_mut().open(path, || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
     Ok((folder, harness))

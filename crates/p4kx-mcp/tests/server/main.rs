@@ -1,6 +1,7 @@
 //! `p4kx-mcp` end to end: the server runs as a child process and is spoken to over stdio, with a
 //! synthetic Library folder and Archive.
 
+mod archive_key;
 mod archives;
 mod dataforge_cache;
 mod definitions;

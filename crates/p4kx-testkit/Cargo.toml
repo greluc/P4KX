@@ -13,6 +13,7 @@ layer = "testkit"
 
 [dependencies]
 aes.workspace = true
+assert_cmd.workspace = true
 cbc.workspace = true
 crc32c.workspace = true
 crc32fast.workspace = true

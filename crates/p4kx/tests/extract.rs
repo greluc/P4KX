@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 use predicates::prelude::predicate;
 
@@ -59,7 +58,7 @@ fn extract_writes_the_requested_entries_into_out() -> TestResult {
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("Data/Libs/Config/defaultProfile.xml")
@@ -99,7 +98,7 @@ fn the_default_target_is_named_after_the_channel_and_the_build_version() -> Test
         "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
     )?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .current_dir(dir.path())
         .arg("extract")
         .arg(&archive)
@@ -126,7 +125,7 @@ fn extract_without_out_creates_a_new_default_target_for_every_run() -> TestResul
     let archive = write_archive(&channel)?;
 
     for _ in 0..2 {
-        Command::cargo_bin("p4kx")?
+        p4kx_testkit::p4kx()?
             .current_dir(dir.path())
             .arg("extract")
             .arg(&archive)
@@ -157,7 +156,7 @@ fn extract_rejects_entry_paths_outside_the_target_with_exit_code_1() -> TestResu
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("a").join("b").join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("..\\..\\escaped.txt")
@@ -202,7 +201,7 @@ fn extract_writes_compressed_and_encrypted_entries_with_their_original_bytes() -
         ("Data/secret.xml", b"<secret/>"),
     ];
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .args(expected.iter().map(|(path, _)| path))
@@ -230,7 +229,7 @@ fn extract_writes_the_entries_of_a_v2_archive() -> TestResult {
         .entry(TestEntry::zstd("Data\\secret.xml", b"<secret/>".to_vec()).encrypted())
         .write_to(&archive)?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("Data\\readme.txt")
@@ -262,7 +261,7 @@ fn extract_of_corrupt_entries_fails_only_those_entries_with_exit_code_1() -> Tes
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("Data\\broken.xml")
@@ -302,7 +301,7 @@ fn extract_keeps_existing_files_and_reports_them_as_skipped() -> TestResult {
     std::fs::create_dir_all(out.join("Data"))?;
     std::fs::write(out.join("Data/readme.txt"), "mine")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("Data\\readme.txt")
@@ -330,7 +329,7 @@ fn extract_of_an_unknown_entry_is_invalid_input_with_exit_code_2() -> TestResult
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .current_dir(dir.path())
         .arg("extract")
         .arg(&archive)
@@ -352,7 +351,7 @@ fn extract_without_entry_paths_is_invalid_input_with_exit_code_2() -> TestResult
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .assert()
@@ -366,7 +365,7 @@ fn extract_from_a_file_that_is_not_an_archive_exits_with_code_3() -> TestResult 
     let not_archive = dir.path().join("notes.txt");
     std::fs::write(&not_archive, "plain text")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&not_archive)
         .arg("Data\\readme.txt")
@@ -378,7 +377,7 @@ fn extract_from_a_file_that_is_not_an_archive_exits_with_code_3() -> TestResult 
 
 #[test]
 fn extract_help_documents_the_exit_codes() -> TestResult {
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .args(["extract", "--help"])
         .assert()
         .code(0)

@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
     TestValue,
@@ -92,7 +91,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn export(archive: &Path, out: &Path, args: &[&str], code: i32) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "export"])
         .arg(archive)
         .arg("--out")
@@ -270,7 +269,7 @@ fn combined_with_a_json_format_exits_with_code_2() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "export"])
         .arg(&archive)
         .arg("--out")

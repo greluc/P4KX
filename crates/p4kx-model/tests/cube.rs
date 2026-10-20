@@ -124,6 +124,11 @@ fn every_vertex_and_normal_layout_decodes_to_the_same_cube() -> TestResult {
     for variant in [
         TestModel::cube().with_positions(TestPositions::Float),
         TestModel::cube().with_normals(TestNormals::Compressed),
+        TestModel::cube().with_normals(TestNormals::FloatOnNormals),
+        TestModel::cube().with_normals(TestNormals::PackedOnNormals),
+        TestModel::cube().with_normals(TestNormals::PackedOnNormals2),
+        TestModel::cube().with_normals(TestNormals::Tangents16),
+        TestModel::cube().with_normals(TestNormals::CompressedWithOpposedPacked),
         TestModel::cube().with_wide_indices(),
         TestModel::cube().scaled(0.1),
     ] {
@@ -146,6 +151,34 @@ fn every_vertex_and_normal_layout_decodes_to_the_same_cube() -> TestResult {
         let expected_normals = expected.normals.as_ref().ok_or("normals")?;
         for (normal, expected) in normals.iter().zip(expected_normals) {
             assert_close(*normal, *expected, "normal");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn positions_are_dequantised_with_the_scaling_box_whatever_the_model_box_is() -> TestResult {
+    let reference = read(&TestModel::cube())?;
+    let expected = reference
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("mesh")?;
+    for variant in [
+        TestModel::cube().with_model_box([-40.0, -3.0, -7.0], [12.0, 30.0, 9.0]),
+        TestModel::cube()
+            .with_positions(TestPositions::Float)
+            .with_model_box([-40.0, -3.0, -7.0], [12.0, 30.0, 9.0]),
+    ] {
+        let model = read(&variant)?;
+        let mesh = model
+            .lods
+            .first()
+            .and_then(|lod| lod.meshes.first())
+            .ok_or("mesh")?;
+        assert_eq!(mesh.positions.len(), expected.positions.len(), "vertices");
+        for (position, expected) in mesh.positions.iter().zip(&expected.positions) {
+            assert_close(*position, *expected, "position");
         }
     }
     Ok(())

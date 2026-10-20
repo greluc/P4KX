@@ -17,11 +17,35 @@ impl TestHircObject {
     /// streams it.
     #[must_use]
     pub fn sound(id: u32, source_id: u32, storage: u8, in_memory_size: u32) -> Self {
+        Self::sound_with(id, source_id, storage, in_memory_size, true)
+    }
+
+    /// A Sound object as bank version 150 lays it out: the in-memory media size follows the source
+    /// ID directly, without a `cacheID`.
+    #[must_use]
+    pub fn sound_without_cache_id(
+        id: u32,
+        source_id: u32,
+        storage: u8,
+        in_memory_size: u32,
+    ) -> Self {
+        Self::sound_with(id, source_id, storage, in_memory_size, false)
+    }
+
+    fn sound_with(
+        id: u32,
+        source_id: u32,
+        storage: u8,
+        in_memory_size: u32,
+        cache_id: bool,
+    ) -> Self {
         let mut body = Vec::new();
         put_u32(&mut body, VORBIS_PLUGIN_ID);
         body.push(storage);
         put_u32(&mut body, source_id);
-        put_u32(&mut body, source_id ^ 0x5A5A_5A5A);
+        if cache_id {
+            put_u32(&mut body, source_id ^ 0x5A5A_5A5A);
+        }
         put_u32(&mut body, in_memory_size);
         body.push(0);
         body.extend_from_slice(&[0; 12]);

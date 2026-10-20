@@ -15,13 +15,15 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::extract::NoMatch;
+use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
 use crate::wwise::UnknownTrigger;
 use crate::{model, texture};
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
-/// Some Entries or Records failed or were cancelled, the target folder could not be created, a
+/// Some Entries or Records failed or were cancelled, the data of an Entry does not match its
+/// checksum, the target folder could not be created, a
 /// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
 /// cannot be converted or written, a tag or definition of a UI movie cannot be read or written,
 /// or a model cannot be exported or written.
@@ -45,14 +47,18 @@ pub(crate) const ARCHIVE_CHANGED: u8 = 4;
 pub(crate) const DATAFORGE_ERROR: u8 = 5;
 /// A Comparison ran, but its report or its output cannot be written.
 pub(crate) const COMPARISON_FAILED: u8 = 6;
+/// An Entry needed the Archive key, and none was given or the one given does not fit.
+pub(crate) const KEY_ERROR: u8 = 7;
 /// A second Ctrl+C ended an Extraction without waiting for it to stop.
 pub(crate) const INTERRUPTED: u8 = 130;
 
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
-  0  success: every requested Entry was extracted or already existed; compare: no differences,
+  0  success: every requested Entry was extracted or already existed; verify: every Entry matched
+     its checksum; compare: no differences,
      also for the --diff Entry
-  1  partial failure: some Entries or Records failed or were cancelled, the target or the
+  1  partial failure: some Entries or Records failed or were cancelled, the data of an Entry
+     does not match its checksum (verify, extract --verify), the target or the
      settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
      e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
@@ -81,6 +87,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
      is corrupt, or the Record of the Entity whose Loadout or audio is shown cannot be read
   6  compare: the report or the output cannot be written
+  7  the Archive key is missing or wrong: an Entry is encrypted and no key was given with --key,
+     P4KX_ARCHIVE_KEY or `p4kx key set`, or the key does not decrypt the Archive
   130  interrupted: a second Ctrl+C ended an Extraction at once; temporary .part files may remain";
 
 /// Returns the exit code for an error that ended a command.
@@ -97,6 +105,9 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
+    if crate::key::is_key_error(error) {
+        return KEY_ERROR;
+    }
     if let Some(error) = error.downcast_ref::<LineDiffError>() {
         return match error {
             LineDiffError::UnknownEntry { .. } => INVALID_INPUT,
@@ -146,6 +157,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<MissingCatalogArgs>().is_some()
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
         || error.downcast_ref::<NoLanguages>().is_some()
+        || error.downcast_ref::<InvalidKey>().is_some()
     {
         INVALID_INPUT
     } else {

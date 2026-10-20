@@ -93,7 +93,10 @@ fn read(archive: &Archive, entry: &Entry) -> Result<(Tally, Vec<String>), String
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_ui_movie_is_read_without_failures() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let movies: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -143,7 +146,10 @@ fn every_real_ui_movie_is_read_without_failures() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_real_menu_extracts_its_dds_backed_images() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let movie = UiMovie::from_archive(&archive, "Data\\UI\\Menus_Startmenu.gfx")?;
     let target = tempfile::tempdir()?;
     let extraction = movie.extract_assets(target.path())?;
@@ -167,7 +173,10 @@ fn a_real_menu_extracts_its_dds_backed_images() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_ui_texture_fits_the_bitmap_limit() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let textures: Vec<&Entry> = archive
         .entries()
         .iter()

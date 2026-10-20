@@ -13,7 +13,10 @@ const KNOWN_KEY: &str = "ui_Abandon";
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_language_the_game_ships_is_present_with_translations() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let set = LocalizationSet::read_all(&archive)?;
     assert_eq!(
         set.languages().collect::<Vec<_>>(),
@@ -45,7 +48,10 @@ fn every_language_the_game_ships_is_present_with_translations() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_known_key_resolves_in_english_and_german() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let set = LocalizationSet::read_all(&archive)?;
     let texts = set.index()?;
     let keys = texts.keys();
@@ -91,7 +97,10 @@ fn a_known_key_resolves_in_english_and_german() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_language_of_the_archive_loads_and_resolves_a_known_key() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let languages = LocalizationEntry::languages(&archive);
     assert!(languages.contains(&Language::English), "English is there");
     let set = LocalizationSet::read_all(&archive)?;

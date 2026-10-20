@@ -34,7 +34,7 @@ jobs:
       - name: Formatting, one package at a time to keep the Windows command line short
         shell: bash
         run: |
-          for package in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name'); do
+          for package in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | tr -d '\r'); do
             cargo fmt -p "$package" --check
           done
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings

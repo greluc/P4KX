@@ -672,7 +672,7 @@ Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on di
 {"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
  "width": 64, "height": 48,
  "skipped": [{"id": 50, "depth": 7, "sprite": 9, "reason": "not_drawn", "drawn": false,
-              "message": "DefineText definitions are not drawn"}],
+              "message": "DefineButton2 definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
             {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
              refers to ../Textures/gone.dds, which does not exist; …"}]}
@@ -683,10 +683,13 @@ of the SVG document, written to `target`. `skipped` lists in drawing order every
 left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
 one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
-`missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `filters` and
-`blend_mode`, `drawn` is `true` for `filters` and `blend_mode`, which are drawn without the
-effect, and `message` says it in words. `fill_budget` ends the frame: this and every later element
-are not drawn. `failed` lists first the tags that could not be read (`kind` `tag`, with `code` and
+`missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `too_many_glyphs`,
+`missing_font`, `missing_glyph`, `missing_glyph_index`, `unlocalised`, `text_truncated`, `filters`
+and `blend_mode`, `drawn` is `true` for `filters`, `blend_mode` and the reasons of texts other than
+`too_many_glyphs`, which are drawn without the effect or as a fallback (an empty box for a missing
+font or glyph, the key itself for an unknown key), and `message` says it in words. `fill_budget`
+and `too_many_glyphs` end the frame: this and every later element are not drawn. `failed` lists
+first the tags that could not be read (`kind` `tag`, with `code` and
 `offset` as in `ui extract`), then the bitmaps that could not be decoded (`kind` `bitmap`, with
 `id`); a fill with such a bitmap is skipped as `missing_bitmap`. The exit code is 1 when `skipped`
 or `failed` is not empty. A canvas that is empty or larger than 16384 pixels a side or 2^25

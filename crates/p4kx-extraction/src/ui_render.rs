@@ -1,6 +1,10 @@
 use std::path::Path;
 
-use p4kx_gfx::{GfxError, MAX_BITMAP_PIXELS, RasterOptions, RgbaImage, Scene, Skipped, TagFailure};
+use p4kx_gfx::{
+    GfxError, Localise, MAX_BITMAP_PIXELS, RasterOptions, RgbaImage, Scene, Skipped, TagFailure,
+    TextOptions,
+};
+use p4kx_localization::decode_line_breaks;
 
 use crate::output_file::{write_error, write_replacing};
 use crate::texture_parts::is_same_file;
@@ -82,7 +86,17 @@ impl UiMovie<'_> {
         options: &RasterOptions,
     ) -> Result<ComposedFrame, ConversionError> {
         let mut assets = self.movie().assets();
-        let scene = self.movie().first_frame(&assets);
+        let ini = self.texts().and_then(|texts| texts.parse().ok());
+        let lookup = |key: &str| {
+            ini.as_ref()?
+                .resolve(key)
+                .map(|text| decode_line_breaks(text).into_owned())
+        };
+        let text_options = TextOptions {
+            fonts: &[],
+            localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
+        };
+        let scene = self.movie().first_frame_with_text(&assets, &text_options);
         scene
             .canvas_size(options.size)
             .map_err(|source| self.frame_error(source))?;

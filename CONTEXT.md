@@ -358,8 +358,14 @@ _Avoid_: instance
 **Scene**:
 A frame of a UI movie composed into drawing instructions independent of the output: each shape
 once, its placements with transforms, colour transforms and masks, and what was skipped. It is
-rasterised to PNG.
+rasterised to PNG or written as SVG. Text is part of it as glyph shapes, one per glyph and colour.
 _Avoid_: render tree, stage (the stage is the area of the movie)
+
+**Text field**:
+A definition of a UI movie that shows a text (`DefineEditText`), with a font, size, colour,
+alignment and optionally HTML markup or a localisation key (`@key`); a static text (`DefineText`)
+places glyphs by index instead.
+_Avoid_: label, string
 
 ### Operations
 

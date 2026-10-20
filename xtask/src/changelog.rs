@@ -3,9 +3,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 
-const FILE: &str = "CHANGELOG.md";
+use crate::fragments;
 
-/// Returns a message when `CHANGELOG.md` has no notes for the workspace version.
+pub(crate) const FILE: &str = "CHANGELOG.md";
+
+/// Returns a message when `CHANGELOG.md` has no notes for the workspace version, repeats or
+/// misorders a `### ` heading, or a fragment in `changelog.d/` is invalid.
 pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
     let version = workspace_version(root)?;
     let text = read(root)?;
@@ -14,10 +17,11 @@ pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
         violations.push(missing(&version));
     }
     violations.extend(subsection_violations(&text));
+    violations.extend(fragments::check(root)?);
     Ok(violations)
 }
 
-const ORDER: [&str; 6] = [
+pub(crate) const ORDER: [&str; 6] = [
     "Added",
     "Changed",
     "Deprecated",
@@ -91,7 +95,7 @@ fn missing(version: &str) -> String {
     format!("{FILE} has no notes under `## [{version}]`")
 }
 
-fn read(root: &Path) -> Result<String> {
+pub(crate) fn read(root: &Path) -> Result<String> {
     fs::read_to_string(root.join(FILE)).with_context(|| format!("cannot read {FILE}"))
 }
 

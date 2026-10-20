@@ -63,6 +63,9 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
             put_u16(data, 0);
         }
     });
+    for _ in 0..model.repeated_index_streams {
+        put_indices(&mut out, model);
+    }
     out
 }
 

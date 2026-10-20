@@ -157,12 +157,19 @@ pub(crate) fn read_streams<'a>(
     let mut vertices = None;
     let mut normals: Option<NormalStream<'a>> = None;
     let mut indices = None;
+    let mut seen = 0_u8;
     while reader.remaining() >= 4 {
         let tag = reader.read_u32()?;
         if tag == 0 {
             continue;
         }
         let size = reader.read_u32()?;
+        if let Some(bit) = read_tag_bit(tag) {
+            if seen & bit != 0 {
+                return Err(CorruptChunk::RepeatedStream(tag));
+            }
+            seen |= bit;
+        }
         let count = if tag == INDICES {
             counts.indices
         } else {
@@ -193,6 +200,19 @@ pub(crate) fn read_streams<'a>(
         normals,
         indices: indices.ok_or(CorruptChunk::MissingStream("index"))?,
     })
+}
+
+const fn read_tag_bit(tag: u32) -> Option<u8> {
+    match tag {
+        INDICES => Some(1),
+        VERTS_UVS => Some(1 << 1),
+        VERTS_UVS_2 => Some(1 << 2),
+        NORMALS => Some(1 << 3),
+        NORMALS_2 => Some(1 << 4),
+        TANGENTS => Some(1 << 5),
+        QTANGENTS => Some(1 << 6),
+        _ => None,
+    }
 }
 
 enum Found<'a> {

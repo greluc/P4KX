@@ -31,6 +31,15 @@ const HEADS: [Text; 2] = [
     Text::Record(RecordText::HeadValue),
 ];
 
+/// The lines a list shows with what tells it from the other lists: its heads, the name of its
+/// scroll view and the key of its caches.
+pub(super) struct List<'a> {
+    pub(super) lines: &'a [FieldLine],
+    pub(super) heads: [Text; 2],
+    pub(super) scroll: ScrollText,
+    pub(super) salt: &'static str,
+}
+
 /// The laid-out cells of one line.
 #[derive(Clone)]
 struct Laid {
@@ -51,17 +60,18 @@ struct LineCache {
 }
 
 impl LineCache {
-    fn load(ui: &Ui, texts: &Texts, generation: u64) -> Self {
+    fn load(ui: &Ui, texts: &Texts, generation: u64, list: &List<'_>) -> Self {
         let key = Id::unique((
-            "record-lines",
+            list.salt,
             texts.language(),
             generation,
             ui.ctx().pixels_per_point().to_bits(),
         ));
-        let mut cache: Self =
-            ui.data_mut(|data| std::mem::take(data.get_temp_mut_or_default::<Self>(cache_id())));
+        let mut cache: Self = ui.data_mut(|data| {
+            std::mem::take(data.get_temp_mut_or_default::<Self>(cache_id(list.salt)))
+        });
         if cache.key != Some(key) {
-            let names = HEADS.map(|text| texts.get(text));
+            let names = list.heads.map(|text| texts.get(text));
             cache = Self {
                 key: Some(key),
                 heads: names
@@ -78,8 +88,8 @@ impl LineCache {
         cache
     }
 
-    fn store(self, ui: &Ui) {
-        ui.data_mut(|data| *data.get_temp_mut_or_default::<Self>(cache_id()) = self);
+    fn store(self, ui: &Ui, salt: &'static str) {
+        ui.data_mut(|data| *data.get_temp_mut_or_default::<Self>(cache_id(salt)) = self);
     }
 
     fn row(
@@ -130,8 +140,8 @@ impl LineCache {
     }
 }
 
-fn cache_id() -> Id {
-    Id::unique("record-preview-lines")
+fn cache_id(salt: &'static str) -> Id {
+    Id::unique(("record-preview-lines", salt))
 }
 
 /// Shows the head and the virtual lines of `view`, two equal columns, field and value; returns
@@ -142,23 +152,39 @@ pub(super) fn show(
     view: &RecordView,
     generation: u64,
 ) -> Option<RecordStep> {
-    let mut cache = LineCache::load(ui, texts, generation);
+    let list = List {
+        lines: view.lines(),
+        heads: HEADS,
+        scroll: ScrollText::Lines,
+        salt: "record-lines",
+    };
+    show_list(ui, texts, &list, generation)
+}
+
+/// Shows the head and the virtual lines of `list`; returns the Reference that was followed.
+pub(super) fn show_list(
+    ui: &mut Ui,
+    texts: &Texts,
+    list: &List<'_>,
+    generation: u64,
+) -> Option<RecordStep> {
+    let mut cache = LineCache::load(ui, texts, generation, list);
     ui.spacing_mut().item_spacing = Vec2::ZERO;
     heads(ui, &cache);
     let mut step = None;
     let area = ScrollArea::vertical()
-        .id_salt("record-preview-lines")
+        .id_salt(("record-preview-lines", list.salt))
         .auto_shrink(false);
-    let id = ui.scope_id().with("record-preview-lines");
+    let id = ui.scope_id().with(("record-preview-lines", list.salt));
     scroll_region::show(
         ui,
-        (id, || texts.get(ScrollText::Lines)),
+        (id, || texts.get(list.scroll)),
         ROW_HEIGHT,
         area,
         |area, ui| {
-            area.show_rows(ui, ROW_HEIGHT, view.lines().len(), |ui, range| {
+            area.show_rows(ui, ROW_HEIGHT, list.lines.len(), |ui, range| {
                 for index in range {
-                    if let Some(field) = view.lines().get(index)
+                    if let Some(field) = list.lines.get(index)
                         && let Some(followed) = row(ui, texts, &mut cache, (index, field))
                     {
                         step = Some(followed);
@@ -167,7 +193,7 @@ pub(super) fn show(
             })
         },
     );
-    cache.store(ui);
+    cache.store(ui, list.salt);
     step
 }
 

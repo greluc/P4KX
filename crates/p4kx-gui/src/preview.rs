@@ -50,6 +50,8 @@ pub enum PreviewTab {
     Audio,
     /// The Record selected in the Record tree instead of the selected Entry.
     Record,
+    /// The Records that refer to the Record selected in the Record tree.
+    Incoming,
 }
 
 /// Where the preview of an Entry stands.

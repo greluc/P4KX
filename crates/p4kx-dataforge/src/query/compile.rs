@@ -7,7 +7,7 @@ use crate::query::schema::{StructFields, ancestors_include};
 use crate::query::suggest::closest;
 use crate::query::syntax::{Name, Query};
 use crate::query::{Comparison, QueryError, QueryErrorKind};
-use crate::{DataForge, DataForgeError, DataType};
+use crate::{DataForge, DataForgeError, DataType, Guid, ReferenceIndex};
 
 /// A Query checked against one DataForge and ready to run.
 #[derive(Debug)]
@@ -16,6 +16,7 @@ pub struct CompiledQuery<'f> {
     pub(crate) columns: Vec<String>,
     pub(crate) kinds: Vec<ColumnKind>,
     pub(crate) pattern: Option<PathPattern>,
+    pub(crate) referrers: Option<Box<[u32]>>,
     pub(crate) predicate: Option<Predicate>,
     pub(crate) plans: Box<[Option<Plan>]>,
 }
@@ -88,6 +89,30 @@ impl Query {
     /// comparison whose literal does not fit the value's type, or of a number too large in
     /// magnitude to compare.
     pub fn compile<'f>(&self, forge: &'f DataForge<'f>) -> Result<CompiledQuery<'f>, QueryError> {
+        let built;
+        let references = if self.referencing.is_some() {
+            built = ReferenceIndex::build(forge);
+            Some(&built)
+        } else {
+            None
+        };
+        self.compile_with(forge, references)
+    }
+
+    /// Compiles like [`compile`](Self::compile) with the `references` index of `forge` that
+    /// `referencing` reads, built before for another use; without it a `referencing` clause
+    /// selects no Record.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`QueryError`] of [`compile`](Self::compile), and one for a `referencing`
+    /// text that is no GUID or record path of a Record.
+    pub fn compile_with<'f>(
+        &self,
+        forge: &'f DataForge<'f>,
+        references: Option<&ReferenceIndex>,
+    ) -> Result<CompiledQuery<'f>, QueryError> {
+        let referrers = self.referrers(forge, references)?;
         let structs = StructFields::read_all(forge);
         let selected = match &self.from {
             Some(name) => select_type(&structs, name)?,
@@ -142,9 +167,54 @@ impl Query {
             kinds,
             columns: self.select.iter().map(ToString::to_string).collect(),
             pattern: self.at.as_ref().map(|at| PathPattern::new(at.as_str())),
+            referrers,
             predicate,
             plans,
         })
+    }
+}
+
+impl Query {
+    /// Returns the sorted indices of the Records that refer to the Records `referencing` names.
+    fn referrers(
+        &self,
+        forge: &DataForge<'_>,
+        references: Option<&ReferenceIndex>,
+    ) -> Result<Option<Box<[u32]>>, QueryError> {
+        let Some(referent) = &self.referencing else {
+            return Ok(None);
+        };
+        let text = referent.as_str();
+        let by_path = || forge.records_at_path(text).map(|record| record.index());
+        let targets: Vec<u32> = text.parse::<Guid>().map_or_else(
+            |_| by_path().collect(),
+            |guid| {
+                forge
+                    .record_by_guid(guid)
+                    .map(|record| record.index())
+                    .into_iter()
+                    .collect()
+            },
+        );
+        if targets.is_empty() {
+            return Err(QueryError::new(
+                QueryErrorKind::UnknownReferencedRecord {
+                    text: text.to_owned(),
+                },
+                referent.span(),
+            ));
+        }
+        let mut found: Vec<u32> = references
+            .map(|index| {
+                targets
+                    .iter()
+                    .flat_map(|target| index.referrers(*target))
+                    .collect()
+            })
+            .unwrap_or_default();
+        found.sort_unstable();
+        found.dedup();
+        Ok(Some(found.into_boxed_slice()))
     }
 }
 

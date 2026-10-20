@@ -17,6 +17,8 @@ at "*/spaceships/*" select Icon, Category where Icon like "default.*" and (Categ
 from EntityClassDefinition at "libs/foundry/records/entities/spaceships/*" select Components[VehicleComponentParams].vehicleName, Components[VehicleComponentParams].crewSize where Components[VehicleComponentParams].crewSize >= 4
 from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Size, Components[SAttachableComponentParams].AttachDef.Type where Components[SAttachableComponentParams].AttachDef.Size >= 7
 from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Manufacturer->Code, Components[SAttachableComponentParams].AttachDef.Manufacturer->Localization.Name where Components[SAttachableComponentParams].AttachDef.Manufacturer->Code = "BEH"
+from EntityClassDefinition referencing "libs/foundry/records/entities/scitem/ships/armor/armr_aegs_avenger_stalker"
+referencing "70000000-0000-4000-8000-000000000001" at "*/spaceships/*"
 ```
 
 - `from EntityClassDefinition` lists every Record of type `EntityClassDefinition` or of a struct
@@ -29,6 +31,8 @@ from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableC
   ([Paths into nested data](#paths-into-nested-data)).
 - `Manufacturer->Code` follows the Reference `Manufacturer` to the Record it links to and reads
   its field `Code` ([Following References](#following-references)).
+- `referencing "libs/makers/aegis"` selects the Records that hold a Reference to the Record at that
+  record path, or with that GUID ([Records that refer to a Record](#records-that-refer-to-a-record)).
 
 The opt-in tests against a real Archive run these examples.
 
@@ -136,8 +140,9 @@ other control characters below U+0020 as `\u00XX`; every other character is writ
 
 ```text
 query      = selection [ "select" path { "," path } ] [ "where" condition ] ;
-selection  = "from" name [ "at" string ]
-           | "at" string ;
+selection  = "from" name [ "at" string ] [ "referencing" string ]
+           | "at" string [ "referencing" string ]
+           | "referencing" string ;
 path       = name { segment } ;
 segment    = "." name
            | "[" index "]"
@@ -164,8 +169,8 @@ string     = '"' { char-but-quote | '""' } '"' ;
 
 - `letter` is an ASCII letter and `digit` an ASCII digit.
 - Whitespace (any Unicode whitespace) may stand between any two tokens and is ignored.
-- The clauses come in the order `from`, `at`, `select`, `where`; each appears at most once, and
-  at least one of `from` and `at` is given.
+- The clauses come in the order `from`, `at`, `referencing`, `select`, `where`; each appears at
+  most once, and at least one of `from`, `at` and `referencing` is given.
 - A Query is at most 65,536 bytes long.
 - A path has at most 64 segments behind its first name, and at most 16 of them are `->`
   (`MAX_PATH_REFERENCES`).
@@ -174,7 +179,7 @@ string     = '"' { char-but-quote | '""' } '"' ;
 
 ### Keywords
 
-`from`, `at`, `select`, `where`, `and`, `or` and `not` are keywords; they ignore case, so
+`from`, `at`, `referencing`, `select`, `where`, `and`, `or` and `not` are keywords; they ignore case, so
 `FROM` and `From` are `from`. A type or field whose name is a keyword, or is no bare name, is
 written in backticks: `` `select` ``, `` `Size-X` ``, e.g. ``from Tag select `select` ``. A quoted
 name holds any characters but a backtick and is never empty.
@@ -210,6 +215,22 @@ The string of `at` matches record paths with the rules of a Filter: with `*` (an
 characters, separators included) or `?` (exactly one character) it is a glob over the full
 record path; otherwise it matches when it occurs anywhere in the record path. Both forms ignore
 ASCII case and treat `/` and `\` alike. The record path has no `.xml` extension.
+
+### Records that refer to a Record
+
+`referencing "<text>"` keeps the Records that hold a Reference to a Record: the Reference
+fields and weak pointers to another Record, wherever they stand in the Record, nested structs and
+array elements included. The text is the GUID of the Record, or its record path (ignoring ASCII
+case, `/` and `\` alike and a trailing `.xml`); a record path that several Records share names all
+of them, and the Query selects the Records that refer to any of them. A Record that refers to
+itself is not selected for that. It combines with `from` and `at`: both keep only the Records
+that also meet them. The first Query with `referencing` of an Archive reads every Record once to
+index the References ([ADR-0028](adr/0028-references-are-indexed-once-per-archive-from-record-trees.md));
+the window keeps that index for the Archive, and `p4kx dcb refs` lists the References themselves
+with their fields.
+
+Text that is no GUID and names no Record is a compile error marked on the string, e.g.
+``no Record has the GUID or record path `libs/nowhere` ``.
 
 ## Paths into nested data
 

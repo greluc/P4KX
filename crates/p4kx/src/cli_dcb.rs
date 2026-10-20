@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 use p4kx_export::Language;
 
 use crate::cli::Conflict;
@@ -28,6 +28,57 @@ pub(crate) enum DcbCommand {
     /// path first.
     #[command(after_help = EXIT_CODES_HELP)]
     Query(DcbQueryArgs),
+    /// Lists the Records that refer to a Record, the Records it refers to, the References to a
+    /// GUID no Record has, or the record files that refer to each other.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Refs(DcbRefsArgs),
+}
+
+/// Arguments of `p4kx dcb refs`.
+#[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("mode")
+        .required(true)
+        .args(["incoming", "outgoing", "files", "unresolved"])
+))]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one flag per mode of an exclusive clap group"
+)]
+pub(crate) struct DcbRefsArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The GUID or the record path of the Record; a record path several Records share names
+    /// them all. Needed for --incoming and --outgoing; with --files it limits the graph to the
+    /// files that refer to its file or are referred to by it.
+    #[arg(conflicts_with = "unresolved")]
+    pub(crate) target: Option<String>,
+    /// Lists the Records that refer to the Record, with the field of each Reference.
+    #[arg(long, requires = "target")]
+    pub(crate) incoming: bool,
+    /// Lists the Records the Record refers to, with the field of each Reference, and its
+    /// Reference to a GUID no Record has separately.
+    #[arg(long, requires = "target")]
+    pub(crate) outgoing: bool,
+    /// Lists the record files that refer to other record files: the edges of the file graph.
+    #[arg(long)]
+    pub(crate) files: bool,
+    /// Lists every Reference to a GUID no Record has.
+    #[arg(long)]
+    pub(crate) unresolved: bool,
+    /// The format of the result, defined in docs/cli-json.md; defaults to table, or to json with
+    /// --json.
+    #[arg(long, value_enum)]
+    pub(crate) format: Option<RefsFormat>,
+}
+
+/// The values of `p4kx dcb refs --format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum RefsFormat {
+    /// Aligned columns, for reading.
+    Table,
+    /// One line of JSON.
+    Json,
 }
 
 /// Arguments of `p4kx dcb query`.

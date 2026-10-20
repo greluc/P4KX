@@ -4,7 +4,7 @@ use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview::{self, AudioAction};
 use super::record_preview::{self, RecordStep};
-use super::{dataforge_summary, hex_view, image_preview, xml_preview};
+use super::{dataforge_summary, hex_view, image_preview, record_incoming, xml_preview};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
@@ -14,12 +14,12 @@ use crate::widgets::scroll_region;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
+    AudioText, Browser, DataForgeText, ImageText, IncomingText, Model, PREVIEW_SIZE_LIMIT, Preview,
     PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts, XmlDocument,
     XmlPreview, XmlText, format, is_wem_path,
 };
 
-const TABS: [(PreviewTab, Text); 7] = [
+const TABS: [(PreviewTab, Text); 8] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
@@ -27,6 +27,7 @@ const TABS: [(PreviewTab, Text); 7] = [
     (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
+    (PreviewTab::Incoming, Text::Incoming(IncomingText::Tab)),
 ];
 
 /// What the body of a tab asks for.
@@ -55,6 +56,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
             | PreviewTab::Audio
             | PreviewTab::DataForge
             | PreviewTab::Record
+            | PreviewTab::Incoming
     ) {
         model.set_preview_tab(PreviewTab::Text);
     }
@@ -71,9 +73,16 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     {
         model.set_preview_tab(PreviewTab::Xml);
     }
+    let incoming = model.preview_tab() == PreviewTab::Incoming;
     if let Some(browser) = model.browser_mut() {
         let ctx = ui.ctx().clone();
-        browser.load_record_preview(move || ctx.request_repaint());
+        browser.load_record_preview({
+            let ctx = ctx.clone();
+            move || ctx.request_repaint()
+        });
+        if incoming {
+            browser.load_incoming(move || ctx.request_repaint());
+        }
     }
     let Some(browser) = model.browser() else {
         return;
@@ -124,7 +133,7 @@ fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -
         PreviewTab::Image => image.is_some(),
         PreviewTab::Audio => audio.is_some(),
         PreviewTab::DataForge => records.is_some(),
-        PreviewTab::Record => record,
+        PreviewTab::Record | PreviewTab::Incoming => record,
         PreviewTab::Text | PreviewTab::Hex => true,
     };
     let tabs: Vec<(PreviewTab, Text)> = TABS
@@ -224,6 +233,9 @@ fn tab_body(
         }
         (PreviewTab::Record, Some(_)) if record => {
             record_preview::show(ui, texts, browser).map(Asked::Record)
+        }
+        (PreviewTab::Incoming, Some(_)) if record => {
+            record_incoming::show(ui, texts, browser).map(Asked::Record)
         }
         (PreviewTab::Xml, Some(_)) if record => {
             record_preview::show_xml(ui, texts, browser);

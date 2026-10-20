@@ -5,6 +5,7 @@ use std::thread;
 
 use p4kx_export::RecordFilePlans;
 use p4kx_extraction::DataForgeEntry;
+use p4kx_extraction::ReferenceIndex;
 use p4kx_extraction::query::QuerySchema;
 
 use crate::EntryIndex;
@@ -18,6 +19,9 @@ pub(crate) struct ForgeSource {
     schema: OnceLock<Arc<QuerySchema>>,
     schema_turn: Mutex<()>,
     schema_builds: AtomicUsize,
+    references: OnceLock<Arc<ReferenceIndex>>,
+    references_turn: Mutex<()>,
+    references_builds: AtomicUsize,
 }
 
 impl ForgeSource {
@@ -28,6 +32,9 @@ impl ForgeSource {
             schema: OnceLock::new(),
             schema_turn: Mutex::new(()),
             schema_builds: AtomicUsize::new(0),
+            references: OnceLock::new(),
+            references_turn: Mutex::new(()),
+            references_builds: AtomicUsize::new(0),
         }
     }
 
@@ -60,6 +67,32 @@ impl ForgeSource {
     }
 }
 
+impl ForgeSource {
+    /// Returns the index of the References between the Records, building it from the DataForge
+    /// already read unless it was built before. The build runs outside the [`OnceLock`], because
+    /// it uses rayon, and one at a time, so that it happens once per read.
+    ///
+    /// # Errors
+    ///
+    /// Returns why the DataForge cannot be opened.
+    pub(crate) fn references(&self) -> Result<Arc<ReferenceIndex>, ReadFailure> {
+        let _turn = self
+            .references_turn
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(references) = self.references.get() {
+            return Ok(Arc::clone(references));
+        }
+        let forge = self
+            .entry
+            .open()
+            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        self.references_builds.fetch_add(1, Ordering::Relaxed);
+        let built = Arc::new(ReferenceIndex::build(&forge));
+        Ok(Arc::clone(self.references.get_or_init(|| built)))
+    }
+}
+
 impl fmt::Debug for ForgeSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ForgeSource")
@@ -67,6 +100,8 @@ impl fmt::Debug for ForgeSource {
             .field("plans", &self.plans)
             .field("schema", &self.schema.get().is_some())
             .field("schema_builds", &self.schema_builds)
+            .field("references", &self.references.get().is_some())
+            .field("references_builds", &self.references_builds)
             .finish_non_exhaustive()
     }
 }
@@ -156,6 +191,12 @@ impl ForgeCache {
     /// Returns the completion schema once it was built from the DataForge held now.
     pub(crate) fn schema(&self) -> Option<Arc<QuerySchema>> {
         self.cached()?.schema_if_built()
+    }
+
+    /// Returns how often the index of References was built for the DataForge held now.
+    pub(crate) fn reference_builds(&self) -> usize {
+        self.cached()
+            .map_or(0, |source| source.references_builds.load(Ordering::Relaxed))
     }
 
     /// Returns how often the completion schema was built for the DataForge held now.

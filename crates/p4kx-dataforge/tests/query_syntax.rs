@@ -72,9 +72,18 @@ fn name(random: &mut Random) -> String {
         .next()
         .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-        && !["from", "at", "select", "where", "and", "or", "not"]
-            .iter()
-            .any(|keyword| keyword.eq_ignore_ascii_case(name));
+        && ![
+            "from",
+            "at",
+            "referencing",
+            "select",
+            "where",
+            "and",
+            "or",
+            "not",
+        ]
+        .iter()
+        .any(|keyword| keyword.eq_ignore_ascii_case(name));
     if bare && random.chance(70) {
         name.to_owned()
     } else {
@@ -127,6 +136,19 @@ fn random_query(random: &mut Random) -> String {
         text.push_str(random.pick(&SPACES));
         text.push('"');
         text.push_str(glob);
+        text.push('"');
+    }
+    if random.chance(30) {
+        let target = random.pick(&[
+            "libs/ships/avenger",
+            "00000000-0000-0000-0000-000000000001",
+            "a\"\"b",
+        ]);
+        text.push_str(random.pick(&SPACES));
+        text.push_str(&keyword(random, "referencing"));
+        text.push_str(random.pick(&SPACES));
+        text.push('"');
+        text.push_str(target);
         text.push('"');
     }
     if random.chance(70) {

@@ -10,6 +10,7 @@ use crate::query::{Condition, Span};
 pub struct Query {
     pub(crate) from: Option<Name>,
     pub(crate) at: Option<Glob>,
+    pub(crate) referencing: Option<Referent>,
     pub(crate) select: Vec<Path>,
     pub(crate) condition: Option<Condition>,
 }
@@ -25,6 +26,12 @@ impl Query {
     #[must_use]
     pub const fn at(&self) -> Option<&Glob> {
         self.at.as_ref()
+    }
+
+    /// Returns the GUID or record path of `referencing`, whose referrers are selected.
+    #[must_use]
+    pub const fn referencing(&self) -> Option<&Referent> {
+        self.referencing.as_ref()
     }
 
     /// Returns the paths of `select`, one per column after the record path.
@@ -76,6 +83,27 @@ impl Glob {
     }
 
     /// Returns where the glob stands in the Query, quotes included.
+    #[must_use]
+    pub const fn span(&self) -> Span {
+        self.span
+    }
+}
+
+/// The GUID or record path of `referencing` with its span.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Referent {
+    pub(crate) text: String,
+    pub(crate) span: Span,
+}
+
+impl Referent {
+    /// Returns the text without quotes.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+
+    /// Returns where the text stands in the Query, quotes included.
     #[must_use]
     pub const fn span(&self) -> Span {
         self.span
@@ -196,12 +224,21 @@ impl fmt::Display for Query {
             let separator = if self.from.is_some() { " " } else { "" };
             write!(f, "{separator}{} {at}", Keyword::At)?;
         }
-        if let Some((first, rest)) = self.select.split_first() {
+        if let Some(referent) = &self.referencing {
             let separator = if self.from.is_some() || self.at.is_some() {
                 " "
             } else {
                 ""
             };
+            write!(f, "{separator}{} {referent}", Keyword::Referencing)?;
+        }
+        if let Some((first, rest)) = self.select.split_first() {
+            let separator =
+                if self.from.is_some() || self.at.is_some() || self.referencing.is_some() {
+                    " "
+                } else {
+                    ""
+                };
             write!(f, "{separator}{} {first}", Keyword::Select)?;
             for path in rest {
                 write!(f, ", {path}")?;
@@ -225,6 +262,12 @@ impl fmt::Display for Name {
 }
 
 impl fmt::Display for Glob {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        quote(f, &self.text)
+    }
+}
+
+impl fmt::Display for Referent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         quote(f, &self.text)
     }

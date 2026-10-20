@@ -114,7 +114,8 @@ impl PreviewContents {
             | PreviewTab::Image
             | PreviewTab::DataForge
             | PreviewTab::Audio
-            | PreviewTab::Record => String::new(),
+            | PreviewTab::Record
+            | PreviewTab::Incoming => String::new(),
         }
     }
 

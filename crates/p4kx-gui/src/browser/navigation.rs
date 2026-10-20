@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use p4kx_extraction::Guid;
 
-use crate::{Browser, RecordId, RecordLink, RecordNodeKind, RecordPreview, TextLanguage};
+use crate::{
+    Browser, IncomingPreview, RecordId, RecordLink, RecordNodeKind, RecordPreview, TextLanguage,
+};
 
 impl Browser {
     /// Returns how often DataForge of the open Archive was read from the Archive; the Record
@@ -38,6 +40,33 @@ impl Browser {
         self.navigation
             .preview()
             .filter(|preview| preview.record() == selected)
+    }
+
+    /// Returns the list of the Records that refer to the selected Record, or None when no Record
+    /// is selected or the list was not asked for yet.
+    #[must_use]
+    pub fn incoming_preview(&self) -> Option<&IncomingPreview> {
+        let selected = self.selected_record()?;
+        self.incoming
+            .preview()
+            .filter(|preview| preview.record() == selected)
+    }
+
+    /// Finds the Records that refer to the selected Record on a background thread unless that is
+    /// done or running; the first search of an Archive builds the index of its References, which
+    /// takes a moment, and every later one uses it. `wake` is called from the thread once the list
+    /// is there.
+    pub fn load_incoming(&mut self, wake: impl Fn() + Send + Sync + 'static) {
+        if let Some(id) = self.selected_record() {
+            self.incoming.request(id, &self.index, Arc::new(wake));
+        }
+    }
+
+    /// Returns how often the index of References was built for the DataForge of the open Archive;
+    /// it is built once per Archive, on the first request of the list.
+    #[must_use]
+    pub fn reference_builds(&self) -> usize {
+        self.index.forge().reference_builds()
     }
 
     /// Returns the language Record previews resolve localisation keys in, or `None` for the keys

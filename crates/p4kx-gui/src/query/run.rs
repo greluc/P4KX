@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 
 use p4kx_extraction::query::{ColumnKind, Query, QueryRun};
-use p4kx_extraction::{CancelToken, DataForgeEntry, QUERY_PAGE_SIZE};
+use p4kx_extraction::{CancelToken, DataForgeEntry, QUERY_PAGE_SIZE, ReferenceIndex};
 use rayon::prelude::*;
 
 use super::result::{QueryResult, ResultColumn, ResultRow};
@@ -98,18 +98,28 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
     if job.index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let entry = match job
+    let cached = match job
         .index
         .forge()
         .read(&job.index, || set(QueryStage::Loading))
     {
-        Ok(source) => Arc::clone(&source.entry),
+        Ok(cached) => cached,
         Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
         Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
     };
+    let references = if job.query.referencing().is_some() {
+        match cached.references() {
+            Ok(references) => Some(references),
+            Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
+            Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
+        }
+    } else {
+        None
+    };
     let source = Source {
-        entry: &entry,
+        entry: &cached.entry,
         archive: job.index.archive().path(),
+        references: references.as_deref(),
     };
     let outcome = query_over(source, &job.query, job.text, cancel, set);
     if matches!(outcome, Outcome::Finished(_)) && job.index.watch().check().is_err() {
@@ -124,6 +134,7 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
 struct Source<'a> {
     entry: &'a Arc<DataForgeEntry>,
     archive: &'a Path,
+    references: Option<&'a ReferenceIndex>,
 }
 fn query_over(
     source: Source<'_>,
@@ -140,7 +151,7 @@ fn query_over(
         Err(error) => return Outcome::Failed(Some(describe(&error))),
     };
     set(QueryStage::Selecting);
-    let compiled = match query.compile(&forge) {
+    let compiled = match query.compile_with(&forge, source.references) {
         Ok(compiled) => compiled,
         Err(error) => return Outcome::Invalid(QueryInvalid::new(text, &error)),
     };

@@ -8,6 +8,13 @@ fails while its section is missing.
 
 ### Added
 
+- Incoming References: `p4kx dcb refs <archive> <guid|record path> --incoming|--outgoing [--format table|json]`
+  lists the Records that refer to a Record, or those it refers to, with the field and the array
+  indices of every Reference and its Reference to a GUID no Record has apart; `--files` lists the
+  edges between record files, `--unresolved` every Reference to a GUID no Record has. The window
+  shows a *Referenced by* tab for the selected Record, a Query selects Records with `referencing
+  "<GUID or record path>"`. One index over all Records, built in parallel on first use and kept
+  per Archive, serves all of them.
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

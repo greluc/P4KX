@@ -294,6 +294,7 @@ fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
 }
 
 #[test]
+#[ignore = "needs a GPU adapter: set P4KX_RENDER_DIR and pass --ignored"]
 fn the_tab_renders_in_both_languages() -> TestResult {
     for (language, name) in [
         (Language::BritishEnglish, "content-search-en-GB.png"),

@@ -87,6 +87,8 @@ fn archive_info_by_channel_name_summarises_the_archive() -> TestResult {
             },
             "entry_count": 6,
             "encrypted_count": 1,
+            "issue_count": 0,
+            "issues": [],
             "compressed_size": info["compressed_size"],
             "size": 4 + 80 + 50 + 3 + 3 + 5
         }),
@@ -193,5 +195,24 @@ fn unknown_arguments_are_rejected() -> TestResult {
     let rejected = response.get("error").is_some()
         || response.pointer("/result/isError") == Some(&Value::Bool(true));
     assert!(rejected, "an unknown argument fails: {response}");
+    Ok(())
+}
+
+#[test]
+fn archive_info_lists_the_issues_of_defective_entries() -> TestResult {
+    let install = Install::new(vec![
+        TestEntry::stored("ok.txt", b"x".to_vec()),
+        TestEntry::stored("bad.txt", b"y".to_vec()).with_encryption_field(5),
+    ])?;
+    let mut server = install.serve(&[])?;
+    let info = server.ok("archive_info", &json!({ "archive": "live" }))?;
+    assert_eq!(info["issue_count"], 1, "the count");
+    assert_eq!(info["issues"][0]["path"], "bad.txt", "the Entry");
+    assert!(
+        info["issues"][0]["issue"]
+            .as_str()
+            .is_some_and(|issue| issue.contains("encryption field is 5")),
+        "the defect: {info}"
+    );
     Ok(())
 }

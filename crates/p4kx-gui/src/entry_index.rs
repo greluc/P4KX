@@ -1,3 +1,5 @@
+mod containers;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use p4kx_extraction::{
@@ -22,6 +24,8 @@ pub struct EntryIndex {
     watch: ArchiveWatch,
     tree: EntryTree,
     orders: SortOrders,
+    containers: Vec<(FolderId, u32)>,
+    path_bytes: u64,
     groups: EntryGroups,
     dataforge: Option<usize>,
     forge: ForgeCache,
@@ -54,6 +58,11 @@ impl EntryIndex {
         }
         let groups = EntryGroups::new(&texture_groups, &id_of, tree.len());
         let orders = SortOrders::build(&sorted, |id| groups.total_size(id));
+        let containers = containers::build(&sorted, &tree);
+        let path_bytes = sorted
+            .par_iter()
+            .map(|entry| entry.path().len() as u64)
+            .sum();
         let dataforge = DataForgeEntry::locate(&archive)
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
         let text_languages = LocalizationEntry::languages(&archive);
@@ -62,12 +71,37 @@ impl EntryIndex {
             archive,
             tree,
             orders,
+            containers,
+            path_bytes,
             groups,
             dataforge,
             forge: ForgeCache::default(),
             text_languages,
             texts: TextCache::default(),
         }
+    }
+
+    /// Returns the ids of the containers directly in `folder`, by name ignoring case.
+    pub fn containers_in(&self, folder: FolderId) -> impl ExactSizeIterator<Item = u32> + '_ {
+        containers::directly_in(&self.containers, folder)
+            .iter()
+            .map(|&(_, id)| id)
+    }
+
+    /// Returns whether `folder` shows anything below it in the path tree: subfolders or
+    /// containers.
+    #[must_use]
+    pub fn has_children(&self, folder: FolderId) -> bool {
+        !self.folder(folder).children().is_empty() || self.containers_in(folder).len() > 0
+    }
+
+    /// Returns roughly how many bytes the Entries and this index hold in memory, without the
+    /// data of a decoded container.
+    pub(crate) const fn footprint(&self) -> u64 {
+        let per_entry = size_of::<Entry>() + containers::INDEX_BYTES_PER_ENTRY;
+        (self.len() as u64)
+            .saturating_mul(per_entry as u64)
+            .saturating_add(self.path_bytes)
     }
 
     /// Returns the Entry DataForge is read from, `Data\Game2.dcb` or `Data\Game.dcb`, or `None`

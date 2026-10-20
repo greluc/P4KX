@@ -77,6 +77,7 @@ pub(crate) struct TestProperty {
     pub(crate) name: String,
     pub(crate) ty: TestType,
     pub(crate) array: bool,
+    pub(crate) flags: u8,
 }
 
 /// A struct definition of a synthetic DataForge.
@@ -121,7 +122,27 @@ impl TestStruct {
             name: name.into(),
             ty,
             array: false,
+            flags: 0,
         });
+        self
+    }
+
+    /// Sets the bits above the low byte of the conversion type of the field added last.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the struct has no field yet.
+    #[must_use]
+    #[expect(
+        clippy::panic,
+        reason = "a misuse of the test helper must fail the test loudly"
+    )]
+    pub fn conversion_flags(mut self, flags: u8) -> Self {
+        let property = self
+            .properties
+            .last_mut()
+            .unwrap_or_else(|| panic!("conversion_flags needs a field added before it"));
+        property.flags = flags;
         self
     }
 
@@ -132,6 +153,7 @@ impl TestStruct {
             name: name.into(),
             ty,
             array: true,
+            flags: 0,
         });
         self
     }
@@ -145,6 +167,8 @@ pub struct TestRecord {
     pub(crate) name: String,
     pub(crate) file_name: String,
     pub(crate) tag: String,
+    pub(crate) without_name: bool,
+    pub(crate) without_tag: bool,
     pub(crate) values: Vec<(String, TestValue)>,
 }
 
@@ -167,6 +191,8 @@ impl TestRecord {
             name: name.into(),
             file_name: file_name.into(),
             tag: String::new(),
+            without_name: false,
+            without_tag: false,
             values: Vec::new(),
         }
     }
@@ -176,6 +202,20 @@ impl TestRecord {
     #[must_use]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.tag = tag.into();
+        self
+    }
+
+    /// Stores the offset `0xFFFFFFFF` instead of the Record's name.
+    #[must_use]
+    pub const fn without_name(mut self) -> Self {
+        self.without_name = true;
+        self
+    }
+
+    /// Stores the offset `0xFFFFFFFF` instead of the Record's tag in a version 8 database.
+    #[must_use]
+    pub const fn without_tag(mut self) -> Self {
+        self.without_tag = true;
         self
     }
 

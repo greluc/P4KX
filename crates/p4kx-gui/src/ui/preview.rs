@@ -215,7 +215,7 @@ fn tab_body(
     match (tab, browser.records()) {
         (PreviewTab::DataForge, Some(tree)) => {
             let size = browser
-                .index()
+                .archive_index()
                 .dataforge_entry()
                 .map_or(0, Entry::uncompressed_size);
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));

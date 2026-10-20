@@ -39,13 +39,17 @@ impl RecordLayout {
             Self::V6 => None,
             Self::V8 => Some(fields.u32()),
         };
+        let struct_index = fields.u32();
+        let guid = fields.bytes16();
+        let instance_index = fields.u16();
         RecordDef {
             name,
             file_name,
             tag,
-            struct_index: fields.u32(),
-            guid: fields.bytes16(),
-            instance_index: fields.u16(),
+            struct_index,
+            guid,
+            instance_index,
+            trailing: fields.u16(),
         }
     }
 }

@@ -291,7 +291,10 @@ fn report(survey: &Survey) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_two_boxes_of_the_mesh_chunks_are_judged_by_the_face_normals_they_give() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index: HashMap<String, &Entry> = archive
         .entries()
         .iter()

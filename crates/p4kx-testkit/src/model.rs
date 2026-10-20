@@ -3,7 +3,7 @@ use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
 use crate::model_nmc::nmc_chunk;
 use crate::model_skin::skin_chunk;
 
-const ASSET_METADATA: u32 = 0xBE5E_493E;
+const EXPORT_FLAGS: u32 = 0xBE5E_493E;
 const MTL_NAME_320: u32 = 0x8335_3333;
 const NODE_MESH_COMBO: u32 = 0x7069_7FDA;
 const MESH_INFO: u32 = 0x9291_4444;
@@ -220,7 +220,7 @@ impl TestModel {
     #[must_use]
     pub fn cgf(&self) -> Vec<u8> {
         let mut file = TestChunkFile::ivo()
-            .chunk(ASSET_METADATA, IVO_VERSION, [0; 128])
+            .chunk(EXPORT_FLAGS, IVO_VERSION, [0; 128])
             .chunk(MTL_NAME_320, IVO_VERSION, self.material_name_chunk());
         if !self.nodes.is_empty() {
             file = file.chunk(NODE_MESH_COMBO, IVO_VERSION, nmc_chunk(self));

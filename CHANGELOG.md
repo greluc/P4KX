@@ -90,6 +90,11 @@ fails while its section is missing.
   Record, at most 1024 listed, all counted by `issue_count`), and `DataForge::survey` counts the
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
+- Three `#ivo` chunk types change their name in `p4kx chunks list` and `p4kx model info`, also in
+  the `type` field of their `--json` output: `0x2B7ECF9F` is `PositionBonemap` (was
+  `BoundingData`), `0x58DE1772` `StatObjPhysics` (was `LodMeshData`) and `0xBE5E493E`
+  `ExportFlags` (was `AssetMetadata`); `0x57A38888` is now `BShapesGpu` and `0xF5C6EB5B`
+  `BShapes`.
 
 ### Fixed
 
@@ -104,6 +109,11 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- The `#ivo` chunk type table follows a survey of LIVE, PTU and TECH-PREVIEW
+  (docs/chunk-types.md): twelve types that `p4kx chunks list` reported as unknown are named
+  (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,
+  `Skeleton` and four more), seven stay unknown, and the table entries that occur in no measured
+  Archive are marked unverified.
 
 ## [0.2.0]
 

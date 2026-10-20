@@ -74,6 +74,9 @@ impl Composer<'_> {
                 if let Some(template) = localise(found.key) {
                     let style = parsed.cells.first().map_or(0, |cell| cell.style);
                     let replaced = plain(&fill(&template, &found.parameters));
+                    if replaced.truncated && !issues.contains(&SkipReason::TextTruncated) {
+                        issues.push(SkipReason::TextTruncated);
+                    }
                     parsed.cells = replaced
                         .cells
                         .into_iter()

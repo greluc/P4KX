@@ -687,9 +687,14 @@ each a `style_change` (a `move_to` position and new style numbers), a `straight_
 `delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
 not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
-## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] --json`
+## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--lang <language>] --json`
 
 Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on disk.
+
+`--lang` (only with an Archive and an Entry) resolves the localisation keys (`@key`) of text fields
+in the `global.ini` of that language; a key it does not hold is listed as `unlocalised`, and without
+`--lang` keys are drawn as they are. A `global.ini` that cannot be indexed prints no JSON and fails
+with exit code 3.
 
 ```json
 {"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",

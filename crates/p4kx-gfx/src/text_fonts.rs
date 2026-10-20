@@ -18,7 +18,8 @@ pub type Localise<'a> = &'a dyn Fn(&str) -> Option<String>;
 /// box and listed in the report.
 #[derive(Clone, Copy, Default)]
 pub struct TextOptions<'a> {
-    /// Fonts of other movies, searched by ID and name after the fonts of the movie.
+    /// Fonts of other movies, searched by name only after the fonts of the movie, because a font
+    /// ID means something only inside its own movie.
     pub fonts: &'a [Font],
     /// Looks a localisation key up, without its `@`; `None` leaves the key as it is.
     pub localise: Option<Localise<'a>>,
@@ -77,7 +78,7 @@ impl FontIndex {
     }
 }
 
-/// The fonts a frame can draw with: those of the movie, then those of the options.
+/// The fonts a frame can draw with: those of the movie, then those of the options, which only a name finds.
 pub(crate) struct Fonts<'b> {
     list: Vec<&'b Font>,
     by_id: HashMap<u16, usize>,
@@ -91,7 +92,9 @@ impl<'b> Fonts<'b> {
         let mut by_id = HashMap::new();
         let mut by_name = HashMap::new();
         for (at, font) in list.iter().enumerate() {
-            by_id.entry(font.id).or_insert(at);
+            if at < movie.len() {
+                by_id.entry(font.id).or_insert(at);
+            }
             for name in std::iter::once(&font.name).chain(font.full_name.as_ref()) {
                 if !name.is_empty() {
                     by_name.entry(name.to_ascii_lowercase()).or_insert(at);

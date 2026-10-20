@@ -298,22 +298,52 @@ fn keys_are_localised_with_their_parameters_and_unknown_keys_are_listed() {
 }
 
 #[test]
-fn fonts_of_other_movies_are_used_after_the_fonts_of_the_movie() {
+fn a_localised_text_beyond_the_character_limit_is_cut_and_listed() {
+    let lookup = |key: &str| (key == "ui_long").then(|| "A".repeat(5000));
+    let options = TextOptions {
+        fonts: &[],
+        localise: Some(&lookup),
+    };
+    let raster = rasterize(&compose(&field(&plain("@ui_long")), &options));
+    assert_eq!(codes(&raster), ["text_truncated"]);
+}
+
+#[test]
+fn fonts_of_other_movies_are_found_by_name_only() {
     let donor = Movie::parse(with_font().tag(1, &[]).bytes())
         .unwrap_or_else(|error| unreachable!("{error}"));
     let donor_assets = donor.assets();
-    let bytes = stage()
-        .tag(37, &plain("A").body())
-        .tag(26, &TestPlace::new(1, 7).body2())
-        .tag(1, &[])
-        .bytes();
     let options = TextOptions {
         fonts: &donor_assets.fonts,
         localise: None,
     };
-    let raster = rasterize(&compose(&bytes, &options));
+    let named = stage()
+        .tag(
+            37,
+            &TestEditText::new(7, FIELD)
+                .text("A")
+                .font_class("Orbitron", HEIGHT)
+                .color(GREEN)
+                .body(),
+        )
+        .tag(26, &TestPlace::new(1, 7).body2())
+        .tag(1, &[])
+        .bytes();
+    let raster = rasterize(&compose(&named, &options));
     assert!(raster.skipped.is_empty(), "{:?}", raster.skipped);
     assert_pixel(&raster.image, (6, 36), GREEN, 0);
+
+    let by_id = stage()
+        .tag(37, &plain("A").body())
+        .tag(26, &TestPlace::new(1, 7).body2())
+        .tag(1, &[])
+        .bytes();
+    let raster = rasterize(&compose(&by_id, &options));
+    assert!(
+        codes(&raster).contains(&"missing_font"),
+        "{:?}",
+        raster.skipped
+    );
 }
 
 #[test]

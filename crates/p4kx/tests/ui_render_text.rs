@@ -183,6 +183,31 @@ fn keys_resolve_in_the_language_of_the_archive_and_unknown_ones_are_listed() -> 
 }
 
 #[test]
+fn a_global_ini_that_cannot_be_indexed_fails_with_the_archive_exit_code() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    let ini = (0..=p4kx_extraction::MAX_GLOBAL_INI_KEYS)
+        .fold(GlobalIniBuilder::new(), |ini, at| {
+            ini.text(format!("k{at}"), "v")
+        });
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(MOVIE, text_movie("@k1")))
+        .entry(TestEntry::zstd(INI, ini.build()))
+        .write_to(&path)?;
+    p4kx_testkit::p4kx()?
+        .args(["ui", "render"])
+        .arg(&path)
+        .arg(MOVIE)
+        .arg("--out")
+        .arg(dir.path().join("x.png"))
+        .args(["--lang", "en"])
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains("cannot index the texts"));
+    Ok(())
+}
+
+#[test]
 fn a_language_needs_an_archive() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = write(dir.path(), "A")?;

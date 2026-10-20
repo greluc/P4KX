@@ -56,6 +56,7 @@ fails while its section is missing.
   settings, run with one click, renamed and deleted.
 - Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
   and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
+- `PortNode::nested` in `p4kx-assembly`: the ports of the nested Loadout of an empty port.
 
 ### Changed
 

@@ -144,12 +144,12 @@ A **Port**:
 (an XML `<Item>` with an empty `itemName`, or a manual entry without target) but carries nested
 entries keeps its port empty and lists those entries in `nested`, so the gear below e.g.
 `Body_ItemPort` of a character stays visible; they count in `ports`, `attached` and `empty` like
-every port. The text output prints them indented below the empty port. A **definition** has `display_name` (a
-localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or `null`), `types`
-(each with `type` and `sub_types`) and `transform`: `null` without an attachment helper,
-otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the helper in the
-parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rotation`
-(`[x, y, z]` in degrees as stored).
+every port. The text output prints them indented below the empty port. A **definition** has
+`display_name` (a localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or
+`null`), `types` (each with `type` and `sub_types`) and `transform`: `null` without an
+attachment helper, otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the
+helper in the parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and
+`rotation` (`[x, y, z]` in degrees as stored).
 
 An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
 target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:

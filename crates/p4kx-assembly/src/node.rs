@@ -16,6 +16,7 @@ use crate::{
 /// The state of one resolution: the Entities on the current branch and the ports so far.
 pub(crate) struct Walk {
     ancestors: Vec<Guid>,
+    nesting: usize,
     ports: usize,
 }
 
@@ -23,8 +24,14 @@ impl Walk {
     pub(crate) fn new(root: Guid) -> Self {
         Self {
             ancestors: vec![root],
+            nesting: 0,
             ports: 0,
         }
+    }
+
+    /// Returns the depth of the current branch: attached Entities plus nested Loadout levels.
+    fn depth(&self) -> usize {
+        self.ancestors.len().saturating_add(self.nesting)
     }
 
     /// Counts one more port, or returns `false` when the tree already holds
@@ -63,7 +70,7 @@ impl LoadoutResolver<'_> {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
             }
-            ports.push(self.port_node(pending, walk));
+            ports.push(self.port_node(pending, walk, &mut issues));
         }
         EntityNode {
             guid: spec.guid,
@@ -74,10 +81,15 @@ impl LoadoutResolver<'_> {
         }
     }
 
-    fn port_node(&mut self, pending: Pending<'_>, walk: &mut Walk) -> PortNode {
+    fn port_node(
+        &mut self,
+        pending: Pending<'_>,
+        walk: &mut Walk,
+        issues: &mut Vec<LoadoutError>,
+    ) -> PortNode {
         let attachment = self.attach(pending.target, pending.loadout, walk);
         let nested = if matches!(attachment, Attachment::Empty) {
-            self.nested_ports(pending.loadout, walk, 0)
+            self.nested_ports(pending.loadout, walk, issues)
         } else {
             Vec::new()
         };
@@ -90,30 +102,39 @@ impl LoadoutResolver<'_> {
         }
     }
 
-    /// Resolves the entries of the Loadout of an empty port into ports of their own.
+    /// Resolves the entries of the Loadout of an empty port into ports of their own; whatever
+    /// cannot be resolved or kept is reported in `issues`.
     fn nested_ports(
         &mut self,
         loadout: Option<&LoadoutSpec>,
         walk: &mut Walk,
-        depth: usize,
+        issues: &mut Vec<LoadoutError>,
     ) -> Vec<PortNode> {
         let Some(loadout) = loadout else {
             return Vec::new();
         };
-        if depth >= MAX_LOADOUT_DEPTH {
+        if walk.depth() >= MAX_LOADOUT_DEPTH {
+            issues.push(LoadoutError::TooDeep);
             return Vec::new();
         }
-        let Ok(entries) = self.entries(Some(loadout)) else {
-            return Vec::new();
+        let entries = match self.entries(Some(loadout)) {
+            Ok(entries) => entries,
+            Err(error) => {
+                issues.push(error);
+                return Vec::new();
+            }
         };
+        issues.extend(entries.issues.iter().cloned());
         let mut ports = Vec::new();
+        walk.nesting = walk.nesting.saturating_add(1);
         for entry in entries.list.iter() {
             if !walk.reserve() {
+                issues.push(LoadoutError::TooManyPorts);
                 break;
             }
             let attachment = self.attach(&entry.target, entry.loadout.as_ref(), walk);
             let nested = if matches!(attachment, Attachment::Empty) {
-                self.nested_ports(entry.loadout.as_ref(), walk, depth.saturating_add(1))
+                self.nested_ports(entry.loadout.as_ref(), walk, issues)
             } else {
                 Vec::new()
             };
@@ -125,6 +146,7 @@ impl LoadoutResolver<'_> {
                 nested,
             });
         }
+        walk.nesting = walk.nesting.saturating_sub(1);
         ports
     }
 
@@ -260,7 +282,7 @@ fn pending_ports<'s>(
 fn limit(walk: &Walk, guid: Guid) -> Option<LoadoutError> {
     if walk.ancestors.contains(&guid) {
         Some(LoadoutError::Cycle { guid })
-    } else if walk.ancestors.len() > MAX_LOADOUT_DEPTH {
+    } else if walk.depth() > MAX_LOADOUT_DEPTH {
         Some(LoadoutError::TooDeep)
     } else {
         None

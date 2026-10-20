@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use crate::bank_parse::{self, MediaRange, SectionRange};
-use crate::{AudioError, BankError, HircObject, SectionId, Wem};
+use crate::{AudioError, BankError, BankWarning, HircObject, SectionId, Wem};
 
 /// The fields of the `BKHD` section this reader decodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -10,7 +10,8 @@ pub struct BankHeader {
     pub version: u32,
     /// The soundbank ID, the hash of its name.
     pub id: u32,
-    /// The language ID, the hash of the language name or of `SFX`.
+    /// The language ID: an enum value up to bank version 122, from version 123 on the FNV hash of
+    /// the language name.
     pub language_id: u32,
 }
 
@@ -91,10 +92,15 @@ pub struct Soundbank<B> {
     objects: Vec<HircObject>,
     object_index: Vec<(u32, usize)>,
     names: Vec<(u32, Range<usize>)>,
+    warnings: Vec<BankWarning>,
 }
 
 impl<B: AsRef<[u8]>> Soundbank<B> {
     /// Parses a little-endian soundbank, checking every `DIDX` entry against `DATA`.
+    ///
+    /// A quirk that leaves the rest of the bank readable, e.g. bytes after the last `HIRC`
+    /// object, a repeated `DIDX` ID, `DIDX` without `DATA` or a non-UTF-8 name, is worked around
+    /// and listed by [`Soundbank::warnings`].
     ///
     /// # Errors
     ///
@@ -116,6 +122,7 @@ impl<B: AsRef<[u8]>> Soundbank<B> {
             media: parsed.media,
             objects: parsed.objects,
             names: parsed.names,
+            warnings: parsed.warnings,
             bytes,
         })
     }
@@ -188,6 +195,12 @@ impl<B> Soundbank<B> {
     #[must_use]
     pub const fn header(&self) -> &BankHeader {
         &self.header
+    }
+
+    /// Returns the quirks the parser worked around, in the order it met them.
+    #[must_use]
+    pub fn warnings(&self) -> &[BankWarning] {
+        &self.warnings
     }
 
     /// Returns the objects of the `HIRC` section in file order; empty without one.

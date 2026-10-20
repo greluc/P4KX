@@ -45,6 +45,14 @@ pub enum ModelError {
         /// The file the mesh was expected in.
         file: String,
     },
+    /// The model has no level of detail with the requested number.
+    #[error("{file} has no LOD{lod}")]
+    NoSuchLod {
+        /// The model file.
+        file: String,
+        /// The requested level.
+        lod: u32,
+    },
     /// A chunk the model reads is corrupt.
     #[error("{file}: chunk {index} ({chunk}) is corrupt")]
     Corrupt {

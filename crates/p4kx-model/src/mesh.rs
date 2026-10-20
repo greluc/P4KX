@@ -3,6 +3,7 @@ use crate::skin::{RawSubmesh, SkinMesh};
 use crate::{CorruptChunk, Mesh, Submesh};
 
 const UNUSED: u32 = u32::MAX;
+const OPAQUE_WHITE: [u8; 4] = [u8::MAX; 4];
 
 /// Splits a mesh chunk into one [`Mesh`] per node, each holding only the vertices its submeshes
 /// use; without nodes every submesh belongs to node 0.
@@ -96,6 +97,8 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
                 node,
                 positions: Vec::new(),
                 normals: skin.streams.normals.map(|_| Vec::new()),
+                tangents: skin.streams.tangents.map(|_| Vec::new()),
+                colours: Some(Vec::new()),
                 uvs: Vec::new(),
                 indices: Vec::with_capacity(indices),
                 submeshes: Vec::with_capacity(group.len()),
@@ -145,10 +148,27 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
         {
             normals.push(stream.normal(vertex)?);
         }
+        if let (Some(stream), Some(tangents)) =
+            (&self.skin.streams.tangents, &mut self.mesh.tangents)
+            && let Some(tangent) = stream.tangent(vertex)?
+        {
+            tangents.push(tangent);
+        }
+        if let Some(colours) = &mut self.mesh.colours {
+            colours.push(self.skin.streams.vertices.colour(vertex)?);
+        }
         Ok(local)
     }
 
-    fn finish(self, remap: &mut [u32]) -> Mesh {
+    fn finish(mut self, remap: &mut [u32]) -> Mesh {
+        if self
+            .mesh
+            .colours
+            .as_ref()
+            .is_some_and(|colours| colours.iter().all(|&colour| colour == OPAQUE_WHITE))
+        {
+            self.mesh.colours = None;
+        }
         for vertex in self.used {
             if let Some(slot) = remap.get_mut(to_usize(vertex)) {
                 *slot = UNUSED;

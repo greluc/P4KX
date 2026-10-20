@@ -6,11 +6,13 @@ use crate::model::MESH_TYPES;
 use crate::nmc::read_nodes;
 use crate::skin::read_skin;
 use crate::{
-    ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, Mesh, Model, ModelChunk,
-    ModelError, ModelFile, Node, Transform,
+    ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection, Mesh, Model,
+    ModelChunk, ModelError, ModelFile, Node, Transform,
 };
 
 const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
+
+const MAX_LOD: u32 = 15;
 
 type Companion = (String, ChunkFile<Vec<u8>>);
 
@@ -18,6 +20,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     name: &str,
     file: &ChunkFile<B>,
     companions: &mut dyn CompanionResolver,
+    selection: LodSelection,
 ) -> Result<Model, ModelError> {
     let mut read = Vec::new();
     let nodes = match file.chunks_of(ivo::NODE_MESH_COMBO).next() {
@@ -35,13 +38,100 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         material_library(file.chunk_data(index).unwrap_or_default())
     });
 
+    let Geometry {
+        lods,
+        base_name,
+        chunks: companion_chunks,
+    } = read_geometry(name, file, companions, selection, node_count, &mut read)?;
+
+    let mut chunks = usage(file, ModelFile::Model, &read);
+    chunks.extend(companion_chunks);
+    Ok(Model {
+        name: name.to_owned(),
+        geometry: base_name,
+        nodes: nodes.unwrap_or_else(|| vec![root_node(name)]),
+        lods,
+        material_library: material.flatten(),
+        bones: Vec::new(),
+        chunks,
+    })
+}
+
+/// The meshes of a model, the name of its geometry companion and the chunk usage of every
+/// companion, computed as each was read so that no companion's bytes outlive its reading.
+struct Geometry {
+    lods: Vec<Lod>,
+    base_name: Option<String>,
+    chunks: Vec<ModelChunk>,
+}
+
+fn read_geometry<B: AsRef<[u8]>>(
+    name: &str,
+    file: &ChunkFile<B>,
+    companions: &mut dyn CompanionResolver,
+    selection: LodSelection,
+    node_count: Option<usize>,
+    read: &mut Vec<(ModelFile, usize)>,
+) -> Result<Geometry, ModelError> {
     let own_mesh = first_of(file, &MESH_TYPES);
-    let companion = if own_mesh.is_some() {
+    let base = if own_mesh.is_some() || !selection.wants(0) {
         None
     } else {
         geometry_companion(name, file, companions)?
     };
-    let meshes = match (&companion, own_mesh) {
+    let mut lods = Vec::new();
+    let mut chunks = Vec::new();
+    let mut geometry = None;
+    if selection.wants(0) {
+        lods.push(read_base_lod(
+            name,
+            file,
+            base.as_ref(),
+            own_mesh,
+            node_count,
+            read,
+        )?);
+    }
+    if let Some((companion_name, companion)) = base {
+        chunks.extend(usage(&companion, ModelFile::Geometry, read));
+        geometry = Some(companion_name);
+    }
+    if own_mesh.is_none() && announces_mesh(file) {
+        read_lod_companions(
+            name,
+            companions,
+            selection,
+            node_count,
+            &mut lods,
+            &mut chunks,
+            read,
+        )?;
+    }
+    if let LodSelection::Only(level) = selection
+        && lods.is_empty()
+    {
+        return Err(ModelError::NoSuchLod {
+            file: name.to_owned(),
+            lod: level,
+        });
+    }
+
+    Ok(Geometry {
+        lods,
+        base_name: geometry,
+        chunks,
+    })
+}
+
+fn read_base_lod<B: AsRef<[u8]>>(
+    name: &str,
+    file: &ChunkFile<B>,
+    base: Option<&Companion>,
+    own_mesh: Option<usize>,
+    node_count: Option<usize>,
+    read: &mut Vec<(ModelFile, usize)>,
+) -> Result<Lod, ModelError> {
+    let meshes = match (base, own_mesh) {
         (Some((companion_name, companion)), _) => {
             let index = first_of(companion, &MESH_TYPES).ok_or_else(|| ModelError::NoMesh {
                 file: companion_name.clone(),
@@ -60,20 +150,45 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         }
         (None, None) => Vec::new(),
     };
+    Ok(Lod { level: 0, meshes })
+}
 
-    let mut chunks = usage(file, ModelFile::Model, &read);
-    if let Some((_, companion)) = &companion {
-        chunks.extend(usage(companion, ModelFile::Geometry, &read));
+/// Returns the file name of the geometry companion of level of detail `level` of the model
+/// `name`: `<stem>_lod<level>.<extension>m`.
+fn lod_companion_name(name: &str, level: u32) -> String {
+    match name.rsplit_once('.') {
+        Some((stem, extension)) => format!("{stem}_lod{level}.{extension}m"),
+        None => format!("{name}_lod{level}m"),
     }
-    Ok(Model {
-        name: name.to_owned(),
-        geometry: companion.map(|(companion_name, _)| companion_name),
-        nodes: nodes.unwrap_or_else(|| vec![root_node(name)]),
-        lods: vec![Lod { level: 0, meshes }],
-        material_library: material.flatten(),
-        bones: Vec::new(),
-        chunks,
-    })
+}
+
+fn read_lod_companions(
+    name: &str,
+    companions: &mut dyn CompanionResolver,
+    selection: LodSelection,
+    nodes: Option<usize>,
+    lods: &mut Vec<Lod>,
+    chunks: &mut Vec<ModelChunk>,
+    read: &mut Vec<(ModelFile, usize)>,
+) -> Result<(), ModelError> {
+    for level in (1..=MAX_LOD).filter(|&level| selection.wants(level)) {
+        let companion_name = lod_companion_name(name, level);
+        let Some(companion) = fetch(companions, &companion_name)? else {
+            continue;
+        };
+        let index = first_of(&companion, &MESH_TYPES).ok_or_else(|| ModelError::NoMesh {
+            file: companion_name.clone(),
+        })?;
+        read.push((ModelFile::LodGeometry(level), index));
+        let meshes = read_meshes(&companion_name, index, companion.chunk_data(index), nodes)?;
+        lods.push(Lod { level, meshes });
+        chunks.extend(usage(&companion, ModelFile::LodGeometry(level), read));
+    }
+    Ok(())
+}
+
+fn announces_mesh<B: AsRef<[u8]>>(file: &ChunkFile<B>) -> bool {
+    file.chunks_of(ivo::MESH_INFO).next().is_some()
 }
 
 fn geometry_companion<B: AsRef<[u8]>>(

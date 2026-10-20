@@ -14,11 +14,23 @@ const HEADER_LEN: u64 = 12;
 const CHUNK_HEADER_LEN: u64 = 8;
 
 /// The choices of a GLB export.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct GlbOptions {
     /// The level of detail to export, 0 for the most detailed.
     pub lod: u32,
+    /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`; viewers
+    /// multiply the base colour of the material by them.
+    pub vertex_colours: bool,
+}
+
+impl Default for GlbOptions {
+    fn default() -> Self {
+        Self {
+            lod: 0,
+            vertex_colours: true,
+        }
+    }
 }
 
 impl GlbOptions {
@@ -26,6 +38,13 @@ impl GlbOptions {
     #[must_use]
     pub const fn with_lod(mut self, lod: u32) -> Self {
         self.lod = lod;
+        self
+    }
+
+    /// Returns the options without vertex colours.
+    #[must_use]
+    pub const fn without_vertex_colours(mut self) -> Self {
+        self.vertex_colours = false;
         self
     }
 }
@@ -76,7 +95,7 @@ pub fn write_glb(
                 .collect::<Vec<_>>()
                 .join(", "),
         })?;
-    let layout = Layout::plan(lod);
+    let layout = Layout::plan(lod, options.vertex_colours);
     let root = document(model, &layout);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');

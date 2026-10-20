@@ -159,6 +159,10 @@ the entries under `## [Unreleased]`.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- CHF: a file whose body changes keeps the last 8 bytes of the original file (the game writes
+  `efbeadde efbeadde` there; all 41 CHF files of the LIVE Build have it) instead of zeroing them,
+  with a correct CRC-32C. A new frame that would reach into non-zero ones is an error, not an
+  overwrite. An unchanged JSON still gives the original file byte for byte (ADR-0014).
 - Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
   Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
   `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export

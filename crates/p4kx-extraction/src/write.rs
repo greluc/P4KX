@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_archive::{Archive, Checksum, Entry};
+use p4kx_archive::{Archive, ArchiveError, Checksum, ChecksumHasher, Entry, EntryReader};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
@@ -67,7 +67,19 @@ pub(crate) struct EntryWriter<'a> {
     pub(crate) convert: bool,
     pub(crate) textures: TextureConversion,
     pub(crate) audio: AudioConversion,
+    pub(crate) verify: bool,
     pub(crate) tracker: &'a Tracker<'a>,
+}
+
+impl<'a> EntryWriter<'a> {
+    /// Opens the data of `entry`, checked against its directory checksum when the run verifies.
+    pub(crate) fn open_entry(&self, entry: &Entry) -> Result<EntryReader<'a>, ArchiveError> {
+        if self.verify {
+            self.archive.open_entry_verified(entry)
+        } else {
+            self.archive.open_entry(entry)
+        }
+    }
 }
 
 impl EntryWriter<'_> {
@@ -112,7 +124,7 @@ impl EntryWriter<'_> {
         let mut prefix = [0; PEEK_LEN];
         let mut peeked = 0;
         let opened = if convert {
-            let mut reader = self.archive.open_entry(entry)?;
+            let mut reader = self.open_entry(entry)?;
             let Some(count) = self.peek(&mut reader, &mut prefix, written)? else {
                 return Ok(Outcome::Cancelled);
             };
@@ -131,7 +143,7 @@ impl EntryWriter<'_> {
         }
         let mut reader = match opened {
             Some(reader) => reader,
-            None => self.archive.open_entry(entry)?,
+            None => self.open_entry(entry)?,
         };
         let (temporary, mut file) = create_temporary(&destination.folder)?;
         let start = prefix.get(..peeked).unwrap_or_default();
@@ -214,9 +226,7 @@ impl EntryWriter<'_> {
                 if metadata.len() != len {
                     return Ok(None);
                 }
-                let Some(hasher) = ChecksumHasher::of_kind(checksum) else {
-                    return Ok(None);
-                };
+                let hasher = ChecksumHasher::of_kind(checksum);
                 Ok(
                     match self.file_checksum(&destination.file, hasher, buffer)? {
                         Some(existing) if existing == checksum => Some(Outcome::Kept),
@@ -259,7 +269,7 @@ impl EntryWriter<'_> {
         loop {
             let count = match self
                 .read_chunk(reader, buffer)
-                .map_err(ExtractionError::Read)?
+                .map_err(ExtractionError::read)?
             {
                 Chunk::Data(count) => count,
                 end => return Ok(end),
@@ -340,36 +350,5 @@ pub(crate) fn read_existing_error(path: &Path, source: io::Error) -> ExtractionE
     ExtractionError::ReadExisting {
         path: path.to_path_buf(),
         source,
-    }
-}
-
-/// Computes the checksum of a file in the kind an Entry states.
-enum ChecksumHasher {
-    Crc32c(u32),
-    Crc32(crc32fast::Hasher),
-}
-
-impl ChecksumHasher {
-    /// Returns a hasher for the kind of `checksum`, or `None` for a kind it cannot compute.
-    fn of_kind(checksum: Checksum) -> Option<Self> {
-        match checksum {
-            Checksum::Crc32c(_) => Some(Self::Crc32c(0)),
-            Checksum::Crc32(_) => Some(Self::Crc32(crc32fast::Hasher::new())),
-            _ => None,
-        }
-    }
-
-    fn update(&mut self, data: &[u8]) {
-        match self {
-            Self::Crc32c(crc) => *crc = crc32c::crc32c_append(*crc, data),
-            Self::Crc32(hasher) => hasher.update(data),
-        }
-    }
-
-    fn finish(self) -> Checksum {
-        match self {
-            Self::Crc32c(crc) => Checksum::Crc32c(crc),
-            Self::Crc32(hasher) => Checksum::Crc32(hasher.finalize()),
-        }
     }
 }

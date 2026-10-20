@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::Compression;
+use crate::{Checksum, Compression};
 
 /// Why the data of an Entry could not be decoded.
 ///
@@ -33,6 +33,18 @@ pub enum DataError {
     TooLong {
         /// The uncompressed size from the central directory.
         expected: u64,
+    },
+    /// The checksum of the decoded data differs from the one in the directory; reported only by
+    /// a reader from [`Archive::open_entry_verified`](crate::Archive::open_entry_verified), at
+    /// the end of the data.
+    #[error("{path}: {actual} computed, {expected} stored")]
+    ChecksumMismatch {
+        /// The path of the Entry.
+        path: String,
+        /// The checksum the directory states.
+        expected: Checksum,
+        /// The checksum of the decoded data.
+        actual: Checksum,
     },
 }
 

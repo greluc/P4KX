@@ -201,8 +201,14 @@ impl HircObject {
     }
 }
 
+/// The objects of a `HIRC` section and the number of bytes after the last of them.
+pub(crate) struct Hirc {
+    pub(crate) objects: Vec<HircObject>,
+    pub(crate) trailing: usize,
+}
+
 /// Parses the body of the `HIRC` section, found at `base` in a bank of `version`.
-pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircObject>, BankError> {
+pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Hirc, BankError> {
     let mut reader = SectionReader::new(SectionId::HIRC, body);
     let count = reader.u32()?;
     let capacity = usize::try_from(count)
@@ -230,13 +236,10 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
             body: base + range.start..base + range.end,
         });
     }
-    if reader.remaining() > 0 {
-        return Err(BankError::invalid(
-            SectionId::HIRC,
-            "bytes follow the last object",
-        ));
-    }
-    Ok(objects)
+    Ok(Hirc {
+        objects,
+        trailing: reader.remaining(),
+    })
 }
 
 /// Returns whether a Sound object or a music track playlist item of a bank of `version` carries

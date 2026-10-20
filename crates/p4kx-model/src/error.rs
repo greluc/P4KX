@@ -77,6 +77,9 @@ pub enum CorruptChunk {
     /// A data stream every mesh needs is missing.
     #[error("it has no {0} stream")]
     MissingStream(&'static str),
+    /// A data stream the model reads occurs twice.
+    #[error("the stream {0:#010X} occurs twice")]
+    RepeatedStream(u32),
     /// A submesh's index range reaches past the indices.
     #[error("submesh {submesh} covers indices {first}..{first}+{count} of {total}")]
     SubmeshRange {

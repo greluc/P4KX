@@ -31,9 +31,9 @@ const TABS: [(PreviewTab, Text); 7] = [
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
 ];
 
-/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM or
-/// a soundbank, and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
-/// another Entry; the XML tab opens once the Entry turns out to be `CryXml`.
+/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM or a
+/// soundbank, and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after
+/// selecting another Entry; the XML tab opens once the Entry turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
         .browser()
@@ -217,7 +217,7 @@ fn tab_body(
     match (tab, browser.records()) {
         (PreviewTab::DataForge, Some(tree)) => {
             let size = browser
-                .index()
+                .archive_index()
                 .dataforge_entry()
                 .map_or(0, Entry::uncompressed_size);
             path_line(ui, tree.entry_path(), &format::size(size, texts.language()));

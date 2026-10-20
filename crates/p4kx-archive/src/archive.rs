@@ -5,11 +5,12 @@ use std::time::SystemTime;
 
 use crate::container::{self, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN};
 use crate::format_error::FormatError;
+use crate::issue::{Directory, IssueLog};
 
 /// The most decoded bytes [`Archive::open_entry_at`] skips in a compressed Entry to reach an offset.
 pub const MAX_DECODED_SKIP: u64 = 1 << 30;
 use crate::source::Source;
-use crate::{ArchiveError, Build, Entry, EntryReader, entry_reader, layout};
+use crate::{ArchiveError, Build, Entry, EntryIssue, EntryReader, entry_reader, layout};
 
 /// An opened Archive with its Entries, or a container opened from one of its Entries.
 #[derive(Debug)]
@@ -22,6 +23,7 @@ pub struct Archive {
     decoded_budget: u64,
     source: Source,
     entries: Vec<Entry>,
+    log: IssueLog,
     build: Option<Build>,
 }
 
@@ -38,7 +40,8 @@ impl Archive {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
         let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
-        let entries = layout::read_entries(&source, None).map_err(|error| error.at(path))?;
+        let Directory { entries, log } =
+            layout::read_entries(&source, None).map_err(|error| error.at(path))?;
         let build = path
             .parent()
             .and_then(|folder| Build::read_from(folder).ok().flatten());
@@ -51,6 +54,7 @@ impl Archive {
             decoded_budget: MAX_CONTAINER_LEN,
             source,
             entries,
+            log,
             build,
         })
     }
@@ -73,7 +77,7 @@ impl Archive {
         location.push(&entry.path);
         let location = PathBuf::from(location);
         match self.read_container(entry) {
-            Ok((source, decoded_budget, entries)) => Ok(Self {
+            Ok((source, decoded_budget, Directory { entries, log })) => Ok(Self {
                 path: self.path.clone(),
                 location,
                 file_len: self.file_len,
@@ -82,6 +86,7 @@ impl Archive {
                 decoded_budget,
                 source,
                 entries,
+                log,
                 build: self.build.clone(),
             }),
             Err(error) => Err(ArchiveError::Container {
@@ -92,7 +97,7 @@ impl Archive {
         }
     }
 
-    fn read_container(&self, entry: &Entry) -> Result<(Source, u64, Vec<Entry>), FormatError> {
+    fn read_container(&self, entry: &Entry) -> Result<(Source, u64, Directory), FormatError> {
         if self.depth >= MAX_CONTAINER_DEPTH {
             return Err(FormatError::LimitExceeded(format!(
                 "containers nest deeper than {MAX_CONTAINER_DEPTH} levels"
@@ -134,6 +139,30 @@ impl Archive {
     #[must_use]
     pub fn entries(&self) -> &[Entry] {
         &self.entries
+    }
+
+    /// Returns the first [`MAX_ENTRY_ISSUES`](crate::MAX_ENTRY_ISSUES) defects found in the directory, each with the
+    /// position in [`entries`](Self::entries) of the Entry it belongs to, in that order; an Entry
+    /// has at most one defect of each kind. An Archive without defects returns an empty slice.
+    #[must_use]
+    pub fn issues(&self) -> &[(usize, EntryIssue)] {
+        &self.log.listed
+    }
+
+    /// Returns the number of defects found in the directory, also those
+    /// [`issues`](Self::issues) no longer lists.
+    #[must_use]
+    pub const fn issue_count(&self) -> usize {
+        self.log.count
+    }
+
+    /// Returns the path bytes as stored of the Entry at `index` in [`entries`](Self::entries) when
+    /// its path is not UTF-8, in which case [`Entry::path`] holds them with invalid bytes replaced
+    /// by U+FFFD, or `None` for any other Entry. Takes time logarithmic in the number of such
+    /// paths.
+    #[must_use]
+    pub fn raw_path(&self, index: usize) -> Option<&[u8]> {
+        self.log.raw_path(index)
     }
 
     /// Returns the Build, or `None` when it is unknown.

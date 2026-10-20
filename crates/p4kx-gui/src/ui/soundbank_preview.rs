@@ -104,7 +104,7 @@ fn opened(
     volume: f32,
 ) -> Option<BankAction> {
     let audio = selected(ui, texts, (path, bank), volume);
-    let picked = soundbank_table::show(ui, texts, sounds, bank.selected());
+    let picked = soundbank_table::show(ui, texts, (bank.serial(), sounds), bank.selected());
     picked
         .map(BankAction::Select)
         .or_else(|| audio.map(BankAction::Audio))

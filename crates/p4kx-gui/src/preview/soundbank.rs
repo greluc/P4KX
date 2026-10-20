@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
@@ -11,6 +11,8 @@ use super::audio::AudioPreview;
 use super::entry_bytes::{Unreadable, read_whole};
 use crate::EntryIndex;
 use crate::model::describe;
+
+static SERIAL: AtomicU64 = AtomicU64::new(0);
 
 /// Returns whether `path` names a Wwise soundbank the Audio tab lists the sounds of.
 #[must_use]
@@ -98,6 +100,7 @@ impl BankSound {
         }
     }
 }
+
 /// Where the preview of a soundbank stands.
 #[derive(Debug, Clone, Copy)]
 pub enum SoundbankStatus<'a> {
@@ -150,6 +153,7 @@ struct Selected {
 /// [`AudioPreview`]. Dropping it stops reading and playback.
 #[derive(Debug)]
 pub struct SoundbankPreview {
+    serial: u64,
     dropped: Arc<AtomicBool>,
     events: Receiver<Event>,
     state: State,
@@ -179,11 +183,18 @@ impl SoundbankPreview {
             Err(_ignored) => State::Failed(None),
         };
         Self {
+            serial: SERIAL.fetch_add(1, Ordering::Relaxed),
             dropped,
             events,
             state,
             selected: None,
         }
+    }
+
+    /// Returns a number no other soundbank preview of this process has.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
     }
 
     /// Returns where the preview stands.

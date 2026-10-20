@@ -23,6 +23,10 @@ pub struct TestEntry {
     pub(crate) crc32c: u32,
     pub(crate) crc32: u32,
     pub(crate) encrypted: bool,
+    pub(crate) path_bytes: Option<Vec<u8>>,
+    pub(crate) encryption_field: Option<u16>,
+    pub(crate) encryption_block: Option<Vec<u8>>,
+    pub(crate) extra_blocks: Vec<u8>,
 }
 
 impl TestEntry {
@@ -91,6 +95,48 @@ impl TestEntry {
         self
     }
 
+    /// Writes `bytes` as the stored path instead of the path given, to build paths that are not
+    /// UTF-8.
+    #[must_use]
+    pub fn with_path_bytes(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.path_bytes = Some(bytes.into());
+        self
+    }
+
+    /// Writes `value` into the encryption field of the directory, the 2-byte value of the CIG
+    /// encryption block in v1 and the `u16` of the record in v2, whatever the Entry's flag says.
+    #[must_use]
+    pub const fn with_encryption_field(mut self, value: u16) -> Self {
+        self.encryption_field = Some(value);
+        self
+    }
+
+    /// Writes `data` as the data of the v1 CIG encryption block, whatever length it has.
+    #[must_use]
+    pub fn with_encryption_block(mut self, data: impl Into<Vec<u8>>) -> Self {
+        self.encryption_block = Some(data.into());
+        self
+    }
+
+    /// Appends `count` empty CIG encryption blocks, 4 bytes each, to the v1 directory record.
+    #[must_use]
+    pub fn with_empty_encryption_blocks(mut self, count: usize) -> Self {
+        for _ in 0..count {
+            self.extra_blocks
+                .extend_from_slice(&[0x02, 0x50, 0x04, 0x00]);
+        }
+        self
+    }
+
+    pub(crate) fn path_bytes(&self) -> &[u8] {
+        self.path_bytes.as_deref().unwrap_or(self.path.as_bytes())
+    }
+
+    pub(crate) fn encryption_value(&self) -> u16 {
+        self.encryption_field
+            .unwrap_or_else(|| u16::from(self.encrypted))
+    }
+
     /// Returns the bytes written into the Archive for this Entry.
     #[must_use]
     pub fn payload(&self) -> &[u8] {
@@ -106,6 +152,10 @@ impl TestEntry {
             crc32c: crc32c::crc32c(data),
             crc32: crc32fast::hash(data),
             encrypted: false,
+            path_bytes: None,
+            encryption_field: None,
+            encryption_block: None,
+            extra_blocks: Vec::new(),
         }
     }
 }

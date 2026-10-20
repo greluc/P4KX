@@ -4,14 +4,15 @@ use std::error::Error;
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Browser, Language, Model, SoundbankPreview, SoundbankStatus};
+use p4kx_gui::{Browser, Language, Model, PREVIEW_SIZE_LIMIT, SoundbankPreview, SoundbankStatus};
 use p4kx_testkit::{TestBank, TestCodec, TestEntry, TestWem, test_signal};
 use tempfile::TempDir;
 
 use crate::sounding::{FakeOutput, TestResult, audio, opened_with, wait_until};
 
-/// The soundbanks of the synthetic Archive: rms.bnk with WEMs of IDs 101 to 105, the fourth only a
-/// prefetched start and the fifth plug-in media, ig.bnk with 60 short WEMs, an empty and a corrupt bank.
+/// The soundbanks of the synthetic Archive: `arms.bnk` with WEMs of IDs 101 to 105, the fourth only
+/// a prefetched start and the fifth plug-in media, `big.bnk` with 60 short WEMs, an empty, a corrupt and a
+/// too large bank.
 fn banks() -> Vec<TestEntry> {
     let tone = test_signal(48_000, 2);
     let pcm = TestWem::pcm(TestCodec::WwisePcm, 2, 48_000, &tone).bytes();
@@ -32,6 +33,8 @@ fn banks() -> Vec<TestEntry> {
         TestEntry::stored("Data\\Sounds\\big.bnk", big.bytes()),
         TestEntry::stored("Data\\Sounds\\empty.bnk", TestBank::new(0x0C).bytes()),
         TestEntry::stored("Data\\Sounds\\broken.bnk", b"BKHD".to_vec()),
+        TestEntry::stored("Data\\Sounds\\huge.bnk", TestBank::new(0x0E).bytes())
+            .with_uncompressed_size(PREVIEW_SIZE_LIMIT + 1),
     ]
 }
 

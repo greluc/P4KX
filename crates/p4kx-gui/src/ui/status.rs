@@ -8,7 +8,7 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::indicator;
 use crate::widgets::text::{link, plain};
-use crate::{Browser, Model, Text, Texts, format};
+use crate::{Browser, ContainerText, Model, Place, Text, Texts, format};
 
 /// Shows the status bar, the desktop density of `.krt-footer`.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
@@ -61,7 +61,12 @@ fn item(ui: &mut Ui, text: String, colour: Color32) {
 
 fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
     let language = texts.language();
-    let archive = browser.index().archive();
+    let archive = browser.archive_index().archive();
+    let entries_text = if browser.place() == Place::Archive {
+        Text::StatusEntries
+    } else {
+        Text::from(ContainerText::StatusEntries)
+    };
     let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
     let number =
         |value: usize| -> FluentValue<'static> { format::number(count(value), language).into() };
@@ -72,7 +77,7 @@ fn browser_items(ui: &mut Ui, texts: &Texts, browser: &Browser) {
     let parts = [
         build_label(texts, archive.build()),
         texts.format(
-            Text::StatusEntries,
+            entries_text,
             &[
                 ("count", count(browser.index().len()).into()),
                 ("number", number(browser.index().len())),

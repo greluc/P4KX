@@ -11,8 +11,11 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_extraction::Codec;
-use p4kx_gui::{BankSound, Language, Model, PreviewTab, SoundbankPreview, SoundbankStatus};
-use sounding::{FakeOutput, TestResult, opened, player, select};
+use p4kx_gui::{
+    BankSound, Language, Model, PreviewStatus, PreviewTab, SoundbankPreview, SoundbankStatus,
+};
+use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use sounding::{FakeOutput, TestResult, opened, player, select, wait_until};
 
 fn press(harness: &mut Harness<'_, Model>, label: &str) {
     harness.get_by_label(label).click();
@@ -244,6 +247,52 @@ fn a_corrupt_bank_shows_a_message_and_the_window_keeps_working() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn a_bank_too_large_to_read_says_so() -> TestResult {
+    let (_folder, mut harness) = opened_banks(Language::BritishEnglish, &FakeOutput::default())?;
+
+    select_bank(&mut harness, "huge.bnk")?;
+
+    assert!(
+        matches!(
+            bank(harness.state()).map(SoundbankPreview::status),
+            Some(SoundbankStatus::TooLarge)
+        ),
+        "too large"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("Data\\Sounds\\huge.bnk is 256.0 MiB. Entries larger than")
+            .is_some(),
+        "message"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_bank_of_a_changed_archive_is_not_read() -> TestResult {
+    let (folder, mut harness) = opened_banks(Language::BritishEnglish, &FakeOutput::default())?;
+    select_bank(&mut harness, "arms.bnk")?;
+
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\patch.txt", "patch"))
+        .write_to(folder.path().join("Data.p4k"))?;
+    let browser = harness.state_mut().browser_mut().ok_or("not opened")?;
+    let id = (0..u32::try_from(browser.index().len())?)
+        .find(|&id| browser.index().name(id) == "big.bnk")
+        .ok_or("no bank")?;
+    browser.select_entry(id, || {});
+    wait_until(&mut harness, |model| {
+        model.browser().is_some_and(|browser| {
+            browser
+                .preview()
+                .is_some_and(|preview| matches!(preview.status(), PreviewStatus::ArchiveChanged))
+        })
+    })?;
+
+    assert!(bank(harness.state()).is_none(), "no soundbank preview");
+    Ok(())
+}
 #[test]
 fn a_bank_without_wems_says_so() -> TestResult {
     let (_folder, mut harness) = opened_banks(Language::BritishEnglish, &FakeOutput::default())?;

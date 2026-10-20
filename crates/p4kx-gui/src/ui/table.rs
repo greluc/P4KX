@@ -231,7 +231,7 @@ fn size_cell(ui: &mut Ui, size: String, colour: egui::Color32, weight: Weight) {
     });
 }
 
-fn cell_text(ui: &mut Ui, text: &str, colour: egui::Color32, weight: Weight) {
+pub(super) fn cell_text(ui: &mut Ui, text: &str, colour: egui::Color32, weight: Weight) {
     ui.add_space(CELL_PADDING_X);
     ui.add(
         Label::new(plain(text, ROW_FONT, weight).color(colour))

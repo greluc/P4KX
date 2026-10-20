@@ -24,7 +24,7 @@ impl Model {
     pub fn record_text_languages(&self) -> &[TextLanguage] {
         self.browser
             .as_ref()
-            .map_or(&[], |browser| browser.index().text_languages())
+            .map_or(&[], |browser| browser.archive_index().text_languages())
     }
 
     /// Returns the language Record previews resolve localisation keys in: the choice, or that of

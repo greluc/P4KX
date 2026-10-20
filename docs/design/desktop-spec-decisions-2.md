@@ -142,6 +142,28 @@ die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen i
 in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
 und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
 
+**D.31 Container als Ordner im Pfadbaum.** Ein `.socpak` steht nach den Unterordnern seines
+Ordners als gewöhnliche Baumzeile: Name unverändert (D.6), Chevron, Ebenen-Schienen. Ein eigenes
+Symbol gibt es nicht, weil das Icon-Set des DS keines für Archive hat; die Endung unterscheidet
+den Container schon. Während er geöffnet wird, stehen hinter dem Namen wie beim DataForge-Knoten
+der Inline-Spinner (14) und „Wird geöffnet …" in `color-gray-2-text`. Lässt er sich nicht öffnen,
+steht dort ein kurzer Hinweis: „Lässt sich nicht öffnen" in `color-danger-text`, weil der Container
+selbst defekt ist; „Nicht geöffnet: Speichergrenze", „Archiv geändert" und „Öffnen abgebrochen"
+in `color-warning` (D.8), weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv
+neu geladen wird. Der volle Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container, der
+sich nicht lesen lässt, und einer nach einer Änderung des Archivs haben keinen Chevron; nach der
+Speichergrenze oder einem abgebrochenen Öffnen bleibt der Chevron, ein erneutes Aufklappen versucht
+es noch einmal. Schließt die Speichergrenze einen Container, klappen er und seine Ordner zu; die
+Haken seiner Einträge bleiben erhalten. Wählt man einen Container oder einen seiner Ordner,
+zeigt die Tabelle dessen Einträge. Suche, Auswahl, „Ausgewählte extrahieren …", „Angezeigte
+extrahieren …" und Vorschau gelten dann diesem Container, „Alle extrahieren …" weiter dem ganzen
+Archiv. Container liegen in den gefalteten Ordnern des Eintragsbaums (ADR-0023): Schreibweise und
+Trennzeichen (`/` oder `\`) ändern nicht, in welchem Ordner ein Container steht; das gilt auch in
+einem Container. Ein `.socpak`, dessen Ordnerpfad ein leeres Segment hat, steht im nächsten
+vorhandenen Ordner darüber, sonst an der Wurzel. Die Statusleiste nennt Pfad und Build weiter des
+Archivs; zeigt die Tabelle einen Container, steht an der Stelle der Eintragszahl des Archivs
+„Container: n Einträge" mit der Zahl seiner Einträge, passend zu „n angezeigt".
+
 **D.32 Tonformat der Extraktion als Radio-Zeile unter den Texturausgaben.** Ist die Umwandlung an,
 steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben eine Zeile „Sounds als"
 (14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,
@@ -160,8 +182,8 @@ Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
 viele WEMs die Bank einbettet („400,4 KiB · 9 WEMs"). Darunter steht von oben nach unten die
 Tonvorschau der gewählten WEM mit denselben Fakten und Bedienelementen wie bei einer losen WEM
 (D.18), solange eine gewählt ist, und darunter die Liste der WEMs, die den Rest der Höhe füllt. Die
-Liste ist eine Tabelle in der Dichte der Eintragstabelle (D.1): Kopf und Zeilen 36, Spalten ID 130,
-Codec 200 und Dauer 130 (je ab 80 verstellbar), Größe füllt den Rest und steht rechtsbündig; der
+Liste ist eine Tabelle in der Dichte der Eintragstabelle (D.1): Kopf und Zeilen 36, Spalten ID 106,
+Codec 112 und Dauer 100 (je ab 80 verstellbar; die Breite des breitesten Textes in Fett bei der Zeilenschrift plus Zellrand beidseitig, aufgerundet: zehnstellige ID 105,4, „Wwise Vorbis" 110,6, „9:59:59.999" 99,9), Größe füllt den Rest und steht rechtsbündig; der
 Kopf ist der der Tabelle, aber nicht sortierbar, weil die Bank die WEMs nach ID ordnet. Ein Codec,
 den die Kopfdaten nicht nennen, eine unbekannte Dauer und die Marken „Vorgeladen" und „Plug-in"
 stehen in `color-gray-2-text`; die aktive Zeile ist wie in der Eintragstabelle fett mit dem orangen
@@ -169,7 +191,8 @@ Balken. Jede Zeile ist ein Tabulatorziel mit Fokusring innen −2 und heißt fü
 123, PCM, 0:01.000"; Enter und Klick wählen sie. Die Liste ist eine fokussierbare Rollfläche
 („Eingebettete WEMs", D.27) und rollt die gewählte Zeile einmal in Sicht, weil die Tonvorschau
 über ihr die Liste beim Wählen verkürzt. Weil die Liste Platz braucht, öffnet das Panel für
-Soundbanks 320 hoch statt 236 und merkt sich seine Größe getrennt von der der anderen Vorschauen;
+Soundbanks 373 hoch statt 236 (Tab-Leiste 44, Pfadzeile 32, Faktenleiste 32,
+Bedienelemente 16 + 32, Kopf 36, vier Zeilen zu 36 und 37 Panelrand aus Abstand, Rahmen und Linien, gemessen; so bleiben bei gewählter WEM vier Zeilen sichtbar) und merkt sich seine Größe getrennt von der der anderen Vorschauen;
 es füllt seine Höhe immer, damit sie schon beim Lesen der Bank feststeht. Nur eine WEM ist
 gewählt; eine andere zu wählen beendet den Ton der ersten. Eine WEM, von der die Bank nur den
 vorgeladenen Anfang hält, und Plug-in-Medien (Faltungshall-Impulse) haben keinen Ton: statt der

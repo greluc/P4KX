@@ -5,7 +5,6 @@ use p4kx_archive::Entry;
 use p4kx_dataforge::{DataForge, Record, RecordXml};
 
 use crate::buffers::Buffers;
-use crate::entry_path::relative_path;
 use crate::record_export::{RecordRun, write_records};
 use crate::record_files::RecordFiles;
 use crate::record_format::RecordFileFormat;
@@ -47,7 +46,9 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok((Outcome::Cancelled, None));
         }
-        let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
+        let relative = self
+            .relative_path(entry)
+            .ok_or(ExtractionError::UnsafePath)?;
         let size = entry.uncompressed_size();
         let too_large = || ExtractionError::TooLargeToConvert {
             size,

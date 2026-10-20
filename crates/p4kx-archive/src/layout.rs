@@ -1,6 +1,7 @@
 use crate::format_error::FormatError;
+use crate::issue::Directory;
 use crate::source::Source;
-use crate::{Checksum, Entry, central_directory, directory_v2, end_records};
+use crate::{Checksum, central_directory, directory_v2, end_records};
 
 const LAYOUT_MARKER_LEN: usize = 6;
 const LAYOUT_MAGIC: [u8; 4] = *b"Jiji";
@@ -15,7 +16,7 @@ const LAYOUT_V2: u16 = 2;
 pub(crate) fn read_entries(
     source: &Source,
     max_entries: Option<u64>,
-) -> Result<Vec<Entry>, FormatError> {
+) -> Result<Directory, FormatError> {
     match layout_version(source)? {
         None => read_v1_entries(source, max_entries),
         Some(LAYOUT_V2) => directory_v2::read_entries(source, max_entries),
@@ -44,7 +45,7 @@ fn layout_version(source: &Source) -> Result<Option<u16>, FormatError> {
     }
 }
 
-fn read_v1_entries(source: &Source, max_entries: Option<u64>) -> Result<Vec<Entry>, FormatError> {
+fn read_v1_entries(source: &Source, max_entries: Option<u64>) -> Result<Directory, FormatError> {
     let location = end_records::locate_directory(source)?;
     check_entry_count(location.entry_count, max_entries)?;
     let size = usize::try_from(location.size).map_err(|_| {
@@ -54,12 +55,12 @@ fn read_v1_entries(source: &Source, max_entries: Option<u64>) -> Result<Vec<Entr
         )
     })?;
     let directory = source.read_at(location.offset, size)?;
-    let mut entries =
+    let mut directory =
         central_directory::parse_entries(&directory, location.offset, location.entry_count)?;
     if !location.zip64 {
-        for entry in &mut entries {
+        for entry in &mut directory.entries {
             entry.checksum = Checksum::Crc32(entry.checksum.value());
         }
     }
-    Ok(entries)
+    Ok(directory)
 }

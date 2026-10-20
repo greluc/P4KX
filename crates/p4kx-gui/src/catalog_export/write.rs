@@ -25,6 +25,7 @@ pub(super) fn write_replacing(
     json: &[u8],
     cancelled: impl Fn() -> bool,
 ) -> io::Result<Written> {
+    crate::installation::refuse(out)?;
     let temporary = temporary(out)?;
     let result = write_new(&temporary, json).and_then(|()| {
         if cancelled() {

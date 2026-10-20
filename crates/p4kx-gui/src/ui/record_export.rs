@@ -1,7 +1,9 @@
 use egui::{Align, Layout, Ui};
 use p4kx_export::NDJSON_FILE;
 
-use super::extraction::{POLICIES, folder_field, foot, group_label, new_folder_name, number};
+use super::extraction::{
+    POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
+};
 use super::search::field;
 use super::{Dialog, Requests};
 use crate::theme::desktop::MODAL_GROUP_GAP;
@@ -99,6 +101,7 @@ fn choices(
             });
         });
     });
+    refusal_notice(ui, texts, setup.refusal());
     target_details(ui, texts, setup, new_folder);
     let pressed = foot(
         ui,

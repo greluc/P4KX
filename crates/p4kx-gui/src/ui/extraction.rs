@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use egui::{Align, Align2, Frame, Layout, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
-use p4kx_extraction::{ConflictPolicy, default_target_name};
+use p4kx_extraction::{ConflictPolicy, WriteRefused, default_target_name};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::{Dialog, Requests, comparison_extraction};
@@ -149,8 +149,10 @@ fn choices(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Ac
             });
         });
     });
+    refusal_notice(ui, texts, setup.refusal());
     writing(ui, model, setup);
-    let ready = setup.folder().is_some() && model.scope_len(setup.scope()) > 0;
+    let ready =
+        setup.folder().is_some() && setup.refusal().is_none() && model.scope_len(setup.scope()) > 0;
     let pressed = foot(ui, texts, (T::Start, ready), T::Close);
     action.or(match pressed {
         Some(true) => Some(Action::Submit),
@@ -232,6 +234,24 @@ fn texture_choices(ui: &mut Ui, texts: &Texts, textures: &mut ExtractionTextures
         });
     });
     toggle::checkbox(ui, &mut textures.keep_raw, &texts.get(T::TextureRaw));
+}
+
+/// Shows the danger notice that the chosen folder lies inside a Star Citizen installation.
+pub(super) fn refusal_notice(ui: &mut Ui, texts: &Texts, refusal: Option<&WriteRefused>) {
+    let Some(refusal) = refusal else {
+        return;
+    };
+    let notice = texts.format(
+        T::TargetInInstallation,
+        &[(
+            "installation",
+            refusal.installation.display().to_string().into(),
+        )],
+    );
+    frames::danger_alert(ui, |ui| {
+        let text = plain(notice, FS_SM, Weight::Regular).color(palette::GRAY_1);
+        ui.add(egui::Label::new(text).wrap());
+    });
 }
 
 pub(super) fn folder_field(ui: &mut Ui, texts: &Texts, folder: Option<&Path>) {

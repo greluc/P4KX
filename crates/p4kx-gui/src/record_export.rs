@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use p4kx_export::RecordForm;
-use p4kx_extraction::ConflictPolicy;
+use p4kx_extraction::{ConflictPolicy, WriteRefused};
 
 pub use job::{RecordExport, RecordExportStatus};
 pub(crate) use job::{Request, Selection, start};
@@ -16,6 +16,7 @@ pub(crate) use selection::records_below;
 pub use summary::{FailedRecord, RecordExportSummary};
 
 use crate::TargetKind;
+use crate::installation::refusal_of;
 
 /// The forms the Record export dialog offers.
 pub const RECORD_FORMS: [RecordForm; 2] = [RecordForm::Json, RecordForm::Ndjson];
@@ -69,6 +70,7 @@ pub struct RecordExportSetup {
     form: RecordForm,
     kind: TargetKind,
     folder: Option<PathBuf>,
+    refusal: Option<WriteRefused>,
     policy: ConflictPolicy,
 }
 
@@ -85,6 +87,7 @@ impl RecordExportSetup {
             filter: String::new(),
             form: RecordForm::Json,
             kind: TargetKind::NewFolder,
+            refusal: refusal_of(folder.as_deref()),
             folder,
             policy: ConflictPolicy::Skip,
         }
@@ -154,7 +157,15 @@ impl RecordExportSetup {
 
     /// Chooses the folder the new folder is created in, or the existing folder written into.
     pub fn set_folder(&mut self, folder: PathBuf) {
+        self.refusal = refusal_of(Some(&folder));
         self.folder = Some(folder);
+    }
+
+    /// Returns why the chosen folder cannot be written to, when it lies inside a Star Citizen
+    /// installation.
+    #[must_use]
+    pub const fn refusal(&self) -> Option<&WriteRefused> {
+        self.refusal.as_ref()
     }
 
     /// Returns the Conflict policy for files already in an existing folder.
@@ -172,6 +183,7 @@ impl RecordExportSetup {
     #[must_use]
     pub fn is_ready(&self) -> bool {
         self.folder.is_some()
+            && self.refusal.is_none()
             && match self.scope {
                 RecordScope::Tree => self.tree.as_ref().is_some_and(|tree| !tree.is_empty()),
                 RecordScope::Filter => !self.filter.is_empty(),

@@ -283,6 +283,7 @@ fn select<'f>(all: &[Record<'f>], selection: &Selection) -> Vec<Record<'f>> {
 }
 
 fn prepare_target(index: &EntryIndex, request: &Request) -> io::Result<PathBuf> {
+    crate::installation::refuse(&request.folder)?;
     match request.kind {
         TargetKind::ExistingFolder => {
             fs::create_dir_all(&request.folder)?;

@@ -29,6 +29,9 @@ pub enum ExtractionError {
         #[source]
         source: io::Error,
     },
+    /// The target lies inside a Star Citizen installation; nothing is written there.
+    #[error(transparent)]
+    Installation(#[from] p4kx_guard::WriteRefused),
     /// The Entry is `CryXml` that could not be converted.
     #[error("cannot convert the CryXml")]
     Convert(#[source] CryXmlError),

@@ -100,7 +100,6 @@ pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
     DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    QueryText,
-    RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText, RecordText,
-    ScrollText, Text, Texts, XmlText,
+    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
+    RecordText, ScrollText, Text, Texts, XmlText,
 };

@@ -7,7 +7,7 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::{GLOW_TOOLTIP, Weight, font};
 
-/// The frame of a `.scu-hint__bubble`: near-black with an orange hairline and glow, square.
+/// The frame of a `.scu-hint__bubble`: on the control fill with an orange hairline and glow.
 pub(crate) fn frame() -> Frame {
     Frame::NONE
         .fill(TOOLTIP_FILL)

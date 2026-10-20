@@ -168,12 +168,12 @@ impl Model {
         let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
             return None;
         };
-        let ids = browser.scope_entries(setup.scope());
+        let (index, ids) = browser.scope_source(setup.scope())?;
         if ids.is_empty() {
             return None;
         }
-        let index = browser.index();
-        if ids.len() == index.len() && !setup.is_confirming() {
+        let whole = Arc::ptr_eq(&index, browser.shared_index()) && ids.len() == index.len();
+        if whole && !setup.is_confirming() {
             setup.ask_confirmation(Confirmation {
                 entries: ids.len(),
                 bytes: ids
@@ -184,10 +184,7 @@ impl Model {
             });
             return None;
         }
-        Some(Source::Index {
-            index: Arc::clone(browser.shared_index()),
-            ids,
-        })
+        Some(Source::Index { index, ids })
     }
 
     /// Returns the running or finished Extraction, or `None` when there is none.

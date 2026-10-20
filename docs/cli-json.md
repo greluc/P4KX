@@ -55,8 +55,11 @@ when nothing matches.
 
 ```json
 {"archive": "…", "channel": "LIVE", "build": Build, "entry_count": 4, "encrypted_count": 1,
- "compressed_size": 35, "size": 118}
+ "issue_count": 0, "compressed_size": 35, "size": 118}
 ```
+
+`issue_count` is the number of Entry issues found in the directory of the Archive (ADR-0025); `info`,
+`list` and `extract` print the first ten to stderr as `warning: Entry <path>: <issue>`.
 
 `channel` is the name of the folder holding the Archive, or `null` when there is none; `build` is
 `null` when the Build is unknown.

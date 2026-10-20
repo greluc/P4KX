@@ -129,7 +129,7 @@ fn correlation(a: &[f64], b: &[f64]) -> f64 {
     let (mean_a, mean_b) = (a.iter().sum::<f64>() / count, b.iter().sum::<f64>() / count);
     let (mut both, mut left, mut right) = (0.0, 0.0, 0.0);
     for (x, y) in a.iter().zip(b) {
-        both += (x - mean_a) * (y - mean_b);
+        both = (x - mean_a).mul_add(y - mean_b, both);
         left += (x - mean_a).powi(2);
         right += (y - mean_b).powi(2);
     }
@@ -147,7 +147,7 @@ fn curl(image: &RgbaImage) -> Option<f64> {
     }
     let channel = |x: usize, y: usize, channel: usize| {
         let at = (y * width + x) * 4 + channel;
-        f64::from(image.pixels().get(at).copied().unwrap_or_default()) / 255.0 * 2.0 - 1.0
+        (f64::from(image.pixels().get(at).copied().unwrap_or_default()) / 255.0).mul_add(2.0, -1.0)
     };
     let (mut red_down, mut green_along) = (Vec::new(), Vec::new());
     for y in 1..height - 1 {

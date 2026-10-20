@@ -100,9 +100,8 @@ fn colours_is_the_default_and_an_unknown_mode_is_refused() -> TestResult {
     let unknown = glb(&archive, &dir.path().join("b.glb"), &["--materials", "pbr"])?;
 
     assert_eq!(default.status.code(), Some(0), "colours by default");
-    assert_eq!(
-        default.stdout.windows(8).any(|w| w == b"embedded"),
-        false,
+    assert!(
+        !String::from_utf8_lossy(&default.stdout).contains("embedded"),
         "no textures"
     );
     assert_eq!(

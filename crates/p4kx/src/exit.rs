@@ -64,8 +64,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
      definition of a UI movie cannot be read or written, e.g. a truncated bitmap tag or a
-     missing external texture, or a model cannot be exported or written, e.g. one in the CrCh
-     container; compare: the Archives or the --diff Entry differ
+     missing external texture, or a model cannot be exported or written, e.g. one too
+     large for a GLB file; compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie

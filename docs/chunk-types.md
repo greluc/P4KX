@@ -67,4 +67,5 @@ listed as unknown by `p4kx chunks list`.
 ## `CrCh`
 
 The Star Citizen types of `.soc` files and the types `0x0000`, `0x300A`, `0x4000`, `0x4001`,
-`0x4003` and `0x4005` of the survey are left to #309.
+`0x4003` and `0x4005` of the survey are left to #309. The `CrCh` model chunks (`Node`, `Mesh`,
+`MeshPhysicsData`, `MtlName`) of the one model file are in docs/crch-models.md.

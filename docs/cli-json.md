@@ -830,7 +830,9 @@ geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `us
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
-companion with 3, and a `CrCh` model, which is not supported yet, with 1.
+companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
+geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
+`null` (docs/crch-models.md).
 
 ## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
 

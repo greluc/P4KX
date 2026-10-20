@@ -3,8 +3,8 @@ use egui::Ui;
 use super::audio_preview::{self, AudioAction, Named};
 use super::record_preview::RecordStep;
 use super::soundbank_preview::{self, BankAction};
-use super::{image_preview, xml_preview};
-use crate::{Preview, PreviewTab, Texts};
+use super::{image_preview, model_preview, xml_preview};
+use crate::{Camera, Preview, PreviewTab, Texts, ViewerSupport};
 
 /// What the body of a tab asks for.
 pub(super) enum Asked {
@@ -12,6 +12,7 @@ pub(super) enum Asked {
     Audio(AudioAction),
     Sound(u32),
     Record(RecordStep),
+    Camera(Camera),
 }
 
 /// Whether a tab of its own showed the Entry.
@@ -20,7 +21,7 @@ pub(super) enum Typed {
     Shown(Option<Asked>),
 }
 
-/// Shows the Image, Audio or XML tab of `preview` at `path` of `size` bytes when `tab` is one of
+/// Shows the Image, Audio, Model or XML tab of `preview` at `path` of `size` bytes when `tab` is one of
 /// them and the Entry has it; returns [`Typed::Absent`] when it has not, and else what the tab
 /// asks for.
 pub(super) fn typed_tab(
@@ -28,7 +29,7 @@ pub(super) fn typed_tab(
     texts: &Texts,
     preview: &Preview,
     (path, size): (&str, u64),
-    (tab, volume): (PreviewTab, f32),
+    (tab, volume, support): (PreviewTab, f32, &ViewerSupport),
 ) -> Typed {
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
         return Typed::Shown(image_preview::show(ui, texts, path, image).map(Asked::Mip));
@@ -48,6 +49,11 @@ pub(super) fn typed_tab(
         };
         return Typed::Shown(
             audio_preview::show(ui, texts, named, audio, volume).map(Asked::Audio),
+        );
+    }
+    if let Some(model) = preview.model().filter(|_| tab == PreviewTab::Model) {
+        return Typed::Shown(
+            model_preview::show(ui, texts, path, (model, support)).map(Asked::Camera),
         );
     }
     if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {

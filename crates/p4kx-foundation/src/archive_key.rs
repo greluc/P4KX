@@ -2,6 +2,8 @@ use std::fmt;
 
 use thiserror::Error;
 
+const KEY_LEN: usize = 16;
+
 /// The AES-128-CBC IV of encrypted Entries: all zeros.
 pub const ARCHIVE_IV: [u8; 16] = [0; 16];
 
@@ -9,7 +11,7 @@ pub const ARCHIVE_IV: [u8; 16] = [0; 16];
 ///
 /// The type never prints its bytes: `Debug` is redacted and there is no `Display`.
 #[derive(Clone, PartialEq, Eq)]
-pub struct ArchiveKey([u8; ArchiveKey::LEN]);
+pub struct ArchiveKey([u8; KEY_LEN]);
 
 /// Why text is not an [`ArchiveKey`]; it never repeats the text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -33,7 +35,7 @@ pub enum ArchiveKeyError {
 
 impl ArchiveKey {
     /// The length of the key in bytes.
-    pub const LEN: usize = 16;
+    pub const LEN: usize = KEY_LEN;
     /// The length of the key written as hexadecimal digits.
     pub const HEX_LEN: usize = Self::LEN * 2;
 

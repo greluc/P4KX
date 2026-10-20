@@ -132,6 +132,7 @@ fn largest_showable() -> Result<u32, Box<dyn Error>> {
 
 fn opened_window() -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)

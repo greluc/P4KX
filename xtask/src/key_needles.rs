@@ -108,8 +108,7 @@ fn without_separators(bytes: &[u8]) -> Vec<u8> {
 
 fn encode_base64(bytes: &[u8]) -> String {
     let mut text = String::with_capacity(bytes.len() / 3 * 4);
-    for group in bytes.chunks_exact(3) {
-        let &[a, b, c] = group else { continue };
+    for &[a, b, c] in bytes.as_chunks::<3>().0 {
         let bits = (u32::from(a) << 16) | (u32::from(b) << 8) | u32::from(c);
         for shift in [18, 12, 6, 0] {
             let index = usize::try_from((bits >> shift) & 0x3F).unwrap_or(0);
@@ -126,7 +125,12 @@ mod tests {
     fn sample() -> String {
         (0..16_u8)
             .map(|byte| format!("{:02x}", byte * 7 + 3))
-            .collect()
+            .collect::<Vec<_>>()
+            .concat()
+    }
+
+    fn found(needles: &Needles, text: &[u8]) -> bool {
+        !needles.find_in(text).is_empty()
     }
 
     fn needles() -> Needles {
@@ -162,16 +166,15 @@ mod tests {
             ("base64", format!("k: {tail}").into_bytes()),
         ];
         for (name, text) in texts {
-            assert!(!needles().find_in(&text).is_empty(), "{name} is found");
+            assert!(found(&needles(), &text), "{name} is found");
         }
     }
 
     #[test]
     fn unrelated_text_is_not_a_match() {
         assert!(
-            needles()
-                .find_in(b"fn main() { println!(1, 2, 3); }")
-                .is_empty()
+            !found(&needles(), b"fn main() { println!(1, 2, 3); }"),
+            "no match"
         );
     }
 

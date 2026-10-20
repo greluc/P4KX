@@ -99,3 +99,20 @@ fn a_mistyped_key_option_stops_the_server_before_it_starts() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_corrected_stored_key_applies_to_the_next_call() -> TestResult {
+    let install = install()?;
+    let key_file = install.config().join("archive.key");
+    std::fs::write(&key_file, format!("{}\n", other_test_key().to_hex()))?;
+    let mut server = install.serve_without_key(&["--archive", "LIVE"])?;
+    let wrong = server.error("read_entry_text", &json!({ "path": "Data/secret.xml" }))?;
+    assert!(wrong.contains("does not"), "{wrong}");
+
+    std::fs::write(&key_file, format!("{}\n", test_key().to_hex()))?;
+    server.call("archive_info", &json!({}))?;
+
+    let text = server.ok_text("read_entry_text", &json!({ "path": "Data/secret.xml" }))?;
+    assert!(text.contains("secret data"), "{text}");
+    Ok(())
+}

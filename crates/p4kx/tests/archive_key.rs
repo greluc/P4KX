@@ -5,7 +5,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestEntry, other_test_key, test_key};
+use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry, other_test_key, test_key};
 use predicates::prelude::{PredicateBooleanExt, predicate};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -312,5 +312,31 @@ fn help_names_the_key_option_and_the_variable() -> TestResult {
         .stdout(predicate::str::contains(
             "7  the Archive key is missing or wrong",
         ));
+    Ok(())
+}
+
+#[test]
+fn a_command_that_opens_an_encrypted_container_exits_with_7_without_a_key() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    let room = TestContainer::new().entry(TestEntry::stored("room.xml", b"<Room/>".to_vec()));
+    ArchiveBuilder::new()
+        .entry(TestEntry::deflated("Data\\room.socpak", room.build()).encrypted())
+        .write_to(&path)?;
+
+    keyless(dir.path())?
+        .args(["socpak", "list"])
+        .arg(&path)
+        .arg("Data\\room.socpak")
+        .assert()
+        .code(7)
+        .stderr(predicate::str::contains("p4kx key set"));
+    keyless(dir.path())?
+        .args(["--key", &test_key().to_hex(), "socpak", "list"])
+        .arg(&path)
+        .arg("Data\\room.socpak")
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("room.xml"));
     Ok(())
 }

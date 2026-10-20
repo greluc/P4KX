@@ -337,6 +337,9 @@ fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {
             },
             Model::new(Language::BritishEnglish),
         );
+    harness
+        .state_mut()
+        .set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     harness.state_mut().open(real_archive_path()?, || {});
     let deadline = Instant::now() + Duration::from_secs(120);
     while harness.state().browser().is_none() {

@@ -175,6 +175,10 @@ fn tokens(text: &str) -> Vec<(usize, &str)> {
 mod tests {
     use super::literals;
 
+    fn flagged(text: &str) -> bool {
+        !literals(text.as_bytes()).is_empty()
+    }
+
     fn bytes(count: u8) -> String {
         (0..count)
             .map(|byte| format!("0x{:02X}", byte.wrapping_mul(13).wrapping_add(7)))
@@ -185,44 +189,33 @@ mod tests {
     #[test]
     fn a_byte_list_of_sixteen_after_the_word_key_is_flagged() {
         let text = format!("pub const SECRET_KEY: [u8; 16] = [\n    {}\n];", bytes(16));
-        assert!(!literals(text.as_bytes()).is_empty());
+        assert!(flagged(&text), "flagged");
     }
 
     #[test]
     fn a_byte_list_across_lines_is_flagged() {
         let text = format!("let key = [\n{},\n{}\n];", bytes(8), bytes(8));
-        assert!(!literals(text.as_bytes()).is_empty());
+        assert!(flagged(&text), "flagged");
     }
 
     #[test]
     fn short_lists_and_lists_not_named_as_a_key_pass() {
-        let short = format!("let key = [{}];", bytes(15));
-        let unnamed = format!("let guid = [{}];", bytes(16));
-        assert!(literals(short.as_bytes()).is_empty(), "short");
-        assert!(literals(unnamed.as_bytes()).is_empty(), "unnamed");
+        assert!(!flagged(&format!("let key = [{}];", bytes(15))), "short");
+        assert!(!flagged(&format!("let guid = [{}];", bytes(16))), "unnamed");
     }
 
     #[test]
     fn thirty_two_digits_or_base64_after_the_word_key_are_flagged() {
         let hex = "ab".repeat(16);
         let base64 = format!("{}==", "Q".repeat(22));
-        assert!(
-            !literals(format!("key: {hex}").as_bytes()).is_empty(),
-            "hex"
-        );
-        assert!(
-            !literals(format!("KEY={base64}").as_bytes()).is_empty(),
-            "base64"
-        );
+        assert!(flagged(&format!("key: {hex}")), "hex");
+        assert!(flagged(&format!("KEY={base64}")), "base64");
     }
 
     #[test]
     fn the_documented_samples_and_unnamed_digits_pass() {
         let sample = "000102030405060708090a0b0c0d0e0f";
-        assert!(
-            literals(format!("key {sample}").as_bytes()).is_empty(),
-            "sample"
-        );
-        assert!(literals("ab".repeat(16).as_bytes()).is_empty(), "unnamed");
+        assert!(!flagged(&format!("key {sample}")), "sample");
+        assert!(!flagged(&"ab".repeat(16)), "unnamed");
     }
 }

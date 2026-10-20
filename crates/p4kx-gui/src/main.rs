@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::{Result, anyhow};
 use p4kx_channels::SearchPaths;
 use p4kx_gui::{App, ChannelList, Language, Model, RecordTextChoice, Text, theme, window};
-use p4kx_settings::{Settings, default_settings_file};
+use p4kx_settings::{KEY_VARIABLE, KeyStore, Settings, choose_key, default_settings_file};
 
 fn main() -> Result<()> {
     let settings_file = default_settings_file();
@@ -33,6 +33,15 @@ fn main() -> Result<()> {
             .as_deref()
             .and_then(RecordTextChoice::from_code),
     );
+    let key_store = std::env::var_os("P4KX_KEY_FILE")
+        .filter(|file| !file.is_empty())
+        .map_or_else(KeyStore::in_profile, |file| Some(KeyStore::new(file)));
+    let variable = std::env::var(KEY_VARIABLE).ok();
+    let chosen = choose_key(None, variable.as_deref(), key_store.as_ref())
+        .ok()
+        .flatten();
+    model.set_key_store(key_store);
+    model.set_archive_key(chosen.map(|chosen| chosen.key));
     let title = model.texts().get(Text::AppTitle);
     let options = eframe::NativeOptions {
         viewport: window::viewport(settings.window, &title),

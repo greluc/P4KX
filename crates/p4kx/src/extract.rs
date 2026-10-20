@@ -8,9 +8,9 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, ArchiveError, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy,
-    DataForgeEntry, Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress,
-    TextureConversion, TextureGroups, create_default_target, extract, select_entries,
+    Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
+    Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion,
+    TextureGroups, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -93,23 +93,6 @@ pub(crate) struct Settings<'a> {
     pub(crate) cancel_after: Option<usize>,
 }
 
-/// Fails before anything is written when `entries` hold an encrypted Entry and the Archive has no
-/// key, or one that does not fit, instead of failing every encrypted Entry on its own.
-fn require_key(archive: &Archive, entries: &[&Entry]) -> Result<()> {
-    let Some(encrypted) = entries.iter().find(|entry| entry.is_encrypted()) else {
-        return Ok(());
-    };
-    if !archive.has_key() {
-        return Err(ArchiveError::KeyRequired {
-            path: archive.location().to_path_buf(),
-            entry: encrypted.path().to_owned(),
-        }
-        .into());
-    }
-    archive.check_key()?;
-    Ok(())
-}
-
 /// Extracts `entries` of `archive`, which may be a container, as [`run`] does.
 pub(crate) fn execute(
     archive: &Archive,
@@ -117,7 +100,7 @@ pub(crate) fn execute(
     settings: &Settings<'_>,
     as_json: bool,
 ) -> Result<ExitCode> {
-    require_key(archive, entries)?;
+    crate::key::require(archive, entries)?;
     let watch = ArchiveWatch::new(archive);
     let target = prepare_target(settings.out, archive)?;
     let cancel = cancel_on_interrupt()?;

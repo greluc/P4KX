@@ -139,17 +139,17 @@ impl Install {
 
     /// Starts the server with `args`, initialised and ready for requests.
     pub(crate) fn serve(&self, args: &[&str]) -> TestResult<Server> {
-        self.serve_command(self.command(args))
+        Self::serve_command(self.command(args))
     }
 
     /// Starts the server with `args` and no Archive key in its environment.
     pub(crate) fn serve_without_key(&self, args: &[&str]) -> TestResult<Server> {
         let mut command = self.command(args);
         command.env_remove("P4KX_ARCHIVE_KEY");
-        self.serve_command(command)
+        Self::serve_command(command)
     }
 
-    fn serve_command(&self, mut command: Command) -> TestResult<Server> {
+    fn serve_command(mut command: Command) -> TestResult<Server> {
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

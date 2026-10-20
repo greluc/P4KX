@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 use anyhow::{Context, Result};
 use p4kx_channels::{SearchPaths, detect};
 use p4kx_extraction::{
-    Archive, ArchiveError, ArchiveKey, ArchiveKeyError, KeyCheck, archive_error_in,
+    Archive, ArchiveError, ArchiveKey, ArchiveKeyError, Entry, KeyCheck, archive_error_in,
 };
 use p4kx_settings::{
     ChosenKey, KEY_VARIABLE, KeyChoiceError, KeySource, KeyStore, Settings, choose_key,
@@ -112,6 +112,23 @@ pub(crate) fn hint(error: &anyhow::Error) -> Option<&'static str> {
     }
 }
 
+/// Fails before anything is written when `entries` hold an encrypted Entry and `archive` has no
+/// key, or one that does not fit, instead of failing every encrypted Entry on its own.
+pub(crate) fn require(archive: &Archive, entries: &[&Entry]) -> Result<()> {
+    let Some(encrypted) = entries.iter().find(|entry| entry.is_encrypted()) else {
+        return Ok(());
+    };
+    if !archive.has_key() {
+        return Err(ArchiveError::KeyRequired {
+            path: archive.location().to_path_buf(),
+            entry: encrypted.path().to_owned(),
+        }
+        .into());
+    }
+    archive.check_key()?;
+    Ok(())
+}
+
 /// Returns whether `error` is about a missing or wrong Archive key.
 pub(crate) fn is_key_error(error: &anyhow::Error) -> bool {
     archive_error_in(error.as_ref())
@@ -134,15 +151,12 @@ fn store(key_file: Option<&Path>) -> Option<KeyStore> {
 }
 
 fn set(store: &KeyStore, text: Option<&str>, archive: Option<&Path>, as_json: bool) -> Result<()> {
-    let text = match text {
-        Some(text) => text.to_owned(),
-        None => {
-            let mut line = String::new();
-            io::stdin().lock().read_line(&mut line)?;
-            line
-        }
-    };
-    let key = ArchiveKey::from_hex(&text).map_err(InvalidKey::Text)?;
+    let mut line = String::new();
+    if text.is_none() {
+        io::stdin().lock().read_line(&mut line)?;
+    }
+    let text = text.unwrap_or(&line);
+    let key = ArchiveKey::from_hex(text).map_err(InvalidKey::Text)?;
     let checked_against = check_against(&key, archive)?;
     store.save(&key)?;
     if as_json {
@@ -152,12 +166,14 @@ fn set(store: &KeyStore, text: Option<&str>, archive: Option<&Path>, as_json: bo
             checked_against: checked_against.as_deref().map(json::path),
         })?;
     } else {
-        let note = match &checked_against {
-            Some(archive) => format!("it decrypts an Entry of {}", archive.display()),
-            None => "not checked: no Archive with an encrypted Entry was found, name one with \
-                     --archive"
-                .to_owned(),
-        };
+        let note = checked_against.as_ref().map_or_else(
+            || {
+                "not checked: no Archive with an encrypted Entry was found, name one with \
+                 --archive"
+                    .to_owned()
+            },
+            |archive| format!("it decrypts an Entry of {}", archive.display()),
+        );
         writeln!(
             io::stdout().lock(),
             "stored the Archive key in {} ({note})",

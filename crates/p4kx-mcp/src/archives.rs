@@ -171,13 +171,15 @@ impl Archives {
     }
 
     /// Returns the Archive at `path`, opening it unless it is open and unchanged. An Archive that
-    /// has no key yet gets the one chosen now, so a key stored since it was opened applies.
+    /// has no key yet, or whose key was found not to fit, gets the one chosen now, so a key stored
+    /// since it was opened applies.
     pub(crate) fn get(&self, path: &Path) -> Result<Arc<Opened>, ToolError> {
         let opened = self.opened(path)?;
-        if !opened.archive().has_key()
+        let archive = opened.archive();
+        if (!archive.has_key() || archive.take_key_request())
             && let Some(key) = self.keys.current()
         {
-            opened.archive().set_key(key);
+            archive.set_key(key);
         }
         Ok(opened)
     }

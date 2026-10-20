@@ -53,7 +53,7 @@ struct Args {
     #[arg(long, env = "P4KX_DEFAULT_LIBRARY")]
     default_library: Option<PathBuf>,
     /// The Archive key as 32 hexadecimal digits, needed to read encrypted Entries. Without it the
-    /// P4KX_ARCHIVE_KEY environment variable of the server configuration is used, then the key
+    /// `P4KX_ARCHIVE_KEY` environment variable of the server configuration is used, then the key
     /// stored with `p4kx key set` or in the GUI. Prefer the variable or the stored key: an option
     /// shows up in process lists.
     #[arg(long = "key", value_name = "HEX")]

@@ -27,7 +27,7 @@ pub(crate) struct Cli {
     #[arg(long, global = true)]
     pub(crate) json: bool,
     /// The Archive key as 32 hexadecimal digits, needed to read encrypted Entries. Without it the
-    /// P4KX_ARCHIVE_KEY environment variable is used, then the key stored with `p4kx key set`.
+    /// `P4KX_ARCHIVE_KEY` environment variable is used, then the key stored with `p4kx key set`.
     /// Prefer the variable or the stored key: an option shows up in process lists and shell
     /// history.
     #[arg(long = "key", global = true, value_name = "HEX")]

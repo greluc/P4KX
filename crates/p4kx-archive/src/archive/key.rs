@@ -48,6 +48,7 @@ impl Archive {
     /// Returns whether an encrypted Entry was needed since the last call while no key was set or
     /// the one set was found not to fit, and forgets that, so that a window can ask for the key
     /// once.
+    #[must_use]
     pub fn take_key_request(&self) -> bool {
         self.key.take_wanted()
     }

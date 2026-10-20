@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
@@ -12,13 +14,20 @@ const FNV_PRIME: u64 = 0x0000_0100_0000_01B3;
 #[derive(Debug)]
 pub struct PathIndex<'a> {
     archive: &'a Archive,
+    keys: Cow<'a, [(u64, u32)]>,
+}
+
+/// The sorted path hashes of an Archive's Entries, kept apart from the Archive so one build serves
+/// every lookup: [`PathKeys::index`] lends them as a [`PathIndex`].
+#[derive(Debug, Clone)]
+pub struct PathKeys {
     keys: Vec<(u64, u32)>,
 }
 
-impl<'a> PathIndex<'a> {
-    /// Builds the index of `archive`'s Entries.
+impl PathKeys {
+    /// Hashes every path of `archive`'s Entries once.
     #[must_use]
-    pub fn new(archive: &'a Archive) -> Self {
+    pub fn new(archive: &Archive) -> Self {
         let mut keys: Vec<(u64, u32)> = archive
             .entries()
             .par_iter()
@@ -28,7 +37,28 @@ impl<'a> PathIndex<'a> {
             })
             .collect();
         keys.par_sort_unstable();
-        Self { archive, keys }
+        Self { keys }
+    }
+
+    /// Returns the index over `archive`, which must be the Archive these keys were built from; for
+    /// another one lookups find nothing or an Entry whose path really matches.
+    #[must_use]
+    pub fn index<'a>(&'a self, archive: &'a Archive) -> PathIndex<'a> {
+        PathIndex {
+            archive,
+            keys: Cow::Borrowed(&self.keys),
+        }
+    }
+}
+
+impl<'a> PathIndex<'a> {
+    /// Builds the index of `archive`'s Entries.
+    #[must_use]
+    pub fn new(archive: &'a Archive) -> Self {
+        Self {
+            archive,
+            keys: Cow::Owned(PathKeys::new(archive).keys),
+        }
     }
 
     /// Returns the Archive the index is over.

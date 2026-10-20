@@ -14,6 +14,7 @@ mod extraction_control;
 mod record_export_control;
 mod record_text;
 mod update;
+mod viewer_control;
 mod work_tab;
 
 use archive_key::KeyState;
@@ -26,6 +27,7 @@ pub use work_tab::WorkTab;
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
     ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice, Texts,
+    ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -70,6 +72,7 @@ pub struct Model {
     record_export: RecordExportState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
+    viewer_support: ViewerSupport,
     key: KeyState,
 }
 
@@ -135,6 +138,7 @@ impl Model {
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
+            viewer_support: ViewerSupport::default(),
             key: KeyState::default(),
         }
     }

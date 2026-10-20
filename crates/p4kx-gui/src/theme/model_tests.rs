@@ -1,0 +1,60 @@
+use serde_json::Value;
+
+use super::desktop::FACTS_PADDING_X;
+use super::model_metrics as m;
+
+const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
+
+fn model_preview() -> Value {
+    let spec: Value =
+        serde_json::from_str(DESKTOP).unwrap_or_else(|error| panic!("the desktop spec: {error}"));
+    spec["modelPreview"].clone()
+}
+
+#[test]
+fn the_model_preview_metrics_match_the_desktop_spec() {
+    let spec = model_preview();
+
+    for (key, value) in [
+        ("viewMinHeight", m::MODEL_VIEW_MIN_HEIGHT),
+        ("overlayGap", m::MODEL_OVERLAY_GAP),
+        ("hintMinWidth", m::MODEL_HINT_MIN_WIDTH),
+        ("factsPaddingX", FACTS_PADDING_X),
+    ] {
+        let expected = spec[key].as_f64();
+        assert!(
+            expected.is_some_and(|want| (want - f64::from(value)).abs() < 0.01),
+            "modelPreview.{key} is {expected:?}, the theme has {value}"
+        );
+    }
+}
+
+#[test]
+fn the_model_view_sits_on_the_inset_surface_with_a_hairline() {
+    let spec = model_preview();
+
+    assert_eq!(
+        spec["background"].as_str(),
+        Some("surface-inset"),
+        "surface"
+    );
+    assert_eq!(spec["border"].as_str(), Some("color-gray-3"), "hairline");
+    assert_eq!(
+        super::palette::SURFACE_INSET,
+        super::palette::CANVAS,
+        "the inset is the canvas colour the render target is cleared with"
+    );
+}
+
+#[test]
+fn the_model_preview_names_its_decision_and_controls() {
+    let spec = model_preview();
+
+    assert_eq!(spec["decision"].as_str(), Some("D.35"), "decision");
+    for key in ["mouse", "keyboard", "resetButton", "hint", "messages"] {
+        assert!(
+            spec[key].as_str().is_some_and(|text| !text.is_empty()),
+            "modelPreview.{key} is described"
+        );
+    }
+}

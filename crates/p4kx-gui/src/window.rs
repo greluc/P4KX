@@ -25,6 +25,18 @@ pub fn viewport(geometry: Option<WindowGeometry>, title: &str) -> ViewportBuilde
         .with_maximized(geometry.maximized)
 }
 
+/// Returns the options of the native window around `viewport`: egui's own pass keeps one sample
+/// and no depth buffer, which is what the pipeline that blits the 3D view into it is made for.
+#[must_use]
+pub fn native_options(viewport: ViewportBuilder) -> eframe::NativeOptions {
+    eframe::NativeOptions {
+        viewport,
+        multisampling: 0,
+        depth_buffer: 0,
+        ..eframe::NativeOptions::default()
+    }
+}
+
 /// Returns the geometry to remember for the window described by `info`.
 ///
 /// A minimised window keeps the previous geometry; a maximised one keeps the position and size it
@@ -82,7 +94,15 @@ mod tests {
     use egui::{Rect, ViewportInfo, pos2, vec2};
     use p4kx_settings::WindowGeometry;
 
-    use super::{geometry, viewport};
+    use super::{geometry, native_options, viewport};
+
+    #[test]
+    fn egui_s_pass_has_one_sample_and_no_depth_buffer() {
+        let options = native_options(viewport(None, "title"));
+
+        assert_eq!(options.multisampling, 0, "no multisampling");
+        assert_eq!(options.depth_buffer, 0, "no depth buffer");
+    }
 
     const SAVED: WindowGeometry = WindowGeometry {
         x: 100,

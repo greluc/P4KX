@@ -8,7 +8,7 @@ Chunks:      4
 Unknown:     1
 
 Index  Type                         Type ID  Version          ID  Order       Offset        Size
-    0  AssetMetadata             0xBE5E493E    0x900           -  little          80          16
+    0  ExportFlags               0xBE5E493E    0x900           -  little          80          16
     1  MtlName320                0x83353333    0x900           -  little          96          16
     2  Mesh                      0x9293B9D8    0x901           -  little         112          40
-    3  unknown                   0x0A2485B6    0x900           -  little         152           8
+    3  unknown                   0x00C0FFEE    0x900           -  little         152           8

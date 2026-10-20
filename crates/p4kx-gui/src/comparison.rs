@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Weak;
 
+use p4kx_channels::ChannelKind;
 use p4kx_comparison::Levels;
 use p4kx_extraction::ArchiveKey;
 
@@ -109,6 +110,18 @@ pub enum ComparisonStatus<'a> {
     Finished(&'a ComparisonView),
 }
 
+fn test_channels(kinds: [Option<ChannelKind>; 2]) -> Option<String> {
+    let [old, new] = kinds.map(|kind| kind.filter(|kind| kind.is_test_build()));
+    match (
+        old.and_then(ChannelKind::name),
+        new.and_then(ChannelKind::name),
+    ) {
+        (Some(old), Some(new)) if old != new => Some(format!("{old}, {new}")),
+        (Some(name), _) | (None, Some(name)) => Some(name.to_owned()),
+        (None, None) => None,
+    }
+}
+
 #[derive(Debug, Default)]
 enum State {
     #[default]
@@ -130,9 +143,18 @@ pub struct ComparisonTab {
     stopping: Option<Weak<()>>,
     key: Option<ArchiveKey>,
     key_wanted: bool,
+    kinds: [Option<ChannelKind>; 2],
+    test_channels: Option<String>,
 }
 
 impl ComparisonTab {
+    /// Returns the names of the test Channels the picked Archives live in, such as `PTU` or
+    /// `PTU, EPTU`, or `None` when neither lives in one.
+    #[must_use]
+    pub fn test_channels(&self) -> Option<&str> {
+        self.test_channels.as_deref()
+    }
+
     /// Sets the key the picked Archives are opened with.
     pub const fn set_key(&mut self, key: Option<ArchiveKey>) {
         self.key = key;
@@ -154,10 +176,18 @@ impl ComparisonTab {
 
     /// Picks the Archive at `path` for `side`.
     pub fn set_archive(&mut self, side: ComparisonSide, path: PathBuf) {
+        let kind = Some(ChannelKind::of_archive(&path));
         match side {
-            ComparisonSide::Old => self.old = Some(path),
-            ComparisonSide::New => self.new = Some(path),
+            ComparisonSide::Old => {
+                self.old = Some(path);
+                self.kinds[0] = kind;
+            }
+            ComparisonSide::New => {
+                self.new = Some(path);
+                self.kinds[1] = kind;
+            }
         }
+        self.test_channels = test_channels(self.kinds);
     }
 
     /// Returns the levels switched on.

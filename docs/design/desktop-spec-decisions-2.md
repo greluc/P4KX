@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.34
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen ab D.22
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -231,3 +231,41 @@ wählt man einen Eintrag, kehrt die Vorschau zu „Text" zurück wie bei den and
 dem Reiter sind es bis zu sechs Reiter neben Zurück, Vor und Kopieren; passen sie nicht in die
 Leiste, bleibt rechts Platz für diese Schaltflächen und die Reiter scrollen waagerecht mit dem
 Mausrad (`.tab-nav` hat `overflow-x: auto`), der gewählte Reiter wird sichtbar gehalten.
+
+**D.35 Modellvorschau als Tab „Modell" mit 3D-Ansicht.** Wählt man ein Modell (`.cgf`, `.cga`,
+`.skin`), öffnet die Vorschau den Tab „Modell" hinter „Audio"; andere Einträge kehren zu „Text"
+zurück. Unter der Pfadzeile (D.14) steht eine `.facts-bar` ohne Richtung mit Vertices, Dreiecken
+und Größe (Breite × Tiefe × Höhe in Metern, zwei Nachkommastellen), und im freien Platz rechts
+daneben die Bedienhinweise in 12,8 / 400 `color-gray-2-text`, rechtsbündig und mit Auslassung
+gekürzt; unter 120 px Breite entfallen sie, der volle Text bleibt im Zugänglichkeitsbaum. Darunter
+liegt die 3D-Ansicht, mindestens 96 px hoch und so breit und hoch wie der Rest des Panels, auf
+`surface-inset` mit einer Haarlinie 1 `color-gray-3` innen. Die Ecken sind quadratisch, weil sich
+ein egui-Paint-Callback nur auf ein Rechteck beschneiden lässt (Abweichung, ADR-0031); alles um die
+Ansicht folgt dem Designsystem. Das Modell ist Spielinhalt, kein Teil des Designs: es ist neutral
+grau und mit einem Kopf- und einem Schräglicht beleuchtet, damit Flächen lesbar bleiben, und von
+den Farbregeln ausgenommen. „Ansicht zurücksetzen" ist `.btn-ghost.btn-xs` (eine Routineaktion,
+kein CTA), liegt 8 px vom Rand oben rechts über der Ansicht und ist deaktiviert, solange die
+Ansicht das Modell eingepasst zeigt. Ziehen dreht, Rechts- oder Mittelklick-Ziehen oder
+Umschalt-Ziehen verschiebt, Mausrad und Zwei-Finger-Zoom zoomen. Die Ansicht ist eine
+fokussierbare Fläche („3D-Ansicht von …", Innenring −2 `color-primary` wie die Scrollflächen,
+D.27): bei Fokus drehen die Pfeiltasten, Umschalt und Pfeile verschieben, `+` und `-` zoomen, Pos1
+setzt zurück; die Pfeiltasten verlassen den Fokus nicht. Die Meldungen stehen anstelle der Ansicht
+unter der Faktenleiste: Lesefehler, Grafikgerät fehlt, zu klein oder verloren und fehlgeschlagenes
+Zeichnen in `color-danger-text`; zu groß, ohne Dreiecke und zu groß für das Grafikgerät in
+`color-gray-1` (wie „zu groß" in der Vorschau); geändertes Archiv in `color-warning` (D.8). Das
+Panel behält seine Höhe (236 px, frei verstellbar); wer mehr vom Modell sehen will, zieht den
+Griff darüber.
+
+**D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
+P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
+Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Das Modal hat die
+normale Breite (`.krt-modal`), nicht die breite, die dem Formular-Modal vorbehalten ist. Der Körper
+steht in 14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien,
+Absätze 12 voneinander und nach dem letzten kein Abstand, damit der Körper über und unter dem Text
+gleich weit von den Haarlinien von Kopf und Fuß steht: die Version (700), die Urheberzeile
+(wörtlich die Copyright-Zeile aus `LICENSE-MIT`), die Lizenz mit der Quelltext-Adresse, der Hinweis
+auf ein inoffizielles Fanprojekt ohne Verbindung zur und ohne Billigung durch die
+Cloud-Imperium-Gruppe, dass keine Spieldaten mitgeliefert und nur die eigene Installation gelesen
+wird, die Verantwortung für EULA und Terms of Service, der Eigentumshinweis und zuletzt die
+Markenangabe. Die Urheberzeile und die Markenangabe sind Rechtstext und stehen in beiden Sprachen
+im englischen Wortlaut. Nur Text, kein Fankit-Logo.

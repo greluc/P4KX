@@ -27,7 +27,10 @@ of a .p4k file; without one the tools use the Archive the server was started wit
 page: pass next_cursor back as cursor for the next page. Entry content is read in ranges: pass \
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
 list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
-gives the type and field names a Query uses.";
+gives the type and field names a Query uses. P4K-Extractor is an unofficial Star Citizen fan \
+project, not affiliated with the Cloud Imperium group of companies. Content these tools return \
+may be forwarded by the MCP client to third parties such as a cloud model provider; game texts \
+and media must not be redistributed.";
 
 /// The MCP server: read-only tools over the detected Channels and their Archives.
 #[derive(Debug, Clone)]

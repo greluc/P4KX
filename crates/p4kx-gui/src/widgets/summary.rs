@@ -116,8 +116,18 @@ impl FactsStrip {
         }
     }
 
-    /// Shows the facts as a `.facts-bar` across the available width.
-    pub(crate) fn show(&self, ui: &mut Ui) {
+    /// Returns the width the facts take from the left edge of the bar to the end of the last.
+    pub(crate) fn width(&self) -> f32 {
+        let facts: f32 = self
+            .facts
+            .iter()
+            .map(|(key, value)| key.size().x + FACT_KEY_GAP + value.size().x + FACTS_GAP)
+            .sum();
+        FACTS_PADDING_X + facts
+    }
+
+    /// Shows the facts as a `.facts-bar` across the available width and returns its rectangle.
+    pub(crate) fn show(&self, ui: &mut Ui) -> Rect {
         let (rect, response) =
             ui.allocate_exact_size(vec2(ui.available_width(), self.height), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &self.label));
@@ -136,6 +146,7 @@ impl FactsStrip {
             paint_left(ui, rect.with_min_x(left), Arc::clone(value), palette::WHITE);
             left += value_width + FACTS_GAP;
         }
+        rect
     }
 }
 

@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod about;
 mod archive_change;
 mod archive_issues;
 mod archive_key;
@@ -21,6 +22,7 @@ mod container_note;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;
+mod entry_status;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
@@ -33,6 +35,8 @@ mod localization;
 mod localization_laid;
 mod localization_table;
 mod menu;
+mod model_preview;
+mod model_view;
 mod moved_path;
 mod preview;
 mod preview_bar;
@@ -61,6 +65,7 @@ mod status;
 mod table;
 mod table_name;
 mod tree;
+mod viewer_input;
 mod xml_preview;
 mod xml_view;
 
@@ -174,6 +179,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    about::show(ui, model);
     archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests

@@ -61,10 +61,7 @@ fn main() -> Result<()> {
     );
     set_up_key(&mut model);
     let title = model.texts().get(Text::AppTitle);
-    let options = eframe::NativeOptions {
-        viewport: window::viewport(settings.window, &title),
-        ..eframe::NativeOptions::default()
-    };
+    let options = window::native_options(window::viewport(settings.window, &title));
     let archive = std::env::args_os().nth(1).map(PathBuf::from);
     eframe::run_native(
         &title,

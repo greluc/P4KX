@@ -5,16 +5,17 @@ use crate::theme::tokens::{SPACE_2, TOUCH_TARGET};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::tab;
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, IncomingText, Preview, PreviewTab, RecordText,
-    Text, Texts, XmlDocument, XmlPreview, XmlText,
+    AudioText, Browser, DataForgeText, ImageText, IncomingText, ModelText, Preview, PreviewTab,
+    RecordText, Text, Texts, XmlDocument, XmlPreview, XmlText,
 };
 
-pub(super) const TABS: [(PreviewTab, Text); 8] = [
+pub(super) const TABS: [(PreviewTab, Text); 9] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
+    (PreviewTab::Model, Text::Model(ModelText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
     (PreviewTab::Incoming, Text::Incoming(IncomingText::Tab)),
@@ -33,6 +34,7 @@ pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: Pr
     let image = browser.preview().and_then(Preview::image);
     let audio = browser.preview().and_then(Preview::audio);
     let sounds = browser.soundbank().is_some();
+    let modelled = browser.preview().and_then(Preview::model).is_some();
     let record = browser.selected_record().is_some();
     let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
     let records = browser.records();
@@ -40,6 +42,7 @@ pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: Pr
         PreviewTab::Xml => xml.is_some() || record,
         PreviewTab::Image => image.is_some(),
         PreviewTab::Audio => audio.is_some() || sounds,
+        PreviewTab::Model => modelled,
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Record | PreviewTab::Incoming => record,
         PreviewTab::Text | PreviewTab::Hex => true,

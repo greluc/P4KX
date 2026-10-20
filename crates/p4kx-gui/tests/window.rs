@@ -286,6 +286,47 @@ fn the_help_menu_shows_the_font_licence() {
 }
 
 #[test]
+fn the_help_menu_shows_the_legal_notices_in_both_languages() {
+    for (language, help, entry, fan_project, responsibility) in [
+        (
+            Language::BritishEnglish,
+            "Help",
+            "About P4K-Extractor",
+            "unofficial Star Citizen fan project",
+            "Terms of Service",
+        ),
+        (
+            Language::German,
+            "Hilfe",
+            "Über P4K-Extractor",
+            "inoffizielles Star-Citizen-Fanprojekt",
+            "Nutzungsbedingungen",
+        ),
+    ] {
+        let mut harness = harness(language);
+        harness.run();
+
+        harness.get_by_label(help).click();
+        harness.run();
+        harness.get_by_label(entry).click();
+        harness.run();
+
+        assert!(harness.state().about_shown(), "{language:?}: About is open");
+        for needle in [
+            fan_project,
+            responsibility,
+            "Copyright (c) 2026 KRT and the P4K-Extractor contributors",
+            "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.",
+        ] {
+            assert!(
+                harness.query_by_label_contains(needle).is_some(),
+                "{language:?}: {needle}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_file_that_is_no_archive_shows_the_failure() -> TestResult {
     let folder = tempfile::tempdir()?;
     let path = folder.path().join("broken.p4k");

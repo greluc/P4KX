@@ -115,6 +115,54 @@ fn a_cryxml_loadout_with_nested_items_is_read_from_the_files() -> TestResult {
 }
 
 #[test]
+fn an_item_without_item_name_keeps_its_port_empty_and_lists_the_nested_items() -> TestResult {
+    let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
+    let door = b"<Loadout><Items>\
+        <Item portName=\"body\" itemName=\"\"><Items>\
+        <Item portName=\"decal\" itemName=\"Decal_Red\"/>\
+        <Item portName=\"slot\" itemName=\"\"><Items>\
+        <Item portName=\"panel\" itemName=\"Panel\"/></Items></Item>\
+        </Items></Item></Items></Loadout>"
+        .to_vec();
+    let files = files(&[("loadouts/door.xml", door)]);
+
+    let tree = resolve(&builder, Some(&files))?;
+
+    assert_eq!(
+        lines(&tree),
+        [
+            "body -",
+            "body/decal Decal_Red",
+            "body/slot -",
+            "body/slot/panel Panel"
+        ],
+        "the nested Loadout is kept below the empty port"
+    );
+    let body = tree.ports().first().ok_or("no port")?;
+    assert_eq!(body.nested().len(), 2, "two nested ports");
+    assert_eq!(
+        body.nested().first().map(PortNode::source),
+        Some(PortSource::Override),
+        "source"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manual_entry_without_target_keeps_its_nested_entries() -> TestResult {
+    let builder = database(TestLoadout::Manual(vec![
+        TestLoadoutEntry::empty("body").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("decal", "Decal_Red"),
+        ])),
+    ]));
+
+    let tree = resolve(&builder, None)?;
+
+    assert_eq!(lines(&tree), ["body -", "body/decal Decal_Red"]);
+    Ok(())
+}
+
+#[test]
 fn included_loadouts_are_overridden_per_port_by_the_including_one() -> TestResult {
     let builder = database(TestLoadout::Xml("Loadouts/Door.xml".to_owned()));
     let base = b"\xef\xbb\xbf<Loadout><Items>\

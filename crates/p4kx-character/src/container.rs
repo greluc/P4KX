@@ -14,6 +14,7 @@ pub const CHF_MAGIC: u16 = 0x4242;
 pub const MAX_BODY_LEN: usize = 64 * 1024;
 
 const HEADER_LEN: usize = 16;
+const TAIL_LEN: usize = 8;
 const MAX_FRAME_LEN: usize = CHF_SIZE - HEADER_LEN;
 const MAX_WINDOW: u64 = 1024 * 1024;
 
@@ -70,8 +71,37 @@ impl Container {
     }
 }
 
+/// Returns the last [`TAIL_LEN`] bytes of the file that `frame` and `padding` were read from, or
+/// zeros when the frame itself reaches into them.
+fn original_tail(frame: &[u8], padding: &[u8]) -> [u8; TAIL_LEN] {
+    let tail_start = CHF_SIZE - HEADER_LEN - TAIL_LEN;
+    let mut tail = [0; TAIL_LEN];
+    if frame.len() <= tail_start {
+        for (offset, slot) in tail.iter_mut().enumerate() {
+            let at = tail_start - frame.len() + offset;
+            *slot = padding.get(at).copied().unwrap_or(0);
+        }
+    }
+    tail
+}
+
+/// Fails when a frame of `frame_len` bytes would overwrite the non-zero `tail`.
+fn check_tail_is_free(frame_len: usize, tail: [u8; TAIL_LEN]) -> Result<(), ChfError> {
+    if HEADER_LEN + frame_len <= CHF_SIZE - TAIL_LEN {
+        return Ok(());
+    }
+    Err(ChfError::Unwritable {
+        reason: format!(
+            "the new {frame_len}-byte frame reaches into the last {TAIL_LEN} bytes of the file, \
+             which hold the original bytes {}",
+            tail.map(|byte| format!("{byte:02x}")).concat()
+        ),
+    })
+}
+
 /// Writes a CHF file, reusing `frame` and `padding` when the frame still decompresses to `body`;
-/// a body compressed anew is followed by zeros.
+/// a body compressed anew is followed by zeros up to the last [`TAIL_LEN`] bytes of the original
+/// file, which are kept.
 pub(crate) fn write(
     flags: u16,
     frame: &[u8],
@@ -86,12 +116,13 @@ pub(crate) fn write(
             max: MAX_BODY_LEN,
         })?;
     let fresh;
-    let (frame, padding) =
+    let (frame, padding, tail) =
         if !frame.is_empty() && decompress(frame, body_len).is_ok_and(|decoded| decoded == body) {
-            (frame, padding)
+            (frame, padding, None)
         } else {
+            let tail = Some(original_tail(frame, padding)).filter(|tail| *tail != [0; TAIL_LEN]);
             fresh = compress_to_vec(body, CompressionLevel::Fastest);
-            (fresh.as_slice(), &[][..])
+            (fresh.as_slice(), &[][..], tail)
         };
     let frame_len = u32::try_from(frame.len())
         .ok()
@@ -100,6 +131,9 @@ pub(crate) fn write(
             size: frame.len() as u64,
             max: MAX_FRAME_LEN,
         })?;
+    if let Some(tail) = tail {
+        check_tail_is_free(frame.len(), tail)?;
+    }
     let mut out = Vec::with_capacity(CHF_SIZE);
     out.extend_from_slice(&CHF_MAGIC.to_le_bytes());
     out.extend_from_slice(&flags.to_le_bytes());
@@ -117,7 +151,12 @@ pub(crate) fn write(
         });
     }
     out.extend_from_slice(padding);
-    out.resize(CHF_SIZE, 0);
+    if let Some(tail) = tail {
+        out.resize(CHF_SIZE - TAIL_LEN, 0);
+        out.extend_from_slice(&tail);
+    } else {
+        out.resize(CHF_SIZE, 0);
+    }
     let crc = crc32c::crc32c(out.get(HEADER_LEN..).unwrap_or_default());
     if let Some(slot) = out.get_mut(4..8) {
         slot.copy_from_slice(&crc.to_le_bytes());

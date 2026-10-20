@@ -2,7 +2,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::model::{ChunkUsage, Model, ModelError};
+use p4kx_extraction::model::{ChunkUsage, LodSelection, Model, ModelError};
 use p4kx_extraction::{ConversionError, GlbOptions, GlbSummary, GltfError, ModelSource};
 use serde::Serialize;
 
@@ -29,15 +29,31 @@ struct GlbJson<'a> {
 /// Runs `p4kx model info` or `p4kx model glb`.
 pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
     match &args.action {
-        ModelAction::Info(source) => info(&open(source)?, as_json),
-        ModelAction::Glb { source, out } => glb(&open(source)?, out, as_json),
+        ModelAction::Info(source) => info(&open(source, LodSelection::All)?, as_json),
+        ModelAction::Glb {
+            source,
+            out,
+            lod,
+            no_vertex_colours,
+        } => {
+            let source = open(source, LodSelection::Only(*lod))?;
+            let options = GlbOptions::default().with_lod(*lod);
+            let options = if *no_vertex_colours {
+                options.without_vertex_colours()
+            } else {
+                options
+            };
+            glb(&source, options, out, as_json)
+        }
     }
 }
 
-fn open(source: &ModelFileSource) -> Result<ModelSource> {
+fn open(source: &ModelFileSource, lods: LodSelection) -> Result<ModelSource> {
     Ok(match &source.entry {
-        Some(entry) => ModelSource::from_archive(&crate::key::open(&source.path)?, entry)?,
-        None => ModelSource::from_file(&source.path)?,
+        Some(entry) => {
+            ModelSource::from_archive_with(&crate::key::open(&source.path)?, entry, lods)?
+        }
+        None => ModelSource::from_file_with(&source.path, lods)?,
     })
 }
 
@@ -86,8 +102,8 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  Material IDs",
-        "LOD", "Node", "Vertices", "Triangles", "Normals"
+        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  Material IDs",
+        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours"
     )?;
     for lod in &model.lods {
         for mesh in &lod.meshes {
@@ -98,17 +114,23 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {}",
+                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {}",
                 lod.level,
                 node_name(model, mesh.node),
                 mesh.positions.len(),
                 mesh.indices.len() / 3,
-                if mesh.normals.is_some() { "yes" } else { "no" },
+                yes_no(mesh.normals.is_some()),
+                yes_no(mesh.tangents.is_some()),
+                yes_no(mesh.colours.is_some()),
                 ids.join(", ")
             )?;
         }
     }
     Ok(())
+}
+
+const fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
 }
 
 fn write_nodes(out: &mut impl Write, model: &Model) -> io::Result<()> {
@@ -127,13 +149,13 @@ fn write_chunks(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:<8}  {:>5}  {:<24}  {:>10}  Usage",
+        "{:<13}  {:>5}  {:<24}  {:>10}  Usage",
         "File", "Index", "Type", "Type ID"
     )?;
     for chunk in &model.chunks {
         writeln!(
             out,
-            "{:<8}  {:>5}  {:<24}  {:>10}  {}",
+            "{:<13}  {:>5}  {:<24}  {:>10}  {}",
             file_name(chunk.file),
             chunk.index,
             chunk.chunk_type.name().unwrap_or("unknown"),
@@ -173,8 +195,8 @@ fn chunk_counts(model: &Model) -> String {
     )
 }
 
-fn glb(source: &ModelSource, out: &Path, as_json: bool) -> Result<()> {
-    let summary = source.write_glb(&GlbOptions::default(), out)?;
+fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> Result<()> {
+    let summary = source.write_glb(&options, out)?;
     let model = source.model();
     if as_json {
         json::print(&glb_json(source, out, &summary))?;
@@ -229,7 +251,7 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
         error.downcast_ref::<ConversionError>(),
         Some(
             ConversionError::Model {
-                source: ModelError::MissingGeometry { .. },
+                source: ModelError::MissingGeometry { .. } | ModelError::NoSuchLod { .. },
                 ..
             } | ConversionError::Glb {
                 source: GltfError::NoSuchLod { .. },

@@ -8,6 +8,17 @@ fails while its section is missing.
 
 ### Added
 
+- Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
+  its vertex and triangle counts and whether its meshes have normals, tangents and colours;
+  `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
+  lacks exits with code 2) from the geometry companion `<stem>_lod<n>.<extension>m`, with the
+  nodes of the base model file. The GLB now carries `TANGENT` (with handedness) and `COLOR_0` for
+  the meshes that have them; `--no-vertex-colours` leaves the colours out. `Model::read_with`,
+  `LodSelection`, `Mesh::tangents`, `Mesh::colours` in `p4kx-model`, `GlbOptions::vertex_colours`
+  in `p4kx-gltf`. Real-Archive tests check the tangents against the texture axes, the LODs of 360
+  models and the node chain against the `MeshInfo` box (docs/model-lods-and-vertex-attributes.md,
+  ADR-0028). The vertex colours are read as BGRA; models whose names say `blue` are mostly blue
+  and those named `red` or `orange` mostly red under that order, which a real-Archive test checks.
 - Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
   filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
   mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and
@@ -83,6 +94,11 @@ fails while its section is missing.
   your user alone where the platform allows it, and never appears in logs, error messages or JSON.
   `cargo xtask keys` fails when a tracked file holds a key-like literal named as a key, or the
   real key while `P4KX_ARCHIVE_KEY` is set. Real-Archive tests need `P4KX_ARCHIVE_KEY`.
+- Models: `p4kx_model::ModelFile` is `#[non_exhaustive]` and has the new variant
+  `LodGeometry(u32)` for the geometry companion of a level of detail from 1 on (`lod<n>-geometry`
+  in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
+  `p4kx model info` has the columns Tangents and Colours, and its chunk table is wider for the
+  `lod<n>-geometry` names.
 - GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
   `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
   bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
@@ -133,6 +149,20 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
+- Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
+  starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
+  reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
+  maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
+  Citizen's banks are all version 154 and decode as before.
+- A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
+  versions from 151 on write before the in-memory media size, so the media size was read one field
+  late. Star Citizen's version 154 banks were not affected.
 - A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
   holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
   is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM
@@ -165,6 +195,10 @@ fails while its section is missing.
   (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,
   `Skeleton` and four more), seven stay unknown, and the table entries that occur in no measured
   Archive are marked unverified.
+- A WEM whose odd-sized chunk is not followed by a pad byte, as Wwise writes it, no longer
+  misaligns the chunks after it: the reader takes the position right after the chunk when it
+  holds a valid chunk header, and skips the pad byte of plain RIFF otherwise. No WEM of the LIVE,
+  PTU and TECH-PREVIEW Archives has an odd-sized chunk before its last.
 
 ## [0.2.0]
 

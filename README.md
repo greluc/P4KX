@@ -268,9 +268,12 @@ Early development (milestone M1). Available today:
 - `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
   companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
   counts, the material library and material IDs, its bones and every chunk with whether it was
-  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file>` writes it as one
-  glTF 2.0 binary file (GLB), Y up and in metres, and lists the unknown chunks it skipped. Both
-  also take a model file on disk with its companion next to it.
+  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file> [--lod <n>]` writes
+  it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
+  colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
+  chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
+  companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2. Both
+  also take a model file on disk with its companions next to it.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails

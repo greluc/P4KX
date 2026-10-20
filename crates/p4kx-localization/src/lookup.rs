@@ -5,7 +5,12 @@ use crate::Language;
 /// The localisation keys that stand for no text, matched ignoring ASCII case and the leading `@`.
 ///
 /// A name or description with one of them keeps the key and has no texts.
-pub const PLACEHOLDER_KEYS: [&str; 3] = ["@LOC_EMPTY", "@LOC_PLACEHOLDER", "@LOC_UNINITIALIZED"];
+pub const PLACEHOLDER_KEYS: [&str; 4] = [
+    "@LOC_EMPTY",
+    "@LOC_PLACEHOLDER",
+    "@LOC_UNINITIALIZED",
+    "@blank_space",
+];
 
 /// Returns whether `key` is one of the [`PLACEHOLDER_KEYS`].
 #[must_use]

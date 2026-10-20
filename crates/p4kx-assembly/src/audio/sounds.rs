@@ -146,6 +146,26 @@ pub enum WemLocation<'i> {
         /// The length of the WEM in the soundbank.
         len: u64,
     },
+    /// A loose WEM Entry of the Archive: the media of a streamed sound.
+    Entry {
+        /// The path of the Entry.
+        path: &'i str,
+        /// The language folder the Entry lies in, or `None` when it is not localised.
+        language: Option<&'i str>,
+        /// The uncompressed length of the Entry.
+        len: u64,
+    },
+}
+
+impl<'i> WemLocation<'i> {
+    /// Returns the language folder the WEM lies in, or `None` when it is not localised.
+    #[must_use]
+    pub fn language(&self) -> Option<&'i str> {
+        match *self {
+            Self::Soundbank { soundbank, .. } => soundbank.language(),
+            Self::Entry { language, .. } => language,
+        }
+    }
 }
 
 /// One sound a trigger may play: a Sound object reached from a Wwise event through actions and
@@ -158,9 +178,32 @@ pub struct SoundVariant<'i> {
     pub(crate) path: Box<[PathStep]>,
     pub(crate) source: SoundSource,
     pub(crate) location: Option<WemLocation<'i>>,
+    pub(crate) localised: bool,
+    pub(crate) language: Option<&'i str>,
+    pub(crate) fallback: bool,
 }
 
 impl<'i> SoundVariant<'i> {
+    /// Returns whether the sound is localised: its source is language-specific or its soundbank
+    /// lies in a language folder.
+    #[must_use]
+    pub const fn is_localised(&self) -> bool {
+        self.localised
+    }
+
+    /// Returns the language the sound was resolved in, or `None` when it is not localised or its
+    /// WEM was not found.
+    #[must_use]
+    pub const fn language(&self) -> Option<&'i str> {
+        self.language
+    }
+
+    /// Returns whether the language is the fallback language, not the one asked for.
+    #[must_use]
+    pub const fn used_fallback(&self) -> bool {
+        self.fallback
+    }
+
     /// Returns the Wwise event the variant is reached from.
     #[must_use]
     pub const fn event(&self) -> &'i WwiseEvent {

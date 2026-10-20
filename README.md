@@ -123,11 +123,14 @@ Early development (milestone M1). Available today:
   its soundbank, WEM ID, source and container path, e.g. `Play_QDrive_Spool in SSQD_QDrive.bnk:
   WEM 98393519 embedded, not located; event 2178236557 > action 98720655 > blend 228967944 > …`;
   broken links are listed with the object where the chain breaks, and `--json` gives the shape in
-  [docs/cli-json.md](docs/cli-json.md).
+  [docs/cli-json.md](docs/cli-json.md). A streamed WEM is located as its loose WEM Entry, and
+  localised sounds are resolved for `--lang <language>` with `--fallback-lang` (`English(US)` by
+  default), e.g. `WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem`.
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
-  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
+  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md);
+  `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
 - `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
   their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
   `zh-Hant`); `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>]` prints the

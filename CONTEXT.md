@@ -245,9 +245,22 @@ _Avoid_: sound file, variation
 
 **Broken link**:
 A place where the way from a Wwise event to a WEM ends without a sound: an object the soundbank
-lacks, cannot read or does not follow, a cycle, or a limit of the walk; named by the object where
-it breaks.
+lacks, cannot read or does not follow, a cycle, a limit of the walk, or a localised sound without
+a WEM in the Audio language asked for and its fallback; named by the object where it breaks.
 _Avoid_: missing sound, unresolved trigger
+
+**Loose WEM**:
+A WEM Entry named `<id>.wem` below `Data\Sounds\wwise\` (usually in its `Media` folder), the media
+of a streamed or prefetched Sound variant; found by the ID of the WEM, never by a path a soundbank
+states.
+_Avoid_: external WEM, stream file
+
+**Audio language**:
+A language folder below `Data\Sounds\wwise\`, e.g. `English(US)`, that holds localised soundbanks
+and Loose WEMs; read from the Archive, not a fixed list, and unrelated to the languages of the
+Localisation keys. A localised Sound variant is resolved in the Audio language asked for, else in
+the fallback language.
+_Avoid_: voice language, locale
 
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.

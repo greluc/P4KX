@@ -4,8 +4,8 @@ use std::io::{self, BufWriter, Write};
 use anyhow::Result;
 use p4kx_assembly::Entities;
 use p4kx_assembly::audio::{
-    ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, IndexedSoundbank, Unmatched,
-    trigger_references,
+    ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, IndexedSoundbank,
+    TriggerSounds, Unmatched, trigger_references,
 };
 use p4kx_extraction::{Archive, DataForgeEntry, Record};
 use serde::Serialize;
@@ -13,6 +13,8 @@ use serde::Serialize;
 use crate::cli::EntityAudioArgs;
 use crate::json;
 use crate::query_table::one_line;
+use crate::wwise::{break_line, language_choice, variant_line};
+use crate::wwise_json::{self, BreakJson, LanguageJson, VariantJson};
 
 const CLASS_PREFIX: &str = "EntityClassDefinition.";
 
@@ -20,6 +22,8 @@ const CLASS_PREFIX: &str = "EntityClassDefinition.";
 struct AudioJson<'a> {
     archive: String,
     entry: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<LanguageJson<'a>>,
     entity: EntityJson<'a>,
     triggers: Vec<TriggerJson<'a>>,
     counts: Counts,
@@ -42,6 +46,14 @@ struct TriggerJson<'a> {
     definition: Option<&'a str>,
     events: Vec<EventJson<'a>>,
     unmatched: Option<UnmatchedJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sounds: Option<SoundsJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct SoundsJson<'a> {
+    variants: Vec<VariantJson<'a>>,
+    breaks: Vec<BreakJson<'a>>,
 }
 
 #[derive(Serialize)]
@@ -87,7 +99,17 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
     let references = trigger_references(&entity.tree()?);
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
+    let choice = language_choice(index, &args.language)?;
     let resolved = index.resolve(references);
+    let sounds: Vec<Option<TriggerSounds<'_>>> = if args.sounds {
+        resolved
+            .triggers()
+            .iter()
+            .map(|trigger| audio.resolve_trigger_in(trigger.name(), &choice))
+            .collect()
+    } else {
+        Vec::new()
+    };
     let counts = Counts {
         triggers: resolved.triggers().len(),
         matched: resolved.matched_count(),
@@ -100,15 +122,23 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
         json::print(&AudioJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
+            language: args.sounds.then(|| LanguageJson::of(&choice)),
             entity: entity_json(&entity),
-            triggers: resolved.triggers().iter().map(trigger_json).collect(),
+            triggers: resolved
+                .triggers()
+                .iter()
+                .enumerate()
+                .map(|(position, trigger)| {
+                    trigger_json(trigger, sounds.get(position).and_then(Option::as_ref))
+                })
+                .collect(),
             counts,
             issues: issues_json(index),
         })?;
         return Ok(());
     }
     warn(index)?;
-    match print_text(&entity, &resolved, counts) {
+    match print_text(&entity, &resolved, &sounds, counts) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
@@ -124,8 +154,19 @@ fn entity_json<'a>(entity: &Record<'a>) -> EntityJson<'a> {
     }
 }
 
-fn trigger_json<'a>(trigger: &'a EntityTrigger<'a>) -> TriggerJson<'a> {
+fn trigger_json<'a>(
+    trigger: &'a EntityTrigger<'a>,
+    sounds: Option<&'a TriggerSounds<'a>>,
+) -> TriggerJson<'a> {
     TriggerJson {
+        sounds: sounds.map(|sounds| SoundsJson {
+            variants: sounds.variants().iter().map(wwise_json::variant).collect(),
+            breaks: sounds
+                .breaks()
+                .iter()
+                .map(wwise_json::broken_link)
+                .collect(),
+        }),
         name: trigger.name(),
         location: trigger.reference().location(),
         references: trigger.reference().count(),
@@ -176,7 +217,12 @@ pub(crate) fn warn(index: &AudioIndex) -> io::Result<()> {
     Ok(())
 }
 
-fn print_text(entity: &Record<'_>, audio: &EntityAudio<'_>, counts: Counts) -> io::Result<()> {
+fn print_text(
+    entity: &Record<'_>,
+    audio: &EntityAudio<'_>,
+    sounds: &[Option<TriggerSounds<'_>>],
+    counts: Counts,
+) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
     let header = entity_json(entity);
     writeln!(
@@ -187,8 +233,16 @@ fn print_text(entity: &Record<'_>, audio: &EntityAudio<'_>, counts: Counts) -> i
             header.class_name, header.guid, header.record_path
         ))
     )?;
-    for trigger in audio.triggers() {
+    for (position, trigger) in audio.triggers().iter().enumerate() {
         writeln!(out, "  {}", one_line(&trigger_line(trigger)))?;
+        if let Some(Some(sounds)) = sounds.get(position) {
+            for variant in sounds.variants() {
+                writeln!(out, "    {}", one_line(&variant_line(variant)))?;
+            }
+            for link in sounds.breaks() {
+                writeln!(out, "    ! {}", one_line(&break_line(link)))?;
+            }
+        }
     }
     writeln!(
         out,

@@ -53,6 +53,12 @@ pub enum BreakReason {
         /// The limit.
         limit: usize,
     },
+    /// A localised sound has no WEM in the language asked for or in the fallback language.
+    #[error("no localisation in the language {language}, nor in its fallback")]
+    NoLocalisation {
+        /// The language asked for, empty when none was.
+        language: Box<str>,
+    },
     /// The walk followed as many references as its budget allows, at most
     /// [`MAX_EVENT_OBJECTS`](super::MAX_EVENT_OBJECTS) and a share of
     /// [`MAX_TRIGGER_OBJECTS`](super::MAX_TRIGGER_OBJECTS); the rest are left out.
@@ -78,6 +84,7 @@ impl BreakReason {
             Self::TooDeep { .. } => "too_deep",
             Self::TooManyChildren { .. } => "too_many_children",
             Self::TooManyObjects { .. } => "too_many_objects",
+            Self::NoLocalisation { .. } => "no_localisation",
         }
     }
 }

@@ -1,0 +1,261 @@
+---
+source: crates/p4kx/tests/wwise_streamed_localised.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "counts": {
+    "matched": 3,
+    "triggers": 3,
+    "unmatched": 0
+  },
+  "entity": {
+    "class_name": "TEST_Ship",
+    "guid": "0079c5d5-1678-4f8c-85ba-18ca8f642af6",
+    "name": "EntityClassDefinition.TEST_Ship",
+    "record_path": "libs/foundry/records/entities/spaceships/test_ship"
+  },
+  "entry": "Data\\Game2.dcb",
+  "issues": [],
+  "language": {
+    "fallback": "English(US)",
+    "requested": "German"
+  },
+  "triggers": [
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Audio.xml",
+      "events": [
+        {
+          "id": 4283017120,
+          "localised": false,
+          "name": "Play_Long",
+          "soundbanks": [
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Common.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggers[0].audioTrigger",
+      "name": "Play_Long",
+      "references": 1,
+      "sounds": {
+        "breaks": [],
+        "variants": [
+          {
+            "event": "Play_Long",
+            "fallback": false,
+            "language": null,
+            "localised": false,
+            "location": {
+              "entry": "Data\\Sounds\\wwise\\Media\\7000.wem",
+              "kind": "entry",
+              "len": 33
+            },
+            "path": [
+              {
+                "id": 4283017120,
+                "kind": "event"
+              },
+              {
+                "id": 1,
+                "kind": "action"
+              },
+              {
+                "id": 200,
+                "kind": "sound"
+              }
+            ],
+            "sound_id": 200,
+            "soundbank": {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Common.bnk"
+            },
+            "source": "streamed",
+            "wem_id": 7000
+          },
+          {
+            "event": "Play_Long",
+            "fallback": false,
+            "language": null,
+            "localised": false,
+            "location": {
+              "entry": "Data\\Sounds\\wwise\\7001.wem",
+              "kind": "entry",
+              "len": 12
+            },
+            "path": [
+              {
+                "id": 4283017120,
+                "kind": "event"
+              },
+              {
+                "id": 2,
+                "kind": "action"
+              },
+              {
+                "id": 201,
+                "kind": "sound"
+              }
+            ],
+            "sound_id": 201,
+            "soundbank": {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Common.bnk"
+            },
+            "source": "prefetch_streamed",
+            "wem_id": 7001
+          },
+          {
+            "event": "Play_Long",
+            "fallback": false,
+            "language": null,
+            "localised": false,
+            "location": null,
+            "path": [
+              {
+                "id": 4283017120,
+                "kind": "event"
+              },
+              {
+                "id": 3,
+                "kind": "action"
+              },
+              {
+                "id": 202,
+                "kind": "sound"
+              }
+            ],
+            "sound_id": 202,
+            "soundbank": {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Common.bnk"
+            },
+            "source": "streamed",
+            "wem_id": 7002
+          }
+        ]
+      },
+      "unmatched": null
+    },
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Audio.xml",
+      "events": [
+        {
+          "id": 259184823,
+          "localised": true,
+          "name": "Play_DX_Hello",
+          "soundbanks": [
+            {
+              "language": "English(US)",
+              "path": "Data\\Sounds\\wwise\\English(US)\\Voice.bnk"
+            },
+            {
+              "language": "German",
+              "path": "Data\\Sounds\\wwise\\German\\Voice.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggers[1].audioTrigger",
+      "name": "Play_Voice",
+      "references": 1,
+      "sounds": {
+        "breaks": [],
+        "variants": [
+          {
+            "event": "Play_DX_Hello",
+            "fallback": false,
+            "language": "German",
+            "localised": true,
+            "location": {
+              "entry": "Data\\Sounds\\wwise\\Media\\German\\8000.wem",
+              "kind": "entry",
+              "len": 22
+            },
+            "path": [
+              {
+                "id": 259184823,
+                "kind": "event"
+              },
+              {
+                "id": 1,
+                "kind": "action"
+              },
+              {
+                "id": 10,
+                "kind": "sound"
+              }
+            ],
+            "sound_id": 10,
+            "soundbank": {
+              "language": "German",
+              "path": "Data\\Sounds\\wwise\\German\\Voice.bnk"
+            },
+            "source": "streamed",
+            "wem_id": 8000
+          }
+        ]
+      },
+      "unmatched": null
+    },
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Audio.xml",
+      "events": [
+        {
+          "id": 3248668747,
+          "localised": true,
+          "name": "Play_DX_Only",
+          "soundbanks": [
+            {
+              "language": "English(US)",
+              "path": "Data\\Sounds\\wwise\\English(US)\\Only.bnk"
+            }
+          ]
+        }
+      ],
+      "location": "Components[0].triggers[2].audioTrigger",
+      "name": "Play_Only",
+      "references": 1,
+      "sounds": {
+        "breaks": [],
+        "variants": [
+          {
+            "event": "Play_DX_Only",
+            "fallback": true,
+            "language": "English(US)",
+            "localised": true,
+            "location": {
+              "entry": "Data\\Sounds\\wwise\\Media\\English(US)\\8500.wem",
+              "kind": "entry",
+              "len": 23
+            },
+            "path": [
+              {
+                "id": 3248668747,
+                "kind": "event"
+              },
+              {
+                "id": 1,
+                "kind": "action"
+              },
+              {
+                "id": 10,
+                "kind": "sound"
+              }
+            ],
+            "sound_id": 10,
+            "soundbank": {
+              "language": "English(US)",
+              "path": "Data\\Sounds\\wwise\\English(US)\\Only.bnk"
+            },
+            "source": "streamed",
+            "wem_id": 8500
+          }
+        ]
+      },
+      "unmatched": null
+    }
+  ]
+}

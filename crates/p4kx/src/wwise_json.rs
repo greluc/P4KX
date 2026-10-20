@@ -1,6 +1,6 @@
 use p4kx_assembly::audio::{
-    BreakReason, BrokenLink, IndexedSoundbank, PathStep, SoundVariant, TriggerSounds, WemLocation,
-    WwiseEvent,
+    BreakReason, BrokenLink, IndexedSoundbank, LanguageChoice, PathStep, SoundVariant,
+    TriggerSounds, WemLocation, WwiseEvent,
 };
 use serde::Serialize;
 
@@ -10,6 +10,7 @@ use crate::entity_audio::IssueJson;
 #[derive(Serialize)]
 pub(crate) struct ResolveJson<'a> {
     pub(crate) archive: String,
+    pub(crate) language: LanguageJson<'a>,
     pub(crate) trigger: TriggerJson<'a>,
     pub(crate) variants: Vec<VariantJson<'a>>,
     pub(crate) breaks: Vec<BreakJson<'a>>,
@@ -39,8 +40,27 @@ pub(crate) struct VariantJson<'a> {
     sound_id: u32,
     wem_id: Option<u32>,
     source: &'static str,
+    localised: bool,
+    language: Option<&'a str>,
+    fallback: bool,
     location: Option<LocationJson<'a>>,
     path: Vec<StepJson>,
+}
+
+/// The languages localised sounds were resolved in.
+#[derive(Serialize)]
+pub(crate) struct LanguageJson<'a> {
+    pub(crate) requested: Option<&'a str>,
+    pub(crate) fallback: Option<&'a str>,
+}
+
+impl<'a> LanguageJson<'a> {
+    pub(crate) fn of(choice: &'a LanguageChoice) -> Self {
+        Self {
+            requested: choice.preferred(),
+            fallback: choice.fallback(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -52,8 +72,12 @@ struct SoundbankJson<'a> {
 #[derive(Serialize)]
 struct LocationJson<'a> {
     kind: &'static str,
-    soundbank: &'a str,
-    offset: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    soundbank: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entry: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    offset: Option<u64>,
     len: u64,
 }
 
@@ -126,6 +150,9 @@ pub(crate) fn variant<'a>(variant: &SoundVariant<'a>) -> VariantJson<'a> {
         sound_id: variant.sound_id(),
         wem_id: variant.wem_id(),
         source: variant.source_kind().name(),
+        localised: variant.is_localised(),
+        language: variant.language(),
+        fallback: variant.used_fallback(),
         location: variant.location().and_then(location),
         path: steps(variant.path()),
     }
@@ -161,8 +188,16 @@ fn location<'a>(location: &WemLocation<'a>) -> Option<LocationJson<'a>> {
             len,
         } => Some(LocationJson {
             kind: "soundbank",
-            soundbank: soundbank.path(),
-            offset: *offset,
+            soundbank: Some(soundbank.path()),
+            entry: None,
+            offset: Some(*offset),
+            len: *len,
+        }),
+        WemLocation::Entry { path, len, .. } => Some(LocationJson {
+            kind: "entry",
+            soundbank: None,
+            entry: Some(path),
+            offset: None,
             len: *len,
         }),
         _ => None,

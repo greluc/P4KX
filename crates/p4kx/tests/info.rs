@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
 use predicates::prelude::predicate;
 
@@ -32,7 +31,7 @@ fn info_prints_the_channel_the_build_and_an_archive_summary() -> TestResult {
         "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
     )?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&archive)
         .assert()
@@ -59,7 +58,7 @@ fn info_of_an_archive_without_a_build_manifest_reports_an_unknown_build() -> Tes
     let dir = tempfile::tempdir()?;
     let archive = write_channel(dir.path(), "LIVE")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&archive)
         .assert()
@@ -79,7 +78,7 @@ fn info_with_a_malformed_build_manifest_warns_and_reports_an_unknown_build() -> 
         "{ broken",
     )?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&archive)
         .assert()
@@ -95,7 +94,7 @@ fn info_of_a_file_that_is_not_an_archive_exits_with_code_3() -> TestResult {
     let not_archive = dir.path().join("notes.txt");
     std::fs::write(&not_archive, "plain text")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&not_archive)
         .assert()

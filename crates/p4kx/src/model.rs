@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::Result;
 use p4kx_extraction::model::{ChunkUsage, LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{
-    Archive, ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, ModelSource,
+    ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, ModelSource,
 };
 use serde::Serialize;
 
@@ -60,7 +60,9 @@ pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
 
 fn open(source: &ModelFileSource, lods: LodSelection) -> Result<ModelSource> {
     Ok(match &source.entry {
-        Some(entry) => ModelSource::from_archive_with(&Archive::open(&source.path)?, entry, lods)?,
+        Some(entry) => {
+            ModelSource::from_archive_with(&crate::key::open(&source.path)?, entry, lods)?
+        }
         None => ModelSource::from_file_with(&source.path, lods)?,
     })
 }
@@ -278,6 +280,15 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
             stdout,
             "{} material IDs have no sub-material in the library; the default material is used",
             summary.default_material_ids
+        )?;
+    }
+    if let Some(library) = model.materials.library()
+        && library.unknown_entries > 0
+    {
+        writeln!(
+            stdout,
+            "{} entries of the material library are no material; the default material is used for them",
+            library.unknown_entries
         )?;
     }
     if summary.hidden_primitives > 0 {

@@ -116,6 +116,9 @@ pub struct MaterialLibrary {
     /// Whether the file is one material that serves every material ID, rather than a list of
     /// sub-materials.
     pub single: bool,
+    /// How many entries of the sub-material list are no `Material` element and read as
+    /// [`Material::engine_default`] so that the IDs after them keep their position.
+    pub unknown_entries: usize,
     /// The sub-materials in material ID order; one material when [`Self::single`].
     pub materials: Vec<Material>,
 }
@@ -124,7 +127,8 @@ impl MaterialLibrary {
     /// Reads the `.mtl` file `bytes`, text XML or `CryXml`, of the library `path`.
     ///
     /// A file with a `SubMaterials` element is a list: the material ID is the position of the
-    /// sub-material. A file without is one material that serves every ID. Numbers that are
+    /// sub-material, and an entry that is no `Material` element counts as a position and reads
+    /// as the engine's default material. A file without is one material that serves every ID. Numbers that are
     /// missing, malformed or not finite read as white diffuse, a dim dielectric specular, no
     /// emission, full opacity and a shininess of 10.
     ///

@@ -18,12 +18,10 @@ pub enum MaterialError {
         found: String,
     },
     /// The file holds more of something than a material library may.
-    #[error("the file holds {count} {what}, more than the limit of {limit}")]
+    #[error("the file holds more than {limit} {what}")]
     TooMany {
         /// What there is too much of.
         what: &'static str,
-        /// How many there are.
-        count: usize,
         /// The most allowed.
         limit: usize,
     },

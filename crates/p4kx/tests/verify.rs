@@ -25,7 +25,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 fn json_of(output: &[u8]) -> Result<Value, Box<dyn Error>> {

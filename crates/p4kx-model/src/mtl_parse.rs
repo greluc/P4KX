@@ -37,27 +37,31 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
             path: path.to_owned(),
             default_palette,
             single: true,
+            unknown_entries: 0,
             materials: vec![material(root)?],
         });
     };
     let mut materials = Vec::new();
-    for child in sub_materials
-        .children()
-        .filter(|child| child.name().eq_ignore_ascii_case("Material"))
-    {
+    let mut unknown_entries = 0;
+    for child in sub_materials.children() {
         if materials.len() == MAX_SUB_MATERIALS {
             return Err(MaterialError::TooMany {
                 what: "sub-materials",
-                count: MAX_SUB_MATERIALS + 1,
                 limit: MAX_SUB_MATERIALS,
             });
         }
-        materials.push(material(child)?);
+        if child.name().eq_ignore_ascii_case("Material") {
+            materials.push(material(child)?);
+        } else {
+            unknown_entries += 1;
+            materials.push(Material::engine_default());
+        }
     }
     Ok(MaterialLibrary {
         path: path.to_owned(),
         default_palette,
         single: false,
+        unknown_entries,
         materials,
     })
 }
@@ -101,7 +105,6 @@ fn textures<'a>(element: impl XmlElement<'a>) -> Result<Vec<TextureSlot>, Materi
         if slots.len() == MAX_TEXTURE_SLOTS {
             return Err(MaterialError::TooMany {
                 what: "texture slots in one material",
-                count: MAX_TEXTURE_SLOTS + 1,
                 limit: MAX_TEXTURE_SLOTS,
             });
         }

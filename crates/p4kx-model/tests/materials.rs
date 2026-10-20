@@ -2,7 +2,7 @@
 
 use std::error::Error;
 
-use p4kx_model::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, MaterialError, MaterialLibrary};
+use p4kx_model::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, Material, MaterialError, MaterialLibrary};
 use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement, TestMtl, TestMtlMaterial};
 use proptest::prelude::*;
 type TestResult = Result<(), Box<dyn Error>>;
@@ -215,6 +215,30 @@ fn more_sub_materials_or_texture_slots_than_the_limits_are_refused() {
             ..
         })
     ));
+}
+
+#[test]
+fn an_entry_that_is_no_material_keeps_its_position_and_reads_as_the_default() -> TestResult {
+    let file = TestElement::new("Material")
+        .child(
+            TestElement::new("SubMaterials")
+                .child(TestElement::new("Material").attribute("Name", "first"))
+                .child(TestElement::new("MaterialRef").attribute("Name", "engine"))
+                .child(TestElement::new("Material").attribute("Name", "third")),
+        )
+        .to_xml();
+
+    let library = parse(file.as_bytes())?;
+
+    let names: Vec<&str> = library.materials.iter().map(|m| m.name.as_str()).collect();
+    assert_eq!(names, ["first", "", "third"], "third keeps ID 2");
+    assert_eq!(library.unknown_entries, 1, "reported");
+    assert_eq!(
+        library.material(1),
+        Some(&Material::engine_default()),
+        "the default material"
+    );
+    Ok(())
 }
 
 #[test]

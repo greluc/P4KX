@@ -86,7 +86,10 @@ fn archive(dir: &Path) -> Result<Archive, Box<dyn Error>> {
         builder = builder.entry(entry);
     }
     builder.write_to(&path)?;
-    Ok(Archive::open(&path)?)
+    Ok(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?)
 }
 
 #[test]

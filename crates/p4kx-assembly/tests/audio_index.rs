@@ -104,7 +104,8 @@ fn write_archive(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
 
 fn with_archive(check: impl FnOnce(&Archive) -> TestResult) -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     check(&archive)
 }
 

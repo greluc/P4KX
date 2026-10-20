@@ -40,6 +40,7 @@ fn the_changes_of_a_real_side_start_without_blocking_and_account_for_every_entry
     };
     let out = tempfile::tempdir()?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);
     tab.set_archive(ComparisonSide::New, new);

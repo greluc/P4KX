@@ -22,7 +22,10 @@ struct Tally {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_triggers_of_documented_ships_resolve_to_sound_variants() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let entities = Entities::new(&forge);

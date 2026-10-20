@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::Path;
 
 use p4kx_archive::{Archive, ArchiveError, Checksum, Entry, MAX_CONTAINER_DEPTH};
-use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -23,7 +23,7 @@ fn room() -> TestContainer {
 fn open(dir: &Path, builder: &ArchiveBuilder) -> Result<Archive, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     builder.write_to(&path)?;
-    Ok(Archive::open(&path)?)
+    Ok(Archive::open_with_key(&path, Some(test_key()))?)
 }
 
 fn entry<'a>(archive: &'a Archive, path: &str) -> Result<&'a Entry, Box<dyn Error>> {

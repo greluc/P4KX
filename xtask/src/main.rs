@@ -1,10 +1,13 @@
 //! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
-//! `cargo xtask file-size`, `cargo xtask changelog`, or all of them with `cargo xtask`.
+//! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, or all of them with
+//! `cargo xtask`.
 //!
 //! `cargo xtask release-notes <tag> <file>` writes the `CHANGELOG.md` notes of a Release tag.
 
 mod changelog;
 mod file_size;
+mod key_needles;
+mod keys;
 mod layers;
 mod lints;
 mod metadata;
@@ -38,12 +41,14 @@ fn run() -> Result<Vec<String>> {
             violations.extend(lints::check(&root)?);
             violations.extend(file_size::check(&root)?);
             violations.extend(changelog::check(&root)?);
+            violations.extend(keys::check(&root)?);
             Ok(violations)
         }
         Some("layers") => layers::check(&root),
         Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
         Some("changelog") => changelog::check(&root),
+        Some("keys") => keys::check(&root),
         Some("release-notes") => {
             let mut args = std::env::args().skip(2);
             let (Some(tag), Some(output)) = (args.next(), args.next()) else {
@@ -53,7 +58,7 @@ fn run() -> Result<Vec<String>> {
             Ok(Vec::new())
         }
         Some(other) => bail!(
-            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog` or `release-notes`"
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys` or `release-notes`"
         ),
     }
 }

@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, TestEntry, TestModel, TestMtl, TestMtlMaterial, check_glb,
     gltf::material::AlphaMode,
@@ -44,7 +43,7 @@ fn archive(
 }
 
 fn glb(archive: &Path, out: &Path, extra: &[&str]) -> Result<std::process::Output, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?
+    Ok(p4kx_testkit::p4kx()?
         .args(["model", "glb"])
         .arg(archive)
         .arg(MODEL_ENTRY)
@@ -133,7 +132,7 @@ fn a_missing_mtl_is_reported_and_the_model_exports_with_a_default_material() -> 
     assert_eq!(names, [Some("default")], "one default material");
     assert_eq!(glb.document.meshes().len(), 1, "the geometry is there");
 
-    let json = Command::cargo_bin("p4kx")?
+    let json = p4kx_testkit::p4kx()?
         .args(["--json", "model", "glb"])
         .arg(&archive)
         .arg(MODEL_ENTRY)
@@ -216,7 +215,7 @@ fn a_file_model_never_reads_a_library_outside_its_folder() -> TestResult {
     fs::write(folder.join("cube.cgfm"), model.cgfm())?;
     fs::write(dir.path().join("secret.mtl"), mtl().cryxml())?;
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .current_dir(&folder)
         .args(["--json", "model", "info", "cube.cgf"])
         .output()?;
@@ -242,7 +241,7 @@ fn info_lists_the_materials_with_shader_colours_and_texture_slots() -> TestResul
     .with_default_palette("Libs/Palette/test");
     let archive = archive(dir.path(), &TestModel::cube(), Some(mtl.cryxml()))?;
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["--json", "model", "info"])
         .arg(&archive)
         .arg(MODEL_ENTRY)

@@ -61,6 +61,7 @@ impl CompanionResolver for ArchiveCompanions<'_, '_> {
 pub(crate) struct DiskCompanions<'p> {
     pub(crate) folder: &'p Path,
     pub(crate) read: Vec<PathBuf>,
+    pub(crate) absent: Option<PathBuf>,
 }
 
 impl CompanionResolver for DiskCompanions<'_> {
@@ -77,9 +78,15 @@ impl CompanionResolver for DiskCompanions<'_> {
             _ => return Ok(None),
         };
         let file_path = self.folder.join(file_name);
+        if self.absent.as_ref() == Some(&file_path) {
+            return Ok(None);
+        }
         let file = match File::open(&file_path) {
             Ok(file) => file,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                self.absent = Some(file_path);
+                return Ok(None);
+            }
             Err(error) => return Err(error.into()),
         };
         let len = file.metadata()?.len();

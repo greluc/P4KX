@@ -2,7 +2,6 @@
 
 use std::error::Error;
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 use predicates::prelude::predicate;
 
@@ -23,7 +22,7 @@ fn info_counts_the_issues_and_warns_about_each_entry() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&archive)
         .assert()
@@ -43,7 +42,7 @@ fn info_json_has_the_issue_count() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("--json")
         .arg("info")
         .arg(&archive)

@@ -62,6 +62,9 @@ fn opened_on_query() -> Result<Harness<'static, Model>, Box<dyn Error>> {
             },
             Model::new(Language::BritishEnglish),
         );
+    harness
+        .state_mut()
+        .set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     harness.state_mut().open(path, || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
     harness.state_mut().set_work_tab(WorkTab::Query);

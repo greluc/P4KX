@@ -12,7 +12,7 @@ use serde_json::Value;
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 fn write_file(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, Box<dyn Error>> {

@@ -253,6 +253,18 @@ impl Browser {
         }
     }
 
+    /// Reads again what a missing or wrong Archive key left unread: the DataForge, the texts, the
+    /// Records and the preview of the selected Entry.
+    pub(crate) fn key_changed(&mut self, wake: impl Fn() + Send + Sync + 'static) {
+        self.index.forge().clear();
+        self.index.texts().clear();
+        self.drop_records();
+        if let Some(id) = self.selected_entry() {
+            self.preview = None;
+            self.select_entry(id, wake);
+        }
+    }
+
     /// Takes the result of a finished search, preview and container opening; returns whether
     /// one finished.
     pub fn poll(&mut self) -> bool {

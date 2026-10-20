@@ -60,7 +60,10 @@ fn xml(browser: &Browser) -> Option<&XmlPreview> {
 
 /// Converts the sampled Entries; returns the converted Entry with the most lines.
 fn largest_converted() -> Result<(u32, usize), Box<dyn Error>> {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::test_key()),
+    )?);
     let samples = sampled_xml(&index)?;
     let mut browser = Browser::new(index);
     let mut largest: Option<(u32, usize)> = None;
@@ -91,6 +94,7 @@ fn largest_converted() -> Result<(u32, usize), Box<dyn Error>> {
 fn the_cryxml_entries_of_a_real_archive_convert_and_frames_stay_short() -> TestResult {
     let (id, lines) = largest_converted()?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)

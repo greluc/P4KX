@@ -131,7 +131,8 @@ fn check_extraction(extraction: &UiExtraction, folder: &Path, full: &[u8]) -> Te
 #[test]
 fn a_movie_entry_writes_its_bitmaps_external_images_and_shapes() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     let movie = UiMovie::from_archive(&archive, "data/ui/screens/assets/swf/panel.GFX")?;
     assert_eq!(movie.name(), MOVIE, "the Entry path");
     let full = Texture::from_archive(&archive, TEXTURE)?.decode_mip(0)?;
@@ -159,7 +160,8 @@ fn a_movie_file_finds_its_external_images_on_disk() -> TestResult {
 #[test]
 fn missing_and_invalid_movies_are_errors() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     assert!(matches!(
         UiMovie::from_archive(&archive, "Data\\UI\\nothing.gfx"),
         Err(ConversionError::UnknownEntry(_))

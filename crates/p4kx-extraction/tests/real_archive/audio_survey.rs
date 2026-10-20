@@ -276,7 +276,10 @@ fn report_wems(survey: &Survey, loose: usize) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn survey_the_soundbanks_and_wems_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entries = archive.entries();
     let banks: Vec<&Entry> = entries
         .iter()

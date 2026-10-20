@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, TestElement, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -92,7 +91,7 @@ fn pair() -> Result<tempfile::TempDir, Box<dyn Error>> {
 }
 
 fn diff(dir: &Path, entry: &str, json: bool, code: i32) -> Result<String, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command.current_dir(dir);
     if json {
         command.arg("--json");
@@ -267,7 +266,7 @@ fn corrupt_cryxml_exits_with_code_3() -> TestResult {
 fn diff_cannot_be_combined_with_a_filter() -> TestResult {
     let dir = pair()?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .current_dir(dir.path())
         .args(["compare", OLD, NEW, "--diff", "a", "--filter", "b"])
         .assert()

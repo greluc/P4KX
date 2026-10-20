@@ -364,6 +364,18 @@ use the JSON format.
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
 
+## `p4kx key set|show|remove --json`
+
+`p4kx key set [<hex>] [--archive <archive>] --json` prints
+`{"action": "stored", "file": "…", "checked_against": "…"}`; `checked_against` is the Archive
+whose encrypted Entry the key decrypted, or `null` when no Archive with a suitable encrypted
+Entry was found and the key was stored unchecked. `p4kx key remove --json` prints
+`{"action": "removed", "file": "…"}`, or `"none_stored"` when there was nothing to remove.
+
+`p4kx key show --json` prints `{"file": "…", "stored": "****…1234" | null, "in_use": {"source":
+"flag" | "environment" | "profile", "key": "****…1234"} | null}`. Keys are always masked: every
+digit but the last four is `*`. No command prints or logs a key in full.
+
 ## `p4kx channels --json`
 
 ```json

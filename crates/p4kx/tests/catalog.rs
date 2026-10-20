@@ -14,7 +14,7 @@ use p4kx_testkit::TestEntry;
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn p4kx(args: &[&str]) -> Result<Command, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command.args(args).env("SOURCE_DATE_EPOCH", EXPORTED_AT);
     Ok(command)
 }

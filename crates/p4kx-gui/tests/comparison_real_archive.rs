@@ -34,6 +34,7 @@ fn two_real_archives_compare_and_the_list_stays_quick_to_sort_and_filter() -> Te
         return Ok(());
     };
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);
     tab.set_archive(ComparisonSide::New, new);
@@ -85,6 +86,7 @@ fn two_real_archives_compare_and_the_list_stays_quick_to_sort_and_filter() -> Te
 fn a_real_comparison_cancels_promptly() -> TestResult {
     let path = real_archive_path()?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, path.clone());
     tab.set_archive(ComparisonSide::New, path);
@@ -119,6 +121,7 @@ fn two_real_archives_compare_on_both_levels_and_save_the_report() -> TestResult 
     let out = tempfile::tempdir()?;
     let report = out.path().join("report.json");
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);
     tab.set_archive(ComparisonSide::New, new);

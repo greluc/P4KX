@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestCodec, TestEntry, TestWem, test_signal};
 use serde_json::Value;
 
@@ -21,10 +20,7 @@ fn sound_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn json(dir: &Path, args: &[&std::ffi::OsStr]) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
-        .arg("--json")
-        .args(args)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("--json").args(args).output()?;
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     let mut value: Value = serde_json::from_slice(&output.stdout)?;
     if let Some(Value::String(text)) = value.get_mut("output")

@@ -186,6 +186,26 @@ sorted by. The file is written in the background and only replaces an existing f
 complete; **Cancel export** stops it and leaves any existing file as it was. The open Archive
 itself is never overwritten.
 
+## The Archive key
+
+Encrypted Entries can only be read with the key of the Archive, which the tool does not contain.
+Everything else works without it: opening, listing, searching and comparing an Archive and
+reading its unencrypted Entries.
+
+The first time an encrypted Entry is needed, the window asks for the key: a dialog with a field for
+32 hexadecimal digits, hidden unless you tick **Show the key**. **Save** checks the key against an
+encrypted Entry of the open Archive; a key that does not decrypt it is refused and stored nowhere,
+and a key that does is stored in your user profile and used from then on, and the Entry is read
+again. Without an open Archive, or one with no encrypted Entry to check against, the key is stored
+unchecked. **Cancel** closes the dialog, and the window does not ask again for this Archive; the
+preview of an encrypted Entry then says that the Archive key is missing. If P4KX_ARCHIVE_KEY or the
+stored key file holds no valid key, the dialog says so instead of ignoring it silently.
+
+**Archive key…** in the Archive menu opens the dialog at any time to enter another key. It also
+shows whether a key is stored, with all but its last four digits hidden, and **Remove stored key**
+deletes it. The key is never shown in full, logged or put in an error message. On the command
+line, `p4kx key` does the same and `--key` and `P4KX_ARCHIVE_KEY` give a key for one run.
+
 ## When the Archive changes
 
 The RSI Launcher may update an Archive while it is open in the window. The window compares the

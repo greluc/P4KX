@@ -7,7 +7,7 @@ use std::path::Path;
 
 use p4kx_extraction::model::{MaterialLibrary, MaterialStatus};
 use p4kx_extraction::{Archive, Entry, GlbOptions, ModelSource, PathIndex};
-use p4kx_testkit::{check_glb, real_archive_path};
+use p4kx_testkit::{check_glb, real_archive_key, real_archive_path};
 use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -27,7 +27,7 @@ struct Outcome {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_mtl_file_of_the_archive_is_read() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let mtl: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -63,7 +63,7 @@ fn every_mtl_file_of_the_archive_is_read() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_models_finds_its_material_library_and_exports_valid_glb() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let mut sample: Vec<&Entry> = Vec::new();

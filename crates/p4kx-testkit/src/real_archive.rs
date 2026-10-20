@@ -1,6 +1,52 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use p4kx_foundation::ArchiveKey;
+
+/// The environment variable that holds the key of a real `Data.p4k` for the real-Archive suite.
+pub const REAL_ARCHIVE_KEY_VAR: &str = "P4KX_ARCHIVE_KEY";
+
+/// The real-Archive suite was run without a usable `P4KX_ARCHIVE_KEY`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct MissingRealKey(bool);
+
+impl std::fmt::Debug for MissingRealKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for MissingRealKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 {
+            write!(
+                f,
+                "{REAL_ARCHIVE_KEY_VAR} is not 32 hexadecimal digits; the real-Archive suite needs the Archive key in it"
+            )
+        } else {
+            write!(
+                f,
+                "{REAL_ARCHIVE_KEY_VAR} is not set; the real-Archive suite needs the Archive key in it"
+            )
+        }
+    }
+}
+
+impl std::error::Error for MissingRealKey {}
+
+/// Returns the Archive key named by `P4KX_ARCHIVE_KEY`.
+///
+/// # Errors
+///
+/// Returns [`MissingRealKey`] when the variable is unset, empty or not 32 hexadecimal digits.
+pub fn real_archive_key() -> Result<ArchiveKey, MissingRealKey> {
+    let text = std::env::var(REAL_ARCHIVE_KEY_VAR)
+        .ok()
+        .filter(|text| !text.trim().is_empty())
+        .ok_or(MissingRealKey(false))?;
+    ArchiveKey::from_hex(&text).map_err(|_| MissingRealKey(true))
+}
+
 /// The environment variable that names a real `Data.p4k` for the real-Archive suite.
 pub const REAL_ARCHIVE_VAR: &str = "P4KX_DATA_P4K";
 

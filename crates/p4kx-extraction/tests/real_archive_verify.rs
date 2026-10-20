@@ -3,7 +3,7 @@
 use std::error::Error;
 
 use p4kx_extraction::{Archive, Entry, VerifyOptions, verify};
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -13,7 +13,7 @@ const MAX_SIZE: u64 = 64 << 20;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_a_real_archive_verifies_without_a_mismatch() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let sample: Vec<&Entry> = archive
         .entries()
         .iter()

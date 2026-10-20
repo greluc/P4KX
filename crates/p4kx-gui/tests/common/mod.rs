@@ -27,6 +27,7 @@ fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 
 fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(archive.to_path_buf(), || {});
     let deadline = Instant::now() + Duration::from_secs(10);
     while model.browser().is_none() {

@@ -2,7 +2,7 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, UiMovie};
+use p4kx_extraction::UiMovie;
 
 use crate::cli::{UiAction, UiArgs};
 use crate::ui_extract::extract;
@@ -22,7 +22,7 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
     let archive;
     let movie = match &source.entry {
         Some(entry) => {
-            archive = Archive::open(&source.path)?;
+            archive = crate::key::open(&source.path)?;
             UiMovie::from_archive(&archive, entry)?
         }
         None => UiMovie::from_file(&source.path)?,

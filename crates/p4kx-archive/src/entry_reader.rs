@@ -218,7 +218,7 @@ fn open_with<'a>(
 
 /// Returns the check of the SHA-256 `entry` states for its stored bytes at `data_offset`.
 fn stored_check(source: &Source, entry: &Entry, data_offset: u64) -> Option<Box<StoredCheck>> {
-    let digest = entry.sha256?;
+    let digest = entry.sha256.filter(|_| entry.sha256_checked)?;
     Some(Box::new(StoredCheck::new(
         source,
         data_offset,

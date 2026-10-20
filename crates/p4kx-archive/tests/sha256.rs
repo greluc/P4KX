@@ -114,42 +114,56 @@ fn a_correct_digest_passes_for_every_kind_in_both_layouts() -> TestResult {
 }
 
 #[test]
-fn a_wrong_digest_is_reported_for_every_kind_in_both_layouts() -> TestResult {
+fn a_wrong_digest_is_reported_for_every_kind() -> TestResult {
     let wrong = [0x5A; 32];
-    for builder in builders() {
-        for (entry, _) in kinds() {
-            let digest = sha(entry.payload());
-            let (_dir, archive) = open(
-                &builder
-                    .clone()
-                    .entry(entry.with_sha256_value(wrong))
-                    .entry(sibling()),
-            )?;
+    for (entry, _) in kinds() {
+        let digest = sha(entry.payload());
+        let (_dir, archive) = open(
+            &ArchiveBuilder::new()
+                .entry(entry.with_sha256_value(wrong))
+                .entry(sibling()),
+        )?;
 
-            let (expected, actual) = mismatch(read(&archive, true)?)?;
+        let (expected, actual) = mismatch(read(&archive, true)?)?;
 
-            assert_eq!(expected, Checksum::Sha256(wrong), "the stated digest");
-            assert_eq!(actual, Checksum::Sha256(digest), "the computed digest");
-        }
+        assert_eq!(expected, Checksum::Sha256(wrong), "the stated digest");
+        assert_eq!(actual, Checksum::Sha256(digest), "the computed digest");
     }
     Ok(())
 }
 
 #[test]
+fn a_v2_digest_is_read_but_not_checked() -> TestResult {
+    let wrong = [0x5A; 32];
+    let entry = TestEntry::deflated("Data\\a.bin", DATA).with_sha256_value(wrong);
+    let (_dir, archive) = open(&ArchiveBuilder::v2().entry(entry))?;
+
+    assert_eq!(
+        archive.entries().first().ok_or("no Entry")?.sha256(),
+        Some(wrong),
+        "the digest is returned"
+    );
+    assert_eq!(
+        read(&archive, true)??,
+        DATA,
+        "reads to the end, no mismatch"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_digest_of_only_the_data_fails_when_stored_bytes_follow_it() -> TestResult {
-    for builder in builders() {
-        let entry = TestEntry::stored("Data\\a.bin", DATA);
-        let digest = sha(entry.payload());
-        let mut payload = entry.payload().to_vec();
-        payload.extend_from_slice(&[0xAA; 100]);
-        let tampered = entry.with_payload(payload).with_sha256_value(digest);
-        let (_dir, archive) = open(&builder.entry(tampered))?;
+    let entry = TestEntry::stored("Data\\a.bin", DATA);
+    let digest = sha(entry.payload());
+    let mut payload = entry.payload().to_vec();
+    payload.extend_from_slice(&[0xAA; 100]);
+    let tampered = entry.with_payload(payload).with_sha256_value(digest);
+    let (_dir, archive) = open(&ArchiveBuilder::new().entry(tampered))?;
 
-        let (expected, actual) = mismatch(read(&archive, true)?)?;
+    let (expected, actual) = mismatch(read(&archive, true)?)?;
 
-        assert_eq!(expected, Checksum::Sha256(digest), "the stated digest");
-        assert_ne!(actual, expected, "the bytes after the data are hashed too");
-    }
+    assert_eq!(expected, Checksum::Sha256(digest), "the stated digest");
+    assert_ne!(actual, expected, "the bytes after the data are hashed too");
     Ok(())
 }
 

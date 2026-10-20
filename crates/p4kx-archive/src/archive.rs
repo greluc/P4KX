@@ -203,7 +203,7 @@ impl Archive {
     /// checksum of the directory while it streams, without a second pass or buffering: the read
     /// that reaches the end of the data fails with a
     /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) when they differ.
-    /// The check costs one checksum over the decoded bytes and, for an Entry that states a SHA-256
+    /// The check costs one checksum over the decoded bytes and, for a v1 Entry that states a SHA-256
     /// ([`Entry::sha256`]), one over its stored bytes; a reader that stops before the end checks
     /// nothing.
     ///

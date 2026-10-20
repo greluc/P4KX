@@ -70,6 +70,7 @@ fn parse_entry(
         uncompressed_size: extra.uncompressed_size,
         checksum: Checksum::Crc32c(fixed.crc32c),
         sha256: extra.sha256,
+        sha256_checked: true,
         data_offset: extra.local_header_offset,
         compression: Compression::from_method(fixed.method),
         index: u32::try_from(index).unwrap_or(u32::MAX),

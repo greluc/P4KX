@@ -22,9 +22,9 @@ The decoded data is covered by the CRC-32C; the SHA-256 adds a second, cryptogra
 bytes before decryption and decompression. Because it hashes the ciphertext, it is independent of
 the Archive key: a wrong key leaves it intact and fails the CRC-32C.
 
-No v2 Archive was available. The v2 record is read from the 32 bytes after the encryption field
-and checked the same way, on the assumption that it holds the same digest; this is confirmed only
-against synthetic fixtures (`docs/verify.md`).
+No v2 Archive was available. The v2 record's 32 bytes after the encryption field are read and
+exposed by `Entry::sha256` but not verified until a real v2 Archive confirms the layout (owner's
+decision; `docs/verify.md`).
 
 ## Decisions
 
@@ -33,6 +33,8 @@ against synthetic fixtures (`docs/verify.md`).
   `Checksum::hex` gives the 8 or 64 lower-case hex digits that the text and JSON reports use. The
   reader, `DataError::ChecksumMismatch` and the front-ends are otherwise unchanged; the JSON
   `kind` of such a mismatch is `sha256`.
+- **Verification covers v1 only.** `open_entry_verified` checks the SHA-256 of an Entry of the v1
+  layout; the digest of a v2 Entry is returned by `Entry::sha256` and not checked.
 - **`Entry::sha256`** returns the digest the directory states. An all-zero digest, or a `0x5003`
   block of another length than 32 bytes, states none (`None`): a real SHA-256 of zeros is out of
   reach, and the synthetic fixtures use zeros for "no digest". `Entry::checksum` stays the CRC.
@@ -51,6 +53,8 @@ against synthetic fixtures (`docs/verify.md`).
 
 ## Considered Options
 
+- Verify v2 on the same assumption: rejected, because a wrong assumption would fail every v2
+  Entry and make `extract --verify` write nothing; the CRC-32C still covers the decoded data.
 - Hash the decoded data: does not match what the Archive states.
 - A second read of the stored bytes after the decode: doubles the reads of the largest Entries.
 - A second `Verifier` field instead of the tap: the digest covers bytes that never reach the

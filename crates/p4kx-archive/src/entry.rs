@@ -17,6 +17,7 @@ pub struct Entry {
     pub(crate) uncompressed_size: u64,
     pub(crate) checksum: Checksum,
     pub(crate) sha256: Option<[u8; 32]>,
+    pub(crate) sha256_checked: bool,
     pub(crate) data_offset: u64,
     pub(crate) compression: Compression,
     pub(crate) index: u32,
@@ -78,7 +79,8 @@ impl Entry {
     }
 
     /// Returns the SHA-256 the directory states for the Entry's data as stored in the Archive,
-    /// before decryption and decompression, or `None` when it states none.
+    /// before decryption and decompression, or `None` when it states none. A v2 record's digest is
+    /// returned but not verified, because its layout is unconfirmed.
     #[must_use]
     pub const fn sha256(&self) -> Option<[u8; 32]> {
         self.sha256

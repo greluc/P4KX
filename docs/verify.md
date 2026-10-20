@@ -28,8 +28,9 @@ reported first when both fail. The stored bytes are hashed as the reader consume
 it leaves unread (AES padding, a compression trailer) are read and hashed when the decoded data
 ends. An all-zero digest, as the synthetic fixtures use, states none and is not checked.
 
-The v2 record has 32 bytes after the encryption field that are read the same way. No v2 Archive was
-available to confirm that they are the same digest; only synthetic fixtures cover them.
+The v2 record has 32 bytes after the encryption field. They are read and returned by
+`Entry::sha256`, not checked: no v2 Archive was available to confirm that they are the same
+digest, so only the v1 SHA-256 is verified.
 
 The `sha2` crate uses the SHA-NI or ARMv8 SHA-2 instructions where the CPU has them and a portable
 implementation elsewhere.

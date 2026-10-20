@@ -34,6 +34,7 @@ fn set_up_key(model: &mut Model) {
 }
 
 fn main() -> Result<()> {
+    p4kx_extraction::protect_libraries();
     let settings_file = default_settings_file();
     let settings = settings_file
         .as_deref()

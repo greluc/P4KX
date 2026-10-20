@@ -179,3 +179,30 @@ fn the_check_can_be_switched_off() -> TestResult {
         .stderr(predicate::str::contains("game closed").not());
     Ok(())
 }
+
+#[cfg(windows)]
+#[test]
+fn a_loose_file_command_protects_the_default_library_without_an_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let chf = dir.path().join("character.chf");
+    std::fs::write(&chf, p4kx_testkit::TestChf::v8().to_bytes())?;
+    let out = Path::new(r"C:\Program Files\Roberts Space Industries\StarCitizen")
+        .join("LIVE")
+        .join("user")
+        .join("client")
+        .join("0")
+        .join("CustomCharacters")
+        .join("character.json");
+
+    p4kx_testkit::p4kx()?
+        .args(["chf", "to-json"])
+        .arg(&chf)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Star Citizen installation"));
+
+    assert!(!out.exists(), "nothing is written into the installation");
+    Ok(())
+}

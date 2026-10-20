@@ -65,6 +65,7 @@ fn run(
     options: &RecordExportOptions<'_>,
     summary: &mut RecordExportSummary,
 ) -> Result<(), ExtractionError> {
+    p4kx_extraction::ensure_writable(target).map_err(ExtractionError::Installation)?;
     let destination = target.join(NDJSON_FILE);
     let existing = existing_file(&destination)?;
     if existing.is_some() && options.policy == ConflictPolicy::Skip {

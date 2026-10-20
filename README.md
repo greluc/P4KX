@@ -257,7 +257,10 @@ Early development (milestone M1). Available today:
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
   `p4kx chf from-json <file> --out <file>` writes the JSON back as a CHF file: unchanged, it
-  gives the original file byte for byte; edited, a new file with a correct CRC-32C. A file with
+  gives the original file byte for byte; edited, a new file with a correct CRC-32C. The tool never
+  writes into a Star Citizen installation, and that includes the `user` folder of a Channel, so
+  `--out` cannot be `LIVE\user\client\0\CustomCharacters` (exit code 2): write the file elsewhere
+  and copy it in by hand. A file with
   a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
   (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
   [docs/cli-json.md](docs/cli-json.md#the-chf-json).

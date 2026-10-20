@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf, Prefix};
 
+use same_file::Handle;
+
 use crate::WriteRefused;
 
 /// A set of folders that belong to a Star Citizen installation and are never written to.
@@ -47,8 +49,10 @@ impl Installation {
     /// every protected folder.
     ///
     /// The comparison is canonical: `.` and `..`, symbolic links and junctions, the `\\?\` form
-    /// and, on Windows and macOS, letter case do not change the outcome. For a path that does not
-    /// exist yet, its nearest existing ancestor decides.
+    /// and, on Windows and macOS, letter case do not change the outcome. A path that reaches the
+    /// same folder by another route, such as a loopback share `\\localhost\D$\...`, is caught by
+    /// the identity of the folder (volume and file index) of the target's existing ancestors. For
+    /// a path that does not exist yet, its nearest existing ancestor decides.
     ///
     /// # Errors
     ///
@@ -57,16 +61,29 @@ impl Installation {
         if self.folders.is_empty() {
             return Ok(());
         }
-        let target_key = key(&resolve(target));
-        self.folders
+        let resolved = resolve(target);
+        let target_key = key(&resolved);
+        let refused = |folder: &Protected| WriteRefused {
+            target: target.to_path_buf(),
+            installation: folder.shown.clone(),
+        };
+        if let Some(folder) = self
+            .folders
             .iter()
             .find(|folder| target_key.starts_with(&folder.key))
-            .map_or(Ok(()), |folder| {
-                Err(WriteRefused {
-                    target: target.to_path_buf(),
-                    installation: folder.shown.clone(),
-                })
+        {
+            return Err(refused(folder));
+        }
+        let ancestors: Vec<Handle> = resolved
+            .ancestors()
+            .filter_map(|ancestor| Handle::from_path(ancestor).ok())
+            .collect();
+        self.folders
+            .iter()
+            .find(|folder| {
+                Handle::from_path(&folder.shown).is_ok_and(|handle| ancestors.contains(&handle))
             })
+            .map_or(Ok(()), |folder| Err(refused(folder)))
     }
 }
 

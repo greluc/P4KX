@@ -71,6 +71,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
     let success = |()| ExitCode::from(exit::SUCCESS);
+    p4kx_extraction::protect_libraries();
     if !matches!(cli.command, Command::Key(_)) {
         guard::start_game_check();
     }

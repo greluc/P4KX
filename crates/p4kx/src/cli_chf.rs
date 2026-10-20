@@ -27,7 +27,9 @@ pub(crate) enum ChfAction {
         out: Option<PathBuf>,
     },
     /// Converts the JSON that `to-json` writes back to a CHF file; an unchanged JSON gives the
-    /// original bytes, an edited one a new file with a correct CRC-32C.
+    /// original bytes, an edited one a new file with a correct CRC-32C. The tool never writes into
+    /// a Star Citizen installation, including its `user` folder: write the file elsewhere and copy
+    /// it into `CustomCharacters` by hand.
     #[command(name = "from-json", after_help = EXIT_CODES_HELP)]
     FromJson {
         /// The JSON file.

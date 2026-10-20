@@ -8,8 +8,11 @@ mod registry;
 use std::path::PathBuf;
 
 pub use installation::Installation;
-pub use process::{any_game_process, game_is_running, is_game_process, qprocess_lists_game};
-pub use registry::{ensure_writable, protect, protect_archive_folder};
+pub use process::{
+    any_game_process, game_is_running, is_game_process, process_count_lists_game,
+    qprocess_lists_game,
+};
+pub use registry::{ensure_writable, protect, protect_archive_folder, protect_libraries};
 
 /// A write that was refused because its target lies inside a Star Citizen installation.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

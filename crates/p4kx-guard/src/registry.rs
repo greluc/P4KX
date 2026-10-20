@@ -17,16 +17,21 @@ pub fn protect(folder: &Path) {
         .add(folder);
 }
 
-/// Protects the Library folders of this machine and, when it holds a game installation, the
-/// folder of the Archive at `archive`.
-///
-/// The Library folders are the default one and those the RSI Launcher log names. The Archive's
-/// folder is a game installation when it holds the game's `Bin64` folder; a copy of an Archive
-/// elsewhere is not one.
-pub fn protect_archive_folder(archive: &Path) {
+/// Protects the Library folders of this machine: the default one and those the RSI Launcher log
+/// names. Call it once at program start, before any file is written.
+pub fn protect_libraries() {
     for library in known_library_folders(&SearchPaths::standard()) {
         protect(&library);
     }
+}
+
+/// Protects the Library folders of this machine and, when it holds a game installation, the
+/// folder of the Archive at `archive`.
+///
+/// The Archive's folder is a game installation when it holds the game's `Bin64` folder; a copy of
+/// an Archive elsewhere is not one.
+pub fn protect_archive_folder(archive: &Path) {
+    protect_libraries();
     if let Some(folder) = std::path::absolute(archive)
         .ok()
         .and_then(|absolute| absolute.parent().map(Path::to_path_buf))

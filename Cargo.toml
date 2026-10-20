@@ -71,6 +71,7 @@ roxmltree = "0.21.1"
 rpassword = "7.5.4"
 ruzstd = "0.9.1"
 schemars = "1.2.3"
+same-file = "1.0.6"
 semver = "1.0.28"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"

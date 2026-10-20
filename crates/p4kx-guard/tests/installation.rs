@@ -175,6 +175,66 @@ fn reads_the_game_from_qprocess_output() {
     assert!(!p4kx_guard::qprocess_lists_game(
         ">lucas console 1 13356 explorer.exe\r\n"
     ));
+    assert!(!p4kx_guard::qprocess_lists_game(
+        "No Process exists for starcitizen.exe\r\n"
+    ));
+    assert!(!p4kx_guard::qprocess_lists_game(
+        "Für starcitizen.exe ist kein Prozess vorhanden\r\n"
+    ));
+}
+
+#[test]
+fn reads_the_game_from_the_powershell_count() {
+    assert!(p4kx_guard::process_count_lists_game("1\r\n"));
+    assert!(p4kx_guard::process_count_lists_game("2"));
+    assert!(!p4kx_guard::process_count_lists_game("0\r\n"));
+    assert!(!p4kx_guard::process_count_lists_game(""));
+    assert!(!p4kx_guard::process_count_lists_game("error"));
+}
+
+#[cfg(windows)]
+#[test]
+fn a_loopback_share_does_not_hide_the_installation() -> TestResult {
+    use std::path::{Component, Prefix};
+
+    let root = tempfile::tempdir()?;
+    let installation = installation_in(root.path())?;
+    let canonical = fs::canonicalize(root.path())?;
+    let mut components = canonical.components();
+    let Some(Component::Prefix(prefix)) = components.next() else {
+        return Err("no drive prefix".into());
+    };
+    let (Prefix::VerbatimDisk(letter) | Prefix::Disk(letter)) = prefix.kind() else {
+        return Ok(());
+    };
+    let rest: std::path::PathBuf = components
+        .filter(|component| matches!(component, Component::Normal(_)))
+        .collect();
+    let share = format!(r"\\localhost\{}$", char::from(letter));
+    if fs::metadata(&share).is_err() {
+        return Ok(());
+    }
+    let target = std::path::PathBuf::from(&share)
+        .join(&rest)
+        .join("StarCitizen")
+        .join("LIVE")
+        .join("x");
+    let verbatim = std::path::PathBuf::from(format!(r"\\?\UNC\localhost\{}$", char::from(letter)))
+        .join(&rest)
+        .join("StarCitizen")
+        .join("LIVE")
+        .join("x");
+    assert!(installation.check(&target).is_err(), "loopback share");
+    assert!(
+        installation.check(&verbatim).is_err(),
+        "verbatim loopback share"
+    );
+    let outside = std::path::PathBuf::from(&share).join(&rest).join("out");
+    assert!(
+        installation.check(&outside).is_ok(),
+        "a sibling over the share"
+    );
+    Ok(())
 }
 
 #[test]

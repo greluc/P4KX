@@ -8,7 +8,14 @@ already said so; the tool now enforces it.
 - **Write guard.** `p4kx-guard` holds the protected folders: the Library folders (the default one
   and those the RSI Launcher log names, ADR-0005) and the folder of an opened Archive that holds the
   game's `Bin64` folder. A copy of an Archive somewhere else is not an installation, so its folder
-  stays writable. Every front-end registers the folders when it opens an Archive.
+  stays writable. The whole installation is protected, including `<Channel>\user\`: `p4kx chf
+  from-json` cannot write into `CustomCharacters`, and the file is copied in by hand. The command
+  line and the window register the Library folders once at program start, so that commands without
+  an Archive are guarded too; opening an Archive adds its folder.
+- **Same folder, other route.** Besides the canonical key, the identity of the folder (volume and
+  file index, through `same-file`) of the target's existing ancestors is compared with that of
+  every protected folder, so a loopback share such as `\\localhost\D$\...` does not get past the
+  guard.
 - **Canonical comparison.** A target is made absolute, `.` and `..` are resolved, every existing
   component is canonicalised (symbolic links, junctions, `\\?\`, 8.3 names) and the rest is
   appended; for a target that does not exist yet its nearest existing ancestor decides. The
@@ -20,8 +27,9 @@ already said so; the tool now enforces it.
   anything, and the window shows a notice in the setup dialog and does not offer the start.
 - **Read-only Archive.** The Archive file is opened for reading with shared read and write access
   and never with a write handle; a test opens a file whose read-only attribute is set.
-- **Running game.** The check only lists process names: `qprocess` on Windows, `/proc/*/comm`
-  elsewhere. No handle to the game process is opened and no memory is read, which rules out
+- **Running game.** The check only lists process names: `qprocess` on Windows (it exits with 1
+  when nothing matches), a PowerShell count of the matching processes where Windows Home has no
+  `qprocess`, `/proc/*/comm` elsewhere. No handle to the game process is opened and no memory is read, which rules out
   libraries that open every process for its start time. The command line looks once per run, in the
   background; the window looks when an Archive is opened and then every 20 seconds. Reading goes on
   while the warning shows. `P4KX_GAME_CHECK=off` switches the look off for the command line; the

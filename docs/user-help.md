@@ -21,6 +21,16 @@ the window stays responsive while it loads.
   a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, an alpha tail
   is merged into the alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
   named; the Text and Hex tabs still show the Entry's data.
+- **Model** appears for a model file (`.cgf`, `.cga`, `.skin`) and opens when you select one. The
+  model and its geometry companion are read in the background and drawn in 3D, lit and framed to
+  fit, at its most detailed level, without materials. Above the view a facts bar gives the
+  vertices, the triangles and the size in metres. Drag to orbit, drag with the right mouse button
+  (or Shift) to pan, and use the wheel to zoom; once the view has the keyboard focus, the arrow
+  keys orbit, Shift and the arrow keys pan, `+` and `-` zoom and Home resets. **Reset view** frames
+  the model again. A model with more than 4,000,000 vertices or 8,000,000 triangles, or a model
+  file or companion above 256 MiB, is not shown. If the graphics device cannot draw the view or
+  is lost, the tab says so and the rest of the window keeps working. Enlarge the preview by
+  dragging the divider above it to see more of the model.
 - **Copy** puts the open tab on the clipboard: the text, or the hex rows as shown.
 
 ### Size limits

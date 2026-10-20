@@ -37,6 +37,7 @@ mod text_cache;
 mod texts;
 pub mod theme;
 pub mod ui;
+mod viewer;
 mod widgets;
 pub mod window;
 
@@ -98,7 +99,13 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText, DataForgeText,
-    DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
-    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, ScrollText, Text, Texts,
-    XmlText,
+    DiffText, ExtractionText, GroupText, ImageText, LocalizationText, ModelText, QueryText,
+    RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText, RecordText,
+    ScrollText, Text, Texts, XmlText,
+};
+pub use viewer::{
+    Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,
+    MODEL_FILE_LIMIT, Matrix, ModelPreview, ModelStatus, Problem, Rejected, Scene, SceneError,
+    Step, Unavailable, Uniforms, Vertex, ViewerSupport, check_buffer, check_texture,
+    install as install_viewer, is_model_path, target_extent,
 };

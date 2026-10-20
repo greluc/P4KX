@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.32
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.35
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -176,3 +176,27 @@ Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. D
 Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
 Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
 Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
+
+**D.35 Modellvorschau als Tab „Modell" mit 3D-Ansicht.** Wählt man ein Modell (`.cgf`, `.cga`,
+`.skin`), öffnet die Vorschau den Tab „Modell" hinter „Audio"; andere Einträge kehren zu „Text"
+zurück. Unter der Pfadzeile (D.14) steht eine `.facts-bar` ohne Richtung mit Vertices, Dreiecken
+und Größe (Breite × Tiefe × Höhe in Metern, zwei Nachkommastellen), und im freien Platz rechts
+daneben die Bedienhinweise in 12,8 / 400 `color-gray-2-text`, rechtsbündig und mit Auslassung
+gekürzt; unter 120 px Breite entfallen sie, der volle Text bleibt im Zugänglichkeitsbaum. Darunter
+liegt die 3D-Ansicht, mindestens 96 px hoch und so breit und hoch wie der Rest des Panels, auf
+`surface-inset` mit einer Haarlinie 1 `color-gray-3` innen. Die Ecken sind quadratisch, weil sich
+ein egui-Paint-Callback nur auf ein Rechteck beschneiden lässt (Abweichung, ADR-0031); alles um die
+Ansicht folgt dem Designsystem. Das Modell ist Spielinhalt, kein Teil des Designs: es ist neutral
+grau und mit einem Kopf- und einem Schräglicht beleuchtet, damit Flächen lesbar bleiben, und von
+den Farbregeln ausgenommen. „Ansicht zurücksetzen" ist `.btn-ghost.btn-xs` (eine Routineaktion,
+kein CTA), liegt 8 px vom Rand oben rechts über der Ansicht und ist deaktiviert, solange die
+Ansicht das Modell eingepasst zeigt. Ziehen dreht, Rechts- oder Mittelklick-Ziehen oder
+Umschalt-Ziehen verschiebt, Mausrad und Zwei-Finger-Zoom zoomen. Die Ansicht ist eine
+fokussierbare Fläche („3D-Ansicht von …", Innenring −2 `color-primary` wie die Scrollflächen,
+D.27): bei Fokus drehen die Pfeiltasten, Umschalt und Pfeile verschieben, `+` und `−` zoomen, Pos1
+setzt zurück; die Pfeiltasten verlassen den Fokus nicht. Die Meldungen stehen anstelle der Ansicht
+unter der Faktenleiste: Lesefehler, Grafikgerät fehlt, zu klein oder verloren und fehlgeschlagenes
+Zeichnen in `color-danger-text`; zu groß, ohne Dreiecke und zu groß für das Grafikgerät in
+`color-gray-1` (wie „zu groß" in der Vorschau); geändertes Archiv in `color-warning` (D.8). Das
+Panel behält seine Höhe (236 px, frei verstellbar); wer mehr vom Modell sehen will, zieht den
+Griff darüber.

@@ -17,8 +17,8 @@ use crate::record_preview::Navigation;
 use crate::record_search::RecordSearch;
 use crate::search::{Matches, Pending};
 use crate::{
-    AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
-    SortColumn, SortDirection, TextLanguage,
+    AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, ModelPreview, Preview,
+    RecordTree, Sort, SortColumn, SortDirection, TextLanguage,
 };
 
 pub use tree::{TreeNode, TreeRow};
@@ -236,6 +236,11 @@ impl Browser {
     /// Returns the image preview of the selected Entry when it is the header of a texture.
     pub fn image_mut(&mut self) -> Option<&mut ImagePreview> {
         self.preview.as_mut().and_then(Preview::image_mut)
+    }
+
+    /// Returns the model preview of the selected Entry when it is a model file.
+    pub fn model_mut(&mut self) -> Option<&mut ModelPreview> {
+        self.preview.as_mut().and_then(Preview::model_mut)
     }
 
     /// Returns the audio preview of the selected Entry when it is a WEM.

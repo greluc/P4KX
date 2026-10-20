@@ -4,7 +4,7 @@ use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview::{self, AudioAction};
 use super::record_preview::{self, RecordStep};
-use super::{dataforge_summary, hex_view, image_preview, xml_preview};
+use super::{dataforge_summary, hex_view, image_preview, model_preview, xml_preview};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
@@ -14,17 +14,18 @@ use crate::widgets::scroll_region;
 use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, Model, PREVIEW_SIZE_LIMIT, Preview,
-    PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts, XmlDocument,
-    XmlPreview, XmlText, format, is_wem_path,
+    AudioText, Browser, Camera, DataForgeText, ImageText, Model, ModelText, PREVIEW_SIZE_LIMIT,
+    Preview, PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts,
+    ViewerSupport, XmlDocument, XmlPreview, XmlText, format, is_model_path, is_wem_path,
 };
 
-const TABS: [(PreviewTab, Text); 7] = [
+const TABS: [(PreviewTab, Text); 8] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
+    (PreviewTab::Model, Text::Model(ModelText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
 ];
@@ -34,11 +35,13 @@ enum Asked {
     Mip(u32),
     Audio(AudioAction),
     Record(RecordStep),
+    Camera(Camera),
 }
 
 /// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM,
-/// and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
-/// another Entry; the XML tab opens once the Entry turns out to be `CryXml`.
+/// the Model tab after selecting a model, and leaves the XML, Image, Audio, Model, DataForge and
+/// Record tabs for the Text tab after selecting another Entry; the XML tab opens once the Entry
+/// turns out to be `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
         .browser()
@@ -48,11 +51,14 @@ pub(super) fn select(model: &mut Model, id: u32) {
         model.set_preview_tab(PreviewTab::Image);
     } else if path.is_some_and(is_wem_path) {
         model.set_preview_tab(PreviewTab::Audio);
+    } else if path.is_some_and(is_model_path) {
+        model.set_preview_tab(PreviewTab::Model);
     } else if matches!(
         model.preview_tab(),
         PreviewTab::Xml
             | PreviewTab::Image
             | PreviewTab::Audio
+            | PreviewTab::Model
             | PreviewTab::DataForge
             | PreviewTab::Record
     ) {
@@ -81,7 +87,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let texts = model.texts();
     let bar = tab_bar(ui, texts, browser, model.preview_tab());
     let tab = bar.tab;
-    let asked = tab_body(ui, texts, browser, tab, model.audio_volume());
+    let asked = tab_body(
+        ui,
+        texts,
+        browser,
+        tab,
+        (model.audio_volume(), model.viewer_support()),
+    );
     if let Some(text) = bar.copy {
         ui.ctx().copy_text(text);
     }
@@ -93,6 +105,11 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             }
         }
         Some(Asked::Audio(action)) => audio_preview::apply(model, action),
+        Some(Asked::Camera(camera)) => {
+            if let Some(slot) = model.viewer_camera_mut() {
+                *slot = camera;
+            }
+        }
         Some(Asked::Record(step)) => record_preview::apply(model, &step),
         None => {}
     }
@@ -116,6 +133,7 @@ struct Bar {
 fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
     let image = browser.preview().and_then(Preview::image);
     let audio = browser.preview().and_then(Preview::audio);
+    let modelled = browser.preview().and_then(Preview::model).is_some();
     let record = browser.selected_record().is_some();
     let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
     let records = browser.records();
@@ -123,6 +141,7 @@ fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -
         PreviewTab::Xml => xml.is_some() || record,
         PreviewTab::Image => image.is_some(),
         PreviewTab::Audio => audio.is_some(),
+        PreviewTab::Model => modelled,
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Record => record,
         PreviewTab::Text | PreviewTab::Hex => true,
@@ -202,14 +221,14 @@ fn steps(ui: &mut Ui, texts: &Texts, browser: &Browser) -> Option<RecordStep> {
     }
 }
 
-/// Shows the body of `tab`, the Audio tab at `volume`; returns what the Image, Audio or Record
-/// tab asks for.
+/// Shows the body of `tab`, the Audio tab at `volume` and the Model tab on `support`; returns what
+/// the Image, Audio, Model or Record tab asks for.
 fn tab_body(
     ui: &mut Ui,
     texts: &Texts,
     browser: &Browser,
     tab: PreviewTab,
-    volume: f32,
+    (volume, support): (f32, &ViewerSupport),
 ) -> Option<Asked> {
     let record = browser.selected_record().is_some();
     match (tab, browser.records()) {
@@ -229,7 +248,7 @@ fn tab_body(
             record_preview::show_xml(ui, texts, browser);
             None
         }
-        _ => body(ui, texts, browser, tab, volume),
+        _ => body(ui, texts, browser, tab, (volume, support)),
     }
 }
 
@@ -238,7 +257,7 @@ fn body(
     texts: &Texts,
     browser: &Browser,
     tab: PreviewTab,
-    volume: f32,
+    (volume, support): (f32, &ViewerSupport),
 ) -> Option<Asked> {
     let Some(preview) = browser.preview() else {
         frames::preview_body().show(ui, |ui| {
@@ -259,10 +278,25 @@ fn body(
     if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
         return audio_preview::show(ui, texts, (path, size), audio, volume).map(Asked::Audio);
     }
+    if let Some(model) = preview.model().filter(|_| tab == PreviewTab::Model) {
+        return model_preview::show(ui, texts, path, (model, support)).map(Asked::Camera);
+    }
     if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
         xml_preview::show(ui, texts, (path, size), xml);
         return None;
     }
+    status_body(ui, texts, preview, (path, size), tab);
+    None
+}
+
+/// Shows what the Text and Hex tabs show of the Entry read: the data, or why there are none.
+fn status_body(
+    ui: &mut Ui,
+    texts: &Texts,
+    preview: &Preview,
+    (path, size): (&str, u64),
+    tab: PreviewTab,
+) {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
     frames::preview_body().show(ui, |ui| match preview.status() {
@@ -299,7 +333,6 @@ fn body(
         }
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
-    None
 }
 
 /// Shows the path line of the preview: `path`, then `size` muted.

@@ -16,6 +16,30 @@ pub(crate) fn number(value: u64, language: Language) -> String {
     grouped
 }
 
+/// Formats a length in metres with two decimals, or a dash when it is not finite.
+pub(crate) fn metres(value: f32, language: Language) -> String {
+    if !value.is_finite() {
+        return "–".to_owned();
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the rounded absolute value saturates in the cast"
+    )]
+    let hundredths = (f64::from(value.abs()) * 100.0).round() as u64;
+    let sign = if value < 0.0 && hundredths > 0 {
+        "−"
+    } else {
+        ""
+    };
+    format!(
+        "{sign}{}{}{:02}",
+        number(hundredths / 100, language),
+        decimal_separator(language),
+        hundredths % 100
+    )
+}
+
 /// Formats a byte count as bytes below 1 KiB and with one decimal in binary units above.
 pub(crate) fn size(bytes: u64, language: Language) -> String {
     let mut divisor: u128 = 1;

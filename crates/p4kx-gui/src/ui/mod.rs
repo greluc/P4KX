@@ -30,6 +30,8 @@ mod localization;
 mod localization_laid;
 mod localization_table;
 mod menu;
+mod model_preview;
+mod model_view;
 mod moved_path;
 mod preview;
 mod query;
@@ -53,6 +55,7 @@ mod status;
 mod table;
 mod table_name;
 mod tree;
+mod viewer_input;
 mod xml_preview;
 mod xml_view;
 

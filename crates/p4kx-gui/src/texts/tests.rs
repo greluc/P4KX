@@ -85,6 +85,11 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("missing", "1".into()),
         ("placeholders", "2".into()),
         ("value", "1.5".into()),
+        ("depth", "4.0".into()),
+        ("vertices", "24".into()),
+        ("triangles", "12".into()),
+        ("max_vertices", "4,000,000".into()),
+        ("max_triangles", "8,000,000".into()),
     ]
 }
 

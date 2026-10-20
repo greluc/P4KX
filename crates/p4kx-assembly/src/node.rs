@@ -30,7 +30,7 @@ impl Walk {
     }
 
     /// Returns the depth of the current branch: attached Entities plus nested Loadout levels.
-    fn depth(&self) -> usize {
+    const fn depth(&self) -> usize {
         self.ancestors.len().saturating_add(self.nesting)
     }
 

@@ -627,12 +627,13 @@ each a `style_change` (a `move_to` position and new style numbers), a `straight_
 `delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
 not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
-## `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background …] --json`
+## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] --json`
 
 Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on disk.
 
 ```json
-{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "width": 64, "height": 48,
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
+ "width": 64, "height": 48,
  "skipped": [{"id": 50, "depth": 7, "sprite": 9, "reason": "not_drawn", "drawn": false,
               "message": "DefineText definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
@@ -640,9 +641,9 @@ Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on di
              refers to ../Textures/gone.dds, which does not exist; …"}]}
 ```
 
-`width` and `height` are the pixels of the PNG written to `target`. `skipped` lists in drawing
-order every element the frame left out or drew without an effect: `id` and `depth` name the
-placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
+`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
+of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
+left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
 one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `filters` and

@@ -145,6 +145,12 @@ pub enum GfxError {
     /// An output could not be written.
     #[error("cannot write the output")]
     Write(#[source] io::Error),
+    /// The SVG document would be larger than the limit.
+    #[error("the SVG document would be larger than {limit} bytes")]
+    SvgTooLarge {
+        /// The limit in bytes.
+        limit: u64,
+    },
     /// The image could not be encoded as PNG.
     #[error("cannot encode the PNG: {0}")]
     EncodePng(String),

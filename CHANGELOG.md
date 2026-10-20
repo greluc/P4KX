@@ -117,6 +117,9 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
+  versions from 151 on write before the in-memory media size, so the media size was read one field
+  late. Star Citizen's version 154 banks were not affected.
 - A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
   holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
   is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM

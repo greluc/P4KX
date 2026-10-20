@@ -4,6 +4,7 @@
 pub mod categorical;
 pub mod desktop;
 pub mod logo;
+pub mod model_metrics;
 pub mod palette;
 mod query_metrics;
 mod row_tints;
@@ -19,6 +20,8 @@ mod comparison_tests;
 mod image_tests;
 #[cfg(test)]
 mod localization_tests;
+#[cfg(test)]
+mod model_tests;
 #[cfg(test)]
 mod query_tests;
 #[cfg(test)]

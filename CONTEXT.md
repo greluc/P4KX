@@ -77,7 +77,8 @@ _Avoid_: format version, Archive version
 
 **Preview**:
 The start of one Entry shown in the window as text or as hexadecimal bytes, or a texture shown as
-an image one mip at a time, read without an Extraction.
+an image one mip at a time, or a Model drawn in 3D that the user turns, pans and zooms, read without
+an Extraction.
 _Avoid_: viewer, inspector
 
 ### Game data

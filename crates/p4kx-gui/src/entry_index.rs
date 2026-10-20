@@ -1,11 +1,12 @@
 mod containers;
 
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{
     Archive, ArchiveWatch, DataForgeEntry, Entry, EntryTree, Filter, Folder, FolderId,
-    LocalizationEntry, TextureGroups,
+    LocalizationEntry, PathIndex, PathKeys, TextureGroups,
 };
 use rayon::prelude::*;
 
@@ -30,6 +31,7 @@ pub struct EntryIndex {
     groups: EntryGroups,
     dataforge: Option<usize>,
     forge: ForgeCache,
+    paths: OnceLock<PathKeys>,
     text_languages: Vec<TextLanguage>,
     texts: TextCache,
     channel: ChannelKind,
@@ -79,6 +81,7 @@ impl EntryIndex {
             groups,
             dataforge,
             forge: ForgeCache::default(),
+            paths: OnceLock::new(),
             text_languages,
             texts: TextCache::default(),
         }
@@ -124,6 +127,14 @@ impl EntryIndex {
     /// Returns the one DataForge cache of the Archive.
     pub(crate) const fn forge(&self) -> &ForgeCache {
         &self.forge
+    }
+
+    /// Returns the lookup of Entries by path over the Archive; the path hashes are built on the
+    /// first call and shared by every later one.
+    pub(crate) fn path_index(&self) -> PathIndex<'_> {
+        self.paths
+            .get_or_init(|| PathKeys::new(&self.archive))
+            .index(&self.archive)
     }
 
     /// Returns the one cache of the localisation texts of the Archive.

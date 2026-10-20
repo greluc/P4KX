@@ -52,3 +52,23 @@ Vorbis WEMs of LIVE (596 MiB), CPU time summed over all threads:
 
 Every sampled stream decodes to its end (0 failures). Full-stream validation would make a rebuild
 about eight times as expensive, for a failure that did not occur in the sample.
+
+## Share of sampled WEMs that converts, per codec
+
+Measured on 2026-10-20, release build, by `real_archive/audio_verification.rs` of
+`p4kx-extraction` (`#[ignore]`d; it reads unencrypted Entries only and needs no Archive key). Each
+run samples about 1,500 loose `.wem` Entries by stride and up to 12 embedded WEMs of each of about
+160 soundbanks by stride, converts every one to Ogg and to WAV under `catch_unwind`, writes three
+converted files per codec and a `report.txt` under `TMP`, and extracts three whole banks as Ogg.
+
+| Archive | Codec | Sampled | Ogg | WAV | Errors | Panics |
+| --- | --- | --- | --- | --- | --- | --- |
+| LIVE | Wwise Vorbis | 1,501 | 1,501 (100.0 %) | 1,501 (100.0 %) | 0 | 0 |
+| PTU | Wwise Vorbis | 1,515 | 1,515 (100.0 %) | 1,515 (100.0 %) | 0 | 0 |
+
+Besides these, each sample met 14 plug-in media (reverb impulse responses, `PluginMedia`, not
+audio) and 18 prefetched starts of streamed WEMs; both are reported per WEM and are not counted as
+failures. No Entry was encrypted. All sampled soundbanks parse, list their embedded WEMs and read
+them; the whole-bank extractions write every embedded WEM except plug-in media and prefetched
+starts, which fail per WEM by design. No other codec occurs in a real Archive (see the format tags
+above), so IMA ADPCM, PTADPCM and Opus remain covered by the synthetic fixtures only.

@@ -104,9 +104,6 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
-
-### Fixed
-
 - A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
   holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
   is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM

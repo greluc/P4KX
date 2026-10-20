@@ -38,6 +38,9 @@ pub enum Codec {
 
 impl Codec {
     /// Returns the codec a Wwise `fmt` chunk's format tag stands for.
+    ///
+    /// The tag `0x0002` alone is taken for IMA ADPCM; [`Codec::of_format`] also reads the rest of
+    /// the `fmt` chunk and tells DSP and PTADPCM apart.
     #[must_use]
     pub const fn from_tag(tag: u16) -> Self {
         match tag {

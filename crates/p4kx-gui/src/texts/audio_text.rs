@@ -35,11 +35,35 @@ pub enum AudioText {
     Failed,
     /// Shown when the audio output fails; takes `reason`.
     OutputFailed,
+    /// The key of the ID column of the WEMs of a soundbank.
+    ColumnId,
+    /// Shown instead of the codec of a WEM the soundbank holds only the prefetched start of.
+    Prefetched,
+    /// Shown instead of the controls for such a WEM; takes `id`.
+    PrefetchedNote,
+    /// Shown instead of the codec of media that is Wwise plug-in data.
+    Plugin,
+    /// Shown instead of the controls for such media; takes `id`.
+    PluginNote,
+    /// The path line of a soundbank: its size and the number of WEMs; takes `size`, `count` and
+    /// `number`.
+    BankSummary,
+    /// Shown for a soundbank that embeds no WEM; takes `path`.
+    BankEmpty,
+    /// Shown when a soundbank cannot be read; takes `path` and `reason`.
+    BankFailed,
+    /// The name of a WEM of a soundbank in the messages of the preview; takes `id` and `bank`.
+    WemName,
+    /// The accessible name of a row of the list; takes `id`, `codec` and `duration`.
+    WemRow,
+    /// Shown for a WEM of a soundbank with a codec the preview cannot decode; takes `codec` and
+    /// `name`.
+    UnsupportedWem,
 }
 
 impl AudioText {
     /// Every text of the audio preview.
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 28] = [
         Self::Tab,
         Self::Codec,
         Self::Channels,
@@ -57,6 +81,17 @@ impl AudioText {
         Self::TooLong,
         Self::Failed,
         Self::OutputFailed,
+        Self::ColumnId,
+        Self::Prefetched,
+        Self::PrefetchedNote,
+        Self::Plugin,
+        Self::PluginNote,
+        Self::BankSummary,
+        Self::BankEmpty,
+        Self::BankFailed,
+        Self::WemName,
+        Self::WemRow,
+        Self::UnsupportedWem,
     ];
 
     /// Returns the Fluent message id.
@@ -80,6 +115,17 @@ impl AudioText {
             Self::TooLong => "audio-too-long",
             Self::Failed => "audio-failed",
             Self::OutputFailed => "audio-output-failed",
+            Self::ColumnId => "audio-column-id",
+            Self::Prefetched => "audio-prefetched",
+            Self::PrefetchedNote => "audio-prefetched-note",
+            Self::Plugin => "audio-plugin",
+            Self::PluginNote => "audio-plugin-note",
+            Self::BankSummary => "audio-bank-summary",
+            Self::BankEmpty => "audio-bank-empty",
+            Self::BankFailed => "audio-bank-failed",
+            Self::WemName => "audio-wem-name",
+            Self::WemRow => "audio-wem-row",
+            Self::UnsupportedWem => "audio-unsupported-wem",
         }
     }
 }

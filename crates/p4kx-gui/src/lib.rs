@@ -75,10 +75,10 @@ pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
+    AudioPreview, AudioStatus, BankSound, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
-    SoundInfo, SoundStatus, TextureInfo, XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlDocument, XmlPreview,
-    XmlStatus, is_wem_path,
+    SoundInfo, SoundStatus, SoundbankPreview, SoundbankStatus, TextureInfo, XML_SIZE_LIMIT,
+    XML_TEXT_LIMIT, XmlDocument, XmlPreview, XmlStatus, is_bank_path, is_wem_path,
 };
 pub use query::{
     CellLook, NameNote, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid,

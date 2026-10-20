@@ -1,13 +1,12 @@
-use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 use std::time::Duration;
 
-use p4kx_extraction::{Codec, Wem};
+use p4kx_extraction::{Codec, Soundbank, Wem};
 
-use super::PREVIEW_SIZE_LIMIT;
+use super::entry_bytes::{Unreadable, read_whole};
 use crate::EntryIndex;
 use crate::audio::{self, Pcm, Player, Undecoded};
 use crate::model::describe;
@@ -37,12 +36,24 @@ pub struct SoundInfo {
     pub duration: Option<Duration>,
 }
 
+impl SoundInfo {
+    /// Reads the facts from the header of `wem`.
+    pub(super) fn of<B: AsRef<[u8]>>(wem: &Wem<B>) -> Self {
+        Self {
+            codec: wem.codec(),
+            channels: wem.channels(),
+            sample_rate: wem.sample_rate(),
+            duration: wem.duration(),
+        }
+    }
+}
+
 /// Where the audio preview of a WEM stands.
 #[derive(Debug, Clone, Copy)]
 pub enum AudioStatus<'a> {
     /// The WEM is being read.
     Opening,
-    /// The WEM is larger than [`PREVIEW_SIZE_LIMIT`] and was not read.
+    /// The WEM is larger than [`PREVIEW_SIZE_LIMIT`](crate::PREVIEW_SIZE_LIMIT) and was not read.
     TooLarge,
     /// The WEM could not be read, for the reason given, or reading stopped without a result.
     Failed(Option<&'a str>),
@@ -113,16 +124,30 @@ impl AudioPreview {
         id: u32,
         wake: impl Fn() + Send + 'static,
     ) -> Self {
+        Self::spawn(Source::Entry(Arc::clone(index), id), wake)
+    }
+
+    /// Starts decoding the WEM `id` embedded in `bank` on a background thread, calling `wake`
+    /// from it whenever a result is ready.
+    pub(crate) fn start_embedded(
+        bank: &Arc<Soundbank<Vec<u8>>>,
+        id: u32,
+        wake: impl Fn() + Send + 'static,
+    ) -> Self {
+        Self::spawn(Source::Embedded(Arc::clone(bank), id), wake)
+    }
+
+    fn spawn(source: Source, wake: impl Fn() + Send + 'static) -> Self {
         let (sender, events) = mpsc::channel();
         let dropped = Arc::new(AtomicBool::new(false));
         let worker = Worker {
-            index: Arc::clone(index),
+            source,
             events: sender,
             dropped: Arc::clone(&dropped),
         };
         let spawned = thread::Builder::new()
             .name("audio-preview".to_owned())
-            .spawn(move || worker.run(id, &wake));
+            .spawn(move || worker.run(&wake));
         let state = match spawned {
             Ok(_handle) => State::Opening,
             Err(_ignored) => State::Failed(None),
@@ -243,9 +268,15 @@ fn sound_status(sound: &Sound) -> SoundStatus<'_> {
     }
 }
 
+/// Where the WEM of one audio preview comes from.
+enum Source {
+    Entry(Arc<EntryIndex>, u32),
+    Embedded(Arc<Soundbank<Vec<u8>>>, u32),
+}
+
 /// What the background thread of one audio preview works with.
 struct Worker {
-    index: Arc<EntryIndex>,
+    source: Source,
     events: Sender<Event>,
     dropped: Arc<AtomicBool>,
 }
@@ -259,76 +290,60 @@ impl Worker {
         sent
     }
 
-    fn run(&self, id: u32, wake: &impl Fn()) {
-        let event = match self.open(id) {
-            Ok(wem) => {
-                let info = SoundInfo {
-                    codec: wem.codec(),
-                    channels: wem.channels(),
-                    sample_rate: wem.sample_rate(),
-                    duration: wem.duration(),
-                };
-                if !self.send(Event::Opened(info), wake) {
-                    return;
-                }
-                let decoded = audio::decode(&wem, &self.dropped);
-                drop(wem);
-                if self.index.watch().check().is_err() {
-                    Event::ArchiveChanged
-                } else {
-                    Event::Decoded(decoded)
-                }
-            }
-            Err(event) => event,
+    fn run(&self, wake: &impl Fn()) {
+        let event = match &self.source {
+            Source::Entry(index, id) => self.run_entry(index, *id, wake),
+            Source::Embedded(bank, id) => self.run_embedded(bank, *id, wake),
         };
-        self.send(event, wake);
+        if let Some(event) = event {
+            self.send(event, wake);
+        }
     }
 
-    fn open(&self, id: u32) -> Result<Wem<Vec<u8>>, Event> {
-        let entry = self.index.entry(id).ok_or(Event::Failed(None))?;
-        if self.index.watch().check().is_err() {
-            return Err(Event::ArchiveChanged);
-        }
-        if entry.uncompressed_size() > PREVIEW_SIZE_LIMIT {
-            return Err(Event::TooLarge);
-        }
-        let failed = |error: &dyn std::error::Error| Event::Failed(Some(describe(error)));
-        let reader = self
-            .index
-            .archive()
-            .open_entry(entry)
-            .map_err(|error| failed(&error))?;
-        let capacity = usize::try_from(entry.uncompressed_size()).unwrap_or(0);
-        let mut bytes = Vec::with_capacity(capacity);
-        let reader = Cancellable {
-            inner: reader,
-            dropped: &self.dropped,
+    fn run_entry(&self, index: &EntryIndex, id: u32, wake: &impl Fn()) -> Option<Event> {
+        let wem = match read_whole(index, id, &self.dropped)
+            .map_err(Event::from)
+            .and_then(|bytes| {
+                Wem::parse(bytes).map_err(|error| Event::Failed(Some(describe(&error))))
+            }) {
+            Ok(wem) => wem,
+            Err(event) => return Some(event),
         };
-        reader
-            .take(PREVIEW_SIZE_LIMIT + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|error| failed(&error))?;
-        if bytes.len() as u64 > PREVIEW_SIZE_LIMIT {
-            return Err(Event::TooLarge);
+        let decoded = self.decode(&wem, wake)?;
+        drop(wem);
+        Some(if index.watch().check().is_err() {
+            Event::ArchiveChanged
+        } else {
+            Event::Decoded(decoded)
+        })
+    }
+
+    fn run_embedded(&self, bank: &Soundbank<Vec<u8>>, id: u32, wake: &impl Fn()) -> Option<Event> {
+        let Some(embedded) = bank.wem(id) else {
+            return Some(Event::Failed(None));
+        };
+        match embedded.parse() {
+            Ok(wem) => self.decode(&wem, wake).map(Event::Decoded),
+            Err(error) => Some(Event::Failed(Some(describe(&error)))),
         }
-        if self.index.watch().check().is_err() {
-            return Err(Event::ArchiveChanged);
-        }
-        Wem::parse(bytes).map_err(|error| failed(&error))
+    }
+
+    fn decode<B: AsRef<[u8]>>(
+        &self,
+        wem: &Wem<B>,
+        wake: &impl Fn(),
+    ) -> Option<Result<Pcm, Undecoded>> {
+        self.send(Event::Opened(SoundInfo::of(wem)), wake)
+            .then(|| audio::decode(wem, &self.dropped))
     }
 }
 
-/// A reader that fails once the preview it reads for was dropped.
-struct Cancellable<'a, R> {
-    inner: R,
-    dropped: &'a AtomicBool,
-}
-
-impl<R: Read> Read for Cancellable<'_, R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.dropped.load(Ordering::Acquire) {
-            return Err(std::io::Error::other("the preview was closed"));
+impl From<Unreadable> for Event {
+    fn from(unread: Unreadable) -> Self {
+        match unread {
+            Unreadable::TooLarge => Self::TooLarge,
+            Unreadable::ArchiveChanged => Self::ArchiveChanged,
+            Unreadable::Failed(reason) => Self::Failed(reason),
         }
-        self.inner.read(buf)
     }
 }

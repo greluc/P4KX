@@ -106,7 +106,10 @@ fn reads_entries_of_every_compression_and_encryption_state() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
 
     let samples = samples_per_kind(archive.entries());
     let mut checked = 0;
@@ -125,6 +128,33 @@ fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -
     }
 
     assert!(checked > 0, "the Archive yields samples");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn every_entry_states_a_sha_256_that_plain_entries_match_while_streaming() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let without = archive
+        .entries()
+        .iter()
+        .filter(|entry| entry.sha256().is_none())
+        .count();
+    let samples = samples_per_kind(archive.entries());
+    let mut checked = 0;
+    for entry in samples
+        .values()
+        .flatten()
+        .filter(|entry| !entry.is_encrypted())
+    {
+        io::copy(&mut archive.open_entry_verified(entry)?, &mut io::sink())
+            .map_err(|error| format!("{}: {error}", entry.path()))?;
+        checked += 1;
+    }
+
+    assert_eq!(without, 0, "every Entry states a SHA-256");
+    assert!(checked > 0, "the Archive yields unencrypted samples");
     Ok(())
 }
 

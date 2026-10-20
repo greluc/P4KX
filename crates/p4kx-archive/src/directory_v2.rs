@@ -1,5 +1,6 @@
 use p4kx_foundation::ByteReader;
 
+use crate::entry::stated_sha256;
 use crate::format_error::FormatError;
 use crate::issue::{Directory, IssueLog, decode_path};
 use crate::source::Source;
@@ -11,6 +12,7 @@ const TRAILER_EXTENSION_COUNT_LEN: usize = 8;
 const TRAILER_EXTENSION_SIZE_LEN: usize = 8;
 const RECORD_TIME_AND_DATE_LEN: usize = 4;
 const RECORD_SIGNATURE_LEN: usize = 128;
+const RECORD_SHA256_LEN: usize = 32;
 
 struct Trailer {
     directory_offset: u64,
@@ -132,6 +134,7 @@ fn parse_record(
     let name_offset = reader.read_u64()?;
     reader.skip(RECORD_SIGNATURE_LEN)?;
     let encryption = reader.read_u16()?;
+    let sha256 = stated_sha256(reader.read_bytes(RECORD_SHA256_LEN)?);
     if data_offset
         .checked_add(compressed_size)
         .is_none_or(|end| end > data_limit)
@@ -149,6 +152,7 @@ fn parse_record(
         compressed_size,
         uncompressed_size,
         checksum: Checksum::Crc32c(crc32c),
+        sha256,
         data_offset,
         compression: Compression::from_method(method),
         index: u32::try_from(index).unwrap_or(u32::MAX),

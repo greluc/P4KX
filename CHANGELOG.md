@@ -27,6 +27,12 @@ fails while its section is missing.
   a container. The checksum is computed while the data streams, without a second pass, and
   reading stays unchecked unless asked for. `Archive::open_entry_verified` and
   `ExtractOptions::verify` are the library switches.
+- Entry SHA-256: every Entry of the Archives measured states a SHA-256 of its stored bytes (the
+  `0x5003` block of the v1 directory, the bytes after the encryption field in v2), which
+  `Entry::sha256` returns and `p4kx verify` and `--verify` check in addition to the CRC-32C, while
+  the data streams. It covers the bytes before decryption and decompression, so it needs no key;
+  a mismatch is reported with the kind `sha256` and 64 hex digits (ADR-0034, docs/verify.md).
+  `Checksum::value` now returns `Option<u32>` and `Checksum::hex` was added in `p4kx-archive`.
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

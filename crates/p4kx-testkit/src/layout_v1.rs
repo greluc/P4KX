@@ -14,7 +14,6 @@ const BLOCK_CIG_KEY: u16 = 0x5000;
 const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
 const BLOCK_CIG_HASH: u16 = 0x5003;
 const CIG_KEY_LEN: usize = 128;
-const CIG_HASH_LEN: usize = 32;
 const END_COMMENT_LEN: u16 = 16;
 
 /// Writes `entries` as a v1 Archive: local headers with data, the ZIP64 central directory and the
@@ -90,7 +89,7 @@ fn central_extra(entry: &TestEntry, local_offset: u64) -> Vec<u8> {
             .clone()
             .unwrap_or_else(|| entry.encryption_value().to_le_bytes().to_vec()),
     );
-    put_block(&mut extra, BLOCK_CIG_HASH, &[0; CIG_HASH_LEN]);
+    put_block(&mut extra, BLOCK_CIG_HASH, &entry.sha256);
     extra.extend_from_slice(&entry.extra_blocks);
     extra
 }

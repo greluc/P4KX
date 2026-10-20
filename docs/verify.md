@@ -2,7 +2,8 @@
 
 `p4kx verify <archive> [--filter <filter>]` reads every Entry (or those the Filter matches),
 decrypts and decompresses it, and compares the CRC-32C of the decoded bytes with the one the
-Archive directory states. `p4kx extract --verify` does the same for each Entry it writes: an
+Archive directory states. An Entry whose directory also states a SHA-256 is checked against it
+too (see below). `p4kx extract --verify` does the same for each Entry it writes: an
 Entry that does not match is not put in place and is counted as a checksum mismatch.
 `p4kx socpak verify` and `socpak extract --verify` check a container against the plain CRC-32 of
 its directory. Reading is unchecked unless one of these is asked for (ADR-0026).
@@ -11,6 +12,29 @@ An Entry that the Skip Conflict policy leaves alone because its file exists is n
 not verified; under IfChanged an unchanged file matched the stored CRC-32C when it was compared.
 A texture exported as PNG or EXR reads its header Entry to the end through the verified reader, so
 a mismatch there is reported although the Conversion parses only part of it.
+
+## The SHA-256
+
+Every Entry of the Archives measured (LIVE 4.10, PTU, EPTU, HOTFIX, TECH-PREVIEW) states a 32-byte
+hash, in the `0x5003` extra block of its v1 directory record. It is the SHA-256 of the **stored
+bytes** of the Entry, the `compressed_size` bytes as they lie in the file: for an encrypted Entry
+the ciphertext with its padding, for a compressed one the compressed data. It is not the SHA-256
+of the decoded data (ADR-0034). So the SHA-256 needs no Archive key, and a wrong key fails the
+CRC-32C but not the SHA-256.
+
+The check is on whenever verification is: it needs no switch of its own, and a mismatch is reported
+like a CRC mismatch with the kind `sha256` and the digests as 64 hex digits. The CRC-32C is
+reported first when both fail. The stored bytes are hashed as the reader consumes them; the bytes
+it leaves unread (AES padding, a compression trailer) are read and hashed when the decoded data
+ends. An all-zero digest, as the synthetic fixtures use, states none and is not checked.
+
+The v2 record has 32 bytes after the encryption field that are read the same way. No v2 Archive was
+available to confirm that they are the same digest; only synthetic fixtures cover them.
+
+The `sha2` crate uses the SHA-NI or ARMv8 SHA-2 instructions where the CPU has them and a portable
+implementation elsewhere.
+
+## How the checksums are computed
 
 The checksum is computed on the chunks that leave the reader, so a run reads and decodes the
 Archive once, holds at most one 1 MiB chunk per worker and writes nothing. The CRC-32C comes from the
@@ -46,6 +70,8 @@ it between runs.
 
 `cargo test --release --workspace --locked -- --ignored` (see CLAUDE.md) includes
 `verified_reads_of_every_compression_and_encryption_state_find_no_mismatch` in `p4kx-archive`,
-which reads a sample of each compression and encryption kind with `Archive::open_entry_verified`,
+which reads a sample of each compression and encryption kind with `Archive::open_entry_verified`
+(CRC-32C and SHA-256, so it needs `P4KX_ARCHIVE_KEY`), and
+`every_entry_states_a_sha_256_that_plain_entries_match_while_streaming`, which needs no key,
 and `a_sample_of_a_real_archive_verifies_without_a_mismatch` in `p4kx-extraction`, which runs
 `verify` over every 997th Entry.

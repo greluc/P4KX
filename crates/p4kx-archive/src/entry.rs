@@ -16,6 +16,7 @@ pub struct Entry {
     pub(crate) compressed_size: u64,
     pub(crate) uncompressed_size: u64,
     pub(crate) checksum: Checksum,
+    pub(crate) sha256: Option<[u8; 32]>,
     pub(crate) data_offset: u64,
     pub(crate) compression: Compression,
     pub(crate) index: u32,
@@ -72,8 +73,15 @@ impl Entry {
     pub const fn crc32c(&self) -> Option<u32> {
         match self.checksum {
             Checksum::Crc32c(value) => Some(value),
-            Checksum::Crc32(_) => None,
+            Checksum::Crc32(_) | Checksum::Sha256(_) => None,
         }
+    }
+
+    /// Returns the SHA-256 the directory states for the Entry's data as stored in the Archive,
+    /// before decryption and decompression, or `None` when it states none.
+    #[must_use]
+    pub const fn sha256(&self) -> Option<[u8; 32]> {
+        self.sha256
     }
 
     /// Returns the compression method.
@@ -87,4 +95,11 @@ impl Entry {
     pub const fn is_encrypted(&self) -> bool {
         self.encrypted
     }
+}
+
+/// Returns the digest in `bytes` when it is 32 bytes long and not all zero, which is how a
+/// directory without a stored SHA-256 reads.
+pub(crate) fn stated_sha256(bytes: &[u8]) -> Option<[u8; 32]> {
+    let digest = <[u8; 32]>::try_from(bytes).ok()?;
+    digest.iter().any(|&byte| byte != 0).then_some(digest)
 }

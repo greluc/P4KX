@@ -1,5 +1,6 @@
 use p4kx_foundation::{ByteReader, ParseError};
 
+use crate::entry::stated_sha256;
 use crate::format_error::FormatError;
 use crate::issue::{Directory, IssueLog, decode_path};
 use crate::{Checksum, Compression, Entry, EntryIssue};
@@ -12,6 +13,7 @@ const DISK_AND_ATTRIBUTES_LEN: usize = 8;
 const ZIP64_MARKER_32: u32 = 0xFFFF_FFFF;
 const BLOCK_ZIP64: u16 = 0x0001;
 const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
+const BLOCK_CIG_HASH: u16 = 0x5003;
 const BLOCK_HEADER_LEN: usize = 4;
 const ENCRYPTION_BLOCK_LEN: u16 = 6;
 
@@ -31,6 +33,7 @@ struct ExtraFields {
     uncompressed_size: u64,
     local_header_offset: u64,
     encrypted: bool,
+    sha256: Option<[u8; 32]>,
 }
 
 /// Parses `count` Entries from the central directory bytes, which start at file offset `base`.
@@ -66,6 +69,7 @@ fn parse_entry(
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
         checksum: Checksum::Crc32c(fixed.crc32c),
+        sha256: extra.sha256,
         data_offset: extra.local_header_offset,
         compression: Compression::from_method(fixed.method),
         index: u32::try_from(index).unwrap_or(u32::MAX),
@@ -116,6 +120,7 @@ fn parse_extra(
         uncompressed_size: u64::from(fixed.uncompressed_size),
         local_header_offset: u64::from(fixed.local_header_offset),
         encrypted: false,
+        sha256: None,
     };
     let mut reader = ByteReader::with_base(extra, base);
     while reader.remaining() >= BLOCK_HEADER_LEN {
@@ -136,6 +141,7 @@ fn parse_extra(
             BLOCK_CIG_ENCRYPTION => {
                 fields.encrypted = read_encryption(&mut block, stored_len, index, log);
             }
+            BLOCK_CIG_HASH => fields.sha256 = stated_sha256(data),
             _ => {}
         }
     }

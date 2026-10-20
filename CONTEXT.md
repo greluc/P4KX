@@ -343,9 +343,9 @@ CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Verification**:
-Checking the decoded data of an Entry against the checksum its directory states, while the data is
-read: `p4kx verify` for a whole Archive or a Filter, `--verify` during an Extraction. Off unless
-asked for.
+Checking the decoded data of an Entry against the CRC-32C its directory states, and its stored bytes
+against the SHA-256 it states, while the data is read: `p4kx verify` for a whole Archive or a
+Filter, `--verify` during an Extraction. Off unless asked for.
 _Avoid_: validation, integrity scan
 
 **Conversion**:

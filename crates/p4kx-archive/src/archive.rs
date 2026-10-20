@@ -203,14 +203,17 @@ impl Archive {
     /// checksum of the directory while it streams, without a second pass or buffering: the read
     /// that reaches the end of the data fails with a
     /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) when they differ.
-    /// The check costs one checksum over the decoded bytes; a reader that stops before the end
-    /// checks nothing.
+    /// The check costs one checksum over the decoded bytes and, for an Entry that states a SHA-256
+    /// ([`Entry::sha256`]), one over its stored bytes; a reader that stops before the end checks
+    /// nothing.
     ///
     /// # Errors
     ///
     /// Returns the errors of [`open_entry`](Self::open_entry).
     pub fn open_entry_verified(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
-        self.open_entry(entry).map(|reader| reader.verified(entry))
+        let key = self.key_for(entry)?;
+        entry_reader::open_verified(&self.source, entry, key.as_ref())
+            .map_err(|error| error.at(&self.location))
     }
 
     /// Opens the decrypted and decompressed data of `entry` from byte `offset` on.

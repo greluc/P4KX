@@ -42,6 +42,7 @@ mod key;
 mod list;
 mod loc;
 mod model;
+mod model_bones;
 mod model_json;
 mod model_materials_json;
 mod progress;

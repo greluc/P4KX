@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use egui::{
-    CornerRadius, Galley, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode,
-    Ui, WidgetInfo, WidgetText, pos2, vec2,
+    CornerRadius, Galley, Painter, Rect, Response, Role, Sense, Stroke, StrokeKind, TextStyle,
+    TextWrapMode, Ui, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use super::focus::focus_ring_square;
@@ -54,16 +54,37 @@ impl TabLabel {
 
 /// Shows a `.tab-nav` with `labels`, `current` the selected index; returns the clicked index.
 pub(crate) fn tab_bar(ui: &mut Ui, labels: &[String], current: usize) -> Option<usize> {
+    tab_bar_reserving(ui, labels, current, 0.0)
+}
+
+/// Shows a `.tab-nav` like [`tab_bar`] that leaves `reserve` at its right end to other controls.
+pub(crate) fn tab_bar_reserving(
+    ui: &mut Ui,
+    labels: &[String],
+    current: usize,
+    reserve: f32,
+) -> Option<usize> {
     let laid: Vec<TabLabel> = labels
         .iter()
         .map(|label| TabLabel::new(ui, label, None))
         .collect();
-    tabs(ui, &laid, current)
+    tabs_reserving(ui, &laid, current, reserve)
 }
 
 /// Shows a `.tab-nav` with the tabs laid out already, `current` the selected index; returns the
 /// clicked index.
 pub(crate) fn tabs(ui: &mut Ui, labels: &[TabLabel], current: usize) -> Option<usize> {
+    tabs_reserving(ui, labels, current, 0.0)
+}
+
+/// Shows a `.tab-nav` like [`tabs`] that leaves `reserve` at its right end to other controls; tabs
+/// that do not fit scroll sideways with the wheel, and the selected tab is scrolled into view.
+pub(crate) fn tabs_reserving(
+    ui: &mut Ui,
+    labels: &[TabLabel],
+    current: usize,
+    reserve: f32,
+) -> Option<usize> {
     let width = ui.available_width();
     let (bar, _) = ui.allocate_exact_size(vec2(width, TOUCH_TARGET), Sense::hover());
     let painter = ui.painter();
@@ -73,50 +94,24 @@ pub(crate) fn tabs(ui: &mut Ui, labels: &[TabLabel], current: usize) -> Option<u
         bar.bottom() - 0.5,
         Stroke::new(1.0, palette::GRAY_3),
     );
-    let mut left = bar.left() + TAB_BAR_PADDING_LEFT;
+    let strip = Rect::from_min_max(
+        bar.min,
+        pos2((bar.right() - reserve).max(bar.left()), bar.bottom()),
+    );
+    let painter = ui.painter().with_clip_rect(strip);
+    let mut left = strip.left() + TAB_BAR_PADDING_LEFT - scrolled(ui, strip, labels, current);
     let mut clicked = None;
     for (index, tab) in labels.iter().enumerate() {
         let rect = Rect::from_min_size(pos2(left, bar.top()), vec2(tab.width(), bar.height()));
         left = rect.right();
+        if !rect.intersects(strip) {
+            continue;
+        }
         let id = ui.scope_id().with(("tab", index));
-        let response = ui.interact(rect, id, Sense::click());
+        let response = ui.interact(rect.intersect(strip), id, Sense::click());
         let active = index == current;
         response.widget_info(|| WidgetInfo::selected(Role::Tab, true, active, &tab.name));
-        let colour = if active {
-            palette::WHITE
-        } else if response.hovered() {
-            palette::GRAY_1
-        } else {
-            palette::GRAY_2_TEXT
-        };
-        let label_left = rect.left() + TAB_PADDING_X;
-        let centre = |galley: &Galley| rect.center().y - galley.size().y / 2.0;
-        ui.painter().galley(
-            pos2(label_left, centre(&tab.label)),
-            Arc::clone(&tab.label),
-            colour,
-        );
-        if let Some(count) = &tab.count {
-            let count_colour = if active {
-                palette::ACCENT_LIGHT
-            } else {
-                palette::GRAY_1
-            };
-            let at = pos2(
-                label_left + tab.label.size().x + TAB_COUNT_GAP,
-                centre(count),
-            );
-            ui.painter().galley(at, Arc::clone(count), count_colour);
-        }
-        if active {
-            let underline =
-                Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
-            ui.painter()
-                .rect_filled(underline, CORNER_NONE, palette::PRIMARY);
-        }
-        if response.has_focus() {
-            focus_ring_square(ui, rect, palette::PRIMARY, -FOCUS_WIDTH);
-        }
+        paint_tab(ui, &painter, tab, (rect, strip), (active, &response));
         if response.clicked() {
             clicked = Some(index);
         }
@@ -124,6 +119,74 @@ pub(crate) fn tabs(ui: &mut Ui, labels: &[TabLabel], current: usize) -> Option<u
     clicked
 }
 
+/// Paints `tab` in `rect`, clipped to `strip`; `active` tells the selected tab, `response` its state.
+fn paint_tab(
+    ui: &Ui,
+    painter: &Painter,
+    tab: &TabLabel,
+    (rect, strip): (Rect, Rect),
+    (active, response): (bool, &Response),
+) {
+    let colour = if active {
+        palette::WHITE
+    } else if response.hovered() {
+        palette::GRAY_1
+    } else {
+        palette::GRAY_2_TEXT
+    };
+    let label_left = rect.left() + TAB_PADDING_X;
+    let centre = |galley: &Galley| rect.center().y - galley.size().y / 2.0;
+    painter.galley(
+        pos2(label_left, centre(&tab.label)),
+        Arc::clone(&tab.label),
+        colour,
+    );
+    if let Some(count) = &tab.count {
+        let count_colour = if active {
+            palette::ACCENT_LIGHT
+        } else {
+            palette::GRAY_1
+        };
+        let at = pos2(
+            label_left + tab.label.size().x + TAB_COUNT_GAP,
+            centre(count),
+        );
+        painter.galley(at, Arc::clone(count), count_colour);
+    }
+    if active {
+        let underline = Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
+        painter.rect_filled(underline, CORNER_NONE, palette::PRIMARY);
+    }
+    if response.has_focus() {
+        focus_ring_square(ui, rect.intersect(strip), palette::PRIMARY, -FOCUS_WIDTH);
+    }
+}
+/// Returns how far the tabs of `strip` are scrolled to the left: kept from the last frame, moved
+/// by the wheel over the strip and, once `current` or the strip changed, enough to show that tab.
+fn scrolled(ui: &Ui, strip: Rect, labels: &[TabLabel], current: usize) -> f32 {
+    let before: f32 = labels.iter().take(current).map(TabLabel::width).sum();
+    let after = before + labels.get(current).map_or(0.0, TabLabel::width);
+    let total = TAB_BAR_PADDING_LEFT + labels.iter().map(TabLabel::width).sum::<f32>();
+    let most = (total - strip.width()).max(0.0);
+    let id = ui.scope_id().with("tab-scroll");
+    let (mut offset, seen, seen_width) = ui
+        .data(|data| data.get_temp::<(f32, usize, f32)>(id))
+        .unwrap_or((0.0, usize::MAX, 0.0));
+    if most > 0.0 {
+        if seen != current || (seen_width - strip.width()).abs() > 0.5 {
+            offset = offset
+                .max(after + TAB_BAR_PADDING_LEFT - strip.width())
+                .min(before);
+        }
+        if ui.rect_contains_pointer(strip) {
+            let delta = ui.input(|input| input.smooth_scroll_delta);
+            offset -= delta.x + delta.y;
+        }
+    }
+    let offset = offset.clamp(0.0, most);
+    ui.data_mut(|data| data.insert_temp(id, (offset, current, strip.width())));
+    offset
+}
 /// Shows the items of a `.krt-segmented--sm` group with their data kept as written; `active` is
 /// the pressed item. Returns the clicked index.
 pub(crate) fn segments<S: AsRef<str>>(

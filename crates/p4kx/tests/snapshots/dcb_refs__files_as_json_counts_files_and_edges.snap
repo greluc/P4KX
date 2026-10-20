@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"--files\", \"--json\"])?"
+---
+{"archive":"<archive>","file_count":4,"edge_count":4,"edges":[{"from":"libs/makers/aegis","to":"libs/planets/terra"},{"from":"libs/ships/alpha","to":"libs/makers/aegis"},{"from":"libs/ships/alpha","to":"libs/ships/beta"},{"from":"libs/ships/beta","to":"libs/makers/aegis"}]}

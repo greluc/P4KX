@@ -1,7 +1,8 @@
 use super::{
     ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText,
-    RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText, Text, XmlText,
+    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
+    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText,
+    Text, XmlText,
 };
 use crate::Language;
 
@@ -97,6 +98,7 @@ impl Text {
             .chain(RecordExportText::ALL.map(Self::RecordExport))
             .chain(CatalogText::ALL.map(Self::Catalog))
             .chain(RecordText::ALL.map(Self::Record))
+            .chain(IncomingText::ALL.map(Self::Incoming))
             .chain(RecordLanguageText::ALL.map(Self::RecordLanguage))
             .chain(LocalizationText::ALL.map(Self::Localization))
             .chain(ArchiveKeyText::ALL.map(Self::Key))
@@ -185,6 +187,7 @@ impl Text {
             Self::Group(text) => text.id(),
             Self::Xml(text) => text.id(),
             Self::Scroll(text) => text.id(),
+            Self::Incoming(text) => text.id(),
             Self::Query(text) => text.id(),
             Self::Container(text) => text.id(),
             Self::RecordExport(text) => text.id(),
@@ -254,6 +257,12 @@ impl From<ExtractionText> for Text {
 impl From<DiffText> for Text {
     fn from(text: DiffText) -> Self {
         Self::Diff(text)
+    }
+}
+
+impl From<IncomingText> for Text {
+    fn from(text: IncomingText) -> Self {
+        Self::Incoming(text)
     }
 }
 

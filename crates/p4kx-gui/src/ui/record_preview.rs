@@ -53,7 +53,12 @@ pub(super) fn apply(model: &mut Model, step: &RecordStep) {
             false
         }
     };
-    if moved && !matches!(model.preview_tab(), PreviewTab::Record | PreviewTab::Xml) {
+    if moved
+        && !matches!(
+            model.preview_tab(),
+            PreviewTab::Record | PreviewTab::Xml | PreviewTab::Incoming
+        )
+    {
         model.set_preview_tab(PreviewTab::Record);
     }
 }
@@ -146,7 +151,7 @@ pub(super) fn xml_bytes(browser: &Browser) -> Option<&[u8]> {
         .map(|view| view.xml().bytes())
 }
 
-fn heading(browser: &Browser) -> (&str, &str) {
+pub(super) fn heading(browser: &Browser) -> (&str, &str) {
     browser
         .selected_record()
         .and_then(|id| browser.records()?.record(id))

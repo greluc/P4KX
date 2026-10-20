@@ -13,6 +13,8 @@ pub enum QueryText {
     Cancel,
     /// Shown while DataForge is read.
     Loading,
+    /// Shown while the References between the Records are indexed for `referencing`.
+    Indexing,
     /// Shown while the Records are selected.
     Selecting,
     /// The progress; takes `done`, `total` and `percent`.
@@ -119,13 +121,14 @@ pub enum QueryText {
 
 impl QueryText {
     /// Every Query text.
-    pub(crate) const ALL: [Self; 57] = [
+    pub(crate) const ALL: [Self; 58] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
         Self::Run,
         Self::Cancel,
         Self::Loading,
+        Self::Indexing,
         Self::Selecting,
         Self::Progress,
         Self::Cancelled,
@@ -189,6 +192,7 @@ impl QueryText {
             Self::Run => "query-run",
             Self::Cancel => "query-cancel",
             Self::Loading => "query-loading",
+            Self::Indexing => "query-indexing",
             Self::Selecting => "query-selecting",
             Self::Progress => "query-progress",
             Self::Cancelled => "query-cancelled",

@@ -102,11 +102,11 @@ pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FormatSurvey, Guid,
-    InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES,
-    PointerSurvey, Property, RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml,
-    Reference, Resolution, Struct, StructValue, TextResolver, TrailingSurvey, TreeBuilder, Value,
-    ValueError, ValueKind,
+    DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FileGraph, FormatSurvey,
+    Guid, IndexedReference, InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_INDEXED_REFERENCES,
+    MAX_NESTING_DEPTH, MAX_RECORD_VALUES, PointerSurvey, Property, RECORD_XML_NAMESPACE, Record,
+    RecordJson, RecordTree, RecordXml, Reference, ReferenceIndex, Resolution, Struct, StructValue,
+    TextResolver, TrailingSurvey, TreeBuilder, Value, ValueError, ValueKind,
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;

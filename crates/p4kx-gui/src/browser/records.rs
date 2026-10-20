@@ -126,5 +126,6 @@ impl Browser {
         }
         self.record_search.clear();
         self.navigation.archive_changed();
+        self.incoming.archive_changed();
     }
 }

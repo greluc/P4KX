@@ -1,0 +1,10 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"libs/makers/aegis\", \"--incoming\"])?"
+---
+References to libs/makers/aegis (Manufacturer.Aegis, Manufacturer, 00000000-0000-0000-0000-000000000020)
+referring record path  name        field
+---------------------  ----------  -----
+libs/ships/alpha       Ship.Alpha  maker
+libs/ships/beta        Ship.Beta   maker
+2 References from 2 Records

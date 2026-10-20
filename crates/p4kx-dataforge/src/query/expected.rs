@@ -6,18 +6,22 @@ use crate::query::lexer::Keyword;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Expected {
-    /// `from` or `at` at the start.
+    /// `from`, `at` or `referencing` at the start.
     Selection,
     /// A struct name after `from`.
     TypeName,
     /// A string after `at`.
     Glob,
+    /// A string after `referencing`.
+    Referent,
     /// A field name in a path.
     FieldName,
     /// What may follow `from <type>`.
     AfterFrom,
     /// What may follow `at "<glob>"`.
     AfterAt,
+    /// What may follow `referencing "<record>"`.
+    AfterReferencing,
     /// What may follow a path.
     AfterPath,
     /// A comparison, `not` or `(` where a condition starts.
@@ -43,12 +47,14 @@ pub enum Expected {
 impl fmt::Display for Expected {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Selection => "`from` or `at`",
+            Self::Selection => "`from`, `at` or `referencing`",
             Self::TypeName => "a type name",
             Self::Glob => "a record-path glob in double quotes",
+            Self::Referent => "a GUID or record path in double quotes",
             Self::FieldName => "a field name",
-            Self::AfterFrom => "`at`, `select`, `where` or the end of the Query",
-            Self::AfterAt => "`select`, `where` or the end of the Query",
+            Self::AfterFrom => "`at`, `referencing`, `select`, `where` or the end of the Query",
+            Self::AfterAt => "`referencing`, `select`, `where` or the end of the Query",
+            Self::AfterReferencing => "`select`, `where` or the end of the Query",
             Self::AfterPath => "`.`, `[`, `->`, `,`, `where` or the end of the Query",
             Self::Condition => "a comparison, `not` or `(`",
             Self::Operator => {

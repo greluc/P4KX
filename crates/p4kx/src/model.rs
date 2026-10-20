@@ -2,13 +2,16 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::model::{ChunkUsage, LodSelection, Model, ModelError};
-use p4kx_extraction::{Archive, ConversionError, GlbOptions, GlbSummary, GltfError, ModelSource};
+use p4kx_extraction::model::{ChunkUsage, LodSelection, MaterialStatus, Model, ModelError};
+use p4kx_extraction::{
+    Archive, ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, ModelSource,
+};
 use serde::Serialize;
 
-use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
+use crate::cli_model::{MaterialsArg, ModelAction, ModelArgs, ModelFileSource};
 use crate::json;
 use crate::model_json::{ChunkJson, InfoJson, file_name, node_name, usage_name};
+use crate::model_materials_json::LibraryJson;
 
 const NONE: &str = "-";
 
@@ -20,9 +23,12 @@ struct GlbJson<'a> {
     meshes: usize,
     primitives: usize,
     materials: usize,
+    default_material_ids: usize,
+    hidden_primitives: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
+    library: LibraryJson<'a>,
     unknown_chunks: Vec<ChunkJson>,
 }
 
@@ -34,10 +40,14 @@ pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
             source,
             out,
             lod,
+            materials,
             no_vertex_colours,
         } => {
             let source = open(source, LodSelection::Only(*lod))?;
-            let options = GlbOptions::default().with_lod(*lod);
+            let mode = match materials {
+                MaterialsArg::Colours => MaterialMode::Colours,
+            };
+            let options = GlbOptions::default().with_lod(*lod).with_materials(mode);
             let options = if *no_vertex_colours {
                 options.without_vertex_colours()
             } else {
@@ -74,6 +84,7 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     writeln!(out, "Bones:       {}", model.bones.len())?;
     writeln!(out, "Chunks:      {}", chunk_counts(model))?;
     write_lods(&mut out, model)?;
+    write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
@@ -172,8 +183,53 @@ fn materials(model: &Model) -> String {
     };
     model.material_library.as_ref().map_or_else(
         || format!("no material library, {ids}"),
-        |library| format!("{library}, {ids}"),
+        |library| format!("{library} ({}), {ids}", status(model)),
     )
+}
+
+fn status(model: &Model) -> String {
+    match &model.materials {
+        MaterialStatus::Loaded(library) if library.single => "one material".to_owned(),
+        MaterialStatus::Loaded(library) => format!("{} sub-materials", library.materials.len()),
+        MaterialStatus::Missing { .. } => "missing".to_owned(),
+        MaterialStatus::Unreadable { reason, .. } => format!("unreadable: {reason}"),
+        _ => "not read".to_owned(),
+    }
+}
+
+fn write_materials(out: &mut impl Write, model: &Model) -> io::Result<()> {
+    let Some(library) = model.materials.library() else {
+        return Ok(());
+    };
+    writeln!(out)?;
+    writeln!(
+        out,
+        "{:>3}  {:<24}  {:<16}  {:<18}  {:<20}  {:>7}  Textures",
+        "ID", "Material", "Shader", "Surface", "Diffuse", "Opacity"
+    )?;
+    for (position, material) in library.materials.iter().enumerate() {
+        let id = if library.single {
+            NONE.to_owned()
+        } else {
+            position.to_string()
+        };
+        let [red, green, blue] = material.diffuse;
+        writeln!(
+            out,
+            "{id:>3}  {:<24}  {:<16}  {:<18}  {:<20}  {:>7}  {}",
+            or_none(&material.name),
+            or_none(&material.shader),
+            or_none(&material.surface_type),
+            format!("{red:.3} {green:.3} {blue:.3}"),
+            material.opacity,
+            material.textures.len()
+        )?;
+    }
+    Ok(())
+}
+
+const fn or_none(text: &str) -> &str {
+    if text.is_empty() { NONE } else { text }
 }
 
 fn chunk_counts(model: &Model) -> String {
@@ -214,6 +270,23 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
         summary.triangles,
         summary.bytes
     )?;
+    if let Some(problem) = model.materials.problem() {
+        writeln!(stdout, "{problem}; the default material is used")?;
+    }
+    if summary.default_material_ids > 0 && model.materials.problem().is_none() {
+        writeln!(
+            stdout,
+            "{} material IDs have no sub-material in the library; the default material is used",
+            summary.default_material_ids
+        )?;
+    }
+    if summary.hidden_primitives > 0 {
+        writeln!(
+            stdout,
+            "left out {} submeshes whose material draws nothing",
+            summary.hidden_primitives
+        )?;
+    }
     for chunk in model.unknown_chunks() {
         writeln!(
             stdout,
@@ -235,9 +308,12 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> Gl
         meshes: summary.meshes,
         primitives: summary.primitives,
         materials: summary.materials,
+        default_material_ids: summary.default_material_ids,
+        hidden_primitives: summary.hidden_primitives,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,
+        library: LibraryJson::of(source.model()),
         unknown_chunks: source.model().unknown_chunks().map(ChunkJson::of).collect(),
     }
 }

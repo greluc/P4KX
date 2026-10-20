@@ -268,12 +268,17 @@ Early development (milestone M1). Available today:
 - `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
   companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
   counts, the material library and material IDs, its bones and every chunk with whether it was
-  read, skipped or unknown; `p4kx model glb <archive> <entry> --out <file> [--lod <n>]` writes
+  read, skipped or unknown, and the materials of its `.mtl` file;
+  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours]` writes
   it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
-  companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2. Both
-  also take a model file on disk with its companions next to it.
+  companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
+  `--materials colours` (the default) gives every sub-material of the model's `.mtl` file a glTF
+  material with base colour, opacity, roughness, metalness and emissive colour and no textures;
+  submeshes whose material draws nothing (collision and helper geometry) are left out, and a
+  missing or unreadable `.mtl` file is reported while the model exports with a grey default
+  material. Both also take a model file on disk with its companions next to it.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

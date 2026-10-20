@@ -187,6 +187,13 @@ impl TestModel {
         self
     }
 
+    /// Names `library` as the material library, instead of [`CUBE_MATERIAL_LIBRARY`].
+    #[must_use]
+    pub fn with_material_library(mut self, library: impl Into<String>) -> Self {
+        self.material_library = library.into();
+        self
+    }
+
     /// Stores the tangent frames of a `Compressed` model as mirrored: the bitangent points the
     /// other way and bit 31 of the tangent flips the normal back.
     #[must_use]

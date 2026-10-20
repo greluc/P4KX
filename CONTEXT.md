@@ -287,6 +287,12 @@ The geometry companion of a level of detail from 1 on, named `<stem>_lod<n>.<ext
 `box_lod1.cgfm`. Its meshes belong to the nodes of the base model file.
 _Avoid_: LOD file, lod mesh
 
+**Material library**:
+The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
+ID, or a list of sub-materials whose position is the material ID. Each material has a shader,
+colours, an opacity and texture slots.
+_Avoid_: material file, material set
+
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
 with the sizes of the whole texture. A part or tail without a header Entry is in no group and

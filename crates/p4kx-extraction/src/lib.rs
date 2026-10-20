@@ -106,7 +106,7 @@ pub use p4kx_dataforge::{
     ValueError, ValueKind,
 };
 pub use p4kx_gfx as gfx;
-pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
+pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, MaterialMode};
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
     MAX_GLOBAL_INI_SIZE, OwnedTextSet, PLACEHOLDER_KEYS, ParseLanguageError, TextSet,

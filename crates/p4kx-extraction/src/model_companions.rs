@@ -10,6 +10,9 @@ use crate::entry_path::relative_path;
 use crate::path_index::PathIndex;
 use crate::sound::read_capped;
 
+/// The largest `.mtl` file a model's material library is read from, in bytes.
+const MAX_MATERIAL_LEN: u64 = 16 << 20;
+
 /// A companion a resolver refuses to read.
 #[derive(Debug, Error)]
 enum RefusedCompanion {
@@ -19,7 +22,8 @@ enum RefusedCompanion {
     TooLarge { name: String, limit: u64 },
 }
 
-/// Fetches the companions of a model Entry from the Entries in the same folder of the Archive.
+/// Fetches the companions of a model Entry from the Entries in the same folder of the Archive and
+/// its material library from below the `Data` folder.
 pub(crate) struct ArchiveCompanions<'i, 'a> {
     pub(crate) index: &'i PathIndex<'a>,
     pub(crate) folder: &'i str,
@@ -27,22 +31,29 @@ pub(crate) struct ArchiveCompanions<'i, 'a> {
 
 impl CompanionResolver for ArchiveCompanions<'_, '_> {
     fn resolve(&mut self, path: CompanionPath<'_>) -> Result<Option<Vec<u8>>, CompanionError> {
-        let CompanionPath::Sibling(name) = path else {
-            return Ok(None);
-        };
-        let name = plain_name(name)?;
-        let entry_path = if self.folder.is_empty() {
-            name.to_owned()
-        } else {
-            format!("{}\\{name}", self.folder)
+        let (entry_path, limit) = match path {
+            CompanionPath::Sibling(name) => {
+                let name = plain_name(name)?;
+                let entry_path = if self.folder.is_empty() {
+                    name.to_owned()
+                } else {
+                    format!("{}\\{name}", self.folder)
+                };
+                (entry_path, MAX_CHUNK_FILE_LEN)
+            }
+            CompanionPath::Material(library) => (
+                format!("Data\\{}.mtl", library.replace('/', "\\")),
+                MAX_MATERIAL_LEN,
+            ),
+            _ => return Ok(None),
         };
         let Some(entry) = self.index.find(&entry_path) else {
             return Ok(None);
         };
         let reader = self.index.archive().open_entry(entry)?;
-        read_capped(reader, entry.uncompressed_size(), MAX_CHUNK_FILE_LEN)?
+        read_capped(reader, entry.uncompressed_size(), limit)?
             .map(Some)
-            .ok_or_else(|| too_large(entry.path()))
+            .ok_or_else(|| too_large(entry.path(), limit))
     }
 }
 
@@ -54,18 +65,26 @@ pub(crate) struct DiskCompanions<'p> {
 
 impl CompanionResolver for DiskCompanions<'_> {
     fn resolve(&mut self, path: CompanionPath<'_>) -> Result<Option<Vec<u8>>, CompanionError> {
-        let CompanionPath::Sibling(name) = path else {
-            return Ok(None);
+        let (file_name, limit) = match path {
+            CompanionPath::Sibling(name) => (plain_name(name)?.to_owned(), MAX_CHUNK_FILE_LEN),
+            CompanionPath::Material(library) => {
+                let last = library.rsplit('/').next().unwrap_or(library);
+                (
+                    plain_name(&format!("{last}.mtl"))?.to_owned(),
+                    MAX_MATERIAL_LEN,
+                )
+            }
+            _ => return Ok(None),
         };
-        let file_path = self.folder.join(plain_name(name)?);
+        let file_path = self.folder.join(file_name);
         let file = match File::open(&file_path) {
             Ok(file) => file,
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error.into()),
         };
         let len = file.metadata()?.len();
-        let bytes = read_capped(file, len, MAX_CHUNK_FILE_LEN)?
-            .ok_or_else(|| too_large(&file_path.display().to_string()))?;
+        let bytes = read_capped(file, len, limit)?
+            .ok_or_else(|| too_large(&file_path.display().to_string(), limit))?;
         self.read.push(file_path);
         Ok(Some(bytes))
     }
@@ -80,10 +99,10 @@ fn plain_name(name: &str) -> Result<&str, CompanionError> {
     }
 }
 
-fn too_large(name: &str) -> CompanionError {
+fn too_large(name: &str, limit: u64) -> CompanionError {
     RefusedCompanion::TooLarge {
         name: name.to_owned(),
-        limit: MAX_CHUNK_FILE_LEN,
+        limit,
     }
     .into()
 }

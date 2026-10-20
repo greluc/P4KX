@@ -44,3 +44,11 @@ jobs:
       - name: Audio index survives concurrent first use
         run: cargo test --release --locked -p p4kx-assembly --test audio_lazy_index
       - run: cargo xtask
+      - name: Install cargo-about
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.2
+      - name: Third-party notices are complete
+        if: runner.os == 'Linux'
+        run: cargo xtask notices

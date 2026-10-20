@@ -104,6 +104,10 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- `THIRD-PARTY-NOTICES` now carries the licence text and copyright notice of every Rust crate
+  linked into `p4kx`, `p4kx-gui` and `p4kx-mcp` (ISC, Unicode, MPL-2.0, Zlib, OFL and the other
+  licences that were missing), plus the Lato fonts. CI fails when a dependency change leaves the
+  file out of date (`cargo xtask notices`).
 
 ## [0.2.0]
 

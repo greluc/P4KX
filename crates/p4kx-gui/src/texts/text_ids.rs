@@ -8,7 +8,7 @@ use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 67] = [
+    const BASE: [Self; 68] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,

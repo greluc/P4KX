@@ -68,8 +68,14 @@ fn print_node(out: &mut impl Write, node: &EntityNode, depth: usize) -> io::Resu
     for issue in node.issues() {
         writeln!(out, "{indent}! {}", one_line(&issue.to_string()))?;
     }
-    for port in node.ports() {
+    print_ports(out, node.ports(), depth)
+}
+
+fn print_ports(out: &mut impl Write, ports: &[PortNode], depth: usize) -> io::Result<()> {
+    let indent = "  ".repeat(depth);
+    for port in ports {
         writeln!(out, "{indent}{}", one_line(&port_line(port)))?;
+        print_ports(out, port.nested(), depth.saturating_add(1))?;
         if let Attachment::Entity(child) = port.attachment() {
             print_node(out, child, depth.saturating_add(1))?;
         }

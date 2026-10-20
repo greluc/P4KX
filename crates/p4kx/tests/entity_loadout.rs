@@ -132,6 +132,35 @@ fn an_xml_loadout_is_read_from_the_archive() -> TestResult {
 }
 
 #[test]
+fn the_nested_items_of_an_empty_port_are_printed_below_it() -> TestResult {
+    let body =
+        TestEntity::new(0x1, "Body", "entities/body.xml").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::empty("body_port").loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("armor", "Armor"),
+            ])),
+        ]));
+    let armor = TestEntity::new(0x2, "Armor", "entities/armor.xml");
+    let database = entity_schema(DataForgeBuilder::new())
+        .record(body.record())
+        .record(armor.record());
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database, Vec::new())?;
+
+    let text = loadout(&archive, "Body", false, 0)?;
+    let json = loadout(&archive, "Body", true, 0)?;
+
+    assert!(
+        text.stdout
+            .contains("  body_port: -\n    armor: Armor (override)\n"),
+        "{}",
+        text.stdout
+    );
+    assert!(text.stdout.contains("2 ports: 1 attached, 1 empty"));
+    assert!(json.stdout.contains("\"nested\":[{\"name\":\"armor\""));
+    Ok(())
+}
+
+#[test]
 fn control_characters_in_names_are_escaped_in_the_text() -> TestResult {
     let odd = TestEntity::new(0x1, "Odd", "entities/odd.xml").loadout(TestLoadout::Manual(vec![
         TestLoadoutEntry::empty("line\nbreak\u{1b}[31m"),

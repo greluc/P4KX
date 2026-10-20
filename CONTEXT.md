@@ -332,6 +332,12 @@ overwrite it only if changed (its size or the Entry's checksum differs from the 
 CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
+**Verification**:
+Checking the decoded data of an Entry against the checksum its directory states, while the data is
+read: `p4kx verify` for a whole Archive or a Filter, `--verify` during an Extraction. Off unless
+asked for.
+_Avoid_: validation, integrity scan
+
 **Conversion**:
 Turning an Entry or Record from its game-internal format into a readable one, e.g. CryXml or a
 Record into XML.

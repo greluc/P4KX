@@ -106,7 +106,8 @@ fails while its section is missing.
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
 - Mesh streams: both normal tags now take 4-byte packed and 12-byte float vectors, and a
   16-byte tangent stream (two quaternions) gives normals, so a mesh that stores only such a
-  stream keeps its normals. The packed vectors of the second normal tag rank last: in LIVE they
+  stream keeps its normals; no real file has the 16-byte layout, so reading the normal from its
+  first quaternion is unverified. The packed vectors of the second normal tag rank last: in LIVE they
   disagree with the tangent frames of the 17,902 meshes that hold both, so no exported model
   changes.
 

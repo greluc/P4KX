@@ -74,6 +74,8 @@ enum NormalKind {
     PackedSecond,
     TangentFrame,
     Quaternion,
+    /// Two quaternions per vertex; no real file has this layout, so reading the normal from the
+    /// first one is unverified.
     QuaternionPair,
 }
 

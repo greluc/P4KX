@@ -7,14 +7,13 @@ use std::io::Read;
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_chunks::{ChunkFile, ivo};
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{mesh_streams, real_archive_path};
 use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const EXTENSIONS: [&str; 4] = ["cgfm", "cgam", "skinm", "chrm"];
 const MAX_FILE_LEN: u64 = 512 << 20;
-const INDICES: u32 = 0xEECD_C168;
 const NORMALS: u32 = 0x9CF3_F615;
 const NORMALS_2: u32 = 0x38A5_81FE;
 const TANGENTS: u32 = 0xB95E_9A1B;
@@ -29,8 +28,6 @@ const AFTER: [(u32, u32); 7] = [
     (TANGENTS, 8),
     (TANGENTS, 16),
 ];
-const HEADER_LEN: usize = 24 + 48 + 8 + 88;
-const SUBMESH_LEN: usize = 48;
 
 #[derive(Default)]
 struct Pair {
@@ -82,45 +79,18 @@ impl Survey {
     }
 }
 
-fn word(data: &[u8], at: usize) -> Option<u32> {
-    let bytes = data.get(at..at.checked_add(4)?)?;
-    Some(u32::from_le_bytes(<[u8; 4]>::try_from(bytes).ok()?))
-}
-
 fn streams_of(chunk: &[u8]) -> Option<(Vec<(u32, u32)>, bool)> {
-    let vertices = usize::try_from(word(chunk, 8)?).ok()?;
-    let indices = usize::try_from(word(chunk, 12)?).ok()?;
-    let submeshes = usize::try_from(word(chunk, 16)?).ok()?;
-    let extra = usize::try_from(word(chunk, 24 + 48 + 4)?).ok()?;
-    let mut at = HEADER_LEN
-        .checked_add(submeshes.checked_mul(SUBMESH_LEN)?)?
-        .checked_add(extra.checked_mul(4)?)?;
-    let mut streams = Vec::new();
-    while at + 4 <= chunk.len() {
-        let tag = word(chunk, at)?;
-        at += 4;
-        if tag == 0 {
-            continue;
-        }
-        let size = usize::try_from(word(chunk, at)?).ok()?;
-        at += 4;
-        let count = if tag == INDICES { indices } else { vertices };
-        let len = size.checked_mul(count)?;
-        let end = at.checked_add(len)?;
-        if end > chunk.len() {
-            return Some((streams, true));
-        }
-        streams.push((tag, u32::try_from(size).ok()?));
-        at = end.next_multiple_of(8).min(chunk.len());
-    }
-    Some((streams, false))
+    let walked = mesh_streams(chunk)?;
+    let pairs = walked
+        .streams
+        .iter()
+        .map(|stream| (stream.tag, stream.element_size))
+        .collect();
+    Some((pairs, walked.truncated))
 }
 
 fn scan(archive: &Archive, entry: &Entry) -> Survey {
     let mut survey = Survey::default();
-    if entry.uncompressed_size() > MAX_FILE_LEN {
-        return survey;
-    }
     let mut bytes = Vec::new();
     if archive
         .open_entry(entry)
@@ -145,10 +115,7 @@ fn scan(archive: &Archive, entry: &Entry) -> Survey {
         if kind != ivo::SKIN_2 && kind != ivo::SKIN {
             continue;
         }
-        let Some(data) = file.chunk_data(index) else {
-            continue;
-        };
-        let Some((streams, truncated)) = streams_of(data) else {
+        let Some((streams, truncated)) = file.chunk_data(index).and_then(streams_of) else {
             survey.unreadable.push(entry.path().to_owned());
             continue;
         };
@@ -242,5 +209,12 @@ fn the_streams_of_every_mesh_chunk_are_counted_by_tag_and_element_size() -> Test
         println!("0x{tag:08X}\t{}\t{}", repeat.chunks, repeat.example);
     }
     assert!(survey.chunks > 0, "the Archive holds mesh chunks");
+    assert_eq!(survey.without_normals_after, 0, "chunks without a normal");
+    assert_eq!(survey.truncated, 0, "streams that overrun their chunk");
+    assert!(
+        survey.unreadable.is_empty(),
+        "unreadable: {:#?}",
+        survey.unreadable
+    );
     Ok(())
 }

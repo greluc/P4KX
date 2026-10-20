@@ -4,7 +4,7 @@ use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview;
 use super::preview_tab::{Asked, Typed, typed_tab};
-use super::record_preview::{self, RecordStep};
+use super::record_preview;
 use super::soundbank_preview;
 use super::{dataforge_summary, hex_view, image_preview, preview_bar, record_incoming};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};

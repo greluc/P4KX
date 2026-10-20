@@ -6,5 +6,5 @@ mod detect;
 mod launcher_log;
 
 pub use channel::{Channel, ChannelSource, channel_name};
-pub use detect::{SearchPaths, detect};
+pub use detect::{SearchPaths, detect, known_library_folders};
 pub(crate) use launcher_log::library_folders;

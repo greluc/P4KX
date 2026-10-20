@@ -18,6 +18,7 @@ mod entry_index;
 mod extraction;
 mod forge_cache;
 mod format;
+mod installation;
 mod language;
 mod localization;
 mod model;
@@ -68,7 +69,7 @@ pub use extraction::{
 };
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
-pub use model::{Failure, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
+pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};

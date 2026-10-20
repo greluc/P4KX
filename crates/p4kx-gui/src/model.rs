@@ -11,6 +11,7 @@ mod archive_key;
 mod audio_control;
 mod catalog_control;
 mod extraction_control;
+mod game_watch;
 mod record_export_control;
 mod record_text;
 mod update;
@@ -19,6 +20,8 @@ mod work_tab;
 use archive_key::KeyState;
 pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use catalog_control::CatalogState;
+pub use game_watch::GAME_CHECK_INTERVAL;
+use game_watch::GameWatch;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
@@ -71,6 +74,7 @@ pub struct Model {
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
     key: KeyState,
+    game: GameWatch,
 }
 
 impl std::fmt::Debug for Model {
@@ -100,6 +104,7 @@ impl std::fmt::Debug for Model {
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
             .field("key", &self.key)
+            .field("game", &self.game)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -136,6 +141,7 @@ impl Model {
             catalog: CatalogState::default(),
             record_text_choice: None,
             key: KeyState::default(),
+            game: GameWatch::default(),
         }
     }
 
@@ -187,12 +193,14 @@ impl Model {
         let spawned = thread::Builder::new()
             .name("open-archive".to_owned())
             .spawn(move || {
+                p4kx_extraction::protect_archive_folder(&thread_path);
                 let index = Archive::open_with_key(&thread_path, key).map(EntryIndex::build);
                 if sender.send(index).is_ok() {
                     wake();
                 }
             });
         self.opening = None;
+        self.recheck_game();
         match spawned {
             Ok(_handle) => {
                 self.failure = None;

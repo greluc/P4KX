@@ -1,0 +1,126 @@
+use std::fs;
+use std::path::{Component, Path, PathBuf, Prefix};
+
+use crate::WriteRefused;
+
+/// A set of folders that belong to a Star Citizen installation and are never written to.
+#[derive(Debug, Clone, Default)]
+pub struct Installation {
+    folders: Vec<Protected>,
+}
+
+#[derive(Debug, Clone)]
+struct Protected {
+    shown: PathBuf,
+    key: Vec<String>,
+}
+
+impl Installation {
+    /// Creates an empty set.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            folders: Vec::new(),
+        }
+    }
+
+    /// Adds `folder` and everything below it; a folder already covered is not added twice.
+    pub fn add(&mut self, folder: &Path) {
+        let resolved = resolve(folder);
+        let key = key(&resolved);
+        if key.is_empty() || self.folders.iter().any(|known| known.key == key) {
+            return;
+        }
+        self.folders.push(Protected {
+            shown: resolved,
+            key,
+        });
+    }
+
+    /// Returns whether no folder is protected.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.folders.is_empty()
+    }
+
+    /// Checks that writing to `target`, a file or folder that may not exist yet, stays outside
+    /// every protected folder.
+    ///
+    /// The comparison is canonical: `.` and `..`, symbolic links and junctions, the `\\?\` form
+    /// and, on Windows and macOS, letter case do not change the outcome. For a path that does not
+    /// exist yet, its nearest existing ancestor decides.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WriteRefused`] naming the protected folder `target` lies in.
+    pub fn check(&self, target: &Path) -> Result<(), WriteRefused> {
+        if self.folders.is_empty() {
+            return Ok(());
+        }
+        let target_key = key(&resolve(target));
+        self.folders
+            .iter()
+            .find(|folder| target_key.starts_with(&folder.key))
+            .map_or(Ok(()), |folder| {
+                Err(WriteRefused {
+                    target: target.to_path_buf(),
+                    installation: folder.shown.clone(),
+                })
+            })
+    }
+}
+
+/// Makes `path` absolute and resolves `.`, `..` and every link that exists.
+fn resolve(path: &Path) -> PathBuf {
+    let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut resolved = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::Prefix(_) | Component::RootDir => resolved.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            Component::Normal(name) => {
+                resolved.push(name);
+                if let Ok(real) = fs::canonicalize(&resolved) {
+                    resolved = real;
+                }
+            }
+        }
+    }
+    resolved
+}
+
+fn key(resolved: &Path) -> Vec<String> {
+    resolved
+        .components()
+        .filter_map(|component| match component {
+            Component::Prefix(prefix) => Some(prefix_key(prefix.kind())),
+            Component::Normal(name) => Some(fold(&name.to_string_lossy())),
+            Component::RootDir | Component::CurDir | Component::ParentDir => None,
+        })
+        .collect()
+}
+
+fn prefix_key(prefix: Prefix<'_>) -> String {
+    match prefix {
+        Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
+            format!("{}:", char::from(letter.to_ascii_lowercase()))
+        }
+        Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => fold(&format!(
+            "\\\\{}\\{}",
+            server.to_string_lossy(),
+            share.to_string_lossy()
+        )),
+        Prefix::Verbatim(name) | Prefix::DeviceNS(name) => fold(&name.to_string_lossy()),
+    }
+}
+
+fn fold(name: &str) -> String {
+    if cfg!(any(windows, target_os = "macos")) {
+        name.to_lowercase()
+    } else {
+        name.to_owned()
+    }
+}

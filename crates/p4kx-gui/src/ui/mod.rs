@@ -23,6 +23,7 @@ mod empty;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod game_running;
 mod hex_view;
 mod image_preview;
 mod licence;
@@ -140,6 +141,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .exact_size(HEADER_HEIGHT)
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
+    game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
     Panel::bottom("status")

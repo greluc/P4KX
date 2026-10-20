@@ -7,7 +7,7 @@ use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 66] = [
+    const BASE: [Self; 67] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -71,6 +71,7 @@ impl Text {
         Self::PreviewArchiveChanged,
         Self::ArchiveChanged,
         Self::ArchiveIssues,
+        Self::GameRunning,
         Self::ActionReload,
         Self::PreviewKeyRequired,
         Self::PreviewKeyRejected,
@@ -169,6 +170,7 @@ impl Text {
             Self::PreviewArchiveChanged => "preview-archive-changed",
             Self::ArchiveChanged => "archive-changed",
             Self::ArchiveIssues => "archive-issues",
+            Self::GameRunning => "game-running",
             Self::ActionReload => "action-reload",
             Self::PreviewKeyRequired => "preview-key-required",
             Self::PreviewKeyRejected => "preview-key-rejected",

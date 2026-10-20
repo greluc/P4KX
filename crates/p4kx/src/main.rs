@@ -35,6 +35,7 @@ mod exit;
 mod extract;
 mod extract_report;
 mod failure_report;
+mod guard;
 mod info;
 mod issues;
 mod json;
@@ -69,6 +70,9 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
     let success = |()| ExitCode::from(exit::SUCCESS);
+    if !matches!(cli.command, Command::Key(_)) {
+        guard::start_game_check();
+    }
     if let Err(error) = key::init(&cli) {
         report(&error);
         return exit::for_error(&error);

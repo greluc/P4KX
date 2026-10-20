@@ -87,6 +87,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("value", "1.5".into()),
         ("digits", "4".into()),
         ("masked", "****1234".into()),
+        ("installation", "C:\\StarCitizen".into()),
     ]
 }
 

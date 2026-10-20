@@ -265,6 +265,7 @@ fn write(
 }
 
 fn prepare_target(archive: &Archive, request: &Request) -> io::Result<PathBuf> {
+    crate::installation::refuse(&request.folder)?;
     match request.kind {
         TargetKind::ExistingFolder => {
             fs::create_dir_all(&request.folder)?;

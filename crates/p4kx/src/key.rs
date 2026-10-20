@@ -92,6 +92,7 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
 
 /// Opens the Archive at `path` with the key of this run, if there is one.
 pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
+    crate::guard::on_archive_open(path.as_ref());
     Archive::open_with_key(path, KEY.get().cloned().flatten())
 }
 

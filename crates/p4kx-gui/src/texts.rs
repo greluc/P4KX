@@ -174,6 +174,8 @@ pub enum Text {
     /// The notice that Entries of the open Archive have defects; takes `count`, the number of
     /// defects, and `kind`, `one` for a single defect.
     ArchiveIssues,
+    /// The notice that `StarCitizen.exe` is running and the tool is best used with the game closed.
+    GameRunning,
     /// The action that opens the changed Archive again.
     ActionReload,
     /// Shown instead of the preview of an encrypted Entry while the Archive has no key; takes

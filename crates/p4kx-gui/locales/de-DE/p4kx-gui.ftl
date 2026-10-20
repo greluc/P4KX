@@ -73,6 +73,7 @@ archive-issues =
         [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
        *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
+game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber das Archiv ändert sich, wenn das Spiel aktualisiert, und das Werkzeug schreibt nie in die Installation.
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …
@@ -86,6 +87,7 @@ extraction-target-heading = Ziel
 extraction-target-new = Neuer Ordner in
 extraction-target-existing = Vorhandener Ordner
 extraction-target-new-name = Legt { $name } an
+extraction-target-in-installation = Dieser Ordner liegt in der Star-Citizen-Installation { $installation }. Das Werkzeug schreibt dort nie; wähle einen Ordner an anderer Stelle.
 extraction-folder-none = Kein Ordner gewählt
 extraction-choose-folder = Ordner wählen …
 extraction-policy-heading = Bereits vorhandene Dateien

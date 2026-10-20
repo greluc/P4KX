@@ -82,6 +82,7 @@ pub(crate) fn run(args: &CryXmlArgs, as_json: bool) -> Result<()> {
 
 /// Writes the XML to a `.part` file next to `out` and renames it, so `out` is never half written.
 fn write_file(xml: &Xml<'_>, out: &Path) -> Result<()> {
+    crate::guard::ensure_writable(out)?;
     let mut part = OsString::from(out.as_os_str());
     part.push(".part");
     let part = PathBuf::from(part);

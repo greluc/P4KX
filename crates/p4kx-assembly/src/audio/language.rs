@@ -60,10 +60,11 @@ impl LanguageChoice {
         self.preferred().into_iter().chain(self.fallback())
     }
 
-    pub(crate) fn requested(&self) -> &str {
-        self.preferred()
-            .or_else(|| self.fallback())
-            .unwrap_or_default()
+    pub(crate) fn no_localisation(&self) -> super::BreakReason {
+        super::BreakReason::NoLocalisation {
+            language: self.preferred().unwrap_or_default().into(),
+            fallback: self.fallback().unwrap_or_default().into(),
+        }
     }
 
     pub(crate) fn is_fallback(&self, language: Option<&str>) -> bool {

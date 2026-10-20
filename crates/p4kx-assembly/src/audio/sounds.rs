@@ -150,6 +150,8 @@ pub enum WemLocation<'i> {
     Entry {
         /// The path of the Entry.
         path: &'i str,
+        /// The position of the Entry in `Archive::entries`.
+        entry: u32,
         /// The language folder the Entry lies in, or `None` when it is not localised.
         language: Option<&'i str>,
         /// The uncompressed length of the Entry.

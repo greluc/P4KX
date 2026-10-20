@@ -155,9 +155,7 @@ fn unselected<'i>(
     let reason = if index.event_holders(event.id()).is_empty() {
         BreakReason::NoSoundbank
     } else {
-        BreakReason::NoLocalisation {
-            language: choice.requested().into(),
-        }
+        choice.no_localisation()
     };
     BrokenLink {
         event,

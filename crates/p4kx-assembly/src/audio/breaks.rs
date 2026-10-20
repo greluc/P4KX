@@ -3,6 +3,17 @@ use thiserror::Error;
 
 use super::{AudioFileError, IndexedSoundbank, PathStep, WwiseEvent};
 
+fn no_localisation(language: &str, fallback: &str) -> String {
+    match (language.is_empty(), fallback.is_empty()) {
+        (true, true) => "no localisation in any language folder".to_owned(),
+        (false, false) if !language.eq_ignore_ascii_case(fallback) => {
+            format!("no localisation in the language {language}, nor in the fallback {fallback}")
+        }
+        (false, _) => format!("no localisation in the language {language}"),
+        (true, false) => format!("no localisation in the language {fallback}"),
+    }
+}
+
 /// Why the way from a Wwise event to a WEM breaks.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
@@ -54,10 +65,12 @@ pub enum BreakReason {
         limit: usize,
     },
     /// A localised sound has no WEM in the language asked for or in the fallback language.
-    #[error("no localisation in the language {language}, nor in its fallback")]
+    #[error("{}", no_localisation(.language, .fallback))]
     NoLocalisation {
         /// The language asked for, empty when none was.
         language: Box<str>,
+        /// The fallback language, empty when there is none.
+        fallback: Box<str>,
     },
     /// The walk followed as many references as its budget allows, at most
     /// [`MAX_EVENT_OBJECTS`](super::MAX_EVENT_OBJECTS) and a share of

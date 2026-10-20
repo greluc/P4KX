@@ -21,9 +21,13 @@ crate may not depend on another service crate (ADR-0003), and the lookup by ID n
 name, not a path.
 
 A prefetched source resolves to its Loose WEM, which holds the whole sound; only when the Archive
-has no such Entry does the location stay the embedded start. An embedded source that no
-soundbank embeds is looked up as a Loose WEM as well: the localised voice banks of LIVE mark
-dozens of sounds as embedded whose WEM only exists as a Loose WEM, and every one has it.
+has no such Entry does the location stay the embedded start.
+
+An embedded source that no soundbank embeds is looked up as a Loose WEM as well, and in LIVE this
+is the main path, not an exception. ADR-0021 recorded that 99 % of the Sound objects with in-memory
+media have it in no soundbank's `DIDX` and deferred locating them to #143. Over one third of all
+triggers of LIVE the embedded sounds resolve as follows: 84,863 to a plain Loose WEM, 2,646 to a
+Loose WEM in a language folder, 645 to a WEM held in a soundbank, 8 not located.
 
 ## The language flag
 

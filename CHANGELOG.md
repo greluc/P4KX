@@ -8,17 +8,16 @@ fails while its section is missing.
 
 ### Added
 
-- Streamed and localised sounds. p4kx wwise resolve locates a streamed or prefetched WEM as the
-  loose WEM Entry named by its ID below Data\Sounds\wwise\ and resolves localised events,
-  soundbanks and WEMs for --lang <language> with --fallback-lang (English(US) by default),
+- Streamed and localised sounds. `p4kx wwise resolve` locates a streamed or prefetched WEM as the
+  loose WEM Entry named by its ID below `Data\Sounds\wwise\` and resolves localised events,
+  soundbanks and WEMs for `--lang <language>` with `--fallback-lang` (`English(US)` by default),
   both language folders read from the Archive; each variant states whether it is localised, the
   language it was resolved in and whether that is the fallback, and a localised sound without a
-  WEM in either language is listed as a 
-o_localisation broken link. p4kx entity audio
-  --sounds [--lang] [--fallback-lang] lists the variants of every trigger with source and
-  location. ArchiveAudio::resolve_trigger_in, LanguageChoice, AudioIndex::languages,
-  AudioIndex::loose_wem, WemLocation::Entry in p4kx-assembly,
-  SoundSource::is_language_specific in p4kx-audio (ADR-0033).
+  WEM in either language is listed as a `no_localisation` broken link. `p4kx entity audio
+  --sounds [--lang] [--fallback-lang]` lists the variants of every trigger with source and
+  location. `ArchiveAudio::resolve_trigger_in`, `LanguageChoice`, `AudioIndex::languages`,
+  `AudioIndex::loose_wem`, `WemLocation::Entry` in `p4kx-assembly`,
+  `SoundSource::is_language_specific` in `p4kx-audio` (ADR-0033).
 - Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
   its vertex and triangle counts and whether its meshes have normals, tangents and colours;
   `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model

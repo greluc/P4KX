@@ -6,7 +6,7 @@ use rayon::prelude::*;
 
 use super::banks::BankContents;
 use super::language::SOUND_FOLDER;
-use super::media::LooseMedia;
+use super::media::{Limits, LooseMedia, WemSource};
 use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
 use super::{
     ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, DEFAULT_LANGUAGE, IndexedSoundbank,
@@ -51,16 +51,22 @@ impl AudioIndex {
             .enumerate()
             .filter(|(_, entry)| has_extension(entry.path(), "bnk"))
             .collect();
-        let mut wem_entries: Vec<&Entry> = archive
+        let mut wem_entries: Vec<WemSource<'_>> = archive
             .entries()
             .iter()
-            .filter(|entry| {
+            .enumerate()
+            .filter(|(_, entry)| {
                 starts_with_folder(entry.path(), SOUND_FOLDER) && has_extension(entry.path(), "wem")
+            })
+            .map(|(position, entry)| WemSource {
+                entry: u32::try_from(position).unwrap_or(u32::MAX),
+                path: entry.path(),
+                len: entry.uncompressed_size(),
             })
             .collect();
         atl_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
         bank_entries.sort_by(|(_, a), (_, b)| folded_order(a.path(), b.path()));
-        wem_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
+        wem_entries.sort_by(|a, b| folded_order(a.path, b.path));
         let definitions: Vec<_> = atl_entries
             .par_iter()
             .enumerate()
@@ -79,14 +85,17 @@ impl AudioIndex {
         let mut index = Self::default();
         index.add_definitions(&atl_entries, definitions);
         index.add_soundbanks(&bank_entries, soundbanks);
-        let (loose, failure) = LooseMedia::collect(
-            &wem_entries,
+        let (loose, failures) = LooseMedia::collect(
+            wem_entries.iter().copied(),
             bank_entries.iter().map(|(_, entry)| entry.path()),
+            Limits::DEFAULT,
         );
         index.loose = loose;
-        if let Some((path, error)) = failure {
-            index.issues.push(AudioIssue { path, error });
-        }
+        index.issues.extend(
+            failures
+                .into_iter()
+                .map(|(path, error)| AudioIssue { path, error }),
+        );
         index
     }
 

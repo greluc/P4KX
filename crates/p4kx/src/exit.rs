@@ -72,10 +72,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      the chunk file or a LOD the model does not have, an output that is one of its inputs,
      --json without --out for cryxml or chf to-json, an invalid Query, --json with another
      --format and without --out for dcb query, an Entity that no Record or several Records
-     match, an audio trigger no ATL definition has, an audio language the Archive holds no folder
-     for, or a CHF JSON file that is invalid, has an
-     unknown version or holds values a CHF file cannot store, a language the Archive holds no
-     global.ini for, or a localisation key that has no text in the language or its fallback
+     match, an audio trigger no ATL definition has, an audio language the Archive holds no
+     folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
+     CHF file cannot store, a language the Archive holds no global.ini for, or a localisation
+     key that has no text in the language or its fallback
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to

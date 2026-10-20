@@ -75,7 +75,9 @@ fn loose<'i>(
         return pick(None);
     }
     if let Some(language) = soundbank.language() {
-        return pick(Some(language)).or_else(|| pick(None));
+        return pick(Some(language))
+            .or_else(|| choice.candidates().find_map(|wanted| pick(Some(wanted))))
+            .or_else(|| pick(None));
     }
     if choice.is_any() {
         return index

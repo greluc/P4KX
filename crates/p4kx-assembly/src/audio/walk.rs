@@ -139,9 +139,7 @@ impl<'w> Walk<'w, '_> {
     fn sound(&mut self, source: SoundSource) {
         let located = locate(self.index, self.soundbank, self.choice, &source);
         if located.missing_localisation {
-            self.broke(BreakReason::NoLocalisation {
-                language: self.choice.requested().into(),
-            });
+            self.broke(self.choice.no_localisation());
         }
         self.found.variants.push(SoundVariant {
             event: self.event,

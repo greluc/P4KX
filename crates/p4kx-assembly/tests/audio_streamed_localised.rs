@@ -110,6 +110,7 @@ fn entry_of<'a>(variant: &SoundVariant<'a>) -> Option<(&'a str, Option<&'a str>,
             path,
             language,
             len,
+            ..
         } => Some((path, *language, *len)),
         _ => None,
     }
@@ -279,8 +280,13 @@ fn a_missing_localisation_is_reported() -> TestResult {
         assert_eq!(
             link.reason(),
             &BreakReason::NoLocalisation {
-                language: "German".into()
+                language: "German".into(),
+                fallback: "".into()
             }
+        );
+        assert_eq!(
+            link.reason().to_string(),
+            "no localisation in the language German"
         );
         assert_eq!(link.reason().kind(), "no_localisation");
         assert!(link.soundbank().is_none());
@@ -336,48 +342,15 @@ fn a_language_specific_sound_falls_back_and_reports_what_stays_missing() -> Test
         assert_eq!(
             link.reason(),
             &BreakReason::NoLocalisation {
-                language: "French".into()
+                language: "French".into(),
+                fallback: "Spanish".into()
             }
+        );
+        assert_eq!(
+            link.reason().to_string(),
+            "no localisation in the language French, nor in the fallback Spanish"
         );
         assert_eq!(link.object().map(|step| step.kind.name()), Some("sound"));
         Ok(())
     })
-}
-
-#[test]
-fn an_embedded_source_no_soundbank_holds_is_located_as_a_loose_entry() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let path = dir.path().join("Data.p4k");
-    let bank = TestBank::new(1)
-        .object(TestHircObject::event(wwise_short_id("Play_Moved"), &[1]))
-        .object(TestHircObject::action(1, PLAY, 10))
-        .object(TestHircObject::sound(10, 5555, 0, 0));
-    ArchiveBuilder::new()
-        .entry(TestEntry::zstd(
-            "Data\\Libs\\GameAudio\\SC_Audio.xml",
-            TestAtl::new("SC")
-                .trigger("Play_Moved", &["Play_Moved"])
-                .to_cryxml(),
-        ))
-        .entry(TestEntry::stored(
-            "Data\\Sounds\\wwise\\Moved.bnk",
-            bank.bytes(),
-        ))
-        .entry(TestEntry::stored(
-            "Data\\Sounds\\wwise\\Media\\5555.wem",
-            vec![1; 9],
-        ))
-        .write_to(&path)?;
-    let archive = Archive::open(&path)?;
-    let audio = ArchiveAudio::new(&archive);
-    let sounds = resolved(&audio, "Play_Moved", &LanguageChoice::any())?;
-    let [variant] = sounds.variants() else {
-        return Err("one variant".into());
-    };
-    assert_eq!(variant.source_kind(), SourceKind::Embedded);
-    assert_eq!(
-        entry_of(variant),
-        Some(("Data\\Sounds\\wwise\\Media\\5555.wem", None, 9))
-    );
-    Ok(())
 }

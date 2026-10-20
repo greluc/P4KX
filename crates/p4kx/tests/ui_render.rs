@@ -10,7 +10,6 @@ mod ui_panel;
 
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 use predicates::prelude::predicate;

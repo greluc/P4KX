@@ -163,6 +163,7 @@ pub(crate) fn html(text: &str) -> Parsed {
             }
         }
     }
+    builder.truncated |= builder.full() && !rest.is_empty();
     while builder.cells.last().is_some_and(|cell| cell.ch == '\n') {
         builder.cells.pop();
     }
@@ -361,6 +362,9 @@ mod tests {
         let parsed = plain(&long);
         assert_eq!(parsed.cells.len(), MAX_TEXT_CHARS);
         assert!(parsed.truncated);
+        let markup = html(&format!("<b>{long}</b>"));
+        assert_eq!(markup.cells.len(), MAX_TEXT_CHARS);
+        assert!(markup.truncated);
         let nested = "<font size='9'>".repeat(5000) + "t";
         let parsed = html(&nested);
         assert_eq!(text(&parsed), "t");

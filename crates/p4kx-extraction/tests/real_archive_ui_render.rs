@@ -121,6 +121,8 @@ fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
         "too_many_masks",
         "mask_memory",
         "bitmap_memory",
+        "too_many_glyphs",
+        "text_truncated",
     ] {
         assert_eq!(
             tally.skipped.get(limit),

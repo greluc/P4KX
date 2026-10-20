@@ -57,7 +57,12 @@ fn rich_movie(signature: TestSignature) -> Vec<u8> {
             39,
             &sprite_body(8, 1, &[(26, place_object2_body(1, 1)), (1, Vec::new())]),
         )
-        .tag(56, &exports_body(&[(1, "one")]))
+        .tag(56, &exports_body(&[(1, "one")]));
+    first_frame(text_tags(movie)).tag(1, &[]).bytes()
+}
+
+fn text_tags(movie: TestMovie) -> TestMovie {
+    movie
         .tag(
             11,
             &define_text_body(11, [0, 400, 0, 400], false, &[text_record()]),
@@ -75,8 +80,7 @@ fn rich_movie(signature: TestSignature) -> Vec<u8> {
                 .word_wrap()
                 .multiline()
                 .body(),
-        );
-    first_frame(movie).tag(1, &[]).bytes()
+        )
 }
 
 fn text_record() -> TestTextRecord {

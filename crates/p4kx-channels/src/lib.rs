@@ -3,8 +3,10 @@
 
 mod channel;
 mod detect;
+mod kind;
 mod launcher_log;
 
 pub use channel::{Channel, ChannelSource, channel_name};
 pub use detect::{SearchPaths, detect};
+pub use kind::ChannelKind;
 pub(crate) use launcher_log::library_folders;

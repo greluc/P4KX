@@ -73,6 +73,7 @@ archive-issues =
         [one] The directory of the Archive has one defect in an Entry. The Entry stays listed, but its data may not be readable; an Extraction reports it if it fails, and `p4kx info` names it.
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
+archive-test-build = This Archive belongs to the { $channel } Channel, a Star Citizen test build. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…

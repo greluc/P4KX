@@ -12,6 +12,7 @@ mod forge_shapes;
 mod keys;
 mod locate;
 mod notice;
+mod noted;
 mod ordered;
 mod page;
 mod params;

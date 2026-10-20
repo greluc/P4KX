@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::io::{self, Write};
 
-use p4kx_extraction::{Checksum, EntryFailure};
+use p4kx_extraction::EntryFailure;
 use serde::Serialize;
 
 /// The JSON shape of an Entry that failed.
@@ -37,14 +37,10 @@ impl<'a> MismatchJson<'a> {
         Some(Self {
             path: failure.path(),
             kind: expected.name(),
-            expected: hex(expected),
-            actual: hex(actual),
+            expected: expected.hex(),
+            actual: actual.hex(),
         })
     }
-}
-
-fn hex(checksum: Checksum) -> String {
-    format!("{:08x}", checksum.value())
 }
 
 /// Returns the error of `failure` followed by its causes, separated by colons.

@@ -1,9 +1,12 @@
+use sha2::{Digest, Sha256};
+
 use crate::Checksum;
 
 #[derive(Debug, Clone)]
 enum State {
     Crc32c(u32),
     Crc32(crc32fast::Hasher),
+    Sha256(Sha256),
 }
 
 /// Computes a [`Checksum`] of the kind an Entry states over data that arrives in chunks.
@@ -17,8 +20,9 @@ impl ChecksumHasher {
     #[must_use]
     pub fn of_kind(checksum: Checksum) -> Self {
         let state = match checksum {
-            Checksum::Crc32c(_) => State::Crc32c(0),
             Checksum::Crc32(_) => State::Crc32(crc32fast::Hasher::new()),
+            Checksum::Sha256(_) => State::Sha256(Sha256::new()),
+            Checksum::Crc32c(_) => State::Crc32c(0),
         };
         Self { state }
     }
@@ -28,6 +32,7 @@ impl ChecksumHasher {
         match &mut self.state {
             State::Crc32c(crc) => *crc = crc32c::crc32c_append(*crc, data),
             State::Crc32(hasher) => hasher.update(data),
+            State::Sha256(hasher) => hasher.update(data),
         }
     }
 
@@ -37,6 +42,7 @@ impl ChecksumHasher {
         match self.state {
             State::Crc32c(crc) => Checksum::Crc32c(crc),
             State::Crc32(hasher) => Checksum::Crc32(hasher.finalize()),
+            State::Sha256(hasher) => Checksum::Sha256(hasher.finalize().into()),
         }
     }
 }

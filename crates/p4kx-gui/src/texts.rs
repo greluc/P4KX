@@ -12,6 +12,7 @@ mod diff_text;
 mod extraction_text;
 mod group_text;
 mod image_text;
+mod incoming_text;
 mod localization_text;
 mod query_text;
 mod record_change_text;
@@ -33,6 +34,7 @@ pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
+pub use incoming_text::IncomingText;
 pub use localization_text::LocalizationText;
 pub(crate) use localization_text::language_name;
 pub use query_text::QueryText;
@@ -214,6 +216,8 @@ pub enum Text {
     Catalog(CatalogText),
     /// A text of the Record preview.
     Record(RecordText),
+    /// A text of the `"Referenced by`" tab of the Record preview.
+    Incoming(IncomingText),
     /// A text of the language selection for Record previews.
     RecordLanguage(RecordLanguageText),
     /// A text of the localisation tab.

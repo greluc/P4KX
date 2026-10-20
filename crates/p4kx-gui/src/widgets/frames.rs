@@ -135,7 +135,10 @@ fn alert<R>(ui: &mut Ui, (fill, accent): (Color32, Color32), body: impl FnOnce(&
             top: px(NOTICE_PADDING_Y),
             bottom: px(NOTICE_PADDING_Y),
         })
-        .show(ui, body);
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            body(ui)
+        });
     let rect = response.response.rect;
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
     accent_edge(ui.painter(), (rect, CORNER_SM), bar, accent);

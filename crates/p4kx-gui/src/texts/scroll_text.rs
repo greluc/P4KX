@@ -18,13 +18,15 @@ pub enum ScrollText {
     Localization,
     /// The rows of the saved Queries.
     SavedQueries,
+    /// The Records referring to the selected Record.
+    Incoming,
     /// The embedded WEMs of a soundbank.
     Soundbank,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 9] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::Text,
         Self::Hex,
         Self::Image,
@@ -33,6 +35,7 @@ impl ScrollText {
         Self::Lines,
         Self::Localization,
         Self::SavedQueries,
+        Self::Incoming,
         Self::Soundbank,
     ];
 
@@ -48,6 +51,7 @@ impl ScrollText {
             Self::Lines => "scroll-lines",
             Self::Localization => "scroll-localization",
             Self::SavedQueries => "scroll-saved-queries",
+            Self::Incoming => "scroll-incoming",
             Self::Soundbank => "scroll-soundbank",
         }
     }

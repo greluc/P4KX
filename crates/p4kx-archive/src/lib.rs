@@ -28,6 +28,7 @@ mod key_check;
 mod key_slot;
 mod layout;
 mod source;
+mod stored_hash;
 mod verify;
 
 pub use archive::{Archive, MAX_DECODED_SKIP};

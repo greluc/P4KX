@@ -236,7 +236,7 @@ impl Frame<'_, '_> {
         }
     }
 }
-fn canvas(scene: &Scene, size: CanvasSize) -> Result<(u32, u32, Affine), GfxError> {
+pub(crate) fn canvas(scene: &Scene, size: CanvasSize) -> Result<(u32, u32, Affine), GfxError> {
     #[expect(
         clippy::cast_precision_loss,
         reason = "stage sizes in twips fit an f32 closely enough"

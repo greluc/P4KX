@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "run(r#\"referencing \"libs/nowhere\"\"#, 2)?"
+---
+error: no Record has the GUID or record path `libs/nowhere`
+  referencing "libs/nowhere"
+              ^^^^^^^^^^^^^^

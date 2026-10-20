@@ -122,9 +122,20 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Incoming Reference**:
+A Reference seen from its target: the Reference that a Record is the target of, with the Record that holds
+it and its field and array indices. The Reference index answers which Records refer to a Record, how
+often and from how many Records; `p4kx dcb refs` and the Referenced by tab list them.
+_Avoid_: backlink, reverse Reference
+
+**File graph**:
+The record files of a DataForge with an edge from one file to every other file that a Record of it
+refers to.
+
 **Unresolved Reference**:
 A null or dangling link that a Query path follows with `->`; it reaches null and is counted
- once per row in the Query result, however many paths of the row meet it.
+ once per row in the Query result, however many paths of the row meet it. The Reference index also
+ keeps every Reference to a GUID no Record has and counts it.
 _Avoid_: broken link, missing Reference
 
 **Query**:
@@ -376,9 +387,9 @@ CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
 
 **Verification**:
-Checking the decoded data of an Entry against the checksum its directory states, while the data is
-read: `p4kx verify` for a whole Archive or a Filter, `--verify` during an Extraction. Off unless
-asked for.
+Checking the decoded data of an Entry against the CRC-32C its directory states, and its stored bytes
+against the SHA-256 it states (v1 Archives only), while the data is read: `p4kx verify` for a whole Archive or a
+Filter, `--verify` during an Extraction. Off unless asked for.
 _Avoid_: validation, integrity scan
 
 **Conversion**:

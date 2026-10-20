@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -119,6 +121,18 @@ impl<'a> UiMovie<'a> {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Returns the title of a document made from the movie: its Entry path or the name of its
+    /// file, never the directory it lies in.
+    #[must_use]
+    pub(crate) fn title(&self) -> Cow<'_, str> {
+        match &self.origin {
+            Origin::File(path) => path
+                .file_name()
+                .map_or_else(|| Cow::Borrowed(self.name.as_str()), OsStr::to_string_lossy),
+            Origin::Entry(_) => Cow::Borrowed(&self.name),
+        }
     }
 
     /// Returns the parsed movie.

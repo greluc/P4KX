@@ -178,6 +178,26 @@ impl<'a> DataForge<'a> {
         found.into_iter().filter_map(|record| self.record(record))
     }
 
+    /// Returns the indices of the Records `text` names: the one with that GUID when `text` is a
+    /// GUID, otherwise those at that record path as [`records_at_path`](Self::records_at_path)
+    /// matches it; empty when no Record has it.
+    #[must_use]
+    pub fn records_named(&self, text: &str) -> Vec<u32> {
+        text.parse::<Guid>().map_or_else(
+            |_| {
+                self.records_at_path(text)
+                    .map(|record| record.index())
+                    .collect()
+            },
+            |guid| {
+                self.record_by_guid(guid)
+                    .map(|record| record.index())
+                    .into_iter()
+                    .collect()
+            },
+        )
+    }
+
     /// Returns the Record at `index` in definition order, the one [`Record::index`] gives, or
     /// `None` past the last Record.
     #[must_use]

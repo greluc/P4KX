@@ -24,6 +24,7 @@ lzma-rs.workspace = true
 opus-pure.workspace = true
 p4kx-foundation.workspace = true
 ruzstd.workspace = true
+sha2.workspace = true
 
 [lints]
 workspace = true

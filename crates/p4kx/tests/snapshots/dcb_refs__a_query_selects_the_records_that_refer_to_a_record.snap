@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "run(r#\"from Ship referencing \"libs/makers/aegis\"\"#, 0)?"
+---
+record path
+----------------
+libs/ships/alpha
+libs/ships/beta
+2 Records

@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"libs/ships/alpha\", \"--incoming\"])?"
+---
+References to libs/ships/alpha (Ship.Alpha, Ship, 00000000-0000-0000-0000-000000000031)
+referring record path  name  field
+---------------------  ----  -----
+0 References from 0 Records

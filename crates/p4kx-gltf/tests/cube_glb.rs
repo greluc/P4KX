@@ -71,8 +71,8 @@ fn cube_glb_is_valid_with_its_nodes_meshes_and_materials() -> TestResult {
         .collect();
     assert_eq!(
         materials,
-        [Some("material_1"), Some("material_2")],
-        "per material ID"
+        [Some("default"), Some("default")],
+        "a model without a material library gets the default for every ID"
     );
     let index_counts: Vec<usize> = primitives
         .iter()
@@ -88,7 +88,7 @@ fn cube_glb_is_valid_with_its_nodes_meshes_and_materials() -> TestResult {
             summary.primitives,
             summary.materials
         ),
-        (2, 1, 2, 2),
+        (2, 1, 2, 1),
         "summary counts"
     );
     assert_eq!(

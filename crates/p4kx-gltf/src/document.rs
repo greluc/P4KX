@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use gltf_json as json;
 use json::accessor::{ComponentType, GenericComponentType, Type};
 use json::buffer::Target;
-use json::material::{PbrBaseColorFactor, PbrMetallicRoughness, StrengthFactor};
 use json::mesh::{Mode, Primitive, Semantic};
 use json::scene::UnitQuaternion;
 use json::validation::Checked::Valid;
@@ -13,12 +12,12 @@ use p4kx_model::Model;
 
 use crate::axes::{Trs, decompose};
 use crate::layout::{Block, BlockData, Layout, MeshLayout};
+use crate::materials::{MaterialPlan, Slot, colour_material};
 
 const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
-const BASE_COLOUR: [f32; 4] = [0.8, 0.8, 0.8, 1.0];
 
 /// Builds the glTF document of `model` over the planned binary chunk `layout`.
-pub(crate) fn document(model: &Model, layout: &Layout<'_>) -> Root {
+pub(crate) fn document(model: &Model, layout: &Layout<'_>, plan: &MaterialPlan<'_>) -> Root {
     let mut root = Root {
         asset: json::Asset {
             generator: Some(GENERATOR.to_owned()),
@@ -35,7 +34,7 @@ pub(crate) fn document(model: &Model, layout: &Layout<'_>) -> Root {
             extras: json::extras::Void::default(),
         })
     });
-    let materials = materials(&mut root, layout);
+    let materials = materials(&mut root, layout, plan);
     let mut node_meshes = vec![None; model.nodes.len()];
     for mesh in &layout.meshes {
         let Some(buffer) = buffer else { break };
@@ -49,7 +48,11 @@ pub(crate) fn document(model: &Model, layout: &Layout<'_>) -> Root {
     root
 }
 
-fn materials(root: &mut Root, layout: &Layout<'_>) -> BTreeMap<u16, Index<json::Material>> {
+fn materials(
+    root: &mut Root,
+    layout: &Layout<'_>,
+    plan: &MaterialPlan<'_>,
+) -> BTreeMap<u16, Index<json::Material>> {
     let mut ids: Vec<u16> = layout
         .meshes
         .iter()
@@ -58,20 +61,20 @@ fn materials(root: &mut Root, layout: &Layout<'_>) -> BTreeMap<u16, Index<json::
         .collect();
     ids.sort_unstable();
     ids.dedup();
-    ids.into_iter()
-        .map(|id| {
-            let material = json::Material {
-                name: Some(format!("material_{id}")),
-                pbr_metallic_roughness: PbrMetallicRoughness {
-                    base_color_factor: PbrBaseColorFactor(BASE_COLOUR),
-                    metallic_factor: StrengthFactor(0.0),
-                    ..PbrMetallicRoughness::default()
-                },
-                ..json::Material::default()
+    let mut pushed: BTreeMap<Slot, Index<json::Material>> = BTreeMap::new();
+    let mut by_id = BTreeMap::new();
+    for id in ids {
+        let Some(slot) = plan.slot(id) else { continue };
+        let index = *pushed.entry(slot).or_insert_with(|| {
+            let fallback = match slot {
+                Slot::Library(position) => format!("material_{position}"),
+                Slot::Default => "default".to_owned(),
             };
-            (id, root.push(material))
-        })
-        .collect()
+            root.push(colour_material(plan.material(slot), &fallback))
+        });
+        by_id.insert(id, index);
+    }
+    by_id
 }
 
 fn push_mesh(

@@ -138,13 +138,18 @@ A **Port**:
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
 | `error` | Error or `null` | Why the attachment cannot be resolved |
+| `nested` | array | Ports of the nested Loadout of an empty port, each a Port with `source` `override` and no `definition`; `[]` for every other port |
 
-`entity` and `error` are both `null` for an empty port. A **definition** has `display_name` (a
-localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or `null`), `types`
-(each with `type` and `sub_types`) and `transform`: `null` without an attachment helper,
-otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the helper in the
-parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rotation`
-(`[x, y, z]` in degrees as stored).
+`entity` and `error` are both `null` for an empty port. A Loadout entry that names no Entity
+(an XML `<Item>` with an empty `itemName`, or a manual entry without target) but carries nested
+entries keeps its port empty and lists those entries in `nested`, so the gear below e.g.
+`Body_ItemPort` of a character stays visible; they count in `ports`, `attached` and `empty` like
+every port. The text output prints them indented below the empty port. A **definition** has
+`display_name` (a localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or
+`null`), `types` (each with `type` and `sub_types`) and `transform`: `null` without an
+attachment helper, otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the
+helper in the parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and
+`rotation` (`[x, y, z]` in degrees as stored).
 
 An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
 target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
@@ -692,6 +697,13 @@ it.
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
  "material_library": "objects/test/cube", "material_ids": [1, 2],
+ "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
+             "default_palette": null},
+ "materials": [{"id": 1, "name": "caps", "flags": 0, "shader": "Illum", "surface_type": "",
+                "string_gen_mask": "", "diffuse": [0.8, 0.1, 0.1], "specular": [0.04, 0.04, 0.04],
+                "emissive": [0.0, 0.0, 0.0], "shininess": 10.0, "opacity": 1.0,
+                "alpha_test": 0.0, "glow": 0.0,
+                "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
  "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
@@ -708,7 +720,13 @@ it.
 
 `geometry` is the file name of the geometry companion the meshes come from, `null` when they are
 in the model file itself or the model has no geometry. `material_library` is the path below `Data`
-without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of the file;
+without `.mtl` the material IDs refer to, or `null`. `library.status` is `loaded`, `missing` (no
+such `.mtl` file), `unreadable` (the file or its path is invalid) or `unnamed`; `problem` says
+what is wrong for the second and third; `single` is true when one material serves every ID (then
+`id` of the material is `null`); `default_palette` is the library's default tint palette.
+`materials` lists the materials of a loaded library in ID order, with the colours as the file
+stores them (linear), `flags` the engine's `MtlFlags` and `textures` the slots with their paths as
+the file gives them. `nodes` keeps the order of the file;
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
 metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
@@ -724,22 +742,29 @@ an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
- "primitives": 2, "materials": 2, "vertices": 24, "triangles": 12, "bytes": 2412,
+ "primitives": 2, "materials": 2, "default_material_ids": 0, "hidden_primitives": 0,
+ "vertices": 24, "triangles": 12, "bytes": 2412,
+ "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
+             "default_palette": null},
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
                      "usage": "unknown"}]}
 ```
 
 The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
-one primitive per submesh and one material per material ID, of the level of detail `--lod` names
+one primitive per submesh and one material per sub-material the drawn submeshes use (plus one
+default material when any ID falls back to it), of the level of detail `--lod` names
 (LOD0 by default), in glTF axes (Y up) and metres; the counts do not say which of `NORMAL`,
 `TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
-`bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
+`bytes` is the length of the file. `default_material_ids` counts the material IDs drawn with the
+default material because the `.mtl` file is missing, unreadable or has no sub-material for them,
+and `hidden_primitives` the submeshes left out because their material draws nothing; `library` is
+the status of the `.mtl` file as in `p4kx model info`. `unknown_chunks` lists the chunks of unknown type that the
 export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
 `--lod` the model lacks, exits with code 2.
 
@@ -931,7 +956,7 @@ code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 | `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
 | `container.flags` | number | The two header bytes behind the magic |
 | `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
-| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written with the reused frame; with a body compressed anew only the last 8 bytes of the file are written back (ADR-0014), the rest is zeros, and a new frame that reaches into non-zero ones is an error (exit code 2) |
 
 Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is

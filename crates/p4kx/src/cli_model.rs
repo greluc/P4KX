@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use crate::exit::EXIT_CODES_HELP;
 
@@ -20,8 +20,9 @@ pub(crate) enum ModelAction {
     #[command(after_help = EXIT_CODES_HELP)]
     Info(ModelFileSource),
     /// Writes a model as one glTF 2.0 binary file (GLB): Y up, in metres, one glTF node per node
-    /// and one material per material ID, with the normals, tangents, texture coordinates and
-    /// vertex colours the meshes have; unknown chunks are listed.
+    /// and one primitive per submesh, with the normals, tangents, texture coordinates and vertex
+    /// colours the meshes have; the materials come from the model's .mtl file; unknown chunks
+    /// and a missing or unreadable .mtl file are listed.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb {
         /// The model.
@@ -35,10 +36,24 @@ pub(crate) enum ModelAction {
         /// the model file whatever the level. A level the model lacks is invalid input.
         #[arg(long, value_name = "N", default_value_t = 0)]
         lod: u32,
+        /// How to write the materials. colours: one glTF material per sub-material of the
+        /// model's .mtl file, with base colour, opacity, roughness, metalness and emissive colour
+        /// and no textures; submeshes whose material draws nothing (collision, shield and helper
+        /// geometry) are left out, and a material ID without a sub-material, or a model without
+        /// a readable .mtl file, gets a grey default material.
+        #[arg(long, value_enum, value_name = "MODE", default_value_t = MaterialsArg::Colours)]
+        materials: MaterialsArg,
         /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
         #[arg(long)]
         no_vertex_colours: bool,
     },
+}
+
+/// The material modes of `p4kx model glb --materials`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum MaterialsArg {
+    /// Plain colours without textures.
+    Colours,
 }
 
 /// Where a model is.

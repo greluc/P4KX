@@ -76,6 +76,43 @@ impl TestElement {
         self
     }
 
+    /// Writes this element as the root of a text XML document.
+    #[must_use]
+    pub fn to_xml(&self) -> String {
+        let mut out = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        self.write_xml(&mut out);
+        out
+    }
+
+    fn write_xml(&self, out: &mut String) {
+        out.push('<');
+        out.push_str(&self.name);
+        for (name, value) in &self.attributes {
+            out.push(' ');
+            out.push_str(name);
+            out.push_str("=\"");
+            out.push_str(
+                &value
+                    .replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('"', "&quot;"),
+            );
+            out.push('"');
+        }
+        if self.children.is_empty() && self.content.is_empty() {
+            out.push_str("/>");
+            return;
+        }
+        out.push('>');
+        out.push_str(&self.content.replace('&', "&amp;").replace('<', "&lt;"));
+        for child in &self.children {
+            child.write_xml(out);
+        }
+        out.push_str("</");
+        out.push_str(&self.name);
+        out.push('>');
+    }
+
     /// Encodes this element as the root of a `CryXml` file, laid out like the game's files: header,
     /// node table, child table, attribute table and string data, with deduplicated strings.
     #[must_use]

@@ -94,7 +94,7 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
 /// that it belongs to a test build.
 pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
     let archive = Archive::open_with_key(path.as_ref(), KEY.get().cloned().flatten())?;
-    crate::notice::announce(path.as_ref());
+    crate::test_build::announce(path.as_ref());
     Ok(archive)
 }
 

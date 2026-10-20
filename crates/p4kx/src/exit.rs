@@ -148,12 +148,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<CombinedNeedsXml>().is_some()
         || texture::is_invalid_input(error)
         || model::is_invalid_input(error)
-        || error.downcast_ref::<JsonNeedsOut>().is_some()
-        || error.downcast_ref::<InvalidQuery>().is_some()
-        || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
-        || error.downcast_ref::<JsonWithTable>().is_some()
-        || error.downcast_ref::<UnknownRecord>().is_some()
-        || error.downcast_ref::<OutputIsArchive>().is_some()
+        || is_output_or_query_error(error)
         || error.downcast_ref::<EntityLookupError>().is_some()
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
@@ -168,4 +163,13 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_output_or_query_error(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<JsonNeedsOut>().is_some()
+        || error.downcast_ref::<InvalidQuery>().is_some()
+        || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
+        || error.downcast_ref::<JsonWithTable>().is_some()
+        || error.downcast_ref::<UnknownRecord>().is_some()
+        || error.downcast_ref::<OutputIsArchive>().is_some()
 }

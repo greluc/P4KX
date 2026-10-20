@@ -27,6 +27,7 @@ p4kx-extraction = { path = "crates/p4kx-extraction" }
 p4kx-export = { path = "crates/p4kx-export" }
 p4kx-gfx = { path = "crates/p4kx-gfx" }
 p4kx-localization = { path = "crates/p4kx-localization" }
+p4kx-search = { path = "crates/p4kx-search" }
 p4kx-settings = { path = "crates/p4kx-settings" }
 p4kx-testkit = { path = "crates/p4kx-testkit" }
 p4kx-texture = { path = "crates/p4kx-texture" }

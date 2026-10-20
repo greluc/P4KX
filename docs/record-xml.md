@@ -116,7 +116,7 @@ Value elements:
 the `global.ini` of that language. Without `--lang` none of this is written and the output is
 byte for byte the output described above, free of any language. With `--lang` the root element
 always declares `xmlns:p4kx`, and a localisation key that is no placeholder (`@LOC_EMPTY`,
-`@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`) and not empty is annotated:
+`@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`, `@blank_space`) and not empty is annotated:
 
 - A key written as an attribute, `label="@item_Name"`, is followed by `p4kx:text-label="Name"`
   holding its text, or by `p4kx:missing-label="true"` when the language has no text for it (no

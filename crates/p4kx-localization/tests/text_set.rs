@@ -99,6 +99,53 @@ fn a_key_without_a_text_is_missing() -> TestResult {
 }
 
 #[test]
+fn blank_space_is_a_placeholder_key_in_any_language() -> TestResult {
+    let bytes = GlobalIniBuilder::new().text("blank_space", " ").build();
+    let text = IniText::decode(&bytes)?;
+    let set = TextSet::new([(Language::English, text.index()?)]);
+    for key in ["@blank_space", "BLANK_SPACE", "@Blank_Space"] {
+        assert_eq!(
+            set.lookup(key, Language::English, None),
+            Lookup::Placeholder,
+            "{key} stands for no text"
+        );
+        assert_eq!(
+            set.to_owned_set().lookup(key, Language::English, None),
+            Lookup::Placeholder,
+            "{key} in the owned set"
+        );
+        assert!(!set.is_translated(key, Language::English), "{key}");
+    }
+    assert!(p4kx_localization::is_placeholder_key("@blank_space"));
+    Ok(())
+}
+
+#[test]
+fn a_plain_key_beats_its_comma_suffixed_line_in_lookups() -> TestResult {
+    let bytes = GlobalIniBuilder::new()
+        .text("both,P", "Suffixed")
+        .text("both", "Plain")
+        .text("pending,P", "Pending")
+        .build();
+    let text = IniText::decode(&bytes)?;
+    let set = TextSet::new([(Language::English, text.index()?)]);
+    let owned = set.to_owned_set();
+    assert_eq!(
+        set.lookup("@both", Language::English, None).text(),
+        Some("Plain")
+    );
+    assert_eq!(
+        owned.lookup("@both", Language::English, None).text(),
+        Some("Plain")
+    );
+    assert_eq!(
+        set.lookup("pending", Language::English, None).text(),
+        Some("Pending")
+    );
+    Ok(())
+}
+
+#[test]
 fn is_translated_treats_an_empty_text_as_missing_like_lookup() -> TestResult {
     let (english, german) = (english(), german());
     let (en, de) = (IniText::decode(&english)?, IniText::decode(&german)?);

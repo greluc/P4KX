@@ -31,7 +31,12 @@ jobs:
       - name: Install the ALSA headers the audio output builds against
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
-      - run: cargo fmt --all --check
+      - name: Formatting, one package at a time to keep the Windows command line short
+        shell: bash
+        run: |
+          for package in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | tr -d '\r'); do
+            cargo fmt -p "$package" --check
+          done
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - name: Comparison report schema is current

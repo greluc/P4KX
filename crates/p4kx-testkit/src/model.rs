@@ -89,6 +89,7 @@ pub struct TestModel {
     pub(crate) positions: TestPositions,
     pub(crate) normals: TestNormals,
     pub(crate) wide_indices: bool,
+    pub(crate) repeated_index_streams: usize,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
     helpers_only: bool,
@@ -116,6 +117,7 @@ impl TestModel {
             positions: TestPositions::Quantized,
             normals: TestNormals::Float,
             wide_indices: false,
+            repeated_index_streams: 0,
             extra_chunks: Vec::new(),
             single_file: false,
             helpers_only: false,
@@ -140,6 +142,13 @@ impl TestModel {
     #[must_use]
     pub const fn with_wide_indices(mut self) -> Self {
         self.wide_indices = true;
+        self
+    }
+
+    /// Writes the index stream a second time after the other streams.
+    #[must_use]
+    pub const fn with_repeated_indices(mut self) -> Self {
+        self.repeated_index_streams = 1;
         self
     }
 

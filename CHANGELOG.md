@@ -113,6 +113,9 @@ fails while its section is missing.
   linked into `p4kx`, `p4kx-gui` and `p4kx-mcp` (ISC, Unicode, MPL-2.0, Zlib, OFL and the other
   licences that were missing), plus the Lato fonts. CI fails when a dependency change leaves the
   file out of date (`cargo xtask notices`).
+- Mesh streams: a mesh chunk that holds one of the streams a model reads (indices, vertices,
+  normals, tangents) twice is reported as corrupt (`RepeatedStream`) instead of the later stream
+  silently replacing the first. No mesh chunk of LIVE, PTU, TECH-PREVIEW or EPTU does.
 - The `#ivo` chunk type table follows a survey of LIVE, PTU and TECH-PREVIEW
   (docs/chunk-types.md): twelve types that `p4kx chunks list` reported as unknown are named
   (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,

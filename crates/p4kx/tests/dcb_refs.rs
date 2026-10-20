@@ -5,7 +5,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
     real_archive_path,
@@ -85,7 +84,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 fn refs(args: &[&str], code: i32) -> Result<(String, String), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "refs"])
         .arg(&archive)
         .args(args)
@@ -209,7 +208,7 @@ fn a_query_selects_the_records_that_refer_to_a_record() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let run = |query: &str, code: i32| -> Result<String, Box<dyn Error>> {
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .args(["dcb", "query"])
             .arg(&archive)
             .arg(query)
@@ -234,7 +233,7 @@ fn a_query_selects_the_records_that_refer_to_a_record() -> TestResult {
 fn the_real_archive_has_plausible_counts_and_incoming_references_of_a_ship() -> TestResult {
     let archive = real_archive_path()?;
     let run = |args: &[&str]| -> Result<serde_json::Value, Box<dyn Error>> {
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .args(["dcb", "refs"])
             .arg(&archive)
             .args(args)

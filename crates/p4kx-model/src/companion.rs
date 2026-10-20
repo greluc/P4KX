@@ -10,6 +10,10 @@ pub enum CompanionPath<'a> {
     /// A file in the model's own folder, by file name, e.g. the geometry companion `box.cgfm` of
     /// `box.cgf`.
     Sibling(&'a str),
+    /// The material library the model names, as a path below the `Data` folder with `/` as
+    /// separator and without the `.mtl` extension, e.g. `Objects/Ships/Gladius/gladius`. The
+    /// model has checked that it is a plain path: no empty, `.` or `..` component, no drive.
+    Material(&'a str),
 }
 
 /// Supplies the companion files of a model, so that reading a model needs no Archive.

@@ -4,7 +4,8 @@
 //! files a [`CompanionResolver`] supplies: its [`Node`]s with their transforms and hierarchy, the
 //! [`Mesh`]es of each [`Lod`] with positions, normals, tangents, texture coordinates, vertex
 //! colours and indices, and the
-//! [`Submesh`]es that draw them with one material ID each. Coordinates stay in the `CryEngine`
+//! [`Submesh`]es that draw them with one material ID each, and the [`MaterialLibrary`] of the
+//! `.mtl` file the IDs index. Coordinates stay in the `CryEngine`
 //! convention, Z up, in metres. Chunks the model does not read are listed with their
 //! [`ChunkUsage`].
 
@@ -14,6 +15,11 @@ mod error;
 mod material;
 mod mesh;
 mod model;
+mod mtl;
+mod mtl_error;
+mod mtl_load;
+mod mtl_parse;
+mod mtl_xml;
 mod nmc;
 mod reader;
 mod skin;
@@ -26,4 +32,9 @@ pub use error::{CorruptChunk, ModelError};
 pub use model::{
     Bone, ChunkUsage, Lod, LodSelection, Mesh, Model, ModelChunk, ModelFile, Node, Submesh,
 };
+pub use mtl::{
+    MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, Material, MaterialFlags, MaterialLibrary, MaterialStatus,
+    TextureSlot,
+};
+pub use mtl_error::MaterialError;
 pub use transform::Transform;

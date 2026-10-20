@@ -203,6 +203,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Abfrage ausführen
 query-cancel = Abbrechen
 query-loading = DataForge wird gelesen …
+query-indexing = Referenzen werden indiziert …
 query-selecting = Records werden ausgewählt …
 query-progress = { $done } von { $total } Records, { $percent } %
 query-cancelled = Die Abfrage wurde abgebrochen.
@@ -563,6 +564,31 @@ localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
 localization-copy-key = Schlüssel kopieren
 localization-copy-text = Text kopieren
 localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:
+
+preview-tab-incoming = Referenziert von
+scroll-incoming = Verweisende Records
+incoming-head-field = Feld
+incoming-head-record = Verweisender Record
+incoming-loading = Die Records, die auf { $path } verweisen, werden gesucht …
+incoming-failed = Die Records, die auf { $path } verweisen, lassen sich nicht finden: { $reason }
+incoming-stopped = Die Suche nach den Records, die auf { $path } verweisen, brach ohne Ergebnis ab.
+incoming-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um die Records zu finden, die auf einen Record verweisen.
+incoming-none = Kein Record verweist auf diesen Record.
+incoming-follow = Den Record { $path } öffnen, der in { $field } auf diesen Record verweist
+incoming-summary = { $references } von { $records }
+incoming-reference-count =
+    { $count ->
+        [one] { $number } Referenz
+       *[other] { $number } Referenzen
+    }
+incoming-record-count =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+incoming-truncated = Die ersten { $shown } von { $total } Referenzen sind aufgelistet.
+incoming-incomplete = Einige Records ließen sich nicht lesen oder der Index ist voll, daher kann die Liste Referenzen auslassen.
+
 preview-key-required = { $path } ist verschlüsselt. Gib den Archiv-Schlüssel ein, um es zu lesen.
 preview-key-rejected = Der Archiv-Schlüssel entschlüsselt { $path } nicht. Gib den richtigen Schlüssel ein, um es zu lesen.
 key-menu = Archiv-Schlüssel…

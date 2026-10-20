@@ -122,9 +122,20 @@ pointer, the stored data type, becomes a Reference into its own Record, with the
 instance it points to.
 _Avoid_: pointer (alone); weak pointer for the link itself
 
+**Incoming Reference**:
+A Reference seen from its target: the Reference that a Record is the target of, with the Record that holds
+it and its field and array indices. The Reference index answers which Records refer to a Record, how
+often and from how many Records; `p4kx dcb refs` and the Referenced by tab list them.
+_Avoid_: backlink, reverse Reference
+
+**File graph**:
+The record files of a DataForge with an edge from one file to every other file that a Record of it
+refers to.
+
 **Unresolved Reference**:
 A null or dangling link that a Query path follows with `->`; it reaches null and is counted
- once per row in the Query result, however many paths of the row meet it.
+ once per row in the Query result, however many paths of the row meet it. The Reference index also
+ keeps every Reference to a GUID no Record has and counts it.
 _Avoid_: broken link, missing Reference
 
 **Query**:

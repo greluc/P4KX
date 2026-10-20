@@ -7,7 +7,8 @@ this shape: `where` filters follow `select`, and `[n]`, `[*]`, `[TypeName]` and 
 a dot path. `from <Type>` selects the Records of that struct and of every struct deriving from
 it. The glob follows the rules of a Filter, type and field names are case-sensitive with a
 suggestion for a near miss, keywords ignore case, and rows are ordered by record path and then
-by Record definition order. The grammar is defined in [docs/query.md](../query.md). Decided by
+by Record definition order. `referencing "<GUID or record path>"` selects the Records that hold a
+Reference to the named Record ([ADR-0029](0029-references-are-indexed-once-per-archive-from-record-trees.md)). The grammar is defined in [docs/query.md](../query.md). Decided by
 the owner.
 
 ## Considered Options

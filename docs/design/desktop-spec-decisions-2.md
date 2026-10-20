@@ -204,6 +204,34 @@ Hinweises auf Text und Hex, die hier die Bank zeigen. Eine unlesbare Bank steht 
 Liste ist eine Tabelle und kein Baum, weil die Bank keine Ebenen kennt; Ereignisse und Auslöser
 gehören zur Auflösung der Sounds (M11).
 
+**D.34 Reiter „Referenziert von" listet die verweisenden Records.** Ist ein Record gewählt, steht
+nach „Record" ein weiterer Reiter der Vorschau-Leiste (D.1 Tab-Leiste, 44 px, gleiche Beschriftung
+wie die übrigen Reiter in Versalien). Der Reiter erfindet nichts Eigenes: Er zeigt unter der
+Pfadzeile (32 px, Record-Pfad und Name wie im Record-Reiter) eine Zählzeile im Rahmen des
+Vorschau-Körpers („3 Referenzen von 2 Records", 14,4 / 400 `color-gray-1`, wie die Zählzeile
+der Abfrage und der `.page-status` der Pagination des Design Systems, das keine eigene
+Zählzeile kennt) und darunter dieselbe virtuelle Liste wie der Record-Reiter: Tabellenkopf 36 px mit den Spalten „Feld" und
+„Verweisender Record" zu gleichen Hälften, Zeilen 36 px mit Zebra, Hover `control-bg` und
+Trennlinie. Links steht das Feld des verweisenden Records mit Array-Index (`Components[3].maker`,
+`color-gray-1`, 13,76 / 400), rechts der Link auf den verweisenden Record (`color-primary`, 12,8 / 700, Hover
+`color-accent-light` mit Unterstreichung, Fokusring wie beim Reference-Link des Record-Reiters)
+und dahinter sein Typ als Trailer in `color-gray-2-text`. Der Link heißt für Screenreader „Den
+Record … öffnen, der in … auf diesen Record verweist" und nennt so Record und Feld. Ein Klick
+folgt dem Link wie die Referenz im Record-Reiter, bleibt aber im Reiter „Referenziert von", damit
+man sich durch die Verweise bewegen kann; Zurück und Vor (Alt+←/Alt+→) gelten für beide Reiter.
+Die Liste endet bei 10.000 Zeilen; darüber meldet eine zweite Zeile in `color-gray-2-text`, wie
+viele von wie vielen Referenzen aufgelistet sind. Fehlt ein Teil des Index (Records, die sich nicht
+lesen ließen, oder ein voller Index), steht unter der Zählzeile ein `.alert--warning` in der
+vollen Breite des Körpers (x 16), auch wenn kein Record verweist. Der Index wird erst beim ersten
+Öffnen des Reiters gebaut: bis dahin steht im Körper der Inline-Spinner (14) mit „Die Records, die
+auf … verweisen, werden gesucht …" in `color-gray-1`, ein Fehler in `color-danger-text`, ein
+geändertes Archiv in `color-warning` (D.8), ein Record ohne Verweise „Kein Record verweist auf
+diesen Record." in `color-gray-2-text`. Der Reiter erscheint nur, solange ein Record gewählt ist;
+wählt man einen Eintrag, kehrt die Vorschau zu „Text" zurück wie bei den anderen Reitern. Mit
+dem Reiter sind es bis zu sechs Reiter neben Zurück, Vor und Kopieren; passen sie nicht in die
+Leiste, bleibt rechts Platz für diese Schaltflächen und die Reiter scrollen waagerecht mit dem
+Mausrad (`.tab-nav` hat `overflow-x: auto`), der gewählte Reiter wird sichtbar gehalten.
+
 **D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
 P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
 Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Das Modal hat die

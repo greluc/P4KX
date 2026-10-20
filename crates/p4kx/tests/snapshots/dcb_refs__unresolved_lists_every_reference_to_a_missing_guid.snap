@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"--unresolved\"])?"
+---
+record path       name        field       GUID
+----------------  ----------  ----------  ------------------------------------
+libs/ships/alpha  Ship.Alpha  escorts[2]  00000000-0000-0000-0000-000000000099
+libs/ships/beta   Ship.Gamma  maker       00000000-0000-0000-0000-000000000099
+2 unresolved References

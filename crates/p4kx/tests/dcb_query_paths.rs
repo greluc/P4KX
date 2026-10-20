@@ -241,6 +241,18 @@ fn the_documented_component_examples_select_values_of_a_real_archive() -> TestRe
              where Components[SAttachableComponentParams].AttachDef.Size >= 7",
             "[WeaponGun]",
         ),
+        (
+            "from EntityClassDefinition at \"*/ships/weapons/*\" \
+             referencing \"libs/foundry/records/scitemmanufacturer/personalweapons/scitemmanufacturer.behr\" \
+             select Components[SAttachableComponentParams].AttachDef.Size",
+            "[4]",
+        ),
+        (
+            "referencing \"65a5d887-3b21-4046-a718-6912c0c7c3be\" \
+             select Components[SAttachableComponentParams].AttachDef.Type \
+             where Components[SAttachableComponentParams].AttachDef.Size >= 7",
+            "[MissileLauncher]",
+        ),
     ];
     for (text, value) in examples {
         let output = p4kx_testkit::p4kx()?

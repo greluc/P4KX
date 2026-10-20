@@ -57,6 +57,7 @@ mod tracker;
 mod ui_disk_path;
 mod ui_external;
 mod ui_extract;
+mod ui_imports;
 mod ui_jobs;
 mod ui_movie;
 mod ui_render;
@@ -142,6 +143,10 @@ pub use texture_exr::ExrReport;
 pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_imports::{
+    ImportIssue, ImportReport, MAX_IMPORT_BYTES, MAX_IMPORT_DEPTH, MAX_IMPORTED_FONTS,
+    MAX_IMPORTED_MOVIES, UnresolvedImport,
+};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
 pub use ui_svg::UiSvg;

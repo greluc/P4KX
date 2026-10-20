@@ -1,7 +1,7 @@
 //! The display list of the first frame: placements, changes and removals with matrices, colour
 //! transforms and the `PlaceObject3` extras.
 
-use p4kx_gfx::{ColorTransform, Matrix, Movie, OtherDefinition, Rgba};
+use p4kx_gfx::{ColorTransform, FilterKind, Matrix, Movie, OtherDefinition, Rgba};
 use p4kx_testkit::{
     TestMovie, TestPlace, TestSignature, background_body, remove_object2_body, sprite_body,
 };
@@ -92,10 +92,21 @@ fn the_first_frame_keeps_what_its_tags_place_change_and_remove() {
         "colour transform"
     );
     assert_eq!(needle.name.as_deref(), Some("needle"), "name");
-    assert!(needle.has_filters, "filters");
     assert_eq!(needle.blend_mode, 3, "blend mode after the filters");
     assert!(!needle.visible, "hidden");
     assert_eq!(assets.timeline.placed, [5, 6, 7, 8], "every placed ID");
+}
+
+#[test]
+fn the_filters_of_a_placement_are_kept_by_kind_with_their_parameters() {
+    let movie = movie(&placements());
+    let assets = movie.assets();
+    let filters: Vec<(FilterKind, usize)> = assets.timeline.first_frame[1]
+        .filters
+        .iter()
+        .map(|filter| (filter.kind, filter.data.len()))
+        .collect();
+    assert_eq!(filters, [(FilterKind::Blur, 9)], "filters");
 }
 
 #[test]

@@ -298,22 +298,37 @@ fn keys_are_localised_with_their_parameters_and_unknown_keys_are_listed() {
 }
 
 #[test]
-fn fonts_of_other_movies_are_used_after_the_fonts_of_the_movie() {
+fn fonts_of_other_movies_are_found_by_name_only() {
     let donor = Movie::parse(with_font().tag(1, &[]).bytes())
         .unwrap_or_else(|error| unreachable!("{error}"));
     let donor_assets = donor.assets();
-    let bytes = stage()
-        .tag(37, &plain("A").body())
-        .tag(26, &TestPlace::new(1, 7).body2())
-        .tag(1, &[])
-        .bytes();
     let options = TextOptions {
         fonts: &donor_assets.fonts,
         localise: None,
     };
+    let by_name = TestEditText::new(7, FIELD)
+        .text("A")
+        .font_class("Orbitron", HEIGHT)
+        .color(GREEN);
+    let bytes = stage()
+        .tag(37, &by_name.body())
+        .tag(26, &TestPlace::new(1, 7).body2())
+        .tag(1, &[])
+        .bytes();
     let raster = rasterize(&compose(&bytes, &options));
     assert!(raster.skipped.is_empty(), "{:?}", raster.skipped);
     assert_pixel(&raster.image, (6, 36), GREEN, 0);
+    let by_id = stage()
+        .tag(37, &plain("A").body())
+        .tag(26, &TestPlace::new(1, 7).body2())
+        .tag(1, &[])
+        .bytes();
+    let raster = rasterize(&compose(&by_id, &options));
+    assert_eq!(
+        codes(&raster),
+        ["missing_font"],
+        "the ID of a font in another movie means nothing"
+    );
 }
 
 #[test]

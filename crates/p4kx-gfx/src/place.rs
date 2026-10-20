@@ -101,8 +101,8 @@ pub struct Placement {
     pub clip_depth: Option<u16>,
     /// The blend mode of `PlaceObject3`; 0 and 1 mean normal.
     pub blend_mode: u8,
-    /// Whether `PlaceObject3` gives the placement filters.
-    pub has_filters: bool,
+    /// The filters `PlaceObject3` gives the placement, in order.
+    pub filters: Vec<Filter>,
     /// Whether the placement is shown.
     pub visible: bool,
 }
@@ -119,7 +119,7 @@ pub(crate) struct PlaceCommand {
     pub(crate) name: Option<String>,
     pub(crate) clip_depth: Option<u16>,
     pub(crate) blend_mode: Option<u8>,
-    pub(crate) has_filters: bool,
+    pub(crate) filters: Option<Vec<Filter>>,
     pub(crate) visible: Option<bool>,
 }
 
@@ -135,7 +135,7 @@ impl PlaceCommand {
             name: None,
             clip_depth: None,
             blend_mode: None,
-            has_filters: false,
+            filters: None,
             visible: None,
         }
     }
@@ -154,7 +154,7 @@ impl PlaceCommand {
                 name: None,
                 clip_depth: None,
                 blend_mode: 0,
-                has_filters: false,
+                filters: Vec::new(),
                 visible: true,
             },
             (current, None) => return current,
@@ -177,7 +177,9 @@ impl PlaceCommand {
         if let Some(blend_mode) = self.blend_mode {
             placement.blend_mode = blend_mode;
         }
-        placement.has_filters |= self.has_filters;
+        if let Some(filters) = self.filters {
+            placement.filters = filters;
+        }
         if let Some(visible) = self.visible {
             placement.visible = visible;
         }
@@ -225,8 +227,7 @@ pub(crate) fn read_place(tag: &Tag<'_>) -> Result<PlaceCommand, GfxError> {
         command.clip_depth = Some(reader.u16()?);
     }
     if flags3 & PLACE3_HAS_FILTERS != 0 {
-        command.has_filters = true;
-        skip_filters(&mut reader)?;
+        command.filters = Some(read_filters(&mut reader)?);
     }
     if flags3 & PLACE3_HAS_BLEND_MODE != 0 {
         command.blend_mode = Some(reader.u8()?);
@@ -268,25 +269,70 @@ pub(crate) fn read_color_transform(
     Ok(transform)
 }
 
-/// Skips a FILTERLIST; its filters are not kept.
-fn skip_filters(reader: &mut TagReader<'_>) -> Result<(), GfxError> {
-    let count = reader.u8()?;
+/// The kind of a filter of a placement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FilterKind {
+    /// A drop shadow.
+    DropShadow,
+    /// A blur.
+    Blur,
+    /// A glow.
+    Glow,
+    /// A bevel.
+    Bevel,
+    /// A glow with a gradient.
+    GradientGlow,
+    /// A convolution matrix.
+    Convolution,
+    /// A colour matrix.
+    ColorMatrix,
+    /// A bevel with a gradient.
+    GradientBevel,
+}
+
+/// A filter of a placement: its kind and its parameters as the tag stores them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Filter {
+    /// The kind.
+    pub kind: FilterKind,
+    /// The parameters after the type byte, not decoded.
+    pub data: Vec<u8>,
+}
+
+/// Reads a FILTERLIST.
+fn read_filters(reader: &mut TagReader<'_>) -> Result<Vec<Filter>, GfxError> {
+    let count = usize::from(reader.u8()?);
+    let mut filters = Vec::with_capacity(count);
     for _ in 0..count {
-        let len = match reader.u8()? {
-            0 => 23,
-            1 => 9,
-            2 => 15,
-            3 => 27,
-            6 => 80,
-            4 | 7 => usize::from(reader.u8()?) * 5 + 19,
-            5 => {
-                let columns = usize::from(reader.u8()?);
-                let rows = usize::from(reader.u8()?);
-                8 + columns * rows * 4 + 5
-            }
+        let code = reader.u8()?;
+        let (kind, len) = match code {
+            0 => (FilterKind::DropShadow, 23),
+            1 => (FilterKind::Blur, 9),
+            2 => (FilterKind::Glow, 15),
+            3 => (FilterKind::Bevel, 27),
+            4 => (FilterKind::GradientGlow, 0),
+            5 => (FilterKind::Convolution, 0),
+            6 => (FilterKind::ColorMatrix, 80),
+            7 => (FilterKind::GradientBevel, 0),
             kind => return Err(GfxError::Filter { kind }),
         };
-        reader.bytes(len)?;
+        let mut data = Vec::new();
+        let len = match kind {
+            FilterKind::GradientGlow | FilterKind::GradientBevel => {
+                let colours = reader.u8()?;
+                data.push(colours);
+                usize::from(colours) * 5 + 19
+            }
+            FilterKind::Convolution => {
+                let columns = reader.u8()?;
+                let rows = reader.u8()?;
+                data.extend_from_slice(&[columns, rows]);
+                8 + usize::from(columns) * usize::from(rows) * 4 + 5
+            }
+            _ => len,
+        };
+        data.extend_from_slice(reader.bytes(len)?);
+        filters.push(Filter { kind, data });
     }
-    Ok(())
+    Ok(filters)
 }

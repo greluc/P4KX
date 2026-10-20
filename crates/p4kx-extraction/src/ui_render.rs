@@ -8,6 +8,7 @@ use p4kx_localization::decode_line_breaks;
 
 use crate::output_file::{write_error, write_replacing};
 use crate::texture_parts::is_same_file;
+use crate::ui_imports::{ImportReport, ImportedFonts, resolve_fonts};
 use crate::ui_movie::Origin;
 use crate::ui_render_bitmaps::FrameBitmaps;
 use crate::{ConversionError, UiMovie};
@@ -36,6 +37,8 @@ pub struct UiRender {
     pub bitmap_failures: Vec<UiBitmapFailure>,
     /// The tags of the movie that could not be read, whose definitions are therefore missing.
     pub tag_failures: Vec<TagFailure>,
+    /// The movies read to resolve imported fonts and the fonts that were not found.
+    pub imports: ImportReport,
 }
 
 /// A composed first frame with its decoded bitmaps.
@@ -43,6 +46,7 @@ pub(crate) struct ComposedFrame {
     pub(crate) scene: Scene,
     pub(crate) bitmaps: FrameBitmaps,
     pub(crate) tag_failures: Vec<TagFailure>,
+    pub(crate) imports: ImportReport,
 }
 
 impl UiRender {
@@ -76,6 +80,7 @@ impl UiMovie<'_> {
             skipped: raster.skipped,
             bitmap_failures: frame.bitmaps.failures,
             tag_failures: frame.tag_failures,
+            imports: frame.imports,
         })
     }
 
@@ -92,8 +97,12 @@ impl UiMovie<'_> {
                 .resolve(key)
                 .map(|text| decode_line_breaks(text).into_owned())
         };
+        let imported = match self.origin() {
+            Origin::Entry(archive) => resolve_fonts(archive, self.name(), &assets),
+            Origin::File(_) => ImportedFonts::default(),
+        };
         let text_options = TextOptions {
-            fonts: &[],
+            fonts: &imported.fonts,
             localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
         };
         let scene = self.movie().first_frame_with_text(&assets, &text_options);
@@ -105,6 +114,7 @@ impl UiMovie<'_> {
             scene,
             bitmaps,
             tag_failures: std::mem::take(&mut assets.failures),
+            imports: imported.report,
         })
     }
 

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::font::{Font, FontFormat};
+use crate::import::Import;
 
 const EM: f32 = 1024.0;
 const EM_FONT3: f32 = 20_480.0;
@@ -18,7 +19,9 @@ pub type Localise<'a> = &'a dyn Fn(&str) -> Option<String>;
 /// box and listed in the report.
 #[derive(Clone, Copy, Default)]
 pub struct TextOptions<'a> {
-    /// Fonts of other movies, searched by ID and name after the fonts of the movie.
+    /// Fonts of other movies, searched by name only (the name, the full name and the export name)
+    /// after the fonts of the movie; the IDs they have in their own movie mean nothing here. A
+    /// font the movie imports is found by the name it imports it under.
     pub fonts: &'a [Font],
     /// Looks a localisation key up, without its `@`; `None` leaves the key as it is.
     pub localise: Option<Localise<'a>>,
@@ -80,27 +83,46 @@ impl FontIndex {
 /// The fonts a frame can draw with: those of the movie, then those of the options.
 pub(crate) struct Fonts<'b> {
     list: Vec<&'b Font>,
+    usable: Vec<bool>,
     by_id: HashMap<u16, usize>,
     by_name: HashMap<String, usize>,
     indexes: Vec<OnceCell<FontIndex>>,
 }
 
 impl<'b> Fonts<'b> {
-    pub(crate) fn new(movie: &'b [Font], extra: &'b [Font]) -> Self {
+    pub(crate) fn new(movie: &'b [Font], extra: &'b [Font], imports: &[Import]) -> Self {
         let list: Vec<&Font> = movie.iter().chain(extra).collect();
         let mut by_id = HashMap::new();
         let mut by_name = HashMap::new();
+        let mut by_export = HashMap::new();
         for (at, font) in list.iter().enumerate() {
-            by_id.entry(font.id).or_insert(at);
+            if at < movie.len() {
+                by_id.entry(font.id).or_insert(at);
+            }
             for name in std::iter::once(&font.name).chain(font.full_name.as_ref()) {
                 if !name.is_empty() {
                     by_name.entry(name.to_ascii_lowercase()).or_insert(at);
                 }
             }
+            if let Some(name) = font.export_name.as_ref().filter(|name| !name.is_empty()) {
+                by_export.entry(name.to_ascii_lowercase()).or_insert(at);
+                by_name.entry(name.to_ascii_lowercase()).or_insert(at);
+            }
+        }
+        for asset in imports.iter().flat_map(|import| &import.assets) {
+            let name = asset.name.to_ascii_lowercase();
+            if let Some(&at) = by_export.get(&name).or_else(|| by_name.get(&name)) {
+                by_id.entry(asset.id).or_insert(at);
+            }
         }
         let indexes = list.iter().map(|_| OnceCell::new()).collect();
+        let usable = list
+            .iter()
+            .map(|font| font.glyphs.iter().any(|glyph| !glyph.records.is_empty()))
+            .collect();
         Self {
             list,
+            usable,
             by_id,
             by_name,
             indexes,
@@ -113,6 +135,11 @@ impl<'b> Fonts<'b> {
 
     pub(crate) fn by_name(&self, name: &str) -> Option<usize> {
         self.by_name.get(&name.to_ascii_lowercase()).copied()
+    }
+
+    /// Returns whether the font `at` has glyph outlines to draw.
+    pub(crate) fn usable(&self, at: usize) -> bool {
+        self.usable.get(at).copied().unwrap_or(false)
     }
 
     pub(crate) fn get(&self, at: usize) -> Option<&'b Font> {

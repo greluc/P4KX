@@ -5,17 +5,21 @@ use crate::assets::{Assets, OtherDefinition, TagCount, TagFailure, UnknownTag};
 use crate::bitmap::{read_external, read_jpeg, read_lossless, read_sub_image};
 use crate::font::{FontFormat, read_compacted_font, read_font1, read_font2};
 use crate::font_info::{FontInfo, read_font_info, read_font_name, read_font4};
+use crate::import::{read_import, read_scaling_grid, read_symbol_classes};
 use crate::morph::read_morph_shape;
 use crate::place::read_place;
 use crate::shape::{RecordBudget, read_shape};
 use crate::tag::{Tag, TagStream, tag_name};
 use crate::text::{GlyphBudget, read_edit_text, read_static_text};
-use crate::timeline::{DisplayList, Sprite, Timeline, placed_id, read_exporter_info, read_exports};
+use crate::timeline::{
+    DisplayList, FrameLabel, MAX_FRAME_PLACEMENTS, Sprite, Timeline, placed_id, read_exporter_info,
+    read_exports,
+};
 
 /// The definition tags that a placement may name but that are not read: buttons and video.
 const OTHER_DEFINITIONS: [u16; 3] = [7, 34, 60];
 
-/// Applies a `PlaceObject` or `RemoveObject` tag of the first frame to its display list.
+/// Applies a `PlaceObject` or `RemoveObject` tag to its display list.
 fn read_display_tag(tag: &Tag<'_>, display_list: &mut DisplayList) -> Result<(), GfxError> {
     match tag.code {
         4 | 26 | 70 => display_list.place(read_place(tag)?),
@@ -36,6 +40,10 @@ pub(crate) struct Walker<'a> {
     text_budget: GlyphBudget,
     font_infos: Vec<FontInfo>,
     font_names: Vec<(u16, String)>,
+    unread: BTreeMap<u16, u32>,
+    imported: usize,
+    frame_placements: usize,
+    frames_capped: bool,
 }
 
 impl<'a> Walker<'a> {
@@ -48,6 +56,10 @@ impl<'a> Walker<'a> {
             text_budget: GlyphBudget::MOVIE,
             font_infos: Vec::new(),
             font_names: Vec::new(),
+            unread: BTreeMap::new(),
+            imported: 0,
+            frame_placements: 0,
+            frames_capped: false,
         };
         walker.assets.timeline = walker.walk(data, base, 0);
         walker.finish()
@@ -74,6 +86,20 @@ impl<'a> Walker<'a> {
                 font.full_name = Some(name);
             }
         }
+        for export in &self.assets.exports {
+            if let Some(font) = fonts
+                .get(&export.id)
+                .and_then(|&index| self.assets.fonts.get_mut(index))
+                && font.export_name.is_none()
+            {
+                font.export_name = Some(export.name.clone());
+            }
+        }
+        self.assets.unread_tags = self
+            .unread
+            .into_iter()
+            .map(|(code, count)| TagCount { code, count })
+            .collect();
         self.assets.tag_counts = self
             .counts
             .into_iter()
@@ -102,14 +128,39 @@ impl<'a> Walker<'a> {
             timeline.tag_count += 1;
             if let Err(error) = self.read_tag(&tag, &mut timeline, depth) {
                 self.fail(tag.code, tag.offset, error);
-            } else if timeline.frames == 0
-                && let Err(error) = read_display_tag(&tag, &mut display_list)
-            {
+            } else if let Err(error) = read_display_tag(&tag, &mut display_list) {
                 self.fail(tag.code, tag.offset, error);
+            }
+            if tag.code == 1 {
+                self.end_frame(&mut timeline, &display_list, tag.offset);
             }
         }
         timeline.finish(display_list);
         timeline
+    }
+
+    fn end_frame(&mut self, timeline: &mut Timeline, display_list: &DisplayList, offset: usize) {
+        if timeline.frames == 1 {
+            timeline.first_frame = display_list.snapshot();
+        }
+        let total = self.frame_placements.saturating_add(display_list.len() + 1);
+        if total > MAX_FRAME_PLACEMENTS {
+            if !self.frames_capped {
+                self.frames_capped = true;
+                self.fail(
+                    1,
+                    offset,
+                    GfxError::TooManyFramePlacements {
+                        limit: MAX_FRAME_PLACEMENTS,
+                    },
+                );
+            }
+            return;
+        }
+        if !self.frames_capped {
+            self.frame_placements = total;
+            timeline.frame_lists.push(display_list.snapshot());
+        }
     }
 
     fn fail(&mut self, code: u16, offset: usize, error: GfxError) {
@@ -131,7 +182,13 @@ impl<'a> Walker<'a> {
         match tag.code {
             1 => timeline.frames += 1,
             4 | 26 | 70 => timeline.placed.extend(placed_id(tag)?),
-            43 => timeline.labels.push(tag.reader().c_string()?.into_owned()),
+            43 => timeline.labels.push(FrameLabel {
+                frame: timeline.frames,
+                name: tag.reader().c_string()?.into_owned(),
+            }),
+            57 | 71 => assets.imports.push(read_import(tag, &mut self.imported)?),
+            76 => assets.symbol_classes.extend(read_symbol_classes(tag)?),
+            78 => assets.scaling_grids.push(read_scaling_grid(tag)?),
             2 => assets.shapes.push(read_shape(tag, 1, &mut self.budget)?),
             22 => assets.shapes.push(read_shape(tag, 2, &mut self.budget)?),
             32 => assets.shapes.push(read_shape(tag, 3, &mut self.budget)?),
@@ -183,13 +240,15 @@ impl<'a> Walker<'a> {
                     id: tag.reader().u16()?,
                     code,
                 });
+                *self.unread.entry(code).or_default() += 1;
             }
             code if tag_name(code).is_none() => assets.unknown_tags.push(UnknownTag {
                 code,
                 offset: tag.offset,
                 body: tag.body,
             }),
-            _ => {}
+            0 | 5 | 28 => {}
+            code => *self.unread.entry(code).or_default() += 1,
         }
         Ok(())
     }

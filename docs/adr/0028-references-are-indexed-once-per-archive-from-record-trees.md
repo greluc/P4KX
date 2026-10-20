@@ -5,7 +5,7 @@ every Record: a Reference is stored in the instance of the Record that holds it,
 points back. StarBreaker answers it per call by parsing the DataForge again and scanning only the
 main Records, so it misses References held by non-main Records. The index must cover every
 Record, keep the field and the array elements of each Reference, keep References to a GUID no
-Record has, and be built once per open Archive: the DataForge of LIVE holds about three million
+Record has, and be built once per open Archive: the DataForge of LIVE holds millions of
 References.
 
 `ReferenceIndex` in `p4kx-dataforge` reads the canonical tree of every Record

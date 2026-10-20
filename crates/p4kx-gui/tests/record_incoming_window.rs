@@ -10,7 +10,7 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{Browser, IncomingStatus, Language, Model, PreviewTab, RecordPreviewStatus, ui};
-use previewing_records::{ITEM_PATH, SHIP_PATH, TestResult, archive, database};
+use previewing_records::{ITEM_PATH, MAKER_PATH, SHIP_PATH, TestResult, archive, database};
 use tempfile::TempDir;
 
 fn window(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
@@ -96,6 +96,7 @@ fn the_tab_lists_the_referring_records_and_a_line_follows_its_record() -> TestRe
         .click();
     wait_until(&mut harness, listed)?;
 
+    assert_eq!(selected_path(harness.state()).as_deref(), Some(MAKER_PATH));
     assert_eq!(
         harness.state().preview_tab(),
         PreviewTab::Incoming,

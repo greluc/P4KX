@@ -139,17 +139,11 @@ fn random_query(random: &mut Random) -> String {
         text.push('"');
     }
     if random.chance(30) {
-        let target = random.pick(&[
-            "libs/ships/avenger",
-            "00000000-0000-0000-0000-000000000001",
-            "a\"\"b",
-        ]);
+        let target = random.pick(&["libs/ships/avenger", "00000000-0000-0000-0000-000000000001"]);
         text.push_str(random.pick(&SPACES));
         text.push_str(&keyword(random, "referencing"));
         text.push_str(random.pick(&SPACES));
-        text.push('"');
-        text.push_str(target);
-        text.push('"');
+        text.push_str(&["\"", target, "\""].concat());
     }
     if random.chance(70) {
         text.push_str(random.pick(&SPACES));

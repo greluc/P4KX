@@ -135,6 +135,12 @@ Early development (milestone M1). Available today:
   [docs/cli-json.md](docs/cli-json.md). A streamed WEM is located as its loose WEM Entry, and
   localised sounds are resolved for `--lang <language>` with `--fallback-lang` (`English(US)` by
   default), e.g. `WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem`.
+- `p4kx wwise events <archive> [--search <text>]` searches the audio triggers and the Wwise events
+  they post by name (a substring or a glob such as `Play_*_Spool`, ignoring case) and lists each
+  trigger with its events, their soundbanks and the Entities that name it, in definition order;
+  `--limit` and `--offset` page through large results, `--entities` bounds the Entities listed
+  per trigger, `--no-entities` skips the DataForge, and `--json` gives the shape in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are

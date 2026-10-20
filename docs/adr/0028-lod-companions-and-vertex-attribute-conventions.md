@@ -23,10 +23,11 @@ file: the submeshes of a LOD companion name the nodes of the base `NodeMeshCombo
 
 The vertex stream stores a colour of four bytes before the texture coordinates. The bytes are
 read as blue, green, red, alpha and written as RGBA, after StarBreaker and the engine's
-`B8G8R8A8` vertex colour; Cryengine-Converter reads them as RGBA. The data cannot tell: the red
-and blue channels carry masks and tints, not anything that identifies them (mostly opaque white,
-then magenta, red and blue masks). If the order is wrong, red and blue are swapped in every
-exported colour; the choice is one function (`VertexStream::colour`).
+`B8G8R8A8` vertex colour; Cryengine-Converter reads them as RGBA. The names of the models of LIVE
+confirm BGRA: counting the files that are mostly red or mostly blue under that reading, those
+named `blue` are 16 red and 104 blue, `red` 60 and 20, `orange` 84 and 4, `yellow` 52 and 4; the
+frequent colours of the orange ones are orange (164, 104, 70) and red (137, 0, 0). A real-Archive
+test asserts it. The choice is one function (`VertexStream::colour`).
 
 A mesh whose colours are all opaque white has none (`Mesh::colours` is `None`), because viewers
 multiply the material's base colour by `COLOR_0`. The GLB writer writes `COLOR_0` for the other
@@ -47,4 +48,5 @@ belongs to the material export (#104).
   and makes `--lod n` of different n identical; rejected.
 - Stop probing at the first missing level: a model of LIVE has only LOD4, and probing is a
   lookup.
-- Read colours as RGBA (Cryengine-Converter): see above.
+- Read colours as RGBA (Cryengine-Converter): contradicted by the colour words in the file names,
+  see above.

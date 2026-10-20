@@ -655,8 +655,8 @@ of a known type and `null` for an unknown one, which `known` marks as well; `typ
 the chunk ID of `CrCh` and `null` in `#ivo`, and `byte_order` `little` or `big`, which only `CrCh`
 chunks can be. `#ivo` stores no sizes: `size` is then the distance to the next greater offset of
 any chunk, the chunk table or the end of the file, alignment padding included, so chunks that
-share an offset share their span; the table may list chunks in any order. A file that is no chunk file, has
-another container version or is truncated prints no JSON; it fails with exit code 3.
+share an offset share their span; the table may list chunks in any order. A file that is no chunk
+file, has another container version or is truncated prints no JSON; it fails with exit code 3.
 
 ## `p4kx chunks dump <archive> <entry> --chunk <index> --out <file> --json`
 
@@ -706,8 +706,9 @@ absent from the list. `normals`, `tangents` and `colours` say whether the mesh s
 (`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
 submesh in its mesh's triangle list. `bones` lists `name` and `parent`
 of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
-geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when the model was read
-from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
+geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
+the model was read from it, `skipped` for a known type the model does not read and `unknown` for
+an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
@@ -755,10 +756,35 @@ the Record files relative to the folder of the DataForge Entry. Otherwise that f
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled and, once a cancelled run
 had written a soundbank itself, each of its WEMs not unpacked as `<bank> WEM <ID>`, after the
-Entries. The Entries in all three are in Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
+Entries. The Entries in all three are in Archive order. With `--verify` the report also holds `"mismatched": [{"path":
+"Data\\x.xml", "kind": "crc32c", "expected": "12345678", "actual": "b492e797"}]`, the Entries
+whose data did not match the checksum of the directory, as in [`p4kx verify`](#p4kx-verify-archive---filter-filter---json);
+they are not repeated in `failed`, and none of them is written. Without `--verify` the field is
+absent. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
 when the Archive changed on disk after it was opened: the Extraction then stops, the Entries not
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
-`failed` or `cancelled` is not empty.
+`failed`, `mismatched` or `cancelled` is not empty.
+
+## `p4kx verify <archive> [--filter <filter>] --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "verified": 1362045,
+ "mismatched": [{"path": "Data\\Libs\\x.xml", "kind": "crc32c",
+                 "expected": "12345678", "actual": "b492e797"}],
+ "failed": [{"path": "Data\\broken.xml", "error": "cannot read the Entry data"}],
+ "cancelled": [], "archive_changed": false}
+```
+
+`verified` counts the Entries whose data matched the checksum of the directory. `mismatched`
+lists the Entries whose data did not, with the kind of the checksum (`crc32c` in an Archive,
+`crc32` in a container) and the stored (`expected`) and computed (`actual`) value as eight
+lower-case hex digits; `failed` lists the Entries that could not be read or decoded, with the
+reason and its causes joined by `: `; `cancelled` lists the Entries not checked because the run was
+cancelled. The three lists are in Archive order. `archive_changed` is `true` when the Archive
+changed on disk: the run then stops and the exit code is 4. Otherwise the exit code is 1 when
+`mismatched`, `failed` or `cancelled` is not empty. `p4kx socpak verify <archive> <container…>
+--json` prints the same document for the Entries of the last container; its `archive` is the
+Archive path followed by the Entry paths of the containers.
 
 ## `p4kx compare <old> <new> --json`
 

@@ -123,6 +123,34 @@ fn a_model_without_levels_beyond_the_base_has_one() -> TestResult {
 }
 
 #[test]
+fn a_cga_model_reads_its_cgam_companions_and_hierarchy() -> TestResult {
+    let hull = two_levels();
+    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        let CompanionPath::Sibling(name) = path else {
+            return Ok(None);
+        };
+        Ok(match name {
+            "hull.cgam" => Some(hull.cgfm()),
+            "hull_lod1.cgam" => hull.lod_cgfm(1),
+            _ => None,
+        })
+    };
+    let file = ChunkFile::parse(hull.cgf())?;
+    let model = Model::read_with("hull.cga", &file, &mut companions, LodSelection::All)?;
+
+    assert_eq!(model.geometry.as_deref(), Some("hull.cgam"), "the base");
+    let levels: Vec<u32> = model.lods.iter().map(|lod| lod.level).collect();
+    assert_eq!(levels, [0, 1], "hull_lod1.cgam is LOD1");
+    assert_eq!(model.nodes.len(), 2, "the hierarchy of the .cga");
+    assert_eq!(
+        model.nodes.get(1).and_then(|node| node.parent),
+        Some(0),
+        "the child node"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_level_without_companion_is_a_gap() -> TestResult {
     let cube = TestModel::cube()
         .with_lod(caps_only())

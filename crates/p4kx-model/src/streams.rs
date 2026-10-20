@@ -111,6 +111,8 @@ impl NormalKind {
 
     /// The preference between the normal sources of one mesh; the packed vectors of the second
     /// normal tag come last, as they disagree with the tangent frames of the meshes that hold both.
+    /// Equal ranks keep the stream read first, so a mesh with `QTANGENTS` and 8-byte `TANGENTS`
+    /// takes normal and tangent from the same frame.
     const fn rank(self) -> u8 {
         match self {
             Self::Float => 5,

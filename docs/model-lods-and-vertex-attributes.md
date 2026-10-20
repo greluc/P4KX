@@ -50,11 +50,18 @@ extension, 286 of 774 (`.cgf`), 787 of 944 (`.cga`) and 293 of 400 (`.skin`) hol
 than opaque white. The most frequent are white with a varying alpha, magenta (`.cga`), red masks
 (`.cgf`), a purple (`.skin`) and black.
 
-The order of the bytes cannot be read from the data: the colours are masks and tints whose red
-and blue channels have no check (as normals have the face normal). StarBreaker reads
-blue, green, red, alpha; Cryengine-Converter reads red, green, blue, alpha. `p4kx` follows
-StarBreaker (ADR-0028) and the `B8G8R8A8` format CryEngine uses for vertex colours. A reader that
-finds the order wrong swaps one function.
+The order of the bytes is blue, green, red, alpha (BGRA). StarBreaker reads it so and
+Cryengine-Converter reads red, green, blue, alpha; `p4kx` follows StarBreaker (ADR-0028) and the
+`B8G8R8A8` format CryEngine uses for vertex colours. The names of the models confirm it: the
+review grouped the models of LIVE (`.cgf`, `.cga`, `.skin`, LOD0) by colour words in their file
+names and counted the files that are mostly red or mostly blue under the BGRA reading (|R−B| above
+64 on more than a quarter of the vertices). Files named `blue` are 16 red and 104 blue, `red` 60
+red and 20 blue, `orange` 84 and 4, `yellow` 52 and 4. The most frequent colours of the orange
+files are orange (164, 104, 70) and red (137, 0, 0). Read as RGBA, the same files would turn out
+the other way round. The test `models_named_after_a_colour_have_it_under_the_bgra_order` of
+`real_archive_vertex_colours.rs` asserts it on whole words of the file names (LIVE: `blue` 16 and
+105, `red` 120 and 38, `orange` 84 and 4, `yellow` 56 and 4). A reader that finds the order wrong swaps one
+function.
 
 The second colour stream (`COLORS2`, `0xD9EED421`) and the second UV set (`NORMALS2` of 4 bytes,
 #343) are not read.
@@ -67,6 +74,12 @@ transform and parent. To see whether that is right, the test places each mesh's 
 the whole chain of its node and compares the bounds with the box of the `MeshInfo` chunk, which
 the model reader does not use. Of the models with several nodes, in a sample of 600 files per
 extension of LIVE, the chain fits the box for 27 of 32 `.cgf` and 77 of 118 `.cga` models; the
-node's own transform alone fits 22 and 41, and no transform 22 and 44. The remaining models have
-a larger box than their geometry (hidden or removed parts), not a displaced one. The test asserts
+node's own transform alone fits 22 and 41, and no transform 22 and 44. The review compared the
+orders on 150 models: the chain as implemented (child to root, each node's 3×4 matrix applied to
+the point) fits 104, the reversed order 79, the transposed matrices 87 and no transform 66.
+
+Of the 46 misses, about 14 are displaced rather than larger than their geometry, and most of
+those match the untransformed box: the `MeshInfo` box is in local space for some models, e.g.
+`landing_pad_entrance_a.cgf`. The other misses have a larger box than their geometry (hidden or
+removed parts). The test lists the misses, with whether the untransformed box fits, and asserts
 that the whole chain fits better than either alternative and at least half of the models.

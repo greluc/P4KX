@@ -204,12 +204,6 @@ impl TestModel {
         self
     }
 
-    /// Returns the number of levels of detail added with [`Self::with_lod`].
-    #[must_use]
-    pub const fn lod_count(&self) -> usize {
-        self.lods.len()
-    }
-
     /// Moves every vertex by `offset` in node space; the bounding boxes follow.
     #[must_use]
     pub fn moved(mut self, offset: [f32; 3]) -> Self {

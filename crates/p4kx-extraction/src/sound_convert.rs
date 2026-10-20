@@ -137,7 +137,7 @@ impl EntryWriter<'_> {
         credited: &AtomicU64,
     ) -> Result<bool, ExtractionError> {
         let len = usize::try_from(entry.uncompressed_size()).unwrap_or(usize::MAX);
-        let mut reader = self.archive.open_entry(entry)?;
+        let mut reader = self.open_entry(entry)?;
         let Buffers { chunk, data, .. } = buffers;
         data.clear();
         self.read_all(&mut reader, data, len, chunk, credited)

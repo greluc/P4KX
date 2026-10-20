@@ -40,20 +40,15 @@ pub(crate) fn build<B: AsRef<[u8]>>(
 
     let Geometry {
         lods,
-        base,
-        lod_files,
+        base_name,
+        chunks: companion_chunks,
     } = read_geometry(name, file, companions, selection, node_count, &mut read)?;
 
     let mut chunks = usage(file, ModelFile::Model, &read);
-    if let Some((_, companion)) = &base {
-        chunks.extend(usage(companion, ModelFile::Geometry, &read));
-    }
-    for (level, (_, lod_file)) in &lod_files {
-        chunks.extend(usage(lod_file, ModelFile::LodGeometry(*level), &read));
-    }
+    chunks.extend(companion_chunks);
     Ok(Model {
         name: name.to_owned(),
-        geometry: base.map(|(companion_name, _)| companion_name),
+        geometry: base_name,
         nodes: nodes.unwrap_or_else(|| vec![root_node(name)]),
         lods,
         material_library: material.flatten(),
@@ -62,11 +57,12 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     })
 }
 
-/// The meshes of a model and the companions they were read from.
+/// The meshes of a model, the name of its geometry companion and the chunk usage of every
+/// companion, computed as each was read so that no companion's bytes outlive its reading.
 struct Geometry {
     lods: Vec<Lod>,
-    base: Option<Companion>,
-    lod_files: Vec<(u32, Companion)>,
+    base_name: Option<String>,
+    chunks: Vec<ModelChunk>,
 }
 
 fn read_geometry<B: AsRef<[u8]>>(
@@ -84,7 +80,8 @@ fn read_geometry<B: AsRef<[u8]>>(
         geometry_companion(name, file, companions)?
     };
     let mut lods = Vec::new();
-    let mut lod_files: Vec<(u32, Companion)> = Vec::new();
+    let mut chunks = Vec::new();
+    let mut geometry = None;
     if selection.wants(0) {
         lods.push(read_base_lod(
             name,
@@ -95,6 +92,10 @@ fn read_geometry<B: AsRef<[u8]>>(
             read,
         )?);
     }
+    if let Some((companion_name, companion)) = base {
+        chunks.extend(usage(&companion, ModelFile::Geometry, read));
+        geometry = Some(companion_name);
+    }
     if own_mesh.is_none() && announces_mesh(file) {
         read_lod_companions(
             name,
@@ -102,7 +103,7 @@ fn read_geometry<B: AsRef<[u8]>>(
             selection,
             node_count,
             &mut lods,
-            &mut lod_files,
+            &mut chunks,
             read,
         )?;
     }
@@ -117,8 +118,8 @@ fn read_geometry<B: AsRef<[u8]>>(
 
     Ok(Geometry {
         lods,
-        base,
-        lod_files,
+        base_name: geometry,
+        chunks,
     })
 }
 
@@ -167,7 +168,7 @@ fn read_lod_companions(
     selection: LodSelection,
     nodes: Option<usize>,
     lods: &mut Vec<Lod>,
-    lod_files: &mut Vec<(u32, Companion)>,
+    chunks: &mut Vec<ModelChunk>,
     read: &mut Vec<(ModelFile, usize)>,
 ) -> Result<(), ModelError> {
     for level in (1..=MAX_LOD).filter(|&level| selection.wants(level)) {
@@ -181,7 +182,7 @@ fn read_lod_companions(
         read.push((ModelFile::LodGeometry(level), index));
         let meshes = read_meshes(&companion_name, index, companion.chunk_data(index), nodes)?;
         lods.push(Lod { level, meshes });
-        lod_files.push((level, (companion_name, companion)));
+        chunks.extend(usage(&companion, ModelFile::LodGeometry(level), read));
     }
     Ok(())
 }

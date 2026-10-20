@@ -254,20 +254,22 @@ fn mesh_info_box(archive: &Archive, entry: &Entry) -> Option<Bounds> {
     Some(([word(6), word(7), word(8)], [word(9), word(10), word(11)]))
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default)]
 struct HierarchyTally {
     models: u64,
     chain: u64,
     own: u64,
     none: u64,
+    misses: Vec<String>,
 }
 
 impl HierarchyTally {
-    const fn merge(mut self, other: Self) -> Self {
+    fn merge(mut self, other: Self) -> Self {
         self.models += other.models;
         self.chain += other.chain;
         self.own += other.own;
         self.none += other.none;
+        self.misses.extend(other.misses);
         self
     }
 }
@@ -291,10 +293,24 @@ fn hierarchy_fit(index: &PathIndex<'_>, archive: &Archive, entry: &Entry) -> Hie
     tally.chain = u64::from(fit(Some(true)));
     tally.own = u64::from(fit(Some(false)));
     tally.none = u64::from(fit(None));
+    if tally.chain == 0 {
+        let untransformed = if tally.none == 1 {
+            "the untransformed box fits"
+        } else {
+            "no placement fits"
+        };
+        tally
+            .misses
+            .push(format!("{} ({untransformed})", entry.path()));
+    }
     tally
 }
 
 #[test]
+#[expect(
+    clippy::print_stdout,
+    reason = "the models the chain misses are the finding; the test lists them"
+)]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_node_chain_places_the_sub_objects_where_the_mesh_info_box_has_them() -> TestResult {
     for path in archives()? {
@@ -307,6 +323,16 @@ fn the_node_chain_places_the_sub_objects_where_the_mesh_info_box_has_them() -> T
             .map(|entry| hierarchy_fit(&index, &archive, entry))
             .reduce(HierarchyTally::default, HierarchyTally::merge);
 
+        let mut misses = tally.misses.clone();
+        misses.sort_unstable();
+        println!(
+            "{}: the chain misses {} models",
+            path.display(),
+            misses.len()
+        );
+        for miss in &misses {
+            println!("  {miss}");
+        }
         assert!(
             tally.models > 50,
             "{}: {} models",

@@ -14,6 +14,7 @@ use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
+use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::extract::NoMatch;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
@@ -23,10 +24,9 @@ use crate::{model, texture};
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries or Records failed or were cancelled, the data of an Entry does not match its
-/// checksum, the target folder could not be created, a
-/// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
-/// cannot be converted or written, a tag or definition of a UI movie cannot be read or written,
-/// or a model cannot be exported or written.
+/// checksum, the target folder could not be created, a texture is invalid or cannot be merged,
+/// decoded or written, a sound or soundbank is invalid or cannot be converted or written, a tag or
+/// definition of a UI movie cannot be read or written, or a model cannot be exported or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
@@ -34,9 +34,9 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs, has an invalid Query or a Query
-/// output that does not fit --json, or gives CHF JSON that is invalid or cannot be written as
-/// CHF, asks loc for a language the Archive holds no global.ini for, or looks up a localisation
-/// key that has no text.
+/// output that does not fit --json, names a Record dcb refs does not find, or gives CHF JSON that
+/// is invalid or cannot be written as CHF, asks loc for a language the Archive holds no global.ini
+/// for, or looks up a localisation key that has no text.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -71,7 +71,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      file, model or geometry companion that does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs,
      --json without --out for cryxml or chf to-json, an invalid Query, --json with another
-     --format and without --out for dcb query, an Entity that no Record or several Records
+     --format and without --out for dcb query, --json with --format table for dcb refs, a GUID or
+     record path for dcb refs that no Record has, an Entity that no Record or several Records
      match, an audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a language the Archive holds no global.ini for, or a localisation
@@ -147,10 +148,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<CombinedNeedsXml>().is_some()
         || texture::is_invalid_input(error)
         || model::is_invalid_input(error)
-        || error.downcast_ref::<JsonNeedsOut>().is_some()
-        || error.downcast_ref::<InvalidQuery>().is_some()
-        || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
-        || error.downcast_ref::<OutputIsArchive>().is_some()
+        || is_output_or_query_error(error)
         || error.downcast_ref::<EntityLookupError>().is_some()
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
@@ -165,4 +163,13 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_output_or_query_error(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<JsonNeedsOut>().is_some()
+        || error.downcast_ref::<InvalidQuery>().is_some()
+        || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
+        || error.downcast_ref::<JsonWithTable>().is_some()
+        || error.downcast_ref::<UnknownRecord>().is_some()
+        || error.downcast_ref::<OutputIsArchive>().is_some()
 }

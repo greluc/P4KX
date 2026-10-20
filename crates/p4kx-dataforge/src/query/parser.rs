@@ -1,7 +1,7 @@
 mod condition;
 
 use crate::query::lexer::{Keyword, Lexer, Symbol, Token};
-use crate::query::syntax::{Glob, Name, Path, Query, Segment};
+use crate::query::syntax::{Glob, Name, Path, Query, Referent, Segment};
 use crate::query::{
     Expected, Found, MAX_PATH_REFERENCES, MAX_PATH_SEGMENTS, MAX_QUERY_LEN, QueryError,
     QueryErrorKind, Span,
@@ -28,7 +28,13 @@ impl Query {
 }
 
 /// The clauses in the order they have to appear.
-const CLAUSES: [Keyword; 4] = [Keyword::From, Keyword::At, Keyword::Select, Keyword::Where];
+const CLAUSES: [Keyword; 5] = [
+    Keyword::From,
+    Keyword::At,
+    Keyword::Referencing,
+    Keyword::Select,
+    Keyword::Where,
+];
 
 struct Parser<'q> {
     lexer: Lexer<'q>,
@@ -53,6 +59,7 @@ impl<'q> Parser<'q> {
         let mut query = Query {
             from: None,
             at: None,
+            referencing: None,
             select: Vec::new(),
             condition: None,
         };
@@ -67,19 +74,26 @@ impl<'q> Parser<'q> {
             query.at = Some(self.glob()?);
             self.check_clause(Keyword::At, Expected::AfterAt)?;
         }
-        if query.from.is_none() && query.at.is_none() {
+        if self.token == Token::Keyword(Keyword::Referencing) {
+            self.advance()?;
+            query.referencing = Some(self.referent()?);
+            self.check_clause(Keyword::Referencing, Expected::AfterReferencing)?;
+        }
+        if query.from.is_none() && query.at.is_none() && query.referencing.is_none() {
             if self.token != Token::Keyword(Keyword::Select) {
                 return Err(self.expected(Expected::Selection));
             }
             self.paths()?;
             return Err(match self.token {
-                Token::Keyword(clause @ (Keyword::From | Keyword::At)) => QueryError::new(
-                    QueryErrorKind::ClauseOutOfOrder {
-                        clause,
-                        after: Keyword::Select,
-                    },
-                    self.span,
-                ),
+                Token::Keyword(clause @ (Keyword::From | Keyword::At | Keyword::Referencing)) => {
+                    QueryError::new(
+                        QueryErrorKind::ClauseOutOfOrder {
+                            clause,
+                            after: Keyword::Select,
+                        },
+                        self.span,
+                    )
+                }
                 _ => QueryError::new(QueryErrorKind::MissingSelection, start),
             });
         }
@@ -146,6 +160,20 @@ impl<'q> Parser<'q> {
         }
         let (token, span) = self.advance()?;
         Ok(Glob {
+            text: match token {
+                Token::Text(text) => text.into_owned(),
+                _ => String::new(),
+            },
+            span,
+        })
+    }
+
+    fn referent(&mut self) -> Result<Referent, QueryError> {
+        if !matches!(self.token, Token::Text(_)) {
+            return Err(self.expected(Expected::Referent));
+        }
+        let (token, span) = self.advance()?;
+        Ok(Referent {
             text: match token {
                 Token::Text(text) => text.into_owned(),
                 _ => String::new(),

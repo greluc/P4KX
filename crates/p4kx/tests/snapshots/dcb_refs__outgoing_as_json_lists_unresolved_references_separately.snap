@@ -1,0 +1,5 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"00000000-0000-0000-0000-000000000031\", \"--outgoing\", \"--format\",\n\"json\"])?"
+---
+{"archive":"<archive>","direction":"outgoing","records":[{"record":{"guid":"00000000-0000-0000-0000-000000000031","record_path":"libs/ships/alpha","name":"Ship.Alpha","type":"Ship"},"reference_count":2,"record_count":2,"references":[{"record":{"guid":"00000000-0000-0000-0000-000000000020","record_path":"libs/makers/aegis","name":"Manufacturer.Aegis","type":"Manufacturer"},"location":"maker","field":"maker","indices":[]},{"record":{"guid":"00000000-0000-0000-0000-000000000032","record_path":"libs/ships/beta","name":"Ship.Beta","type":"Ship"},"location":"escorts[1]","field":"escorts[]","indices":[1]}],"unresolved_count":1,"unresolved":[{"record":null,"guid":"00000000-0000-0000-0000-000000000099","location":"escorts[2]","field":"escorts[]","indices":[2]}]}]}

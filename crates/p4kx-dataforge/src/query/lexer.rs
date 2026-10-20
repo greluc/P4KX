@@ -11,6 +11,8 @@ pub enum Keyword {
     From,
     /// `at`, the record-path glob of the selected Records.
     At,
+    /// `referencing`, the Record every selected Record refers to.
+    Referencing,
     /// `select`, the columns.
     Select,
     /// `where`, the condition a Record has to meet.
@@ -24,9 +26,10 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    const ALL: [Self; 7] = [
+    const ALL: [Self; 8] = [
         Self::From,
         Self::At,
+        Self::Referencing,
         Self::Select,
         Self::Where,
         Self::And,
@@ -47,6 +50,7 @@ impl Keyword {
         match self {
             Self::From => "from",
             Self::At => "at",
+            Self::Referencing => "referencing",
             Self::Select => "select",
             Self::Where => "where",
             Self::And => "and",

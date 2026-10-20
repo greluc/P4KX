@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 
 use p4kx_extraction::query::{ColumnKind, Query, QueryRun};
-use p4kx_extraction::{CancelToken, DataForgeEntry, QUERY_PAGE_SIZE};
+use p4kx_extraction::{CancelToken, QUERY_PAGE_SIZE};
 use rayon::prelude::*;
 
 use super::result::{QueryResult, ResultColumn, ResultRow};
 use super::{QueryInvalid, QueryStage};
 use crate::EntryIndex;
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 
 /// How a Query run ended.
@@ -98,17 +98,17 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
     if job.index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let entry = match job
+    let cached = match job
         .index
         .forge()
         .read(&job.index, || set(QueryStage::Loading))
     {
-        Ok(source) => Arc::clone(&source.entry),
+        Ok(cached) => cached,
         Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
         Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
     };
     let source = Source {
-        entry: &entry,
+        cached: &cached,
         archive: job.index.archive().path(),
     };
     let outcome = query_over(source, &job.query, job.text, cancel, set);
@@ -122,9 +122,10 @@ fn run(job: Job, cancel: &CancelToken, set: &impl Fn(QueryStage)) -> Outcome {
 /// The DataForge a Query runs over and the Archive it was read from.
 #[derive(Clone, Copy)]
 struct Source<'a> {
-    entry: &'a Arc<DataForgeEntry>,
+    cached: &'a ForgeSource,
     archive: &'a Path,
 }
+
 fn query_over(
     source: Source<'_>,
     query: &Query,
@@ -135,15 +136,34 @@ fn query_over(
     if cancel.is_cancelled() {
         return Outcome::Cancelled;
     }
-    let forge = match source.entry.open() {
+    let forge = match source.cached.entry.open() {
         Ok(forge) => forge,
         Err(error) => return Outcome::Failed(Some(describe(&error))),
     };
     set(QueryStage::Selecting);
-    let compiled = match query.compile(&forge) {
+    let mut unread = None;
+    let compiled = query.compile_lazily(&forge, || {
+        set(QueryStage::Indexing);
+        match source.cached.references(&|| cancel.is_cancelled()) {
+            Ok(references) => references,
+            Err(failure) => {
+                unread = Some(failure);
+                None
+            }
+        }
+    });
+    let compiled = match compiled {
         Ok(compiled) => compiled,
-        Err(error) => return Outcome::Invalid(QueryInvalid::new(text, &error)),
+        Err(error) => {
+            return match unread {
+                Some(ReadFailure::ArchiveChanged(_)) => Outcome::ArchiveChanged,
+                Some(ReadFailure::Unreadable(reason)) => Outcome::Failed(Some(reason)),
+                None if cancel.is_cancelled() => Outcome::Cancelled,
+                None => Outcome::Invalid(QueryInvalid::new(text, &error)),
+            };
+        }
     };
+    set(QueryStage::Selecting);
     let lists: Vec<bool> = compiled
         .column_kinds()
         .iter()
@@ -162,7 +182,10 @@ fn query_over(
         (text, columns),
         read.rows,
         (read.failed, read.unresolved),
-        (Arc::clone(source.entry), source.archive.to_path_buf()),
+        (
+            Arc::clone(&source.cached.entry),
+            source.archive.to_path_buf(),
+        ),
     )))
 }
 

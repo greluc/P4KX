@@ -162,6 +162,9 @@ fn status(texts: &Texts, status: QueryStatus<'_>) -> Option<(String, Color32, Op
         QueryStatus::Running(QueryStage::Loading) => {
             (texts.get(QueryText::Loading), palette::GRAY_1, None)
         }
+        QueryStatus::Running(QueryStage::Indexing) => {
+            (texts.get(QueryText::Indexing), palette::GRAY_1, None)
+        }
         QueryStatus::Running(QueryStage::Selecting) => {
             (texts.get(QueryText::Selecting), palette::GRAY_1, None)
         }

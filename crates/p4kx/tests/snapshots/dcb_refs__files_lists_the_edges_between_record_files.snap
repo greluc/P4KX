@@ -1,0 +1,11 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"--files\"])?"
+---
+record file        refers to
+-----------------  ------------------
+libs/makers/aegis  libs/planets/terra
+libs/ships/alpha   libs/makers/aegis
+libs/ships/alpha   libs/ships/beta
+libs/ships/beta    libs/makers/aegis
+4 edges between 4 record files

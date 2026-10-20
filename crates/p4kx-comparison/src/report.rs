@@ -118,8 +118,8 @@ enum ChecksumReport {
 impl From<&Entry> for EntryState {
     fn from(entry: &Entry) -> Self {
         let checksum = match entry.checksum() {
-            Checksum::Crc32(value) => ChecksumReport::Crc32(value),
-            other => ChecksumReport::Crc32c(other.value()),
+            Checksum::Crc32c(value) => ChecksumReport::Crc32c(value),
+            other => ChecksumReport::Crc32(other.value().unwrap_or_default()),
         };
         Self {
             size: entry.uncompressed_size(),

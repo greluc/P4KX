@@ -178,6 +178,9 @@ pub enum Text {
     ArchiveIssues,
     /// The notice that `StarCitizen.exe` is running and the tool is best used with the game closed.
     GameRunning,
+    /// The notice that the open Archive belongs to a test build and its material is confidential;
+    /// takes `channel`, the Channel name.
+    ArchiveTestBuild,
     /// The action that opens the changed Archive again.
     ActionReload,
     /// Shown instead of the preview of an encrypted Entry while the Archive has no key; takes

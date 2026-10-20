@@ -3,6 +3,7 @@
 mod archive_change;
 mod archive_issues;
 mod archive_key;
+mod archive_notice;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
@@ -150,6 +151,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
+    archive_notice::show(ui, model);
     Panel::bottom("status")
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)

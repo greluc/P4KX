@@ -74,6 +74,7 @@ archive-issues =
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
 game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the Archive changes while the game updates, and the tool never writes into the installation.
+archive-test-build = This Archive belongs to the { $channel } Channel, a Star Citizen test build. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…

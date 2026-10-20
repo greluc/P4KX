@@ -7,6 +7,7 @@ use p4kx_foundation::{ARCHIVE_IV, ArchiveKey};
 
 use crate::test_key::test_key;
 use ruzstd::encoding::{CompressionLevel, compress_to_vec};
+use sha2::{Digest, Sha256};
 
 type Encryptor = cbc::Encryptor<aes::Aes128>;
 
@@ -24,6 +25,7 @@ pub struct TestEntry {
     pub(crate) uncompressed_size: u64,
     pub(crate) crc32c: u32,
     pub(crate) crc32: u32,
+    pub(crate) sha256: [u8; 32],
     pub(crate) encrypted: bool,
     pub(crate) path_bytes: Option<Vec<u8>>,
     pub(crate) encryption_field: Option<u16>,
@@ -111,6 +113,22 @@ impl TestEntry {
         self
     }
 
+    /// States the SHA-256 of the bytes written into the Archive for this Entry, so call it after
+    /// the last change of the data (`encrypted`, `with_payload`).
+    #[must_use]
+    pub fn with_sha256(mut self) -> Self {
+        self.sha256 = Sha256::digest(&self.payload).into();
+        self
+    }
+
+    /// States `digest` as the SHA-256 of the Entry instead of one computed from the data; an all
+    /// zero digest states none.
+    #[must_use]
+    pub const fn with_sha256_value(mut self, digest: [u8; 32]) -> Self {
+        self.sha256 = digest;
+        self
+    }
+
     /// Declares `size` as the uncompressed size in the central directory, keeping the data.
     #[must_use]
     pub const fn with_uncompressed_size(mut self, size: u64) -> Self {
@@ -174,6 +192,7 @@ impl TestEntry {
             uncompressed_size: data.len() as u64,
             crc32c: crc32c::crc32c(data),
             crc32: crc32fast::hash(data),
+            sha256: [0; 32],
             encrypted: false,
             path_bytes: None,
             encryption_field: None,

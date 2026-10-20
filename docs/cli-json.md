@@ -872,8 +872,8 @@ yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exi
 
 `verified` counts the Entries whose data matched the checksum of the directory. `mismatched`
 lists the Entries whose data did not, with the kind of the checksum (`crc32c` in an Archive,
-`crc32` in a container) and the stored (`expected`) and computed (`actual`) value as eight
-lower-case hex digits; `failed` lists the Entries that could not be read or decoded, with the
+`crc32` in a container, `sha256` for the SHA-256 of the stored bytes) and the stored (`expected`)
+and computed (`actual`) value as lower-case hex digits, eight for a CRC and 64 for a SHA-256; `failed` lists the Entries that could not be read or decoded, with the
 reason and its causes joined by `: `; `cancelled` lists the Entries not checked because the run was
 cancelled. The three lists are in Archive order. `archive_changed` is `true` when the Archive
 changed on disk: the run then stops and the exit code is 4. Otherwise the exit code is 1 when

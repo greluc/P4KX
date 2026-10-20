@@ -202,3 +202,52 @@ fn a_mismatch_keeps_an_existing_file_under_overwrite_and_leaves_no_temporary_fil
     assert_eq!(names.len(), 1, "no temporary file is left: {names:?}");
     Ok(())
 }
+
+#[test]
+fn verification_checks_the_sha_256_of_the_stored_bytes_too() -> TestResult {
+    let wrong = [0x5A; 32];
+    let builder = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\good.bin", DATA).with_sha256())
+        .entry(TestEntry::zstd("Data\\bad.bin", DATA).with_sha256_value(wrong))
+        .entry(
+            TestEntry::zstd("Data\\secret.bin", DATA)
+                .encrypted()
+                .with_sha256(),
+        );
+    let (dir, archive) = open(&builder)?;
+    let entries: Vec<&Entry> = archive.entries().iter().collect();
+
+    let report = verify(&archive, &entries, &VerifyOptions::default());
+
+    assert_eq!(report.verified(), 2, "the correct digests pass");
+    let bad: Vec<_> = report
+        .checksum_mismatches()
+        .map(|failure| (failure.path().to_owned(), failure.checksum_mismatch()))
+        .collect();
+    assert_eq!(bad.len(), 1, "one mismatch");
+    let (path, mismatch) = bad.into_iter().next().ok_or("no mismatch")?;
+    assert_eq!(path, "Data\\bad.bin", "the Entry with the wrong digest");
+    assert_eq!(
+        mismatch.map(|(expected, _)| expected),
+        Some(Checksum::Sha256(wrong)),
+        "the stated digest"
+    );
+
+    let target = dir.path().join("out");
+    fs::create_dir(&target)?;
+    let options = ExtractOptions {
+        verify: true,
+        ..ExtractOptions::default()
+    };
+    let report = extract(&archive, &entries, &target, &options);
+    assert_eq!(
+        report.extracted(),
+        2,
+        "the Entry with the wrong digest is not written"
+    );
+    assert!(
+        !target.join("Data").join("bad.bin").exists(),
+        "no file for it"
+    );
+    Ok(())
+}

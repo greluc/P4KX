@@ -59,7 +59,9 @@ fn read_v1_entries(source: &Source, max_entries: Option<u64>) -> Result<Director
         central_directory::parse_entries(&directory, location.offset, location.entry_count)?;
     if !location.zip64 {
         for entry in &mut directory.entries {
-            entry.checksum = Checksum::Crc32(entry.checksum.value());
+            if let Some(value) = entry.crc32c() {
+                entry.checksum = Checksum::Crc32(value);
+            }
         }
     }
     Ok(directory)

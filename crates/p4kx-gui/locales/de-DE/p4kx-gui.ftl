@@ -74,6 +74,7 @@ archive-issues =
        *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
 game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber das Archiv ändert sich, wenn das Spiel aktualisiert, und das Werkzeug schreibt nie in die Installation.
+archive-test-build = Dieses Archiv gehört zum Channel { $channel }, einem Testbuild von Star Citizen. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …

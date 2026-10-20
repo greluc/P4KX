@@ -274,6 +274,20 @@ Early development (milestone M1). Available today:
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2. Both
   also take a model file on disk with its companions next to it.
+- Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
+  ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
+  opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails
+  with a message that says the key is missing, or that it does not fit. `--key <hex>` (32
+  hexadecimal digits) or the environment variable `P4KX_ARCHIVE_KEY` gives it for one run, with
+  the option before the variable before the stored key. `p4kx key set [<hex>] [--archive <archive>]`
+  stores it in your profile (`%APPDATA%\P4K-Extractor\archive.key` on Windows, the platform
+  config directory elsewhere, readable by your user alone where the platform allows it), after
+  checking it against an encrypted Entry of the Archive, an installed Channel when none is named;
+  without `<hex>` it reads the first line of stdin, which keeps the key out of the process list
+  and the shell history. `p4kx key show` shows the stored key and the one in use with all but
+  the last four digits hidden, `p4kx key remove` deletes the stored key. The key never appears in
+  logs, error messages or JSON. `--key-file` (or `P4KX_KEY_FILE`) names another file for the stored
+  key, for the command line, the window and the MCP server alike.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 
@@ -288,6 +302,7 @@ Early development (milestone M1). Available today:
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
 | 6 | `compare`: the report or the output cannot be written |
+| 7 | The Archive key is missing or wrong: an Entry is encrypted and no key was given with `--key`, `P4KX_ARCHIVE_KEY` or `p4kx key set`, or the key does not decrypt the Archive |
 | 130 | Interrupted: a second Ctrl+C ended an Extraction at once; temporary `.p4kx-*.part` files may remain |
 
 ## MCP server
@@ -325,6 +340,12 @@ error. `list_entries` lists folders as
 [ADR-0023](docs/adr/0023-entry-folders-fold-case-and-separators.md) defines them. `--config-dir`, `--launcher-dir` and
 `--default-library` (or `P4KX_CONFIG_DIR`, `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) work as
 for `p4kx channels`.
+
+The server reads encrypted Entries with the Archive key from its `--key <hex>` option, the
+`P4KX_ARCHIVE_KEY` variable of its configuration or the key stored with `p4kx key set` or in the
+window, in that order; the stored key is read on each call, so one stored while the server runs
+applies to the next call. A tool that reads an encrypted Entry without a key fails with an error
+that says how to give it. `--key-file` (or `P4KX_KEY_FILE`) names another file for the stored key.
 
 The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
 `%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
@@ -384,11 +405,13 @@ diffs of changed text Entries, and compares one Archive with itself without a di
 either level. Its tests are ignored by default, so `cargo test` and CI report them as `ignored`.
 Point `P4KX_DATA_P4K` to an Archive, and `P4KX_DATA_P4K_B` to a second one for the Comparison,
 and pass `--ignored`; without `P4KX_DATA_P4K` the suite fails and says so, without
-`P4KX_DATA_P4K_B` the tests over two Archives pass without checking anything.
+`P4KX_DATA_P4K_B` the tests over two Archives pass without checking anything. The suite also
+needs the Archive key in `P4KX_ARCHIVE_KEY` and fails with a message when it is missing.
 
 ```powershell
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
+$env:P4KX_ARCHIVE_KEY = '<the Archive key as 32 hexadecimal digits>'
 cargo test --release --workspace --locked -- --ignored
 ```
 

@@ -459,6 +459,7 @@ scroll-fields = Changed fields
 scroll-lines = Record fields
 scroll-localization = Localisation rows
 scroll-saved-queries = Saved Queries
+scroll-soundbank = Embedded WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -477,6 +478,21 @@ audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex 
 audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
 audio-failed = Cannot decode { $path }: { $reason }
 audio-output-failed = The sound cannot be played: { $reason }
+audio-column-id = ID
+audio-prefetched = Prefetched
+audio-prefetched-note = WEM { $id } is only prefetched in this soundbank and cannot be played here. The loose WEM Entry with the same ID holds the whole sound.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } is plug-in media, such as a convolution reverb impulse, and holds no sound to play.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } embeds no WEMs.
+audio-bank-failed = Cannot read the soundbank { $path }: { $reason }
+audio-wem-name = WEM { $id } of { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = The preview cannot play { $codec } sounds ({ $name }).
 
 texture-parts =
     { $count ->
@@ -572,3 +588,28 @@ incoming-record-count =
     }
 incoming-truncated = The first { $shown } of { $total } References are listed.
 incoming-incomplete = Some Records could not be read or the index is full, so the list may miss References.
+
+preview-key-required = { $path } is encrypted. Enter the Archive key to read it.
+preview-key-rejected = The Archive key does not decrypt { $path }. Enter the right key to read it.
+key-menu = Archive key…
+key-title = Archive key
+key-needed = An encrypted Entry needs the key of this Archive. Enter it once; it is stored as a file in your user profile.
+key-rejected = The key in use does not decrypt this Archive. Enter the right key.
+key-intro = Encrypted Entries can only be read with the key of the Archive. Enter it once; it is stored as a file in your user profile.
+key-label = Key
+key-hint = 32 hexadecimal digits
+key-show = Show the key
+key-stored = A key is stored: { $masked }
+key-not-stored = No key is stored.
+key-save = Save
+key-cancel = Cancel
+key-remove = Remove stored key
+key-error-length = A key has 32 hexadecimal digits; you entered { $digits }.
+key-error-character = Character { $position } is not a hexadecimal digit.
+key-error-wrong = This key does not decrypt the Archive.
+key-error-check = The key could not be checked: { $reason }
+key-error-store = The key could not be stored: { $reason }
+key-error-remove = The stored key could not be removed: { $reason }
+key-checking = Checking the key against the Archive…
+key-note-variable = The environment variable P4KX_ARCHIVE_KEY does not hold a valid key and is ignored.
+key-note-store = The stored key cannot be used. Enter the key again to replace it. ({ $reason })

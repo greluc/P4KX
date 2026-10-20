@@ -2,8 +2,8 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
+use p4kx_extraction::ChunkSource;
 use p4kx_extraction::chunks::Chunk;
-use p4kx_extraction::{Archive, ChunkSource};
 use serde::Serialize;
 
 use crate::cli_chunks::{ChunkFileSource, ChunksAction, ChunksArgs};
@@ -68,7 +68,7 @@ pub(crate) fn run(args: &ChunksArgs, as_json: bool) -> Result<()> {
 
 fn open(source: &ChunkFileSource) -> Result<ChunkSource> {
     Ok(match &source.entry {
-        Some(entry) => ChunkSource::from_archive(&Archive::open(&source.path)?, entry)?,
+        Some(entry) => ChunkSource::from_archive(&crate::key::open(&source.path)?, entry)?,
         None => ChunkSource::from_file(&source.path)?,
     })
 }

@@ -38,7 +38,10 @@ fn read_entry(archive: &Archive, path: &str) -> Result<Vec<u8>, Box<dyn Error + 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_split_cubemaps_merge_face_by_face_into_valid_cubemaps() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let cubemaps: Vec<Texture<'_>> = archive
         .entries()
         .par_iter()
@@ -99,7 +102,10 @@ fn check_cubemap(archive: &Archive, texture: &Texture<'_>) -> CheckResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_alpha_tails_are_found_merged_and_decoded_into_alpha() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let tails: Vec<&Entry> = archive
         .entries()
         .par_iter()

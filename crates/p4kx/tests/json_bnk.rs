@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use assert_cmd::Command;
 use p4kx_testkit::{TestBank, TestCodec, TestWem, test_signal};
 use serde_json::Value;
 
@@ -35,10 +34,7 @@ fn write_bank(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
 }
 
 fn json(dir: &Path, args: &[&std::ffi::OsStr]) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
-        .arg("--json")
-        .args(args)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("--json").args(args).output()?;
     let mut value: Value = serde_json::from_slice(&output.stdout)?;
     let prefix = dir.display().to_string();
     redact(&mut value, &prefix);

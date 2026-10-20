@@ -150,7 +150,7 @@ fn select_returns_the_matching_entries_in_archive_order() -> TestResult {
         .entry(TestEntry::stored("Data\\a.txt", b"a".to_vec()))
         .entry(TestEntry::stored("Data\\a.xml", b"a".to_vec()))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     let selected: Vec<&str> = Filter::new("*.xml")
         .select(&archive)

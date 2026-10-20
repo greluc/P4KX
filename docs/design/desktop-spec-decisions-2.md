@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.32
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.34
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -176,6 +176,33 @@ Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. D
 Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
 Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
 Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
+
+**D.33 Soundbanks im Tab „Audio".** Wählt man eine Soundbank (`.bnk`), öffnet die Vorschau den Tab
+„Audio" wie bei einer WEM (D.18); die Pfadzeile nennt hinter der Größe, durch „·" getrennt, wie
+viele WEMs die Bank einbettet („400,4 KiB · 9 WEMs"). Darunter steht von oben nach unten die
+Tonvorschau der gewählten WEM mit denselben Fakten und Bedienelementen wie bei einer losen WEM
+(D.18), solange eine gewählt ist, und darunter die Liste der WEMs, die den Rest der Höhe füllt. Die
+Liste ist eine Tabelle in der Dichte der Eintragstabelle (D.1): Kopf und Zeilen 36, Spalten ID 106,
+Codec 112 und Dauer 100 (je ab 80 verstellbar; die Breite des breitesten Textes in Fett bei der Zeilenschrift plus Zellrand beidseitig, aufgerundet: zehnstellige ID 105,4, „Wwise Vorbis" 110,6, „9:59:59.999" 99,9), Größe füllt den Rest und steht rechtsbündig; der
+Kopf ist der der Tabelle, aber nicht sortierbar, weil die Bank die WEMs nach ID ordnet. Ein Codec,
+den die Kopfdaten nicht nennen, eine unbekannte Dauer und die Marken „Vorgeladen" und „Plug-in"
+stehen in `color-gray-2-text`; die aktive Zeile ist wie in der Eintragstabelle fett mit dem orangen
+Balken. Jede Zeile ist ein Tabulatorziel mit Fokusring innen −2 und heißt für Screenreader „WEM
+123, PCM, 0:01.000"; Enter und Klick wählen sie. Die Liste ist eine fokussierbare Rollfläche
+(„Eingebettete WEMs", D.27) und rollt die gewählte Zeile einmal in Sicht, weil die Tonvorschau
+über ihr die Liste beim Wählen verkürzt. Weil die Liste Platz braucht, öffnet das Panel für
+Soundbanks 373 hoch statt 236 (Tab-Leiste 44, Pfadzeile 32, Faktenleiste 32,
+Bedienelemente 16 + 32, Kopf 36, vier Zeilen zu 36 und 37 Panelrand aus Abstand, Rahmen und Linien, gemessen; so bleiben bei gewählter WEM vier Zeilen sichtbar) und merkt sich seine Größe getrennt von der der anderen Vorschauen;
+es füllt seine Höhe immer, damit sie schon beim Lesen der Bank feststeht. Nur eine WEM ist
+gewählt; eine andere zu wählen beendet den Ton der ersten. Eine WEM, von der die Bank nur den
+vorgeladenen Anfang hält, und Plug-in-Medien (Faltungshall-Impulse) haben keinen Ton: statt der
+Bedienelemente steht ein Satz in `color-warning`, bei der vorgeladenen mit dem Hinweis auf den
+losen WEM-Eintrag gleicher ID. Ein Codec ohne Decoder und ein Fehler beim Dekodieren stehen wie
+in D.18 in `color-danger-text`, mit dem Namen der WEM („WEM 123 aus Data\Sounds\x.bnk") statt des
+Hinweises auf Text und Hex, die hier die Bank zeigen. Eine unlesbare Bank steht als Satz in
+`color-danger-text`, eine ohne WEMs als schlichter Satz; das übrige Fenster bleibt bedienbar. Die
+Liste ist eine Tabelle und kein Baum, weil die Bank keine Ebenen kennt; Ereignisse und Auslöser
+gehören zur Auflösung der Sounds (M11).
 
 **D.34 Reiter „Referenziert von" listet die verweisenden Records.** Ist ein Record gewählt, steht
 nach „Record" ein weiterer Reiter der Vorschau-Leiste (D.1 Tab-Leiste, 44 px, gleiche Beschriftung

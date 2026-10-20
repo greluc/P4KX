@@ -3,7 +3,6 @@
 
 use std::error::Error;
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
     TestValue, real_archive_path,
@@ -116,7 +115,7 @@ fn query_as(text: &str, format: &str, code: i32) -> Result<(String, String), Box
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database()).encrypted())
         .write_to(&archive)?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "query", "--format", format])
         .arg(&archive)
         .arg(text)
@@ -256,7 +255,7 @@ fn the_documented_component_examples_select_values_of_a_real_archive() -> TestRe
         ),
     ];
     for (text, value) in examples {
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .args(["dcb", "query"])
             .arg(&archive)
             .arg(text)

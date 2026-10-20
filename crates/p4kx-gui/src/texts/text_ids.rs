@@ -1,13 +1,14 @@
 use super::{
-    AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText, DataForgeText,
-    DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, QueryText,
+    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
+    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
+    QueryText,
     RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText, Text, XmlText,
 };
 use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 64] = [
+    const BASE: [Self; 66] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -72,6 +73,8 @@ impl Text {
         Self::ArchiveChanged,
         Self::ArchiveIssues,
         Self::ActionReload,
+        Self::PreviewKeyRequired,
+        Self::PreviewKeyRejected,
     ];
 
     /// Returns every text, for checks of the Fluent files.
@@ -97,6 +100,7 @@ impl Text {
             .chain(IncomingText::ALL.map(Self::Incoming))
             .chain(RecordLanguageText::ALL.map(Self::RecordLanguage))
             .chain(LocalizationText::ALL.map(Self::Localization))
+            .chain(ArchiveKeyText::ALL.map(Self::Key))
     }
 
     /// Returns the Fluent message id.
@@ -168,6 +172,8 @@ impl Text {
             Self::ArchiveChanged => "archive-changed",
             Self::ArchiveIssues => "archive-issues",
             Self::ActionReload => "action-reload",
+            Self::PreviewKeyRequired => "preview-key-required",
+            Self::PreviewKeyRejected => "preview-key-rejected",
             Self::Extraction(text) => text.id(),
             Self::Comparison(text) => text.id(),
             Self::DataForge(text) => text.id(),
@@ -187,6 +193,7 @@ impl Text {
             Self::Record(text) => text.id(),
             Self::RecordLanguage(text) => text.id(),
             Self::Localization(text) => text.id(),
+            Self::Key(text) => text.id(),
         }
     }
 }

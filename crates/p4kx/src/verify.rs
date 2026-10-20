@@ -26,7 +26,7 @@ struct ReportJson<'a> {
 /// Checks the Entries of the Archive, or those the Filter matches, against their checksums and
 /// prints every mismatch; exits with 1 when an Entry mismatches or cannot be read.
 pub(crate) fn run(args: &VerifyArgs, as_json: bool) -> Result<ExitCode> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     crate::issues::warn(&archive)?;
     let entries = selected(&archive, args.filter.as_deref())?;
     execute(&archive, &entries, as_json)
@@ -50,6 +50,7 @@ pub(crate) fn selected<'a>(archive: &'a Archive, text: Option<&str>) -> Result<V
 
 /// Verifies `entries` of `archive`, which may be a container, and prints the report.
 pub(crate) fn execute(archive: &Archive, entries: &[&Entry], as_json: bool) -> Result<ExitCode> {
+    crate::key::require(archive, entries)?;
     let watch = ArchiveWatch::new(archive);
     let cancel = extract::cancel_on_interrupt()?;
     let line = ProgressLine::new();

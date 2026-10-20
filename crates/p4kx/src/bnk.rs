@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, AudioError, Bank, BankExtraction, EmbeddedWem, WemFormat};
+use p4kx_extraction::{AudioError, Bank, BankExtraction, EmbeddedWem, WemFormat};
 use serde::Serialize;
 
 use crate::cli::{BnkAction, BnkArgs, BnkFormat, BnkSource};
@@ -73,7 +73,7 @@ pub(crate) fn run(args: &BnkArgs, as_json: bool) -> Result<ExitCode> {
 
 fn open(source: &BnkSource) -> Result<Bank> {
     Ok(match &source.entry {
-        Some(entry) => Bank::from_archive(&Archive::open(&source.path)?, entry)?,
+        Some(entry) => Bank::from_archive(&crate::key::open(&source.path)?, entry)?,
         None => Bank::from_file(&source.path)?,
     })
 }

@@ -2,6 +2,7 @@
 
 mod archive_change;
 mod archive_issues;
+mod archive_key;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
@@ -33,6 +34,7 @@ mod menu;
 mod moved_path;
 mod preview;
 mod preview_bar;
+mod preview_tab;
 mod query;
 mod query_editor;
 mod query_table;
@@ -51,6 +53,8 @@ mod record_tree;
 mod record_value;
 mod search;
 mod shortcuts;
+mod soundbank_preview;
+mod soundbank_table;
 mod status;
 mod table;
 mod table_name;
@@ -66,12 +70,13 @@ use crate::theme::desktop::{
     HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
     SIDEBAR_WIDTH, STATUS_HEIGHT,
 };
+use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
 use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    ComparisonSide, ComparisonText, LocalizationText, Model, QueryExportFormat, QueryText, Text,
-    WorkTab,
+    ComparisonSide, ComparisonText, LocalizationText, Model, PreviewTab, QueryExportFormat,
+    QueryText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -122,6 +127,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
+    model.poll_key_check();
+    model.poll_key_request();
     model.query_mut().poll();
     model.localization_mut().poll();
     if let Some(path) = dropped_file(ui) {
@@ -163,6 +170,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests
 }
@@ -184,13 +192,22 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         empty::show(ui, model, dragging, requests);
         return;
     }
-    Panel::bottom("preview")
+    let soundbank = model.preview_tab() == PreviewTab::Audio
+        && model
+            .browser()
+            .is_some_and(|browser| browser.soundbank().is_some());
+    let (salt, height) = if soundbank {
+        ("preview-soundbank", PREVIEW_SOUNDBANK_HEIGHT)
+    } else {
+        ("preview", PREVIEW_HEIGHT)
+    };
+    Panel::bottom(salt)
         .frame(frames::panel().outer_margin(Margin {
             top: RESIZE_GAP,
             ..Margin::ZERO
         }))
         .resizable(true)
-        .default_size(PREVIEW_HEIGHT)
+        .default_size(height)
         .min_size(PREVIEW_MIN_HEIGHT)
         .show(ui, |ui| preview::show(ui, model));
     frames::panel().show(ui, |ui| {

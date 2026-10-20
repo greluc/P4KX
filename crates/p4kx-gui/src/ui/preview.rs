@@ -2,11 +2,11 @@ use egui::{Label, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
-use super::audio_preview::{self, AudioAction};
+use super::audio_preview;
+use super::preview_tab::{Asked, Typed, typed_tab};
 use super::record_preview::{self, RecordStep};
-use super::{
-    dataforge_summary, hex_view, image_preview, preview_bar, record_incoming, xml_preview,
-};
+use super::soundbank_preview;
+use super::{dataforge_summary, hex_view, image_preview, preview_bar, record_incoming};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
@@ -15,19 +15,13 @@ use crate::widgets::scroll_region;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     Browser, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
-    ScrollText, Text, Texts, format, is_wem_path,
+    ScrollText, Text, Texts, format, is_bank_path, is_wem_path,
 };
 
-/// What the body of a tab asks for.
-enum Asked {
-    Mip(u32),
-    Audio(AudioAction),
-    Record(RecordStep),
-}
-
-/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM,
-/// and leaves the XML, Image, Audio, DataForge and Record tabs for the Text tab after selecting
-/// another Entry; the XML tab opens once the Entry turns out to be `CryXml`.
+/// Shows the Image tab after selecting a texture header, the Audio tab after selecting a WEM or a
+/// soundbank, and leaves the XML, Image, Audio, DataForge, Record and Referenced-by tabs for the
+/// Text tab after selecting another Entry; the XML tab opens once the Entry turns out to be
+/// `CryXml`.
 pub(super) fn select(model: &mut Model, id: u32) {
     let path = model
         .browser()
@@ -35,7 +29,7 @@ pub(super) fn select(model: &mut Model, id: u32) {
         .map(Entry::path);
     if path.is_some_and(Texture::is_header_path) {
         model.set_preview_tab(PreviewTab::Image);
-    } else if path.is_some_and(is_wem_path) {
+    } else if path.is_some_and(|path| is_wem_path(path) || is_bank_path(path)) {
         model.set_preview_tab(PreviewTab::Audio);
     } else if matches!(
         model.preview_tab(),
@@ -90,6 +84,12 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             }
         }
         Some(Asked::Audio(action)) => audio_preview::apply(model, action),
+        Some(Asked::Sound(id)) => {
+            let ctx = ui.ctx().clone();
+            if let Some(browser) = model.browser_mut() {
+                browser.select_sound(id, move || ctx.request_repaint());
+            }
+        }
         Some(Asked::Record(step)) => record_preview::apply(model, &step),
         None => {}
     }
@@ -154,16 +154,13 @@ fn body(
     let entry = browser.index().entry(preview.entry());
     let path = entry.map_or("", Entry::path);
     let size = entry.map_or(0, Entry::uncompressed_size);
-    path_line(ui, path, &format::size(size, texts.language()));
-    if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
-        return image_preview::show(ui, texts, path, image).map(Asked::Mip);
-    }
-    if let Some(audio) = preview.audio().filter(|_| tab == PreviewTab::Audio) {
-        return audio_preview::show(ui, texts, (path, size), audio, volume).map(Asked::Audio);
-    }
-    if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
-        xml_preview::show(ui, texts, (path, size), xml);
-        return None;
+    let size_line = preview
+        .soundbank()
+        .and_then(|bank| soundbank_preview::summary(texts, bank, size))
+        .unwrap_or_else(|| format::size(size, texts.language()));
+    path_line(ui, path, &size_line);
+    if let Typed::Shown(asked) = typed_tab(ui, texts, preview, (path, size), (tab, volume)) {
+        return asked;
     }
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
@@ -196,12 +193,30 @@ fn body(
             );
             ui.colored_label(palette::DANGER_TEXT, text);
         }
-        PreviewStatus::ArchiveChanged => {
-            ui.colored_label(palette::WARNING, texts.get(Text::PreviewArchiveChanged));
-        }
+        status @ (PreviewStatus::ArchiveChanged
+        | PreviewStatus::KeyRequired
+        | PreviewStatus::KeyRejected) => note(ui, texts, status, path),
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
     None
+}
+
+/// Shows the note that stands for the preview of an Entry that cannot be read until the Archive is
+/// reloaded or has the right key.
+fn note(ui: &mut Ui, texts: &Texts, status: PreviewStatus<'_>, path: &str) {
+    let path = [("path", FluentValue::from(path.to_owned()))];
+    let (colour, text) = match status {
+        PreviewStatus::KeyRequired => (
+            palette::WARNING,
+            texts.format(Text::PreviewKeyRequired, &path),
+        ),
+        PreviewStatus::KeyRejected => (
+            palette::DANGER_TEXT,
+            texts.format(Text::PreviewKeyRejected, &path),
+        ),
+        _ => (palette::WARNING, texts.get(Text::PreviewArchiveChanged)),
+    };
+    ui.colored_label(colour, text);
 }
 
 /// Shows the path line of the preview: `path`, then `size` muted.

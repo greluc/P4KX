@@ -11,6 +11,7 @@ use tokio::sync::Semaphore;
 use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
+use crate::keys::KeyChoice;
 use crate::locate::Locations;
 use crate::ordered::Ordered;
 use crate::page::Page;
@@ -47,12 +48,16 @@ pub(crate) struct State {
 
 impl Server {
     /// Creates the server; `default_archive` serves calls that name no Archive.
-    pub(crate) fn new(locations: Locations, default_archive: Option<PathBuf>) -> Self {
+    pub(crate) fn new(
+        locations: Locations,
+        default_archive: Option<PathBuf>,
+        keys: KeyChoice,
+    ) -> Self {
         Self {
             state: Arc::new(State {
                 locations,
                 default_archive,
-                archives: Archives::default(),
+                archives: Archives::new(keys),
             }),
             workers: Arc::new(Semaphore::new(
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),

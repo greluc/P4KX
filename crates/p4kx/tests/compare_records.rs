@@ -99,7 +99,7 @@ fn differing() -> Result<tempfile::TempDir, Box<dyn Error>> {
 }
 
 fn p4kx(dir: &Path) -> Result<Command, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command.current_dir(dir).arg("compare");
     Ok(command)
 }

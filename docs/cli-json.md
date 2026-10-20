@@ -373,10 +373,10 @@ unresolved texts of every language.
 ```
 
 `key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
-`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
-`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
-for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
-the command with exit code 2.
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER`,
+`@LOC_UNINITIALIZED` and `@blank_space`, which stand for no text) or `missing`. `text_language`
+and `text` are `null` for the last two; `text` has `\n` decoded to a line feed. A `missing` key is
+printed and then ends the command with exit code 2.
 
 ## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
 
@@ -400,6 +400,18 @@ use the JSON format.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
+
+## `p4kx key set|show|remove --json`
+
+`p4kx key set [<hex>] [--archive <archive>] --json` prints
+`{"action": "stored", "file": "…", "checked_against": "…"}`; `checked_against` is the Archive
+whose encrypted Entry the key decrypted, or `null` when no Archive with a suitable encrypted
+Entry was found and the key was stored unchecked. `p4kx key remove --json` prints
+`{"action": "removed", "file": "…"}`, or `"none_stored"` when there was nothing to remove.
+
+`p4kx key show --json` prints `{"file": "…", "stored": "****…1234" | null, "in_use": {"source":
+"flag" | "environment" | "profile", "key": "****…1234"} | null}`. Keys are always masked: every
+digit but the last four is `*`. No command prints or logs a key in full.
 
 ## `p4kx channels --json`
 
@@ -956,7 +968,7 @@ code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 | `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
 | `container.flags` | number | The two header bytes behind the magic |
 | `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
-| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written with the reused frame; with a body compressed anew only the last 8 bytes of the file are written back (ADR-0014), the rest is zeros, and a new frame that reaches into non-zero ones is an error (exit code 2) |
 
 Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is

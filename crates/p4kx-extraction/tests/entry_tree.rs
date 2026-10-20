@@ -15,7 +15,7 @@ fn open(paths: &[&str]) -> Result<(tempfile::TempDir, Archive), Box<dyn Error>> 
         .map(|path| TestEntry::stored(*path, b"x".to_vec()))
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     Ok((folder, archive))
 }
 

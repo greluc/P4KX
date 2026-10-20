@@ -4,17 +4,14 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+New changes are not written here but as fragments in `changelog.d/` (see its `README.md`), which
+`cargo xtask changelog --release <version>` folds into the section of the Release together with
+the entries under `## [Unreleased]`.
+
 ## [Unreleased]
 
 ### Added
 
-- Incoming References: `p4kx dcb refs <archive> <guid|record path> --incoming|--outgoing [--format table|json]`
-  lists the Records that refer to a Record, or those it refers to, with the field and the array
-  indices of every Reference, the References to a GUID no Record has apart; `--files` lists the
-  edges between record files, `--unresolved` every Reference to a GUID no Record has. The window
-  shows a *Referenced by* tab for the selected Record, a Query selects Records with `referencing
-  "<GUID or record path>"`. One index over all Records, built in parallel on first use and kept
-  per Archive, serves all of them.
 - Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
   its vertex and triangle counts and whether its meshes have normals, tangents and colours;
   `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
@@ -82,12 +79,31 @@ fails while its section is missing.
   settings, run with one click, renamed and deleted.
 - Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
   and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
+- Soundbanks in the Audio tab: select a BNK Entry to see the WEMs it embeds as a list of ID,
+  codec, duration and size, and select one to see its facts and play it with the controls of a
+  loose WEM, without unpacking the bank. A WEM the bank holds only the prefetched start of and
+  plug-in media are marked and explained instead of played; a corrupt soundbank shows a message
+  and the rest of the window keeps working. The preview opens taller for soundbanks, and the list
+  scrolls with the keyboard.
 
 ### Changed
 
-- GUI: alerts fill the width of their panel like the design system's `.alert`, and the tabs of
-  the preview scroll sideways with the mouse wheel when they do not fit next to Back, Forward and
-  Copy, like `.tab-nav` with `overflow-x: auto`.
+- **Breaking:** the Archive key is no longer part of the tool; you enter it
+  ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). The constant `ARCHIVE_KEY` of
+  `p4kx-foundation` is gone: `ArchiveKey` is a value that `Archive::open_with_key` or
+  `Archive::set_key` give an Archive, and `p4kx_testkit` encrypts its Archives with a test key
+  of its own. Without a key an Archive still opens, lists, searches and compares, and reads every
+  unencrypted Entry; an encrypted Entry fails with `ArchiveError::KeyRequired`, and a key that
+  does not decrypt the Archive with `ArchiveError::WrongKey`, found by decrypting one encrypted
+  Entry and comparing its CRC-32C. `p4kx --key <hex>`, the environment variable
+  `P4KX_ARCHIVE_KEY` and the key stored with `p4kx key set|show|remove` in your profile give
+  the key, in that order; the MCP server takes the same three (`--key`, `P4KX_ARCHIVE_KEY`, the
+  stored key), and the window asks in a dialog when an encrypted Entry is first needed, and from
+  **Archive key…** in the Archive menu. A missing or wrong key exits `p4kx` with the new code 7.
+  The key is stored in `archive.key` next to the settings, written atomically and readable by
+  your user alone where the platform allows it, and never appears in logs, error messages or JSON.
+  `cargo xtask keys` fails when a tracked file holds a key-like literal named as a key, or the
+  real key while `P4KX_ARCHIVE_KEY` is set. Real-Archive tests need `P4KX_ARCHIVE_KEY`.
 - Models: `p4kx_model::ModelFile` is `#[non_exhaustive]` and has the new variant
   `LodGeometry(u32)` for the geometry companion of a level of detail from 1 on (`lod<n>-geometry`
   in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
@@ -143,6 +159,21 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- CHF: a file whose body changes keeps the last 8 bytes of the original file (the game writes
+  `efbeadde efbeadde` there; all 41 CHF files of the LIVE Build have it) instead of zeroing them,
+  with a correct CRC-32C. A new frame that would reach into non-zero ones is an error, not an
+  overwrite. An unchanged JSON still gives the original file byte for byte (ADR-0014).
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
+- Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
+  starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
+  reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
+  maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
+  Citizen's banks are all version 154 and decode as before.
 - A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
   versions from 151 on write before the in-memory media size, so the media size was read one field
   late. Star Citizen's version 154 banks were not affected.

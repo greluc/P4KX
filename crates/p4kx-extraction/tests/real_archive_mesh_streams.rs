@@ -168,7 +168,10 @@ impl Survey {
 )]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_streams_of_every_mesh_chunk_are_counted_by_tag_and_element_size() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entries: Vec<&Entry> = archive
         .entries()
         .iter()

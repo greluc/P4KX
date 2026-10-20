@@ -14,8 +14,8 @@ use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
-    CatalogText, ExtractionScope, ExtractionText, Language, Model, RecordExportText,
-    RecordLanguageText, RecordTextChoice, Text, Texts,
+    ArchiveKeyText, CatalogText, ExtractionScope, ExtractionText, KeyReason, Language, Model,
+    RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -140,6 +140,7 @@ enum Pick {
     Reload,
     ExtractSelected,
     RecordExport,
+    ArchiveKey,
 }
 
 fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
@@ -151,6 +152,7 @@ fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
         }
         Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
         Pick::RecordExport => model.begin_record_export(),
+        Pick::ArchiveKey => model.open_key_dialog(KeyReason::Menu),
     }
 }
 
@@ -193,6 +195,10 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
             .clicked()
         {
             pick = Some(Pick::ExtractSelected);
+        }
+        ui.separator();
+        if ui.button(entry(&texts.get(ArchiveKeyText::Menu))).clicked() {
+            pick = Some(Pick::ArchiveKey);
         }
     });
     label(&response.response, &title);

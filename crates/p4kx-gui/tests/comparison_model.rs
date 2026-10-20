@@ -306,7 +306,10 @@ fn the_saved_report_is_the_report_of_the_cli() -> TestResult {
         tab.view()
             .is_some_and(|view| !matches!(view.report_status(), Some(ReportStatus::Saving(_))))
     })?;
-    let (old, new) = (Archive::open(&pair.old)?, Archive::open(&pair.new)?);
+    let (old, new) = (
+        Archive::open_with_key(&pair.old, Some(p4kx_testkit::test_key()))?,
+        Archive::open_with_key(&pair.new, Some(p4kx_testkit::test_key()))?,
+    );
     let filter = Filter::new("Data");
     let options = CompareOptions {
         levels: Levels::ENTRIES,

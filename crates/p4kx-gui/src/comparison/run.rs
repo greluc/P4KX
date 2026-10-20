@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 use std::thread;
@@ -7,6 +8,8 @@ use p4kx_comparison::{
     Archive, CancelToken, CompareOptions, ComparisonError, ComparisonProgress, DataForgeEntry,
     Levels, OwnedComparison, OwnedDataForges, RecompareError,
 };
+
+use p4kx_extraction::ArchiveKey;
 
 use super::record_list::RecordChangeList;
 use super::{ComparisonStage, ComparisonView};
@@ -26,6 +29,7 @@ pub(crate) struct Run {
     cancel: CancelToken,
     alive: Weak<()>,
     stage: Arc<Mutex<ComparisonStage>>,
+    key_asked: Arc<AtomicBool>,
     result: Receiver<Outcome>,
 }
 
@@ -40,6 +44,11 @@ impl Run {
     pub(crate) fn cancel(&self) -> Weak<()> {
         self.cancel.cancel();
         Weak::clone(&self.alive)
+    }
+
+    /// Returns whether an encrypted Entry was needed while an Archive had no key that fits.
+    pub(crate) fn key_asked(&self) -> bool {
+        self.key_asked.load(Ordering::Acquire)
     }
 
     /// Takes the outcome once the thread ended.
@@ -57,6 +66,7 @@ impl Run {
 pub(crate) fn start(
     (old, new): (PathBuf, PathBuf),
     levels: Levels,
+    key: Option<ArchiveKey>,
     wake: impl Fn() + Send + Sync + 'static,
 ) -> Result<Run, String> {
     let cancel = CancelToken::new();
@@ -64,12 +74,19 @@ pub(crate) fn start(
     let (sender, result) = mpsc::channel();
     let thread_cancel = cancel.clone();
     let thread_stage = Arc::clone(&stage);
+    let key_asked = Arc::new(AtomicBool::new(false));
+    let thread_asked = Arc::clone(&key_asked);
     let alive = Arc::new(());
     let thread_alive = Arc::clone(&alive);
     thread::Builder::new()
         .name("comparison".to_owned())
         .spawn(move || {
-            let outcome = run((&old, &new), levels, &thread_cancel, &thread_stage, &wake);
+            let outcome = run(
+                (&old, &new),
+                (levels, key),
+                (&thread_cancel, &thread_stage, &thread_asked),
+                &wake,
+            );
             if sender.send(outcome).is_ok() {
                 wake();
             }
@@ -80,18 +97,23 @@ pub(crate) fn start(
         cancel,
         alive: Arc::downgrade(&alive),
         stage,
+        key_asked,
         result,
     })
 }
 
-fn open(path: &Path) -> Result<Arc<Archive>, String> {
-    Archive::open(path)
+fn open(path: &Path, key: Option<ArchiveKey>) -> Result<Arc<Archive>, String> {
+    Archive::open_with_key(path, key)
         .map(Arc::new)
         .map_err(|error| format!("{}: {}", path.display(), describe(&error)))
 }
 
-fn open_both(old: &Path, new: &Path) -> Result<(Arc<Archive>, Arc<Archive>), String> {
-    let (old, new) = rayon::join(|| open(old), || open(new));
+fn open_both(
+    old: &Path,
+    new: &Path,
+    key: Option<&ArchiveKey>,
+) -> Result<(Arc<Archive>, Arc<Archive>), String> {
+    let (old, new) = rayon::join(|| open(old, key.cloned()), || open(new, key.cloned()));
     Ok((old?, new?))
 }
 
@@ -113,22 +135,27 @@ fn read_forges(old: &Archive, new: &Archive) -> Result<OwnedDataForges, String> 
 
 fn run(
     (old, new): (&Path, &Path),
-    levels: Levels,
-    cancel: &CancelToken,
-    stage: &Mutex<ComparisonStage>,
+    (levels, key): (Levels, Option<ArchiveKey>),
+    (cancel, stage, key_asked): (&CancelToken, &Mutex<ComparisonStage>, &AtomicBool),
     wake: &(impl Fn() + Sync),
 ) -> Outcome {
     let set = |now: ComparisonStage| {
         *stage.lock().unwrap_or_else(PoisonError::into_inner) = now;
         wake();
     };
-    let (old, new) = match open_both(old, new) {
+    let (old, new) = match open_both(old, new, key.as_ref()) {
         Ok(both) => both,
         Err(reason) => return Outcome::Failed(Some(reason)),
     };
     let forges = match levels.records.then(|| read_forges(&old, &new)).transpose() {
         Ok(forges) => forges,
-        Err(reason) => return Outcome::Failed(Some(reason)),
+        Err(reason) => {
+            key_asked.store(
+                old.take_key_request() | new.take_key_request(),
+                Ordering::Release,
+            );
+            return Outcome::Failed(Some(reason));
+        }
     };
     if cancel.is_cancelled() {
         return Outcome::Cancelled;

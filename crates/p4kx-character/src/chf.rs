@@ -28,8 +28,8 @@ pub struct ChfContainer {
     /// body, otherwise the body is compressed anew.
     #[serde(default, with = "crate::json_values::hex")]
     pub frame: Vec<u8>,
-    /// The bytes behind the frame up to the end of the file, without trailing zeros; written only
-    /// together with the frame they were read with.
+    /// The bytes behind the frame up to the end of the file, without trailing zeros; written with
+    /// the frame they were read with, and when the body changed, the last 8 bytes of the file.
     #[serde(default, with = "crate::json_values::hex")]
     pub padding: Vec<u8>,
 }

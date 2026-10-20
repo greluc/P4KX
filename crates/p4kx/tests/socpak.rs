@@ -50,7 +50,7 @@ fn write_archive(folder: &Path, ship: &TestContainer) -> Result<PathBuf, Box<dyn
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 #[test]

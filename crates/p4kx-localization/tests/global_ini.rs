@@ -91,6 +91,44 @@ fn a_key_suffix_after_a_comma_is_not_part_of_the_key() -> TestResult {
 }
 
 #[test]
+fn a_key_and_its_comma_suffixed_line_are_both_kept_and_the_plain_key_is_preferred() -> TestResult {
+    let bytes = GlobalIniBuilder::new()
+        .text("both,P", "Suffixed")
+        .text("both", "Plain")
+        .text("plain_empty", "")
+        .text("plain_empty,P", "Suffixed text")
+        .text("only_plain", "Only plain")
+        .build();
+    let text = IniText::decode(&bytes)?;
+    let ini = text.index()?;
+    assert_eq!(ini.resolve("@both"), Some("Plain"), "the plain key wins");
+    assert_eq!(
+        ini.resolve_suffixed("@both"),
+        Some("Suffixed"),
+        "the suffixed text stays reachable"
+    );
+    assert_eq!(
+        ini.resolve("plain_empty"),
+        Some("Suffixed text"),
+        "an empty plain text yields to the suffixed one"
+    );
+    assert_eq!(ini.resolve_suffixed("only_plain"), None, "no suffixed line");
+    assert_eq!(ini.len(), 3, "a key and its suffixed line are one key");
+    let mut pairs: Vec<_> = ini.iter().collect();
+    pairs.sort_unstable();
+    assert_eq!(
+        pairs,
+        [
+            ("both", "Plain"),
+            ("only_plain", "Only plain"),
+            ("plain_empty", "Suffixed text")
+        ],
+        "the listing shows the preferred text once"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_missing_key_resolves_to_nothing() -> TestResult {
     let bytes = sample();
     let text = IniText::decode(&bytes)?;
@@ -99,6 +137,7 @@ fn a_missing_key_resolves_to_nothing() -> TestResult {
     assert_eq!(ini.resolve(""), None, "empty key");
     assert_eq!(ini.resolve("@"), None, "only the at sign");
     assert_eq!(ini.len(), 5, "every line with a key");
+    assert_eq!(ini.resolve_suffixed("@nothing"), None, "no suffixed line");
     Ok(())
 }
 

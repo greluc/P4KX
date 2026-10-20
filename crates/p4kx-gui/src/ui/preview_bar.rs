@@ -32,13 +32,14 @@ pub(super) struct Bar {
 pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
     let image = browser.preview().and_then(Preview::image);
     let audio = browser.preview().and_then(Preview::audio);
+    let sounds = browser.soundbank().is_some();
     let record = browser.selected_record().is_some();
     let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
     let records = browser.records();
     let offered = |candidate: PreviewTab| match candidate {
         PreviewTab::Xml => xml.is_some() || record,
         PreviewTab::Image => image.is_some(),
-        PreviewTab::Audio => audio.is_some(),
+        PreviewTab::Audio => audio.is_some() || sounds,
         PreviewTab::DataForge => records.is_some(),
         PreviewTab::Record | PreviewTab::Incoming => record,
         PreviewTab::Text | PreviewTab::Hex => true,

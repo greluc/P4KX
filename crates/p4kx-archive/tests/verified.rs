@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::{self, Read};
 
 use p4kx_archive::{Archive, Checksum, DataError};
-use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -14,8 +14,14 @@ fn open(builder: &ArchiveBuilder) -> Result<(tempfile::TempDir, Archive), Box<dy
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     builder.write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(test_key()))?;
     Ok((dir, archive))
+}
+
+fn with_checked_sibling(entry: TestEntry) -> ArchiveBuilder {
+    ArchiveBuilder::new()
+        .entry(entry)
+        .entry(TestEntry::stored("Data\\sibling.bin", DATA).encrypted())
 }
 
 fn read_verified(archive: &Archive) -> Result<io::Result<Vec<u8>>, Box<dyn Error>> {
@@ -90,7 +96,7 @@ fn a_flipped_byte_in_a_stored_entry_is_reported() -> TestResult {
 #[test]
 fn a_flipped_byte_in_an_encrypted_entry_is_reported() -> TestResult {
     let entry = TestEntry::stored("Data\\a.bin", DATA).encrypted();
-    let (_dir, archive) = open(&ArchiveBuilder::new().entry(flipped(&entry)))?;
+    let (_dir, archive) = open(&with_checked_sibling(flipped(&entry)))?;
 
     let error = mismatch(read_verified(&archive)?)?;
 
@@ -108,7 +114,7 @@ fn a_wrong_stored_checksum_is_reported_for_deflate_and_zstd() -> TestResult {
         TestEntry::zstd("Data\\a.bin", DATA),
         TestEntry::zstd("Data\\a.bin", DATA).encrypted(),
     ] {
-        let (_dir, archive) = open(&ArchiveBuilder::new().entry(entry.with_crc32c(0x1234_5678)))?;
+        let (_dir, archive) = open(&with_checked_sibling(entry.with_crc32c(0x1234_5678)))?;
 
         let error = mismatch(read_verified(&archive)?)?;
 

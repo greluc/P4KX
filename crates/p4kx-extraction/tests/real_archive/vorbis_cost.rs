@@ -63,7 +63,10 @@ fn check(archive: &Archive, entry: &Entry, costs: &Costs) -> Result<bool, String
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_sampled_vorbis_stream_decodes_to_the_end_and_the_cost_is_measured() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let wems: Vec<&Entry> = archive
         .entries()
         .iter()

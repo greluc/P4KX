@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, DataForgeEntry};
+use p4kx_extraction::DataForgeEntry;
 use serde::Serialize;
 
 use crate::cli::{DcbArgs, DcbCommand, DcbInfoArgs};
@@ -30,7 +30,7 @@ pub(crate) fn run(args: &DcbArgs, as_json: bool) -> Result<ExitCode> {
 
 /// Prints the DataForge version and its number of Records, structs and enums.
 fn info(args: &DcbInfoArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let summary = Summary {

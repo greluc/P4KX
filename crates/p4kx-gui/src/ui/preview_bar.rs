@@ -5,17 +5,18 @@ use crate::theme::tokens::{SPACE_2, TOUCH_TARGET};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::tab;
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, IncomingText, ModelText, Preview, PreviewTab,
-    RecordText, Text, Texts, XmlDocument, XmlPreview, XmlText,
+    AudioText, Browser, DataForgeText, ImageText, IncomingText, ModelExportText, ModelInfoText,
+    ModelText, Preview, PreviewTab, RecordText, Text, Texts, XmlDocument, XmlPreview, XmlText,
 };
 
-pub(super) const TABS: [(PreviewTab, Text); 9] = [
+pub(super) const TABS: [(PreviewTab, Text); 10] = [
     (PreviewTab::Text, Text::PreviewTabText),
     (PreviewTab::Hex, Text::PreviewTabHex),
     (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
     (PreviewTab::Image, Text::Image(ImageText::Tab)),
     (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
     (PreviewTab::Model, Text::Model(ModelText::Tab)),
+    (PreviewTab::ModelInfo, Text::ModelInfo(ModelInfoText::Tab)),
     (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
     (PreviewTab::Record, Text::Record(RecordText::Tab)),
     (PreviewTab::Incoming, Text::Incoming(IncomingText::Tab)),
@@ -26,34 +27,23 @@ pub(super) struct Bar {
     pub(super) tab: PreviewTab,
     pub(super) copy: Option<String>,
     pub(super) step: Option<RecordStep>,
+    pub(super) export: bool,
 }
 
-/// Shows the tabs `browser` offers with back and forward through the Records and the copy
-/// action; the tab to show is `tab` unless another was clicked or it is not offered.
-pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
-    let image = browser.preview().and_then(Preview::image);
-    let audio = browser.preview().and_then(Preview::audio);
-    let sounds = browser.soundbank().is_some();
-    let modelled = browser.preview().and_then(Preview::model).is_some();
+/// Shows the tabs `browser` offers with back and forward through the Records, the export of a
+/// model and the copy action; the tab to show is the first of `shown` unless another was clicked
+/// or it is not offered, and its second says whether the Export as GLB action is shown, and if so
+/// whether it is enabled.
+pub(super) fn tab_bar(
+    ui: &mut Ui,
+    texts: &Texts,
+    browser: &Browser,
+    shown: (PreviewTab, Option<bool>),
+) -> Bar {
+    let (wanted, export) = shown;
+    let (tabs, mut tab) = offered_tabs(browser, wanted);
     let record = browser.selected_record().is_some();
     let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
-    let records = browser.records();
-    let offered = |candidate: PreviewTab| match candidate {
-        PreviewTab::Xml => xml.is_some() || record,
-        PreviewTab::Image => image.is_some(),
-        PreviewTab::Audio => audio.is_some() || sounds,
-        PreviewTab::Model => modelled,
-        PreviewTab::DataForge => records.is_some(),
-        PreviewTab::Record | PreviewTab::Incoming => record,
-        PreviewTab::Text | PreviewTab::Hex => true,
-    };
-    let tabs: Vec<(PreviewTab, Text)> = TABS
-        .into_iter()
-        .filter(|&(candidate, _)| offered(candidate))
-        .collect();
-    if !offered(tab) {
-        tab = PreviewTab::Text;
-    }
     let labels: Vec<String> = tabs.iter().map(|&(_, text)| texts.get(text)).collect();
     let current = tabs
         .iter()
@@ -80,7 +70,7 @@ pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: Pr
             .map(|contents| contents.copied(tab))
             .or_else(|| document.map(|document| String::from_utf8_lossy(document).into_owned()))
     };
-    let shown = controls(ui, (texts, browser), bar, (enabled, copy_text));
+    let shown = controls(ui, (texts, browser), bar, (enabled, copy_text, export));
     let width = bar.right() - shown.left;
     if (width - reserved).abs() > 0.5 {
         ui.data_mut(|data| data.insert_temp(controls_id, width));
@@ -90,28 +80,62 @@ pub(super) fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: Pr
         tab,
         copy: shown.copy,
         step: shown.step,
+        export: shown.export,
     }
+}
+
+/// Returns the tabs `browser` offers and the tab to show: `wanted` when it is offered, else Text.
+fn offered_tabs(browser: &Browser, wanted: PreviewTab) -> (Vec<(PreviewTab, Text)>, PreviewTab) {
+    let image = browser.preview().and_then(Preview::image);
+    let audio = browser.preview().and_then(Preview::audio);
+    let sounds = browser.soundbank().is_some();
+    let modelled = browser.preview().and_then(Preview::model).is_some();
+    let record = browser.selected_record().is_some();
+    let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
+    let records = browser.records();
+    let offered = |candidate: PreviewTab| match candidate {
+        PreviewTab::Xml => xml.is_some() || record,
+        PreviewTab::Image => image.is_some(),
+        PreviewTab::Audio => audio.is_some() || sounds,
+        PreviewTab::Model | PreviewTab::ModelInfo => modelled,
+        PreviewTab::DataForge => records.is_some(),
+        PreviewTab::Record | PreviewTab::Incoming => record,
+        PreviewTab::Text | PreviewTab::Hex => true,
+    };
+    let tabs = TABS
+        .into_iter()
+        .filter(|&(candidate, _)| offered(candidate))
+        .collect();
+    let tab = if offered(wanted) {
+        wanted
+    } else {
+        PreviewTab::Text
+    };
+    (tabs, tab)
 }
 
 /// What the controls at the right end of the tab bar asked for, and where they start.
 struct Controls {
     copy: Option<String>,
     step: Option<RecordStep>,
+    export: bool,
     left: f32,
 }
 
-/// Shows Copy and, over Records, back and forward at the right end of `bar`; `copy` gives the text
-/// when `enabled` and Copy is clicked.
+/// Shows Copy, the Export as GLB action of a model and, over Records, back and forward at the right
+/// end of `bar`; `copy` gives the text when `enabled` and Copy is clicked, and `export` says
+/// whether the export action is shown and enabled.
 fn controls(
     ui: &mut Ui,
     (texts, browser): (&Texts, &Browser),
     bar: Rect,
-    (enabled, copy): (bool, impl FnOnce() -> Option<String>),
+    (enabled, copy, export): (bool, impl FnOnce() -> Option<String>, Option<bool>),
 ) -> Controls {
     let label = texts.get(Text::PreviewCopy);
     let mut shown = Controls {
         copy: None,
         step: None,
+        export: false,
         left: bar.right(),
     };
     ui.scope_builder(
@@ -120,6 +144,11 @@ fn controls(
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if button::button(ui, Kind::Ghost, Size::Compact, &label, enabled).clicked() {
                     shown.copy = copy();
+                }
+                if let Some(available) = export {
+                    let label = texts.get(ModelExportText::Action);
+                    shown.export =
+                        button::button(ui, Kind::Ghost, Size::Compact, &label, available).clicked();
                 }
                 if browser.shows_records() {
                     shown.step = steps(ui, texts, browser);

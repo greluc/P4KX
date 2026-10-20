@@ -4,9 +4,11 @@ use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
 use p4kx_model::{LodSelection, Model};
 
+use crate::CancelToken;
 use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
+use crate::model_observed::{Observed, is_cancelled};
 use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::texture_parts::is_same_file;
@@ -156,13 +158,35 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
+        self.write_glb_observed(options, out, &CancelToken::new(), &|_, _| {})
+    }
+
+    /// Writes the model as [`Self::write_glb`] does, calling `progress` with the bytes written and
+    /// the length of the file as it goes, and stopping once `cancel` is set.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`], and [`ConversionError::Cancelled`] when `cancel` was set; nothing is
+    /// left at `out` then.
+    pub fn write_glb_observed(
+        &self,
+        options: &GlbOptions,
+        out: &Path,
+        cancel: &CancelToken,
+        progress: &dyn Fn(u64, u64),
+    ) -> Result<GlbSummary, ConversionError> {
         if is_same_file(out, self.inputs.iter().cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
+        if cancel.is_cancelled() {
+            return Err(ConversionError::Cancelled);
+        }
         write_replacing(out, |writer| {
-            p4kx_gltf::write_glb(&self.model, options, writer).map_err(|error| match error {
+            let mut observed = Observed::new(writer, cancel, progress);
+            p4kx_gltf::write_glb(&self.model, options, &mut observed).map_err(|error| match error {
+                GltfError::Write(source) if is_cancelled(&source) => ConversionError::Cancelled,
                 GltfError::Write(source) => write_error(out, source),
                 source => ConversionError::Glb {
                     file: self.name.clone(),

@@ -22,6 +22,8 @@ mod installation;
 mod language;
 mod localization;
 mod model;
+mod model_export;
+mod model_info;
 mod preview;
 mod query;
 mod read_gate;
@@ -71,6 +73,13 @@ pub use extraction::{
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
+pub use model_export::{
+    MODEL_MATERIALS, MaterialProblem, ModelExport, ModelExportFailure, ModelExportProgress,
+    ModelExportSetup, ModelExportStage, ModelExportStatus, ModelExportSummary,
+};
+pub use model_info::{
+    ChunkCounts, ChunkFile, ChunkNote, LodInfo, MAX_LISTED_CHUNKS, MaterialsInfo, ModelInfo,
+};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
@@ -102,8 +111,9 @@ pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
     ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText,
-    LocalizationText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
-    RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
+    LocalizationText, ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText,
+    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, ScrollText, Text, Texts,
+    XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

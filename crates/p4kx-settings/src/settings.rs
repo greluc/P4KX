@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{RecentArchives, SavedQueries};
+use crate::{ModelExportSettings, RecentArchives, SavedQueries};
 
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
@@ -46,6 +46,8 @@ pub struct Settings {
     /// The saved Queries.
     #[serde(skip_serializing_if = "SavedQueries::is_empty")]
     pub queries: SavedQueries,
+    /// The choices of the Export as GLB dialog.
+    pub model_export: ModelExportSettings,
 }
 
 /// What a Conversion writes for a DDS texture; the outputs combine.

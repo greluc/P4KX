@@ -9,17 +9,18 @@ use p4kx_extraction::{Entry, ModelSource};
 
 use super::camera::Camera;
 use super::scene::{Scene, SceneError};
-use crate::EntryIndex;
 use crate::model::describe;
+use crate::{EntryIndex, ModelInfo};
 
 /// The largest model file or geometry companion, in bytes, the viewer reads.
 pub const MODEL_FILE_LIMIT: u64 = 256 * 1024 * 1024;
 
-/// Returns whether `path` names a model file the Model tab shows: a `.cgf`, `.cga` or `.skin`.
+/// Returns whether `path` names a model file the Model tab shows: a `.cgf`, `.cga`, `.skin` or
+/// `.chr`.
 #[must_use]
 pub fn is_model_path(path: &str) -> bool {
     path.rsplit_once('.').is_some_and(|(_, extension)| {
-        ["cgf", "cga", "skin"]
+        ["cgf", "cga", "skin", "chr"]
             .iter()
             .any(|known| extension.eq_ignore_ascii_case(known))
     })
@@ -47,8 +48,7 @@ enum Event {
     Failed(Option<String>),
     ArchiveChanged,
     FileTooLarge(u64),
-    Unshowable(SceneError),
-    Ready(Scene),
+    Read(Box<(ModelInfo, Result<Scene, SceneError>)>),
 }
 
 #[derive(Debug)]
@@ -67,6 +67,7 @@ enum State {
 pub struct ModelPreview {
     dropped: Arc<AtomicBool>,
     state: State,
+    info: Option<Arc<ModelInfo>>,
     camera: Option<Camera>,
 }
 
@@ -99,8 +100,15 @@ impl ModelPreview {
         Self {
             dropped,
             state,
+            info: None,
             camera: None,
         }
+    }
+
+    /// Returns the facts of the model once it was read, also when the viewer cannot show it.
+    #[must_use]
+    pub const fn info(&self) -> Option<&Arc<ModelInfo>> {
+        self.info.as_ref()
     }
 
     /// Returns where the preview stands.
@@ -156,10 +164,16 @@ impl ModelPreview {
             Event::Failed(reason) => State::Failed(reason),
             Event::ArchiveChanged => State::ArchiveChanged,
             Event::FileTooLarge(size) => State::FileTooLarge(size),
-            Event::Unshowable(error) => State::Unshowable(error),
-            Event::Ready(scene) => {
-                self.camera = Some(Camera::framing(scene.bounds()));
-                State::Ready(Arc::new(scene))
+            Event::Read(read) => {
+                let (info, scene) = *read;
+                self.info = Some(Arc::new(info));
+                match scene {
+                    Ok(scene) => {
+                        self.camera = Some(Camera::framing(scene.bounds()));
+                        State::Ready(Arc::new(scene))
+                    }
+                    Err(error) => State::Unshowable(error),
+                }
             }
         };
         true
@@ -193,7 +207,9 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if stop() {
         return None;
     }
-    let source = match ModelSource::from_index_with(&paths, entry.path(), LodSelection::Only(0)) {
+    let source = match ModelSource::from_index_with(&paths, entry.path(), LodSelection::All)
+        .or_else(|_| ModelSource::from_index_with(&paths, entry.path(), LodSelection::Only(0)))
+    {
         Ok(source) => source,
         Err(error) => {
             return Some(if index.watch().check().is_err() {
@@ -206,6 +222,7 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if stop() {
         return None;
     }
+    let info = ModelInfo::of(source.model());
     let scene = Scene::from_model(source.model());
     if stop() {
         return None;
@@ -213,7 +230,7 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if index.watch().check().is_err() {
         return Some(Event::ArchiveChanged);
     }
-    Some(scene.map_or_else(Event::Unshowable, Event::Ready))
+    Some(Event::Read(Box::new((info, scene))))
 }
 
 fn reason(error: &dyn Error, path: &str) -> String {

@@ -97,6 +97,17 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("digits", "4".into()),
         ("masked", "****1234".into()),
         ("installation", "C:\\StarCitizen".into()),
+        ("read", "9".into()),
+        ("unknown", "1".into()),
+        ("library", "objects/ship".into()),
+        ("type_id", "0xCCCC0001".into()),
+        ("index", "4".into()),
+        ("file", "Model file".into()),
+        ("nodes", "3".into()),
+        ("meshes", "2".into()),
+        ("materials", "2".into()),
+        ("bones", "5".into()),
+        ("skinned", "1".into()),
     ]
 }
 

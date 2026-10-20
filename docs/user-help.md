@@ -21,7 +21,21 @@ the window stays responsive while it loads.
   a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, an alpha tail
   is merged into the alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
   named; the Text and Hex tabs still show the Entry's data.
-- **Model** appears for a model file (`.cgf`, `.cga`, `.skin`) and opens when you select one. The
+- **Info** appears next to Model for a model file and lists what the file holds: the nodes, the
+  meshes and levels of detail with their vertices and triangles, the geometry file, the material
+  library and the material IDs the submeshes use, the bones, and the chunks, counted as read,
+  skipped and unknown, with the chunks the model did not read listed by file, type and type ID.
+  Animations show as not read until they are supported. The tab also works for a model the 3D view
+  cannot show, such as a skeleton file.
+- **Export as GLB…**, at the right end of the tab bar for a model file and in the Export menu,
+  opens a dialog with the level of detail (each with its triangles), the material mode, whether
+  to write the vertex colours, and the file to write. The file cannot be inside a Star Citizen
+  installation. The export runs in the background with a progress bar and **Cancel**, writes the
+  file only when it is complete, and ends with a summary of what the file holds, the chunks it
+  skipped and the materials that fell back to the default material. A failure shows a message
+  and the rest of the window keeps working. A model that needs the Archive key opens the key
+  dialog; export again once the key is entered. The choices are remembered.
+- **Model** appears for a model file (`.cgf`, `.cga`, `.skin`, `.chr`) and opens when you select one. The
   model and its geometry companion are read in the background and drawn in 3D, lit and framed to
   fit, at its most detailed level, without materials. Above the view a facts bar gives the
   vertices, the triangles and the size in metres. Drag to orbit, drag with the right mouse button

@@ -15,6 +15,8 @@ mod group_text;
 mod image_text;
 mod incoming_text;
 mod localization_text;
+mod model_export_text;
+mod model_info_text;
 mod model_text;
 mod query_text;
 mod record_change_text;
@@ -40,6 +42,8 @@ pub use image_text::ImageText;
 pub use incoming_text::IncomingText;
 pub use localization_text::LocalizationText;
 pub(crate) use localization_text::language_name;
+pub use model_export_text::ModelExportText;
+pub use model_info_text::ModelInfoText;
 pub use model_text::ModelText;
 pub use query_text::QueryText;
 pub use record_change_text::RecordChangeText;
@@ -233,6 +237,10 @@ pub enum Text {
     Localization(LocalizationText),
     /// A text of the 3D viewer of the Model tab.
     Model(ModelText),
+    /// A text of the Info tab of the model preview.
+    ModelInfo(ModelInfoText),
+    /// A text of the Export as GLB windows.
+    ModelExport(ModelExportText),
     /// A text of the Archive key dialog.
     Key(ArchiveKeyText),
     /// A text of the About window.

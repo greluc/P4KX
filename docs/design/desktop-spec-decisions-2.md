@@ -269,3 +269,60 @@ Cloud-Imperium-Gruppe, dass keine Spieldaten mitgeliefert und nur die eigene Ins
 wird, die Verantwortung für EULA und Terms of Service, der Eigentumshinweis und zuletzt die
 Markenangabe. Die Urheberzeile und die Markenangabe sind Rechtstext und stehen in beiden Sprachen
 im englischen Wortlaut. Nur Text, kein Fankit-Logo.
+
+**D.39 Tab „Info" listet, was eine Modelldatei enthält.** Für ein Modell (`.cgf`, `.cga`, `.skin`,
+`.chr`) steht hinter „Modell" der Tab „Info" (D.1 Tab-Leiste, 44 px). Er erfindet nichts Eigenes,
+sondern folgt der Zusammenfassung des DataForge-Tabs: unter der Pfadzeile (D.14) in einer
+Rollleiste die `.kv-list` mit Knoten, Meshes (der feinsten Stufe), LODs, Geometriedatei,
+Materialbibliothek, Material-IDs, Knochen, Animationen und Chunks (Schlüssel 14,4 / 700 in
+Versalien `color-gray-2-text`, Wert `detail-value-size` / 300 `color-data-fg`, Haarlinie unter
+jeder Zeile), darunter je eine Überschrift im Stil der Panel-Titel (Versalien, 700, Haarlinie) und
+eine Tabelle: „Detailstufen" mit LOD, Vertices, Dreiecken und Meshes, und, nur wenn das Modell
+Chunks nicht gelesen hat, „Nicht gelesene Chunks (n)" mit Datei, Typ, Typ-ID und Verwendung
+(„Bekannt, nicht gelesen" oder „Unbekannt, übersprungen"). Tabellenkopf 36 px mit `surface-input`
+und 2 px `color-primary` darunter, Zeilen 36 px mit Zebra, Hover `control-bg` und Trennlinie, die
+Spalten zu gleichen Teilen. Die Tabelle der Chunks nennt höchstens 200 Zeilen; die Zahl in der
+Überschrift zählt alle. Die Materialbibliothek steht mit ihrem Zustand („objects/ship, 3
+Teilmaterialien", „… (existiert nicht)", „… (nicht lesbar: …)"); die Animationen stehen als
+„Nicht gelesen", solange Animationen nicht gelesen werden. Alle Texte sind einmal je Modell,
+Sprache, Breite und Skalierung gesetzt und liegen im Frame-Speicher von egui; ein Frame setzt
+nichts neu. Meldungen (liest, nicht lesbar, Archiv geändert, zu groß) stehen anstelle der Liste
+wie im Tab „Modell" (D.35); der Tab zeigt die Liste auch für ein Modell, das der Viewer nicht
+zeichnen kann (Skelett, keine Dreiecke). Wählt man ein weiteres Modell, bleibt der Tab „Info"
+gewählt.
+
+**D.40 „Als GLB exportieren …" in der Vorschau-Leiste und im Menü Export.** Für ein Modell steht
+links von „Kopieren" am rechten Ende der Leiste „Als GLB exportieren …" (`.btn-ghost.btn-xs`, eine
+Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist oder ein Export läuft;
+das Menü Export führt denselben Eintrag nach „Record-Export …". Beide öffnen das breite
+Formular-Modal des Record-Exports (`.krt-modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
+„Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
+`color-gray-2-text` und gliedert sich in Gruppen mit Gruppenüberschrift (D.17, Abstand
+`modal-group-gap`): „Detailstufe" mit einem Radio je Stufe („LOD 0, 12 Dreiecke"), „Materialien"
+mit einem Radio je Modus (heute „Einfache Farben, eine kleine und schnelle Datei") und der Checkbox
+„Vertex-Farben schreiben", und „Datei" mit dem Pfadfeld (schreibgeschützt, Platzhalter „Keine Datei
+gewählt") und der Schaltfläche „Datei wählen …"; sie öffnet den Speichern-Dialog des Systems mit
+`.glb`-Filter, dem Namen des Modells und dem Ordner des letzten Exports. Liegt die Datei in einer
+Star-Citizen-Installation, steht darunter dasselbe `.alert--danger` wie bei der Extraktion (ADR-0036)
+und die CTA bleibt deaktiviert. Die CTA ist deaktiviert, bis eine Datei gewählt ist. Stufe,
+Materialmodus, Vertex-Farben und Ordner werden gemerkt (Einstellungsdatei); hat das nächste Modell
+die Stufe nicht, steht die feinste gewählt. Ein weiterer Materialmodus (Texturen) und die Mip-Wahl
+kommen als weitere Radios derselben Gruppen hinzu, sobald der Export sie kann.
+
+**D.41 Fortschritt, Zusammenfassung und Fehler des GLB-Exports.** Der Export läuft im
+Hintergrund; sein Fortschrittsfenster hat den Aufbau des Record-Exports (D.17): Titel „Modell wird
+exportiert", beim Lesen den Inline-Spinner (14) mit „… wird gelesen …", beim Schreiben „x von y
+geschrieben, n %" (in Byte-Größen) über dem Fortschrittsbalken, und im Fuß „Abbrechen" (während
+des Abbruchs der Spinner mit „Breche ab …"). Danach steht ein nicht modales Fenster in der breiten
+Form (`.krt-modal`) mit der CTA „Schließen": bei Erfolg „Modell exportiert" mit dem Zielpfad, den
+Zählern (Knoten, Meshes, Materialien, Vertices, Dreiecke, Größe), bei Knochen deren Zahl, in
+`color-warning` den Hinweisen, dass die Materialbibliothek fehlt oder nicht lesbar ist und das
+Standardmaterial gilt, dass Material-IDs oder Bibliothekseinträge ohne Material darauf
+zurückfallen, und in `color-gray-1`, wie viele Submeshes fehlen, weil ihr Material nichts zeichnet;
+darunter die aufklappbare Liste „Nicht exportierte Chunks (n)" mit einer Zeile je übersprungenem
+oder unbekanntem Chunk. Fehlende Texturen stehen als eigene Liste dort, sobald Texturen exportiert
+werden. Bei Abbruch steht „Export abgebrochen" mit einem Satz in `color-warning`, es wurde keine
+Datei geschrieben und keine Teildatei liegt da. Ein Fehler steht in `color-danger-text` im Fenster
+„Export fehlgeschlagen" und lässt das übrige Fenster bedienbar; fehlt der Archiv-Schlüssel, steht der
+Hinweis in `color-warning` und der Schlüssel-Dialog (ADR-0027) öffnet sich von selbst, ein
+geändertes Archiv ebenso in `color-warning`.

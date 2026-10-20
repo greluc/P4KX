@@ -20,6 +20,7 @@ mod loaded_dataforge;
 mod localization;
 mod localization_set;
 mod model_companions;
+mod model_observed;
 mod model_source;
 mod options;
 mod output_file;

@@ -16,7 +16,13 @@ pub(crate) fn entries() -> Vec<TestEntry> {
     let cube = TestModel::cube();
     let helpers = TestModel::cube().helpers_only();
     let tower = TestModel::cube().moved([0.0, 0.0, 6.0]);
+    let extra = TestModel::cube().with_chunk(0x0BAD_F00D, vec![0; 8]);
+    let painted = TestModel::cube().with_material_library("objects/gone");
     vec![
+        TestEntry::zstd("Data\\Objects\\extra.cgf", extra.cgf()),
+        TestEntry::zstd("Data\\Objects\\extra.cgfm", extra.cgfm()),
+        TestEntry::zstd("Data\\Objects\\painted.cgf", painted.cgf()),
+        TestEntry::zstd("Data\\Objects\\painted.cgfm", painted.cgfm()),
         TestEntry::zstd("Data\\Objects\\cube.cgf", cube.cgf()),
         TestEntry::zstd("Data\\Objects\\cube.cgfm", cube.cgfm()),
         TestEntry::zstd("Data\\Objects\\helpers.cgf", helpers.cgf()),
@@ -32,14 +38,44 @@ pub(crate) fn opened_with(
     support: ViewerSupport,
     configure: impl FnOnce(HarnessBuilder<Model>) -> HarnessBuilder<Model>,
 ) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
+    let site = Site {
+        entries: entries(),
+        installation: false,
+        key: false,
+    };
+    opened_at(language, support, site, configure)
+}
+
+/// Where and how a test Archive is opened.
+pub(crate) struct Site {
+    pub(crate) entries: Vec<TestEntry>,
+    pub(crate) installation: bool,
+    pub(crate) key: bool,
+}
+
+pub(crate) fn opened_at(
+    language: Language,
+    support: ViewerSupport,
+    site: Site,
+    configure: impl FnOnce(HarnessBuilder<Model>) -> HarnessBuilder<Model>,
+) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
-    let path = folder.path().join("Data.p4k");
-    entries()
+    let path = if site.installation {
+        let channel = folder.path().join("StarCitizen").join("LIVE");
+        std::fs::create_dir_all(channel.join("Bin64"))?;
+        channel.join("Data.p4k")
+    } else {
+        folder.path().join("Data.p4k")
+    };
+    site.entries
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
     let mut model = Model::new(language);
     model.set_viewer_support(support);
+    if site.key {
+        model.set_archive_key(Some(p4kx_testkit::test_key()));
+    }
     let mut harness = configure(Harness::builder())
         .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1600.0, 900.0])

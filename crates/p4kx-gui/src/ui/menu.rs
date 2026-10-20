@@ -15,7 +15,7 @@ use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
     AboutText, ArchiveKeyText, CatalogText, ExtractionScope, ExtractionText, KeyReason, Language,
-    Model, RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
+    Model, ModelExportText, RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -38,8 +38,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             ui.spacing_mut().button_padding.x = MENU_LINK_PADDING_X;
             ui.visuals_mut().widgets.hovered.weak_bg_fill = Color32::TRANSPARENT;
             pick = archive_menu(ui, model, requests);
-            if export_menu(ui, model, requests) {
-                pick = Some(Pick::RecordExport);
+            if let Some(exported) = export_menu(ui, model, requests) {
+                pick = Some(exported);
             }
             text_choice = record_text_menu(ui, model);
             let response = ui.menu_button(link(&language_menu), |ui| {
@@ -131,6 +131,7 @@ enum Pick {
     Reload,
     ExtractSelected,
     RecordExport,
+    ModelExport,
     ArchiveKey,
     About,
     FontLicence,
@@ -145,6 +146,7 @@ fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
         }
         Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
         Pick::RecordExport => model.begin_record_export(),
+        Pick::ModelExport => model.begin_model_export(),
         Pick::ArchiveKey => model.open_key_dialog(KeyReason::Menu),
         Pick::About => model.set_about_shown(true),
         Pick::FontLicence => model.set_licence_shown(true),
@@ -221,18 +223,28 @@ fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<P
     pick
 }
 
-/// Shows the Export menu; returns whether Record export was picked, and asks for the catalog file
-/// when Basetool catalog was picked.
-fn export_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> bool {
+/// Shows the Export menu; returns the export that was picked, and asks for the catalog file when
+/// Basetool catalog was picked.
+fn export_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<Pick> {
     let texts = model.texts();
     let title = texts.get(RecordExportText::Menu);
-    let mut picked = false;
+    let mut picked = None;
     let response = ui.menu_button(link(&title), |ui| {
         dropdown(ui);
         let record_export = Button::new(entry(&texts.get(RecordExportText::Action)));
-        picked = ui
+        if ui
             .add_enabled(model.record_export_available(), record_export)
-            .clicked();
+            .clicked()
+        {
+            picked = Some(Pick::RecordExport);
+        }
+        let model_export = Button::new(entry(&texts.get(ModelExportText::Action)));
+        if ui
+            .add_enabled(model.model_export_available(), model_export)
+            .clicked()
+        {
+            picked = Some(Pick::ModelExport);
+        }
         let catalog = Button::new(entry(&texts.get(CatalogText::Action)));
         if ui.add_enabled(model.catalog_available(), catalog).clicked() {
             requests.dialog = Some(Dialog::CatalogFile);

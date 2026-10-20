@@ -12,6 +12,7 @@ mod audio_control;
 mod catalog_control;
 mod extraction_control;
 mod game_watch;
+mod model_export_control;
 mod record_export_control;
 mod record_text;
 mod update;
@@ -23,6 +24,7 @@ pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use catalog_control::CatalogState;
 pub use game_watch::GAME_CHECK_INTERVAL;
 use game_watch::GameWatch;
+use model_export_control::ModelExportState;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
@@ -79,6 +81,7 @@ pub struct Model {
     query: QueryTab,
     localization: LocalizationTab,
     record_export: RecordExportState,
+    glb_export: ModelExportState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
     viewer_support: ViewerSupport,
@@ -110,6 +113,7 @@ impl std::fmt::Debug for Model {
             .field("query", &self.query)
             .field("localization", &self.localization)
             .field("record_export", &self.record_export)
+            .field("glb_export", &self.glb_export)
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
             .field("key", &self.key)
@@ -147,6 +151,7 @@ impl Model {
             query: QueryTab::default(),
             localization: LocalizationTab::default(),
             record_export: RecordExportState::default(),
+            glb_export: ModelExportState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
             viewer_support: ViewerSupport::default(),

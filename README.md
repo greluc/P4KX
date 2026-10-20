@@ -132,11 +132,14 @@ Early development (milestone M1). Available today:
   its soundbank, WEM ID, source and container path, e.g. `Play_QDrive_Spool in SSQD_QDrive.bnk:
   WEM 98393519 embedded, not located; event 2178236557 > action 98720655 > blend 228967944 > …`;
   broken links are listed with the object where the chain breaks, and `--json` gives the shape in
-  [docs/cli-json.md](docs/cli-json.md).
+  [docs/cli-json.md](docs/cli-json.md). A streamed WEM is located as its loose WEM Entry, and
+  localised sounds are resolved for `--lang <language>` with `--fallback-lang` (`English(US)` by
+  default), e.g. `WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem`.
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
-  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md).
+  listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md);
+  `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
 - `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
   their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
   `zh-Hant`); `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>]` prints the
@@ -252,6 +255,13 @@ Early development (milestone M1). Available today:
   blend modes are not applied, and every element left out is listed (exit code 1). A movie is
   untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
   bounded, and what lies beyond a limit is listed instead of drawn.
+- `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
+  shapes are written once and placed with their transforms, gradients, strokes, colour transforms
+  and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
+  same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
+  same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
+  is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
+  bitmap tiles it. A document is at most 1 GiB; a larger one is an error and no file is left.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

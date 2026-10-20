@@ -6,7 +6,7 @@ raw.
 
 | Object | Decoded for versions | Layout after the object ID |
 | --- | --- | --- |
-| Sound | 150 to 154 | plug-in ID, storage byte, source ID, `cacheID` (from 151 on, see #295), in-memory media size |
+| Sound | 150 to 154 | plug-in ID, storage byte, source ID, `cacheID` (from 151 on, see #295), in-memory media size, source bits byte (bit 0 = language-specific) |
 | Action | 49 to 154 | action type `u16`, target ID |
 | Event | 49 to 154 | action count (4 bytes up to 122, a variable-length integer from 123), action IDs |
 | Random, sequence, switch, blend container | 154 | node base, then the children |

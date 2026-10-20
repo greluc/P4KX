@@ -5,10 +5,12 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use super::banks::BankContents;
+use super::language::SOUND_FOLDER;
+use super::media::{Limits, LooseMedia, WemSource};
 use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
 use super::{
-    ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, IndexedSoundbank, MAX_ATL_LEN,
-    MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, WemLocation, atl, banks,
+    ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, DEFAULT_LANGUAGE, IndexedSoundbank,
+    MAX_ATL_LEN, MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, WemLocation, atl, banks,
 };
 
 type BankRead = Result<BankContents, AudioFileError>;
@@ -28,6 +30,7 @@ pub struct AudioIndex {
     soundbanks: Vec<IndexedSoundbank>,
     events: HashMap<u32, Box<[u32]>>,
     media: HashMap<u32, Box<[MediaSpot]>>,
+    loose: LooseMedia,
     issues: Vec<AudioIssue>,
 }
 
@@ -48,8 +51,22 @@ impl AudioIndex {
             .enumerate()
             .filter(|(_, entry)| has_extension(entry.path(), "bnk"))
             .collect();
+        let mut wem_entries: Vec<WemSource<'_>> = archive
+            .entries()
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| {
+                starts_with_folder(entry.path(), SOUND_FOLDER) && has_extension(entry.path(), "wem")
+            })
+            .map(|(position, entry)| WemSource {
+                entry: u32::try_from(position).unwrap_or(u32::MAX),
+                path: entry.path(),
+                len: entry.uncompressed_size(),
+            })
+            .collect();
         atl_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
         bank_entries.sort_by(|(_, a), (_, b)| folded_order(a.path(), b.path()));
+        wem_entries.sort_by(|a, b| folded_order(a.path, b.path));
         let definitions: Vec<_> = atl_entries
             .par_iter()
             .enumerate()
@@ -68,6 +85,17 @@ impl AudioIndex {
         let mut index = Self::default();
         index.add_definitions(&atl_entries, definitions);
         index.add_soundbanks(&bank_entries, soundbanks);
+        let (loose, failures) = LooseMedia::collect(
+            wem_entries.iter().copied(),
+            bank_entries.iter().map(|(_, entry)| entry.path()),
+            Limits::DEFAULT,
+        );
+        index.loose = loose;
+        index.issues.extend(
+            failures
+                .into_iter()
+                .map(|(path, error)| AudioIssue { path, error }),
+        );
         index
     }
 
@@ -205,6 +233,37 @@ impl AudioIndex {
                     len: spot.len,
                 })
             })
+    }
+
+    /// Returns the language folders below `Data\Sounds\wwise\` that hold soundbanks or loose WEMs,
+    /// e.g. `English(US)`, in name order ignoring ASCII case.
+    #[must_use]
+    pub fn languages(&self) -> &[Box<str>] {
+        self.loose.languages()
+    }
+
+    /// Returns the language folder called `name`, ignoring ASCII case, spelled as the Archive
+    /// spells it, or `None` when the Archive holds none.
+    #[must_use]
+    pub fn language(&self, name: &str) -> Option<&str> {
+        self.loose.language_of(name)
+    }
+
+    /// Returns the language folder `English(US)`, the game's default, or the first language folder
+    /// when the Archive holds none of that name, or `None` when it holds no language folder.
+    #[must_use]
+    pub fn default_language(&self) -> Option<&str> {
+        self.language(DEFAULT_LANGUAGE)
+            .or_else(|| self.languages().first().map(|name| &**name))
+    }
+
+    /// Returns the loose WEM Entries below `Data\Sounds\wwise\` named `<id>.wem`, in path order.
+    pub fn loose_wem(&self, id: u32) -> impl Iterator<Item = WemLocation<'_>> {
+        self.loose.find(id).map(|(_, location)| location)
+    }
+
+    pub(crate) const fn loose(&self) -> &LooseMedia {
+        &self.loose
     }
 
     pub(crate) fn event_holders(&self, id: u32) -> &[u32] {

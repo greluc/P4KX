@@ -1,7 +1,7 @@
 use p4kx_audio::BankError;
 use thiserror::Error;
 
-use super::MAX_AUDIO_TRIGGERS;
+use super::{MAX_AUDIO_TRIGGERS, MAX_LANGUAGES, MAX_LOOSE_WEMS};
 
 /// Why an ATL definition or soundbank Entry is left out of the audio index.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -34,6 +34,11 @@ pub enum AudioFileError {
     /// The index already holds [`MAX_AUDIO_TRIGGERS`] triggers.
     #[error("the audio index already holds {MAX_AUDIO_TRIGGERS} triggers")]
     TooManyTriggers,
+    /// The index already holds [`MAX_LOOSE_WEMS`] loose WEMs or [`MAX_LANGUAGES`] languages.
+    #[error(
+        "the audio index already holds {MAX_LOOSE_WEMS} loose WEMs or {MAX_LANGUAGES} languages"
+    )]
+    TooManyMedia,
 }
 
 impl AudioFileError {
@@ -46,6 +51,7 @@ impl AudioFileError {
             Self::Atl { .. } => "atl",
             Self::Soundbank(_) => "soundbank",
             Self::TooManyTriggers => "too_many_triggers",
+            Self::TooManyMedia => "too_many_media",
         }
     }
 }

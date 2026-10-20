@@ -63,6 +63,7 @@ fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
                     storage: MediaStorage::Embedded,
                     source_id: 617_647_119,
                     in_memory_size: 252_487,
+                    source_bits: 0,
                 })
             ),
             (
@@ -73,6 +74,7 @@ fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
                     storage: MediaStorage::Streamed,
                     source_id: 809_049_904,
                     in_memory_size: 0,
+                    source_bits: 0,
                 })
             ),
             (

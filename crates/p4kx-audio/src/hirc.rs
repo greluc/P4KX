@@ -13,6 +13,7 @@ const CONTAINER_VERSION: u32 = 154;
 const LAST_KNOWN_VERSION: u32 = 154;
 const LAST_OLD_TYPE_NUMBERING_VERSION: u32 = 126;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
+const LANGUAGE_SPECIFIC_BIT: u8 = 0x01;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
 const PLAY_ACTION_GROUP: u16 = 0x04;
 const LAST_FIXED_EVENT_COUNT_VERSION: u32 = 122;
@@ -165,6 +166,8 @@ pub struct SoundSource {
     pub source_id: u32,
     /// The size of the media in memory as the bank states it.
     pub in_memory_size: u32,
+    /// The source bits after the size: bit 0 marks the media as language-specific.
+    pub source_bits: u8,
 }
 
 impl SoundSource {
@@ -173,6 +176,13 @@ impl SoundSource {
     #[must_use]
     pub const fn is_source_plugin(&self) -> bool {
         self.plugin_id & PLUGIN_TYPE_MASK == SOURCE_PLUGIN_TYPE
+    }
+
+    /// Returns whether the media is language-specific: its WEM lies in the folder of a language,
+    /// loose or in a localised soundbank.
+    #[must_use]
+    pub const fn is_language_specific(&self) -> bool {
+        self.source_bits & LANGUAGE_SPECIFIC_BIT != 0
     }
 }
 
@@ -322,11 +332,17 @@ fn value(
                 fields.u32()?;
             }
             let in_memory_size = fields.u32()?;
+            let source_bits = if fields.remaining() > 0 {
+                fields.u8()?
+            } else {
+                0
+            };
             HircValue::Sound(SoundSource {
                 plugin_id,
                 storage,
                 source_id,
                 in_memory_size,
+                source_bits,
             })
         }
         HircKind::Action => HircValue::Action(ActionTarget {

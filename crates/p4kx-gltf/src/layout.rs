@@ -3,6 +3,7 @@ use std::io::Write;
 use p4kx_model::{Lod, Mesh};
 
 use crate::axes::to_y_up;
+use crate::materials::MaterialPlan;
 
 const ALIGNMENT: u64 = 4;
 const BATCH: usize = 1 << 14;
@@ -137,25 +138,27 @@ pub(crate) struct Layout<'m> {
     pub(crate) blocks: Vec<Block<'m>>,
     pub(crate) meshes: Vec<MeshLayout>,
     pub(crate) len: u64,
+    pub(crate) hidden_primitives: usize,
 }
 
 impl<'m> Layout<'m> {
-    /// Plans the blocks of every mesh of `lod` that has vertices and triangles; vertex colours
-    /// only when `colours_wanted` is set.
-    pub(crate) fn plan(lod: &'m Lod, colours_wanted: bool) -> Self {
+    /// Plans the blocks of every mesh of `lod` that has vertices and triangles, leaving out the
+    /// submeshes whose material draws nothing; vertex colours only when `colours_wanted` is set.
+    pub(crate) fn plan(lod: &'m Lod, colours_wanted: bool, materials: &MaterialPlan<'_>) -> Self {
         let mut layout = Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
             len: 0,
+            hidden_primitives: 0,
         };
         for mesh in &lod.meshes {
-            layout.plan_mesh(mesh, colours_wanted);
+            layout.plan_mesh(mesh, colours_wanted, materials);
         }
         layout
     }
 
-    fn plan_mesh(&mut self, mesh: &'m Mesh, colours_wanted: bool) {
-        let primitives: Vec<(&'m [u32], u16)> = mesh
+    fn plan_mesh(&mut self, mesh: &'m Mesh, colours_wanted: bool, materials: &MaterialPlan<'_>) {
+        let drawn: Vec<(&'m [u32], u16)> = mesh
             .submeshes
             .iter()
             .filter_map(|submesh| {
@@ -164,6 +167,12 @@ impl<'m> Layout<'m> {
                 (!indices.is_empty()).then_some((indices, submesh.material_id))
             })
             .collect();
+        let primitives: Vec<(&'m [u32], u16)> = drawn
+            .iter()
+            .copied()
+            .filter(|&(_, id)| !materials.hidden(id))
+            .collect();
+        self.hidden_primitives += drawn.len() - primitives.len();
         if mesh.positions.is_empty() || primitives.is_empty() {
             return;
         }

@@ -1,0 +1,14 @@
+---
+source: crates/p4kx/tests/wwise_streamed_localised.rs
+expression: run.stdout
+---
+TEST_Ship  0079c5d5-1678-4f8c-85ba-18ca8f642af6  libs/foundry/records/entities/spaceships/test_ship
+  Play_Long: Play_Long in Common.bnk
+    Play_Long in Common.bnk: WEM 7000 streamed, at Data\Sounds\wwise\Media\7000.wem (33 bytes); event 4283017120 > action 1 > sound 200
+    Play_Long in Common.bnk: WEM 7001 prefetch_streamed, at Data\Sounds\wwise\7001.wem (12 bytes); event 4283017120 > action 2 > sound 201
+    Play_Long in Common.bnk: WEM 7002 streamed, not located; event 4283017120 > action 3 > sound 202
+  Play_Voice: Play_DX_Hello in Voice.bnk (English(US)), Voice.bnk (German)
+    Play_DX_Hello in Voice.bnk (German): WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem (22 bytes); event 259184823 > action 1 > sound 10
+  Play_Only: Play_DX_Only in Only.bnk (English(US))
+    Play_DX_Only in Only.bnk (English(US)): WEM 8500 streamed localised English(US) (fallback), at Data\Sounds\wwise\Media\English(US)\8500.wem (23 bytes); event 3248668747 > action 1 > sound 10
+3 triggers: 3 matched, 0 unmatched

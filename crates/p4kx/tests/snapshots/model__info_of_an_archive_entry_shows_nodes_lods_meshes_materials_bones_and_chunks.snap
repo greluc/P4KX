@@ -6,7 +6,7 @@ Model:       Data\Objects\Test\cube.cgf
 Geometry:    cube.cgfm
 Nodes:       2
 LODs:        1
-Materials:   objects/test/cube, IDs 1, 2
+Materials:   objects/test/cube (3 sub-materials), IDs 1, 2
 Bones:       0
 Chunks:      7 (3 read, 3 skipped, 1 unknown)
 
@@ -15,6 +15,11 @@ Chunks:      7 (3 read, 3 skipped, 1 unknown)
 
  LOD  Node                        Vertices   Triangles  Normals  Tangents  Colours  Material IDs
    0  cube_mesh                         24          12  yes      no        no       1, 2
+
+ ID  Material                  Shader            Surface             Diffuse               Opacity  Textures
+  0  unused                    Illum             -                   1.000 1.000 1.000           1  0
+  1  caps                      Illum             -                   0.800 0.100 0.100           1  0
+  2  sides                     Illum             -                   0.100 0.100 0.800         0.5  0
 
  Node  Parent  Name
     0  -       cube

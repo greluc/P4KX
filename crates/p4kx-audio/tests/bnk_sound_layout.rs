@@ -14,6 +14,7 @@ const fn source() -> SoundSource {
         storage: MediaStorage::Embedded,
         source_id: SOURCE,
         in_memory_size: SIZE,
+        source_bits: 0,
     }
 }
 

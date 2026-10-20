@@ -1,10 +1,7 @@
 use p4kx_audio::{HircKind, Soundbank};
 
 use super::AudioFileError;
-
-/// The folder below which the game keeps its soundbanks; a soundbank in a subfolder of it is
-/// localised for the language the subfolder names.
-const SOUNDBANK_FOLDER: &str = "wwise";
+use super::language::bank_language;
 
 /// A soundbank Entry of the audio index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,10 +30,7 @@ impl IndexedSoundbank {
     /// soundbank that is not localised.
     #[must_use]
     pub fn language(&self) -> Option<&str> {
-        let mut folders = self.path.rsplit(['\\', '/']).skip(1);
-        let folder = folders.next()?;
-        let parent = folders.next()?;
-        (parent.eq_ignore_ascii_case(SOUNDBANK_FOLDER) && !folder.is_empty()).then_some(folder)
+        bank_language(&self.path)
     }
 
     /// Returns the soundbank ID its `BKHD` section states.

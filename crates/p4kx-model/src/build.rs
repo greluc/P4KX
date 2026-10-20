@@ -3,6 +3,7 @@ use p4kx_chunks::{ChunkFile, ChunkType, ivo};
 use crate::material::material_library;
 use crate::mesh::split_by_node;
 use crate::model::MESH_TYPES;
+use crate::mtl_load::load;
 use crate::nmc::read_nodes;
 use crate::skin::read_skin;
 use crate::{
@@ -46,12 +47,15 @@ pub(crate) fn build<B: AsRef<[u8]>>(
 
     let mut chunks = usage(file, ModelFile::Model, &read);
     chunks.extend(companion_chunks);
+    let material_library = material.flatten();
+    let materials = load(material_library.as_deref(), companions);
     Ok(Model {
         name: name.to_owned(),
         geometry: base_name,
         nodes: nodes.unwrap_or_else(|| vec![root_node(name)]),
         lods,
-        material_library: material.flatten(),
+        material_library,
+        materials,
         bones: Vec::new(),
         chunks,
     })

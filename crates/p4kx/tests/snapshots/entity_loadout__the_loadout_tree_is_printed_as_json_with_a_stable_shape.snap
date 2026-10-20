@@ -17,6 +17,7 @@ expression: "serde_json::to_string_pretty(&value)?"
         "entity": null,
         "error": null,
         "name": "hardpoint_paint",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -31,6 +32,7 @@ expression: "serde_json::to_string_pretty(&value)?"
         },
         "error": null,
         "name": "hardpoint_seat_pilot",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -53,6 +55,7 @@ expression: "serde_json::to_string_pretty(&value)?"
               },
               "error": null,
               "name": "Display_HUD",
+              "nested": [],
               "source": "loadout"
             },
             {
@@ -67,6 +70,7 @@ expression: "serde_json::to_string_pretty(&value)?"
               },
               "error": null,
               "name": "Radar",
+              "nested": [],
               "source": "override"
             }
           ],
@@ -74,6 +78,7 @@ expression: "serde_json::to_string_pretty(&value)?"
         },
         "error": null,
         "name": "hardpoint_dashboard",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -152,6 +157,7 @@ expression: "serde_json::to_string_pretty(&value)?"
               },
               "error": null,
               "name": "hardpoint_class_2",
+              "nested": [],
               "source": "override"
             }
           ],
@@ -159,6 +165,7 @@ expression: "serde_json::to_string_pretty(&value)?"
         },
         "error": null,
         "name": "hardpoint_weapon_nose",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -171,6 +178,7 @@ expression: "serde_json::to_string_pretty(&value)?"
           "reference": "00000001-0002-0003-0004-000000000005"
         },
         "name": "hardpoint_cargo",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -183,6 +191,7 @@ expression: "serde_json::to_string_pretty(&value)?"
           "reference": null
         },
         "name": "hardpoint_door",
+        "nested": [],
         "source": "loadout"
       },
       {
@@ -197,6 +206,7 @@ expression: "serde_json::to_string_pretty(&value)?"
         "entity": null,
         "error": null,
         "name": "hardpoint_relay",
+        "nested": [],
         "source": "unset"
       }
     ],

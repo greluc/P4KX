@@ -4,6 +4,8 @@ use p4kx_extraction::ModelSource;
 use p4kx_extraction::model::{ChunkUsage, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
 use serde::Serialize;
 
+use crate::model_materials_json::{LibraryJson, MaterialJson};
+
 /// The JSON shape of `p4kx model info`.
 #[derive(Serialize)]
 pub(crate) struct InfoJson<'a> {
@@ -11,6 +13,8 @@ pub(crate) struct InfoJson<'a> {
     geometry: Option<&'a str>,
     material_library: Option<&'a str>,
     material_ids: Vec<u16>,
+    library: LibraryJson<'a>,
+    materials: Vec<MaterialJson<'a>>,
     nodes: Vec<NodeJson<'a>>,
     lods: Vec<LodJson>,
     bones: Vec<BoneJson<'a>>,
@@ -25,6 +29,8 @@ impl<'a> InfoJson<'a> {
             geometry: model.geometry.as_deref(),
             material_library: model.material_library.as_deref(),
             material_ids: model.material_ids(),
+            library: LibraryJson::of(model),
+            materials: MaterialJson::of_model(model),
             nodes: model.nodes.iter().enumerate().map(NodeJson::of).collect(),
             lods: model
                 .lods

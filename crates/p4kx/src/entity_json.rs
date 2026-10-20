@@ -73,6 +73,7 @@ struct PortJson<'a> {
     definition: Option<DefinitionJson<'a>>,
     entity: Option<NodeJson<'a>>,
     error: Option<ErrorJson<'a>>,
+    nested: Vec<Self>,
 }
 
 impl<'a> From<&'a PortNode> for PortJson<'a> {
@@ -94,6 +95,7 @@ impl<'a> From<&'a PortNode> for PortJson<'a> {
             definition: port.definition().map(DefinitionJson::from),
             entity,
             error,
+            nested: port.nested().iter().map(PortJson::from).collect(),
         }
     }
 }

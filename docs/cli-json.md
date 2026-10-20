@@ -138,13 +138,18 @@ A **Port**:
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
 | `error` | Error or `null` | Why the attachment cannot be resolved |
+| `nested` | array | Ports of the nested Loadout of an empty port, each a Port with `source` `override` and no `definition`; `[]` for every other port |
 
-`entity` and `error` are both `null` for an empty port. A **definition** has `display_name` (a
-localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or `null`), `types`
-(each with `type` and `sub_types`) and `transform`: `null` without an attachment helper,
-otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the helper in the
-parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and `rotation`
-(`[x, y, z]` in degrees as stored).
+`entity` and `error` are both `null` for an empty port. A Loadout entry that names no Entity
+(an XML `<Item>` with an empty `itemName`, or a manual entry without target) but carries nested
+entries keeps its port empty and lists those entries in `nested`, so the gear below e.g.
+`Body_ItemPort` of a character stays visible; they count in `ports`, `attached` and `empty` like
+every port. The text output prints them indented below the empty port. A **definition** has
+`display_name` (a localisation key), `flags` (as stored), `min_size` and `max_size` (numbers or
+`null`), `types` (each with `type` and `sub_types`) and `transform`: `null` without an
+attachment helper, otherwise `attachment` (`Bone`, `Entity`, `Skin` or `StatObj`), `helper` (the
+helper in the parent's geometry), `offset_helper`, `position` (`[x, y, z]` in metres) and
+`rotation` (`[x, y, z]` in degrees as stored).
 
 An **Error** has `kind`, a stable code, `reason`, text for people, and for an unresolved port the
 target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
@@ -175,7 +180,7 @@ order is attached. The same Archive always gives the same document.
 ## `p4kx entity audio <archive> <entity> --json`
 
 ```json
-{"archive": "…", "entry": "Data\\Game2.dcb",
+{"archive": "…", "entry": "Data\\Game2.dcb", "language": {…},
  "entity": {"guid": "…", "record_path": "…", "name": "EntityClassDefinition.ORIG_890Jump",
             "class_name": "ORIG_890Jump"},
  "triggers": [Trigger, …], "counts": {"triggers": 47, "matched": 47, "unmatched": 0},
@@ -199,6 +204,12 @@ A **Trigger**:
 | `definition` | string or `null` | Path of the ATL definition Entry; `null` when no definition has the trigger |
 | `events` | array | One Event per `WwiseEvent` of the definition, in order |
 | `unmatched` | object or `null` | Why the trigger reaches no soundbank: `kind` and `message` |
+| `sounds` | object | With `--sounds` only: `variants` and `breaks` as `p4kx wwise resolve` lists them |
+
+With `--sounds`, each trigger that has a definition is resolved as by `p4kx wwise resolve` (the
+soundbanks of the trigger are read again) and the document gets a `language` object with
+`requested` and `fallback`, the same as the one of `wwise resolve`; `--lang` and `--fallback-lang`
+choose the languages. Without `--sounds` the two flags change nothing but are still checked.
 
 An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
 case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
@@ -210,13 +221,14 @@ The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
 (`too_large`: a soundbank above 32 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
-`soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
+`soundbank`, `too_many_triggers`: the index already holds 262,144 triggers, or `too_many_media`:
+the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json
-{"archive": "…",
+{"archive": "…", "language": {"requested": "German", "fallback": "English(US)"},
  "trigger": {"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
              "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false}]},
  "variants": [Variant, …], "breaks": [Break, …],
@@ -241,12 +253,23 @@ A **Variant**:
 | `sound_id` | number | ID of the Sound object |
 | `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
 | `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
-| `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`; `null` when no soundbank embeds the WEM |
+| `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
+| `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
+| `fallback` | boolean | `language` is the fallback language, not `requested` |
+| `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`, or `kind` `entry` with the `entry` path of a loose WEM and its `len`; `null` when neither holds the WEM |
 | `path` | array | Container path from the Event object to the Sound object, each step with `kind` and `id` |
 
-An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in a
-soundbank of the same language folder, then in a soundbank that is not localised, then in every
-other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
+A streamed or prefetched WEM is looked for as a loose WEM Entry named `<id>.wem` below
+`Data\Sounds\wwise\` (also in its `Media` folder): a localised one in the language folder of its
+soundbank, else of `requested`, else of the fallback language, else among the WEMs that are not
+localised; a prefetched WEM without such an Entry has the start in the soundbank as its location.
+An embedded WEM is looked for in the soundbank of the hierarchy first, then in a soundbank of the
+same language folder, then in a soundbank that is not localised, then in every other soundbank,
+and last as a loose WEM. A localised event is followed only in the soundbanks of `requested` or,
+where it has none, of the fallback; `requested` and `fallback` are `null` for a language not
+named, and the command line fills the fallback with `English(US)` or the first language folder.
+`--lang` and `--fallback-lang` must name a language folder of the Archive (`Data\Sounds\wwise\<folder>`),
+otherwise the exit code is 2. Step kinds are
 `event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
 not followed its `HIRC` type, e.g. `music_track`.
 
@@ -257,7 +280,9 @@ ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The ki
 an ID the soundbank does not hold), `malformed`, `unknown_layout` (a sound or container of a bank
 version other than 154), `unsupported` (an object kind that is not followed, e.g. music), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a
-container are followed) and `too_many_objects` (at most 16,384 objects per event and soundbank).
+container are followed), `too_many_objects` (at most 16,384 objects per event and soundbank) and
+`no_localisation` (a localised event or streamed sound has no soundbank or WEM in `requested` nor
+in the fallback language).
 New kinds may be added in later versions.
 
 ## `p4kx dcb query <archive> <query> --json`
@@ -729,6 +754,13 @@ it.
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
  "material_library": "objects/test/cube", "material_ids": [1, 2],
+ "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
+             "default_palette": null},
+ "materials": [{"id": 1, "name": "caps", "flags": 0, "shader": "Illum", "surface_type": "",
+                "string_gen_mask": "", "diffuse": [0.8, 0.1, 0.1], "specular": [0.04, 0.04, 0.04],
+                "emissive": [0.0, 0.0, 0.0], "shininess": 10.0, "opacity": 1.0,
+                "alpha_test": 0.0, "glow": 0.0,
+                "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
  "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
@@ -745,7 +777,13 @@ it.
 
 `geometry` is the file name of the geometry companion the meshes come from, `null` when they are
 in the model file itself or the model has no geometry. `material_library` is the path below `Data`
-without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of the file;
+without `.mtl` the material IDs refer to, or `null`. `library.status` is `loaded`, `missing` (no
+such `.mtl` file), `unreadable` (the file or its path is invalid) or `unnamed`; `problem` says
+what is wrong for the second and third; `single` is true when one material serves every ID (then
+`id` of the material is `null`); `default_palette` is the library's default tint palette.
+`materials` lists the materials of a loaded library in ID order, with the colours as the file
+stores them (linear), `flags` the engine's `MtlFlags` and `textures` the slots with their paths as
+the file gives them. `nodes` keeps the order of the file;
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
 metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
@@ -761,22 +799,29 @@ an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
- "primitives": 2, "materials": 2, "vertices": 24, "triangles": 12, "bytes": 2412,
+ "primitives": 2, "materials": 2, "default_material_ids": 0, "hidden_primitives": 0,
+ "vertices": 24, "triangles": 12, "bytes": 2412,
+ "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
+             "default_palette": null},
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
                      "usage": "unknown"}]}
 ```
 
 The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
-one primitive per submesh and one material per material ID, of the level of detail `--lod` names
+one primitive per submesh and one material per sub-material the drawn submeshes use (plus one
+default material when any ID falls back to it), of the level of detail `--lod` names
 (LOD0 by default), in glTF axes (Y up) and metres; the counts do not say which of `NORMAL`,
 `TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
-`bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
+`bytes` is the length of the file. `default_material_ids` counts the material IDs drawn with the
+default material because the `.mtl` file is missing, unreadable or has no sub-material for them,
+and `hidden_primitives` the submeshes left out because their material draws nothing; `library` is
+the status of the `.mtl` file as in `p4kx model info`. `unknown_chunks` lists the chunks of unknown type that the
 export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
 `--lod` the model lacks, exits with code 2.
 

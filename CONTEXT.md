@@ -261,9 +261,22 @@ _Avoid_: sound file, variation
 
 **Broken link**:
 A place where the way from a Wwise event to a WEM ends without a sound: an object the soundbank
-lacks, cannot read or does not follow, a cycle, or a limit of the walk; named by the object where
-it breaks.
+lacks, cannot read or does not follow, a cycle, a limit of the walk, or a localised sound without
+a WEM in the Audio language asked for and its fallback; named by the object where it breaks.
 _Avoid_: missing sound, unresolved trigger
+
+**Loose WEM**:
+A WEM Entry named `<id>.wem` below `Data\Sounds\wwise\` (usually in its `Media` folder), the media
+of a streamed or prefetched Sound variant; found by the ID of the WEM, never by a path a soundbank
+states.
+_Avoid_: external WEM, stream file
+
+**Audio language**:
+A language folder below `Data\Sounds\wwise\`, e.g. `English(US)`, that holds localised soundbanks
+and Loose WEMs; read from the Archive, not a fixed list, and unrelated to the languages of the
+Localisation keys. A localised Sound variant is resolved in the Audio language asked for, else in
+the fallback language.
+_Avoid_: voice language, locale
 
 **Character**:
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
@@ -302,6 +315,12 @@ _Avoid_: mesh file, streaming file
 The geometry companion of a level of detail from 1 on, named `<stem>_lod<n>.<extension>m`, e.g.
 `box_lod1.cgfm`. Its meshes belong to the nodes of the base model file.
 _Avoid_: LOD file, lod mesh
+
+**Material library**:
+The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
+ID, or a list of sub-materials whose position is the material ID. Each material has a shader,
+colours, an opacity and texture slots.
+_Avoid_: material file, material set
 
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item

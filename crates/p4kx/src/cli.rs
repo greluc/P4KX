@@ -19,7 +19,7 @@ use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 pub(crate) use crate::cli_verify::VerifyArgs;
-pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
+pub(crate) use crate::cli_wwise::{AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.

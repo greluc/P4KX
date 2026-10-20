@@ -75,13 +75,18 @@ impl EntityNode {
 }
 
 fn walk<'n>(node: &'n EntityNode, prefix: &str, ports: &mut Vec<(String, &'n PortNode)>) {
-    for port in &node.ports {
+    walk_ports(&node.ports, prefix, ports);
+}
+
+fn walk_ports<'n>(list: &'n [PortNode], prefix: &str, ports: &mut Vec<(String, &'n PortNode)>) {
+    for port in list {
         let path = if prefix.is_empty() {
             port.name.clone()
         } else {
             format!("{prefix}/{}", port.name)
         };
         ports.push((path.clone(), port));
+        walk_ports(&port.nested, &path, ports);
         if let Attachment::Entity(child) = &port.attachment {
             walk(child, &path, ports);
         }
@@ -95,9 +100,18 @@ pub struct PortNode {
     pub(crate) source: PortSource,
     pub(crate) definition: Option<Arc<PortDefinition>>,
     pub(crate) attachment: Attachment,
+    pub(crate) nested: Vec<Self>,
 }
 
 impl PortNode {
+    /// Returns the ports of the nested Loadout of an empty port: a Loadout entry that names no
+    /// Entity but carries entries of its own, e.g. the gear below a character's `Body_ItemPort`.
+    /// Their source is [`PortSource::Override`]; empty for every other port.
+    #[must_use]
+    pub fn nested(&self) -> &[Self] {
+        &self.nested
+    }
+
     /// Returns the port name, as the Loadout or the port definition spells it.
     #[must_use]
     pub fn name(&self) -> &str {

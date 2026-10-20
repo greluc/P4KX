@@ -53,3 +53,29 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
     }
     Ok(())
 }
+
+#[test]
+fn the_tools_that_return_game_content_say_it_may_be_forwarded_and_not_redistributed() -> TestResult
+{
+    let install = Install::standard()?;
+    let mut server = install.serve(&[])?;
+    let tools = server.tools()?;
+    for name in [
+        "read_entry_text",
+        "read_entry_bytes",
+        "get_record",
+        "run_query",
+    ] {
+        let description = tools
+            .iter()
+            .find(|tool| tool.get("name").and_then(Value::as_str) == Some(name))
+            .and_then(|tool| tool.get("description").and_then(Value::as_str))
+            .unwrap_or_default();
+        assert!(
+            description.contains("forwarded by the client to third parties")
+                && description.contains("must not be redistributed"),
+            "{name}: {description}"
+        );
+    }
+    Ok(())
+}

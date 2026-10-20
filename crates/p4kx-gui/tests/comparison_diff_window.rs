@@ -37,7 +37,7 @@ fn harness((library, pair): (&Path, &Pair), language: Language) -> Harness<'stat
     tab.set_archive(ComparisonSide::New, pair.new.clone());
     Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1280.0, 900.0])
+        .with_size([1280.0, 1000.0])
         .build_ui_state(
             |ui, (model, requests): &mut State| {
                 let frame = ui::show(ui, model);

@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::checks::Checks;
 use crate::containers::{Containers, Place};
-use crate::record_preview::Navigation;
+use crate::record_preview::{IncomingList, Navigation};
 use crate::record_search::RecordSearch;
 use crate::search::{Matches, Pending};
 use crate::{
@@ -52,6 +52,7 @@ pub struct Browser {
     records: Option<RecordTree>,
     record_search: RecordSearch,
     navigation: Navigation,
+    incoming: IncomingList,
     record_language: Option<TextLanguage>,
 }
 
@@ -86,6 +87,7 @@ impl Browser {
             records,
             record_search: RecordSearch::default(),
             navigation: Navigation::default(),
+            incoming: IncomingList::default(),
             record_language: None,
         };
         browser.refresh_tree();
@@ -288,7 +290,8 @@ impl Browser {
         let found = self.poll_record_search(loaded);
         let opened = self.poll_containers();
         let read = self.navigation.poll();
-        self.poll_search() || previewed || loaded || found || opened || read
+        let listed = self.incoming.poll();
+        self.poll_search() || previewed || loaded || found || opened || read || listed
     }
 
     fn folder_range(&self) -> Range<u32> {

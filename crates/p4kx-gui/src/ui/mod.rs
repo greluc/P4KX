@@ -3,6 +3,7 @@
 mod archive_change;
 mod archive_issues;
 mod archive_key;
+mod archive_notice;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
@@ -33,6 +34,7 @@ mod localization_table;
 mod menu;
 mod moved_path;
 mod preview;
+mod preview_bar;
 mod preview_tab;
 mod query;
 mod query_editor;
@@ -40,6 +42,7 @@ mod query_table;
 mod record_export;
 mod record_export_outcome;
 mod record_fields;
+mod record_incoming;
 mod record_key;
 mod record_lines;
 mod record_list;
@@ -146,6 +149,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     frames::header_rule(ui, header.response.rect);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
+    archive_notice::show(ui, model);
     Panel::bottom("status")
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)

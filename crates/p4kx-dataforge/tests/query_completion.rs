@@ -226,6 +226,7 @@ fn names_that_are_no_bare_names_are_inserted_in_backticks() -> TestResult {
         .structure(
             TestStruct::new("Tag")
                 .field("select", TestType::Int32)
+                .field("referencing", TestType::Int32)
                 .field("Size-X", TestType::Single),
         )
         .build();
@@ -241,7 +242,11 @@ fn names_that_are_no_bare_names_are_inserted_in_backticks() -> TestResult {
         .map(p4kx_dataforge::query::Candidate::insert)
         .collect();
 
-    assert_eq!(inserts, ["`select`", "`Size-X`"], "quoted");
+    assert_eq!(
+        inserts,
+        ["`referencing`", "`select`", "`Size-X`"],
+        "quoted, also the newest keyword"
+    );
     Ok(())
 }
 

@@ -187,3 +187,34 @@ fn the_schema_is_tried_once_per_generation_of_the_cache() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_stopped_build_of_the_references_stores_nothing_and_a_later_one_builds() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, true)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    let source = index
+        .forge()
+        .read(&index, || {})
+        .map_err(ReadFailure::into_reason)?;
+
+    let stopped = source
+        .references(&|| true)
+        .map_err(ReadFailure::into_reason)?;
+    assert!(stopped.is_none(), "stopped before it began");
+    assert_eq!(index.forge().reference_builds(), 0, "nothing was built");
+
+    let built = source
+        .references(&|| false)
+        .map_err(ReadFailure::into_reason)?;
+    assert!(built.is_some(), "built once nobody stops it");
+    assert_eq!(index.forge().reference_builds(), 1, "one build");
+    let again = source
+        .references(&|| true)
+        .map_err(ReadFailure::into_reason)?;
+    assert!(again.is_some(), "a kept index needs no work, so no stop");
+    assert_eq!(index.forge().reference_builds(), 1, "still one build");
+    Ok(())
+}

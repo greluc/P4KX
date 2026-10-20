@@ -73,6 +73,7 @@ archive-issues =
         [one] The directory of the Archive has one defect in an Entry. The Entry stays listed, but its data may not be readable; an Extraction reports it if it fails, and `p4kx info` names it.
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
+archive-test-build = This Archive belongs to the { $channel } Channel, a Star Citizen test build. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…
@@ -203,6 +204,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Run Query
 query-cancel = Cancel
 query-loading = Reading DataForge…
+query-indexing = Indexing References…
 query-selecting = Selecting Records…
 query-progress = { $done } of { $total } Records, { $percent } %
 query-cancelled = The Query was cancelled.
@@ -563,6 +565,31 @@ localization-no-match = No key or text matches the search.
 localization-copy-key = Copy key
 localization-copy-text = Copy text
 localization-notes = Some global.ini files were not read cleanly:
+
+preview-tab-incoming = Referenced by
+scroll-incoming = Referring Records
+incoming-head-field = Field
+incoming-head-record = Referring Record
+incoming-loading = Finding the Records that refer to { $path }…
+incoming-failed = Cannot find the Records that refer to { $path }: { $reason }
+incoming-stopped = Finding the Records that refer to { $path } stopped without a result.
+incoming-archive-changed = The Archive changed on disk. Reload it to find the Records that refer to a Record.
+incoming-none = No Record refers to this Record.
+incoming-follow = Open the Record { $path }, which refers to this Record in { $field }
+incoming-summary = { $references } from { $records }
+incoming-reference-count =
+    { $count ->
+        [one] { $number } Reference
+       *[other] { $number } References
+    }
+incoming-record-count =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+incoming-truncated = The first { $shown } of { $total } References are listed.
+incoming-incomplete = Some Records could not be read or the index is full, so the list may miss References.
+
 preview-key-required = { $path } is encrypted. Enter the Archive key to read it.
 preview-key-rejected = The Archive key does not decrypt { $path }. Enter the right key to read it.
 key-menu = Archive key…

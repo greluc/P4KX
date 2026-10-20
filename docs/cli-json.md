@@ -342,6 +342,43 @@ them is also reported on stderr, and the exit code is 1 when `failed` is not 0.
  of the rows written, each link once per row ([query.md](query.md#following-references)); they
 reach `null` and change no exit code.
 
+## `p4kx dcb refs <archive> [<record>] --incoming|--outgoing|--files|--unresolved [--format table|json] --json`
+
+`<record>` is a GUID or a record path; a record path that several Records share lists each of
+them. `--incoming` lists the Records that hold a Reference to the Record, `--outgoing` the
+Records it refers to, with the Reference to a GUID no Record has listed apart, `--files` the edges of the
+file graph ([ADR-0029](adr/0029-references-are-indexed-once-per-archive-from-record-trees.md)),
+limited to the edges from or to the file of `<record>` when one is given, and `--unresolved`
+every Reference to a GUID no Record has. `--json` is `--format json`; with `--format table` it is
+invalid input (exit code 2), as is a `<record>` no Record matches.
+
+```json
+{"archive": "…", "direction": "incoming", "records": [{"record": {"guid": "…", "record_path":
+ "libs/makers/aegis", "name": "Manufacturer.Aegis", "type": "Manufacturer"},
+ "reference_count": 2, "record_count": 2, "references": [{"record": {"guid": "…",
+ "record_path": "libs/ships/alpha", "name": "Ship.Alpha", "type": "Ship"}, "location":
+ "Components[3].maker", "field": "Components[].maker", "indices": [3]}], "unresolved_count": 0,
+ "unresolved": []}]}
+```
+
+`records` has one entry per Record `<record>` names. `reference_count` is the number of
+References listed in `references` and `record_count` the number of distinct Records among their
+other ends. In an entry, `record` is the Record the
+listing is about; in each of its `references`, `record` is the other end: the Record that holds
+the Reference for `incoming`, the Record it links to for `outgoing`. `location` is the place of
+the Reference in the Record that holds it as the Record preview writes it, `field` the same with
+`[]` for every array on the way, and `indices` the index of the element in each array,
+outermost first. `unresolved` is empty for `incoming`; for `outgoing` it holds the Reference to
+GUIDs no Record has, with `"record": null` and the `guid` they name.
+
+`--files --json` writes `{"archive": "…", "file_count": 62736, "edge_count": 475075, "edges":
+[{"from": "libs/ships/alpha", "to": "libs/makers/aegis"}]}`, the files by record path, and
+`--unresolved --json` writes `{"archive": "…", "count": 880, "unresolved": [{"record": {…},
+"guid": "…", "location": "…", "field": "…", "indices": […]}]}` where `record` is the Record that
+holds the Reference. A DataForge that holds more than 8,388,608 References, or Records that
+cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
+8,388,608 References in the order of the Records.
+
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
@@ -865,8 +902,8 @@ yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exi
 
 `verified` counts the Entries whose data matched the checksum of the directory. `mismatched`
 lists the Entries whose data did not, with the kind of the checksum (`crc32c` in an Archive,
-`crc32` in a container) and the stored (`expected`) and computed (`actual`) value as eight
-lower-case hex digits; `failed` lists the Entries that could not be read or decoded, with the
+`crc32` in a container, `sha256` for the SHA-256 of the stored bytes) and the stored (`expected`)
+and computed (`actual`) value as lower-case hex digits, eight for a CRC and 64 for a SHA-256; `failed` lists the Entries that could not be read or decoded, with the
 reason and its causes joined by `: `; `cancelled` lists the Entries not checked because the run was
 cancelled. The three lists are in Archive order. `archive_changed` is `true` when the Archive
 changed on disk: the run then stops and the exit code is 4. Otherwise the exit code is 1 when

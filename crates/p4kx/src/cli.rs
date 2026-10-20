@@ -9,11 +9,10 @@ pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
-    DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
+    DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, DcbRefsArgs, QueryFormat,
+    RecordFormat, RefsFormat,
 };
-pub(crate) use crate::cli_entity::{
-    EntityAction, EntityArgs, EntityAudioArgs, EntityGlbArgs, EntityLoadoutArgs,
-};
+pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;

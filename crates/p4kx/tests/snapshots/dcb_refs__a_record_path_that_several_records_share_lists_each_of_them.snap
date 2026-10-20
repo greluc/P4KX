@@ -1,0 +1,20 @@
+---
+source: crates/p4kx/tests/dcb_refs.rs
+expression: "stdout(&[\"libs/ships/beta\", \"--outgoing\"])?"
+---
+References from libs/ships/beta (Ship.Beta, Ship, 00000000-0000-0000-0000-000000000032)
+referred to record path  name                field
+-----------------------  ------------------  -----
+libs/makers/aegis        Manufacturer.Aegis  maker
+1 Reference from 1 Record
+
+References from libs/ships/beta (Ship.Gamma, Ship, 00000000-0000-0000-0000-000000000033)
+referred to record path  name  field
+-----------------------  ----  -----
+0 References from 0 Records
+
+Unresolved References
+GUID                                  field
+------------------------------------  -----
+00000000-0000-0000-0000-000000000099  maker
+1 unresolved Reference

@@ -12,7 +12,7 @@ use p4kx_extraction::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::EntityGlbArgs;
+use crate::cli_entity::EntityGlbArgs;
 use crate::cli_model::MaterialsArg;
 use crate::json;
 use crate::query_table::one_line;

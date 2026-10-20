@@ -100,6 +100,17 @@ impl Install {
         ])
     }
 
+    /// Adds a Channel folder `name` to the Library with a small Archive and returns its path.
+    pub(crate) fn add_channel(&self, name: &str) -> TestResult<PathBuf> {
+        let folder = self.default_library().join(name);
+        std::fs::create_dir_all(&folder)?;
+        let archive = folder.join("Data.p4k");
+        ArchiveBuilder::new()
+            .entry(TestEntry::stored("readme.txt", b"hello".to_vec()))
+            .write_to(&archive)?;
+        Ok(archive)
+    }
+
     pub(crate) fn path(&self) -> &Path {
         self.root.path()
     }

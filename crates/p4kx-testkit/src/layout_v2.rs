@@ -2,7 +2,6 @@ use crate::TestEntry;
 use crate::bytes::{len_u64, put_u16, put_u32, put_u64};
 
 const RECORD_SIGNATURE_LEN: usize = 128;
-const RECORD_HASH_LEN: usize = 32;
 const TRAILER_MANIFEST_HASH_LEN: usize = 64;
 const PHYSICAL_SECTOR_SIZE: u64 = 4096;
 const LAYOUT_VERSION: u16 = 2;
@@ -64,7 +63,7 @@ fn write_record(out: &mut Vec<u8>, entry: &TestEntry, data_offset: u64, name_off
     put_u64(out, name_offset);
     out.extend_from_slice(&[0; RECORD_SIGNATURE_LEN]);
     put_u16(out, entry.encryption_value());
-    out.extend_from_slice(&[0; RECORD_HASH_LEN]);
+    out.extend_from_slice(&entry.sha256);
 }
 
 fn write_trailer(out: &mut Vec<u8>, trailer: &Trailer) {

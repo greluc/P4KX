@@ -260,3 +260,39 @@ fn socpak_verify_uses_the_plain_crc32_of_the_container() -> TestResult {
     assert!(!out.join("room/bad.xml").exists(), "the bad one is not");
     Ok(())
 }
+
+#[test]
+fn verify_reports_a_wrong_sha_256_with_64_hex_digits() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\good.bin", DATA).with_sha256())
+        .entry(TestEntry::zstd("Data\\bad.bin", DATA).with_sha256_value([0xAB; 32]))
+        .write_to(&archive)?;
+
+    let output = p4kx()?
+        .arg("--json")
+        .arg("verify")
+        .arg(&archive)
+        .assert()
+        .code(1)
+        .get_output()
+        .stdout
+        .clone();
+
+    let report = json_of(&output)?;
+    assert_eq!(
+        report["verified"], 1,
+        "the Entry with the right digest passes"
+    );
+    let bad = report["mismatched"].get(0).ok_or("no mismatch")?;
+    assert_eq!(bad["path"], "Data\\bad.bin", "the path");
+    assert_eq!(bad["kind"], "sha256", "the checksum kind");
+    assert_eq!(bad["expected"], "ab".repeat(32), "the stated digest");
+    assert_eq!(
+        bad["actual"].as_str().map(str::len),
+        Some(64),
+        "the computed digest"
+    );
+    Ok(())
+}

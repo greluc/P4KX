@@ -2,6 +2,6 @@
 source: crates/p4kx/tests/dcb_query.rs
 expression: "error(\"select mass\")?"
 ---
-error: the Query selects no Records; start it with `from <type>` or `at "<glob>"`
+error: the Query selects no Records; start it with `from <type>`, `at "<glob>"` or `referencing "<record>"`
   select mass
   ^^^^^^

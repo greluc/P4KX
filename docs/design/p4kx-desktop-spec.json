@@ -926,6 +926,22 @@
     "keyboard": "Tab focuses the picture; arrows scroll by pictureKeyStep, Page Up, Page Down, Home and End scroll",
     "messages": "unsupported format, unshowable and failure color-danger-text"
   },
+  "modelPreview": {
+    "dsClass": "previewPanel + facts-bar + btn-ghost btn-xs",
+    "viewMinHeight": 96,
+    "overlayGap": 8,
+    "hintMinWidth": 120,
+    "factsPaddingX": 16,
+    "background": "surface-inset",
+    "border": "color-gray-3",
+    "resetButton": "btn-ghost btn-xs, top right inside the view, disabled while the view is framed",
+    "hint": "right in the facts bar, 12.8 / 400 color-gray-2-text, cut with an ellipsis",
+    "pictureFocusRingOffset": -2,
+    "decision": "D.35",
+    "mouse": "drag orbits; secondary or middle drag or Shift drag pans; wheel and pinch zoom",
+    "keyboard": "Tab focuses the view; arrows orbit, Shift and arrows pan, plus and minus zoom, Home resets",
+    "messages": "no device, lost device, failure and unreadable model color-danger-text; too large, empty and too large for the device color-gray-1; archive changed color-warning"
+  },
   "slider": {
     "dsClass": "input[type=range] accent-color color-primary, quality-row",
     "width": 200,

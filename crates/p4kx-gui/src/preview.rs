@@ -29,6 +29,7 @@ pub use xml::{XML_SIZE_LIMIT, XmlPreview, XmlStatus};
 pub use xml_document::{XML_TEXT_LIMIT, XmlDocument};
 
 use crate::EntryIndex;
+use crate::viewer::{ModelPreview, is_model_path};
 
 /// The largest Entry, in bytes, the window previews; larger Entries are not read.
 pub const PREVIEW_SIZE_LIMIT: u64 = 256 * 1024 * 1024;
@@ -54,6 +55,8 @@ pub enum PreviewTab {
     Audio,
     /// The Record selected in the Record tree instead of the selected Entry.
     Record,
+    /// A model shown in the 3D viewer.
+    Model,
     /// The Records that refer to the Record selected in the Record tree.
     Incoming,
 }
@@ -111,6 +114,7 @@ pub struct Preview {
     state: State,
     image: Option<ImagePreview>,
     audio: Option<AudioPreview>,
+    model: Option<ModelPreview>,
     soundbank: Option<SoundbankPreview>,
     xml: Option<XmlPreview>,
     xml_arrived: bool,
@@ -135,6 +139,7 @@ impl Preview {
                 state: State::ArchiveChanged,
                 image: None,
                 audio: None,
+                model: None,
                 soundbank: None,
                 xml: None,
                 xml_arrived: false,
@@ -162,11 +167,19 @@ impl Preview {
                 let wake = Arc::clone(&wake);
                 SoundbankPreview::start(index, id, move || wake())
             });
+        let model = index
+            .entry(id)
+            .filter(|entry| is_model_path(entry.path()))
+            .map(|_| {
+                let wake = Arc::clone(&wake);
+                ModelPreview::start(index, id, move || wake())
+            });
         let mut preview = Self {
             entry: id,
             state: State::Failed(None),
             image,
             audio,
+            model,
             soundbank,
             xml: None,
             xml_arrived: false,
@@ -225,6 +238,17 @@ impl Preview {
         self.soundbank.as_mut()
     }
 
+    /// Returns the model preview when the Entry is a model file.
+    #[must_use]
+    pub const fn model(&self) -> Option<&ModelPreview> {
+        self.model.as_ref()
+    }
+
+    /// Returns the model preview for moving its camera, when the Entry is a model file.
+    pub const fn model_mut(&mut self) -> Option<&mut ModelPreview> {
+        self.model.as_mut()
+    }
+
     /// Returns the image preview when the Entry is the header of a texture.
     #[must_use]
     pub const fn image(&self) -> Option<&ImagePreview> {
@@ -277,9 +301,10 @@ impl Preview {
         let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
         let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll)
             | self.soundbank.as_mut().is_some_and(SoundbankPreview::poll);
+        let modelled = self.model.as_mut().is_some_and(ModelPreview::poll);
         let read = self.poll_data();
         let converted = self.xml.as_mut().is_some_and(XmlPreview::poll);
-        read || imaged || converted || sounded
+        read || imaged || converted || sounded || modelled
     }
 
     fn poll_data(&mut self) -> bool {

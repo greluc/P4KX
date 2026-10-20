@@ -23,6 +23,7 @@ p4kx-extraction.workspace = true
 p4kx-settings.workspace = true
 p4kx-update.workspace = true
 anyhow.workspace = true
+bytemuck.workspace = true
 eframe = { workspace = true, features = ["links"] }
 egui.workspace = true
 egui_extras.workspace = true
@@ -40,8 +41,9 @@ windows-sys.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
-egui_kittest.workspace = true
+egui_kittest = { workspace = true, features = ["wgpu"] }
 fluent-syntax.workspace = true
+png.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 

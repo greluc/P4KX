@@ -6,8 +6,8 @@ use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
 use crate::{
-    CATALOG_FILE, CatalogText, ComparisonText, Model, QueryExportFormat, QueryText, Text, ui,
-    window,
+    CATALOG_FILE, CatalogText, ComparisonText, Model, QueryExportFormat, QueryText, Text,
+    ViewerSupport, ui, window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -140,7 +140,10 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        if !self.model.viewer_support().is_probed() {
+            self.model.set_viewer_support(ViewerSupport::probe(frame));
+        }
         let mut settings_changed = false;
         match self.take_dialog_result() {
             Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),

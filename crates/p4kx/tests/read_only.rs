@@ -180,21 +180,24 @@ fn the_check_can_be_switched_off() -> TestResult {
     Ok(())
 }
 
-#[cfg(windows)]
 #[test]
-fn a_loose_file_command_protects_the_default_library_without_an_archive() -> TestResult {
+fn a_loose_file_command_protects_a_library_folder_without_an_archive() -> TestResult {
     let dir = tempfile::tempdir()?;
     let chf = dir.path().join("character.chf");
     std::fs::write(&chf, p4kx_testkit::TestChf::v8().to_bytes())?;
-    let out = Path::new(r"C:\Program Files\Roberts Space Industries\StarCitizen")
+    let library = dir.path().join("StarCitizen");
+    let custom = library
         .join("LIVE")
         .join("user")
         .join("client")
         .join("0")
-        .join("CustomCharacters")
-        .join("character.json");
+        .join("CustomCharacters");
+    std::fs::create_dir_all(library.join("LIVE").join("Bin64"))?;
+    std::fs::create_dir_all(&custom)?;
+    let out = custom.join("character.json");
 
     p4kx_testkit::p4kx()?
+        .env("P4KX_PROTECT_FOLDERS", &library)
         .args(["chf", "to-json"])
         .arg(&chf)
         .arg("--out")

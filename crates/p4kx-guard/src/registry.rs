@@ -6,6 +6,7 @@ use p4kx_channels::{SearchPaths, known_library_folders};
 use crate::{Installation, WriteRefused};
 
 const GAME_FOLDER: &str = "Bin64";
+const EXTRA_FOLDERS_VARIABLE: &str = "P4KX_PROTECT_FOLDERS";
 
 static PROTECTED: RwLock<Installation> = RwLock::new(Installation::new());
 
@@ -19,9 +20,18 @@ pub fn protect(folder: &Path) {
 
 /// Protects the Library folders of this machine: the default one and those the RSI Launcher log
 /// names. Call it once at program start, before any file is written.
+///
+/// The folders in the path list of the environment variable `P4KX_PROTECT_FOLDERS` are protected
+/// as well. It is a test aid for fake installations and can only add protection.
 pub fn protect_libraries() {
     for library in known_library_folders(&SearchPaths::standard()) {
         protect(&library);
+    }
+    if let Some(extra) = std::env::var_os(EXTRA_FOLDERS_VARIABLE) {
+        for folder in std::env::split_paths(&extra).filter(|folder| !folder.as_os_str().is_empty())
+        {
+            protect(&folder);
+        }
     }
 }
 

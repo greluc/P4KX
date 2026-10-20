@@ -11,7 +11,9 @@ already said so; the tool now enforces it.
   stays writable. The whole installation is protected, including `<Channel>\user\`: `p4kx chf
   from-json` cannot write into `CustomCharacters`, and the file is copied in by hand. The command
   line and the window register the Library folders once at program start, so that commands without
-  an Archive are guarded too; opening an Archive adds its folder.
+  an Archive are guarded too; opening an Archive adds its folder. `P4KX_PROTECT_FOLDERS`, a path
+  list, adds further protected folders; it is a test aid for fake installations in a temp folder
+  (no test targets the real game folders) and can only add protection, never remove it.
 - **Same folder, other route.** Besides the canonical key, the identity of the folder (volume and
   file index, through `same-file`) of the target's existing ancestors is compared with that of
   every protected folder, so a loopback share such as `\\localhost\D$\...` does not get past the

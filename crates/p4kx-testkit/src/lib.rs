@@ -30,6 +30,7 @@ mod gfx_shape;
 mod gfx_tags;
 mod glb;
 mod glb_container;
+mod glb_images;
 mod global_ini;
 mod hirc_node;
 mod layout_v1;
@@ -75,6 +76,7 @@ pub use gfx_tags::{
     sub_image_body,
 };
 pub use glb::{CheckedGlb, check_glb};
+pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};

@@ -126,7 +126,7 @@ fn tangents_and_colours_are_written_when_the_mesh_has_them() -> TestResult {
     assert_eq!(tangents.len(), expected.len() * 4, "four floats per vertex");
     for (found, wanted) in tangents.as_chunks::<4>().0.iter().zip(&expected) {
         let [x, y, z, w] = *wanted;
-        let converted = [x, z, -y, w];
+        let converted = [x, z, -y, -w];
         for (a, b) in found.iter().zip(converted) {
             assert!((a - b).abs() < 1e-3, "{found:?} is not {converted:?}");
         }

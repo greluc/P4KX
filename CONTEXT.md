@@ -323,6 +323,12 @@ ID, or a list of sub-materials whose position is the material ID. Each material 
 colours, an opacity and texture slots.
 _Avoid_: material file, material set
 
+**Texture slot**:
+An entry `TexSlot<n>` of a material that names a texture. The slot and the end of the file name
+(`_diff`, `_ddna`, `_spec`) say what the texture is for; a `.tif` name in a material is the `.dds`
+Entry of the Archive. The textures of a model's materials are embedded in its GLB as PNG images.
+_Avoid_: texture channel, map slot
+
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
 with the sizes of the whole texture. A part or tail without a header Entry is in no group and

@@ -5,8 +5,11 @@
 //! with one primitive per submesh. The model's material library becomes glTF materials: with
 //! [`MaterialMode::Colours`] plain colours, opacity, roughness, metalness and emissive colour
 //! without textures; submeshes whose material draws nothing are left out, and a material ID the
-//! library lacks, or a model without a readable library, gets the engine's default material. The
-//! binary data is streamed to the writer after the JSON.
+//! library lacks, or a model without a readable library, gets the engine's default material. With
+//! [`MaterialMode::Textures`] and [`write_glb_with`] the diffuse, normal and specular maps of the
+//! materials, which a [`TextureLoader`] supplies, are embedded as PNG images; one that cannot be
+//! loaded leaves the plain colour and is reported. The binary data is streamed to the writer after
+//! the JSON.
 
 mod axes;
 mod document;
@@ -14,6 +17,15 @@ mod error;
 mod glb;
 mod layout;
 mod materials;
+mod texture_loader;
+mod texture_make;
+mod texture_pixels;
+mod texture_plan;
+mod texture_report;
+mod texture_roles;
 
 pub use error::GltfError;
-pub use glb::{GlbOptions, GlbSummary, MaterialMode, write_glb};
+pub use glb::{GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_with};
+pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
+pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
+pub use texture_report::{TextureFallback, TextureRole};

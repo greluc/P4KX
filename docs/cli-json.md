@@ -800,13 +800,18 @@ an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
- "primitives": 2, "materials": 2, "default_material_ids": 0, "hidden_primitives": 0,
+ "primitives": 2, "materials": 2, "textured_materials": 1, "textures": 3,
+ "texture_pixels": 192,
+ "texture_fallbacks": [{"material": "caps", "role": "diffuse",
+                        "file": "Objects/Test/plate_diff.tif",
+                        "reason": "the texture does not exist"}],
+ "default_material_ids": 0, "hidden_primitives": 0,
  "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
@@ -822,8 +827,15 @@ default material when any ID falls back to it), of the level of detail `--lod` n
 `bytes` is the length of the file. `default_material_ids` counts the material IDs drawn with the
 default material because the `.mtl` file is missing, unreadable or has no sub-material for them,
 and `hidden_primitives` the submeshes left out because their material draws nothing; `library` is
-the status of the `.mtl` file as in `p4kx model info`. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+the status of the `.mtl` file as in `p4kx model info`. `textures` counts the PNG images embedded
+with `--materials textures` (an image several materials use counts once), `texture_pixels` their
+pixels and `textured_materials` the materials that use at least one; all are 0 with
+`--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
+because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
+images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
+the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
+names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
+that the export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
 `--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`

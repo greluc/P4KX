@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use gltf_json as json;
+use json::Index;
 use json::material::{
     AlphaCutoff, AlphaMode, EmissiveFactor, PbrBaseColorFactor, PbrMetallicRoughness,
     StrengthFactor,
@@ -101,19 +102,36 @@ fn resolve(library: &p4kx_model::MaterialLibrary, id: u16) -> Option<Slot> {
     }
 }
 
-/// Returns the glTF material that draws `material` as plain colours.
-pub(crate) fn colour_material(material: &Material, fallback_name: &str) -> json::Material {
-    let metallic = is_metal(material);
-    let colour = if metallic {
-        material.specular
-    } else {
-        material.diffuse
-    };
-    let colour = colour.map(|channel| channel.clamp(0.0, 1.0));
+/// The glTF textures a material is drawn with, besides its plain colours.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct MaterialTextures {
+    /// The base colour texture and whether the material's colours are already in it; if not, the
+    /// diffuse colour multiplies it.
+    pub(crate) base: Option<(Index<json::Texture>, bool)>,
+    /// The normal texture.
+    pub(crate) normal: Option<Index<json::Texture>>,
+    /// The metallic-roughness texture and whether it carries the roughness and the metalness; a
+    /// channel it lacks keeps the plain value.
+    pub(crate) metallic_roughness: Option<(Index<json::Texture>, bool, bool)>,
+}
+
+/// Returns the name of the material of `slot`: the file's, or `material_<position>`, or `default`.
+pub(crate) fn display_name(material: &Material, slot: Slot) -> String {
+    if !material.name.is_empty() {
+        return material.name.clone();
+    }
+    match slot {
+        Slot::Library(position) => format!("material_{position}"),
+        Slot::Default => "default".to_owned(),
+    }
+}
+
+/// The alpha mode of `material`, its alpha factor and its alpha cutoff.
+fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     let opacity = material.opacity.clamp(0.0, 1.0);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
     let glass = is_one_of(&material.shader, &GLASS_SHADERS);
-    let (mode, alpha, cutoff) = if material.alpha_test > 0.0 {
+    if material.alpha_test > 0.0 {
         (
             AlphaMode::Mask,
             1.0,
@@ -125,11 +143,59 @@ pub(crate) fn colour_material(material: &Material, fallback_name: &str) -> json:
         (AlphaMode::Blend, opacity, None)
     } else {
         (AlphaMode::Opaque, 1.0, None)
-    };
-    let roughness = if is_one_of(&material.shader, &TEXTURE_GLOSS_SHADERS) {
+    }
+}
+
+/// Returns whether `material` is drawn with transparency, so that the alpha channel of its
+/// diffuse texture counts.
+pub(crate) fn uses_alpha(material: &Material) -> bool {
+    alpha_of(material).0 != AlphaMode::Opaque
+}
+
+/// Returns the plain roughness of `material`: from its shininess, or half where gloss comes from
+/// textures and layers.
+fn plain_roughness(material: &Material) -> f32 {
+    if is_one_of(&material.shader, &TEXTURE_GLOSS_SHADERS) {
         TEXTURE_GLOSS_ROUGHNESS
     } else {
         1.0 - (material.shininess / MAX_SHININESS).clamp(0.0, 1.0)
+    }
+}
+
+/// Returns the glTF material that draws `material` with `textures` over its plain colours.
+///
+/// The diffuse colour multiplies a base colour texture that does not hold it already (one made
+/// with a specular map does). A normal texture needs no factor. The
+/// factors of the metallic-roughness texture are 1 for the channels it carries; for the others the
+/// plain value stays. A material with a base colour texture but no metalness texture is a
+/// dielectric: its specular colour is not the colour of its metal.
+pub(crate) fn build_material(
+    material: &Material,
+    fallback_name: &str,
+    textures: &MaterialTextures,
+) -> json::Material {
+    let has_base = textures.base.is_some();
+    let (carries_roughness, carries_metalness) = textures
+        .metallic_roughness
+        .map_or((false, false), |(_, roughness, metallic)| {
+            (roughness, metallic)
+        });
+    let plain_metal = is_metal(material) && !has_base;
+    let colour = if textures.base.is_some_and(|(_, tinted)| tinted) {
+        [1.0; 3]
+    } else if plain_metal {
+        material.specular
+    } else {
+        material.diffuse
+    };
+    let colour = colour.map(|channel| channel.clamp(0.0, 1.0));
+    let (mode, alpha, cutoff) = alpha_of(material);
+    let decal = is_one_of(&material.shader, &DECAL_SHADERS);
+    let info = |index: Index<json::Texture>| json::texture::Info {
+        index,
+        tex_coord: 0,
+        extensions: None,
+        extras: json::extras::Void::default(),
     };
     json::Material {
         name: Some(if material.name.is_empty() {
@@ -142,10 +208,29 @@ pub(crate) fn colour_material(material: &Material, fallback_name: &str) -> json:
         double_sided: decal || material.flags.two_sided(),
         pbr_metallic_roughness: PbrMetallicRoughness {
             base_color_factor: PbrBaseColorFactor([colour[0], colour[1], colour[2], alpha]),
-            metallic_factor: StrengthFactor(if metallic { 1.0 } else { 0.0 }),
-            roughness_factor: StrengthFactor(roughness),
+            base_color_texture: textures.base.map(|(index, _)| info(index)),
+            metallic_factor: StrengthFactor(if carries_metalness || plain_metal {
+                1.0
+            } else {
+                0.0
+            }),
+            roughness_factor: StrengthFactor(if carries_roughness {
+                1.0
+            } else {
+                plain_roughness(material)
+            }),
+            metallic_roughness_texture: textures
+                .metallic_roughness
+                .map(|(index, _, _)| info(index)),
             ..PbrMetallicRoughness::default()
         },
+        normal_texture: textures.normal.map(|index| json::material::NormalTexture {
+            index,
+            scale: 1.0,
+            tex_coord: 0,
+            extensions: None,
+            extras: json::extras::Void::default(),
+        }),
         emissive_factor: EmissiveFactor(emissive(material)),
         ..json::Material::default()
     }

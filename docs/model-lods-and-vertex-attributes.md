@@ -36,11 +36,13 @@ The test derives a tangent from each triangle's positions and texture coordinate
 direction (|cosine| above 0.5) the decoded tangent points along `dP/du` in 98 % (`.cgf`), 99 %
 (`.cga`) and 99.9 % (`.skin`), and `cross(normal, tangent) * w` points along `dP/dv` in 98 %,
 99 % and 98.5 %. The remaining corners are triangles with mirrored or degenerate texture
-coordinates. So the tangent runs along the U axis and the handedness is the one of glTF's
-`TANGENT.w`, with the texture coordinates as stored (V down, as glTF).
+coordinates. So the tangent runs along the U axis and the bitangent `cross(normal, tangent) * w`
+along the V axis of the texture coordinates as stored (V down the image, as glTF).
 
-This frame is the engine's own. Whether the engine's normal maps need a green-channel flip when
-a viewer applies them with it is open; materials (#104) decide.
+This frame is the engine's own, with the bitangent pointing down the image. glTF's bitangent
+points up it, which is what viewers without a `TANGENT` attribute derive and what its normal maps
+(green up) assume; the model keeps the engine's `w`, and the GLB writer negates it and flips the
+green channel of the normal maps (ADR-0042, docs/model-materials.md).
 
 ## Vertex colours
 

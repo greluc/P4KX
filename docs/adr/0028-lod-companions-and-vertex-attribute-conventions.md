@@ -39,8 +39,9 @@ meshes unless asked not to (`GlbOptions::vertex_colours`, `--no-vertex-colours`)
 `cross(normal, tangent) * w`, as in glTF. They come from the tangent frame streams of 8 bytes
 (`QTANGENTS` and `TANGENTS`); the unverified 16-byte layout gives none. The bitangent points along
 the V axis of the stored texture coordinates, which glTF shares (V down). The frame is the
-engine's own; whether the engine's normal maps need a green-channel flip for glTF is open and
-belongs to the material export (#104).
+engine's own. ADR-0042 settles what the open question left to the material export: glTF's
+bitangent points up the image, so the GLB writer negates `w` and flips the green channel of the
+normal maps; `Mesh::tangents` stays as stored.
 
 ## Considered Options
 

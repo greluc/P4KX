@@ -12,9 +12,10 @@ fails while its section is missing.
   without loss, for the movie file or an Entry. Shapes become `<g>` elements placed with `<use>`,
   gradients, strokes, colour transforms and masks become the matching SVG elements, and bitmaps
   are embedded as PNG data; the output is deterministic, streamed to the file, and bounded by the
-  limits of the PNG, so both end at the same element. The Entry name is escaped into the title. A
-  bitmap fill that does not repeat is drawn once, without continuing its edge pixels. The
-  `--json` report of `ui render` names the written `format`.
+  limits of the PNG, so both end at the same element, and at most 1 GiB. The title is the Entry
+  name, or the file name without its directory, escaped. A bitmap fill that does not repeat is
+  drawn once, without continuing its edge pixels, and a stroke painted with a non-repeating
+  bitmap tiles it. The `--json` report of `ui render` names the written `format`.
 - Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
   filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
   mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and

@@ -157,6 +157,36 @@ fn the_entry_name_is_escaped_and_the_json_report_names_the_format() -> TestResul
 }
 
 #[test]
+fn the_title_of_a_file_is_its_name_without_the_directory() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = write_panel(dir.path())?;
+    let out = dir.path().join("panel.svg");
+    p4kx()?
+        .args(["ui", "render"])
+        .arg(&file)
+        .arg("--svg")
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(1);
+    let text = fs::read_to_string(&out)?;
+    let document = Document::parse(&text)?;
+    let title = document
+        .descendants()
+        .find(|node| node.tag_name().name() == "title")
+        .and_then(|node| node.text())
+        .ok_or("a title")?;
+    let name = file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("a file name")?;
+    assert_eq!(title, name);
+    let directory = dir.path().to_string_lossy();
+    assert!(!text.contains(directory.as_ref()), "no local path");
+    Ok(())
+}
+
+#[test]
 fn the_svg_cannot_replace_the_movie_and_bad_sizes_stay_invalid() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = write_panel(dir.path())?;

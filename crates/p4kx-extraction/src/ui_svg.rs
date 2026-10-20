@@ -34,8 +34,8 @@ impl UiMovie<'_> {
     ///
     /// The frame is composed, its bitmaps decoded and the budgets charged exactly as for the
     /// raster, so both end at the same item. The document is streamed; bitmaps are embedded as
-    /// PNG data URIs, never referenced by path, and the movie name is escaped. The file is written
-    /// whole or not at all.
+    /// PNG data URIs, never referenced by path, and the title, the Entry path or the file name
+    /// without its directory, is escaped. The file is written whole or not at all.
     ///
     /// # Errors
     ///
@@ -51,7 +51,7 @@ impl UiMovie<'_> {
         let report: SvgReport = write_replacing(out, |writer| {
             frame
                 .scene
-                .write_svg(&frame.bitmaps.images, options, Some(self.name()), writer)
+                .write_svg(&frame.bitmaps.images, options, Some(&self.title()), writer)
                 .map_err(|source| match source {
                     GfxError::Write(source) => write_error(out, source),
                     source => self.frame_error(source),

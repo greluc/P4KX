@@ -11,11 +11,19 @@ A movie is untrusted, and an SVG that a viewer rasterises later is no safer than
 Writing therefore runs a planning pass over the items first that charges what `rasterize` charges:
 the covered area of every fill, stroke and mask build to the budget of `MAX_COVERAGE_FACTOR` times
 the canvas, with the same bounds, and the pixels of the bitmap copies (plain, or transformed by a
-colour transform that is not only an opacity) to the bitmap limit. The frame ends at the same item
-and the report lists the same `Skipped` entries; the shape conversions are charged by composing the
-scene. Only the memory limit of masks does not apply, since no mask is built here. Nothing is
-written that the plan left out: unused shapes and bitmaps are not emitted. The bitmaps arrive
-decoded under the limits of the raster (`MAX_UI_RENDER_BITMAP_PIXELS`).
+colour transform that is not only an opacity) to the bitmap limit. A copy is charged when a layer
+that passes the coverage first needs it, as the raster does, and the layers of an item that the
+raster draws are the layers written for it: a layer skipped for one item is not written for that
+item, and items that draw different layers of one shape use different groups. The frame ends at
+the same item and the report lists the same `Skipped` entries; the shape conversions are charged by
+composing the scene. Only the memory limit of masks does not apply, since no mask is built here.
+Nothing is written that the plan left out. The bitmaps arrive decoded under the limits of the
+raster (`MAX_UI_RENDER_BITMAP_PIXELS`).
+
+The document itself is bounded by `MAX_SVG_BYTES` (1 GiB), counted as it is written: paths and
+placements grow with the scene limits, bitmaps with the bitmap limit, and the writer fails with
+`GfxError::SvgTooLarge` when the next write would pass the bound, so the temporary file is
+discarded.
 
 ## Document
 
@@ -32,9 +40,10 @@ decoded under the limits of the raster (`MAX_UI_RENDER_BITMAP_PIXELS`).
   patterns.
 - Numbers are written with fixed precision, trailing zeros removed, so the same scene gives the
   same bytes; no hash order or time enters.
-- The only text from the movie or the Archive is the movie name in `<title>`; it is escaped, and
-  characters XML 1.0 cannot hold become U+FFFD. Every other attribute is a number, a colour or an
-  index the writer made.
+- The only text from the movie or the Archive is the title in `<title>`, the Entry path or, for a
+  file, its name without the directory so that no local path leaks into a shared file; it is
+  escaped, and characters XML 1.0 cannot hold become U+FFFD. Every other attribute is a number, a
+  colour or an index the writer made.
 
 ## Where it differs from the raster
 
@@ -49,7 +58,8 @@ decoded under the limits of the raster (`MAX_UI_RENDER_BITMAP_PIXELS`).
 
 - Writing every placement inline without `<use>`: no definitions to plan, but every shape is
   repeated per placement and the file grows with the placements instead of the shapes.
-- Rasterising through `resvg` to compare pixels in tests: a large dependency for a check the
-  structure tests and a real-Archive well-formedness run already cover.
+- Rasterising through `resvg` to compare pixels in tests: a large dependency. A synthetic test
+  instead compares the colour at probe points inside solid shapes with the raster and the
+  placement order; edges, gradients, bitmaps and masks are checked by structure.
 - An `svg` crate or `quick-xml` for writing: the document is a few fixed element kinds, numbers
   and one escaped string; the escaping and number code is small and tested here.

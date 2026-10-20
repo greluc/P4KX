@@ -248,7 +248,8 @@ Early development (milestone M1). Available today:
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
   same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
   same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
-  is drawn once without continuing its edge pixels.
+  is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
+  bitmap tiles it. A document is at most 1 GiB; a larger one is an error and no file is left.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

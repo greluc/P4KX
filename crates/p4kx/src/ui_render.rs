@@ -3,8 +3,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::gfx::TagFailure;
-use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
+use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped, TagFailure};
 use p4kx_extraction::{UiBitmapFailure, UiMovie};
 use serde::Serialize;
 
@@ -161,6 +160,7 @@ fn print_report(
         parts.tag_failures.len()
     )
 }
+
 fn skipped_json(skipped: &Skipped) -> SkippedJson {
     SkippedJson {
         id: skipped.id,
@@ -172,15 +172,15 @@ fn skipped_json(skipped: &Skipped) -> SkippedJson {
     }
 }
 
-fn failed(render: &Parts) -> Vec<FailedJson> {
-    let tags = render.tag_failures.iter().map(|failure| FailedJson {
+fn failed(parts: &Parts) -> Vec<FailedJson> {
+    let tags = parts.tag_failures.iter().map(|failure| FailedJson {
         kind: "tag",
         id: None,
         code: Some(failure.code),
         offset: Some(failure.offset),
         error: chain(&failure.error),
     });
-    let bitmaps = render.bitmap_failures.iter().map(|failure| FailedJson {
+    let bitmaps = parts.bitmap_failures.iter().map(|failure| FailedJson {
         kind: "bitmap",
         id: Some(failure.id),
         code: None,

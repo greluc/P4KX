@@ -15,7 +15,7 @@ use crate::scene::{
 };
 use crate::scene_report::SkipReason;
 
-const GRADIENT_EXTENT: f32 = 16_384.0;
+pub(crate) const GRADIENT_EXTENT: f32 = 16_384.0;
 
 /// The bitmaps of a rasterisation as premultiplied pixmaps, each converted once, and their
 /// colour-transformed copies; the pixels of all copies together stay within a limit.

@@ -605,9 +605,8 @@ Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on di
 ```
 
 `format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
-of the SVG document, written to `target`. `skipped` lists in drawing
-order every element the frame left out or drew without an effect: `id` and `depth` name the
-placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
+of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
+left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
 one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `filters` and

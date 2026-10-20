@@ -11,7 +11,7 @@ use crate::scene::{Affine, LayerKind, Paint, Scene, SceneItem, ShapeLayer};
 use crate::scene_report::{SkipReason, Skipped};
 
 /// What a bitmap layer is drawn with.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Fill {
     /// Solid or gradient paints, written from the scene.
     Plain,
@@ -28,12 +28,12 @@ pub(crate) struct ImagePlan {
     pub(crate) height: u32,
 }
 
-/// A shape written once for one colour transform.
+/// The layers of a shape that are drawn for one colour transform, written once.
 #[derive(Debug)]
 pub(crate) struct Group {
     pub(crate) shape: usize,
     pub(crate) color: ColorTransform,
-    pub(crate) layers: Vec<Result<Fill, SkipReason>>,
+    pub(crate) layers: Vec<(usize, Fill)>,
 }
 
 /// An item that is written.
@@ -51,8 +51,6 @@ pub(crate) struct Plan {
     pub(crate) images: Vec<ImagePlan>,
     pub(crate) drawn: Vec<Drawn>,
     pub(crate) masks: Vec<bool>,
-    pub(crate) groups_used: Vec<bool>,
-    pub(crate) images_used: Vec<bool>,
     pub(crate) skipped: Vec<Skipped>,
 }
 
@@ -68,7 +66,9 @@ pub(crate) struct Inputs<'a> {
 
 impl Plan {
     /// Walks the items as [`Scene::rasterize`](crate::Scene) does and charges the same budgets: the
-    /// covered area of every fill, stroke and mask, and the pixels of the bitmap copies.
+    /// covered area of every fill, stroke and mask, and the pixels of a bitmap copy when a layer
+    /// that passes the coverage needs it. A layer is planned for an item exactly when the raster
+    /// draws it.
     pub(crate) fn build(inputs: &Inputs<'_>) -> Self {
         let mut builder = Builder {
             inputs,
@@ -85,6 +85,7 @@ impl Plan {
             },
             group_index: HashMap::new(),
             image_index: HashMap::new(),
+            layers: Vec::new(),
             exhausted: false,
         };
         for item in &inputs.scene.items {
@@ -93,30 +94,7 @@ impl Plan {
                 break;
             }
         }
-        let mut plan = builder.plan;
-        plan.mark_used();
-        plan
-    }
-
-    fn mark_used(&mut self) {
-        self.groups_used = vec![false; self.groups.len()];
-        self.images_used = vec![false; self.images.len()];
-        for drawn in &self.drawn {
-            if let Some(slot) = self.groups_used.get_mut(drawn.group) {
-                *slot = true;
-            }
-            let fills = self
-                .groups
-                .get(drawn.group)
-                .map_or(&[][..], |group| group.layers.as_slice());
-            for fill in fills {
-                if let Ok(Fill::Image { index, .. }) = fill
-                    && let Some(slot) = self.images_used.get_mut(*index)
-                {
-                    *slot = true;
-                }
-            }
-        }
+        builder.plan
     }
 }
 
@@ -125,8 +103,9 @@ struct Builder<'a> {
     coverage: Coverage,
     copied_pixels: u64,
     plan: Plan,
-    group_index: HashMap<(usize, [u32; 8]), usize>,
+    group_index: HashMap<(usize, [u32; 8]), Vec<usize>>,
     image_index: HashMap<(u16, [u32; 8]), usize>,
+    layers: Vec<(usize, Fill)>,
     exhausted: bool,
 }
 
@@ -165,8 +144,7 @@ impl Builder<'_> {
             self.skip(item, SkipReason::InvalidGeometry);
             return;
         };
-        let group = self.group(item.shape, item);
-        let mut any = false;
+        self.layers.clear();
         for (at, (layer, outline)) in shape.layers.iter().zip(outlines).enumerate() {
             let Some(outline) = outline else {
                 continue;
@@ -183,59 +161,56 @@ impl Builder<'_> {
             if !self.coverage.charge(cost) {
                 self.skip(item, SkipReason::FillBudget);
                 self.exhausted = true;
-                return;
+                break;
             }
-            match self
-                .plan
-                .groups
-                .get(group)
-                .and_then(|group| group.layers.get(at))
-            {
-                Some(Ok(_)) => any = true,
-                Some(&Err(reason)) => self.skip(item, reason),
-                None => {}
+            match self.fill(layer, &item.color_transform) {
+                Ok(fill) => self.layers.push((at, fill)),
+                Err(reason) => self.skip(item, reason),
             }
         }
-        if any {
-            self.plan.drawn.push(Drawn {
-                group,
-                transform: item.transform,
-                mask,
-            });
-        }
+        self.place(item, mask);
     }
 
-    fn group(&mut self, shape: usize, item: &SceneItem) -> usize {
-        let key = (shape, key(&item.color_transform));
-        if let Some(&index) = self.group_index.get(&key) {
-            return index;
+    fn place(&mut self, item: &SceneItem, mask: Option<usize>) {
+        if self.layers.is_empty() {
+            return;
         }
-        let layers: Vec<Result<Fill, SkipReason>> = self
-            .inputs
-            .scene
-            .shapes
-            .get(shape)
-            .map(|shape| shape.layers.as_slice())
-            .unwrap_or_default()
-            .iter()
-            .map(|layer| self.fill(layer, &item.color_transform))
-            .collect();
-        let index = self.plan.groups.len();
-        self.plan.groups.push(Group {
-            shape,
-            color: item.color_transform,
-            layers,
+        let key = (item.shape, key(&item.color_transform));
+        let existing = self.group_index.get(&key).and_then(|candidates| {
+            candidates.iter().copied().find(|&index| {
+                self.plan
+                    .groups
+                    .get(index)
+                    .is_some_and(|group| group.layers == self.layers)
+            })
         });
-        self.group_index.insert(key, index);
-        index
+        let group = existing.unwrap_or_else(|| {
+            let index = self.plan.groups.len();
+            self.plan.groups.push(Group {
+                shape: item.shape,
+                color: item.color_transform,
+                layers: self.layers.clone(),
+            });
+            self.group_index.entry(key).or_default().push(index);
+            index
+        });
+        self.plan.drawn.push(Drawn {
+            group,
+            transform: item.transform,
+            mask,
+        });
     }
 
     fn fill(&mut self, layer: &ShapeLayer, color: &ColorTransform) -> Result<Fill, SkipReason> {
         match &layer.paint {
             Paint::Solid(_) => Ok(Fill::Plain),
-            Paint::Gradient(gradient) => transform(&gradient.transform)
-                .map(|_| Fill::Plain)
-                .ok_or(SkipReason::InvalidGeometry),
+            Paint::Gradient(gradient) => {
+                transform(&gradient.transform).ok_or(SkipReason::InvalidGeometry)?;
+                if gradient.stops.is_empty() {
+                    return Err(SkipReason::InvalidGeometry);
+                }
+                Ok(Fill::Plain)
+            }
             Paint::Bitmap(bitmap) => {
                 transform(&bitmap.transform).ok_or(SkipReason::InvalidGeometry)?;
                 let (copy, opacity) = opacity_only(color)

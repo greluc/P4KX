@@ -2,14 +2,13 @@ use std::io::{self, Write};
 
 use crate::geometry::Rgba;
 use crate::place::ColorTransform;
+use crate::raster_paint::GRADIENT_EXTENT;
 use crate::scene::{
     BitmapPaint, Cap, GradientKind, GradientPaint, Join, LayerKind, Paint, PathCommand, ScenePath,
     ScenePoint, ShapeLayer, Spread, StrokeStyle,
 };
 use crate::svg_plan::{Fill, ImagePlan};
 use crate::svg_text::{color, coordinate, fraction, matrix, number, opacity};
-
-const GRADIENT_EXTENT: f32 = 16_384.0;
 
 /// Where a layer sits in the document, for the ids of its paint servers.
 #[derive(Clone, Copy)]

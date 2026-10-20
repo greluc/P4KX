@@ -12,6 +12,7 @@ use crate::raster_budget::RasterLimits;
 use crate::raster_paint::path;
 use crate::scene::{Affine, Scene};
 use crate::scene_report::Skipped;
+use crate::svg_budget::Capped;
 use crate::svg_layer::{Place, write_layer, write_mask_layer};
 use crate::svg_plan::{Inputs, Plan};
 use crate::svg_text::{coordinate, escaped, matrix};
@@ -39,14 +40,17 @@ impl Scene {
     /// colour transforms, masks and strokes are written as the SVG elements and attributes that
     /// match them, and bitmaps are embedded as PNG data URIs. The same elements are skipped and
     /// the same budgets apply as for the raster, so the frame ends at the same item. A bitmap
-    /// fill that does not repeat is drawn once without continuing its edge pixels. The output
-    /// depends only on the scene, the bitmaps and the options. `title` is escaped.
+    /// fill that does not repeat is drawn once without continuing its edge pixels, and a stroke
+    /// painted with a non-repeating bitmap tiles it. The output depends only on the scene, the
+    /// bitmaps and the options. `title` is escaped. The document is at most [`crate::MAX_SVG_BYTES`]
+    /// long, the bound on the paths, placements and embedded bitmaps together.
     ///
     /// # Errors
     ///
     /// Returns [`GfxError::EmptyStage`] when the stage has no area, [`GfxError::CanvasSize`] when
-    /// the canvas would be empty or larger than the raster allows, [`GfxError::Write`] when `out`
-    /// fails and [`GfxError::EncodePng`] when a bitmap cannot be encoded.
+    /// the canvas would be empty or larger than the raster allows, [`GfxError::SvgTooLarge`] when
+    /// the document would pass [`crate::MAX_SVG_BYTES`], [`GfxError::Write`] when `out` fails and
+    /// [`GfxError::EncodePng`] when a bitmap cannot be encoded.
     pub fn write_svg<W: Write>(
         &self,
         bitmaps: &HashMap<u16, RgbaImage>,
@@ -92,12 +96,17 @@ impl Scene {
             root,
             size: (width, height),
         };
-        document
-            .write(&mut out, title, background)
-            .map_err(|error| match error {
-                WriteError::Io(source) => GfxError::Write(source),
-                WriteError::Gfx(error) => error,
-            })?;
+        let mut capped = Capped::new(&mut out, limits.svg_bytes);
+        let written = document.write(&mut capped, title, background);
+        if capped.exceeded() {
+            return Err(GfxError::SvgTooLarge {
+                limit: limits.svg_bytes,
+            });
+        }
+        written.map_err(|error| match error {
+            WriteError::Io(source) => GfxError::Write(source),
+            WriteError::Gfx(error) => error,
+        })?;
         Ok(SvgReport {
             width,
             height,
@@ -169,10 +178,7 @@ impl Document<'_> {
 
     fn write_images(&self, out: &mut impl Write) -> Result<(), WriteError> {
         for (index, image) in self.plan.images.iter().enumerate() {
-            let (true, Some(source)) = (
-                self.plan.images_used.get(index).copied().unwrap_or(false),
-                self.bitmaps.get(&image.id),
-            ) else {
+            let Some(source) = self.bitmaps.get(&image.id) else {
                 continue;
             };
             write!(
@@ -257,31 +263,17 @@ impl Document<'_> {
 
     fn write_groups(&self, out: &mut impl Write) -> Result<(), WriteError> {
         for (group_at, group) in self.plan.groups.iter().enumerate() {
-            let (true, Some(shape), Some(outlines)) = (
-                self.plan
-                    .groups_used
-                    .get(group_at)
-                    .copied()
-                    .unwrap_or(false),
-                self.scene.shapes.get(group.shape),
-                self.paths.get(group.shape),
-            ) else {
+            let Some(shape) = self.scene.shapes.get(group.shape) else {
                 continue;
             };
             writeln!(out, "<g id=\"s{group_at}\">")?;
-            for (layer_at, ((layer, outline), fill)) in shape
-                .layers
-                .iter()
-                .zip(outlines)
-                .zip(&group.layers)
-                .enumerate()
-            {
-                if let (Some(_), Ok(fill)) = (outline, fill) {
+            for &(layer_at, fill) in &group.layers {
+                if let Some(layer) = shape.layers.get(layer_at) {
                     let place = Place {
                         group: group_at,
                         layer: layer_at,
                     };
-                    write_layer(out, place, layer, &group.color, *fill, &self.plan.images)?;
+                    write_layer(out, place, layer, &group.color, fill, &self.plan.images)?;
                 }
             }
             out.write_all(b"</g>\n")?;

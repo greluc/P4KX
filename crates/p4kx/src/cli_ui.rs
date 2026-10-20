@@ -49,8 +49,9 @@ pub(crate) enum UiAction {
         /// Write an SVG document that scales without loss instead of a PNG: shapes, gradients,
         /// strokes, transforms, colour transforms and masks become SVG elements, bitmaps are
         /// embedded as PNG data, and the output is the same for the same input. The size sets the
-        /// size of the document, and the same limits apply as for the PNG. A bitmap fill that does
-        /// not repeat is drawn once, without continuing its edge pixels.
+        /// size of the document, and the same limits apply as for the PNG, and the document is at
+        /// most 1 GiB. A bitmap fill that does not repeat is drawn once, without continuing its
+        /// edge pixels, and a stroke painted with a non-repeating bitmap tiles it.
         #[arg(long)]
         svg: bool,
         /// The image size in pixels: `WIDTHxHEIGHT` scales the stage to fit and centres it,

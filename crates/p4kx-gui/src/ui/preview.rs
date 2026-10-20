@@ -47,6 +47,34 @@ pub(super) fn select(model: &mut Model, id: u32) {
 }
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
+    load(ui, model);
+    let Some(browser) = model.browser() else {
+        return;
+    };
+    let texts = model.texts();
+    let bar = preview_bar::tab_bar(ui, texts, browser, model.preview_tab());
+    let tab = bar.tab;
+    let asked = tab_body(
+        ui,
+        texts,
+        browser,
+        tab,
+        (model.audio_volume(), model.viewer_support()),
+    );
+    if let Some(text) = bar.copy {
+        ui.ctx().copy_text(text);
+    }
+    model.set_preview_tab(tab);
+    answer(ui, model, bar.step.map(Asked::Record).or(asked));
+    if tab == PreviewTab::DataForge
+        && let Some(browser) = model.browser_mut()
+    {
+        let ctx = ui.ctx().clone();
+        browser.load_records(move || ctx.request_repaint());
+    }
+}
+
+fn load(ui: &Ui, model: &mut Model) {
     if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
         image.upload(ui.ctx());
     }
@@ -68,24 +96,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             browser.load_incoming(move || ctx.request_repaint());
         }
     }
-    let Some(browser) = model.browser() else {
-        return;
-    };
-    let texts = model.texts();
-    let bar = preview_bar::tab_bar(ui, texts, browser, model.preview_tab());
-    let tab = bar.tab;
-    let asked = tab_body(
-        ui,
-        texts,
-        browser,
-        tab,
-        (model.audio_volume(), model.viewer_support()),
-    );
-    if let Some(text) = bar.copy {
-        ui.ctx().copy_text(text);
-    }
-    model.set_preview_tab(tab);
-    match bar.step.map(Asked::Record).or(asked) {
+}
+
+fn answer(ui: &Ui, model: &mut Model, asked: Option<Asked>) {
+    match asked {
         Some(Asked::Mip(level)) => {
             if let Some(image) = model.browser_mut().and_then(Browser::image_mut) {
                 image.request(level, image_preview::max_side(ui));
@@ -105,12 +119,6 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         }
         Some(Asked::Record(step)) => record_preview::apply(model, &step),
         None => {}
-    }
-    if tab == PreviewTab::DataForge
-        && let Some(browser) = model.browser_mut()
-    {
-        let ctx = ui.ctx().clone();
-        browser.load_records(move || ctx.request_repaint());
     }
 }
 

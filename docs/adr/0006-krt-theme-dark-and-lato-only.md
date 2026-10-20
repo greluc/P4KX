@@ -1,8 +1,8 @@
 # The window follows the binding KRT design system: dark only, Lato only
 
 The current `main` of [krt-profit/design-system](https://github.com/krt-profit/design-system) is
-the binding source for every GUI of P4K-Extractor (see "GUI design" in `CLAUDE.md`). It has no
-light theme and sets everything in Lato; platform implementations may deviate only where the
+the binding source for every GUI of P4K-Extractor (see "GUI design (hard rule)" in `CLAUDE.md`).
+It has no light theme and sets everything in Lato; platform implementations may deviate only where the
 platform forces it, never in colour, form or type. The desktop metrics derived from it for this
 mouse and keyboard tool are fixed in [docs/design/desktop-spec.md](../design/desktop-spec.md) and
 its machine-readable [p4kx-desktop-spec.json](../design/p4kx-desktop-spec.json).

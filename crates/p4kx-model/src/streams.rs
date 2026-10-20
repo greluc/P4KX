@@ -1,6 +1,7 @@
 use p4kx_foundation::ByteReader;
 
 use crate::CorruptChunk;
+use crate::bone_map::BoneMapStream;
 use crate::reader::to_usize;
 use crate::vector::{
     dequantise, half, normal_of_quaternion, normal_of_tangent_frame, normalise,
@@ -14,6 +15,8 @@ const NORMALS: u32 = 0x9CF3_F615;
 const NORMALS_2: u32 = 0x38A5_81FE;
 const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
+const BONEMAP: u32 = 0x677C_7B23;
+const BONEMAP32: u32 = 0x6ECA_3708;
 const STREAM_ALIGNMENT: usize = 8;
 const COLOUR_FROM_END: usize = 8;
 
@@ -51,12 +54,11 @@ impl VertexStream<'_> {
             VertexLayout::Float => [0, 4, 8].map(|at| f32::from_bits(word(at))),
         };
         let uv_at = stride - 4;
-        let uv = [uv_at, uv_at + 2].map(|at| half(u16_at(bytes, at)));
+        let uv = [uv_at, uv_at + 2]
+            .map(|at| half(u16_at(bytes, at)))
+            .map(|value| if value.is_finite() { value } else { 0.0 });
         if position.iter().any(|value| !value.is_finite()) {
             return Err(CorruptChunk::NonFinite("vertex position"));
-        }
-        if uv.iter().any(|value| !value.is_finite()) {
-            return Err(CorruptChunk::NonFinite("texture coordinate"));
         }
         Ok((position, uv))
     }
@@ -186,6 +188,7 @@ pub(crate) struct Streams<'a> {
     pub(crate) vertices: VertexStream<'a>,
     pub(crate) normals: Option<NormalStream<'a>>,
     pub(crate) tangents: Option<NormalStream<'a>>,
+    pub(crate) bone_map: Option<BoneMapStream<'a>>,
     pub(crate) indices: IndexStream<'a>,
 }
 
@@ -207,8 +210,9 @@ pub(crate) fn read_streams<'a>(
     let mut vertices = None;
     let mut normals: Option<NormalStream<'a>> = None;
     let mut tangents: Option<NormalStream<'a>> = None;
+    let mut bone_map: Option<BoneMapStream<'a>> = None;
     let mut indices = None;
-    let mut seen = 0_u8;
+    let mut seen = 0_u16;
     while reader.remaining() >= 4 {
         let tag = reader.read_u32()?;
         if tag == 0 {
@@ -227,8 +231,8 @@ pub(crate) fn read_streams<'a>(
             counts.vertices
         };
         let len = to_usize(size).checked_mul(to_usize(count));
-        let known =
-            matches!(tag, INDICES | VERTS_UVS | VERTS_UVS_2) || normal_kind(tag, size).is_some();
+        let known = matches!(tag, INDICES | VERTS_UVS | VERTS_UVS_2 | BONEMAP | BONEMAP32)
+            || normal_kind(tag, size).is_some();
         let Some(len) = len.filter(|&len| known || len <= reader.remaining()) else {
             break;
         };
@@ -246,18 +250,24 @@ pub(crate) fn read_streams<'a>(
                     normals = Some(stream);
                 }
             }
-            None => {}
+            Some(Found::BoneMap(stream))
+                if bone_map.is_none_or(|known| !known.is_wide() && stream.is_wide()) =>
+            {
+                bone_map = Some(stream);
+            }
+            Some(Found::BoneMap(_)) | None => {}
         }
     }
     Ok(Streams {
         vertices: vertices.ok_or(CorruptChunk::MissingStream("vertex"))?,
         normals,
         tangents,
+        bone_map,
         indices: indices.ok_or(CorruptChunk::MissingStream("index"))?,
     })
 }
 
-const fn read_tag_bit(tag: u32) -> Option<u8> {
+const fn read_tag_bit(tag: u32) -> Option<u16> {
     match tag {
         INDICES => Some(1),
         VERTS_UVS => Some(1 << 1),
@@ -266,6 +276,8 @@ const fn read_tag_bit(tag: u32) -> Option<u8> {
         NORMALS_2 => Some(1 << 4),
         TANGENTS => Some(1 << 5),
         QTANGENTS => Some(1 << 6),
+        BONEMAP => Some(1 << 7),
+        BONEMAP32 => Some(1 << 8),
         _ => None,
     }
 }
@@ -274,6 +286,7 @@ enum Found<'a> {
     Indices(IndexStream<'a>),
     Vertices(VertexStream<'a>),
     Normals(NormalStream<'a>),
+    BoneMap(BoneMapStream<'a>),
 }
 
 fn classify(
@@ -296,7 +309,10 @@ fn classify(
             data,
             layout: VertexLayout::Float,
         })),
-        (INDICES | VERTS_UVS | VERTS_UVS_2, _) => {
+        (BONEMAP, 12) | (BONEMAP32, 24) => {
+            Some(Found::BoneMap(BoneMapStream::new(data, tag == BONEMAP32)))
+        }
+        (INDICES | VERTS_UVS | VERTS_UVS_2 | BONEMAP | BONEMAP32, _) => {
             return Err(CorruptChunk::ElementSize {
                 stream: name(tag),
                 size,
@@ -321,11 +337,12 @@ const fn name(tag: u32) -> &'static str {
     match tag {
         INDICES => "index",
         VERTS_UVS | VERTS_UVS_2 => "vertex",
+        BONEMAP | BONEMAP32 => "bone map",
         _ => "data",
     }
 }
 
-fn element<'a>(
+pub(crate) fn element<'a>(
     data: &'a [u8],
     index: usize,
     stride: usize,

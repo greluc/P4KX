@@ -99,6 +99,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
                 normals: skin.streams.normals.map(|_| Vec::new()),
                 tangents: skin.streams.tangents.map(|_| Vec::new()),
                 colours: Some(Vec::new()),
+                influences: skin.streams.bone_map.map(|_| Vec::new()),
                 uvs: Vec::new(),
                 indices: Vec::with_capacity(indices),
                 submeshes: Vec::with_capacity(group.len()),
@@ -156,6 +157,11 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
         }
         if let Some(colours) = &mut self.mesh.colours {
             colours.push(self.skin.streams.vertices.colour(vertex)?);
+        }
+        if let (Some(stream), Some(influences)) =
+            (&self.skin.streams.bone_map, &mut self.mesh.influences)
+        {
+            influences.push(stream.influences(vertex)?);
         }
         Ok(local)
     }

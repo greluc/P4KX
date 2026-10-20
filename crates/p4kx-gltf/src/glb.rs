@@ -7,6 +7,7 @@ use crate::GltfError;
 use crate::document::document;
 use crate::layout::Layout;
 use crate::materials::MaterialPlan;
+use crate::skin::inverse_binds;
 
 const MAGIC: &[u8; 4] = b"glTF";
 const VERSION: u32 = 2;
@@ -90,6 +91,11 @@ pub struct GlbSummary {
     /// The number of submeshes left out because their material draws nothing: collision,
     /// shield and helper geometry.
     pub hidden_primitives: usize,
+    /// The number of bones written as nodes: those of a skinned model, and those of a skeleton
+    /// file without meshes.
+    pub bones: usize,
+    /// The number of meshes that carry bone weights.
+    pub skinned_meshes: usize,
     /// The number of vertices of all meshes.
     pub vertices: usize,
     /// The number of triangles of all meshes.
@@ -114,8 +120,11 @@ pub fn write_glb(
     let lod = find_lod(model, options.lod)?;
     let MaterialMode::Colours = options.materials;
     let plan = MaterialPlan::new(model, lod);
-    let layout = Layout::plan(lod, options.vertex_colours, &plan);
-    let root = document(model, &layout, &plan);
+    let bones = model.bones_of(lod);
+    let binds = (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
+        .then(|| inverse_binds(bones));
+    let layout = Layout::plan(lod, options.vertex_colours, &plan, binds.as_deref());
+    let root = document(model, lod, &layout, &plan);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -141,7 +150,7 @@ pub fn write_glb(
         layout.write(out)?;
     }
     out.flush()?;
-    Ok(summarise(&root, &layout, &plan, total))
+    Ok(summarise(model, &root, &layout, &plan, total))
 }
 
 fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
@@ -161,6 +170,7 @@ fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
 }
 
 fn summarise(
+    model: &Model,
     root: &json::Root,
     layout: &Layout<'_>,
     plan: &MaterialPlan<'_>,
@@ -185,6 +195,8 @@ fn summarise(
         materials: root.materials.len(),
         default_material_ids: plan.defaulted(),
         hidden_primitives: layout.hidden_primitives,
+        bones: root.nodes.len().saturating_sub(model.nodes.len()),
+        skinned_meshes: meshes.iter().filter(|mesh| !mesh.joints.is_empty()).count(),
         vertices,
         triangles,
         bytes,

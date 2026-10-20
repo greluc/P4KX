@@ -162,6 +162,11 @@ fn a_tail_inside_the_original_frame_is_not_kept() -> TestResult {
     let rewritten = edited(&reaching)?.write()?;
 
     assert!(crc_is_correct(&rewritten)?, "CRC-32C");
+    assert_eq!(
+        rewritten.get(CHF_SIZE - 8..),
+        Some(&[0_u8; 8][..]),
+        "the bytes inside the original frame are not kept as a tail"
+    );
     Ok(())
 }
 

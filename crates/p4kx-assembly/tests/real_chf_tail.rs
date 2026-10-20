@@ -50,5 +50,7 @@ fn files_with_non_zero_tail_bytes_keep_them_when_the_body_changes() -> TestResul
          change, {refused} refused; examples: {examples:#?}"
     );
     assert!(files > 0, "the Archive holds CHF files");
+    assert_eq!(refused, 0, "no changed body is refused");
+    assert!(kept > 0, "some file keeps its tail after a change");
     Ok(())
 }

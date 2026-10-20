@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod about;
 mod archive_change;
 mod archive_issues;
 mod archive_key;
@@ -176,6 +177,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    about::show(ui, model);
     archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests

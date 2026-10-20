@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod about_text;
 mod archive_key_text;
 mod audio_text;
 mod catalog_text;
@@ -24,6 +25,7 @@ mod scroll_text;
 mod text_ids;
 mod xml_text;
 
+pub use about_text::AboutText;
 pub use archive_key_text::ArchiveKeyText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
@@ -231,6 +233,8 @@ pub enum Text {
     Model(ModelText),
     /// A text of the Archive key dialog.
     Key(ArchiveKeyText),
+    /// A text of the About window.
+    About(AboutText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

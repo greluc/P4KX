@@ -87,8 +87,22 @@ pub(crate) fn write_notes(root: &Path, tag: &str, output: &Path) -> Result<()> {
     let Some(notes) = section(&text, &version) else {
         bail!(missing(&version));
     };
-    fs::write(output, format!("{notes}\n"))
+    fs::write(output, with_notice(notes))
         .with_context(|| format!("cannot write {}", output.display()))
+}
+
+/// The legal notice every Release states below its notes.
+const NOTICE: &str = "P4K-Extractor is an unofficial Star Citizen fan project, not affiliated with \
+the Cloud Imperium group of companies and not endorsed by it. It ships no game data and reads only \
+your own Star Citizen installation. You are responsible for complying with the Star Citizen End \
+User Licence Agreement (EULA) and Terms of Service when you use it.\n\nAll content not authored by \
+the P4K-Extractor contributors or its users is the property of its respective owners. Star \
+Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud \
+Imperium Rights LLC.\n\nCopyright (c) 2026 KRT and the P4K-Extractor contributors";
+
+/// Returns `notes` followed by the legal notice.
+fn with_notice(notes: &str) -> String {
+    format!("{notes}\n\n---\n\n{NOTICE}\n")
 }
 
 fn missing(version: &str) -> String {
@@ -138,7 +152,7 @@ fn non_empty(notes: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{section, subsection_violations};
+    use super::{section, subsection_violations, with_notice};
 
     const CHANGELOG: &str = "# Changelog\n\n## [0.2.0] - 2026-11-01\n\n### Added\n\n- Search.\n\n## [0.1.0] - 2026-10-20\n\n- First Release.\n";
 
@@ -191,6 +205,24 @@ mod tests {
             subsection_violations(text),
             vec!["CHANGELOG.md: `## [Unreleased]` has `### Added` after `### Fixed`".to_owned()],
         );
+    }
+
+    #[test]
+    fn the_release_notes_end_with_the_legal_notice() {
+        let notes = with_notice("### Added\n\n- Search.");
+        assert!(
+            notes.starts_with("### Added\n\n- Search.\n\n---\n\n"),
+            "{notes}"
+        );
+        for needle in [
+            "unofficial Star Citizen fan project",
+            "not affiliated with the Cloud Imperium group of companies",
+            "ships no game data",
+            "Terms of Service",
+            "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.",
+        ] {
+            assert!(notes.contains(needle), "{needle}");
+        }
     }
 
     #[test]

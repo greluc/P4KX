@@ -12,6 +12,7 @@ mod forge_shapes;
 mod keys;
 mod locate;
 mod noted;
+mod notice;
 mod ordered;
 mod page;
 mod params;
@@ -38,7 +39,12 @@ const KEY_FILE: &str = "archive.key";
 
 /// Read-only MCP server over stdio for the Data.p4k Archives of Star Citizen.
 #[derive(Debug, Parser)]
-#[command(name = "p4kx-mcp", version)]
+#[command(
+    name = "p4kx-mcp",
+    version,
+    long_version = notice::LONG_VERSION,
+    before_help = notice::BEFORE_HELP
+)]
 struct Args {
     /// The Archive tools use when a call names none: a Channel name such as `LIVE` or the
     /// absolute path of a `.p4k` file.

@@ -14,8 +14,8 @@ use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
-    ArchiveKeyText, CatalogText, ExtractionScope, ExtractionText, KeyReason, Language, Model,
-    RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
+    AboutText, ArchiveKeyText, CatalogText, ExtractionScope, ExtractionText, KeyReason, Language,
+    Model, RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -25,12 +25,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let app = texts.get(Text::AppTitle);
     let language_menu = texts.get(Text::MenuLanguage);
     let names = Language::ALL.map(|language| (language, texts.get(Text::LanguageName(language))));
-    let help_menu = texts.get(Text::MenuHelp);
-    let licence = texts.get(Text::FontLicence);
-    let update_check = texts.get(Text::UpdateCheck);
     let mut chosen = None;
     let mut text_choice = None;
-    let mut show_licence = false;
+    let mut help_pick = None;
     let mut enabled = model.update_check();
     let mut pick = None;
     ui.horizontal_centered(|ui| {
@@ -57,13 +54,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
                 }
             });
             label(&response.response, &language_menu);
-            let response = ui.menu_button(link(&help_menu), |ui| {
-                dropdown(ui);
-                show_licence = ui.button(entry(&licence)).clicked();
-                ui.separator();
-                indented(ui, |ui| toggle::checkbox(ui, &mut enabled, &update_check));
-            });
-            label(&response.response, &help_menu);
+            help_pick = help_menu(ui, model.texts(), &mut enabled);
         });
     });
     if enabled != model.update_check() {
@@ -73,8 +64,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         apply(ui, model, pick);
     }
     choose_record_texts(model, requests, text_choice);
-    if show_licence {
-        model.set_licence_shown(true);
+    if let Some(pick) = help_pick {
+        apply(ui, model, pick);
     }
     if let Some(language) = chosen.filter(|&language| language != current) {
         model.set_language(language);
@@ -141,6 +132,8 @@ enum Pick {
     ExtractSelected,
     RecordExport,
     ArchiveKey,
+    About,
+    FontLicence,
 }
 
 fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
@@ -153,7 +146,30 @@ fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
         Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
         Pick::RecordExport => model.begin_record_export(),
         Pick::ArchiveKey => model.open_key_dialog(KeyReason::Menu),
+        Pick::About => model.set_about_shown(true),
+        Pick::FontLicence => model.set_licence_shown(true),
     }
+}
+
+fn help_menu(ui: &mut Ui, texts: &Texts, update_check: &mut bool) -> Option<Pick> {
+    let title = texts.get(Text::MenuHelp);
+    let about = texts.get(AboutText::Title);
+    let licence = texts.get(Text::FontLicence);
+    let update_label = texts.get(Text::UpdateCheck);
+    let mut pick = None;
+    let response = ui.menu_button(link(&title), |ui| {
+        dropdown(ui);
+        if ui.button(entry(&about)).clicked() {
+            pick = Some(Pick::About);
+        }
+        if ui.button(entry(&licence)).clicked() {
+            pick = Some(Pick::FontLicence);
+        }
+        ui.separator();
+        indented(ui, |ui| toggle::checkbox(ui, update_check, &update_label));
+    });
+    label(&response.response, &title);
+    pick
 }
 
 fn archive_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<Pick> {

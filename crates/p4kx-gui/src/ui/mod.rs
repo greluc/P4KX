@@ -126,18 +126,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
     };
-    if let Some(browser) = model.browser_mut() {
-        browser.poll();
-    }
-    model.poll_extraction();
-    model.poll_record_export();
-    model.poll_catalog();
-    model.poll_update();
-    model.comparison_mut().poll();
-    model.poll_key_check();
-    model.poll_key_request();
-    model.query_mut().poll();
-    model.localization_mut().poll();
+    poll_background(model);
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -183,6 +172,21 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests
+}
+
+fn poll_background(model: &mut Model) {
+    if let Some(browser) = model.browser_mut() {
+        browser.poll();
+    }
+    model.poll_extraction();
+    model.poll_record_export();
+    model.poll_catalog();
+    model.poll_update();
+    model.comparison_mut().poll();
+    model.poll_key_check();
+    model.poll_key_request();
+    model.query_mut().poll();
+    model.localization_mut().poll();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {

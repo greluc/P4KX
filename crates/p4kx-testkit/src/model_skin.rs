@@ -6,7 +6,9 @@ use crate::model::{TestModel, TestNormals, TestPositions};
 const INDICES: u32 = 0xEECD_C168;
 const VERTS_UVS: u32 = 0x9132_9AE9;
 const VERTS_UVS_2: u32 = 0xB3A7_0D5E;
+const NORMALS: u32 = 0x9CF3_F615;
 const NORMALS_2: u32 = 0x38A5_81FE;
+const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
 const UNKNOWN_STREAM: u32 = 0x9D51_C5EE;
 const HEADER_PADDING: usize = 88;
@@ -43,21 +45,7 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     }
     put_indices(&mut out, model);
     put_vertices(&mut out, model, min, max);
-    match model.normals {
-        TestNormals::Float => stream(&mut out, NORMALS_2, 12, |data| {
-            for vertex in &model.vertices {
-                put_vector(data, vertex.normal);
-            }
-        }),
-        TestNormals::Compressed => stream(&mut out, QTANGENTS, 8, |data| {
-            for vertex in &model.vertices {
-                let (tangent, bitangent) = tangent_frame(vertex.normal);
-                put_u32(data, pack_unit_vector(tangent));
-                put_u32(data, pack_unit_vector(bitangent));
-            }
-        }),
-        TestNormals::None => {}
-    }
+    put_normals(&mut out, model);
     stream(&mut out, UNKNOWN_STREAM, 2, |data| {
         for _ in &model.vertices {
             put_u16(data, 0);
@@ -67,6 +55,77 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
         put_indices(&mut out, model);
     }
     out
+}
+
+fn put_floats(out: &mut Vec<u8>, tag: u32, model: &TestModel) {
+    stream(out, tag, 12, |data| {
+        for vertex in &model.vertices {
+            put_vector(data, vertex.normal);
+        }
+    });
+}
+
+fn put_tangent_frames(out: &mut Vec<u8>, model: &TestModel) {
+    stream(out, QTANGENTS, 8, |data| {
+        for vertex in &model.vertices {
+            let (tangent, bitangent) = tangent_frame(vertex.normal);
+            put_u32(data, pack_unit_vector(tangent));
+            put_u32(data, pack_unit_vector(bitangent));
+        }
+    });
+}
+
+fn put_normals(out: &mut Vec<u8>, model: &TestModel) {
+    match model.normals {
+        TestNormals::Float => put_floats(out, NORMALS_2, model),
+        TestNormals::Compressed => put_tangent_frames(out, model),
+        TestNormals::CompressedWithOpposedPacked => {
+            put_tangent_frames(out, model);
+            stream(out, NORMALS_2, 4, |data| {
+                for vertex in &model.vertices {
+                    put_u32(data, pack_unit_vector(vertex.normal.map(|value| -value)));
+                }
+            });
+        }
+        TestNormals::FloatOnNormals => put_floats(out, NORMALS, model),
+        TestNormals::PackedOnNormals => put_packed(out, NORMALS, model),
+        TestNormals::PackedOnNormals2 => put_packed(out, NORMALS_2, model),
+        TestNormals::Tangents16 => stream(out, TANGENTS, 16, |data| {
+            for vertex in &model.vertices {
+                put_quaternion(data, quaternion_of_normal(vertex.normal));
+                put_quaternion(data, [0.0, 0.0, 0.0, 1.0]);
+            }
+        }),
+        TestNormals::None => {}
+    }
+}
+
+fn put_packed(out: &mut Vec<u8>, tag: u32, model: &TestModel) {
+    stream(out, tag, 4, |data| {
+        for vertex in &model.vertices {
+            put_u32(data, pack_unit_vector(vertex.normal));
+        }
+    });
+}
+
+fn quaternion_of_normal([x, y, z]: [f32; 3]) -> [f32; 4] {
+    let scale = 2.0_f32.mul_add(z, 2.0).sqrt();
+    if scale < 1e-6 {
+        [1.0, 0.0, 0.0, 0.0]
+    } else {
+        [-y / scale, x / scale, 0.0, (1.0 + z) / scale]
+    }
+}
+
+fn put_quaternion(out: &mut Vec<u8>, quaternion: [f32; 4]) {
+    for value in quaternion {
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the value is clamped and rounded to the i16 range"
+        )]
+        let raw = (value.clamp(-1.0, 1.0) * 32767.0).round() as i16;
+        out.extend_from_slice(&raw.to_le_bytes());
+    }
 }
 
 fn put_indices(out: &mut Vec<u8>, model: &TestModel) {

@@ -30,6 +30,7 @@ mod dcb_query;
 mod diff;
 mod entity;
 mod entity_audio;
+mod entity_glb;
 mod entity_json;
 mod exit;
 mod extract;

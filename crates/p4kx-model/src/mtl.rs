@@ -174,9 +174,19 @@ pub enum MaterialStatus {
     },
     /// The library was read.
     Loaded(MaterialLibrary),
+    /// The model was read without its library, because the caller chooses the library.
+    Skipped,
 }
 
 impl MaterialStatus {
+    /// Fetches and reads the material library `name` through `companions`, as a model does for
+    /// the library its `MtlName` chunk names: a bare name is looked for beside the model first,
+    /// then below `Data`. `None` is [`Self::Unnamed`]. A library that is missing, unsafe to ask
+    /// for or unreadable is a status, not a failure.
+    pub fn load(name: Option<&str>, companions: &mut dyn crate::CompanionResolver) -> Self {
+        crate::mtl_load::load(name, companions)
+    }
+
     /// Returns the library when it was read.
     #[must_use]
     pub const fn library(&self) -> Option<&MaterialLibrary> {
@@ -195,7 +205,7 @@ impl MaterialStatus {
             Self::Unreadable { path, reason } => Some(format!(
                 "the material library {path} cannot be read: {reason}"
             )),
-            Self::Unnamed | Self::Loaded(_) => None,
+            Self::Unnamed | Self::Loaded(_) | Self::Skipped => None,
         }
     }
 }

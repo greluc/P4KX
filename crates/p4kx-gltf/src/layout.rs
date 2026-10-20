@@ -1,12 +1,14 @@
 use std::io::Write;
 
 use p4kx_model::{Lod, Mesh};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::axes::to_y_up;
 use crate::materials::MaterialPlan;
 
 const ALIGNMENT: u64 = 4;
 const BATCH: usize = 1 << 14;
+const WINDOW: u64 = 32 << 20;
 
 /// What one block of the binary chunk holds.
 #[derive(Debug, Clone, Copy)]
@@ -121,6 +123,7 @@ pub(crate) struct PrimitiveLayout {
 /// The blocks of one mesh and the bounds of its converted positions.
 #[derive(Debug, Clone)]
 pub(crate) struct MeshLayout {
+    pub(crate) part: usize,
     pub(crate) node: usize,
     pub(crate) positions: usize,
     pub(crate) normals: Option<usize>,
@@ -142,37 +145,40 @@ pub(crate) struct Layout<'m> {
 }
 
 impl<'m> Layout<'m> {
-    /// Plans the blocks of every mesh of `lod` that has vertices and triangles, leaving out the
-    /// submeshes whose material draws nothing; vertex colours only when `colours_wanted` is set.
-    pub(crate) fn plan(lod: &'m Lod, colours_wanted: bool, materials: &MaterialPlan<'_>) -> Self {
-        let mut layout = Self {
+    /// Creates a layout without blocks.
+    pub(crate) const fn new() -> Self {
+        Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
             len: 0,
             hidden_primitives: 0,
-        };
-        for mesh in &lod.meshes {
-            layout.plan_mesh(mesh, colours_wanted, materials);
         }
-        layout
     }
 
-    fn plan_mesh(&mut self, mesh: &'m Mesh, colours_wanted: bool, materials: &MaterialPlan<'_>) {
-        let drawn: Vec<(&'m [u32], u16)> = mesh
-            .submeshes
-            .iter()
-            .filter_map(|submesh| {
-                let end = submesh.first_index.checked_add(submesh.index_count)?;
-                let indices = mesh.indices.get(submesh.first_index..end)?;
-                (!indices.is_empty()).then_some((indices, submesh.material_id))
-            })
-            .collect();
-        let primitives: Vec<(&'m [u32], u16)> = drawn
-            .iter()
-            .copied()
-            .filter(|&(_, id)| !materials.hidden(id))
-            .collect();
-        self.hidden_primitives += drawn.len() - primitives.len();
+    /// Plans the blocks of every mesh of `lod`, a level of the model instance `part`, that has
+    /// vertices and triangles, leaving out the submeshes whose material draws nothing; vertex
+    /// colours only when `colours_wanted` is set.
+    pub(crate) fn add_part(
+        &mut self,
+        part: usize,
+        lod: &'m Lod,
+        colours_wanted: bool,
+        materials: &MaterialPlan<'_>,
+    ) {
+        for mesh in &lod.meshes {
+            self.plan_mesh(part, mesh, colours_wanted, materials);
+        }
+    }
+
+    fn plan_mesh(
+        &mut self,
+        part: usize,
+        mesh: &'m Mesh,
+        colours_wanted: bool,
+        materials: &MaterialPlan<'_>,
+    ) {
+        let (primitives, hidden) = drawn_primitives(mesh, materials);
+        self.hidden_primitives += hidden;
         if mesh.positions.is_empty() || primitives.is_empty() {
             return;
         }
@@ -208,6 +214,7 @@ impl<'m> Layout<'m> {
             })
             .collect();
         self.meshes.push(MeshLayout {
+            part,
             node: mesh.node,
             positions,
             normals,
@@ -231,29 +238,85 @@ impl<'m> Layout<'m> {
         self.blocks.len() - 1
     }
 
-    /// Writes every block with its padding to `out`, a batch of elements at a time through one
-    /// reused buffer.
+    /// Writes every block with its padding to `out`. Runs of small blocks are encoded in
+    /// parallel, a window of at most [`WINDOW`] bytes at a time; a block alone in its window is
+    /// streamed a batch of elements at a time through one reused buffer.
     pub(crate) fn write(&self, out: &mut impl Write) -> std::io::Result<()> {
-        let mut buffer = Vec::new();
-        for block in &self.blocks {
-            let count = block.data.count();
-            for start in (0..count).step_by(BATCH) {
-                buffer.clear();
-                block
-                    .data
-                    .slice(start, (start + BATCH).min(count))
-                    .encode(&mut buffer);
-                out.write_all(&buffer)?;
+        let mut start = 0;
+        while start < self.blocks.len() {
+            let mut end = start;
+            let mut bytes = 0_u64;
+            while let Some(block) = self.blocks.get(end) {
+                if end > start && bytes.saturating_add(block.len) > WINDOW {
+                    break;
+                }
+                bytes = bytes.saturating_add(block.len);
+                end += 1;
             }
-            let padding = block.len.next_multiple_of(ALIGNMENT) - block.len;
-            out.write_all(
-                [0; 4]
-                    .get(..usize::try_from(padding).unwrap_or(0))
-                    .unwrap_or_default(),
-            )?;
+            match self.blocks.get(start..end).unwrap_or_default() {
+                [block] => block.stream(out)?,
+                window => {
+                    let encoded: Vec<Vec<u8>> = window.par_iter().map(Block::encoded).collect();
+                    for bytes in &encoded {
+                        out.write_all(bytes)?;
+                    }
+                }
+            }
+            start = end;
         }
         Ok(())
     }
+}
+
+impl Block<'_> {
+    fn padding(&self) -> usize {
+        usize::try_from(self.len.next_multiple_of(ALIGNMENT) - self.len).unwrap_or(0)
+    }
+
+    /// Returns the block's bytes with its padding.
+    fn encoded(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(usize::try_from(self.len).unwrap_or(0) + 4);
+        self.data.encode(&mut bytes);
+        bytes.resize(bytes.len() + self.padding(), 0);
+        bytes
+    }
+
+    fn stream(&self, out: &mut impl Write) -> std::io::Result<()> {
+        let mut buffer = Vec::new();
+        let count = self.data.count();
+        for start in (0..count).step_by(BATCH) {
+            buffer.clear();
+            self.data
+                .slice(start, (start + BATCH).min(count))
+                .encode(&mut buffer);
+            out.write_all(&buffer)?;
+        }
+        out.write_all([0; 4].get(..self.padding()).unwrap_or_default())
+    }
+}
+
+/// Returns the index range and material ID of each submesh of `mesh` that is drawn, and the number
+/// of submeshes left out because their material draws nothing.
+fn drawn_primitives<'m>(
+    mesh: &'m Mesh,
+    materials: &MaterialPlan<'_>,
+) -> (Vec<(&'m [u32], u16)>, usize) {
+    let drawn: Vec<(&'m [u32], u16)> = mesh
+        .submeshes
+        .iter()
+        .filter_map(|submesh| {
+            let end = submesh.first_index.checked_add(submesh.index_count)?;
+            let indices = mesh.indices.get(submesh.first_index..end)?;
+            (!indices.is_empty()).then_some((indices, submesh.material_id))
+        })
+        .collect();
+    let total = drawn.len();
+    let visible: Vec<(&'m [u32], u16)> = drawn
+        .into_iter()
+        .filter(|&(_, id)| !materials.hidden(id))
+        .collect();
+    let hidden = total - visible.len();
+    (visible, hidden)
 }
 
 fn bounds(positions: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {

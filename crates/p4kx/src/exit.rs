@@ -14,6 +14,7 @@ use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
+use crate::entity_glb::GlbOutputIsArchive;
 use crate::extract::NoMatch;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
@@ -151,6 +152,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
+        || error.downcast_ref::<GlbOutputIsArchive>().is_some()
         || error.downcast_ref::<EntityLookupError>().is_some()
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()

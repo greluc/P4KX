@@ -3497,6 +3497,8 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",
+ "p4kx-gltf",
+ "p4kx-model",
  "p4kx-testkit",
  "rayon",
  "roxmltree",
@@ -3672,6 +3674,7 @@ dependencies = [
  "p4kx-chunks",
  "p4kx-model",
  "p4kx-testkit",
+ "rayon",
  "serde_json",
  "thiserror 2.0.21",
 ]

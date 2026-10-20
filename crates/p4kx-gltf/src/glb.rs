@@ -3,10 +3,10 @@ use std::io::Write;
 use gltf_json as json;
 use p4kx_model::{Lod, Model};
 
-use crate::GltfError;
-use crate::document::document;
+use crate::document::{Instance, Wrapper, document};
 use crate::layout::Layout;
 use crate::materials::MaterialPlan;
+use crate::{GltfError, Scene};
 
 const MAGIC: &[u8; 4] = b"glTF";
 const VERSION: u32 = 2;
@@ -96,6 +96,11 @@ pub struct GlbSummary {
     pub triangles: usize,
     /// The length of the file in bytes.
     pub bytes: u64,
+    /// The number of models written: 1 for a single model, one per scene node with a model.
+    pub parts: usize,
+    /// The number of scene models drawn at another level of detail than the one asked for,
+    /// because they lack it.
+    pub lod_fallbacks: usize,
 }
 
 /// Writes `model` as a GLB file to `out`: the JSON chunk first, then the binary data, streamed
@@ -113,9 +118,86 @@ pub fn write_glb(
 ) -> Result<GlbSummary, GltfError> {
     let lod = find_lod(model, options.lod)?;
     let MaterialMode::Colours = options.materials;
-    let plan = MaterialPlan::new(model, lod);
-    let layout = Layout::plan(lod, options.vertex_colours, &plan);
-    let root = document(model, &layout, &plan);
+    let instance = Instance {
+        model,
+        wrapper: None,
+        plan: MaterialPlan::new(model.materials.library(), lod),
+    };
+    write_instances(&[], vec![(instance, Some(lod))], *options, 0, out)
+}
+
+/// Writes the models of `scene` as one GLB file to `out`, like [`write_glb`]; `out` should be
+/// buffered.
+///
+/// Every scene node becomes a glTF node with its transform, and the nodes of its model hang below
+/// it.
+///
+/// Each model is drawn at the level of detail `options` asks for, or, when it lacks that level,
+/// at the nearest lower one, or the lowest it has; [`GlbSummary::lod_fallbacks`] counts those.
+/// Equal materials are written once.
+///
+/// # Errors
+///
+/// Returns [`GltfError::TooLarge`] when the scene does not fit in a GLB file and
+/// [`GltfError::Write`] when `out` fails.
+pub fn write_scene_glb(
+    scene: &Scene<'_>,
+    options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let MaterialMode::Colours = options.materials;
+    let wrappers: Vec<Wrapper<'_>> = scene
+        .nodes()
+        .iter()
+        .map(|node| Wrapper {
+            name: &node.name,
+            parent: node.parent,
+            transform: &node.transform,
+        })
+        .collect();
+    let mut fallbacks = 0;
+    let instances = scene
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter_map(|(position, node)| {
+            let part = node.part?;
+            let lod = nearest_lod(part.model, options.lod);
+            if lod.is_some_and(|lod| lod.level != options.lod) {
+                fallbacks += 1;
+            }
+            let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
+                MaterialPlan::new(part.materials.library(), lod)
+            });
+            let instance = Instance {
+                model: part.model,
+                wrapper: Some(position),
+                plan,
+            };
+            Some((instance, lod))
+        })
+        .collect();
+    write_instances(&wrappers, instances, *options, fallbacks, out)
+}
+
+fn write_instances(
+    wrappers: &[Wrapper<'_>],
+    instances: Vec<(Instance<'_>, Option<&Lod>)>,
+    options: GlbOptions,
+    lod_fallbacks: usize,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let mut layout = Layout::new();
+    for (part, (instance, lod)) in instances.iter().enumerate() {
+        if let Some(lod) = lod {
+            layout.add_part(part, lod, options.vertex_colours, &instance.plan);
+        }
+    }
+    let instances: Vec<Instance<'_>> = instances
+        .into_iter()
+        .map(|(instance, _)| instance)
+        .collect();
+    let root = document(wrappers, &instances, &layout);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -141,7 +223,25 @@ pub fn write_glb(
         layout.write(out)?;
     }
     out.flush()?;
-    Ok(summarise(&root, &layout, &plan, total))
+    let defaulted = instances
+        .iter()
+        .map(|instance| instance.plan.defaulted())
+        .sum();
+    let mut summary = summarise(&root, &layout, defaulted, total);
+    summary.parts = instances.len();
+    summary.lod_fallbacks = lod_fallbacks;
+    Ok(summary)
+}
+
+/// Returns the level of `model` closest to `level` from below, or its lowest level when all are
+/// above it.
+fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
+    model
+        .lods
+        .iter()
+        .filter(|lod| lod.level <= level)
+        .max_by_key(|lod| lod.level)
+        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
 }
 
 fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
@@ -160,12 +260,7 @@ fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
         })
 }
 
-fn summarise(
-    root: &json::Root,
-    layout: &Layout<'_>,
-    plan: &MaterialPlan<'_>,
-    bytes: u64,
-) -> GlbSummary {
+fn summarise(root: &json::Root, layout: &Layout<'_>, defaulted: usize, bytes: u64) -> GlbSummary {
     let meshes = &layout.meshes;
     let vertices = meshes
         .iter()
@@ -183,10 +278,12 @@ fn summarise(
         meshes: root.meshes.len(),
         primitives: meshes.iter().map(|mesh| mesh.primitives.len()).sum(),
         materials: root.materials.len(),
-        default_material_ids: plan.defaulted(),
+        default_material_ids: defaulted,
         hidden_primitives: layout.hidden_primitives,
         vertices,
         triangles,
         bytes,
+        parts: 0,
+        lod_fallbacks: 0,
     }
 }

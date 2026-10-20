@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use gltf_json as json;
 use json::accessor::{ComponentType, GenericComponentType, Type};
@@ -8,7 +8,7 @@ use json::scene::UnitQuaternion;
 use json::validation::Checked::Valid;
 use json::validation::USize64;
 use json::{Accessor, Index, Root};
-use p4kx_model::Model;
+use p4kx_model::{Model, Transform};
 
 use crate::axes::{Trs, decompose};
 use crate::layout::{Block, BlockData, Layout, MeshLayout};
@@ -16,8 +16,30 @@ use crate::materials::{MaterialPlan, Slot, colour_material};
 
 const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
 
-/// Builds the glTF document of `model` over the planned binary chunk `layout`.
-pub(crate) fn document(model: &Model, layout: &Layout<'_>, plan: &MaterialPlan<'_>) -> Root {
+/// A glTF node of the scene that holds no model of its own.
+pub(crate) struct Wrapper<'m> {
+    pub(crate) name: &'m str,
+    pub(crate) parent: Option<usize>,
+    pub(crate) transform: &'m Transform,
+}
+
+/// One model written into the document: its nodes hang below the `wrapper` node, or are roots of
+/// the scene without one.
+pub(crate) struct Instance<'m> {
+    pub(crate) model: &'m Model,
+    pub(crate) wrapper: Option<usize>,
+    pub(crate) plan: MaterialPlan<'m>,
+}
+
+type MaterialIds = BTreeMap<u16, Index<json::Material>>;
+
+/// Builds the glTF document of the `wrappers` and the model `instances` over the planned binary
+/// chunk `layout`.
+pub(crate) fn document(
+    wrappers: &[Wrapper<'_>],
+    instances: &[Instance<'_>],
+    layout: &Layout<'_>,
+) -> Root {
     let mut root = Root {
         asset: json::Asset {
             generator: Some(GENERATOR.to_owned()),
@@ -34,47 +56,66 @@ pub(crate) fn document(model: &Model, layout: &Layout<'_>, plan: &MaterialPlan<'
             extras: json::extras::Void::default(),
         })
     });
-    let materials = materials(&mut root, layout, plan);
-    let mut node_meshes = vec![None; model.nodes.len()];
+    let materials = materials(&mut root, layout, instances);
+    let mut node_meshes: Vec<Vec<Option<Index<json::Mesh>>>> = instances
+        .iter()
+        .map(|instance| vec![None; instance.model.nodes.len()])
+        .collect();
     for mesh in &layout.meshes {
         let Some(buffer) = buffer else { break };
-        let name = model.nodes.get(mesh.node).map(|node| node.name.clone());
-        let index = push_mesh(&mut root, buffer, layout, mesh, &materials, name);
-        if let Some(slot) = node_meshes.get_mut(mesh.node) {
+        let name = instances
+            .get(mesh.part)
+            .and_then(|instance| instance.model.nodes.get(mesh.node))
+            .map(|node| node.name.clone());
+        let by_id = materials.get(mesh.part);
+        let index = push_mesh(&mut root, buffer, layout, mesh, by_id, name);
+        if let Some(slot) = node_meshes
+            .get_mut(mesh.part)
+            .and_then(|nodes| nodes.get_mut(mesh.node))
+        {
             *slot = Some(index);
         }
     }
-    push_nodes(&mut root, model, &node_meshes);
+    push_nodes(&mut root, wrappers, instances, &node_meshes);
     root
 }
 
-fn materials(
-    root: &mut Root,
-    layout: &Layout<'_>,
-    plan: &MaterialPlan<'_>,
-) -> BTreeMap<u16, Index<json::Material>> {
-    let mut ids: Vec<u16> = layout
-        .meshes
-        .iter()
-        .flat_map(|mesh| &mesh.primitives)
-        .map(|primitive| primitive.material_id)
-        .collect();
-    ids.sort_unstable();
-    ids.dedup();
-    let mut pushed: BTreeMap<Slot, Index<json::Material>> = BTreeMap::new();
-    let mut by_id = BTreeMap::new();
-    for id in ids {
-        let Some(slot) = plan.slot(id) else { continue };
-        let index = *pushed.entry(slot).or_insert_with(|| {
-            let fallback = match slot {
-                Slot::Library(position) => format!("material_{position}"),
-                Slot::Default => "default".to_owned(),
-            };
-            root.push(colour_material(plan.material(slot), &fallback))
-        });
-        by_id.insert(id, index);
+/// Pushes the glTF materials of every instance, one per distinct material, and returns the glTF
+/// material of each material ID per instance.
+fn materials(root: &mut Root, layout: &Layout<'_>, instances: &[Instance<'_>]) -> Vec<MaterialIds> {
+    let mut ids: Vec<BTreeSet<u16>> = vec![BTreeSet::new(); instances.len()];
+    for mesh in &layout.meshes {
+        for primitive in &mesh.primitives {
+            if let Some(set) = ids.get_mut(mesh.part) {
+                set.insert(primitive.material_id);
+            }
+        }
     }
-    by_id
+    let mut pushed: HashMap<String, Index<json::Material>> = HashMap::new();
+    ids.iter()
+        .zip(instances)
+        .map(|(ids, instance)| {
+            let mut by_id = MaterialIds::new();
+            for &id in ids {
+                let Some(slot) = instance.plan.slot(id) else {
+                    continue;
+                };
+                let fallback = match slot {
+                    Slot::Library(position) => format!("material_{position}"),
+                    Slot::Default => "default".to_owned(),
+                };
+                let material = colour_material(instance.plan.material(slot), &fallback);
+                let index = match serde_json::to_string(&material) {
+                    Ok(key) => *pushed
+                        .entry(key)
+                        .or_insert_with(|| root.push(material.clone())),
+                    Err(_) => root.push(material),
+                };
+                by_id.insert(id, index);
+            }
+            by_id
+        })
+        .collect()
 }
 
 fn push_mesh(
@@ -82,7 +123,7 @@ fn push_mesh(
     buffer: Index<json::Buffer>,
     layout: &Layout<'_>,
     mesh: &MeshLayout,
-    materials: &BTreeMap<u16, Index<json::Material>>,
+    materials: Option<&MaterialIds>,
     name: Option<String>,
 ) -> Index<json::Mesh> {
     let mut attributes = BTreeMap::new();
@@ -115,7 +156,7 @@ fn push_mesh(
             Some(Primitive {
                 attributes: attributes.clone(),
                 indices: Some(push_accessor(root, buffer, &indices, None)),
-                material: materials.get(&primitive.material_id).copied(),
+                material: materials.and_then(|ids| ids.get(&primitive.material_id).copied()),
                 mode: Valid(Mode::Triangles),
                 targets: None,
                 extensions: None,
@@ -175,28 +216,64 @@ fn push_accessor(
     })
 }
 
-fn push_nodes(root: &mut Root, model: &Model, meshes: &[Option<Index<json::Mesh>>]) {
-    let mut children: Vec<Vec<Index<json::Node>>> = vec![Vec::new(); model.nodes.len()];
+/// One glTF node before it is pushed: where it hangs and what it holds.
+struct Planned {
+    name: String,
+    parent: Option<usize>,
+    trs: Trs,
+    mesh: Option<Index<json::Mesh>>,
+}
+
+fn push_nodes(
+    root: &mut Root,
+    wrappers: &[Wrapper<'_>],
+    instances: &[Instance<'_>],
+    meshes: &[Vec<Option<Index<json::Mesh>>>],
+) {
+    let mut planned: Vec<Planned> = wrappers
+        .iter()
+        .map(|wrapper| Planned {
+            name: wrapper.name.to_owned(),
+            parent: wrapper.parent,
+            trs: decompose(wrapper.transform),
+            mesh: None,
+        })
+        .collect();
+    for (instance, instance_meshes) in instances.iter().zip(meshes) {
+        let base = planned.len();
+        for (position, node) in instance.model.nodes.iter().enumerate() {
+            planned.push(Planned {
+                name: node.name.clone(),
+                parent: node
+                    .parent
+                    .filter(|parent| *parent < instance.model.nodes.len())
+                    .map(|parent| base.saturating_add(parent))
+                    .or(instance.wrapper),
+                trs: decompose(&node.transform),
+                mesh: instance_meshes.get(position).copied().flatten(),
+            });
+        }
+    }
+    let mut children: Vec<Vec<Index<json::Node>>> = vec![Vec::new(); planned.len()];
     let mut roots = Vec::new();
-    for (position, node) in model.nodes.iter().enumerate() {
+    for (position, node) in planned.iter().enumerate() {
         let index = Index::new(u32::try_from(position).unwrap_or(u32::MAX));
         match node.parent.and_then(|parent| children.get_mut(parent)) {
             Some(siblings) => siblings.push(index),
             None => roots.push(index),
         }
     }
-    for ((node, children), mesh) in model.nodes.iter().zip(children).zip(meshes) {
-        let trs = decompose(&node.transform);
+    for (node, children) in planned.into_iter().zip(children) {
         let differs =
             |value: [f32; 3], neutral: [f32; 3]| (!exactly(&value, &neutral)).then_some(value);
         root.push(json::Node {
-            name: (!node.name.is_empty()).then(|| node.name.clone()),
+            name: (!node.name.is_empty()).then_some(node.name),
             children: (!children.is_empty()).then_some(children),
-            mesh: *mesh,
-            translation: differs(trs.translation, Trs::IDENTITY.translation),
-            rotation: (!exactly(&trs.rotation, &Trs::IDENTITY.rotation))
-                .then_some(UnitQuaternion(trs.rotation)),
-            scale: differs(trs.scale, Trs::IDENTITY.scale),
+            mesh: node.mesh,
+            translation: differs(node.trs.translation, Trs::IDENTITY.translation),
+            rotation: (!exactly(&node.trs.rotation, &Trs::IDENTITY.rotation))
+                .then_some(UnitQuaternion(node.trs.rotation)),
+            scale: differs(node.trs.scale, Trs::IDENTITY.scale),
             camera: None,
             matrix: None,
             skin: None,

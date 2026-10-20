@@ -11,7 +11,9 @@ use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
-pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+pub(crate) use crate::cli_entity::{
+    EntityAction, EntityArgs, EntityAudioArgs, EntityGlbArgs, EntityLoadoutArgs,
+};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;

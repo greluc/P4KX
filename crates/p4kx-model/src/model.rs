@@ -202,13 +202,40 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, true)
+    }
+
+    /// Reads the levels of detail `lods` of the model `file` like [`Self::read_with`], but leaves
+    /// the material library the model names unread: [`Self::materials`] is
+    /// [`MaterialStatus::Skipped`] and [`Self::material_library`] still holds the name, for a
+    /// caller that chooses and caches the library itself, see [`MaterialStatus::load`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read_with`].
+    pub fn read_without_materials<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+    ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, false)
+    }
+
+    fn read_selecting<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+        load_materials: bool,
+    ) -> Result<Self, ModelError> {
         if file.container() != Container::Ivo {
             return Err(ModelError::UnsupportedContainer {
                 file: name.to_owned(),
                 container: file.container(),
             });
         }
-        build(name, file, companions, lods)
+        build(name, file, companions, lods, load_materials)
     }
 
     /// Returns the chunks of unknown type, which the model skipped.

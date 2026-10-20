@@ -1,4 +1,5 @@
 {{#each licenses}}
+{{#unless (or (eq used_by.[0].crate.name "dasp_sample") (eq used_by.[0].crate.name "enum-map") (eq used_by.[0].crate.name "enum-map-derive"))}}
 === {{{name}}} ===
 
 Used by:
@@ -9,4 +10,5 @@ Used by:
 {{{text}}}
 
 
+{{/unless}}
 {{/each}}

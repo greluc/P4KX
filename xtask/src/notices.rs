@@ -6,6 +6,9 @@ use anyhow::{Context, Result, bail};
 
 const FILE: &str = "THIRD-PARTY-NOTICES";
 const MARKER: &str = "== GENERATED BELOW THIS LINE ==\n";
+/// The `cargo-about` release the generated part is produced with; CI installs the same one.
+const CARGO_ABOUT_VERSION: &str = "0.9.2";
+const PLACEHOLDERS: [&str; 2] = ["<copyright holders>", "<year>"];
 
 /// Returns a message when the generated part of `THIRD-PARTY-NOTICES` is not the current output
 /// of `cargo about`.
@@ -53,9 +56,43 @@ fn generated_part(text: &str) -> Result<&str> {
     split(text).map(|(_, generated)| generated)
 }
 
+fn cargo() -> Command {
+    Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()))
+}
+
+fn install_hint() -> String {
+    format!("install it with `cargo install cargo-about --version {CARGO_ABOUT_VERSION} --locked`")
+}
+
+fn ensure_version() -> Result<()> {
+    let output = cargo()
+        .args(["about", "--version"])
+        .output()
+        .with_context(|| format!("cannot run cargo about; {}", install_hint()))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let found = stdout.split_whitespace().last().unwrap_or_default();
+    if !output.status.success() || found != CARGO_ABOUT_VERSION {
+        bail!(
+            "cargo-about {CARGO_ABOUT_VERSION} is required, found `{}`; {}",
+            stdout.trim(),
+            install_hint()
+        );
+    }
+    Ok(())
+}
+
+/// Returns the placeholders of an unfilled SPDX licence template that `generated` still holds.
+fn placeholders(generated: &str) -> Vec<&'static str> {
+    PLACEHOLDERS
+        .into_iter()
+        .filter(|placeholder| generated.contains(placeholder))
+        .collect()
+}
+
 fn generate(root: &Path) -> Result<String> {
+    ensure_version()?;
     let target = std::env::temp_dir().join(format!("p4kx-notices-{}.txt", std::process::id()));
-    let output = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()))
+    let output = cargo()
         .args([
             "about",
             "generate",
@@ -68,16 +105,28 @@ fn generate(root: &Path) -> Result<String> {
         .arg("about.hbs")
         .current_dir(root)
         .output()
-        .context("cannot run cargo about; install it with `cargo install cargo-about --locked`")?;
-    if !output.status.success() {
+        .with_context(|| format!("cannot run cargo about; {}", install_hint()));
+    let generated = output.and_then(|output| {
+        if output.status.success() {
+            fs::read_to_string(&target).context("cannot read the cargo about output")
+        } else {
+            bail!(
+                "cargo about failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+        }
+    });
+    let _ignored = fs::remove_file(&target);
+    let generated = generated?.replace("\r\n", "\n");
+    let unfilled = placeholders(&generated);
+    if !unfilled.is_empty() {
         bail!(
-            "cargo about failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            "the generated notices hold an unfilled licence template ({}); add a clarify entry \
+             to about.toml that points at the licence file with the real copyright notice",
+            unfilled.join(", ")
         );
     }
-    let generated = fs::read_to_string(&target).context("cannot read the cargo about output");
-    let _ignored = fs::remove_file(&target);
-    Ok(generated?.replace("\r\n", "\n"))
+    Ok(generated)
 }
 
 #[cfg(test)]
@@ -91,6 +140,23 @@ mod tests {
             generated_part(&text).ok(),
             Some("body\n"),
             "the text after the marker is the generated part"
+        );
+    }
+
+    #[test]
+    fn unfilled_mit_template_is_reported() {
+        assert_eq!(
+            placeholders("MIT License\n\nCopyright (c) <year> <copyright holders>\n"),
+            ["<copyright holders>", "<year>"],
+            "the blank SPDX template is found"
+        );
+    }
+
+    #[test]
+    fn filled_notice_is_accepted() {
+        assert!(
+            placeholders("Copyright (c) 2018-2021 Emil Ernerfeldt\n").is_empty(),
+            "a real copyright line is not a placeholder"
         );
     }
 

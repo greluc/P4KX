@@ -7,6 +7,6 @@ mod settings;
 pub use queries::{NameProblem, SavedQueries, SavedQuery, SavedQueryEdit};
 pub use recent::RecentArchives;
 pub use settings::{
-    ExtractionTextures, MAX_SETTINGS_SIZE, ManualChannels, Settings, SettingsError, WindowGeometry,
-    default_settings_file,
+    ExtractionAudio, ExtractionTextures, MAX_SETTINGS_SIZE, ManualChannels, Settings,
+    SettingsError, WindowGeometry, default_settings_file,
 };

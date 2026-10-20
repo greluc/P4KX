@@ -1,5 +1,6 @@
 use egui::{Context, CornerRadius, FontFamily, TextStyle, Theme};
 
+use super::tokens::{CORNER_SM, RADIUS_SM, RADIUS_SM_POINTS};
 use super::{BOLD_FAMILY, LATO_BOLD, LATO_REGULAR, apply, fonts, palette, style};
 
 #[test]
@@ -53,13 +54,17 @@ fn errors_and_warnings_use_the_accessible_text_tints() {
 }
 
 #[test]
-fn every_corner_is_square() {
+fn windows_and_menus_take_the_small_radius_and_the_scrollbar_stays_square() {
     let visuals = style().visuals;
     let widgets = &visuals.widgets;
 
     for (name, corner) in [
         ("window", visuals.window_corner_radius),
         ("menu", visuals.menu_corner_radius),
+    ] {
+        assert_eq!(corner, CORNER_SM, "{name} corners");
+    }
+    for (name, corner) in [
         ("noninteractive", widgets.noninteractive.corner_radius),
         ("inactive", widgets.inactive.corner_radius),
         ("hovered", widgets.hovered.corner_radius),
@@ -68,6 +73,14 @@ fn every_corner_is_square() {
     ] {
         assert_eq!(corner, CornerRadius::ZERO, "{name} corners");
     }
+}
+
+#[test]
+fn the_small_radius_is_four_points_in_both_forms() {
+    assert!(
+        (RADIUS_SM - f32::from(RADIUS_SM_POINTS)).abs() < f32::EPSILON,
+        "radius-sm"
+    );
 }
 
 #[test]

@@ -1,11 +1,11 @@
-use egui::{Align, CornerRadius, Layout, Rect, Ui, vec2};
+use egui::{Align, Layout, Rect, Ui, vec2};
 
 use super::Requests;
 use crate::theme::desktop::{
     DROP_TARGET_FILL, EMPTY_ICON, EMPTY_PADDING, TITLE_SIZE, TITLE_TRACKING,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, SPACE_3, Weight};
+use crate::theme::tokens::{CORNER_SM, FS_XS, SPACE_3, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames;
 use crate::widgets::text::{caps, plain};
@@ -17,15 +17,15 @@ use super::Dialog;
 /// dragged over the window.
 pub(super) fn show(ui: &mut Ui, model: &Model, dragging: bool, requests: &mut Requests) {
     let texts = model.texts();
-    let rect = ui.max_rect();
+    let rect = ui.available_rect_before_wrap();
     let (fill, border) = if dragging {
         (DROP_TARGET_FILL, palette::PRIMARY)
     } else {
         (palette::BG_DARK_GRAY, palette::GRAY_3)
     };
     ui.painter()
-        .rect_filled(rect, CornerRadius::ZERO, palette::BG_DARK_GRAY);
-    ui.painter().rect_filled(rect, CornerRadius::ZERO, fill);
+        .rect_filled(rect, CORNER_SM, palette::BG_DARK_GRAY);
+    ui.painter().rect_filled(rect, CORNER_SM, fill);
     frames::dashed(ui, rect.shrink(0.5), border);
     let title = if dragging {
         Text::DropRelease
@@ -80,7 +80,7 @@ fn archive_icon(ui: &Ui, rect: Rect) {
 pub(super) fn notice(ui: &mut Ui, title: &str, hint: &str) {
     let rect = ui.available_rect_before_wrap();
     ui.painter()
-        .rect_filled(rect, CornerRadius::ZERO, palette::BG_DARK_GRAY);
+        .rect_filled(rect, CORNER_SM, palette::BG_DARK_GRAY);
     frames::dashed(ui, rect.shrink(0.5), palette::GRAY_3);
     egui::Frame::NONE
         .inner_margin(egui::Margin::same(frames::px(EMPTY_PADDING)))

@@ -1,6 +1,7 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
 mod archive_change;
+mod archive_issues;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
@@ -14,6 +15,7 @@ mod comparison_lists;
 mod comparison_rows;
 mod comparison_summary;
 mod comparison_table;
+mod container_note;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;
@@ -136,6 +138,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
     archive_change::show(ui, model);
+    archive_issues::show(ui, model);
     Panel::bottom("status")
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)
@@ -164,6 +167,10 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     work_tabs(ui, model);
+    frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+}
+
+fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     match model.work_tab() {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),

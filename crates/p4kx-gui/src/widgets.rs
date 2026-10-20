@@ -3,6 +3,8 @@
 
 pub(crate) mod button;
 pub(crate) mod chip;
+pub(crate) mod field;
+pub(crate) mod focus;
 pub(crate) mod frames;
 pub(crate) mod indicator;
 pub(crate) mod number;
@@ -12,5 +14,7 @@ pub(crate) mod scroll_region;
 pub(crate) mod slider;
 pub(crate) mod summary;
 pub(crate) mod tab;
+pub(crate) mod table_row;
 pub(crate) mod text;
 pub(crate) mod toggle;
+pub(crate) mod tooltip;

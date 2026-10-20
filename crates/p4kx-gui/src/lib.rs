@@ -8,7 +8,9 @@ mod audio;
 mod browser;
 mod catalog_export;
 mod channel_list;
+mod checks;
 mod comparison;
+mod containers;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_groups;
@@ -43,7 +45,7 @@ pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
     StreamGuard,
 };
-pub use browser::{Browser, EntryRow, EntryRowKind, TreeRow};
+pub use browser::{Browser, EntryRow, EntryRowKind, TreeNode, TreeRow};
 pub use catalog_export::{
     CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
     CatalogExportSummary,
@@ -55,6 +57,9 @@ pub use comparison::{
     DiffStatus, DirectorySummary, EntryDiff, FieldName, FieldRow, FieldValue, RecordChangeColumn,
     RecordChangeList, RecordChangeRow, RecordChangeSort, RecordChangeView, RecordDetail,
     RecordDetailStatus, RecordFields, ReportStatus, SideError, Summary,
+};
+pub use containers::{
+    ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
 pub use entry_index::EntryIndex;
 pub use extraction::{
@@ -92,8 +97,8 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    AudioText, CatalogText, ChangeExtractionText, ComparisonText, DataForgeText, DiffText,
-    ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
+    AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText, DataForgeText,
+    DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
     RecordExportText, RecordLanguageText, RecordSearchText, RecordText, ScrollText, Text, Texts,
     XmlText,
 };

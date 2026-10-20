@@ -4,7 +4,7 @@ use super::tree::rails;
 use crate::theme::desktop::{CHEVRON, FOCUS_OFFSET, ROW_FONT};
 use crate::theme::palette;
 use crate::theme::tokens::{SPACE_2, Weight};
-use crate::widgets::button::focus_ring;
+use crate::widgets::focus::focus_ring_square;
 use crate::widgets::rows::chevron;
 use crate::widgets::text::{line, plain};
 use crate::{Browser, EntryRow, EntryRowKind, GroupText, Text, Texts, format};
@@ -85,7 +85,7 @@ fn toggle(ui: &Ui, texts: &Texts, browser: &Browser, id: u32, slot: Rect, name: 
     chevron(ui.painter(), centre, CHEVRON, expanded, palette::PRIMARY);
     if response.has_focus() {
         let mark = Rect::from_center_size(centre, vec2(CHEVRON, CHEVRON));
-        focus_ring(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring_square(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
     }
     response.clicked()
 }

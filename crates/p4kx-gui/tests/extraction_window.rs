@@ -59,8 +59,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
 }
 
 fn settle(harness: &mut Harness<'_, Model>) {
-    harness.step();
-    harness.step();
+    harness.run_steps(2);
 }
 
 fn ended(model: &Model) -> bool {

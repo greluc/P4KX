@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Read, Write};
@@ -9,9 +10,9 @@ use p4kx_archive::{Archive, Checksum, Entry};
 
 use crate::buffers::Buffers;
 use crate::convert::{PEEK_LEN, is_cryxml};
-use crate::entry_path::relative_path;
+use crate::entry_path::{escaped_raw_path, relative_path};
 use crate::tracker::Tracker;
-use crate::{ConflictPolicy, ExtractionError, TextureConversion};
+use crate::{AudioConversion, ConflictPolicy, ExtractionError, TextureConversion};
 
 const MAX_TEMPORARY_ATTEMPTS: u32 = 100;
 
@@ -65,6 +66,7 @@ pub(crate) struct EntryWriter<'a> {
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
     pub(crate) textures: TextureConversion,
+    pub(crate) audio: AudioConversion,
     pub(crate) tracker: &'a Tracker<'a>,
 }
 
@@ -148,9 +150,26 @@ impl EntryWriter<'_> {
         self.put_in_place(&temporary, &destination.file, copied, Outcome::Written)
     }
 
+    /// Returns the path `entry` is named by on disk: its path, or for an Entry whose stored path
+    /// is not UTF-8 the stored bytes with invalid ones escaped, which differs between Entries
+    /// whose lossy paths are equal.
+    pub(crate) fn disk_name<'a>(&self, entry: &'a Entry) -> Cow<'a, str> {
+        self.archive.raw_path(entry.index()).map_or_else(
+            || Cow::Borrowed(entry.path()),
+            |raw| Cow::Owned(escaped_raw_path(raw)),
+        )
+    }
+
+    /// Returns the path below the target `entry` is written to, or `None` when it is unsafe.
+    pub(crate) fn relative_path(&self, entry: &Entry) -> Option<PathBuf> {
+        relative_path(&self.disk_name(entry))
+    }
+
     /// Creates the folder of `entry` below the target and returns where its file goes.
     pub(crate) fn destination(&self, entry: &Entry) -> Result<Destination, ExtractionError> {
-        let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
+        let relative = self
+            .relative_path(entry)
+            .ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;
         Destination::new(folder, name)

@@ -1,20 +1,20 @@
 use std::path::Path;
 use std::time::SystemTime;
 
-use egui::{Align, Align2, Layout, Margin, TextEdit, Ui, vec2};
+use egui::{Align, Align2, Frame, Layout, Margin, TextEdit, Ui, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, default_target_name};
-use p4kx_settings::ExtractionTextures;
+use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::{Dialog, Requests, comparison_extraction};
 use crate::extraction::target_naming;
-use crate::theme::desktop::MODAL_GROUP_GAP;
+use crate::theme::desktop::{BUTTON_HEIGHT, MODAL_GROUP_GAP};
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, TOUCH_TARGET, Weight, font};
+use crate::theme::tokens::{FS_BODY, FS_SM, FS_XS, SPACE_3, SPACE_4, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
-use crate::widgets::{number, toggle};
+use crate::widgets::{field, number, toggle};
 use crate::{
     Extraction, ExtractionScope, ExtractionSetup, ExtractionText as T, Model, TargetKind, Text,
     Texts, format,
@@ -36,6 +36,12 @@ pub(super) const POLICIES: [(ConflictPolicy, T); 3] = [
     (ConflictPolicy::Skip, T::PolicySkip),
     (ConflictPolicy::Overwrite, T::PolicyOverwrite),
     (ConflictPolicy::IfChanged, T::PolicyIfChanged),
+];
+
+const AUDIO: [(ExtractionAudio, T); 3] = [
+    (ExtractionAudio::Ogg, T::AudioOgg),
+    (ExtractionAudio::Wav, T::AudioWav),
+    (ExtractionAudio::Raw, T::AudioRaw),
 ];
 
 const MAX_MIP_LEVEL: u32 = 15;
@@ -177,11 +183,30 @@ fn writing(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) {
     }
     if convert {
         let mut textures = setup.textures();
+        let mut audio = setup.audio();
         ui.indent("extraction-textures", |ui| {
             texture_choices(ui, texts, &mut textures);
+            audio_choices(ui, texts, &mut audio);
         });
         setup.set_textures(textures);
+        setup.set_audio(audio);
     }
+}
+
+/// Shows the sound formats of a Conversion and the note that soundbanks are unpacked.
+fn audio_choices(ui: &mut Ui, texts: &Texts, audio: &mut ExtractionAudio) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACE_4;
+        let label = texts.get(T::AudioLabel);
+        ui.label(plain(label, FS_SM, Weight::Regular).color(palette::GRAY_1));
+        for (choice, text) in AUDIO {
+            if toggle::radio(ui, *audio == choice, &texts.get(text), true).clicked() {
+                *audio = choice;
+            }
+        }
+    });
+    let note = texts.get(T::AudioBanks);
+    ui.label(plain(note, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
 }
 
 /// Shows the texture outputs of a Conversion: merge, PNG with its mip level, raw parts.
@@ -213,14 +238,20 @@ pub(super) fn folder_field(ui: &mut Ui, texts: &Texts, folder: Option<&Path>) {
     let none = texts.get(T::FolderNone);
     let shown = folder.map_or_else(String::new, |folder| folder.display().to_string());
     let mut text = shown.as_str();
-    let field = TextEdit::singleline(&mut text)
+    let bloom = field::bloom_slot(ui);
+    let frame = field::frame_slot(ui);
+    let edit = TextEdit::singleline(&mut text)
         .hint_text(plain(none, FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
-        .margin(Margin::symmetric(px(SPACE_3), 0))
+        .frame(Frame::NONE.inner_margin(Margin::symmetric(px(SPACE_3), 0)))
         .min_size(vec2(0.0, TOUCH_TARGET))
         .desired_width(ui.available_width())
         .align(Align2::LEFT_CENTER);
-    ui.add(field);
+    let response = ui.add(edit);
+    field::paint_frame(ui, frame, response.rect, response.has_focus());
+    if response.has_focus() {
+        field::paint_bloom(ui, bloom, response.rect);
+    }
 }
 
 fn confirm(ui: &mut Ui, model: &Model, setup: &mut ExtractionSetup) -> Option<Action> {
@@ -257,7 +288,8 @@ pub(super) fn foot(
 ) -> Option<bool> {
     frames::foot_rule(ui);
     let mut pressed = None;
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+    let row = vec2(ui.available_width(), BUTTON_HEIGHT);
+    ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
         let (cta, enabled) = primary;
         if button::button(ui, Kind::Cta, Size::Normal, &texts.get(cta), enabled).clicked() {
             pressed = Some(true);
@@ -273,7 +305,9 @@ pub(super) fn foot(
 pub(super) fn new_folder_name(model: &Model, scope: ExtractionScope) -> String {
     let archive = match scope {
         ExtractionScope::Changes(side) => comparison_extraction::archive(model, side),
-        _ => model.browser().map(|browser| browser.index().archive()),
+        _ => model
+            .browser()
+            .map(|browser| browser.archive_index().archive()),
     };
     let (channel, build) = archive.map(target_naming).unwrap_or_default();
     default_target_name(channel.as_deref(), build, SystemTime::now())

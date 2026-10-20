@@ -2,25 +2,52 @@ use egui::{
     Color32, CornerRadius, Id, Painter, Pos2, Rect, Role, Sense, Stroke, Ui, WidgetInfo, pos2, vec2,
 };
 
-use super::button::focus_ring;
+use super::focus::focus_ring;
+use super::frames::accent_edge;
 use super::text::{caps, line, paint_left};
 use crate::theme::desktop::{
-    ACCENT_BAR, ACTIVE_BAR, CHEVRON_STROKE, FOCUS_WIDTH, SECTION_CHEVRON, SECTION_TRACKING,
-    TITLE_SIZE,
+    ACCENT_BAR, ACTIVE_BAR, CHEVRON_STROKE, FOCUS_WIDTH, LIST_ROW_HOVER, SECTION_CHEVRON,
+    SECTION_TRACKING, TITLE_SIZE, TREE_ROW_HOVER, ZEBRA,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{SPACE_4, TOUCH_TARGET, Weight};
+use crate::theme::tokens::{CORNER_SM, SPACE_4, TOUCH_TARGET, Weight};
 
 /// How a data row is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RowState {
     Rest,
     Hovered,
+    ListHovered,
+    TreeHovered,
     Checked,
     Active,
 }
 
 impl RowState {
+    /// Returns the state of a `.master-row` from its flags: like [`RowState::of`], but hovered in
+    /// the 3 % white of a list instead of the table's `control-bg`.
+    pub(crate) const fn of_list(active: bool, hovered: bool) -> Self {
+        if active {
+            Self::Active
+        } else if hovered {
+            Self::ListHovered
+        } else {
+            Self::Rest
+        }
+    }
+
+    /// Returns the state of a `.tree-row` from its flags: like [`RowState::of_list`], but hovered in
+    /// the 2.5 % white of the tree.
+    pub(crate) const fn of_tree(active: bool, hovered: bool) -> Self {
+        if active {
+            Self::Active
+        } else if hovered {
+            Self::TreeHovered
+        } else {
+            Self::Rest
+        }
+    }
+
     /// Returns the state of a row from its flags, the active row winning.
     pub(crate) const fn of(active: bool, checked: bool, hovered: bool) -> Self {
         if active {
@@ -38,9 +65,11 @@ impl RowState {
     pub(crate) const fn colours(self) -> (Color32, Color32) {
         match self {
             Self::Rest => (Color32::TRANSPARENT, palette::GRAY_1),
-            Self::Hovered => (palette::GRAY_3, palette::GRAY_1),
+            Self::Hovered => (palette::CONTROL_BG, palette::GRAY_1),
+            Self::ListHovered => (LIST_ROW_HOVER, palette::GRAY_1),
+            Self::TreeHovered => (TREE_ROW_HOVER, palette::GRAY_1),
             Self::Checked => (palette::CONTROL_SELECTED_BG, palette::GRAY_1),
-            Self::Active => (palette::SURFACE_INPUT, palette::WHITE),
+            Self::Active => (palette::SURFACE_BAR, palette::WHITE),
         }
     }
 }
@@ -61,6 +90,16 @@ pub(crate) fn paint_row(painter: &Painter, rect: Rect, state: RowState) {
     if state == RowState::Active {
         let bar = Rect::from_min_size(rect.min, vec2(ACTIVE_BAR, rect.height()));
         painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+    }
+}
+
+/// Paints the background of a table row like [`paint_row`], with the zebra stripe of `tbody tr`
+/// when `striped` and at rest.
+pub(crate) fn paint_table_row(painter: &Painter, rect: Rect, state: RowState, striped: bool) {
+    if striped && state == RowState::Rest {
+        painter.rect_filled(rect, CornerRadius::ZERO, ZEBRA);
+    } else {
+        paint_row(painter, rect, state);
     }
 }
 
@@ -131,18 +170,18 @@ pub(crate) fn section_header(ui: &mut Ui, id: Id, title: &str, default_open: boo
     let fill = if response.hovered() {
         palette::GRAY_3
     } else {
-        palette::SURFACE_INPUT
+        palette::SURFACE_BAR
     };
     let painter = ui.painter();
     painter.rect(
         rect,
-        CornerRadius::ZERO,
+        CORNER_SM,
         fill,
         Stroke::new(1.0, palette::GRAY_3),
         egui::StrokeKind::Inside,
     );
     let bar = Rect::from_min_size(rect.min, vec2(ACCENT_BAR, rect.height()));
-    painter.rect_filled(bar, CornerRadius::ZERO, palette::PRIMARY);
+    accent_edge(painter, (rect, CORNER_SM), bar, palette::PRIMARY);
     let text = caps(
         title,
         TITLE_SIZE,
@@ -169,6 +208,7 @@ pub(crate) fn section_header(ui: &mut Ui, id: Id, title: &str, default_open: boo
 #[cfg(test)]
 mod tests {
     use super::RowState;
+    use crate::theme::desktop::{LIST_ROW_HOVER, TREE_ROW_HOVER};
     use crate::theme::palette;
 
     #[test]
@@ -184,7 +224,18 @@ mod tests {
 
     #[test]
     fn rows_use_the_surface_ladder_and_never_a_solid_orange_block() {
-        assert_eq!(RowState::Hovered.colours().0, palette::GRAY_3, "hover");
+        assert_eq!(RowState::Hovered.colours().0, palette::CONTROL_BG, "hover");
+        assert_eq!(
+            RowState::of_list(false, true).colours().0,
+            LIST_ROW_HOVER,
+            "list hover"
+        );
+        assert_eq!(RowState::of_list(true, true), RowState::Active, "active");
+        assert_eq!(
+            RowState::of_tree(false, true).colours().0,
+            TREE_ROW_HOVER,
+            "tree hover"
+        );
         assert_eq!(
             RowState::Checked.colours().0,
             palette::CONTROL_SELECTED_BG,
@@ -192,7 +243,7 @@ mod tests {
         );
         assert_eq!(
             RowState::Active.colours(),
-            (palette::SURFACE_INPUT, palette::WHITE),
+            (palette::SURFACE_BAR, palette::WHITE),
             "active"
         );
     }

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use p4kx_extraction::Entry;
-use p4kx_settings::ExtractionTextures;
+use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use super::Model;
 use crate::extraction::{Confirmation, Source, start};
@@ -43,6 +43,17 @@ impl Model {
         self.extraction_textures = textures;
     }
 
+    /// Returns what the last Extraction wrote for a sound, the choice a new setup starts with.
+    #[must_use]
+    pub const fn extraction_audio(&self) -> ExtractionAudio {
+        self.extraction_audio
+    }
+
+    /// Replaces the sound format an Extraction setup starts with.
+    pub const fn set_extraction_audio(&mut self, audio: ExtractionAudio) {
+        self.extraction_audio = audio;
+    }
+
     /// Opens the Extraction setup for `scope`, unless an Extraction runs or the scope has no
     /// source: no open Archive or one that changed on disk, or no finished Comparison for the
     /// changes of one side; a finished Extraction is dismissed.
@@ -66,6 +77,7 @@ impl Model {
             self.extraction_folder.clone(),
             self.extraction_conversion,
             self.extraction_textures,
+            self.extraction_audio,
         ));
     }
 
@@ -140,6 +152,7 @@ impl Model {
         self.extraction_folder = Some(request.folder.clone());
         self.extraction_conversion = request.convert;
         self.extraction_textures = request.textures;
+        self.extraction_audio = request.audio;
         self.extraction = Some(start(request, wake));
         self.extraction_setup = None;
         true
@@ -155,12 +168,12 @@ impl Model {
         let (Some(setup), Some(browser)) = (&mut self.extraction_setup, &self.browser) else {
             return None;
         };
-        let ids = browser.scope_entries(setup.scope());
+        let (index, ids) = browser.scope_source(setup.scope())?;
         if ids.is_empty() {
             return None;
         }
-        let index = browser.index();
-        if ids.len() == index.len() && !setup.is_confirming() {
+        let whole = Arc::ptr_eq(&index, browser.shared_index()) && ids.len() == index.len();
+        if whole && !setup.is_confirming() {
             setup.ask_confirmation(Confirmation {
                 entries: ids.len(),
                 bytes: ids
@@ -171,10 +184,7 @@ impl Model {
             });
             return None;
         }
-        Some(Source::Index {
-            index: Arc::clone(browser.shared_index()),
-            ids,
-        })
+        Some(Source::Index { index, ids })
     }
 
     /// Returns the running or finished Extraction, or `None` when there is none.

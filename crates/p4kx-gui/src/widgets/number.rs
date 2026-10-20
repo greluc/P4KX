@@ -1,9 +1,9 @@
 use std::ops::RangeInclusive;
 
-use egui::{CornerRadius, DragValue, Response, Shape, Stroke, Ui, vec2};
+use egui::{DragValue, Response, Shape, Stroke, Ui, vec2};
 
 use crate::theme::palette;
-use crate::theme::tokens::{FS_BODY, GLOW_PRIMARY, SPACE_3, TOUCH_TARGET, Weight, font};
+use crate::theme::tokens::{CORNER_SM, FS_BODY, GLOW_PRIMARY, SPACE_3, TOUCH_TARGET, Weight, font};
 
 const FIELD_WIDTH: f32 = 2.0 * TOUCH_TARGET;
 
@@ -34,17 +34,15 @@ pub(crate) fn number_field(
                 state.weak_bg_fill = palette::CONTROL_BG;
                 state.bg_stroke = Stroke::new(1.0, border);
                 state.fg_stroke = Stroke::new(1.0, palette::CONTROL_FG);
-                state.corner_radius = CornerRadius::ZERO;
+                state.corner_radius = CORNER_SM;
                 state.expansion = 0.0;
             }
             ui.add_enabled(enabled, DragValue::new(value).range(range))
         })
         .inner;
     if response.has_focus() {
-        ui.painter().set(
-            glow,
-            GLOW_PRIMARY.as_shape(response.rect, CornerRadius::ZERO),
-        );
+        ui.painter()
+            .set(glow, GLOW_PRIMARY.as_shape(response.rect, CORNER_SM));
     }
     response
 }

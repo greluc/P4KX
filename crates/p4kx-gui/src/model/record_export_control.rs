@@ -109,7 +109,7 @@ impl Model {
     pub fn record_export_keeps_dataforge(&self) -> bool {
         self.browser
             .as_ref()
-            .is_some_and(|browser| browser.index().forge().is_read())
+            .is_some_and(|browser| browser.archive_index().forge().is_read())
     }
 
     /// Takes the outcome of a Record export that ended; returns whether one ended.

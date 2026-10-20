@@ -254,9 +254,9 @@ pub(crate) struct ExtractArgs {
     /// What to do with a file that already exists in the target.
     #[arg(long, value_enum, default_value_t = Conflict::Skip)]
     pub(crate) conflict: Conflict,
-    /// Converts CryXml Entries to UTF-8 XML, DDS textures as --textures says and the DataForge
-    /// Entry to one Record XML file per Record below its folder instead of the .dcb; text XML and
-    /// every other Entry are written unchanged.
+    /// Converts CryXml Entries to UTF-8 XML, DDS textures as --textures says, WEM sounds and
+    /// soundbanks as --audio says and the DataForge Entry to one Record XML file per Record below
+    /// its folder instead of the .dcb; text XML and every other Entry are written unchanged.
     #[arg(long)]
     pub(crate) convert: bool,
     /// What --convert writes for a texture <name>.dds, its parts <name>.dds.1 … .N and any alpha
@@ -279,6 +279,18 @@ pub(crate) struct ExtractArgs {
     /// fewer levels exports its smallest.
     #[arg(long, default_value_t = 0, requires = "convert", value_name = "LEVEL")]
     pub(crate) mip: u32,
+    /// What --convert writes for a WEM sound <name>.wem and for each WEM a soundbank <name>.bnk
+    /// embeds; a soundbank is also written unchanged and unpacked into the folder <name> next to
+    /// it, each WEM named <ID>. A sound whose codec cannot be decoded is reported and written
+    /// unchanged as .wem, as are plug-in media and the prefetched start of a streamed WEM.
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = AudioOutput::Ogg,
+        requires = "convert",
+        value_name = "FORMAT"
+    )]
+    pub(crate) audio: AudioOutput,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,
@@ -292,6 +304,18 @@ pub(crate) enum TextureOutput {
     /// Export one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR.
     Png,
     /// Write the Entries unchanged as well.
+    Raw,
+}
+
+/// The values of `p4kx extract --audio`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum AudioOutput {
+    /// Ogg Vorbis or Ogg Opus rebuilt from Wwise Vorbis or Opus without re-encoding; other codecs
+    /// as WAV.
+    Ogg,
+    /// A 16-bit PCM WAV.
+    Wav,
+    /// The WEM bytes unchanged.
     Raw,
 }
 

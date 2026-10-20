@@ -16,7 +16,7 @@ use tempfile::TempDir;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const SWITCH: &str = "Convert CryXml and DataForge to XML and textures";
+const SWITCH: &str = "Convert CryXml and DataForge to XML, textures and sounds";
 
 fn vehicle() -> Vec<u8> {
     TestElement::new("Vehicle")
@@ -97,8 +97,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
 }
 
 fn settle(harness: &mut Harness<'_, Model>) {
-    harness.step();
-    harness.step();
+    harness.run_steps(2);
 }
 
 fn extract_shown(harness: &mut Harness<'_, Model>, switch: bool) -> TestResult {

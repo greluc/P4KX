@@ -8,6 +8,21 @@ fails while its section is missing.
 
 ### Added
 
+- socpak containers in the path tree of the window: a container expands like a folder, opened in
+  the background with a spinner and cancelled by collapsing it, and nested containers expand too.
+  Selecting a container lists its Entries for search, preview and the extraction of the selected
+  or shown Entries. Opened containers are kept per Archive within 1 GiB of memory, closing the
+  least recently used collapsed ones first; a corrupt container says so on its row, and a change
+  of the Archive on disk closes them.
+- Audio Conversion during Extraction: with `p4kx extract --convert` and the Conversion switch of
+  the window, WEM sounds are written as Ogg (Wwise Vorbis and Opus without re-encoding, WAV for
+  other codecs), as WAV or unchanged (`--audio ogg|wav|raw`, the same choice in the Extraction
+  setup, remembered in the settings file). Each soundbank is written unchanged and unpacked into
+  a folder of the same name, its WEMs named by ID and converted alike. A sound whose codec cannot
+  be decoded is reported with the codec and written unchanged; the Extraction continues. Progress,
+  cancellation and Conflict policies cover every converted file, a cancelled run lists the sounds
+  of a soundbank it did not unpack, a soundbank folder exists only when a sound is written into
+  it, and sounds are converted on their own threads within a memory budget.
 - `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background
   transparent|movie|#RRGGBB[AA]]`: renders the first frame of a UI movie with its sprites as a
   PNG, drawn with tiny-skia. Shapes with solid, gradient and bitmap fills (external images and
@@ -44,10 +59,51 @@ fails while its section is missing.
 
 ### Changed
 
+- GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
+  `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
+  bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
+  `#2F394C`, the text `#D1D2D3` and the muted text `#A2A5A9`; the selected tint is 26 % orange,
+  every orange tint and glow follows, tooltips fill with the control colour, and the glyph and
+  logo SVGs use the house orange, tree rows hover in 2.5 % white and the drop target fills with
+  6 % orange as the design system's CSS sets them. The earlier values were sampled from HDR screenshots and were
+  too light.
+- GUI: the window follows the design system after its adaptation to the das-kartell.org website
+  (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+  with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
+  greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
+  chips, alerts, modals, dropdowns, tiles, the list panel and the preview. Header, status bar and
+  tab bar use the bar surface, table rows hover in `control-bg` and tree rows in 3 % white, the
+  ghost button hovers in `color-accent-light`, tooltips are square on near-black with the orange
+  glow, focus rings follow the radius of their control, and the range thumb is round. The empty
+  state no longer hides the work tabs, the dialogs' foot no longer stretches the dialog to the
+  window height, and read-only and text fields draw the rounded input frame. The desktop spec and
+  its JSON follow.
 - Folders whose names differ only by ASCII case, or whose Entries use `/` and `\` alike, are one
   folder, in the window's tree as in `list_entries` of `p4kx-mcp`, named as its first Entry in
   path order spells it (ADR-0023). `list_entries` lists the Entries of a folder in path order and
   pages in time proportional to the page; the window and the server share one folder index.
+- DataForge: a format drift that no known database has is read and reported instead of failing the
+  Record or the file. Bits above the low byte of a property's conversion type are ignored, so a
+  flag no longer turns a single value into an array slot and breaks the struct layout; a Record
+  whose name offset is `0xFFFFFFFF` reads with an empty name and one whose tag offset is
+  `0xFFFFFFFF` without a tag. `DataForge::issues` lists these deviations (one per property or
+  Record, at most 1024 listed, all counted by `issue_count`), and `DataForge::survey` counts the
+  format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
+  checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
+
+### Fixed
+
+- Archives with a malformed field in the directory record of a single Entry now open instead of
+  failing as a whole, and the Entry is reported as an Entry issue (ADR-0025): an Entry path that
+  is not UTF-8 is listed with its invalid bytes replaced and extracted under a name that spells
+  them as `%XX`, so Entries with equal replaced paths no longer overwrite one another; an
+  encryption field or 0x5002 block value other than 0 or 1 is read as encrypted, and a 0x5002
+  block of another length than 6 bytes is reported; a v2 Entry whose data lies outside the file is
+  reported when the directory is read and fails only when it is read. `p4kx info`, `list` and
+  `extract` print the issues to stderr, `p4kx info` counts them, and `archive_info` of `p4kx-mcp`
+  lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
+  stand right before the end record is found by searching backwards. Extraction now also rejects
+  the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
 
 ### Fixed
 

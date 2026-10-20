@@ -7,8 +7,10 @@ use crate::theme::desktop::{CELL_PADDING_X, CHANGE_COLUMN, RECORD_TYPE_COLUMN, R
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::chip;
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
+use crate::widgets::rows::{RowState, focus_inside, row_weight};
+use crate::widgets::table_row::RowSlots;
 use crate::widgets::text::{line, paint_left, plain};
+use crate::widgets::tooltip;
 use crate::{
     ComparisonText, DataForgeText, RecordChangeColumn, RecordChangeRow, RecordChangeText,
     RecordChangeView, Text, Texts,
@@ -102,7 +104,7 @@ fn table(ui: &mut Ui, reveal: Option<usize>) -> TableBuilder<'_> {
     }
     table
         .id_salt("comparison-records")
-        .striped(true)
+        .striped(false)
         .resizable(true)
         .auto_shrink(false)
         .min_scrolled_height(0.0)
@@ -131,11 +133,11 @@ fn show_row(
     let state = RowState::of(active, false, hovered);
     let (_, colour) = state.colours();
     let weight = row_weight(active);
+    let index = row.index();
+    let mut slots = None;
     row.col(|ui| {
+        slots = Some(RowSlots::reserve(ui));
         let rect = ui.max_rect();
-        let row_rect = rect.with_max_x(ui.clip_rect().right());
-        paint_row(ui.painter(), row_rect, state);
-        paint_divider(ui.painter(), row_rect);
         if let Some(label) = cache.chip(record.kind()) {
             let at = pos2(rect.left() + CELL_PADDING_X, rect.center().y);
             chip::paint(ui, at, label, kind_look(record.kind()).1);
@@ -150,6 +152,9 @@ fn show_row(
         });
     }
     let response = row.response();
+    if let Some(slots) = slots {
+        slots.paint(&response, state, index % 2 == 1);
+    }
     let is_hovered = response.hovered();
     let clicked = finish_row(&response, texts, record, active);
     (clicked.then_some(RecordAction::Select(id)), is_hovered)
@@ -174,13 +179,11 @@ fn finish_row(response: &Response, texts: &Texts, record: &RecordChangeRow, acti
         response.rect,
         response,
     );
-    response
-        .clone()
-        .on_hover_ui(|ui| {
-            ui.label(shown_path(texts, record));
-            ui.label(record.type_name());
-        })
-        .clicked()
+    tooltip::hover(response.clone(), |ui| {
+        tooltip::line(ui, shown_path(texts, record));
+        tooltip::line(ui, record.type_name());
+    })
+    .clicked()
 }
 
 fn empty_note(ui: &Ui, texts: &Texts, filtered: bool, top_left: Pos2) {

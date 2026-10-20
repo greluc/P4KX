@@ -687,7 +687,7 @@ it.
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [],
- "chunks": [{"file": "model", "index": 0, "type": "AssetMetadata", "type_id": 3193850174,
+ "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
              "usage": "read"}]}

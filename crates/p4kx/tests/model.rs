@@ -13,7 +13,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MODEL_ENTRY: &str = "Data\\Objects\\Test\\cube.cgf";
 const GEOMETRY_ENTRY: &str = "Data\\Objects\\Test\\cube.cgfm";
 const LONELY_ENTRY: &str = "Data\\Objects\\Test\\lonely.cgf";
-const UNKNOWN_TYPE: u32 = 0x0A24_85B6;
+const UNKNOWN_TYPE: u32 = 0x00C0_FFEE;
 
 fn cube() -> TestModel {
     TestModel::cube().with_chunk(UNKNOWN_TYPE, [7; 12])
@@ -117,7 +117,7 @@ fn glb_of_an_archive_entry_is_valid_and_lists_the_unknown_chunk() -> TestResult 
         "summary: {stdout}"
     );
     assert!(
-        stdout.contains("skipped unknown chunk 4 0x0A2485B6 of the model file"),
+        stdout.contains("skipped unknown chunk 4 0x00C0FFEE of the model file"),
         "unknown chunk: {stdout}"
     );
     let glb = check_glb(&fs::read(&out)?)?;

@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/wwise_events.rs
+expression: last.stdout
+---
+Play_Voice  Data\Libs\GameAudio\SC_Voice.xml
+  Play_DX_Hello in Voice.bnk (English(US))
+  Entities (0)
+7 of 7 triggers match: showing 7-7 of 7

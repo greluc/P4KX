@@ -225,6 +225,29 @@ definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of i
 the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
+## `p4kx wwise events <archive> [--search <text>] --json`
+
+```json
+{"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
+               "matched_trigger": true,
+               "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
+                           "matched": true,
+                           "soundbanks": [{"path": "Data\\Sounds\\wwise\\SSQD_QDrive.bnk", "language": null}]}],
+               "unmatched": null,
+               "entities": {"count": 12, "listed": [{"guid": "…", "record_path": "…", "class_name": "…"}]}}],
+ "issues": [Issue, …]}
+```
+
+`search` is `null` without `--search`. `total` counts every trigger that matched; `triggers` holds
+the page from `offset` on, at most `limit` (1 to 10,000) of them, in the order of the ATL
+definitions' Entry paths, and `next_offset` is the offset of the next page or `null` after the
+last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
+and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
+`entities` counts the Entities that name the trigger through `GlobalResourceAudio.audioTrigger`
+and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
+and when the DataForge cannot be read, which is a warning on stderr.
+
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json

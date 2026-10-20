@@ -30,6 +30,7 @@ pub(crate) struct UnknownAudioLanguage {
 pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<()> {
     match &args.action {
         WwiseAction::Resolve(args) => resolve(args, as_json),
+        WwiseAction::Events(args) => crate::wwise_events::run(args, as_json),
     }
 }
 

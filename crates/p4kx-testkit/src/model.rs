@@ -101,6 +101,7 @@ pub struct TestModel {
     pub(crate) positions: TestPositions,
     pub(crate) normals: TestNormals,
     pub(crate) wide_indices: bool,
+    pub(crate) model_box: Option<([f32; 3], [f32; 3])>,
     pub(crate) repeated_index_streams: usize,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
@@ -129,6 +130,7 @@ impl TestModel {
             positions: TestPositions::Quantized,
             normals: TestNormals::Float,
             wide_indices: false,
+            model_box: None,
             repeated_index_streams: 0,
             extra_chunks: Vec::new(),
             single_file: false,
@@ -154,6 +156,14 @@ impl TestModel {
     #[must_use]
     pub const fn with_wide_indices(mut self) -> Self {
         self.wide_indices = true;
+        self
+    }
+
+    /// Writes `min` and `max` as the first, model bounding box of the mesh chunk; the second,
+    /// scaling box stays the extent of the vertices, which the positions are quantised against.
+    #[must_use]
+    pub const fn with_model_box(mut self, min: [f32; 3], max: [f32; 3]) -> Self {
+        self.model_box = Some((min, max));
         self
     }
 

@@ -33,10 +33,11 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
-/// Entry or Record, names an output that is one of its inputs, has an invalid Query or a Query
-/// output that does not fit --json, names a Record dcb refs does not find, or gives CHF JSON that
-/// is invalid or cannot be written as CHF, asks loc for a language the Archive holds no global.ini
-/// for, or looks up a localisation key that has no text.
+/// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
+/// installation, has an invalid Query or a Query output that does not fit --json, names a Record
+/// dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
+/// for a language the Archive holds no global.ini for, or looks up a localisation key that has no
+/// text.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -69,8 +70,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
      file, model or geometry companion that does not exist, a mip level the texture, a chunk
-     the chunk file or a LOD the model does not have, an output that is one of its inputs,
-     --json without --out for cryxml or chf to-json, an invalid Query, --json with another
+     the chunk file or a LOD the model does not have, an output that is one of its inputs or
+     lies inside a Star Citizen installation (the tool never writes there), --json without --out
+     for cryxml or chf to-json, an invalid Query, --json with another
      --format and without --out for dcb query, --json with --format table for dcb refs, a GUID or
      record path for dcb refs that no Record has, an Entity that no Record or several Records
      match, an audio trigger no ATL definition has, an audio language the Archive holds no
@@ -158,6 +160,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
         || error.downcast_ref::<NoLanguages>().is_some()
         || error.downcast_ref::<InvalidKey>().is_some()
+        || crate::guard::is_refusal(error)
     {
         INVALID_INPUT
     } else {

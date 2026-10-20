@@ -71,6 +71,23 @@ pub fn detect(paths: &SearchPaths) -> Vec<Channel> {
     found.channels
 }
 
+/// Returns the Library folders known from `paths`: the default one and those the RSI Launcher
+/// log names, whether or not they exist.
+///
+/// Only the launcher's log files are read.
+#[must_use]
+pub fn known_library_folders(paths: &SearchPaths) -> Vec<PathBuf> {
+    let mut folders: Vec<PathBuf> = paths.default_library.iter().cloned().collect();
+    if let Some(launcher) = &paths.launcher {
+        for library in library_folders(&launcher.join(LAUNCHER_LOGS)) {
+            if !folders.contains(&library) {
+                folders.push(library);
+            }
+        }
+    }
+    folders
+}
+
 #[derive(Default)]
 struct Found {
     channels: Vec<Channel>,

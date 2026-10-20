@@ -42,6 +42,7 @@ pub fn export_combined(
     file: &Path,
     options: &RecordExportOptions<'_>,
 ) -> Result<RecordExportReport, ExtractionError> {
+    p4kx_guard::ensure_writable(file)?;
     let name = file
         .file_name()
         .ok_or_else(|| write_error(file.to_path_buf(), io::ErrorKind::InvalidInput.into()))?

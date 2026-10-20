@@ -100,6 +100,7 @@ impl UiMovie<'_> {
     ///
     /// Returns [`ConversionError::Write`] when `folder` cannot be created.
     pub fn extract_assets(&self, folder: &Path) -> Result<UiExtraction, ConversionError> {
+        p4kx_guard::ensure_writable(folder)?;
         fs::create_dir_all(folder).map_err(|source| write_error(folder, source))?;
         let mut assets = self.movie().assets();
         let budget = Budget::new(PIXEL_BUDGET);

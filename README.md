@@ -266,7 +266,10 @@ Early development (milestone M1). Available today:
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
   `p4kx chf from-json <file> --out <file>` writes the JSON back as a CHF file: unchanged, it
-  gives the original file byte for byte; edited, a new file with a correct CRC-32C. A file with
+  gives the original file byte for byte; edited, a new file with a correct CRC-32C. The tool never
+  writes into a Star Citizen installation, and that includes the `user` folder of a Channel, so
+  `--out` cannot be `LIVE\user\client\0\CustomCharacters` (exit code 2): write the file elsewhere
+  and copy it in by hand. A file with
   a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
   (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
   [docs/cli-json.md](docs/cli-json.md#the-chf-json).
@@ -324,7 +327,7 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit); `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a target or output inside a Star Citizen installation (the tool never writes there), a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
 | 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |

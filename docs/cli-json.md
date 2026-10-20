@@ -1008,6 +1008,8 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
 JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
+An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
+exit code 2; copy a CHF file into `CustomCharacters` by hand.
 
 ### The CHF JSON
 

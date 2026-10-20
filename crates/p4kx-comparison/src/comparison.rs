@@ -132,8 +132,13 @@ impl<'a> Comparison<'a> {
     ///
     /// # Errors
     ///
-    /// Returns the error of creating, writing or syncing the file.
+    /// Returns the error of creating, writing or syncing the file, or a
+    /// [`PermissionDenied`](io::ErrorKind::PermissionDenied) error holding the
+    /// [`WriteRefused`](p4kx_extraction::WriteRefused) when `path` lies inside a Star Citizen
+    /// installation.
     pub fn save_report(&self, path: &Path) -> io::Result<()> {
+        p4kx_extraction::ensure_writable(path)
+            .map_err(|refused| io::Error::new(io::ErrorKind::PermissionDenied, refused))?;
         let mut out = BufWriter::new(File::create(path)?);
         serde_json::to_writer_pretty(&mut out, self)?;
         writeln!(out)?;

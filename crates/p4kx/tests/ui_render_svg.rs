@@ -45,7 +45,11 @@ fn a_panel_becomes_a_well_formed_document_with_every_kind_of_element() -> TestRe
     assert_eq!(root.attribute("width"), Some("64"));
     assert_eq!(root.attribute("height"), Some("48"));
     assert_eq!(root.attribute("viewBox"), Some("0 0 64 48"));
-    assert_eq!(count(&document, "linearGradient"), 2, "the backdrop, also inverted");
+    assert_eq!(
+        count(&document, "linearGradient"),
+        2,
+        "the backdrop, also inverted"
+    );
     assert_eq!(count(&document, "radialGradient"), 1, "the dial");
     assert_eq!(count(&document, "image"), 1, "the badge bitmap once");
     assert!(count(&document, "pattern") >= 1, "the badge fill");

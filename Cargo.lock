@@ -3614,7 +3614,6 @@ name = "p4kx-extraction"
 version = "0.2.0"
 dependencies = [
  "crc32c",
- "crc32fast",
  "exr",
  "lewton",
  "p4kx-archive",

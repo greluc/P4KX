@@ -4,7 +4,7 @@ use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use p4kx_archive::{Archive, Entry, EntryReader};
+use p4kx_archive::{Archive, ArchiveError, Entry, EntryReader};
 use p4kx_texture::SiblingReader;
 use rayon::prelude::*;
 
@@ -20,6 +20,7 @@ pub(crate) enum Parts<'a> {
         archive: &'a Archive,
         header: &'a Entry,
         parts: BTreeMap<u32, &'a Entry>,
+        verify: bool,
     },
     /// Files next to a header file on disk, part `N` named `<base>.<N><suffix>`.
     Files {
@@ -92,6 +93,7 @@ impl<'a> Parts<'a> {
                 archive,
                 header,
                 parts: parts_of(true),
+                verify: false,
             })
         };
         Some(Found {
@@ -99,6 +101,7 @@ impl<'a> Parts<'a> {
                 archive,
                 header,
                 parts: parts_of(is_alpha),
+                verify: false,
             },
             alpha,
         })
@@ -147,6 +150,19 @@ impl<'a> Parts<'a> {
     }
 }
 
+/// Opens the data of `entry`, checked against its directory checksum when `verify` is set.
+pub(crate) fn open_entry<'a>(
+    archive: &'a Archive,
+    entry: &Entry,
+    verify: bool,
+) -> Result<EntryReader<'a>, ArchiveError> {
+    if verify {
+        archive.open_entry_verified(entry)
+    } else {
+        archive.open_entry(entry)
+    }
+}
+
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut name = OsString::from(path.as_os_str());
     name.push(suffix);
@@ -175,12 +191,16 @@ impl SiblingReader for Parts<'_> {
 
     fn open_part(&self, index: u32) -> io::Result<Self::Part<'_>> {
         match self {
-            Self::Archive { archive, parts, .. } => {
+            Self::Archive {
+                archive,
+                parts,
+                verify,
+                ..
+            } => {
                 let entry = parts
                     .get(&index)
                     .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
-                archive
-                    .open_entry(entry)
+                open_entry(archive, entry, *verify)
                     .map(PartReader::Entry)
                     .map_err(io::Error::other)
             }

@@ -21,7 +21,8 @@ use crate::{model, texture};
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
-/// Some Entries or Records failed or were cancelled, the target folder could not be created, a
+/// Some Entries or Records failed or were cancelled, the data of an Entry does not match its
+/// checksum, the target folder could not be created, a
 /// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
 /// cannot be converted or written, a tag or definition of a UI movie cannot be read or written,
 /// or a model cannot be exported or written.
@@ -50,9 +51,11 @@ pub(crate) const INTERRUPTED: u8 = 130;
 
 /// The exit-code section of the help text.
 pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
-  0  success: every requested Entry was extracted or already existed; compare: no differences,
+  0  success: every requested Entry was extracted or already existed; verify: every Entry matched
+     its checksum; compare: no differences,
      also for the --diff Entry
-  1  partial failure: some Entries or Records failed or were cancelled, the target or the
+  1  partial failure: some Entries or Records failed or were cancelled, the data of an Entry
+     does not match its checksum (verify, extract --verify), the target or the
      settings cannot be written, a texture is invalid or cannot be merged, decoded or written,
      e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or

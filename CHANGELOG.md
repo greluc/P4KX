@@ -8,6 +8,15 @@ fails while its section is missing.
 
 ### Added
 
+- Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
+  filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
+  mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and
+  `p4kx socpak extract --verify` check each Entry while it is written, do not write a mismatching
+  Entry and count it in the summary; `p4kx socpak verify` does the same with the plain CRC-32 of
+  a container. The checksum is computed while the data streams, without a second pass, and
+  reading stays unchecked unless asked for. `Archive::open_entry_verified` and
+  `ExtractOptions::verify` are the library switches.
+
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

@@ -68,6 +68,11 @@ pub struct ExtractOptions<'a> {
     /// What a Conversion writes for a WEM sound and for each WEM a soundbank embeds; ignored
     /// while `convert` is off.
     pub audio: AudioConversion,
+    /// Checks the data of each Entry against the checksum of the directory while it is written
+    /// and reports a mismatch as a failure of that Entry, which is then not written. Costs one
+    /// checksum over the decoded bytes; a Conversion that reads only the start of an Entry
+    /// checks nothing there.
+    pub verify: bool,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
@@ -83,6 +88,7 @@ impl fmt::Debug for ExtractOptions<'_> {
             .field("convert", &self.convert)
             .field("textures", &self.textures)
             .field("audio", &self.audio)
+            .field("verify", &self.verify)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("watch", &self.watch)

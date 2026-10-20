@@ -9,6 +9,7 @@ use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
 use crate::entry::DataStart;
 use crate::format_error::FormatError;
 use crate::source::Source;
+use crate::verify::Verifier;
 use crate::{Compression, Entry};
 
 const LOCAL_HEADER_SIGNATURE: u32 = 0x0403_4B50;
@@ -26,9 +27,20 @@ type DataReader<'a> = Box<dyn Read + Send + 'a>;
 pub struct EntryReader<'a> {
     inner: ExactSize<DataReader<'a>>,
     encrypted: bool,
+    verifier: Option<Verifier>,
 }
 
 impl EntryReader<'_> {
+    /// Checks the data against the checksums of `entry` as it streams by; a mismatch is a
+    /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) from the read that
+    /// reaches the end of the data, which then yields none of its bytes. Only for a reader that
+    /// starts at the beginning of the Entry's data.
+    #[must_use]
+    pub(crate) fn verified(mut self, entry: &Entry) -> Self {
+        self.verifier = Some(Verifier::new(entry));
+        self
+    }
+
     /// Makes data that goes on after the Entry's uncompressed size an error, a
     /// [`DataError::TooLong`](crate::DataError::TooLong), instead of cutting it; the zero padding
     /// of an encrypted Entry below one AES block is still allowed.
@@ -49,7 +61,16 @@ impl fmt::Debug for EntryReader<'_> {
 
 impl Read for EntryReader<'_> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        self.inner.read(buffer)
+        let count = self.inner.read(buffer)?;
+        if let Some(verifier) = &mut self.verifier {
+            let data = buffer.get(..count).unwrap_or_default();
+            let ended = verifier.feed(data);
+            if !matches!(ended, Ok(false)) {
+                self.verifier = None;
+            }
+            ended?;
+        }
+        Ok(count)
     }
 }
 
@@ -143,6 +164,7 @@ pub(crate) fn open_at<'a>(
     let reader = EntryReader {
         inner: ExactSize::new(decoded, entry.uncompressed_size.saturating_sub(start)),
         encrypted: entry.encrypted,
+        verifier: None,
     };
     Ok((reader, offset.saturating_sub(start)))
 }

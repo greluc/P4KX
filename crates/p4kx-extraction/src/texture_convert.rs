@@ -216,11 +216,13 @@ impl EntryWriter<'_> {
             archive: self.archive,
             header,
             parts: job.parts.clone(),
+            verify: self.verify,
         };
         let alpha = job.alpha_header.map(|alpha_header| Parts::Archive {
             archive: self.archive,
             header: alpha_header,
             parts: job.alpha_parts.clone(),
+            verify: self.verify,
         });
         let texture = Texture::from_parts(colour, alpha).map_err(ExtractionError::Texture)?;
         Source::new(texture, header)

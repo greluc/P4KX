@@ -62,7 +62,7 @@ impl EntryWriter<'_> {
         bytes.clear();
         let reserve = usize::try_from(size.min(INITIAL_RESERVE)).unwrap_or_default();
         bytes.try_reserve_exact(reserve).map_err(|_| too_large())?;
-        let mut reader = self.archive.open_entry(entry)?;
+        let mut reader = self.open_entry(entry)?;
         if !self.read_all(&mut reader, bytes, len, &mut buffers.chunk, credited)? {
             return Ok((Outcome::Cancelled, None));
         }
@@ -103,7 +103,7 @@ impl EntryWriter<'_> {
         loop {
             match self
                 .read_chunk(reader, chunk)
-                .map_err(ExtractionError::Read)?
+                .map_err(ExtractionError::read)?
             {
                 Chunk::Data(count) => {
                     let data = chunk.get(..count).unwrap_or_default();

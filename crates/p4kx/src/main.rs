@@ -18,6 +18,7 @@ mod cli_loc;
 mod cli_model;
 mod cli_socpak;
 mod cli_ui;
+mod cli_verify;
 mod cli_wwise;
 mod compare;
 mod cryxml;
@@ -31,6 +32,7 @@ mod entity_audio;
 mod entity_json;
 mod exit;
 mod extract;
+mod extract_report;
 mod info;
 mod issues;
 mod json;
@@ -49,6 +51,7 @@ mod ui;
 mod ui_extract;
 mod ui_json;
 mod ui_render;
+mod verify;
 mod wwise;
 mod wwise_json;
 
@@ -67,6 +70,7 @@ fn main() -> ExitCode {
         Command::List(args) => list::run(&args, json).map(success),
         Command::Search(args) => list::search(&args, json).map(success),
         Command::Extract(args) => extract::run(&args, json),
+        Command::Verify(args) => verify::run(&args, json),
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),

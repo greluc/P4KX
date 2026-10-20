@@ -15,6 +15,7 @@ use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_verify::VerifyArgs;
 pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
 
@@ -42,6 +43,11 @@ pub(crate) enum Command {
     /// Extracts the given Entries of an Archive into a new target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(ExtractArgs),
+    /// Checks the data of the Entries of an Archive against the CRC-32C of its directory, in
+    /// parallel, and reports every mismatch; nothing is written. Exits with 1 when an Entry
+    /// mismatches or cannot be read.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Verify(VerifyArgs),
     /// Prints the Channel and Build of an Archive and a summary of its Entries.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(InfoArgs),
@@ -291,6 +297,12 @@ pub(crate) struct ExtractArgs {
         value_name = "FORMAT"
     )]
     pub(crate) audio: AudioOutput,
+    /// Checks each Entry against the CRC-32C of the Archive directory while it is written: an
+    /// Entry that does not match is not written and counted as a checksum mismatch in the
+    /// summary and as `mismatched` in the JSON report, and the exit code is 1. Costs one
+    /// checksum pass over the extracted bytes.
+    #[arg(long)]
+    pub(crate) verify: bool,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,

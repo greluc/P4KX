@@ -63,12 +63,7 @@ impl LoadoutResolver<'_> {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
             }
-            ports.push(PortNode {
-                name: pending.name.to_owned(),
-                source: pending.source,
-                definition: pending.definition,
-                attachment: self.attach(pending.target, pending.loadout, walk),
-            });
+            ports.push(self.port_node(pending, walk));
         }
         EntityNode {
             guid: spec.guid,
@@ -77,6 +72,60 @@ impl LoadoutResolver<'_> {
             ports,
             issues,
         }
+    }
+
+    fn port_node(&mut self, pending: Pending<'_>, walk: &mut Walk) -> PortNode {
+        let attachment = self.attach(pending.target, pending.loadout, walk);
+        let nested = if matches!(attachment, Attachment::Empty) {
+            self.nested_ports(pending.loadout, walk, 0)
+        } else {
+            Vec::new()
+        };
+        PortNode {
+            name: pending.name.to_owned(),
+            source: pending.source,
+            definition: pending.definition,
+            attachment,
+            nested,
+        }
+    }
+
+    /// Resolves the entries of the Loadout of an empty port into ports of their own.
+    fn nested_ports(
+        &mut self,
+        loadout: Option<&LoadoutSpec>,
+        walk: &mut Walk,
+        depth: usize,
+    ) -> Vec<PortNode> {
+        let Some(loadout) = loadout else {
+            return Vec::new();
+        };
+        if depth >= MAX_LOADOUT_DEPTH {
+            return Vec::new();
+        }
+        let Ok(entries) = self.entries(Some(loadout)) else {
+            return Vec::new();
+        };
+        let mut ports = Vec::new();
+        for entry in entries.list.iter() {
+            if !walk.reserve() {
+                break;
+            }
+            let attachment = self.attach(&entry.target, entry.loadout.as_ref(), walk);
+            let nested = if matches!(attachment, Attachment::Empty) {
+                self.nested_ports(entry.loadout.as_ref(), walk, depth.saturating_add(1))
+            } else {
+                Vec::new()
+            };
+            ports.push(PortNode {
+                name: entry.port.clone(),
+                source: PortSource::Override,
+                definition: None,
+                attachment,
+                nested,
+            });
+        }
+        ports
     }
 
     /// Returns the entries of the Entity's own Loadout, each replaced in place by the entry of

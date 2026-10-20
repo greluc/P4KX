@@ -133,6 +133,11 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
+  starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
+  reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
+  maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
+  Citizen's banks are all version 154 and decode as before.
 - A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
   versions from 151 on write before the in-memory media size, so the media size was read one field
   late. Star Citizen's version 154 banks were not affected.

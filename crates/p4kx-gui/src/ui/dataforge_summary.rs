@@ -18,6 +18,7 @@ use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::rows::paint_divider;
 use crate::widgets::text::{caps, hairline_below, line, plain};
+use crate::widgets::tooltip;
 use crate::{
     DataForgeFailure, DataForgeSummary, DataForgeText, Language, RecordTree, RecordTreeStatus,
     Text, Texts, format,
@@ -239,7 +240,7 @@ impl Laid {
                 ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
             if ui.rect_contains_pointer(rect) {
                 ui.painter()
-                    .rect_filled(rect, CornerRadius::ZERO, palette::GRAY_3);
+                    .rect_filled(rect, CornerRadius::ZERO, palette::CONTROL_BG);
             } else if index % 2 == 1 {
                 ui.painter().rect_filled(rect, CornerRadius::ZERO, ZEBRA);
             }
@@ -262,8 +263,8 @@ fn cells(ui: &Ui, (section, row): (u8, usize), rect: Rect, cells: &[Labelled]) {
             (cell_rect, palette::GRAY_1),
         );
         if section == ROWS {
-            response.on_hover_ui(|ui| {
-                ui.label(cell.0.as_str());
+            tooltip::hover(response, |ui| {
+                tooltip::line(ui, cell.0.as_str());
             });
         }
     }

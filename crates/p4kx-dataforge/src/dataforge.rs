@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 use p4kx_foundation::ByteReader;
 
 use crate::header::Header;
+use crate::issues::Issues;
 use crate::record_table::RecordTable;
 use crate::rows::{DataMapping, EnumDef, NO_PARENT, OptionName, PropertyDef, StructDef};
 use crate::strings::StringTable;
@@ -16,6 +17,8 @@ use crate::{DataForgeError, ValueKind};
 #[derive(Debug)]
 pub struct DataForge<'a> {
     pub(crate) version: u32,
+    pub(crate) header_words: [u32; 2],
+    pub(crate) issues: Issues,
     pub(crate) byte_len: usize,
     pub(crate) structs: Table<'a, StructDef>,
     pub(crate) properties: Table<'a, PropertyDef>,
@@ -69,8 +72,11 @@ impl<'a> DataForge<'a> {
         let remaining = reader.remaining();
         let instances = take(&mut reader, 1, remaining, "instance data")?;
         let Blocks { counts, starts } = instance_blocks(structs, mappings, instances.len())?;
+        let issues = Issues::find(properties, &records);
         let forge = Self {
             version: header.version,
+            header_words: header.words,
+            issues,
             byte_len: bytes.len(),
             structs,
             properties,

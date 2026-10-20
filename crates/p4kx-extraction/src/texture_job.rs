@@ -4,6 +4,7 @@ use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
 use crate::CUBE_FACE_NAMES;
+use crate::sound_job::sound_role;
 use crate::texture_images::IMAGE_EXTENSIONS;
 
 /// An Entry of the run with its position in the requested order.
@@ -15,6 +16,10 @@ pub(crate) enum Item<'a> {
     Entry(Indexed<'a>),
     /// A DDS texture converted as a whole.
     Texture(TextureJob<'a>),
+    /// A WEM sound converted as the run's audio option says.
+    Sound(Indexed<'a>),
+    /// A soundbank written unchanged and unpacked into a folder of its WEMs.
+    Bank(Indexed<'a>),
 }
 
 /// A texture of the run: its header Entry, the Entries of the texture that were requested with
@@ -62,15 +67,29 @@ impl Item<'_> {
     /// Returns the position of the item's first Entry in the requested order.
     pub(crate) const fn first_index(&self) -> usize {
         match self {
-            Self::Entry((index, _)) => *index,
+            Self::Entry((index, _)) | Self::Sound((index, _)) | Self::Bank((index, _)) => *index,
             Self::Texture(job) => job.header.0,
         }
     }
 
-    /// Calls `visit` with the Entry path of each file the item may write below the target.
+    /// Calls `visit` with the Entry path of each file the item may write below the target, and
+    /// with a trailing separator for a folder it fills with files not known in advance.
     pub(crate) fn output_paths(&self, mut visit: impl FnMut(&str)) {
         match self {
             Self::Entry((_, entry)) => visit(entry.path()),
+            Self::Sound((_, entry)) => {
+                visit(entry.path());
+                if let Some((_, stem)) = sound_role(entry.path()) {
+                    visit(&format!("{stem}.ogg"));
+                    visit(&format!("{stem}.wav"));
+                }
+            }
+            Self::Bank((_, entry)) => {
+                visit(entry.path());
+                if let Some((_, stem)) = sound_role(entry.path()) {
+                    visit(&format!("{stem}\\"));
+                }
+            }
             Self::Texture(job) => {
                 let header = job.header.1.path();
                 let stem = header

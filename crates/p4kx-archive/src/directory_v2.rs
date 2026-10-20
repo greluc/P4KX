@@ -1,9 +1,9 @@
 use p4kx_foundation::ByteReader;
 
-use crate::entry::DataStart;
 use crate::format_error::FormatError;
+use crate::issue::{Directory, IssueLog, decode_path};
 use crate::source::Source;
-use crate::{Checksum, Compression, Entry, layout};
+use crate::{Checksum, Compression, Entry, EntryIssue, layout};
 
 const TRAILER_LEN: usize = 175;
 const RECORD_LEN: usize = 204;
@@ -24,7 +24,7 @@ struct Trailer {
 pub(crate) fn read_entries(
     source: &Source,
     max_entries: Option<u64>,
-) -> Result<Vec<Entry>, FormatError> {
+) -> Result<Directory, FormatError> {
     let trailer_offset = source
         .len()
         .checked_sub(TRAILER_LEN as u64)
@@ -45,12 +45,21 @@ pub(crate) fn read_entries(
         "name table",
     )?;
     let mut entries = Vec::with_capacity(directory.len() / RECORD_LEN);
+    let mut log = IssueLog::default();
+    let data_limit = trailer.directory_offset.min(trailer.names_offset);
     let mut record_offset = trailer.directory_offset;
     for record in directory.as_chunks::<RECORD_LEN>().0 {
-        entries.push(parse_record(record, record_offset, &names)?);
+        let entry = parse_record(
+            record,
+            record_offset,
+            &names,
+            (entries.len(), data_limit),
+            &mut log,
+        )?;
+        entries.push(entry);
         record_offset += RECORD_LEN as u64;
     }
-    Ok(entries)
+    Ok(Directory { entries, log })
 }
 
 fn read_trailer(
@@ -103,7 +112,16 @@ fn read_range(
     Ok(source.read_at(offset, size)?)
 }
 
-fn parse_record(record: &[u8], offset: u64, names: &[u8]) -> Result<Entry, FormatError> {
+/// Parses the record at file `offset`; `at` is the Entry's position and the offset of the central
+/// directory or the name table, whichever comes first, which its data must end before.
+fn parse_record(
+    record: &[u8],
+    offset: u64,
+    names: &[u8],
+    at: (usize, u64),
+    log: &mut IssueLog,
+) -> Result<Entry, FormatError> {
+    let (index, data_limit) = at;
     let mut reader = ByteReader::with_base(record, offset);
     let method = reader.read_u16()?;
     reader.skip(RECORD_TIME_AND_DATE_LEN)?;
@@ -114,18 +132,53 @@ fn parse_record(record: &[u8], offset: u64, names: &[u8]) -> Result<Entry, Forma
     let name_offset = reader.read_u64()?;
     reader.skip(RECORD_SIGNATURE_LEN)?;
     let encryption = reader.read_u16()?;
+    if data_offset
+        .checked_add(compressed_size)
+        .is_none_or(|end| end > data_limit)
+        || encryption > 1
+    {
+        record_defects(
+            log,
+            index,
+            (data_offset, compressed_size, data_limit),
+            encryption,
+        );
+    }
     Ok(Entry {
-        path: read_name(names, name_offset, offset)?,
+        path: read_name(names, name_offset, offset, index, log)?,
         compressed_size,
         uncompressed_size,
         checksum: Checksum::Crc32c(crc32c),
-        data: DataStart::Direct(data_offset),
+        data_offset,
         compression: Compression::from_method(method),
+        index: u32::try_from(index).unwrap_or(u32::MAX),
         encrypted: encryption != 0,
+        local_header: false,
     })
 }
 
-fn read_name(names: &[u8], name_offset: u64, record_offset: u64) -> Result<String, FormatError> {
+#[cold]
+#[inline(never)]
+fn record_defects(log: &mut IssueLog, index: usize, data: (u64, u64, u64), encryption: u16) {
+    let (data_offset, compressed_size, data_limit) = data;
+    if data_offset
+        .checked_add(compressed_size)
+        .is_none_or(|end| end > data_limit)
+    {
+        log.record(index, EntryIssue::DataOutsideFile);
+    }
+    if encryption > 1 {
+        log.record(index, EntryIssue::UnknownEncryption { value: encryption });
+    }
+}
+
+fn read_name(
+    names: &[u8],
+    name_offset: u64,
+    record_offset: u64,
+    index: usize,
+    log: &mut IssueLog,
+) -> Result<String, FormatError> {
     let name = usize::try_from(name_offset)
         .ok()
         .and_then(|start| names.get(start..))
@@ -136,10 +189,14 @@ fn read_name(names: &[u8], name_offset: u64, record_offset: u64) -> Result<Strin
         .iter()
         .position(|&byte| byte == 0)
         .ok_or_else(|| FormatError::corrupt(record_offset, "Entry path is not terminated"))?;
-    let path = std::str::from_utf8(name.get(..end).unwrap_or_default())
-        .map_err(|_| FormatError::corrupt(record_offset, "Entry path is not UTF-8"))?;
-    if path.is_empty() {
+    let name = name.get(..end).unwrap_or_default();
+    if name.is_empty() {
         return Err(FormatError::corrupt(record_offset, "Entry path is empty"));
     }
-    Ok(path.replace('/', "\\"))
+    let path = decode_path(name, index, log);
+    Ok(if path.contains('/') {
+        path.replace('/', "\\")
+    } else {
+        path.into_owned()
+    })
 }

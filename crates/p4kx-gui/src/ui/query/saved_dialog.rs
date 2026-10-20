@@ -1,4 +1,4 @@
-use egui::{Align, Align2, Id, Key, Label, Layout, Margin, TextEdit, Ui, vec2};
+use egui::{Align, Align2, Frame, Id, Key, Label, Layout, Margin, TextEdit, Ui, vec2};
 use p4kx_settings::{NameProblem, SavedQueries};
 
 use super::super::Requests;
@@ -7,6 +7,7 @@ use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_BODY, FS_SM, SPACE_3, TOUCH_TARGET, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::field;
 use crate::widgets::frames::{self, Tone, px};
 use crate::widgets::text::plain;
 use crate::{Model, NameNote, QueryText, SavedDialog, Texts, format};
@@ -119,15 +120,21 @@ fn body(
 /// pressed in it.
 fn name_field(ui: &mut Ui, texts: &Texts, name: &mut String, first: bool) -> bool {
     let label = ui.label(eyebrow(&texts.get(QueryText::NameLabel)));
-    let field = TextEdit::singleline(name)
+    let bloom = field::bloom_slot(ui);
+    let frame = field::frame_slot(ui);
+    let edit = TextEdit::singleline(name)
         .char_limit(SavedQueries::MAX_NAME_LEN)
         .hint_text(plain(texts.get(QueryText::NameHint), FS_BODY, Weight::Regular).italics())
         .font(font(FS_BODY, Weight::Regular))
-        .margin(Margin::symmetric(px(SPACE_3), 0))
+        .frame(Frame::NONE.inner_margin(Margin::symmetric(px(SPACE_3), 0)))
         .min_size(vec2(0.0, TOUCH_TARGET))
         .desired_width(ui.available_width())
         .align(Align2::LEFT_CENTER);
-    let response = ui.add(field).labelled_by(label.id);
+    let response = ui.add(edit).labelled_by(label.id);
+    field::paint_frame(ui, frame, response.rect, response.has_focus());
+    if response.has_focus() {
+        field::paint_bloom(ui, bloom, response.rect);
+    }
     if first {
         response.request_focus();
     }

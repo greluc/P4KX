@@ -68,6 +68,11 @@ archive-changed =
         [yes] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Eine laufende Extraktion wurde gestoppt; lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
        *[no] { $path } hat sich auf der Festplatte geändert, vermutlich durch ein Update im RSI Launcher. Lade das Archiv neu, um wieder Einträge zu extrahieren oder anzusehen.
     }
+archive-issues =
+    { $kind ->
+        [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
+       *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
+    }
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …
@@ -87,12 +92,17 @@ extraction-policy-heading = Bereits vorhandene Dateien
 extraction-policy-skip = Überspringen
 extraction-policy-overwrite = Überschreiben
 extraction-policy-if-changed = Nur bei Änderung überschreiben
-extraction-conversion = CryXml und DataForge in XML und Texturen umwandeln
+extraction-conversion = CryXml und DataForge in XML, Texturen und Sounds umwandeln
 extraction-texture-merge = Geteilte Texturen zu einer DDS zusammenführen
 extraction-texture-png = Texturen als PNG exportieren (HDR als OpenEXR)
 extraction-texture-mip-largest = Größte Mip-Stufe
 extraction-texture-mip-level = Mip-Stufe
 extraction-texture-raw = Rohe Texturteile behalten
+extraction-audio-label = Sounds als
+extraction-audio-ogg = Ogg
+extraction-audio-wav = WAV
+extraction-audio-raw = WEM, unverändert
+extraction-audio-banks = Ohne Ogg-Form des Codecs wird statt Ogg WAV geschrieben. Soundbanks werden zusätzlich in einen Ordner je Bank entpackt, jede WEM nach ihrer ID benannt.
 extraction-start = Extrahieren
 extraction-close = Schließen
 extraction-confirm-all =
@@ -342,6 +352,20 @@ image-decoding = Mip { $level } von { $path } wird dekodiert …
 image-unsupported = Die Vorschau kann Texturen im Format { $format } nicht dekodieren. Die Tabs Text und Hex zeigen die Daten von { $path } weiterhin.
 image-failed = { $path } kann nicht dekodiert werden: { $reason }
 image-unshowable = Jedes Mip von { $path } ist größer, als die Vorschau zeigen kann.
+container-opening = Wird geöffnet …
+container-unreadable = Lässt sich nicht öffnen
+container-unreadable-detail = { $name } lässt sich nicht öffnen: { $reason }
+container-over-budget = Nicht geöffnet: Speichergrenze
+container-over-budget-detail = { $name } wurde nicht geöffnet: Die offenen Container belegen bereits { $limit }. Klappe andere Container zu und klappe ihn erneut auf.
+container-stopped = Öffnen abgebrochen
+container-stopped-detail = Das Öffnen von { $name } brach ohne Ergebnis ab. Klappe ihn erneut auf, um es noch einmal zu versuchen.
+container-archive-changed = Archiv geändert
+container-archive-changed-detail = Das Archiv hat sich auf der Festplatte geändert. Lade es neu, um { $name } zu öffnen.
+container-status-entries =
+    { $count ->
+        [one] Container: { $number } Eintrag
+       *[other] Container: { $number } Einträge
+    }
 
 menu-export = Export
 record-export-action = Record-Export …

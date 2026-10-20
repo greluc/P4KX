@@ -2,6 +2,7 @@
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod bank;
+mod budget;
 mod buffers;
 mod chunk_source;
 mod conversion_error;
@@ -22,7 +23,6 @@ mod model_source;
 mod options;
 mod output_file;
 mod path_index;
-mod pixel_budget;
 mod query_export;
 mod record_combined;
 mod record_export;
@@ -34,6 +34,11 @@ mod report;
 mod resolved_texts;
 mod selection;
 mod sound;
+mod sound_convert;
+mod sound_job;
+mod sound_output;
+mod sound_workers;
+mod soundbank_convert;
 mod target;
 mod text_window;
 mod texture;
@@ -73,10 +78,13 @@ pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use localization_set::{LocalizationNote, LocalizationSet};
 pub use model_source::ModelSource;
-pub use options::{CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion};
+pub use options::{
+    AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
+};
 pub use p4kx_archive::{
-    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryReader,
-    MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN,
+    Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryIssue,
+    EntryReader, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,
+    MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
@@ -90,10 +98,11 @@ pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataType, Enum, Field, Guid, InvalidGuid, JsonLayout,
-    MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Property, RECORD_XML_NAMESPACE, Record, RecordJson,
-    RecordTree, RecordXml, Reference, Resolution, Struct, StructValue, TextResolver, TreeBuilder,
-    Value, ValueError, ValueKind,
+    DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FormatSurvey, Guid,
+    InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES,
+    PointerSurvey, Property, RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml,
+    Reference, Resolution, Struct, StructValue, TextResolver, TrailingSurvey, TreeBuilder, Value,
+    ValueError, ValueKind,
 };
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};

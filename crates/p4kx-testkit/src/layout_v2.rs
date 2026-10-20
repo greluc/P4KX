@@ -25,7 +25,7 @@ pub(crate) fn build(entries: &[TestEntry]) -> Vec<u8> {
     let directory_offset = len_u64(&out);
     for (entry, data_offset) in entries.iter().zip(data_offsets) {
         let name_offset = len_u64(&names);
-        names.extend_from_slice(entry.path.as_bytes());
+        names.extend_from_slice(entry.path_bytes());
         names.push(0);
         write_record(&mut out, entry, data_offset, name_offset);
     }
@@ -63,7 +63,7 @@ fn write_record(out: &mut Vec<u8>, entry: &TestEntry, data_offset: u64, name_off
     put_u64(out, data_offset);
     put_u64(out, name_offset);
     out.extend_from_slice(&[0; RECORD_SIGNATURE_LEN]);
-    put_u16(out, u16::from(entry.encrypted));
+    put_u16(out, entry.encryption_value());
     out.extend_from_slice(&[0; RECORD_HASH_LEN]);
 }
 

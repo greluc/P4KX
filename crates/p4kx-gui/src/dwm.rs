@@ -29,7 +29,7 @@ pub fn tint(window: &impl HasWindowHandle) {
     };
     let hwnd = win32.hwnd.get() as HWND;
     set(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, 1);
-    set(hwnd, DWMWA_CAPTION_COLOR, colorref(palette::GRAY_4));
+    set(hwnd, DWMWA_CAPTION_COLOR, colorref(palette::SURFACE_BAR));
     set(hwnd, DWMWA_TEXT_COLOR, colorref(palette::GRAY_1));
     set(hwnd, DWMWA_BORDER_COLOR, colorref(palette::GRAY_3));
 }

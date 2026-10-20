@@ -12,9 +12,9 @@ use p4kx_extraction::{
     create_default_target, extract,
 };
 
-use p4kx_settings::ExtractionTextures;
+use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
-use super::{ExtractionSummary, TargetKind, texture_conversion};
+use super::{ExtractionSummary, TargetKind, audio_conversion, texture_conversion};
 use crate::EntryIndex;
 use crate::comparison::ChangeSelection;
 use crate::model::describe;
@@ -60,6 +60,7 @@ pub(crate) struct Request {
     pub(crate) policy: ConflictPolicy,
     pub(crate) convert: bool,
     pub(crate) textures: ExtractionTextures,
+    pub(crate) audio: ExtractionAudio,
 }
 
 type RunResult = Result<ExtractionSummary, String>;
@@ -253,6 +254,7 @@ fn write(
         policy: request.policy,
         convert: request.convert,
         textures: texture_conversion(request.textures),
+        audio: audio_conversion(request.audio),
         cancel: Some(cancel),
         progress: Some(&on_progress),
         watch: Some(watch),

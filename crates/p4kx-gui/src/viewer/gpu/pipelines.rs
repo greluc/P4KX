@@ -5,7 +5,7 @@ use eframe::egui_wgpu::wgpu;
 
 use super::resources::VERTEX_STRIDE;
 
-pub(super) const COLOUR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+pub(super) const COLOUR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub(super) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub(super) const FRAME_BYTES: u64 = 96;
 pub(super) const BLIT_BYTES: u64 = 16;

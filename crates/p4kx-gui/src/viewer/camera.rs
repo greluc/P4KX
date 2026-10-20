@@ -65,6 +65,7 @@ pub struct Camera {
     centre: [f32; 3],
     radius: f32,
     fitted: bool,
+    fitted_aspect: f32,
 }
 
 impl Camera {
@@ -81,6 +82,7 @@ impl Camera {
             centre: bounds.centre(),
             radius,
             fitted: false,
+            fitted_aspect: 1.0,
         }
     }
 
@@ -93,6 +95,7 @@ impl Camera {
     /// Frames the whole model in a view of `aspect` (width over height).
     pub fn fit(&mut self, aspect: f32) {
         self.distance = fit_distance(self.radius, aspect);
+        self.fitted_aspect = aspect;
         self.fitted = true;
     }
 
@@ -104,9 +107,10 @@ impl Camera {
         self.fit(aspect);
     }
 
-    /// Returns whether the camera looks at the model from the home direction and distance.
+    /// Returns whether the camera looks at the model from the home direction and the distance it
+    /// was last fitted to; resizing the view does not move it away from home.
     #[must_use]
-    pub fn is_home(&self, aspect: f32) -> bool {
+    pub fn is_home(&self) -> bool {
         let near = |a: f32, b: f32| (a - b).abs() < 1.0e-4 * self.radius.max(1.0);
         self.target
             .iter()
@@ -114,7 +118,7 @@ impl Camera {
             .all(|(a, b)| near(*a, b))
             && (self.yaw - HOME_YAW).abs() < 1.0e-5
             && (self.pitch - HOME_PITCH).abs() < 1.0e-5
-            && near(self.distance, fit_distance(self.radius, aspect))
+            && near(self.distance, fit_distance(self.radius, self.fitted_aspect))
     }
 
     /// Turns the camera around the target by a drag of `dx` and `dy` pixels.

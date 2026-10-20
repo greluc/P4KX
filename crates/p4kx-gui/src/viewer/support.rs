@@ -21,7 +21,7 @@ pub enum Problem {
     Unavailable(Unavailable),
     /// The device was lost while the window ran.
     Lost,
-    /// A drawing command failed, e.g. for lack of memory.
+    /// Drawing this model failed, e.g. for lack of memory; another model is drawn again.
     Failed,
     /// The model is too large for the device's buffers.
     Rejected,
@@ -52,7 +52,7 @@ impl ViewerSupport {
             Self::Pending => Some(Problem::Unavailable(Unavailable::NoDevice)),
             Self::Unavailable(reason) => Some(Problem::Unavailable(reason.clone())),
             Self::Ready(report) if report.is_lost() => Some(Problem::Lost),
-            Self::Ready(report) if report.has_failed() => Some(Problem::Failed),
+            Self::Ready(report) if report.has_failed(serial) => Some(Problem::Failed),
             Self::Ready(report) if report.is_rejected(serial) => Some(Problem::Rejected),
             Self::Ready(_) => None,
         }
@@ -82,6 +82,21 @@ mod tests {
             Some(Problem::Unavailable(Unavailable::BufferSize(1))),
             "reason"
         );
+    }
+
+    #[test]
+    fn a_failed_drawing_blocks_that_model_only() {
+        let report = Arc::new(GpuReport::default());
+        let support = ViewerSupport::Ready(Arc::clone(&report));
+
+        report.fail(7);
+
+        assert_eq!(
+            support.problem(7),
+            Some(Problem::Failed),
+            "the failed model"
+        );
+        assert_eq!(support.problem(8), None, "the next model is drawn again");
     }
 
     #[test]

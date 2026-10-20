@@ -19,15 +19,16 @@ pub enum Unavailable {
     Setup(String),
 }
 
-/// What the render side tells the window: whether the device is lost or failed and which scene
-/// was refused. Shared between the paint callback and the window.
+/// What the render side tells the window: whether the device is lost and which scenes it failed to
+/// draw or refused. Shared between the paint callback and the window.
 #[derive(Debug, Default)]
 pub struct GpuReport {
     lost: AtomicBool,
-    failed: AtomicBool,
+    failed: AtomicU64,
     rejected: AtomicU64,
     resident: AtomicU64,
     uploads: AtomicU64,
+    passes: AtomicU64,
     buffers: AtomicUsize,
 }
 
@@ -38,16 +39,11 @@ impl GpuReport {
         self.lost.load(Ordering::Acquire)
     }
 
-    /// Returns whether a drawing command failed validation or ran out of memory.
+    /// Returns whether drawing the scene with this serial failed validation or ran out of memory;
+    /// the next scene is drawn again.
     #[must_use]
-    pub fn has_failed(&self) -> bool {
-        self.failed.load(Ordering::Acquire)
-    }
-
-    /// Returns whether the viewer cannot draw any more: the device is lost or a command failed.
-    #[must_use]
-    pub fn is_broken(&self) -> bool {
-        self.is_lost() || self.has_failed()
+    pub fn has_failed(&self, serial: u64) -> bool {
+        serial != 0 && self.failed.load(Ordering::Acquire) == serial
     }
 
     /// Returns whether the scene with this serial is too large for the device.
@@ -68,6 +64,13 @@ impl GpuReport {
         self.uploads.load(Ordering::Acquire)
     }
 
+    /// Returns how many times the scene was drawn into the picture; a repaint with the same view
+    /// does not draw again.
+    #[must_use]
+    pub fn passes(&self) -> u64 {
+        self.passes.load(Ordering::Acquire)
+    }
+
     /// Returns how many buffers the viewer holds on the device.
     #[must_use]
     pub fn buffers(&self) -> usize {
@@ -79,9 +82,9 @@ impl GpuReport {
         self.lost.store(true, Ordering::Release);
     }
 
-    /// Records that a drawing command failed.
-    pub fn fail(&self) {
-        self.failed.store(true, Ordering::Release);
+    /// Records that drawing the scene with this serial failed.
+    pub fn fail(&self, serial: u64) {
+        self.failed.store(serial, Ordering::Release);
         self.resident.store(0, Ordering::Release);
     }
 
@@ -94,6 +97,10 @@ impl GpuReport {
     pub(super) fn uploaded(&self, serial: u64) {
         self.resident.store(serial, Ordering::Release);
         self.uploads.fetch_add(1, Ordering::AcqRel);
+    }
+
+    pub(super) fn drew(&self) {
+        self.passes.fetch_add(1, Ordering::AcqRel);
     }
 
     pub(super) fn buffer_created(&self, count: usize) {

@@ -1,10 +1,11 @@
+use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_extraction::model::LodSelection;
-use p4kx_extraction::{Entry, ModelSource, PathIndex};
+use p4kx_extraction::{Entry, ModelSource};
 
 use super::camera::Camera;
 use super::scene::{Scene, SceneError};
@@ -84,8 +85,10 @@ impl ModelPreview {
         let spawned = thread::Builder::new()
             .name("model-preview".to_owned())
             .spawn(move || {
-                let event = load(&thread_index, id);
-                if !thread_dropped.load(Ordering::Acquire) && sender.send(event).is_ok() {
+                if let Some(event) = load(&thread_index, id, &thread_dropped)
+                    && !thread_dropped.load(Ordering::Acquire)
+                    && sender.send(event).is_ok()
+                {
                     wake();
                 }
             });
@@ -169,14 +172,15 @@ impl Drop for ModelPreview {
     }
 }
 
-fn load(index: &EntryIndex, id: u32) -> Event {
+fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
+    let stop = || stopped.load(Ordering::Acquire);
     let Some(entry) = index.entry(id) else {
-        return Event::Failed(None);
+        return Some(Event::Failed(None));
     };
     if index.watch().check().is_err() {
-        return Event::ArchiveChanged;
+        return Some(Event::ArchiveChanged);
     }
-    let paths = PathIndex::new(index.archive());
+    let paths = index.path_index();
     let companion = format!("{}m", entry.path());
     let oversized = [Some(entry), paths.find(&companion)]
         .into_iter()
@@ -184,28 +188,45 @@ fn load(index: &EntryIndex, id: u32) -> Event {
         .map(Entry::uncompressed_size)
         .find(|&size| size > MODEL_FILE_LIMIT);
     if let Some(size) = oversized {
-        return Event::FileTooLarge(size);
+        return Some(Event::FileTooLarge(size));
+    }
+    if stop() {
+        return None;
     }
     let source = match ModelSource::from_index_with(&paths, entry.path(), LodSelection::Only(0)) {
         Ok(source) => source,
         Err(error) => {
-            return if index.watch().check().is_err() {
+            return Some(if index.watch().check().is_err() {
                 Event::ArchiveChanged
             } else {
-                Event::Failed(Some(describe(&error)))
-            };
+                Event::Failed(Some(reason(&error, entry.path())))
+            });
         }
     };
-    let scene = Scene::from_model(source.model());
-    if index.watch().check().is_err() {
-        return Event::ArchiveChanged;
+    if stop() {
+        return None;
     }
-    scene.map_or_else(Event::Unshowable, Event::Ready)
+    let scene = Scene::from_model(source.model());
+    if stop() {
+        return None;
+    }
+    if index.watch().check().is_err() {
+        return Some(Event::ArchiveChanged);
+    }
+    Some(scene.map_or_else(Event::Unshowable, Event::Ready))
+}
+
+fn reason(error: &dyn Error, path: &str) -> String {
+    let described = describe(error);
+    described
+        .strip_prefix(path)
+        .and_then(|rest| rest.strip_prefix(": "))
+        .map_or_else(|| described.clone(), str::to_owned)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::is_model_path;
+    use super::{is_model_path, reason};
 
     #[test]
     fn model_files_are_recognised_by_extension_ignoring_case() {
@@ -216,6 +237,26 @@ mod tests {
         ] {
             assert!(is_model_path(path), "{path}");
         }
+    }
+
+    #[derive(Debug, thiserror::Error)]
+    #[error("{0}")]
+    struct Named(String);
+
+    #[test]
+    fn the_reason_does_not_repeat_the_path_the_message_names() {
+        let error = Named("Data\\Objects\\a.cgf: not a chunk file".to_owned());
+
+        assert_eq!(
+            reason(&error, "Data\\Objects\\a.cgf"),
+            "not a chunk file",
+            "path dropped"
+        );
+        assert_eq!(
+            reason(&error, "Data\\Objects\\b.cgf"),
+            "Data\\Objects\\a.cgf: not a chunk file",
+            "another path stays"
+        );
     }
 
     #[test]

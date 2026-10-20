@@ -136,7 +136,7 @@ pub(super) fn viewport(
         StrokeKind::Inside,
     );
     focus_inside(ui.painter(), rect, &response);
-    if reset_button(ui, texts, rect, !framed.is_home(aspect)) {
+    if reset_button(ui, texts, rect, !framed.is_home()) {
         framed.reset(aspect);
         ui.ctx().request_repaint();
     }

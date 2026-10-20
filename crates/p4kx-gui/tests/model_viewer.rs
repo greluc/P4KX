@@ -171,6 +171,43 @@ fn a_lost_device_and_a_failed_drawing_are_reported_and_the_window_keeps_working(
 }
 
 #[test]
+fn a_failed_drawing_names_that_model_and_the_next_model_is_drawn_again() -> TestResult {
+    let report = std::sync::Arc::new(p4kx_gui::GpuReport::default());
+    let (_folder, mut harness) = opened(
+        Language::BritishEnglish,
+        ViewerSupport::Ready(report.clone()),
+    )?;
+    select(&mut harness, "cube.cgf")?;
+    let serial = model_preview(harness.state())
+        .and_then(p4kx_gui::ModelPreview::scene)
+        .map(|scene| scene.serial())
+        .ok_or("no scene")?;
+
+    report.fail(serial);
+    harness.run();
+
+    assert!(
+        harness
+            .query_by_label_contains("failed to draw the model")
+            .is_some(),
+        "failed"
+    );
+    assert!(harness.query_by_role(Role::Canvas).is_none(), "no 3D view");
+    select(&mut harness, "tower.cgf")?;
+    assert!(
+        harness.query_by_role(Role::Canvas).is_some(),
+        "another model is drawn"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("failed to draw the model")
+            .is_none(),
+        "no message"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_model_too_large_for_the_device_is_named() -> TestResult {
     let report = std::sync::Arc::new(p4kx_gui::GpuReport::default());
     let (_folder, mut harness) = opened(

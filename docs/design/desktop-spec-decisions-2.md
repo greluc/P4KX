@@ -193,7 +193,7 @@ kein CTA), liegt 8 px vom Rand oben rechts über der Ansicht und ist deaktiviert
 Ansicht das Modell eingepasst zeigt. Ziehen dreht, Rechts- oder Mittelklick-Ziehen oder
 Umschalt-Ziehen verschiebt, Mausrad und Zwei-Finger-Zoom zoomen. Die Ansicht ist eine
 fokussierbare Fläche („3D-Ansicht von …", Innenring −2 `color-primary` wie die Scrollflächen,
-D.27): bei Fokus drehen die Pfeiltasten, Umschalt und Pfeile verschieben, `+` und `−` zoomen, Pos1
+D.27): bei Fokus drehen die Pfeiltasten, Umschalt und Pfeile verschieben, `+` und `-` zoomen, Pos1
 setzt zurück; die Pfeiltasten verlassen den Fokus nicht. Die Meldungen stehen anstelle der Ansicht
 unter der Faktenleiste: Lesefehler, Grafikgerät fehlt, zu klein oder verloren und fehlgeschlagenes
 Zeichnen in `color-danger-text`; zu groß, ohne Dreiecke und zu groß für das Grafikgerät in

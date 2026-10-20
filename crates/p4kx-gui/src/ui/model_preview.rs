@@ -106,18 +106,31 @@ fn ready(
     (scene, camera): (&Arc<Scene>, &Camera),
     support: &ViewerSupport,
 ) -> Option<Camera> {
-    model_view::facts(ui, texts, scene);
     let problem = support.problem(scene.serial());
-    frames::preview_body()
-        .show(ui, |ui| match problem {
-            Some(problem) => {
-                let (colour, text) = problem_text(texts, path, &problem);
-                ui.colored_label(colour, text);
-                None
-            }
-            None => model_view::viewport(ui, texts, path, (scene, camera)),
-        })
-        .inner
+    ui.scope(|ui| {
+        ui.spacing_mut().item_spacing.y = 0.0;
+        model_view::facts(ui, texts, scene);
+        frames::preview_body()
+            .show(ui, |ui| match problem {
+                Some(problem) => {
+                    let (colour, text) = problem_text(texts, path, &problem);
+                    ui.colored_label(colour, text);
+                    None
+                }
+                None => model_view::viewport(ui, texts, path, (scene, camera)),
+            })
+            .inner
+    })
+    .inner
+}
+
+fn sentence(reason: &str) -> String {
+    let reason = reason.trim_end();
+    if reason.ends_with(['.', '!', '?']) {
+        reason.to_owned()
+    } else {
+        format!("{reason}.")
+    }
 }
 
 fn problem_text(texts: &Texts, path: &str, problem: &Problem) -> (Color32, String) {
@@ -138,7 +151,7 @@ fn problem_text(texts: &Texts, path: &str, problem: &Problem) -> (Color32, Strin
         ),
         Problem::Unavailable(Unavailable::Setup(reason)) => (
             palette::DANGER_TEXT,
-            text(ModelText::GpuSetup, &[("reason", reason.clone().into())]),
+            text(ModelText::GpuSetup, &[("reason", sentence(reason).into())]),
         ),
         Problem::Lost => (palette::DANGER_TEXT, text(ModelText::GpuLost, &[])),
         Problem::Failed => (palette::DANGER_TEXT, text(ModelText::GpuFailed, &[])),
@@ -146,5 +159,17 @@ fn problem_text(texts: &Texts, path: &str, problem: &Problem) -> (Color32, Strin
             palette::GRAY_1,
             text(ModelText::GpuRejected, &[("path", path.to_owned().into())]),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sentence;
+
+    #[test]
+    fn a_reason_without_a_final_full_stop_gets_one() {
+        assert_eq!(sentence("shader refused"), "shader refused.", "added");
+        assert_eq!(sentence("shader refused. "), "shader refused.", "kept");
+        assert_eq!(sentence("really?"), "really?", "other end marks stay");
     }
 }

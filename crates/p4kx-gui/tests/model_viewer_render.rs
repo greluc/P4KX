@@ -21,8 +21,18 @@ use viewing::{TestResult, model_preview, opened_with, select};
 
 const BACKGROUND: [u8; 3] = [0x0F, 0x0F, 0x0F];
 
+#[expect(
+    clippy::print_stderr,
+    reason = "tells the test run why a test checked nothing"
+)]
 fn render_state() -> Option<RenderState> {
-    catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE)).ok()
+    let state =
+        catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE))
+            .ok();
+    if state.is_none() {
+        eprintln!("no graphics adapter: the test checks nothing");
+    }
+    state
 }
 
 struct Window {
@@ -156,6 +166,33 @@ fn a_selected_model_is_drawn_lit_and_framed_inside_the_view() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn a_repaint_with_the_same_view_does_not_draw_again_and_a_moved_view_does() -> TestResult {
+    let Some(mut window) = window(Language::BritishEnglish)? else {
+        return Ok(());
+    };
+    select(&mut window.harness, "cube.cgf")?;
+    rendered(&mut window, "first.png")?;
+    let passes = window.report.passes();
+    assert!(passes >= 1, "drawn at least once");
+
+    for _ in 0..5 {
+        rendered(&mut window, "again.png")?;
+    }
+
+    assert_eq!(
+        window.report.passes(),
+        passes,
+        "an unchanged view reuses the picture"
+    );
+    window.harness.get_by_role(Role::Canvas).focus();
+    window.harness.key_press(egui::Key::ArrowLeft);
+    rendered(&mut window, "turned.png")?;
+    assert!(window.report.passes() > passes, "a turned view is drawn");
+    Ok(())
+}
+
 #[test]
 fn the_model_is_uploaded_once_and_switching_models_does_not_leak_buffers() -> TestResult {
     let Some(mut window) = window(Language::BritishEnglish)? else {

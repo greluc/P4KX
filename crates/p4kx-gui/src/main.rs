@@ -34,10 +34,7 @@ fn main() -> Result<()> {
             .and_then(RecordTextChoice::from_code),
     );
     let title = model.texts().get(Text::AppTitle);
-    let options = eframe::NativeOptions {
-        viewport: window::viewport(settings.window, &title),
-        ..eframe::NativeOptions::default()
-    };
+    let options = window::native_options(window::viewport(settings.window, &title));
     let archive = std::env::args_os().nth(1).map(PathBuf::from);
     eframe::run_native(
         &title,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eframe::egui_wgpu::wgpu::{self, util::DeviceExt};
+use eframe::egui_wgpu::wgpu;
 
 use super::GpuReport;
 use super::limits::{Rejected, check_buffer, check_texture};
@@ -17,10 +17,27 @@ pub(super) struct MeshBuffers {
     report: Arc<GpuReport>,
 }
 
+/// Creates a buffer of `contents.len()` bytes and writes `contents` through the queue, so a failure
+/// is an error for the enclosing error scope and never a panic.
+pub(super) fn filled(
+    (device, queue): (&wgpu::Device, &wgpu::Queue),
+    (label, usage): (&str, wgpu::BufferUsages),
+    contents: &[u8],
+) -> wgpu::Buffer {
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some(label),
+        size: u64::try_from(contents.len()).unwrap_or(u64::MAX),
+        usage: usage | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    queue.write_buffer(&buffer, 0, contents);
+    buffer
+}
+
 impl MeshBuffers {
     /// Uploads `scene` once.
     pub(super) fn upload(
-        device: &wgpu::Device,
+        (device, queue): (&wgpu::Device, &wgpu::Queue),
         scene: &Scene,
         report: &Arc<GpuReport>,
     ) -> Result<Self, Rejected> {
@@ -39,16 +56,16 @@ impl MeshBuffers {
             bytes: index_bytes,
             limit,
         })?;
-        let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("p4kx-viewer-vertices"),
-            contents: bytemuck::cast_slice(scene.vertices()),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("p4kx-viewer-indices"),
-            contents: bytemuck::cast_slice(scene.indices()),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+        let vertices = filled(
+            (device, queue),
+            ("p4kx-viewer-vertices", wgpu::BufferUsages::VERTEX),
+            bytemuck::cast_slice(scene.vertices()),
+        );
+        let indices = filled(
+            (device, queue),
+            ("p4kx-viewer-indices", wgpu::BufferUsages::INDEX),
+            bytemuck::cast_slice(scene.indices()),
+        );
         report.buffer_created(2);
         Ok(Self {
             vertices,

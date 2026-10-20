@@ -10,12 +10,20 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
 use p4kx_gui::{
-    Browser, Language, Model, ModelPreview, ModelStatus, Preview, PreviewTab, ViewerSupport,
-    install_viewer, is_model_path, ui,
+    Browser, Language, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Model, ModelPreview, ModelStatus,
+    Preview, PreviewTab, ViewerSupport, install_viewer, is_model_path, ui,
 };
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+#[expect(
+    clippy::print_stderr,
+    reason = "tells the test run why a test checked nothing"
+)]
+fn no_adapter() {
+    eprintln!("no graphics adapter: the test checks nothing");
+}
 
 const SAMPLE: usize = 24;
 const LOAD_LIMIT: Duration = Duration::from_secs(60);
@@ -114,6 +122,60 @@ fn real_models_are_flattened_into_finite_scenes_within_the_caps() -> TestResult 
     Ok(())
 }
 
+fn entry_named(browser: &Browser, file: &str) -> Option<u32> {
+    let index = browser.index();
+    (0..u32::try_from(index.len()).ok()?).find(|&id| {
+        index
+            .entry(id)
+            .is_some_and(|entry| entry.path().to_ascii_lowercase().ends_with(file))
+    })
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn a_large_ship_is_flattened_within_the_caps_and_has_finite_bounds() -> TestResult {
+    let mut model = opened(real_archive_path()?)?;
+    let browser = model.browser_mut().ok_or("not opened")?;
+    let id =
+        entry_named(browser, "\\rsi_polaris.cga").ok_or("the Polaris is not in the Archive")?;
+
+    load(browser, id)?;
+
+    let preview = browser
+        .preview()
+        .and_then(Preview::model)
+        .ok_or("no model preview")?;
+    let ModelStatus::Ready(scene) = preview.status() else {
+        return Err("the Polaris was not flattened into a scene".into());
+    };
+    assert!(scene.triangle_count() > 10_000, "a ship is large");
+    assert!(
+        scene.vertices().len() <= MAX_SCENE_VERTICES,
+        "vertices within the cap"
+    );
+    assert!(
+        scene.triangle_count() <= MAX_SCENE_TRIANGLES,
+        "triangles within the cap"
+    );
+    let bounds = scene.bounds();
+    assert!(
+        bounds
+            .min
+            .iter()
+            .chain(&bounds.max)
+            .all(|value| value.is_finite()),
+        "finite bounds"
+    );
+    assert!(
+        scene
+            .indices()
+            .iter()
+            .all(|&index| (index as usize) < scene.vertices().len()),
+        "every index is inside the vertex list"
+    );
+    Ok(())
+}
+
 fn largest_model(browser: &mut Browser) -> Result<u32, Box<dyn Error>> {
     let mut best: Option<(u32, usize)> = None;
     for id in model_entries(browser) {
@@ -152,6 +214,7 @@ fn a_real_model_is_drawn_in_the_window() -> TestResult {
     let Ok(state) = std::panic::catch_unwind(|| {
         create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE)
     }) else {
+        no_adapter();
         return Ok(());
     };
     let report = install_viewer(&state)?;
@@ -184,6 +247,7 @@ fn a_real_model_is_drawn_in_the_window() -> TestResult {
             .is_disabled(),
         "the view starts framed"
     );
-    assert!(!report.is_broken(), "the device is fine");
+    assert!(!report.is_lost(), "the device is fine");
+    assert!(report.resident().is_some(), "the model is on the device");
     save_png(image.as_raw(), (image.width(), image.height()))
 }

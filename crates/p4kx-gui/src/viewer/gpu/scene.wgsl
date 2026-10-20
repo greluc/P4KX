@@ -33,12 +33,6 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     return output;
 }
 
-fn encode(linear: vec3<f32>) -> vec3<f32> {
-    let low = linear * 12.92;
-    let high = 1.055 * pow(linear, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
-    return select(high, low, linear <= vec3<f32>(0.0031308));
-}
-
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let texel = textureSample(base_texture, base_sampler, input.uv);
@@ -55,5 +49,5 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let sky = mix(0.18, 0.42, 0.5 + 0.5 * normal.z);
     let light = sky + 0.30 * head + 0.50 * key;
     let colour = ALBEDO * texel.rgb * light;
-    return vec4<f32>(encode(clamp(colour, vec3<f32>(0.0), vec3<f32>(1.0))), 1.0);
+    return vec4<f32>(clamp(colour, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
 }

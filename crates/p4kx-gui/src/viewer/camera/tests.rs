@@ -124,17 +124,39 @@ fn panning_moves_the_target_across_the_view_and_not_along_it() {
 #[test]
 fn reset_returns_to_the_home_view_after_any_change() {
     let mut camera = framed();
-    assert!(camera.is_home(ASPECT), "home after fitting");
+    assert!(camera.is_home(), "home after fitting");
 
     camera.orbit(30.0, -12.0);
     camera.pan(10.0, 5.0, 300.0);
     camera.zoom(3.0);
-    assert!(!camera.is_home(ASPECT), "moved away");
+    assert!(!camera.is_home(), "moved away");
 
     camera.reset(ASPECT);
 
-    assert!(camera.is_home(ASPECT), "home again");
+    assert!(camera.is_home(), "home again");
     assert_eq!(camera, framed(), "the same as freshly framed");
+}
+
+#[test]
+fn the_camera_stays_home_when_the_view_is_resized() {
+    let mut camera = framed();
+
+    let wider = camera.uniforms(ASPECT * 2.0);
+
+    assert!(
+        camera.is_home(),
+        "a different aspect does not move the camera"
+    );
+    assert_ne!(
+        wider,
+        camera.uniforms(ASPECT),
+        "only the projection differs"
+    );
+    camera.reset(ASPECT * 2.0);
+    assert!(
+        camera.is_home(),
+        "and a reset in the new aspect is home too"
+    );
 }
 
 #[test]

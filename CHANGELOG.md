@@ -104,9 +104,6 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
-
-### Fixed
-
 - A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
   versions from 151 on write before the in-memory media size, so the media size was read one field
   late. Star Citizen's version 154 banks were not affected.

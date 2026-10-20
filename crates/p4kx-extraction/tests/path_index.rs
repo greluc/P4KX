@@ -21,7 +21,7 @@ fn entries_are_found_ignoring_case_and_separator_kind() -> TestResult {
     builder
         .entry(TestEntry::stored("Data\\Objects\\Cube.cgfm", vec![2; 4]))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let index = PathIndex::new(&archive);
 
     let found = index

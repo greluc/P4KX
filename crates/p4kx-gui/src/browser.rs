@@ -18,7 +18,7 @@ use crate::record_search::RecordSearch;
 use crate::search::{Matches, Pending};
 use crate::{
     AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, Preview, RecordTree, Sort,
-    SortColumn, SortDirection, TextLanguage,
+    SortColumn, SortDirection, SoundbankPreview, TextLanguage,
 };
 
 pub use tree::{TreeNode, TreeRow};
@@ -238,9 +238,24 @@ impl Browser {
         self.preview.as_mut().and_then(Preview::image_mut)
     }
 
-    /// Returns the audio preview of the selected Entry when it is a WEM.
+    /// Returns the audio preview of the selected Entry when it is a WEM, or that of the selected
+    /// WEM when it is a soundbank.
     pub fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
         self.preview.as_mut().and_then(Preview::audio_mut)
+    }
+
+    /// Returns the soundbank preview of the selected Entry when it is a soundbank.
+    #[must_use]
+    pub fn soundbank(&self) -> Option<&SoundbankPreview> {
+        self.preview.as_ref().and_then(Preview::soundbank)
+    }
+
+    /// Selects the WEM `id` of the selected soundbank and decodes it on a background thread,
+    /// unless it is selected already; `wake` is called from that thread once a result is ready.
+    pub fn select_sound(&mut self, id: u32, wake: impl Fn() + Send + 'static) {
+        if let Some(bank) = self.preview.as_mut().and_then(Preview::soundbank_mut) {
+            bank.select(id, wake);
+        }
     }
 
     /// Selects the Entry `id` of the shown place and reads its preview on a background thread,
@@ -250,6 +265,18 @@ impl Browser {
             && let Some(index) = self.pane()
         {
             self.preview = Some(Preview::start(index, id, wake));
+        }
+    }
+
+    /// Reads again what a missing or wrong Archive key left unread: the DataForge, the texts, the
+    /// Records and the preview of the selected Entry.
+    pub(crate) fn key_changed(&mut self, wake: impl Fn() + Send + Sync + 'static) {
+        self.index.forge().clear();
+        self.index.texts().clear();
+        self.drop_records();
+        if let Some(id) = self.selected_entry() {
+            self.preview = None;
+            self.select_entry(id, wake);
         }
     }
 

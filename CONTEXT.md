@@ -39,6 +39,11 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Archive key**:
+The AES-128 key that decrypts the encrypted Entries of an Archive. The user enters it; the tool
+does not contain it, and it is stored only in the user's profile (ADR-0027).
+_Avoid_: password, secret, built-in key
+
 **Entry issue**:
 A defect of one Entry found while the Archive's directory is read, such as data outside the file,
 an encryption field other than 0 or 1, or a path that is not UTF-8. The Archive still opens and the
@@ -281,6 +286,11 @@ _Avoid_: mesh (one node's triangles), object, asset
 The chunk file next to a model that holds its mesh data, named like the model with an `m`
 appended, e.g. `box.cgfm` for `box.cgf`.
 _Avoid_: mesh file, streaming file
+
+**LOD companion**:
+The geometry companion of a level of detail from 1 on, named `<stem>_lod<n>.<extension>m`, e.g.
+`box_lod1.cgfm`. Its meshes belong to the nodes of the base model file.
+_Avoid_: LOD file, lod mesh
 
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item

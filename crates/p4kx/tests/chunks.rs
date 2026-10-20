@@ -38,7 +38,7 @@ fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 #[test]

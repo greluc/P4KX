@@ -2,7 +2,7 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use p4kx_extraction::{ArchiveError, DataForgeError, EntryReadError};
-use p4kx_settings::SettingsError;
+use p4kx_settings::{KeyChoiceError, SettingsError};
 use thiserror::Error;
 
 /// A tool call that cannot be answered; its message goes back to the client as a tool error.
@@ -76,6 +76,9 @@ pub(crate) enum ToolError {
     /// The settings file with the manual Channel entries cannot be read.
     #[error("cannot read the settings")]
     Settings(#[from] SettingsError),
+    /// A source of the Archive key holds no valid key, e.g. the stored key file is malformed.
+    #[error("the Archive key cannot be used")]
+    Key(#[from] KeyChoiceError),
     /// The worker running the call ended without a result.
     #[error("the tool call stopped unexpectedly")]
     Stopped,
@@ -146,7 +149,12 @@ pub(crate) enum ToolError {
 impl ToolError {
     /// Returns the message with every cause, `: ` separated.
     pub(crate) fn message(&self) -> String {
-        chain(self)
+        let mut message = chain(self);
+        if let Some(hint) = crate::keys::hint(self) {
+            message.push_str(". ");
+            message.push_str(hint);
+        }
+        message
     }
 }
 

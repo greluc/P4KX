@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
 };
@@ -52,7 +51,7 @@ fn catalog(
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("catalog.json");
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("catalog")
         .arg(&archive)
         .arg("--out")

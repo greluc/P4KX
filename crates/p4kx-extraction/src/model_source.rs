@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
-use p4kx_model::Model;
+use p4kx_model::{LodSelection, Model};
 
 use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
@@ -31,16 +31,31 @@ impl ModelSource {
     /// [`ConversionError::Model`] when the model or a companion is missing, unreadable or
     /// corrupt, and another [`ConversionError`] when an Entry cannot be read.
     pub fn from_index(index: &PathIndex<'_>, path: &str) -> Result<Self, ConversionError> {
+        Self::from_index_with(index, path, LodSelection::All)
+    }
+
+    /// Reads only the levels of detail `lods` of the model Entry at `path`; see
+    /// [`Self::from_index`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_index`], and [`ConversionError::Model`] with
+    /// [`p4kx_model::ModelError::NoSuchLod`] when `lods` names a level the model lacks.
+    pub fn from_index_with(
+        index: &PathIndex<'_>,
+        path: &str,
+        lods: LodSelection,
+    ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_index(index, path)?;
         let name = source.name().to_owned();
         let (folder, file_name) = split_entry_path(&name);
         let mut companions = ArchiveCompanions { index, folder };
-        let model = Model::read(file_name, source.file(), &mut companions).map_err(|source| {
-            ConversionError::Model {
+        let model = Model::read_with(file_name, source.file(), &mut companions, lods).map_err(
+            |source| ConversionError::Model {
                 file: name.clone(),
                 source,
-            }
-        })?;
+            },
+        )?;
         Ok(Self {
             name,
             inputs: vec![index.archive().path().to_path_buf()],
@@ -57,6 +72,20 @@ impl ModelSource {
         Self::from_index(&PathIndex::new(archive), path)
     }
 
+    /// Reads only the levels of detail `lods` of the model Entry at `path` of `archive`; see
+    /// [`Self::from_index_with`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_index_with`].
+    pub fn from_archive_with(
+        archive: &Archive,
+        path: &str,
+        lods: LodSelection,
+    ) -> Result<Self, ConversionError> {
+        Self::from_index_with(&PathIndex::new(archive), path, lods)
+    }
+
     /// Reads the model file at `path` and its companions from the same folder.
     ///
     /// # Errors
@@ -66,6 +95,17 @@ impl ModelSource {
     /// [`ConversionError::Model`] when the model or a companion is missing, unreadable or
     /// corrupt, and another [`ConversionError`] when the file cannot be read.
     pub fn from_file(path: &Path) -> Result<Self, ConversionError> {
+        Self::from_file_with(path, LodSelection::All)
+    }
+
+    /// Reads only the levels of detail `lods` of the model file at `path`; see
+    /// [`Self::from_file`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_file`], and [`ConversionError::Model`] with
+    /// [`p4kx_model::ModelError::NoSuchLod`] when `lods` names a level the model lacks.
+    pub fn from_file_with(path: &Path, lods: LodSelection) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_file(path)?;
         let file_name = path
             .file_name()
@@ -76,12 +116,12 @@ impl ModelSource {
             folder,
             read: vec![path.to_path_buf()],
         };
-        let model = Model::read(&file_name, source.file(), &mut companions).map_err(|source| {
-            ConversionError::Model {
+        let model = Model::read_with(&file_name, source.file(), &mut companions, lods).map_err(
+            |source| ConversionError::Model {
                 file: path.display().to_string(),
                 source,
-            }
-        })?;
+            },
+        )?;
         Ok(Self {
             name: path.display().to_string(),
             inputs: companions.read,

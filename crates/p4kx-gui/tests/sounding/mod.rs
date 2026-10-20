@@ -105,10 +105,20 @@ pub(crate) fn opened(
     language: Language,
     output: &FakeOutput,
 ) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
+    opened_with(language, output, Vec::new())
+}
+
+/// Opens the synthetic Archive of the sounds with the Entries `extra` added.
+pub(crate) fn opened_with(
+    language: Language,
+    output: &FakeOutput,
+    extra: Vec<TestEntry>,
+) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
     let path = folder.path().join("Data.p4k");
     sounds()?
         .into_iter()
+        .chain(extra)
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
     let mut model = Model::new(language);

@@ -27,7 +27,7 @@ fn opened() -> Result<(TempDir, PathBuf, Archive), Box<dyn Error>> {
     write_build_manifest(dir.path(), "sc-alpha-4.3.1", "4.3.1.1", "100", "build-1")?;
     let path = dir.path().join("Data.p4k");
     builder().write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     Ok((dir, path, archive))
 }
 
@@ -224,7 +224,7 @@ fn an_entry_read_while_the_archive_changed_is_not_put_in_place() -> TestResult {
     let path = dir.path().join("Data.p4k");
     let large = ArchiveBuilder::new().entry(TestEntry::stored("Data\\large.bin", vec![7; 4 << 20]));
     large.write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let watch = ArchiveWatch::new(&archive).with_interval(Duration::from_secs(3600));
     watch.check()?;
     let target = target(dir.path())?;

@@ -38,8 +38,14 @@ fn pair() -> Result<(tempfile::TempDir, Archive, Archive), Box<dyn Error>> {
         .entry(TestEntry::stored("Data\\added.txt", b"new".to_vec()))
         .entry(TestEntry::stored("Data\\same.txt", b"same".to_vec()))
         .entry(TestEntry::stored("Engine\\new.cfg", b"x=2".to_vec()));
-    let old = Archive::open(write(dir.path(), "LIVE", &old)?)?;
-    let new = Archive::open(write(dir.path(), "PTU", &new)?)?;
+    let old = Archive::open_with_key(
+        write(dir.path(), "LIVE", &old)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let new = Archive::open_with_key(
+        write(dir.path(), "PTU", &new)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     Ok((dir, old, new))
 }
 

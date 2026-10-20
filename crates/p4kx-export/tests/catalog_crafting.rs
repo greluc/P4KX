@@ -13,7 +13,10 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn build(filter: Option<&Filter>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(crafting_fixture::write_archive(dir.path())?)?;
+    let archive = Archive::open_with_key(
+        crafting_fixture::write_archive(dir.path())?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     let options = CatalogOptions {
         filter,
         ..CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000))

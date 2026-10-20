@@ -2,7 +2,7 @@ use std::fmt;
 use std::io::{self, BufReader, Read};
 
 use flate2::read::DeflateDecoder;
-use p4kx_foundation::{ARCHIVE_IV, ByteReader};
+use p4kx_foundation::{ARCHIVE_IV, ArchiveKey, ByteReader};
 
 use crate::decode::{CorruptAs, ExactSize, Overlong, ZstdOrPlain};
 use crate::decrypt::{AES_BLOCK_LEN, Decrypting};
@@ -112,9 +112,14 @@ pub(crate) fn data_offset(source: &Source, entry: &Entry) -> Result<u64, FormatE
     Ok(data_offset)
 }
 
-/// Opens the data of `entry` after checking its local header, if its layout has one.
-pub(crate) fn open<'a>(source: &'a Source, entry: &Entry) -> Result<EntryReader<'a>, FormatError> {
-    open_at(source, entry, 0).map(|(reader, _)| reader)
+/// Opens the data of `entry` after checking its local header, if its layout has one, decrypting
+/// with `key` when the Entry is encrypted.
+pub(crate) fn open<'a>(
+    source: &'a Source,
+    entry: &Entry,
+    key: Option<&ArchiveKey>,
+) -> Result<EntryReader<'a>, FormatError> {
+    open_at(source, entry, 0, key).map(|(reader, _)| reader)
 }
 
 /// Opens the data of `entry` from decoded byte `offset`, at most its size; returns the reader
@@ -127,7 +132,17 @@ pub(crate) fn open_at<'a>(
     source: &'a Source,
     entry: &Entry,
     offset: u64,
+    key: Option<&ArchiveKey>,
 ) -> Result<(EntryReader<'a>, u64), FormatError> {
+    let key = match (entry.encrypted, key) {
+        (true, Some(key)) => Some(key),
+        (true, None) => {
+            return Err(FormatError::KeyRequired {
+                entry: entry.path.clone(),
+            });
+        }
+        (false, _) => None,
+    };
     let data_offset = data_offset(source, entry)?;
     if entry.encrypted && !entry.compressed_size.is_multiple_of(AES_BLOCK_LEN as u64) {
         return Err(FormatError::corrupt(
@@ -155,10 +170,9 @@ pub(crate) fn open_at<'a>(
         offset: data_offset + start,
         remaining: stored_len,
     };
-    let stored: DataReader<'a> = if entry.encrypted {
-        Box::new(Decrypting::new(raw, buffer_len(stored_len), iv))
-    } else {
-        Box::new(raw)
+    let stored: DataReader<'a> = match key {
+        Some(key) => Box::new(Decrypting::new(raw, buffer_len(stored_len), iv, key)),
+        None => Box::new(raw),
     };
     let decoded = decoder(stored, entry)?;
     let reader = EntryReader {

@@ -336,10 +336,10 @@ unresolved texts of every language.
 ```
 
 `key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
-`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
-`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
-for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
-the command with exit code 2.
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER`,
+`@LOC_UNINITIALIZED` and `@blank_space`, which stand for no text) or `missing`. `text_language`
+and `text` are `null` for the last two; `text` has `\n` decoded to a line feed. A `missing` key is
+printed and then ends the command with exit code 2.
 
 ## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
 
@@ -363,6 +363,18 @@ use the JSON format.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
+
+## `p4kx key set|show|remove --json`
+
+`p4kx key set [<hex>] [--archive <archive>] --json` prints
+`{"action": "stored", "file": "…", "checked_against": "…"}`; `checked_against` is the Archive
+whose encrypted Entry the key decrypted, or `null` when no Archive with a suitable encrypted
+Entry was found and the key was stored unchecked. `p4kx key remove --json` prints
+`{"action": "removed", "file": "…"}`, or `"none_stored"` when there was nothing to remove.
+
+`p4kx key show --json` prints `{"file": "…", "stored": "****…1234" | null, "in_use": {"source":
+"flag" | "environment" | "profile", "key": "****…1234"} | null}`. Keys are always masked: every
+digit but the last four is `*`. No command prints or logs a key in full.
 
 ## `p4kx channels --json`
 
@@ -656,8 +668,8 @@ of a known type and `null` for an unknown one, which `known` marks as well; `typ
 the chunk ID of `CrCh` and `null` in `#ivo`, and `byte_order` `little` or `big`, which only `CrCh`
 chunks can be. `#ivo` stores no sizes: `size` is then the distance to the next greater offset of
 any chunk, the chunk table or the end of the file, alignment padding included, so chunks that
-share an offset share their span; the table may list chunks in any order. A file that is no chunk file, has
-another container version or is truncated prints no JSON; it fails with exit code 3.
+share an offset share their span; the table may list chunks in any order. A file that is no chunk
+file, has another container version or is truncated prints no JSON; it fails with exit code 3.
 
 ## `p4kx chunks dump <archive> <entry> --chunk <index> --out <file> --json`
 
@@ -685,6 +697,7 @@ it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
+                       "tangents": false, "colours": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [],
@@ -700,15 +713,19 @@ without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of 
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
 metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
-lists the levels of detail, LOD0 first, each with its meshes, at most one per node; `first_index`
-and `index_count` locate a submesh in its mesh's triangle list. `bones` lists `name` and `parent`
+lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
+read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
+(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
+submesh in its mesh's triangle list. `bones` lists `name` and `parent`
 of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
-geometry companion (`file` is `model` or `geometry`) with `usage` `read` when the model was read
-from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
+geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
+the model was read from it, `skipped` for a known type the model does not read and `unknown` for
+an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -720,10 +737,12 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 ```
 
 The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
-one primitive per submesh and one material per material ID, LOD0, in glTF axes (Y up) and metres;
+one primitive per submesh and one material per material ID, of the level of detail `--lod` names
+(LOD0 by default), in glTF axes (Y up) and metres; the counts do not say which of `NORMAL`,
+`TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
 `bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files exits with
-code 2.
+export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+`--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`
 
@@ -913,7 +932,7 @@ code 2; a JSON file larger than 1 MiB is not read (exit code 3).
 | `character.materials` | array | One object per attachment: `attachment` (name hash), `base_material` (GUID), `flags` and `sub_materials`, each with `name` (hash), `textures` (`slot`, `texture` GUID), `floats` (`name`, `value`) and `colors` (`name`, `rgba` as four numbers 0 to 255) |
 | `container.flags` | number | The two header bytes behind the magic |
 | `container.frame` | string | The original zstd frame as hexadecimal; reused while it decompresses to the body written from `character`, otherwise the body is compressed anew |
-| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written only with the reused frame, a body compressed anew is followed by zeros |
+| `container.padding` | string | The bytes behind the frame as hexadecimal, without trailing zeros; written with the reused frame; with a body compressed anew only the last 8 bytes of the file are written back (ADR-0014), the rest is zeros, and a new frame that reaches into non-zero ones is an error (exit code 2) |
 
 Hashes are unsigned 32-bit numbers. A float is a JSON number, or the string `0x` with its eight
 hexadecimal digits when it is not finite (`"0x7fc00000"` for the usual NaN); every float is

@@ -20,7 +20,10 @@ fn opened() -> Result<(TempDir, PathBuf, EntryIndex), Box<dyn Error>> {
     ArchiveBuilder::new()
         .entry(TestEntry::stored("Data\\ship.xml", ship))
         .write_to(&path)?;
-    let index = EntryIndex::build(Archive::open(&path)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?);
     Ok((folder, path, index))
 }
 

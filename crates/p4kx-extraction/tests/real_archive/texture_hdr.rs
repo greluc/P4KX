@@ -13,7 +13,10 @@ const DECODE_LIMIT: usize = 40;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_real_bc6h_textures_decode_to_finite_high_range_values() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let high_range: Vec<Texture<'_>> = archive
         .entries()
         .par_iter()

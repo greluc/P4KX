@@ -19,8 +19,9 @@ pub(crate) enum ModelAction {
     /// files with whether the model was read from it, skipped it or does not know its type.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(ModelFileSource),
-    /// Writes a model as one glTF 2.0 binary file (GLB): Y up, in metres, LOD0, one glTF node per
-    /// node and one material per material ID; unknown chunks are listed.
+    /// Writes a model as one glTF 2.0 binary file (GLB): Y up, in metres, one glTF node per node
+    /// and one material per material ID, with the normals, tangents, texture coordinates and
+    /// vertex colours the meshes have; unknown chunks are listed.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb {
         /// The model.
@@ -29,6 +30,14 @@ pub(crate) enum ModelAction {
         /// The GLB file to write; an existing file is replaced.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
+        /// The level of detail to export: 0 is the most detailed, level n from 1 on comes from
+        /// the geometry companion `<name>_lod<n>.<extension>m`; the model's nodes are those of
+        /// the model file whatever the level. A level the model lacks is invalid input.
+        #[arg(long, value_name = "N", default_value_t = 0)]
+        lod: u32,
+        /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
+        #[arg(long)]
+        no_vertex_colours: bool,
     },
 }
 

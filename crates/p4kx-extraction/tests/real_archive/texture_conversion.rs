@@ -112,7 +112,10 @@ fn tailed_textures(archive: &Archive) -> (Vec<&Entry>, Vec<&Entry>) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn converts_a_sample_of_real_textures_once_each() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let headers = sample(
         archive
             .entries()
@@ -150,7 +153,10 @@ fn converts_a_sample_of_real_textures_once_each() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn converts_real_textures_with_alpha_tails_without_writing_the_tails() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let (headers, members) = tailed_textures(&archive);
     assert!(headers.len() >= 10, "the Archive has textures with tails");
     let target = tempfile::tempdir()?;

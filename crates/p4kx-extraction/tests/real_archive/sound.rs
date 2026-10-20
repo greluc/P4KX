@@ -19,7 +19,10 @@ const MAX_BLOCK_SIZE: u64 = 8_192;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_real_wems_of_every_codec_is_described_and_converted_where_supported() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let wems: Vec<&Entry> = archive
         .entries()
         .iter()

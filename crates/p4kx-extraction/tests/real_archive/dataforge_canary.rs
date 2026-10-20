@@ -9,7 +9,7 @@ use p4kx_testkit::{real_archive_b_path, real_archive_path};
 use super::{TestResult, report};
 
 fn survey_of(path: &Path) -> Result<(FormatSurvey, usize, usize), Box<dyn std::error::Error>> {
-    let archive = Archive::open(path)?;
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let survey = forge.survey();

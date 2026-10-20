@@ -3461,6 +3461,7 @@ dependencies = [
  "png",
  "predicates",
  "roxmltree",
+ "rpassword",
  "serde",
  "serde_json",
  "tempfile",
@@ -3751,6 +3752,7 @@ name = "p4kx-settings"
 version = "0.2.0"
 dependencies = [
  "dirs",
+ "p4kx-foundation",
  "serde",
  "tempfile",
  "thiserror 2.0.21",
@@ -3762,6 +3764,7 @@ name = "p4kx-testkit"
 version = "0.2.0"
 dependencies = [
  "aes",
+ "assert_cmd",
  "cbc",
  "crc32c",
  "crc32fast",
@@ -4544,6 +4547,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "rpassword"
+version = "7.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2da316a15f47e3d053de9cb2c439650bd8fa4aaeb9365f2e5f27f492ff73c196"
+dependencies = [
+ "libc",
+ "rtoolbox",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rtoolbox"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a1efe12a1469752d0e6ff5ebec0b6ef4924cc5c4c71046b0ec730040535819d"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

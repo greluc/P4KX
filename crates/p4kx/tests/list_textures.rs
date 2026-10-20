@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -23,7 +22,7 @@ fn archive(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
 }
 
 fn list(archive: &Path, extra: &[&str]) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("list")
         .arg(archive)
         .args(extra)
@@ -147,7 +146,7 @@ fn extract_with_a_filter_includes_all_parts_of_a_matching_texture() -> TestResul
     let archive = archive(dir.path())?;
     let out = dir.path().join("out");
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .args(["--filter", "*wall.dds"])

@@ -14,7 +14,10 @@ const SAMPLED: usize = 200;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn socpak_containers_open_and_their_entries_match_their_crc_32() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let socpaks: Vec<&Entry> = archive
         .entries()
         .iter()

@@ -16,7 +16,7 @@ fn entries_with_equal_lossy_paths_extract_to_distinct_files() -> TestResult {
         .entry(TestEntry::stored("x", b"second".to_vec()).with_path_bytes(b"Data\\a\xE8.txt"))
         .entry(TestEntry::stored("Data\\plain.txt", b"third".to_vec()))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let target = dir.path().join("out");
     std::fs::create_dir(&target)?;
     let entries: Vec<_> = archive.entries().iter().collect();
@@ -44,7 +44,7 @@ fn a_converting_extraction_keeps_equal_lossy_paths_apart() -> TestResult {
         .entry(TestEntry::stored("x", cryxml("first")).with_path_bytes(b"Data\\a\xE9.xml"))
         .entry(TestEntry::zstd("x", cryxml("second")).with_path_bytes(b"Data\\a\xE8.xml"))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let target = dir.path().join("out");
     std::fs::create_dir(&target)?;
     let entries: Vec<_> = archive.entries().iter().collect();

@@ -3749,6 +3749,7 @@ name = "p4kx-settings"
 version = "0.2.0"
 dependencies = [
  "dirs",
+ "p4kx-foundation",
  "serde",
  "tempfile",
  "thiserror 2.0.21",
@@ -3760,6 +3761,7 @@ name = "p4kx-testkit"
 version = "0.2.0"
 dependencies = [
  "aes",
+ "assert_cmd",
  "cbc",
  "crc32c",
  "crc32fast",

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_extraction::model::{ChunkUsage, Model, ModelError};
-use p4kx_extraction::{Archive, ConversionError, GlbOptions, GlbSummary, GltfError, ModelSource};
+use p4kx_extraction::{ConversionError, GlbOptions, GlbSummary, GltfError, ModelSource};
 use serde::Serialize;
 
 use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
@@ -36,7 +36,7 @@ pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
 
 fn open(source: &ModelFileSource) -> Result<ModelSource> {
     Ok(match &source.entry {
-        Some(entry) => ModelSource::from_archive(&Archive::open(&source.path)?, entry)?,
+        Some(entry) => ModelSource::from_archive(&crate::key::open(&source.path)?, entry)?,
         None => ModelSource::from_file(&source.path)?,
     })
 }

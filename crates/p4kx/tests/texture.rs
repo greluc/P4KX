@@ -25,7 +25,7 @@ fn write_archive(folder: &Path, dds: &SplitDds) -> Result<PathBuf, Box<dyn Error
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 /// Checks the merged file byte by byte: the 148-byte DX10 header of the header Entry, then the

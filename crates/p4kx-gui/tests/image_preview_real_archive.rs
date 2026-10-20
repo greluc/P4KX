@@ -55,7 +55,10 @@ fn wait(browser: &mut Browser, done: impl Fn(&ImagePreview) -> bool) -> TestResu
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_texture_of_every_format_in_a_real_archive_previews_without_a_crash() -> TestResult {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
     let samples = sampled_headers(&index)?;
     let mut browser = Browser::new(index);
     let mut formats: BTreeMap<String, (u32, bool)> = BTreeMap::new();
@@ -101,7 +104,10 @@ fn a_texture_of_every_format_in_a_real_archive_previews_without_a_crash() -> Tes
 
 /// Returns the sampled texture with the most pixels whose largest mip the test window can show.
 fn largest_showable() -> Result<u32, Box<dyn Error>> {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::test_key()),
+    )?);
     let samples = sampled_headers(&index)?;
     let mut browser = Browser::new(index);
     let mut largest = None;

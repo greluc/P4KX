@@ -14,6 +14,7 @@ mod cli_chf;
 mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
+mod cli_key;
 mod cli_loc;
 mod cli_model;
 mod cli_socpak;
@@ -34,6 +35,7 @@ mod extract;
 mod info;
 mod issues;
 mod json;
+mod key;
 mod list;
 mod loc;
 mod model;
@@ -63,6 +65,14 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
     let success = |()| ExitCode::from(exit::SUCCESS);
+    if let Err(error) = key::init(&cli) {
+        report(&error);
+        return exit::for_error(&error);
+    }
+    let given = key::Given {
+        key: cli.archive_key.clone(),
+        file: cli.key_file.clone(),
+    };
     let result = match cli.command {
         Command::List(args) => list::run(&args, json).map(success),
         Command::Search(args) => list::search(&args, json).map(success),
@@ -89,6 +99,7 @@ fn main() -> ExitCode {
         Command::Chunks(args) => chunks::run(&args, json).map(success),
         Command::Wwise(args) => wwise::run(&args, json).map(success),
         Command::Model(args) => model::run(&args, json).map(success),
+        Command::Key(args) => key::run(&args, &given, json).map(success),
     };
     match result {
         Ok(code) => code,
@@ -101,7 +112,11 @@ fn main() -> ExitCode {
 }
 
 fn report(error: &anyhow::Error) {
-    let _ignored = writeln!(io::stderr().lock(), "error: {error:#}");
+    let mut stderr = io::stderr().lock();
+    let _ignored = writeln!(stderr, "error: {error:#}");
+    if let Some(hint) = key::hint(error) {
+        let _ignored = writeln!(stderr, "hint: {hint}");
+    }
 }
 
 fn is_broken_pipe(error: &anyhow::Error) -> bool {

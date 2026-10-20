@@ -79,7 +79,7 @@ fn with_audio(check: impl FnOnce(&ArchiveAudio<'_>) -> TestResult) -> TestResult
             media_bank(),
         ))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     check(&ArchiveAudio::new(&archive))
 }
 
@@ -227,7 +227,7 @@ fn a_localised_soundbank_prefers_a_wem_of_its_own_language() -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     localised_archive(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let audio = ArchiveAudio::new(&archive);
     let sounds = resolved(&audio, "Play_Voice")?;
     let holders: Vec<_> = sounds

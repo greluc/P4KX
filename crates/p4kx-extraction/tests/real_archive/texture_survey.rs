@@ -283,7 +283,10 @@ fn summarise(headers: &[Header], formats: &BTreeMap<&str, usize>, per: &BTreeMap
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_every_texture_format_merges_and_decodes_without_a_panic() -> TestResult {
     let started = Instant::now();
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let (headers, unreadable) = headers(&archive);
     assert!(unreadable.is_empty(), "unreadable: {unreadable:?}");
     let anomalies: Vec<(&str, &str)> = headers

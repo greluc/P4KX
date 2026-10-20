@@ -5,7 +5,6 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
 };
@@ -62,7 +61,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn extract(archive: &Path, out: &Path, args: &[&str]) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(archive)
         .args(["--filter", "Data\\"])

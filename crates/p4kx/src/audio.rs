@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, Codebooks, Codec, Sound};
+use p4kx_extraction::{Codebooks, Codec, Sound};
 use serde::Serialize;
 
 use crate::cli::{AudioAction, AudioArgs, AudioSource};
@@ -71,7 +71,7 @@ pub(crate) fn run(args: &AudioArgs, as_json: bool) -> Result<()> {
 
 fn open(source: &AudioSource) -> Result<Sound> {
     Ok(match &source.entry {
-        Some(entry) => Sound::from_archive(&Archive::open(&source.path)?, entry)?,
+        Some(entry) => Sound::from_archive(&crate::key::open(&source.path)?, entry)?,
         None => Sound::from_file(&source.path)?,
     })
 }

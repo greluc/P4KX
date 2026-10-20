@@ -4,7 +4,6 @@
 use std::error::Error;
 use std::fs;
 
-use assert_cmd::Command;
 use p4kx_extraction::query::{Query, ResultFormat};
 use p4kx_extraction::{Archive, DataForgeEntry, QueryExportOptions, export_query};
 use p4kx_testkit::{
@@ -47,7 +46,7 @@ fn the_cli_and_the_export_write_the_same_bytes() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()))
         .write_to(&archive)?;
-    let opened = Archive::open(&archive)?;
+    let opened = Archive::open_with_key(&archive, Some(p4kx_testkit::test_key()))?;
     let entry = DataForgeEntry::read(&opened)?;
     let forge = entry.open()?;
     let compiled = Query::parse(QUERY)?.compile(&forge)?;
@@ -55,7 +54,7 @@ fn the_cli_and_the_export_write_the_same_bytes() -> TestResult {
     for (name, format) in [("csv", ResultFormat::Csv), ("json", ResultFormat::Json)] {
         let cli = dir.path().join(format!("cli.{name}"));
         let window = dir.path().join(format!("window.{name}"));
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .args(["dcb", "query"])
             .arg(&archive)
             .arg(QUERY)

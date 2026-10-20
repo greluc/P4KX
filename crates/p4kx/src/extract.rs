@@ -8,9 +8,9 @@ use std::time::SystemTime;
 use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
-    Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion,
-    TextureGroups, create_default_target, extract, select_entries,
+    Archive, ArchiveError, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy,
+    DataForgeEntry, Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress,
+    TextureConversion, TextureGroups, create_default_target, extract, select_entries,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -63,7 +63,7 @@ struct FailureJson<'a> {
 /// skipped and cancelled Entries and a summary to stdout and the failed Entries and a change of
 /// the Archive to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     crate::issues::warn(&archive)?;
     let entries = requested_entries(args, &archive)?;
     let settings = Settings {
@@ -93,6 +93,23 @@ pub(crate) struct Settings<'a> {
     pub(crate) cancel_after: Option<usize>,
 }
 
+/// Fails before anything is written when `entries` hold an encrypted Entry and the Archive has no
+/// key, or one that does not fit, instead of failing every encrypted Entry on its own.
+fn require_key(archive: &Archive, entries: &[&Entry]) -> Result<()> {
+    let Some(encrypted) = entries.iter().find(|entry| entry.is_encrypted()) else {
+        return Ok(());
+    };
+    if !archive.has_key() {
+        return Err(ArchiveError::KeyRequired {
+            path: archive.location().to_path_buf(),
+            entry: encrypted.path().to_owned(),
+        }
+        .into());
+    }
+    archive.check_key()?;
+    Ok(())
+}
+
 /// Extracts `entries` of `archive`, which may be a container, as [`run`] does.
 pub(crate) fn execute(
     archive: &Archive,
@@ -100,6 +117,7 @@ pub(crate) fn execute(
     settings: &Settings<'_>,
     as_json: bool,
 ) -> Result<ExitCode> {
+    require_key(archive, entries)?;
     let watch = ArchiveWatch::new(archive);
     let target = prepare_target(settings.out, archive)?;
     let cancel = cancel_on_interrupt()?;
@@ -341,7 +359,7 @@ mod tests {
     use std::error::Error;
     use std::fs;
 
-    use p4kx_extraction::{Archive, ArchiveWatch, ExtractOptions, extract};
+    use p4kx_extraction::{ArchiveWatch, ExtractOptions, extract};
     use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
     use super::exit_code;
@@ -355,7 +373,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("Data.p4k");
         builder().write_to(&path)?;
-        let archive = Archive::open(&path)?;
+        let archive = crate::key::open(&path)?;
         let watch = ArchiveWatch::new(&archive);
         if change {
             builder()

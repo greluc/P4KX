@@ -146,7 +146,12 @@ pub(crate) enum ToolError {
 impl ToolError {
     /// Returns the message with every cause, `: ` separated.
     pub(crate) fn message(&self) -> String {
-        chain(self)
+        let mut message = chain(self);
+        if let Some(hint) = crate::keys::hint(self) {
+            message.push_str(". ");
+            message.push_str(hint);
+        }
+        message
     }
 }
 

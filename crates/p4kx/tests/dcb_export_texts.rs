@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestRecord, TestStruct,
     TestType, TestValue,
@@ -85,7 +84,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn export(archive: &Path, out: &Path, args: &[&str], code: i32) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "export"])
         .arg(archive)
         .arg("--out")
@@ -196,7 +195,7 @@ fn the_report_names_the_language_only_when_one_is_chosen() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let run = |out: &str, extra: &[&str]| -> Result<serde_json::Value, Box<dyn Error>> {
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .arg("--json")
             .args(["dcb", "export"])
             .arg(&archive)
@@ -222,7 +221,7 @@ fn a_language_the_archive_holds_no_file_for_is_an_error() -> TestResult {
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("out");
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "export"])
         .arg(&archive)
         .arg("--out")

@@ -16,7 +16,10 @@ fn index(entries: &[TestEntry]) -> Result<EntryIndex, Box<dyn Error>> {
         .cloned()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
-    Ok(EntryIndex::build(Archive::open(&path)?))
+    Ok(EntryIndex::build(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?))
 }
 
 fn sample() -> Vec<TestEntry> {

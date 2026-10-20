@@ -19,7 +19,7 @@ struct EntriesJson<'a> {
 /// Prints every Entry of the Archive; the parts of a split texture are folded into the row of
 /// its `.dds` header unless `--parts` is given.
 pub(crate) fn run(args: &ListArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     crate::issues::warn(&archive)?;
     if args.parts {
         let entries: Vec<&Entry> = archive.entries().iter().collect();
@@ -117,7 +117,7 @@ fn print_rows(rows: &[Row<'_>]) -> io::Result<()> {
 
 /// Prints the Entries of the Archive that match the Filter.
 pub(crate) fn search(args: &SearchArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let filter = Filter::new(&args.filter);
     print(
         archive.path(),

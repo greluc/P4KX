@@ -17,7 +17,10 @@ const LARGE_LEN: usize = 8 << 20;
 fn open(dir: &Path, builder: &ArchiveBuilder) -> Result<Archive, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     builder.write_to(&path)?;
-    Ok(Archive::open(&path)?)
+    Ok(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?)
 }
 
 fn large_data() -> Vec<u8> {

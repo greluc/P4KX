@@ -20,7 +20,7 @@ use crate::scene::{
 use crate::scene_compose::{Composer, SceneLimits};
 use crate::scene_report::SkipReason;
 
-const RED: Rgba = Rgba {
+pub(crate) const RED: Rgba = Rgba {
     red: 255,
     green: 0,
     blue: 0,
@@ -29,11 +29,11 @@ const RED: Rgba = Rgba {
 
 const SIDE: f32 = 400.0;
 
-fn point(x: f32, y: f32) -> ScenePoint {
+pub(crate) fn point(x: f32, y: f32) -> ScenePoint {
     ScenePoint { x, y }
 }
 
-fn square() -> ScenePath {
+pub(crate) fn square() -> ScenePath {
     ScenePath {
         commands: vec![
             PathCommand::MoveTo(point(0.0, 0.0)),
@@ -45,7 +45,7 @@ fn square() -> ScenePath {
     }
 }
 
-fn fill(paint: Paint) -> SceneShape {
+pub(crate) fn fill(paint: Paint) -> SceneShape {
     SceneShape {
         id: 1,
         layers: vec![ShapeLayer {
@@ -56,7 +56,7 @@ fn fill(paint: Paint) -> SceneShape {
     }
 }
 
-fn item(mask: Option<usize>, color_transform: ColorTransform) -> SceneItem {
+pub(crate) fn item(mask: Option<usize>, color_transform: ColorTransform) -> SceneItem {
     SceneItem {
         shape: 0,
         transform: Affine::IDENTITY,
@@ -70,7 +70,7 @@ fn item(mask: Option<usize>, color_transform: ColorTransform) -> SceneItem {
     }
 }
 
-fn scene(shape: SceneShape, items: Vec<SceneItem>, masks: Vec<SceneMask>) -> Scene {
+pub(crate) fn scene(shape: SceneShape, items: Vec<SceneItem>, masks: Vec<SceneMask>) -> Scene {
     Scene {
         stage: Rect {
             x_min: 0,
@@ -107,13 +107,13 @@ fn alpha(raster: &Raster, x: usize, y: usize) -> u8 {
     raster.image.pixels()[(y * 20 + x) * 4 + 3]
 }
 
-fn bitmaps() -> HashMap<u16, RgbaImage> {
+pub(crate) fn bitmaps() -> HashMap<u16, RgbaImage> {
     let image =
         RgbaImage::from_pixels(2, 2, vec![255; 16]).unwrap_or_else(|error| unreachable!("{error}"));
     HashMap::from([(7, image)])
 }
 
-fn bitmap_scene(color_transform: ColorTransform) -> Scene {
+pub(crate) fn bitmap_scene(color_transform: ColorTransform) -> Scene {
     let paint = Paint::Bitmap(BitmapPaint {
         bitmap_id: 7,
         transform: Affine::IDENTITY,
@@ -123,7 +123,7 @@ fn bitmap_scene(color_transform: ColorTransform) -> Scene {
     scene(fill(paint), vec![item(None, color_transform)], Vec::new())
 }
 
-const TINT: ColorTransform = ColorTransform {
+pub(crate) const TINT: ColorTransform = ColorTransform {
     multiply: [1.0; 4],
     add: [10.0, 0.0, 0.0, 0.0],
 };

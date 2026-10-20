@@ -1,0 +1,65 @@
+---
+source: crates/p4kx/tests/wwise_streamed_localised.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "breaks": [],
+  "counts": {
+    "breaks": 0,
+    "located": 1,
+    "plugins": 0,
+    "unlocated": 0,
+    "variants": 1
+  },
+  "issues": [],
+  "language": {
+    "fallback": "English(US)",
+    "requested": "German"
+  },
+  "trigger": {
+    "definition": "Data\\Libs\\GameAudio\\SC_Audio.xml",
+    "events": [
+      {
+        "id": 3747118996,
+        "localised": false,
+        "name": "Play_Line"
+      }
+    ],
+    "name": "Play_Line"
+  },
+  "variants": [
+    {
+      "event": "Play_Line",
+      "fallback": false,
+      "language": "German",
+      "localised": true,
+      "location": {
+        "entry": "Data\\Sounds\\wwise\\Media\\German\\9000.wem",
+        "kind": "entry",
+        "len": 42
+      },
+      "path": [
+        {
+          "id": 3747118996,
+          "kind": "event"
+        },
+        {
+          "id": 4,
+          "kind": "action"
+        },
+        {
+          "id": 300,
+          "kind": "sound"
+        }
+      ],
+      "sound_id": 300,
+      "soundbank": {
+        "language": null,
+        "path": "Data\\Sounds\\wwise\\Common.bnk"
+      },
+      "source": "streamed",
+      "wem_id": 9000
+    }
+  ]
+}

@@ -458,6 +458,7 @@ scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
 scroll-localization = Lokalisierungszeilen
 scroll-saved-queries = Gespeicherte Abfragen
+scroll-soundbank = Eingebettete WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -476,6 +477,21 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+audio-column-id = ID
+audio-prefetched = Vorgeladen
+audio-prefetched-note = WEM { $id } ist in dieser Soundbank nur vorgeladen und kann hier nicht abgespielt werden. Der ganze Ton steht im losen WEM-Eintrag mit derselben ID.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } ist ein Plug-in-Medium, etwa ein Faltungshall-Impuls, und enthält keinen Ton zum Abspielen.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } enthält keine WEMs.
+audio-bank-failed = Die Soundbank { $path } kann nicht gelesen werden: { $reason }
+audio-wem-name = WEM { $id } aus { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = Die Vorschau kann Töne im Codec { $codec } nicht abspielen ({ $name }).
 
 texture-parts =
     { $count ->

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
-use rmcp::{Json, ServerHandler, tool, tool_handler, tool_router};
+use rmcp::{ServerHandler, tool, tool_handler, tool_router};
 use tokio::sync::Semaphore;
 
 use crate::archives::{Archives, Opened};
@@ -13,6 +13,7 @@ use crate::entries;
 use crate::error::{ToolError, capped};
 use crate::keys::KeyChoice;
 use crate::locate::Locations;
+use crate::noted::{self, Json};
 use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
@@ -81,7 +82,9 @@ impl Server {
     pub(crate) async fn preload(&self, archive: Option<String>) -> Result<(), String> {
         let state = Arc::clone(&self.state);
         let outcome = tokio::task::spawn_blocking(move || {
-            state.archive(archive.as_deref())?.load_dataforge()
+            let loaded = state.archive(archive.as_deref())?.load_dataforge();
+            noted::clear();
+            loaded
         })
         .await;
         match outcome {
@@ -96,7 +99,9 @@ impl Server {
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
     {
-        self.run_plain(work).await.map(Json)
+        self.run_plain(work)
+            .await
+            .map(|(value, notice)| Json { value, notice })
     }
 
     /// Like [`Server::run`], with the key order of the result kept in its text content.
@@ -105,10 +110,12 @@ impl Server {
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
     {
-        self.run_plain(work).await.map(Ordered)
+        self.run_plain(work)
+            .await
+            .map(|(value, notice)| Ordered { value, notice })
     }
 
-    async fn run_plain<T, F>(&self, work: F) -> Result<T, String>
+    async fn run_plain<T, F>(&self, work: F) -> Result<(T, Option<String>), String>
     where
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
@@ -118,13 +125,15 @@ impl Server {
         };
         let state = Arc::clone(&self.state);
         let outcome = tokio::task::spawn_blocking(move || {
+            noted::clear();
             let result = work(&state);
+            let notice = noted::take();
             drop(permit);
-            result
+            result.map(|value| (value, notice))
         })
         .await;
         match outcome {
-            Ok(Ok(value)) => Ok(value),
+            Ok(Ok(done)) => Ok(done),
             Ok(Err(error)) => Err(error.message()),
             Err(_) => Err(ToolError::Stopped.message()),
         }
@@ -138,7 +147,9 @@ impl State {
             Some(text) => self.locations.resolve(text)?,
             None => self.default_archive.clone().ok_or(ToolError::NoArchive)?,
         };
-        self.archives.get(&path)
+        let opened = self.archives.get(&path)?;
+        noted::remember(opened.notice());
+        Ok(opened)
     }
 }
 

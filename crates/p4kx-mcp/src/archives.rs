@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::SystemTime;
 
+use p4kx_channels::ChannelKind;
 use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge};
 
 use crate::error::{ToolError, chain};
@@ -38,6 +39,7 @@ type Selection = Option<(String, Arc<[u32]>)>;
 #[derive(Debug)]
 pub(crate) struct Opened {
     archive: Archive,
+    notice: Option<String>,
     tree: OnceLock<EntryTree>,
     building: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
@@ -45,8 +47,9 @@ pub(crate) struct Opened {
 }
 
 impl Opened {
-    const fn new(archive: Archive) -> Self {
+    fn new(archive: Archive) -> Self {
         Self {
+            notice: ChannelKind::of_archive(archive.path()).notice(),
             archive,
             tree: OnceLock::new(),
             building: Mutex::new(()),
@@ -58,6 +61,11 @@ impl Opened {
     /// Returns the Archive.
     pub(crate) const fn archive(&self) -> &Archive {
         &self.archive
+    }
+
+    /// Returns the notice that the Archive belongs to a test build, or `None` for any other.
+    pub(crate) fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
     }
 
     /// Returns the path, size and modification time of the Archive file as it was opened, which

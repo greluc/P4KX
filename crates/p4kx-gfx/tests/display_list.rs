@@ -13,7 +13,7 @@ fn movie(bytes: &[u8]) -> Movie {
 fn placements() -> Vec<u8> {
     TestMovie::new(TestSignature::Gfx)
         .tag(9, &background_body([10, 20, 30]))
-        .tag(11, &[42, 0, 0])
+        .tag(34, &[42, 0, 0])
         .tag(26, &TestPlace::new(1, 5).at(100, -40).body2())
         .tag(
             70,
@@ -51,8 +51,8 @@ fn the_first_frame_keeps_what_its_tags_place_change_and_remove() {
     );
     assert_eq!(
         assets.other_definitions,
-        [OtherDefinition { id: 42, code: 11 }],
-        "a text"
+        [OtherDefinition { id: 42, code: 34 }],
+        "a button"
     );
     let frame = &assets.timeline.first_frame;
     assert_eq!(

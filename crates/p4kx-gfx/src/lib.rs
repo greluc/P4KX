@@ -6,12 +6,16 @@
 //!
 //! The first frame of a movie composes into a [`Scene`] independent of any backend, which
 //! [`Scene::rasterize`] draws with tiny-skia and [`Scene::write_svg`] writes as SVG under the same
-//! budgets.
+//! budgets. Static texts and text fields compose into glyph shapes of the scene, so both
+//! backends draw the same outlines (as paths in SVG); a missing font or glyph is drawn as an
+//! empty box and listed, and [`TextOptions`] adds fonts of other movies and the localisation of
+//! `@key` texts. No system font is loaded.
 //!
 //! Every size is checked against the data left and the limits [`MAX_MOVIE_LEN`],
 //! [`MAX_BITMAP_PIXELS`], [`MAX_SHAPE_RECORDS`] and [`MAX_SPRITE_DEPTH`], a scene against
 //! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_SEGMENTS`], [`MAX_SCENE_RECORDS`],
-//! [`MAX_SCENE_MASKS`] and [`MAX_GRADIENT_STOPS`], a canvas against [`MAX_CANVAS_SIDE`],
+//! [`MAX_SCENE_MASKS`], [`MAX_SCENE_GLYPHS`] and [`MAX_GRADIENT_STOPS`], the static texts of a
+//! movie against [`MAX_TEXT_GLYPHS`], a text field against [`MAX_TEXT_CHARS`], a canvas against [`MAX_CANVAS_SIDE`],
 //! [`MAX_CANVAS_PIXELS`] and the fill area [`MAX_COVERAGE_FACTOR`] times its size, an SVG document
 //! against [`MAX_SVG_BYTES`];
 //! corrupt input yields a [`GfxError`] or a skipped element, never a panic.
@@ -42,8 +46,10 @@ mod raster_paint;
 mod reader;
 mod scene;
 mod scene_compose;
+mod scene_edit_text;
 mod scene_report;
 mod scene_shape;
+mod scene_text;
 mod shape;
 mod style;
 mod svg;
@@ -54,6 +60,13 @@ mod svg_limit_tests;
 mod svg_plan;
 mod svg_text;
 mod tag;
+mod text;
+mod text_fonts;
+mod text_html;
+mod text_layout;
+#[cfg(test)]
+mod text_limit_tests;
+mod text_loc;
 mod timeline;
 mod walker;
 
@@ -80,9 +93,13 @@ pub use scene::{
     ShapeLayer, Spread, StrokeStyle,
 };
 pub use scene_report::{SkipReason, Skipped};
+pub use scene_text::MAX_SCENE_GLYPHS;
 pub use shape::{MAX_SHAPE_RECORDS, NewStyles, Shape, ShapeRecord, StyleChange};
 pub use style::{FillStyle, Gradient, GradientStop, LineStyle};
 pub use svg::SvgReport;
 pub use tag::tag_name;
+pub use text::{EditLayout, EditText, GlyphEntry, MAX_TEXT_GLYPHS, StaticText, TextRecord};
+pub use text_fonts::{Localise, TextOptions};
+pub use text_html::MAX_TEXT_CHARS;
 pub use timeline::{Export, ExporterInfo, Sprite, Timeline};
 pub use walker::MAX_SPRITE_DEPTH;

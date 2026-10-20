@@ -86,10 +86,8 @@ fn every_real_ui_movie_writes_a_well_formed_svg_that_skips_what_the_raster_skips
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
-    let archive = Archive::open_with_key(
-        real_archive_path()?,
-        Some(p4kx_testkit::real_archive_key()?),
-    )?;
+    let archive =
+        Archive::open_with_key(real_archive_path()?, p4kx_testkit::real_archive_key().ok())?;
     let movies: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -121,6 +119,8 @@ fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
         "too_many_masks",
         "mask_memory",
         "bitmap_memory",
+        "too_many_glyphs",
+        "text_truncated",
     ] {
         assert_eq!(
             tally.skipped.get(limit),

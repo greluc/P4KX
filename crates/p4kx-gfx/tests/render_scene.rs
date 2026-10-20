@@ -216,7 +216,7 @@ fn what_cannot_be_drawn_is_skipped_and_listed_with_its_reason() {
     let endless = sprite_body(8, 1, &[(26, TestPlace::new(1, 8).body2())]);
     let bytes = stage()
         .tag(square.code(), &square.body())
-        .tag(11, &[42, 0, 0])
+        .tag(34, &[42, 0, 0])
         .tag(39, &endless)
         .tag(26, &TestPlace::new(1, 99).body2())
         .tag(26, &TestPlace::new(2, 42).body2())
@@ -251,7 +251,7 @@ fn what_cannot_be_drawn_is_skipped_and_listed_with_its_reason() {
     );
     assert_eq!(
         raster.skipped[1].reason.to_string(),
-        "DefineText definitions are not drawn",
+        "DefineButton2 definitions are not drawn",
         "named by its tag"
     );
     assert!(raster.skipped[3].reason.is_effect(), "drawn without it");

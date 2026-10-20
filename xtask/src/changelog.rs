@@ -96,8 +96,9 @@ const NOTICE: &str = "P4K-Extractor is an unofficial Star Citizen fan project, n
 the Cloud Imperium group of companies and not endorsed by it. It ships no game data and reads only \
 your own Star Citizen installation. You are responsible for complying with the Star Citizen End \
 User Licence Agreement (EULA) and Terms of Service when you use it.\n\nAll content not authored by \
-its authors or users is property of its respective owners. Star Citizen®, Roberts Space \
-Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.";
+the P4K-Extractor contributors or its users is the property of its respective owners. Star \
+Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud \
+Imperium Rights LLC.\n\nCopyright (c) 2026 KRT and the P4K-Extractor contributors";
 
 /// Returns `notes` followed by the legal notice.
 fn with_notice(notes: &str) -> String {

@@ -315,6 +315,7 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
         for needle in [
             fan_project,
             responsibility,
+            "Copyright (c) 2026 KRT and the P4K-Extractor contributors",
             "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.",
         ] {
             assert!(

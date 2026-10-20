@@ -299,9 +299,9 @@ lässt eine vorhandene unverändert; der Hinweis darauf steht in `color-warning`
 Datei das offene Archiv, startet nichts, und das Gefahrenfenster sagt es in `color-danger-text`.
 Der Katalog liest DataForge aus dem einen Cache des offenen Archivs (D.22), also nur einmal.
 
-**D.22 bis D.32** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte,
-Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion) und **D.37** (Fenster „Über P4K-Extractor")
-stehen in [desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
+Entscheidungen ab **D.22** (Record-Vorschau, Texturgruppen, Scrollflächen, Lokalisierung, Sprache der Record-Texte,
+Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion) stehen in
+[desktop-spec-decisions-2.md](desktop-spec-decisions-2.md).
 
 ## Bewusste Abweichungen von den Web-Specimens
 

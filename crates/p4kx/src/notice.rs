@@ -2,9 +2,9 @@
 
 macro_rules! legal_notice {
     () => {
-        "Unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of \
-         companies. Ships no game data and reads only your own installation. You are responsible \
-         for complying with the Star Citizen EULA and Terms of Service."
+        "Unofficial Star Citizen fan project, not affiliated with or endorsed by the Cloud \
+         Imperium group of companies. Ships no game data and reads only your own installation. \
+         You are responsible for complying with the Star Citizen EULA and Terms of Service."
     };
 }
 

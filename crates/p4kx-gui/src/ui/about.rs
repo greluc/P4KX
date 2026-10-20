@@ -1,12 +1,15 @@
-use egui::{Align, Label, Layout, RichText, Ui};
+use std::sync::Arc;
+
+use egui::{Align, Id, Label, Layout, RichText, Ui};
 
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_3, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
-use crate::{AboutText, ExtractionText, Model, Text};
+use crate::{AboutText, ExtractionText, Language, Model, Text};
 
-const PARAGRAPHS: [AboutText; 6] = [
+const PARAGRAPHS: [AboutText; 7] = [
+    AboutText::Copyright,
     AboutText::Licence,
     AboutText::FanProject,
     AboutText::NoGameData,
@@ -15,29 +18,68 @@ const PARAGRAPHS: [AboutText; 6] = [
     AboutText::Trademark,
 ];
 
+/// The texts of the About window in one language, looked up once and not every frame.
+struct Strings {
+    title: String,
+    version: String,
+    paragraphs: [String; PARAGRAPHS.len()],
+    close_label: String,
+    close_dialog: String,
+}
+
+impl Strings {
+    fn new(model: &Model) -> Self {
+        let texts = model.texts();
+        Self {
+            title: texts.get(AboutText::Title),
+            version: texts.format(
+                AboutText::Version,
+                &[("version", env!("CARGO_PKG_VERSION").into())],
+            ),
+            paragraphs: PARAGRAPHS.map(|text| texts.get(text)),
+            close_label: texts.get(ExtractionText::Close),
+            close_dialog: texts.get(Text::CloseDialog),
+        }
+    }
+}
+
+/// Returns the texts for the language of `model`, kept until the language changes.
+fn strings(ui: &Ui, model: &Model) -> Arc<Strings> {
+    let id = Id::unique("p4kx-about-strings");
+    let language = model.texts().language();
+    if let Some((cached, strings)) = ui.data(|data| data.get_temp::<(Language, Arc<Strings>)>(id))
+        && cached == language
+    {
+        return strings;
+    }
+    let strings = Arc::new(Strings::new(model));
+    ui.data_mut(|data| data.insert_temp(id, (language, Arc::clone(&strings))));
+    strings
+}
+
 pub(super) fn show(ui: &Ui, model: &mut Model) {
     if !model.about_shown() {
         return;
     }
-    let texts = model.texts();
-    let title = texts.get(AboutText::Title);
-    let version = texts.format(
-        AboutText::Version,
-        &[("version", env!("CARGO_PKG_VERSION").into())],
-    );
-    let paragraphs = PARAGRAPHS.map(|text| texts.get(text));
-    let close_label = texts.get(ExtractionText::Close);
-    let close_dialog = texts.get(Text::CloseDialog);
+    let strings = strings(ui, model);
     let shown = frames::modal(frames::modal_id("about"), Tone::Normal).show(ui.ctx(), |ui| {
-        ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
-        let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
-        paragraph(ui, &version, palette::GRAY_1, Weight::Bold);
-        for text in &paragraphs {
-            paragraph(ui, text, palette::GRAY_1, Weight::Regular);
-        }
+        ui.set_width(frames::MODAL_BODY_WIDTH);
+        let closed = frames::head(
+            ui,
+            (&strings.title, Tone::Normal),
+            true,
+            Some(&strings.close_dialog),
+        );
+        ui.scope(|ui| {
+            ui.spacing_mut().item_spacing.y = SPACE_3;
+            paragraph(ui, &strings.version, Weight::Bold);
+            for text in &strings.paragraphs {
+                paragraph(ui, text, Weight::Regular);
+            }
+        });
         frames::foot_rule(ui);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            button::button(ui, Kind::Cta, Size::Normal, &close_label, true).clicked()
+            button::button(ui, Kind::Cta, Size::Normal, &strings.close_label, true).clicked()
         })
         .inner
             || closed
@@ -53,9 +95,10 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-fn paragraph(ui: &mut Ui, text: &str, color: egui::Color32, weight: Weight) {
+fn paragraph(ui: &mut Ui, text: &str, weight: Weight) {
     ui.add(Label::new(
-        RichText::new(text).font(font(FS_SM, weight)).color(color),
+        RichText::new(text)
+            .font(font(FS_SM, weight))
+            .color(palette::GRAY_1),
     ));
-    ui.add_space(SPACE_3);
 }

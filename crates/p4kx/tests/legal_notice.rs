@@ -15,7 +15,10 @@ fn version_names_the_fan_project_and_the_users_responsibility() -> TestResult {
         .stdout(predicate::str::contains(
             "Unofficial Star Citizen fan project",
         ))
-        .stdout(predicate::str::contains("Terms of Service"));
+        .stdout(predicate::str::contains("Terms of Service"))
+        .stdout(predicate::str::contains(
+            "not affiliated with or endorsed by the Cloud Imperium group",
+        ));
     Ok(())
 }
 
@@ -26,7 +29,7 @@ fn help_names_the_fan_project_and_the_users_responsibility() -> TestResult {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "not affiliated with the Cloud Imperium group",
+            "not affiliated with or endorsed by the Cloud Imperium group",
         ))
         .stdout(predicate::str::contains("Ships no game data"))
         .stdout(predicate::str::contains("reads only your own installation"))

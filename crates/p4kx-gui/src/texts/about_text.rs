@@ -5,6 +5,8 @@ pub enum AboutText {
     Title,
     /// The version of the program; takes `version`.
     Version,
+    /// The copyright line, identical in every language.
+    Copyright,
     /// The licence of the program.
     Licence,
     /// The statement that this is an unofficial fan project.
@@ -21,9 +23,10 @@ pub enum AboutText {
 
 impl AboutText {
     /// Every text of the About window.
-    pub(crate) const ALL: [Self; 8] = [
+    pub(crate) const ALL: [Self; 9] = [
         Self::Title,
         Self::Version,
+        Self::Copyright,
         Self::Licence,
         Self::FanProject,
         Self::NoGameData,
@@ -38,6 +41,7 @@ impl AboutText {
         match self {
             Self::Title => "about-title",
             Self::Version => "about-version",
+            Self::Copyright => "about-copyright",
             Self::Licence => "about-licence",
             Self::FanProject => "about-fan-project",
             Self::NoGameData => "about-no-game-data",

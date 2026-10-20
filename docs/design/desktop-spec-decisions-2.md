@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.33 und D.37
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen ab D.22
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -206,10 +206,14 @@ gehören zur Auflösung der Sounds (M11).
 
 **D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
 P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
-Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Der Körper steht in
-14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien, Absätze 12
-voneinander: die Version (700), die Lizenz mit der Quelltext-Adresse, der Hinweis auf ein
-inoffizielles Fanprojekt ohne Verbindung zur Cloud-Imperium-Gruppe, dass keine Spieldaten
-mitgeliefert und nur die eigene Installation gelesen wird, die Verantwortung für EULA und Terms of
-Service, der Eigentumshinweis und zuletzt die Markenangabe. Die Markenangabe ist Rechtstext und
-steht in beiden Sprachen im englischen Wortlaut der Fankit. Nur Text, kein Fankit-Logo.
+Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Das Modal hat die
+normale Breite (`.krt-modal`), nicht die breite, die dem Formular-Modal vorbehalten ist. Der Körper
+steht in 14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien,
+Absätze 12 voneinander und nach dem letzten kein Abstand, damit der Körper über und unter dem Text
+gleich weit von den Haarlinien von Kopf und Fuß steht: die Version (700), die Urheberzeile
+(wörtlich die Copyright-Zeile aus `LICENSE-MIT`), die Lizenz mit der Quelltext-Adresse, der Hinweis
+auf ein inoffizielles Fanprojekt ohne Verbindung zur und ohne Billigung durch die
+Cloud-Imperium-Gruppe, dass keine Spieldaten mitgeliefert und nur die eigene Installation gelesen
+wird, die Verantwortung für EULA und Terms of Service, der Eigentumshinweis und zuletzt die
+Markenangabe. Die Urheberzeile und die Markenangabe sind Rechtstext und stehen in beiden Sprachen
+im englischen Wortlaut. Nur Text, kein Fankit-Logo.

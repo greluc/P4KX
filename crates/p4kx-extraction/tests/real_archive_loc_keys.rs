@@ -9,6 +9,17 @@ use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+const CATALOG_TEXT_FIELDS: [&str; 8] = [
+    "Name",
+    "Description",
+    "displayName",
+    "displayDescription",
+    "blueprintName",
+    "vehicleName",
+    "vehicleDescription",
+    "description",
+];
+
 #[derive(Debug, Default)]
 struct Survey<'a> {
     lines: usize,
@@ -65,6 +76,11 @@ fn keys_that_exist_plain_and_comma_suffixed_are_listed_per_language() -> TestRes
              (differing {:?})",
             found.lines, found.blank, found.suffixes, found.both, found.differing
         );
+        assert!(
+            found.differing.is_empty(),
+            "{language}: keys that exist plain and with a suffix but with different texts: {:?}",
+            found.differing
+        );
     }
     Ok(())
 }
@@ -82,12 +98,29 @@ fn records_use_blank_space_and_it_is_a_placeholder() -> TestResult {
     for record in forge.records() {
         if let Ok(tree) = builder.build(&record) {
             for field in tree.fields() {
-                walk(field.value(), record.record_path().unwrap_or(""), &mut uses);
+                walk(
+                    field.name(),
+                    field.value(),
+                    record.record_path().unwrap_or(""),
+                    &mut uses,
+                );
             }
         }
     }
     println!("Record fields holding blank_space: {uses:#?}");
     assert!(!uses.is_empty(), "Records use @blank_space");
+    let in_catalog_fields: Vec<&String> = uses
+        .keys()
+        .filter(|use_| {
+            use_.split(':')
+                .next()
+                .is_some_and(|name| CATALOG_TEXT_FIELDS.iter().any(|f| *f == name))
+        })
+        .collect();
+    assert!(
+        in_catalog_fields.is_empty(),
+        "no catalog name or description field holds @blank_space: {in_catalog_fields:?}"
+    );
     assert_eq!(
         set.index()?.lookup("@blank_space", Language::English, None),
         Lookup::Placeholder,
@@ -96,7 +129,7 @@ fn records_use_blank_space_and_it_is_a_placeholder() -> TestResult {
     Ok(())
 }
 
-fn walk(value: &Value<'_>, path: &str, uses: &mut BTreeMap<String, usize>) {
+fn walk(name: &str, value: &Value<'_>, path: &str, uses: &mut BTreeMap<String, usize>) {
     match value {
         Value::Locale(text) | Value::String(text)
             if text
@@ -104,16 +137,18 @@ fn walk(value: &Value<'_>, path: &str, uses: &mut BTreeMap<String, usize>) {
                 .eq_ignore_ascii_case("blank_space") =>
         {
             let folder = path.split('/').take(5).collect::<Vec<_>>().join("/");
-            *uses.entry(format!("{text} in {folder}")).or_default() += 1;
+            *uses
+                .entry(format!("{name}: {text} in {folder}"))
+                .or_default() += 1;
         }
         Value::Struct(structure) => {
             for field in structure.fields() {
-                walk(field.value(), path, uses);
+                walk(field.name(), field.value(), path, uses);
             }
         }
         Value::Array(items) => {
             for item in items {
-                walk(item, path, uses);
+                walk(name, item, path, uses);
             }
         }
         _ => {}

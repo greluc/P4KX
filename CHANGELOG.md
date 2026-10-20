@@ -149,6 +149,10 @@ fails while its section is missing.
   (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,
   `Skeleton` and four more), seven stay unknown, and the table entries that occur in no measured
   Archive are marked unverified.
+- A WEM whose odd-sized chunk is not followed by a pad byte, as Wwise writes it, no longer
+  misaligns the chunks after it: the reader takes the position right after the chunk when it
+  holds a valid chunk header, and skips the pad byte of plain RIFF otherwise. No WEM of the LIVE,
+  PTU and TECH-PREVIEW Archives has an odd-sized chunk before its last.
 
 ## [0.2.0]
 

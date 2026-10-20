@@ -101,13 +101,51 @@ impl Iterator for Chunks<'_> {
             self.position = self.end;
             return Some(Err(truncated(self.bytes, body_end)));
         };
-        self.position = body_end
-            .saturating_add(usize::from(size % 2 == 1))
-            .min(self.end);
+        self.position = if size % 2 == 1 {
+            self.after_odd_chunk(body_end)
+        } else {
+            body_end
+        };
         Some(Ok(Chunk {
             id,
             body: header_end..body_end,
         }))
+    }
+}
+
+impl Chunks<'_> {
+    /// Returns where the chunk after an odd-sized chunk ending at `body_end` starts.
+    ///
+    /// Plain RIFF pads the chunk with one byte, Wwise writes none. A pad byte is 0 and never starts
+    /// a valid chunk tag, so a valid header at `body_end` means there is no pad; otherwise the pad
+    /// byte is skipped as RIFF says. The padded position is not tried first: the tag of an
+    /// unpadded chunk shifted by one byte, such as `ata` and the low byte of the size, often looks
+    /// valid.
+    fn after_odd_chunk(&self, body_end: usize) -> usize {
+        if self.is_chunk_at(body_end) {
+            body_end
+        } else {
+            body_end.saturating_add(1).min(self.end)
+        }
+    }
+
+    fn is_chunk_at(&self, at: usize) -> bool {
+        let Some(header_end) = at
+            .checked_add(CHUNK_HEADER_LEN)
+            .filter(|&end| end <= self.end)
+        else {
+            return false;
+        };
+        let Some(id) = self
+            .bytes
+            .get(at..)
+            .and_then(|rest| rest.first_chunk::<4>())
+        else {
+            return false;
+        };
+        let size = self.order.u32_at(self.bytes, at + 4).unwrap_or(u32::MAX);
+        id.iter().all(|byte| (0x20..0x7F).contains(byte))
+            && header_end as u64 + u64::from(size) <= self.end as u64
     }
 }
 

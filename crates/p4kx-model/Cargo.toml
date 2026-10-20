@@ -10,12 +10,14 @@ publish.workspace = true
 
 [package.metadata.p4kx]
 layer = "format"
-builds-on = ["p4kx-chunks"]
+builds-on = ["p4kx-chunks", "p4kx-cryxml"]
 
 [dependencies]
 half.workspace = true
 p4kx-chunks.workspace = true
+p4kx-cryxml.workspace = true
 p4kx-foundation.workspace = true
+roxmltree.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

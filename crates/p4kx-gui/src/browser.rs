@@ -13,12 +13,12 @@ use std::sync::Arc;
 
 use crate::checks::Checks;
 use crate::containers::{Containers, Place};
-use crate::record_preview::Navigation;
+use crate::record_preview::{IncomingList, Navigation};
 use crate::record_search::RecordSearch;
 use crate::search::{Matches, Pending};
 use crate::{
     AudioPreview, EntryIndex, ExtractionScope, FolderId, ImagePreview, ModelPreview, Preview,
-    RecordTree, Sort, SortColumn, SortDirection, TextLanguage,
+    RecordTree, Sort, SortColumn, SortDirection, SoundbankPreview, TextLanguage,
 };
 
 pub use tree::{TreeNode, TreeRow};
@@ -52,6 +52,7 @@ pub struct Browser {
     records: Option<RecordTree>,
     record_search: RecordSearch,
     navigation: Navigation,
+    incoming: IncomingList,
     record_language: Option<TextLanguage>,
 }
 
@@ -86,6 +87,7 @@ impl Browser {
             records,
             record_search: RecordSearch::default(),
             navigation: Navigation::default(),
+            incoming: IncomingList::default(),
             record_language: None,
         };
         browser.refresh_tree();
@@ -243,9 +245,24 @@ impl Browser {
         self.preview.as_mut().and_then(Preview::model_mut)
     }
 
-    /// Returns the audio preview of the selected Entry when it is a WEM.
+    /// Returns the audio preview of the selected Entry when it is a WEM, or that of the selected
+    /// WEM when it is a soundbank.
     pub fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
         self.preview.as_mut().and_then(Preview::audio_mut)
+    }
+
+    /// Returns the soundbank preview of the selected Entry when it is a soundbank.
+    #[must_use]
+    pub fn soundbank(&self) -> Option<&SoundbankPreview> {
+        self.preview.as_ref().and_then(Preview::soundbank)
+    }
+
+    /// Selects the WEM `id` of the selected soundbank and decodes it on a background thread,
+    /// unless it is selected already; `wake` is called from that thread once a result is ready.
+    pub fn select_sound(&mut self, id: u32, wake: impl Fn() + Send + 'static) {
+        if let Some(bank) = self.preview.as_mut().and_then(Preview::soundbank_mut) {
+            bank.select(id, wake);
+        }
     }
 
     /// Selects the Entry `id` of the shown place and reads its preview on a background thread,
@@ -278,7 +295,8 @@ impl Browser {
         let found = self.poll_record_search(loaded);
         let opened = self.poll_containers();
         let read = self.navigation.poll();
-        self.poll_search() || previewed || loaded || found || opened || read
+        let listed = self.incoming.poll();
+        self.poll_search() || previewed || loaded || found || opened || read || listed
     }
 
     fn folder_range(&self) -> Range<u32> {

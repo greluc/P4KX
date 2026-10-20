@@ -58,6 +58,10 @@ impl<'f> CompiledQuery<'f> {
 
     fn selects(&self, record: u32) -> bool {
         self.plan_of(record).is_some()
+            && self
+                .referrers
+                .as_ref()
+                .is_none_or(|referrers| referrers.binary_search(&record).is_ok())
             && self.pattern.as_ref().is_none_or(|pattern| {
                 self.forge
                     .path_of(record)

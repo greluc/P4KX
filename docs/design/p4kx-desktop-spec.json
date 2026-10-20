@@ -975,7 +975,26 @@
     "pauses": "when the preview tab leaves Audio or the work tab leaves Browse",
     "messages": "unsupported codec, too long, decoding and output failure color-danger-text"
   },
-  "xmlPreview": {
+  "soundbankList": {
+    "decision": "D.33",
+    "dsClass": "previewPanel + audioPreview + tableHead + tableRow",
+    "panelHeight": 373,
+    "panelHeightFrom": "tab bar 44 + path line 32 + facts bar 32 + controls 16 + 32 + head 36 + 4 rows of 36 + panel chrome 37 (resize gap, frame padding and rules, measured)",
+    "visibleRows": 4,
+    "rowHeight": 36,
+    "columns": {"id": 106, "codec": 112, "duration": 100, "size": "fill"},
+    "columnsFrom": "widest text in bold at the row font plus the cell padding twice, rounded up: ID of ten digits 105.4, Wwise Vorbis 110.6, 9:59:59.999 99.9",
+    "columnMin": 80,
+    "head": "tableHead without sorting",
+    "order": "path line, then the audioPreview of the selected WEM, then the list filling the rest",
+    "unknown": "– in color-gray-2-text",
+    "prefetched": "codec cell Prefetched in color-gray-2-text; the controls give way to a color-warning note",
+    "pluginMedia": "codec cell Plug-in in color-gray-2-text; the controls give way to a color-warning note",
+    "row": "tableRow with the active bar; accessible name WEM id, codec, duration",
+    "focusRing": {"width": 2, "offset": -2, "color": "color-primary"},
+    "keys": "Tab focuses the rows and the list; Enter or a click selects; arrows, Page Up, Page Down, Home and End scroll",
+    "messages": "unreadable bank color-danger-text, empty bank plain text"
+  },  "xmlPreview": {
     "dsClass": "previewPanel + hexRow",
     "rowHeight": 20,
     "fontSize": 12.8,

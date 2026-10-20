@@ -2,30 +2,33 @@
 mod archive_change_tests;
 mod audio;
 mod contents;
+mod entry_bytes;
 mod image;
-mod start;
+mod reading;
+mod soundbank;
 mod texture_info;
 mod xml;
 mod xml_document;
 
 use std::sync::Arc;
-use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::thread;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 use p4kx_extraction::Texture;
-use start::read_start;
 
 pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_wem_path};
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};
+#[cfg(test)]
+use reading::read;
+use reading::{Spawned, spawn};
+pub use soundbank::{BankSound, SoundbankPreview, SoundbankStatus, is_bank_path};
 pub use texture_info::{MAX_PREVIEW_PIXELS, TextureInfo};
 use xml::is_cryxml;
 pub use xml::{XML_SIZE_LIMIT, XmlPreview, XmlStatus};
 pub use xml_document::{XML_TEXT_LIMIT, XmlDocument};
 
 use crate::EntryIndex;
-use crate::model::describe;
 use crate::viewer::{ModelPreview, is_model_path};
 
 /// The largest Entry, in bytes, the window previews; larger Entries are not read.
@@ -54,6 +57,8 @@ pub enum PreviewTab {
     Record,
     /// A model shown in the 3D viewer.
     Model,
+    /// The Records that refer to the Record selected in the Record tree.
+    Incoming,
 }
 
 /// Where the preview of an Entry stands.
@@ -110,6 +115,7 @@ pub struct Preview {
     image: Option<ImagePreview>,
     audio: Option<AudioPreview>,
     model: Option<ModelPreview>,
+    soundbank: Option<SoundbankPreview>,
     xml: Option<XmlPreview>,
     xml_arrived: bool,
 }
@@ -134,6 +140,7 @@ impl Preview {
                 image: None,
                 audio: None,
                 model: None,
+                soundbank: None,
                 xml: None,
                 xml_arrived: false,
             };
@@ -153,6 +160,13 @@ impl Preview {
                 let wake = Arc::clone(&wake);
                 AudioPreview::start(index, id, move || wake())
             });
+        let soundbank = index
+            .entry(id)
+            .filter(|entry| is_bank_path(entry.path()))
+            .map(|_| {
+                let wake = Arc::clone(&wake);
+                SoundbankPreview::start(index, id, move || wake())
+            });
         let model = index
             .entry(id)
             .filter(|entry| is_model_path(entry.path()))
@@ -166,6 +180,7 @@ impl Preview {
             image,
             audio,
             model,
+            soundbank,
             xml: None,
             xml_arrived: false,
         };
@@ -191,15 +206,36 @@ impl Preview {
         std::mem::replace(&mut self.xml_arrived, false)
     }
 
-    /// Returns the audio preview when the Entry is a WEM.
+    /// Returns the audio preview when the Entry is a WEM, or that of the selected WEM when it is
+    /// a soundbank.
     #[must_use]
-    pub const fn audio(&self) -> Option<&AudioPreview> {
-        self.audio.as_ref()
+    pub fn audio(&self) -> Option<&AudioPreview> {
+        self.audio
+            .as_ref()
+            .or_else(|| self.soundbank.as_ref().and_then(SoundbankPreview::audio))
     }
 
-    /// Returns the audio preview for controlling its playback, when the Entry is a WEM.
-    pub const fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
-        self.audio.as_mut()
+    /// Returns the audio preview for controlling its playback, when the Entry is a WEM or a
+    /// soundbank with a selected WEM.
+    pub fn audio_mut(&mut self) -> Option<&mut AudioPreview> {
+        if self.audio.is_some() {
+            self.audio.as_mut()
+        } else {
+            self.soundbank
+                .as_mut()
+                .and_then(SoundbankPreview::audio_mut)
+        }
+    }
+
+    /// Returns the soundbank preview when the Entry is a soundbank.
+    #[must_use]
+    pub const fn soundbank(&self) -> Option<&SoundbankPreview> {
+        self.soundbank.as_ref()
+    }
+
+    /// Returns the soundbank preview for selecting a WEM, when the Entry is a soundbank.
+    pub(crate) const fn soundbank_mut(&mut self) -> Option<&mut SoundbankPreview> {
+        self.soundbank.as_mut()
     }
 
     /// Returns the model preview when the Entry is a model file.
@@ -263,7 +299,8 @@ impl Preview {
     /// returns whether one arrived.
     pub(crate) fn poll(&mut self) -> bool {
         let imaged = self.image.as_mut().is_some_and(ImagePreview::poll);
-        let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll);
+        let sounded = self.audio.as_mut().is_some_and(AudioPreview::poll)
+            | self.soundbank.as_mut().is_some_and(SoundbankPreview::poll);
         let modelled = self.model.as_mut().is_some_and(ModelPreview::poll);
         let read = self.poll_data();
         let converted = self.xml.as_mut().is_some_and(XmlPreview::poll);
@@ -295,97 +332,5 @@ impl Preview {
             Err(Unread::KeyRequired) => State::KeyRequired,
             Err(Unread::KeyRejected) => State::KeyRejected,
         }
-    }
-}
-
-enum Spawned {
-    Running(Receiver<ReadResult>),
-    Finished(ReadResult),
-}
-
-fn spawn(index: &Arc<EntryIndex>, id: u32, wake: impl Fn() + Send + 'static) -> Spawned {
-    let (sender, result) = mpsc::channel();
-    let thread_index = Arc::clone(index);
-    let spawned = thread::Builder::new()
-        .name("preview".to_owned())
-        .spawn(move || {
-            read(
-                &thread_index,
-                id,
-                |loaded| sender.send(loaded).is_ok(),
-                &wake,
-            );
-        });
-    match spawned {
-        Ok(_handle) => Spawned::Running(result),
-        Err(_ignored) => {
-            let mut finished = None;
-            read(
-                index,
-                id,
-                |loaded| {
-                    finished = Some(loaded);
-                    true
-                },
-                &|| {},
-            );
-            Spawned::Finished(finished.unwrap_or(Err(Unread::Failed(None))))
-        }
-    }
-}
-
-/// Reads the start of the Entry `id` and hands it to `deliver`, which returns whether the
-/// preview still wants it; converts a `CryXml` Entry afterwards. Calls `wake` after each result.
-fn read(index: &EntryIndex, id: u32, deliver: impl FnOnce(ReadResult) -> bool, wake: &dyn Fn()) {
-    let Some(entry) = index.entry(id) else {
-        if deliver(Err(Unread::Failed(None))) {
-            wake();
-        }
-        return;
-    };
-    let mut reader = match index.archive().open_entry(entry) {
-        Ok(reader) => reader,
-        Err(error) => {
-            let unread = if index.watch().check().is_err() {
-                Unread::ArchiveChanged
-            } else if error.is_key_required() {
-                Unread::KeyRequired
-            } else if error.is_wrong_key() {
-                Unread::KeyRejected
-            } else {
-                Unread::Failed(Some(describe(&error)))
-            };
-            if deliver(Err(unread)) {
-                wake();
-            }
-            return;
-        }
-    };
-    let bytes = read_start(&mut reader, entry);
-    let read = if index.watch().check().is_err() {
-        Err(Unread::ArchiveChanged)
-    } else {
-        bytes.map_err(|reason| Unread::Failed(Some(reason)))
-    };
-    let (read, job) = match read {
-        Ok(bytes) => {
-            let (xml, job) = is_cryxml(&bytes).then(XmlPreview::pending).unzip();
-            let start = job.as_ref().map(|_| bytes.clone());
-            let contents = PreviewContents::new(bytes, entry.uncompressed_size());
-            (Ok(Loaded { contents, xml }), job.zip(start))
-        }
-        Err(unread) => (Err(unread), None),
-    };
-    if !deliver(read) {
-        return;
-    }
-    wake();
-    if let Some((job, start)) = job {
-        job.run(
-            index,
-            (&start, entry.uncompressed_size()),
-            &mut reader,
-            wake,
-        );
     }
 }

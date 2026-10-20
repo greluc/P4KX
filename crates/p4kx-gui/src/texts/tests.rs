@@ -73,6 +73,8 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("position", "0:03".into()),
         ("duration", "1:12".into()),
         ("codec", "AAC".into()),
+        ("id", "1234".into()),
+        ("bank", "Data\\Sounds\\ship.bnk".into()),
         ("column", "13".into()),
         ("page", "1".into()),
         ("pages", "3".into()),
@@ -90,6 +92,8 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("triangles", "12".into()),
         ("max_vertices", "4,000,000".into()),
         ("max_triangles", "8,000,000".into()),
+        ("references", "3 References".into()),
+        ("records", "2 Records".into()),
         ("digits", "4".into()),
         ("masked", "****1234".into()),
     ]

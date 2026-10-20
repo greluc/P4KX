@@ -100,6 +100,15 @@ on the node; the rest of the window keeps working.
 The **DataForge** tab of the preview shows the version, the numbers of Records, structs and enums,
 and the first 10 Records in the order DataForge stores them.
 
+The **Referenced by** tab, next to the **Record** tab while a Record is selected, lists the Records that
+refer to the selected Record: one line per Reference with the field that holds it, e.g.
+`Components[3].maker`, and a link to the Record that holds it; a click selects that Record and stays in
+the tab. A count line gives the References and the Records they come from, and a list is cut after
+10,000 lines. The first time the tab is opened for an Archive, every Record is read once to build the
+index of References, which takes a moment and runs in the background; later Records and the
+`referencing` clause of a Query use the same index. `p4kx dcb refs` lists the same References on the
+command line.
+
 ### Searching Records
 
 While the DataForge node or one of its Records is selected, the list panel searches Records instead
@@ -162,6 +171,9 @@ and kept for the next Query of the same Archive; a spinner and then a progress b
 the Query has come. **Cancel** shows the Query as cancelled at once; a DataForge that is still
 being read is read to the end in the background and kept, so the next Query starts without
 reading it again.
+
+`referencing "<GUID or record path>"` selects the Records that refer to a Record, e.g.
+`from Ship referencing "libs/makers/aegis"`.
 
 A Query that cannot run is explained below the editor with its line and column, and the part of
 the Query it concerns is underlined in red, e.g. a mistyped field with the name it probably meant.

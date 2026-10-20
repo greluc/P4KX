@@ -105,6 +105,9 @@ when the variable is unset.
 - **No comments in code** besides the language's documentation comments (Rust: `///` and `//!`),
   short and without history. Lint suppressions use `#[expect(lint, reason = "…")]`. The reasoning
   goes into the commit message and the PR body.
+- A user-visible change adds a fragment `changelog.d/<issue>.md` (form in
+  `changelog.d/README.md`, ADR-0035) instead of editing `CHANGELOG.md`; `cargo xtask changelog
+  --release <version>` assembles the fragments at the Release.
 - Shell work uses PowerShell 7 (`pwsh`). Commit messages go through `git commit -s -F <file>`,
   PR and issue bodies through `--body-file <file>`.
 - Worktrees and temporary files only under `D:\Coding\claude-worktrees\p4k-extractor\`.

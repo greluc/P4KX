@@ -203,6 +203,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Run Query
 query-cancel = Cancel
 query-loading = Reading DataForge…
+query-indexing = Indexing References…
 query-selecting = Selecting Records…
 query-progress = { $done } of { $total } Records, { $percent } %
 query-cancelled = The Query was cancelled.
@@ -458,6 +459,7 @@ scroll-fields = Changed fields
 scroll-lines = Record fields
 scroll-localization = Localisation rows
 scroll-saved-queries = Saved Queries
+scroll-soundbank = Embedded WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -476,6 +478,21 @@ audio-unsupported = The preview cannot play { $codec } sounds. The Text and Hex 
 audio-too-long = { $path } is too long to preview: its decoded sound would exceed { $limit }.
 audio-failed = Cannot decode { $path }: { $reason }
 audio-output-failed = The sound cannot be played: { $reason }
+audio-column-id = ID
+audio-prefetched = Prefetched
+audio-prefetched-note = WEM { $id } is only prefetched in this soundbank and cannot be played here. The loose WEM Entry with the same ID holds the whole sound.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } is plug-in media, such as a convolution reverb impulse, and holds no sound to play.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } embeds no WEMs.
+audio-bank-failed = Cannot read the soundbank { $path }: { $reason }
+audio-wem-name = WEM { $id } of { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = The preview cannot play { $codec } sounds ({ $name }).
 
 texture-parts =
     { $count ->
@@ -568,6 +585,32 @@ model-gpu-setup = The graphics device refused the 3D viewer: { $reason } Everyth
 model-gpu-lost = The graphics device was lost. Restart P4K-Extractor to see models again.
 model-gpu-failed = The graphics device failed to draw the model. Select another model or restart P4K-Extractor.
 model-gpu-rejected = { $path } is too large for the graphics device.
+
+
+preview-tab-incoming = Referenced by
+scroll-incoming = Referring Records
+incoming-head-field = Field
+incoming-head-record = Referring Record
+incoming-loading = Finding the Records that refer to { $path }…
+incoming-failed = Cannot find the Records that refer to { $path }: { $reason }
+incoming-stopped = Finding the Records that refer to { $path } stopped without a result.
+incoming-archive-changed = The Archive changed on disk. Reload it to find the Records that refer to a Record.
+incoming-none = No Record refers to this Record.
+incoming-follow = Open the Record { $path }, which refers to this Record in { $field }
+incoming-summary = { $references } from { $records }
+incoming-reference-count =
+    { $count ->
+        [one] { $number } Reference
+       *[other] { $number } References
+    }
+incoming-record-count =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+incoming-truncated = The first { $shown } of { $total } References are listed.
+incoming-incomplete = Some Records could not be read or the index is full, so the list may miss References.
+
 preview-key-required = { $path } is encrypted. Enter the Archive key to read it.
 preview-key-rejected = The Archive key does not decrypt { $path }. Enter the right key to read it.
 key-menu = Archive key…

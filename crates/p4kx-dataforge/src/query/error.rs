@@ -82,7 +82,9 @@ pub enum QueryErrorKind {
         after: Keyword,
     },
     /// Neither `from` nor `at` is given.
-    #[error("the Query selects no Records; start it with `from <type>` or `at \"<glob>\"`")]
+    #[error(
+        "the Query selects no Records; start it with `from <type>`, `at \"<glob>\"` or `referencing \"<record>\"`"
+    )]
     MissingSelection,
     /// `from` names a struct the DataForge does not declare.
     #[error("unknown type `{name}`{}", Suggestion(.suggestion.as_deref()))]
@@ -92,6 +94,15 @@ pub enum QueryErrorKind {
         /// The closest declared struct name.
         suggestion: Option<String>,
     },
+    /// `referencing` names a GUID or record path no Record has.
+    #[error("no Record has the GUID or record path `{text}`")]
+    UnknownReferencedRecord {
+        /// The text as written.
+        text: String,
+    },
+    /// `referencing` was compiled without the index of References it reads.
+    #[error("the index of References is missing, so `referencing` cannot select Records")]
+    MissingReferenceIndex,
     /// A path names a field that its struct, or without `from` any struct, does not declare.
     #[error("unknown field `{name}`{}{}", Owner(.owner.as_deref()), Suggestion(.suggestion.as_deref()))]
     UnknownField {

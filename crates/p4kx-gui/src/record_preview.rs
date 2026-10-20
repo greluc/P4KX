@@ -1,3 +1,4 @@
+mod incoming;
 mod lines;
 mod navigation;
 mod worker;
@@ -6,6 +7,8 @@ use std::ops::Range;
 
 use p4kx_extraction::Guid;
 
+pub(crate) use incoming::IncomingList;
+pub use incoming::{IncomingPreview, IncomingStatus, IncomingView, MAX_INCOMING_LINES};
 pub(crate) use navigation::Navigation;
 
 use crate::{RecordId, TextLanguage, XmlDocument};

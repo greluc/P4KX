@@ -115,6 +115,7 @@ impl ModelSource {
         let mut companions = DiskCompanions {
             folder,
             read: vec![path.to_path_buf()],
+            absent: None,
         };
         let model = Model::read_with(&file_name, source.file(), &mut companions, lods).map_err(
             |source| ConversionError::Model {

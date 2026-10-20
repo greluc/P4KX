@@ -8,6 +8,7 @@ pub mod model_metrics;
 pub mod palette;
 mod query_metrics;
 mod row_tints;
+pub mod sound_metrics;
 pub mod tokens;
 mod tooltip_metrics;
 

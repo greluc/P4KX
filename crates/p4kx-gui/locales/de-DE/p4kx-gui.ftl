@@ -203,6 +203,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Abfrage ausführen
 query-cancel = Abbrechen
 query-loading = DataForge wird gelesen …
+query-indexing = Referenzen werden indiziert …
 query-selecting = Records werden ausgewählt …
 query-progress = { $done } von { $total } Records, { $percent } %
 query-cancelled = Die Abfrage wurde abgebrochen.
@@ -458,6 +459,7 @@ scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
 scroll-localization = Lokalisierungszeilen
 scroll-saved-queries = Gespeicherte Abfragen
+scroll-soundbank = Eingebettete WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -476,6 +478,21 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+audio-column-id = ID
+audio-prefetched = Vorgeladen
+audio-prefetched-note = WEM { $id } ist in dieser Soundbank nur vorgeladen und kann hier nicht abgespielt werden. Der ganze Ton steht im losen WEM-Eintrag mit derselben ID.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } ist ein Plug-in-Medium, etwa ein Faltungshall-Impuls, und enthält keinen Ton zum Abspielen.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } enthält keine WEMs.
+audio-bank-failed = Die Soundbank { $path } kann nicht gelesen werden: { $reason }
+audio-wem-name = WEM { $id } aus { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = Die Vorschau kann Töne im Codec { $codec } nicht abspielen ({ $name }).
 
 texture-parts =
     { $count ->
@@ -568,6 +585,32 @@ model-gpu-setup = Das Grafikgerät hat den 3D-Viewer abgelehnt: { $reason } Alle
 model-gpu-lost = Das Grafikgerät ging verloren. Starte P4K-Extractor neu, um wieder Modelle zu sehen.
 model-gpu-failed = Das Grafikgerät konnte das Modell nicht zeichnen. Wähle ein anderes Modell oder starte P4K-Extractor neu.
 model-gpu-rejected = { $path } ist zu groß für das Grafikgerät.
+
+
+preview-tab-incoming = Referenziert von
+scroll-incoming = Verweisende Records
+incoming-head-field = Feld
+incoming-head-record = Verweisender Record
+incoming-loading = Die Records, die auf { $path } verweisen, werden gesucht …
+incoming-failed = Die Records, die auf { $path } verweisen, lassen sich nicht finden: { $reason }
+incoming-stopped = Die Suche nach den Records, die auf { $path } verweisen, brach ohne Ergebnis ab.
+incoming-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um die Records zu finden, die auf einen Record verweisen.
+incoming-none = Kein Record verweist auf diesen Record.
+incoming-follow = Den Record { $path } öffnen, der in { $field } auf diesen Record verweist
+incoming-summary = { $references } von { $records }
+incoming-reference-count =
+    { $count ->
+        [one] { $number } Referenz
+       *[other] { $number } Referenzen
+    }
+incoming-record-count =
+    { $count ->
+        [one] { $number } Record
+       *[other] { $number } Records
+    }
+incoming-truncated = Die ersten { $shown } von { $total } Referenzen sind aufgelistet.
+incoming-incomplete = Einige Records ließen sich nicht lesen oder der Index ist voll, daher kann die Liste Referenzen auslassen.
+
 preview-key-required = { $path } ist verschlüsselt. Gib den Archiv-Schlüssel ein, um es zu lesen.
 preview-key-rejected = Der Archiv-Schlüssel entschlüsselt { $path } nicht. Gib den richtigen Schlüssel ein, um es zu lesen.
 key-menu = Archiv-Schlüssel…

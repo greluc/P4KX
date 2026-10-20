@@ -4,20 +4,24 @@ Notable changes of P4K-Extractor, one section per Release. The section of a vers
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
+New changes are not written here but as fragments in `changelog.d/` (see its `README.md`), which
+`cargo xtask changelog --release <version>` folds into the section of the Release together with
+the entries under `## [Unreleased]`.
+
 ## [Unreleased]
 
 ### Added
 
-- 3D viewer tracer: selecting a model Entry (`.cgf`, `.cga`, `.skin`) opens the new Model tab of the
-  Preview, which draws the model's most detailed level with wgpu inside the window: lit, framed
-  to fit and shown beside a facts bar (vertices, triangles, size in metres). Drag orbits, a right
-  or Shift drag pans, the wheel zooms; with the keyboard focus the arrow keys orbit, Shift and the
-  arrow keys pan, `+` and `-` zoom and Home resets; **Reset view** frames the model again. The
-  model is read and flattened on a background thread (at most 4,000,000 vertices and 8,000,000
-  triangles, files up to 256 MiB), its buffers are uploaded once and replaced when another model
-  is selected, and a device that cannot draw the view or is lost gets a message while the rest of
-  the window keeps working. Materials, LOD and skeleton switches follow (ADR-0031, design
-  decision D.35).
+- Streamed and localised sounds. `p4kx wwise resolve` locates a streamed or prefetched WEM as the
+  loose WEM Entry named by its ID below `Data\Sounds\wwise\` and resolves localised events,
+  soundbanks and WEMs for `--lang <language>` with `--fallback-lang` (`English(US)` by default),
+  both language folders read from the Archive; each variant states whether it is localised, the
+  language it was resolved in and whether that is the fallback, and a localised sound without a
+  WEM in either language is listed as a `no_localisation` broken link. `p4kx entity audio
+  --sounds [--lang] [--fallback-lang]` lists the variants of every trigger with source and
+  location. `ArchiveAudio::resolve_trigger_in`, `LanguageChoice`, `AudioIndex::languages`,
+  `AudioIndex::loose_wem`, `WemLocation::Entry` in `p4kx-assembly`,
+  `SoundSource::is_language_specific` in `p4kx-audio` (ADR-0033).
 - Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
   its vertex and triangle counts and whether its meshes have normals, tangents and colours;
   `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
@@ -85,6 +89,12 @@ fails while its section is missing.
   settings, run with one click, renamed and deleted.
 - Looping sounds: `audio info` reports the loop of a WEM, `audio wav` keeps it in a `smpl` chunk
   and `audio ogg` in `LOOPSTART` and `LOOPLENGTH` comments.
+- Soundbanks in the Audio tab: select a BNK Entry to see the WEMs it embeds as a list of ID,
+  codec, duration and size, and select one to see its facts and play it with the controls of a
+  loose WEM, without unpacking the bank. A WEM the bank holds only the prefetched start of and
+  plug-in media are marked and explained instead of played; a corrupt soundbank shows a message
+  and the rest of the window keeps working. The preview opens taller for soundbanks, and the list
+  scrolls with the keyboard.
 
 ### Changed
 
@@ -159,6 +169,10 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- CHF: a file whose body changes keeps the last 8 bytes of the original file (the game writes
+  `efbeadde efbeadde` there; all 41 CHF files of the LIVE Build have it) instead of zeroing them,
+  with a correct CRC-32C. A new frame that would reach into non-zero ones is an error, not an
+  overwrite. An unchanged JSON still gives the original file byte for byte (ADR-0014).
 - Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
   Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
   `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export

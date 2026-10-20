@@ -31,15 +31,29 @@ pub(super) fn apply(model: &mut Model, action: AudioAction) {
     }
 }
 
-/// Shows the Audio tab of the WEM at `path` of `size` bytes: its facts, the playback controls
-/// at `volume` and the messages. Returns what the user did.
+/// The WEM an audio preview shows: its name in the messages, its size and whether it is embedded
+/// in a soundbank rather than an Entry of its own.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Named<'a> {
+    pub(super) path: &'a str,
+    pub(super) size: u64,
+    pub(super) embedded: bool,
+}
+
+/// Shows the Audio tab of the WEM `named`: its facts, the playback controls at `volume` and the
+/// messages. Returns what the user did.
 pub(super) fn show(
     ui: &mut Ui,
     texts: &Texts,
-    (path, size): (&str, u64),
+    named: Named<'_>,
     audio: &AudioPreview,
     volume: f32,
 ) -> Option<AudioAction> {
+    let Named {
+        path,
+        size,
+        embedded,
+    } = named;
     let status = audio.status();
     if let AudioStatus::Opened(info, _) = status {
         facts(ui, texts, audio.serial(), info).show(ui);
@@ -69,7 +83,9 @@ pub(super) fn show(
                 ui.colored_label(palette::WARNING, texts.get(Text::PreviewArchiveChanged));
                 None
             }
-            AudioStatus::Opened(_, sound) => sound_body(ui, texts, path, audio, sound, volume),
+            AudioStatus::Opened(_, sound) => {
+                sound_body(ui, texts, (path, embedded), (audio, sound), volume)
+            }
         })
         .inner
 }
@@ -77,9 +93,8 @@ pub(super) fn show(
 fn sound_body(
     ui: &mut Ui,
     texts: &Texts,
-    path: &str,
-    audio: &AudioPreview,
-    sound: SoundStatus<'_>,
+    (path, embedded): (&str, bool),
+    (audio, sound): (&AudioPreview, SoundStatus<'_>),
     volume: f32,
 ) -> Option<AudioAction> {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
@@ -90,7 +105,17 @@ fn sound_body(
         }
         SoundStatus::Unsupported(codec) => {
             let codec = ("codec", FluentValue::from(codec.to_string()));
-            let text = texts.format(AudioText::Unsupported, &[codec, path_arg()]);
+            let message = if embedded {
+                AudioText::UnsupportedWem
+            } else {
+                AudioText::Unsupported
+            };
+            let args = if embedded {
+                [codec, ("name", FluentValue::from(path.to_owned()))]
+            } else {
+                [codec, path_arg()]
+            };
+            let text = texts.format(message, &args);
             ui.colored_label(palette::DANGER_TEXT, text);
             None
         }

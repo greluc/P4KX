@@ -75,10 +75,10 @@ pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
-    AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
+    AudioPreview, AudioStatus, BankSound, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
     PREVIEW_READ_LIMIT, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
-    SoundInfo, SoundStatus, TextureInfo, XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlDocument, XmlPreview,
-    XmlStatus, is_wem_path,
+    SoundInfo, SoundStatus, SoundbankPreview, SoundbankStatus, TextureInfo, XML_SIZE_LIMIT,
+    XML_TEXT_LIMIT, XmlDocument, XmlPreview, XmlStatus, is_bank_path, is_wem_path,
 };
 pub use query::{
     CellLook, NameNote, QUERY_PAGE_ROWS, QueryExportFormat, QueryExportStatus, QueryInvalid,
@@ -93,14 +93,15 @@ pub use record_index::{
 };
 pub use record_language::RecordTextChoice;
 pub use record_preview::{
-    FieldLine, KeyText, LineValue, RecordLink, RecordPreview, RecordPreviewStatus, RecordView,
+    FieldLine, IncomingPreview, IncomingStatus, IncomingView, KeyText, LineValue,
+    MAX_INCOMING_LINES, RecordLink, RecordPreview, RecordPreviewStatus, RecordView,
 };
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText, ModelText,
-    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
+    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
+    ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
     RecordText, ScrollText, Text, Texts, XmlText,
 };
 pub use viewer::{

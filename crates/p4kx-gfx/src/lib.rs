@@ -5,13 +5,15 @@
 //! JSON in the units the file stores.
 //!
 //! The first frame of a movie composes into a [`Scene`] independent of any backend, which
-//! [`Scene::rasterize`] draws with tiny-skia.
+//! [`Scene::rasterize`] draws with tiny-skia and [`Scene::write_svg`] writes as SVG under the same
+//! budgets.
 //!
 //! Every size is checked against the data left and the limits [`MAX_MOVIE_LEN`],
 //! [`MAX_BITMAP_PIXELS`], [`MAX_SHAPE_RECORDS`] and [`MAX_SPRITE_DEPTH`], a scene against
 //! [`MAX_SCENE_PLACEMENTS`], [`MAX_SCENE_PATHS`], [`MAX_SCENE_SEGMENTS`], [`MAX_SCENE_RECORDS`],
 //! [`MAX_SCENE_MASKS`] and [`MAX_GRADIENT_STOPS`], a canvas against [`MAX_CANVAS_SIDE`],
-//! [`MAX_CANVAS_PIXELS`] and the fill area [`MAX_COVERAGE_FACTOR`] times its size;
+//! [`MAX_CANVAS_PIXELS`] and the fill area [`MAX_COVERAGE_FACTOR`] times its size, an SVG document
+//! against [`MAX_SVG_BYTES`];
 //! corrupt input yields a [`GfxError`] or a skipped element, never a panic.
 
 mod assets;
@@ -44,6 +46,13 @@ mod scene_report;
 mod scene_shape;
 mod shape;
 mod style;
+mod svg;
+mod svg_budget;
+mod svg_layer;
+#[cfg(test)]
+mod svg_limit_tests;
+mod svg_plan;
+mod svg_text;
 mod tag;
 mod timeline;
 mod walker;
@@ -63,7 +72,7 @@ pub use place::{ColorTransform, Placement};
 pub use raster::{
     Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Raster, RasterOptions,
 };
-pub use raster_budget::MAX_COVERAGE_FACTOR;
+pub use raster_budget::{MAX_COVERAGE_FACTOR, MAX_SVG_BYTES};
 pub use scene::{
     Affine, BitmapPaint, Cap, GradientKind, GradientPaint, Join, LayerKind, MAX_GRADIENT_STOPS,
     MAX_SCENE_MASKS, MAX_SCENE_PATHS, MAX_SCENE_PLACEMENTS, MAX_SCENE_RECORDS, MAX_SCENE_SEGMENTS,
@@ -73,6 +82,7 @@ pub use scene::{
 pub use scene_report::{SkipReason, Skipped};
 pub use shape::{MAX_SHAPE_RECORDS, NewStyles, Shape, ShapeRecord, StyleChange};
 pub use style::{FillStyle, Gradient, GradientStop, LineStyle};
+pub use svg::SvgReport;
 pub use tag::tag_name;
 pub use timeline::{Export, ExporterInfo, Sprite, Timeline};
 pub use walker::MAX_SPRITE_DEPTH;

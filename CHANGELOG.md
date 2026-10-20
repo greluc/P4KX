@@ -109,6 +109,13 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Soundbanks with a quirk that leaves the rest readable are no longer rejected whole: bytes after
+  the last `HIRC` object, a repeated `DIDX` WEM ID (the first entry is kept), `DIDX` without
+  `DATA` and a non-UTF-8 name in `STID` are worked around and listed by `Soundbank::warnings`.
+  The audio index reads soundbanks up to 32 MiB instead of 16 MiB, and `Wem::chunks` and
+  `Wem::chunk` list every RIFF chunk of a WEM, `smpl`, `cue ` and `LIST` after `data` included.
+  No soundbank or WEM of the LIVE, PTU and TECH-PREVIEW Archives has any of these quirks
+  (`docs/audio-survey.md`).
 - Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU compares the two boxes of
   the mesh chunks (static models only; skins store floats). Of the about 30,000 `.cgfm` chunks
   and about 31,000 `.cgam` chunks of each Archive whose boxes differ, the face normals can decide

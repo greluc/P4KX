@@ -61,6 +61,7 @@ mod ui_jobs;
 mod ui_movie;
 mod ui_render;
 mod ui_render_bitmaps;
+mod verify;
 mod watch;
 mod write;
 
@@ -142,4 +143,5 @@ pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
+pub use verify::{VerificationReport, VerifyOptions, verify};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

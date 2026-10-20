@@ -57,8 +57,7 @@ impl Archive {
     ///
     /// # Errors
     ///
-    /// Returns [`ArchiveError::WrongKey`] when the key does not decrypt the Archive's Entries, and
-    /// another [`ArchiveError`] when the Entry used for the check cannot be read.
+    /// Returns [`ArchiveError::WrongKey`] when the key does not decrypt the Archive's Entries.
     pub fn check_key(&self) -> Result<KeyCheck, ArchiveError> {
         match self.key.get() {
             None => Ok(KeyCheck::Unchecked),
@@ -67,16 +66,14 @@ impl Archive {
     }
 
     /// Checks whether `key` decrypts this Archive's encrypted Entries, by decrypting the smallest
-    /// suitable one and comparing the CRC-32C of the result with its directory. Nothing is set.
+    /// suitable ones (at most three) and comparing the CRC-32C of the result with the directory.
+    /// Nothing is set. An Entry that cannot be read leaves the key [`KeyCheck::Unchecked`].
     ///
     /// # Errors
     ///
-    /// Returns [`ArchiveError::WrongKey`] when the data does not match, and another
-    /// [`ArchiveError`] when the Entry cannot be read.
+    /// Returns [`ArchiveError::WrongKey`] when the data of every candidate does not match.
     pub fn verify_key(&self, key: &ArchiveKey) -> Result<KeyCheck, ArchiveError> {
-        let verdict = key_check::verify(&self.source, &self.entries, key)
-            .map_err(|error| error.at(&self.location))?;
-        match verdict {
+        match key_check::verify(&self.source, &self.entries, key) {
             Verdict::Verified => Ok(KeyCheck::Verified),
             Verdict::Unchecked => Ok(KeyCheck::Unchecked),
             Verdict::Wrong { entry } => Err(ArchiveError::WrongKey {
@@ -97,6 +94,18 @@ impl Archive {
                 Err(ArchiveError::WrongKey { path, entry })
             }
             Err(error) => Err(error),
+        }
+    }
+
+    fn check_once(&self, key: &ArchiveKey) -> Result<(), ArchiveError> {
+        let _turn = self.key.check_turn();
+        match self.key.get() {
+            Some((current, Some(Err(entry)))) if &current == key => Err(ArchiveError::WrongKey {
+                path: self.location.clone(),
+                entry,
+            }),
+            Some((current, Some(Ok(())))) if &current == key => Ok(()),
+            _ => self.check_set_key(key).map(|_| ()),
         }
     }
 
@@ -121,7 +130,7 @@ impl Archive {
                 });
             }
             None => {
-                self.check_set_key(&key)?;
+                self.check_once(&key)?;
             }
         }
         Ok(Some(key))

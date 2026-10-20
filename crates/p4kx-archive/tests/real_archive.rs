@@ -92,6 +92,31 @@ fn reads_entries_of_every_compression_and_encryption_state() -> TestResult {
     Ok(())
 }
 
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let samples = samples_per_kind(archive.entries());
+    let mut checked = 0;
+    for entries in samples.values() {
+        for entry in entries {
+            let size = io::copy(&mut archive.open_entry_verified(entry)?, &mut io::sink())
+                .map_err(|error| format!("{}: {error}", entry.path()))?;
+            assert_eq!(
+                size,
+                entry.uncompressed_size(),
+                "{} reads fully",
+                entry.path()
+            );
+            checked += 1;
+        }
+    }
+
+    assert!(checked > 0, "the Archive yields samples");
+    Ok(())
+}
+
 type Kind = (Compression, bool);
 
 fn samples_per_kind(entries: &[Entry]) -> HashMap<Kind, Vec<&Entry>> {

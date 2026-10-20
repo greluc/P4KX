@@ -21,10 +21,10 @@ that are not UTF-8 are kept apart from the list, one per such Entry and found by
   decision, taken because the other readings are worse for the data that matters: ciphertext read
   as plain would pass as content without anyone noticing. It is not free of risk: a stored Entry
   that is really plain and carries an unknown value is decrypted into garbage, and nothing in the
-  reader detects that yet, since checksums are not verified on read. Verifying the CRC-32C on read
-  (#261) closes that gap. A 0x5002 block that is not 6 bytes long (4 header, 2 value) is
-  `EncryptionBlockSize`; the value is still read when the block holds one, and a block too short
-  for a value counts as encrypted.
+  reader detects that yet, since a read does not verify checksums by default. `p4kx verify` and
+  `extract --verify` close that gap (ADR-0026). A 0x5002 block that is not 6 bytes long (4 header,
+  2 value) is `EncryptionBlockSize`; the value is still read when the block holds one, and a
+  block too short for a value counts as encrypted.
 - **Data range (v2).** An Entry whose data ends behind the start of the central directory or of the
   name table, whichever comes first, or whose end overflows, is `DataOutsideFile`. Opening it fails
   with the existing `Corrupt` error; the other Entries read.

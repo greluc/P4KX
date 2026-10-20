@@ -199,6 +199,20 @@ impl Archive {
         self.open_entry_at(entry, 0)
     }
 
+    /// Opens the data of `entry` like [`open_entry`](Self::open_entry) and checks it against the
+    /// checksum of the directory while it streams, without a second pass or buffering: the read
+    /// that reaches the end of the data fails with a
+    /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) when they differ.
+    /// The check costs one checksum over the decoded bytes; a reader that stops before the end
+    /// checks nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`open_entry`](Self::open_entry).
+    pub fn open_entry_verified(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
+        self.open_entry(entry).map(|reader| reader.verified(entry))
+    }
+
     /// Opens the decrypted and decompressed data of `entry` from byte `offset` on.
     ///
     /// Stored Entries start there directly, encrypted ones at the AES block holding `offset`.

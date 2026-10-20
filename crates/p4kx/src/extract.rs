@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -9,15 +8,15 @@ use anyhow::{Context, Result};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
     Archive, ArchiveWatch, AudioConversion, Build, CancelToken, ConflictPolicy, DataForgeEntry,
-    Entry, EntryFailure, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion,
-    TextureGroups, create_default_target, extract, select_entries,
+    Entry, ExtractOptions, ExtractionReport, Filter, Progress, TextureConversion, TextureGroups,
+    create_default_target, extract, select_entries,
 };
-use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{AudioOutput, Conflict, ExtractArgs, TextureOutput};
 use crate::dcb_export;
 use crate::exit;
+use crate::extract_report::{print_report, report_json};
 use crate::json;
 use crate::progress::ProgressLine;
 
@@ -26,36 +25,11 @@ use crate::progress::ProgressLine;
 #[error("no Entry matches {0}")]
 pub(crate) struct NoMatch(String);
 
-#[derive(Serialize)]
-struct ReportJson<'a> {
-    target: String,
-    extracted: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    converted: Option<usize>,
-    skipped: &'a [String],
-    failed: Vec<FailureJson<'a>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unconverted: Option<Vec<FailureJson<'a>>>,
-    cancelled: &'a [String],
-    archive_changed: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    records: Option<RecordsJson<'a>>,
-}
-
-#[derive(Serialize)]
-struct RecordsJson<'a> {
-    exported: usize,
-    skipped: &'a [String],
-    failed: Vec<dcb_export::FailureJson<'a>>,
-    cancelled: usize,
-    error_values: usize,
-    records_with_errors: usize,
-}
-
-#[derive(Serialize)]
-struct FailureJson<'a> {
-    path: &'a str,
-    error: String,
+impl NoMatch {
+    /// Creates the error for the Filter `text`.
+    pub(crate) fn new(text: &str) -> Self {
+        Self(text.to_owned())
+    }
 }
 
 /// Extracts the requested Entries, showing progress, stopping on Ctrl+C and quitting on a second
@@ -72,6 +46,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         convert: args.convert,
         textures: textures(args),
         audio: audio(args.audio),
+        verify: args.verify,
         cancel_after: args.cancel_after,
     };
     execute(&archive, &entries, &settings, as_json)
@@ -89,6 +64,8 @@ pub(crate) struct Settings<'a> {
     pub(crate) textures: TextureConversion,
     /// What a sound conversion writes.
     pub(crate) audio: AudioConversion,
+    /// Whether each Entry is checked against its checksum while it is written.
+    pub(crate) verify: bool,
     /// Cancels the run once this many Entries have ended.
     pub(crate) cancel_after: Option<usize>,
 }
@@ -120,6 +97,7 @@ pub(crate) fn execute(
         convert: settings.convert,
         textures: settings.textures,
         audio: settings.audio,
+        verify: settings.verify,
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),
@@ -127,9 +105,9 @@ pub(crate) fn execute(
     let report = extract(archive, entries, &target, &options);
     line.finish();
     let printed = if as_json {
-        json::print(&report_json(&report, &target))
+        json::print(&report_json(&report, &target, settings.verify))
     } else {
-        print_report(&report, &target, settings.conflict).and_then(|()| {
+        print_report(&report, &target, settings.conflict, settings.verify).and_then(|()| {
             report.records().map_or(Ok(()), |records| {
                 let folder = records_folder(archive, &target);
                 dcb_export::print_report(&records.into(), &folder, settings.conflict)
@@ -236,33 +214,6 @@ pub(crate) fn prepare_target(out: Option<&Path>, archive: &Archive) -> Result<Pa
         .with_context(|| format!("cannot create a target folder in {}", parent.display()))
 }
 
-fn report_json<'a>(report: &'a ExtractionReport, target: &Path) -> ReportJson<'a> {
-    ReportJson {
-        target: json::path(target),
-        extracted: report.extracted(),
-        converted: report.converted(),
-        skipped: report.skipped(),
-        failed: failures_json(report.failures()),
-        unconverted: report
-            .converted()
-            .map(|_| failures_json(report.unconverted())),
-        cancelled: report.cancelled(),
-        archive_changed: report.archive_changed(),
-        records: report.records().map(|records| RecordsJson {
-            exported: records.written(),
-            skipped: records.skipped(),
-            failed: records
-                .failures()
-                .iter()
-                .map(dcb_export::failure_json)
-                .collect(),
-            cancelled: records.cancelled(),
-            error_values: records.error_values(),
-            records_with_errors: records.records_with_errors(),
-        }),
-    }
-}
-
 /// Returns the folder the Records of the converted DataForge Entry were written into: the folder
 /// of that Entry below `target`.
 fn records_folder(archive: &Archive, target: &Path) -> PathBuf {
@@ -273,68 +224,6 @@ fn records_folder(archive: &Archive, target: &Path) -> PathBuf {
         .split('/')
         .filter(|part| !part.is_empty())
         .fold(target.to_path_buf(), |folder, part| folder.join(part))
-}
-
-fn failures_json(failures: &[EntryFailure]) -> Vec<FailureJson<'_>> {
-    failures
-        .iter()
-        .map(|failure| FailureJson {
-            path: failure.path(),
-            error: reason(failure),
-        })
-        .collect()
-}
-
-fn reason(failure: &EntryFailure) -> String {
-    let mut reason = failure.error().to_string();
-    let mut source = failure.error().source();
-    while let Some(cause) = source {
-        reason.push_str(": ");
-        reason.push_str(&cause.to_string());
-        source = cause.source();
-    }
-    reason
-}
-
-fn print_report(report: &ExtractionReport, target: &Path, conflict: Conflict) -> io::Result<()> {
-    let mut err = io::stderr().lock();
-    for failure in report.failures() {
-        writeln!(err, "failed {}: {}", failure.path(), reason(failure))?;
-    }
-    for unconverted in report.unconverted() {
-        writeln!(
-            err,
-            "not converted {}: {}",
-            unconverted.path(),
-            reason(unconverted)
-        )?;
-    }
-    let mut out = io::stdout().lock();
-    let kept = if conflict == Conflict::IfChanged {
-        "unchanged"
-    } else {
-        "already exists"
-    };
-    for path in report.skipped() {
-        writeln!(out, "skipped {path}: {kept}")?;
-    }
-    for path in report.cancelled() {
-        writeln!(out, "cancelled {path}")?;
-    }
-    let converted = match (report.converted(), report.unconverted().len()) {
-        (None, _) => String::new(),
-        (Some(count), 0) => format!(" ({count} converted)"),
-        (Some(count), unconverted) => format!(" ({count} converted, {unconverted} not converted)"),
-    };
-    writeln!(
-        out,
-        "extracted {}{converted}, skipped {}, failed {}, cancelled {} into {}",
-        report.extracted(),
-        report.skipped().len(),
-        report.failures().len(),
-        report.cancelled().len(),
-        target.display()
-    )
 }
 
 #[cfg(test)]

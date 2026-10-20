@@ -2,12 +2,13 @@ use std::io::{self, Read};
 
 use p4kx_foundation::ArchiveKey;
 
-use crate::format_error::FormatError;
 use crate::source::Source;
 use crate::{DataError, Entry, entry_reader};
 
 /// The largest encrypted Entry, in stored bytes, a key check reads.
 const MAX_CHECK_LEN: u64 = 16 * 1024 * 1024;
+/// How many of the smallest suitable Entries a key must fail on before it is called wrong.
+const MAX_CANDIDATES: usize = 3;
 const CHUNK_LEN: usize = 64 * 1024;
 
 /// What checking a key against an Archive found.
@@ -16,8 +17,8 @@ const CHUNK_LEN: usize = 64 * 1024;
 pub enum KeyCheck {
     /// The key decrypted an encrypted Entry to data matching its checksum.
     Verified,
-    /// The Archive has no encrypted Entry suitable for the check, so the key is neither
-    /// confirmed nor refuted.
+    /// The Archive has no encrypted Entry suitable for the check, or none could be read, so the
+    /// key is neither confirmed nor refuted.
     Unchecked,
 }
 
@@ -27,14 +28,17 @@ pub(crate) enum Verdict {
     Wrong { entry: String },
 }
 
-/// Decrypts the smallest suitable encrypted Entry with `key` and compares the CRC-32C of the
-/// result with the directory's.
-pub(crate) fn verify(
-    source: &Source,
-    entries: &[Entry],
-    key: &ArchiveKey,
-) -> Result<Verdict, FormatError> {
-    let Some(entry) = entries
+enum Attempt {
+    Matches,
+    DataMismatch,
+    Unreadable,
+}
+
+/// Decrypts the smallest suitable encrypted Entries with `key` and compares the CRC-32C of the
+/// result with the directory's. The key is wrong only when it fails on every candidate (at most
+/// three) and each could be read; an Entry that cannot be read leaves the key unchecked.
+pub(crate) fn verify(source: &Source, entries: &[Entry], key: &ArchiveKey) -> Verdict {
+    let mut candidates: Vec<&Entry> = entries
         .iter()
         .filter(|entry| {
             entry.encrypted
@@ -42,29 +46,39 @@ pub(crate) fn verify(
                 && entry.crc32c().is_some()
                 && entry.compressed_size <= MAX_CHECK_LEN
         })
-        .min_by_key(|entry| entry.compressed_size)
-    else {
-        return Ok(Verdict::Unchecked);
-    };
-    let wrong = || Verdict::Wrong {
-        entry: entry.path.clone(),
-    };
-    let (mut reader, _) = entry_reader::open_at(source, entry, 0, Some(key))?;
+        .collect();
+    candidates.sort_by_key(|entry| entry.compressed_size);
+    candidates.truncate(MAX_CANDIDATES);
     let mut chunk = vec![0; CHUNK_LEN];
-    let mut crc = 0_u32;
-    loop {
-        match reader.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(count) => crc = crc32c::crc32c_append(crc, chunk.get(..count).unwrap_or_default()),
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-            Err(error) if is_data_error(&error) => return Ok(wrong()),
-            Err(error) => return Err(error.into()),
+    let mut unreadable = false;
+    for entry in &candidates {
+        match attempt(source, entry, key, &mut chunk) {
+            Attempt::Matches => return Verdict::Verified,
+            Attempt::DataMismatch => {}
+            Attempt::Unreadable => unreadable = true,
         }
     }
-    if Some(crc) == entry.crc32c() {
-        Ok(Verdict::Verified)
-    } else {
-        Ok(wrong())
+    match candidates.first() {
+        Some(first) if !unreadable => Verdict::Wrong {
+            entry: first.path.clone(),
+        },
+        _ => Verdict::Unchecked,
+    }
+}
+
+fn attempt(source: &Source, entry: &Entry, key: &ArchiveKey, chunk: &mut [u8]) -> Attempt {
+    let Ok((reader, _)) = entry_reader::open_at(source, entry, 0, Some(key)) else {
+        return Attempt::Unreadable;
+    };
+    let mut reader = reader.verified(entry);
+    loop {
+        match reader.read(chunk) {
+            Ok(0) => return Attempt::Matches,
+            Ok(_) => {}
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) if is_data_error(&error) => return Attempt::DataMismatch,
+            Err(_) => return Attempt::Unreadable,
+        }
     }
 }
 

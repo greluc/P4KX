@@ -151,6 +151,36 @@ fn a_wrong_key_is_detected_on_stored_data_by_its_checksum() -> TestResult {
 }
 
 #[test]
+fn a_corrupt_smallest_entry_does_not_turn_the_right_key_into_a_wrong_one() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let builder = ArchiveBuilder::new()
+        .entry(
+            TestEntry::stored("Data\\tiny.bin", b"tiny".to_vec())
+                .encrypted()
+                .with_crc32c(1),
+        )
+        .entry(TestEntry::stored("Data\\secret.bin", SECRET.to_vec()).encrypted());
+    let archive = open(dir.path(), &builder)?;
+
+    assert_eq!(
+        archive.verify_key(&test_key())?,
+        KeyCheck::Verified,
+        "the next candidate decides"
+    );
+    archive.set_key(test_key());
+    assert_eq!(read(&archive, "Data\\secret.bin")?, SECRET, "readable");
+    assert!(
+        archive
+            .verify_key(&other_test_key())
+            .err()
+            .ok_or("accepted")?
+            .is_wrong_key(),
+        "a wrong key still fails on every candidate"
+    );
+    Ok(())
+}
+
+#[test]
 fn verifying_a_key_sets_nothing() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = open(dir.path(), &builder())?;

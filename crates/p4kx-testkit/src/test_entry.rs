@@ -96,6 +96,21 @@ impl TestEntry {
         self
     }
 
+    /// Writes `value` as the CRC-32C of the directory instead of the one of the data.
+    #[must_use]
+    pub const fn with_crc32c(mut self, value: u32) -> Self {
+        self.crc32c = value;
+        self
+    }
+
+    /// Writes `value` as the plain CRC-32 of a container directory instead of the one of the
+    /// data.
+    #[must_use]
+    pub const fn with_crc32(mut self, value: u32) -> Self {
+        self.crc32 = value;
+        self
+    }
+
     /// Declares `size` as the uncompressed size in the central directory, keeping the data.
     #[must_use]
     pub const fn with_uncompressed_size(mut self, size: u64) -> Self {

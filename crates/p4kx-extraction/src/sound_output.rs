@@ -131,6 +131,7 @@ mod tests {
             convert: true,
             textures: TextureConversion::default(),
             audio: AudioConversion::Wav,
+            verify: false,
             tracker: &tracker,
         };
         let destination = Destination::new(target.clone(), "a.wav".as_ref()).expect("destination");

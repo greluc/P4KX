@@ -30,8 +30,8 @@ pub(crate) struct SkinMesh<'a> {
 /// submeshes, extra words and the data streams.
 ///
 /// Quantised positions are dequantised with the second, scaling box for every mesh; the first,
-/// model box is skipped. In the real Archives only static models are quantised, and the second box
-/// is the one their positions were quantised against (docs/mesh-bounding-boxes.md).
+/// model box is skipped. Only static models are quantised in the real Archives; where the face
+/// normals can tell, the second box is the one that fits (docs/mesh-bounding-boxes.md).
 pub(crate) fn read_skin(data: &[u8]) -> Result<SkinMesh<'_>, CorruptChunk> {
     let mut reader = ByteReader::new(data);
     reader.read_u32()?;

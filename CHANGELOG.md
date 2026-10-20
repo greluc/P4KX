@@ -104,11 +104,13 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
-- Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU shows that quantised
-  positions (static models only; skins store floats) are always quantised against the second,
-  scaling box of the mesh chunk, also in the 30,000 `.cgfm` and `.cgam` chunks of each Archive
-  whose two boxes differ. The reader keeps that rule for every mesh, documents it
-  (docs/mesh-bounding-boxes.md) and tests it with differing boxes; no exported model changes.
+- Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU compares the two boxes of
+  the mesh chunks (static models only; skins store floats). Of the about 30,000 `.cgfm` chunks
+  and about 31,000 `.cgam` chunks of each Archive whose boxes differ, the face normals can decide
+  about 6,000 in LIVE, and 99 % of those choose the second, scaling box; the rest are axis-aligned
+  and undecidable. The reader keeps the second box for every mesh, documents the evidence and its
+  limits (docs/mesh-bounding-boxes.md) and tests it with a differing model box; no exported model
+  changes.
 
 ## [0.2.0]
 

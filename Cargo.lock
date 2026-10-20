@@ -3779,6 +3779,7 @@ dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
  "proptest",
+ "rayon",
  "roxmltree",
  "thiserror 2.0.21",
 ]

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
-use p4kx_model::{LodSelection, Model};
+use p4kx_model::{Animation, LodSelection, Model};
 
 use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
@@ -156,19 +156,36 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
+        self.write_glb_animated(&[], options, out)
+    }
+
+    /// Writes the model with `animations` as a GLB file to `out`, replacing it; see
+    /// [`Self::write_glb`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`].
+    pub fn write_glb_animated(
+        &self,
+        animations: &[Animation],
+        options: &GlbOptions,
+        out: &Path,
+    ) -> Result<GlbSummary, ConversionError> {
         if is_same_file(out, self.inputs.iter().cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
         write_replacing(out, |writer| {
-            p4kx_gltf::write_glb(&self.model, options, writer).map_err(|error| match error {
-                GltfError::Write(source) => write_error(out, source),
-                source => ConversionError::Glb {
-                    file: self.name.clone(),
-                    source,
+            p4kx_gltf::write_glb_animated(&self.model, animations, options, writer).map_err(
+                |error| match error {
+                    GltfError::Write(source) => write_error(out, source),
+                    source => ConversionError::Glb {
+                        file: self.name.clone(),
+                        source,
+                    },
                 },
-            })
+            )
         })
     }
 }

@@ -1,15 +1,20 @@
 use std::io::{self, BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_extraction::model::{ChunkUsage, LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{
-    ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, ModelSource,
+    AnimationChoice, AnimationSet, ConversionError, GlbOptions, GlbSummary, GltfError,
+    MaterialMode, ModelSource, PathIndex,
 };
 use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction, ModelArgs, ModelFileSource};
 use crate::json;
+use crate::model_animations::{
+    UnreadJson, WrittenJson, count_line, write_notes as write_animation_notes, write_table,
+    write_unread,
+};
 use crate::model_bones::write_bones;
 use crate::model_json::{ChunkJson, InfoJson, file_name, node_name, usage_name};
 use crate::model_materials_json::LibraryJson;
@@ -32,21 +37,30 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     library: LibraryJson<'a>,
+    animations: Vec<WrittenJson>,
+    unread_animations: Vec<UnreadJson>,
     unknown_chunks: Vec<ChunkJson>,
 }
+
+type Opened = (ModelSource, AnimationSet);
 
 /// Runs `p4kx model info` or `p4kx model glb`.
 pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
     match &args.action {
-        ModelAction::Info(source) => info(&open(source, LodSelection::All)?, as_json),
+        ModelAction::Info(source) => info(
+            &open(source, LodSelection::All, Some(&AnimationChoice::All))?,
+            as_json,
+        ),
         ModelAction::Glb {
             source,
             out,
             lod,
             materials,
             no_vertex_colours,
+            animations,
         } => {
-            let source = open(source, LodSelection::Only(*lod))?;
+            let choice = choice_of(animations);
+            let opened = open(source, LodSelection::Only(*lod), choice.as_ref())?;
             let mode = match materials {
                 MaterialsArg::Colours => MaterialMode::Colours,
             };
@@ -56,23 +70,52 @@ pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
             } else {
                 options
             };
-            glb(&source, options, out, as_json)
+            glb(&opened, options, out, as_json)
         }
     }
 }
 
-fn open(source: &ModelFileSource, lods: LodSelection) -> Result<ModelSource> {
-    Ok(match &source.entry {
-        Some(entry) => {
-            ModelSource::from_archive_with(&crate::key::open(&source.path)?, entry, lods)?
-        }
-        None => ModelSource::from_file_with(&source.path, lods)?,
-    })
+fn choice_of(animations: &[String]) -> Option<AnimationChoice> {
+    if animations.is_empty() {
+        None
+    } else if animations
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case("all"))
+    {
+        Some(AnimationChoice::All)
+    } else {
+        Some(AnimationChoice::Named(animations.to_vec()))
+    }
 }
 
-fn info(source: &ModelSource, as_json: bool) -> Result<()> {
+fn open(
+    source: &ModelFileSource,
+    lods: LodSelection,
+    choice: Option<&AnimationChoice>,
+) -> Result<Opened> {
+    if let Some(entry) = &source.entry {
+        let archive = crate::key::open(&source.path)?;
+        let index = PathIndex::new(&archive);
+        let model = ModelSource::from_index_with(&index, entry, lods)?;
+        let animations = choice
+            .map(|choice| {
+                AnimationSet::from_archive(&index, entry, choice, &source.animation_sources)
+            })
+            .transpose()?
+            .unwrap_or_default();
+        return Ok((model, animations));
+    }
+    let model = ModelSource::from_file_with(&source.path, lods)?;
+    let extra: Vec<PathBuf> = source.animation_sources.iter().map(PathBuf::from).collect();
+    let animations = choice
+        .map(|choice| AnimationSet::from_disk(&source.path, choice, &extra))
+        .transpose()?
+        .unwrap_or_default();
+    Ok((model, animations))
+}
+fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     if as_json {
-        json::print(&InfoJson::of(source))?;
+        json::print(&InfoJson::of(source, animations))?;
         return Ok(());
     }
     let model = source.model();
@@ -87,11 +130,14 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     writeln!(out, "LODs:        {}", model.lods.len())?;
     writeln!(out, "Materials:   {}", materials(model))?;
     writeln!(out, "Bones:       {}", model.bones.len())?;
+    writeln!(out, "Animations:  {}", count_line(animations))?;
     writeln!(out, "Chunks:      {}", chunk_counts(model))?;
     write_lods(&mut out, model)?;
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
     write_bones(&mut out, model)?;
+    write_table(&mut out, model, animations)?;
+    write_unread(&mut out, animations)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
     Ok(())
@@ -256,11 +302,16 @@ fn chunk_counts(model: &Model) -> String {
     )
 }
 
-fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> Result<()> {
-    let summary = source.write_glb(&options, out)?;
+fn glb(
+    (source, animations): &Opened,
+    options: GlbOptions,
+    out: &Path,
+    as_json: bool,
+) -> Result<()> {
+    let summary = source.write_glb_animated(&animations.animations, &options, out)?;
     let model = source.model();
     if as_json {
-        json::print(&glb_json(source, out, &summary))?;
+        json::print(&glb_json(source, animations, out, &summary))?;
         return Ok(());
     }
     let mut stdout = BufWriter::new(io::stdout().lock());
@@ -278,6 +329,7 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
         summary.bytes
     )?;
     write_notes(&mut stdout, model, &summary)?;
+    write_animation_notes(&mut stdout, &summary.animations, animations)?;
     stdout.flush()?;
     Ok(())
 }
@@ -328,7 +380,12 @@ fn write_notes(stdout: &mut impl Write, model: &Model, summary: &GlbSummary) -> 
     Ok(())
 }
 
-fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> GlbJson<'a> {
+fn glb_json<'a>(
+    source: &'a ModelSource,
+    animations: &AnimationSet,
+    out: &Path,
+    summary: &GlbSummary,
+) -> GlbJson<'a> {
     GlbJson {
         model: source.name(),
         out: json::path(out),
@@ -344,6 +401,8 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> Gl
         triangles: summary.triangles,
         bytes: summary.bytes,
         library: LibraryJson::of(source.model()),
+        animations: summary.animations.iter().map(WrittenJson::of).collect(),
+        unread_animations: animations.unread.iter().map(UnreadJson::of).collect(),
         unknown_chunks: source.model().unknown_chunks().map(ChunkJson::of).collect(),
     }
 }
@@ -357,10 +416,11 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
             ConversionError::Model {
                 source: ModelError::MissingGeometry { .. } | ModelError::NoSuchLod { .. },
                 ..
-            } | ConversionError::Glb {
-                source: GltfError::NoSuchLod { .. },
-                ..
-            }
+            } | ConversionError::UnknownAnimations { .. }
+                | ConversionError::Glb {
+                    source: GltfError::NoSuchLod { .. },
+                    ..
+                }
         )
     )
 }
@@ -370,12 +430,14 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
 pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<ConversionError>(),
-        Some(ConversionError::Model {
-            source: ModelError::Companion { .. }
-                | ModelError::CompanionChunks { .. }
-                | ModelError::NoMesh { .. }
-                | ModelError::Corrupt { .. },
-            ..
-        })
+        Some(
+            ConversionError::Model {
+                source: ModelError::Companion { .. }
+                    | ModelError::CompanionChunks { .. }
+                    | ModelError::NoMesh { .. }
+                    | ModelError::Corrupt { .. },
+                ..
+            } | ConversionError::Animation { .. }
+        )
     )
 }

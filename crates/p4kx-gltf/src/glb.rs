@@ -1,10 +1,11 @@
 use std::io::Write;
 
 use gltf_json as json;
-use p4kx_model::{Lod, Model};
+use p4kx_model::{Animation, Lod, Model};
 
 use crate::GltfError;
-use crate::document::document;
+use crate::animations::{AnimationPlan, AnimationSummary, Targets, plan as plan_animations};
+use crate::document::{document, skeleton_written};
 use crate::layout::Layout;
 use crate::materials::MaterialPlan;
 use crate::skin::inverse_binds;
@@ -73,7 +74,7 @@ impl GlbOptions {
 }
 
 /// What a GLB export wrote.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct GlbSummary {
     /// The number of glTF nodes.
@@ -100,6 +101,9 @@ pub struct GlbSummary {
     pub vertices: usize,
     /// The number of triangles of all meshes.
     pub triangles: usize,
+    /// The animations that were asked for, in order, with what became of each; one without
+    /// channels is not written.
+    pub animations: Vec<AnimationSummary>,
     /// The length of the file in bytes.
     pub bytes: u64,
 }
@@ -117,14 +121,42 @@ pub fn write_glb(
     options: &GlbOptions,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
+    write_glb_animated(model, &[], options, out)
+}
+
+/// Writes `model` with `animations` as a GLB file to `out`; see [`write_glb`].
+///
+/// Each track of an animation moves the node of the bone with its controller ID: a bone node
+/// when the skeleton is written (a skinned model or a skeleton file), otherwise the node a
+/// static model's helper bone drives. Rotation and translation keys become one channel each,
+/// linear between keys and constant for a single key; times are in seconds from the frame rate of
+/// the animation. Tracks without such a bone are left out and listed in
+/// [`GlbSummary::animations`].
+///
+/// # Errors
+///
+/// As [`write_glb`].
+pub fn write_glb_animated(
+    model: &Model,
+    animations: &[Animation],
+    options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
     let lod = find_lod(model, options.lod)?;
     let MaterialMode::Colours = options.materials;
     let plan = MaterialPlan::new(model, lod);
     let bones = model.bones_of(lod);
     let binds = (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
         .then(|| inverse_binds(bones));
-    let layout = Layout::plan(lod, options.vertex_colours, &plan, binds.as_deref());
-    let root = document(model, lod, &layout, &plan);
+    let mut layout = Layout::plan(lod, options.vertex_colours, &plan, binds.as_deref());
+    let written = skeleton_written(model, lod, &layout);
+    let targets = Targets {
+        bones: if written { bones } else { &model.bones },
+        first_bone_node: written.then_some(model.nodes.len()),
+        model_nodes: model.nodes.len(),
+    };
+    let animation_plans = plan_animations(&mut layout, animations, &targets);
+    let root = document(model, lod, &layout, &plan, &animation_plans);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -150,7 +182,14 @@ pub fn write_glb(
         layout.write(out)?;
     }
     out.flush()?;
-    Ok(summarise(model, &root, &layout, &plan, total))
+    Ok(summarise(
+        model,
+        &root,
+        &layout,
+        &plan,
+        &animation_plans,
+        total,
+    ))
 }
 
 fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
@@ -174,6 +213,7 @@ fn summarise(
     root: &json::Root,
     layout: &Layout<'_>,
     plan: &MaterialPlan<'_>,
+    animations: &[AnimationPlan],
     bytes: u64,
 ) -> GlbSummary {
     let meshes = &layout.meshes;
@@ -199,6 +239,7 @@ fn summarise(
         skinned_meshes: meshes.iter().filter(|mesh| !mesh.joints.is_empty()).count(),
         vertices,
         triangles,
+        animations: animations.iter().map(|plan| plan.summary.clone()).collect(),
         bytes,
     }
 }

@@ -1,6 +1,7 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
+mod animation_set;
 mod archive_cause;
 mod bank;
 mod budget;
@@ -66,6 +67,7 @@ mod verify;
 mod watch;
 mod write;
 
+pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -110,7 +112,7 @@ pub use p4kx_dataforge::{
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;
-pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, MaterialMode};
+pub use p4kx_gltf::{AnimationSummary, GlbOptions, GlbSummary, GltfError, MaterialMode};
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,
     MAX_GLOBAL_INI_SIZE, OwnedTextSet, PLACEHOLDER_KEYS, ParseLanguageError, TextSet,

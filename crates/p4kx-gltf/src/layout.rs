@@ -1,153 +1,14 @@
 use std::io::Write;
 
-use p4kx_model::{Influences, Lod, Mesh};
+use p4kx_model::{Lod, Mesh};
 
 use crate::axes::to_y_up;
+use crate::block::{Block, BlockData};
 use crate::materials::MaterialPlan;
-use crate::skin::{SET_LEN, joint_set, weight_set};
+use crate::skin::SET_LEN;
 
 const ALIGNMENT: u64 = 4;
 const BATCH: usize = 1 << 14;
-
-/// What one block of the binary chunk holds.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum BlockData<'m> {
-    /// Vertex positions, converted to Y up.
-    Positions(&'m [[f32; 3]]),
-    /// Vertex normals, converted to Y up.
-    Normals(&'m [[f32; 3]]),
-    /// Texture coordinates.
-    Uvs(&'m [[f32; 2]]),
-    /// Vertex tangents with the handedness in `w`; the tangent converted to Y up.
-    Tangents(&'m [[f32; 4]]),
-    /// Vertex colours, red, green, blue and alpha as normalised bytes.
-    Colours(&'m [[u8; 4]]),
-    /// A submesh's indices as 16-bit values.
-    Short(&'m [u32]),
-    /// A submesh's indices as 32-bit values.
-    Wide(&'m [u32]),
-    /// The bone indices of influence set `.1` as 16-bit values, four per vertex.
-    Joints(&'m [Influences], usize),
-    /// The weights of influence set `.1` as normalised bytes, four per vertex.
-    Weights(&'m [Influences], usize),
-    /// The inverse bind matrices of the skeleton's bones, column-major.
-    InverseBinds(&'m [[f32; 16]]),
-}
-
-impl<'m> BlockData<'m> {
-    const fn len(&self) -> u64 {
-        let (count, size) = match self {
-            Self::Positions(values) | Self::Normals(values) => (values.len(), 12),
-            Self::Uvs(values) => (values.len(), 8),
-            Self::Tangents(values) => (values.len(), 16),
-            Self::Colours(values) => (values.len(), 4),
-            Self::Short(values) => (values.len(), 2),
-            Self::Wide(values) => (values.len(), 4),
-            Self::Joints(values, _) => (values.len(), 2 * SET_LEN),
-            Self::Weights(values, _) => (values.len(), SET_LEN),
-            Self::InverseBinds(values) => (values.len(), 64),
-        };
-        count as u64 * size as u64
-    }
-
-    pub(crate) const fn count(&self) -> usize {
-        match self {
-            Self::Positions(values) | Self::Normals(values) => values.len(),
-            Self::Uvs(values) => values.len(),
-            Self::Tangents(values) => values.len(),
-            Self::Colours(values) => values.len(),
-            Self::Short(values) | Self::Wide(values) => values.len(),
-            Self::Joints(values, _) | Self::Weights(values, _) => values.len(),
-            Self::InverseBinds(values) => values.len(),
-        }
-    }
-
-    /// Returns the elements `start..end` of the block.
-    fn slice(&self, start: usize, end: usize) -> Self {
-        let part = |values: &'m [_]| values.get(start..end).unwrap_or_default();
-        match *self {
-            Self::Positions(values) => Self::Positions(part(values)),
-            Self::Normals(values) => Self::Normals(part(values)),
-            Self::Uvs(values) => Self::Uvs(values.get(start..end).unwrap_or_default()),
-            Self::Tangents(values) => Self::Tangents(values.get(start..end).unwrap_or_default()),
-            Self::Colours(values) => Self::Colours(values.get(start..end).unwrap_or_default()),
-            Self::Short(values) => Self::Short(values.get(start..end).unwrap_or_default()),
-            Self::Wide(values) => Self::Wide(values.get(start..end).unwrap_or_default()),
-            Self::Joints(values, set) => {
-                Self::Joints(values.get(start..end).unwrap_or_default(), set)
-            }
-            Self::Weights(values, set) => {
-                Self::Weights(values.get(start..end).unwrap_or_default(), set)
-            }
-            Self::InverseBinds(values) => {
-                Self::InverseBinds(values.get(start..end).unwrap_or_default())
-            }
-        }
-    }
-
-    /// Appends the block's bytes, little-endian, to `out`.
-    fn encode(&self, out: &mut Vec<u8>) {
-        match self {
-            Self::Positions(values) | Self::Normals(values) => {
-                for &value in *values {
-                    for component in to_y_up(value) {
-                        out.extend_from_slice(&component.to_le_bytes());
-                    }
-                }
-            }
-            Self::Uvs(values) => {
-                for component in values.iter().flatten() {
-                    out.extend_from_slice(&component.to_le_bytes());
-                }
-            }
-            Self::Tangents(values) => {
-                for &[x, y, z, w] in *values {
-                    let [x, y, z] = to_y_up([x, y, z]);
-                    for component in [x, y, z, w] {
-                        out.extend_from_slice(&component.to_le_bytes());
-                    }
-                }
-            }
-            Self::Colours(values) => out.extend(values.iter().flatten()),
-            Self::Short(values) => {
-                for &value in *values {
-                    let short = u16::try_from(value).unwrap_or(u16::MAX);
-                    out.extend_from_slice(&short.to_le_bytes());
-                }
-            }
-            Self::Wide(values) => {
-                for value in *values {
-                    out.extend_from_slice(&value.to_le_bytes());
-                }
-            }
-            Self::Joints(values, set) => {
-                for influences in *values {
-                    for joint in joint_set(influences, *set) {
-                        out.extend_from_slice(&joint.to_le_bytes());
-                    }
-                }
-            }
-            Self::Weights(values, set) => {
-                for influences in *values {
-                    out.extend_from_slice(&weight_set(influences, *set));
-                }
-            }
-            Self::InverseBinds(values) => {
-                for value in values.iter().flatten() {
-                    out.extend_from_slice(&value.to_le_bytes());
-                }
-            }
-        }
-    }
-}
-
-/// One block of the binary chunk at its offset.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Block<'m> {
-    pub(crate) offset: u64,
-    pub(crate) len: u64,
-    pub(crate) data: BlockData<'m>,
-}
 
 /// The primitive of one submesh: its index block and material ID.
 #[derive(Debug, Clone, Copy)]
@@ -318,7 +179,7 @@ impl<'m> Layout<'m> {
             .collect()
     }
 
-    fn push(&mut self, data: BlockData<'m>) -> usize {
+    pub(crate) fn push(&mut self, data: BlockData<'m>) -> usize {
         let len = data.len();
         self.blocks.push(Block {
             offset: self.len,

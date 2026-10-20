@@ -1,6 +1,7 @@
 use gltf::accessor::{DataType, Dimensions};
 use gltf::{Accessor, Document, Gltf, Semantic};
 
+use crate::glb_animation::check_animations;
 use crate::glb_container::split_glb;
 use crate::glb_skin::check_skins;
 
@@ -71,7 +72,9 @@ impl CheckedGlb {
 /// a handedness of ±1, colour types, index range and primitive restart values, triangle counts,
 /// unit rotations and a node forest, and for skins unique joints, affine inverse bind matrices,
 /// the skeleton root, skinned meshes at the root of the scene and per vertex weights that add up
-/// to 1 over bones the skin has.
+/// to 1 over bones the skin has, and for animations distinct channel targets, strictly increasing
+/// key times with exact `min` and `max`, one output per key of the property's type and unit
+/// rotations.
 ///
 /// # Errors
 ///
@@ -89,6 +92,7 @@ pub fn check_glb(bytes: &[u8]) -> Result<CheckedGlb, String> {
     check_meshes(&checked)?;
     check_nodes(&checked)?;
     check_skins(&checked)?;
+    check_animations(&checked)?;
     Ok(checked)
 }
 

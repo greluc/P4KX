@@ -34,6 +34,15 @@ const CHUNK_EXTENSIONS: [&str; 17] = [
     "img",
 ];
 const MAX_FILE_LEN: u64 = 512 << 20;
+const DOCUMENTED_UNKNOWN: [u32; 7] = [
+    0x322B_A3C7,
+    0x3702_75B7,
+    0x3C2C_C7AB,
+    0x570F_CCBA,
+    0x6B8D_F259,
+    0x822D_7322,
+    0xC238_7AD1,
+];
 const SNIFFED_PER_EXTENSION: usize = 12;
 
 #[derive(Default, Clone)]
@@ -71,7 +80,7 @@ fn word(data: &[u8], at: usize) -> Option<u32> {
 fn describe(id: u32, data: &[u8]) -> Option<String> {
     match id {
         ASSET_METADATA => Some(format!(
-            "AssetMetadata size {} head {:X?}",
+            "ExportFlags size {} head {:X?}",
             data.len(),
             (0..4).map(|at| word(data, at * 4)).collect::<Vec<_>>()
         )),
@@ -79,7 +88,7 @@ fn describe(id: u32, data: &[u8]) -> Option<String> {
             let (dimension, bytes) = (word(data, 16)?, word(data, 20)?);
             let grid = u64::from(dimension) * u64::from(dimension) * 8;
             Some(format!(
-                "BoundingData dimension {dimension} table {bytes} dimension^2*8 {} size==40+table {}",
+                "PositionBonemap dimension {dimension} table {bytes} dimension^2*8 {} size==40+table {}",
                 grid == u64::from(bytes),
                 data.len() as u64 == 40 + u64::from(bytes)
             ))
@@ -92,7 +101,7 @@ fn describe(id: u32, data: &[u8]) -> Option<String> {
             }
             let total = sum + 0x50 + count as u64 * 8;
             Some(format!(
-                "LodMeshData blob table: blobs + table within 16 bytes of chunk size {}",
+                "StatObjPhysics blob table: blobs + table within 16 bytes of chunk size {}",
                 total.abs_diff(data.len() as u64) <= 16
             ))
         }
@@ -371,5 +380,19 @@ fn every_chunk_type_of_the_archive_is_counted_and_the_unknown_ones_are_listed() 
     }
     assert!(survey.files > 0, "the Archive holds chunk files");
     assert!(survey.failed.is_empty(), "failed: {:#?}", survey.failed);
+    assert!(survey.skipped.is_empty(), "skipped: {:#?}", survey.skipped);
+    assert!(
+        survey.profiles.keys().all(|text| !text.contains("false")),
+        "a content check of a disputed type fails: {:#?}",
+        survey.profiles
+    );
+    let mut unknown: Vec<u32> = survey
+        .stats
+        .keys()
+        .filter(|&&(crch, id, _)| crch == 0 && !ChunkType::new(Container::Ivo, id).is_known())
+        .map(|&(_, id, _)| id)
+        .collect();
+    unknown.dedup();
+    assert_eq!(unknown, DOCUMENTED_UNKNOWN, "the #ivo types without a name");
     Ok(())
 }

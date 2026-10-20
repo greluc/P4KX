@@ -13,6 +13,7 @@ use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
 
 mod adpcm;
+mod audio_survey;
 mod combined;
 mod cubemap_alpha;
 mod dataforge_canary;
@@ -27,6 +28,8 @@ mod texture_hdr_cube;
 mod texture_known;
 mod texture_survey;
 mod verification;
+mod vorbis_cost;
+mod wem_survey;
 
 type TestResult = Result<(), Box<dyn Error>>;
 type SendError = Box<dyn Error + Send + Sync>;

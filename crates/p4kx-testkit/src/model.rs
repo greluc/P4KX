@@ -27,6 +27,18 @@ pub enum TestNormals {
     Float,
     /// An `IVOQTANGENTS` stream of a packed tangent and bitangent per vertex.
     Compressed,
+    /// An `IVONORMALS` stream of three 32-bit floats per vertex.
+    FloatOnNormals,
+    /// An `IVONORMALS` stream of one packed unit vector per vertex.
+    PackedOnNormals,
+    /// An `IVONORMALS2` stream of one packed unit vector per vertex.
+    PackedOnNormals2,
+    /// An `IVOQTANGENTS` stream of the true normals followed by an `IVONORMALS2` stream of packed
+    /// vectors that point the other way.
+    CompressedWithOpposedPacked,
+    /// An `IVOTANGENTS` stream of 16 bytes per vertex: two quaternions of four signed 16-bit
+    /// values, the first rotating the Z axis onto the normal.
+    Tangents16,
     /// No normal stream.
     None,
 }
@@ -89,6 +101,8 @@ pub struct TestModel {
     pub(crate) positions: TestPositions,
     pub(crate) normals: TestNormals,
     pub(crate) wide_indices: bool,
+    pub(crate) model_box: Option<([f32; 3], [f32; 3])>,
+    pub(crate) repeated_index_streams: usize,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
     helpers_only: bool,
@@ -116,6 +130,8 @@ impl TestModel {
             positions: TestPositions::Quantized,
             normals: TestNormals::Float,
             wide_indices: false,
+            model_box: None,
+            repeated_index_streams: 0,
             extra_chunks: Vec::new(),
             single_file: false,
             helpers_only: false,
@@ -140,6 +156,21 @@ impl TestModel {
     #[must_use]
     pub const fn with_wide_indices(mut self) -> Self {
         self.wide_indices = true;
+        self
+    }
+
+    /// Writes `min` and `max` as the first, model bounding box of the mesh chunk; the second,
+    /// scaling box stays the extent of the vertices, which the positions are quantised against.
+    #[must_use]
+    pub const fn with_model_box(mut self, min: [f32; 3], max: [f32; 3]) -> Self {
+        self.model_box = Some((min, max));
+        self
+    }
+
+    /// Writes the index stream a second time after the other streams.
+    #[must_use]
+    pub const fn with_repeated_indices(mut self) -> Self {
+        self.repeated_index_streams = 1;
         self
     }
 

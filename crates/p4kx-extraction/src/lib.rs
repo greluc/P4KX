@@ -89,11 +89,12 @@ pub use p4kx_archive::{
     MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
-    ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,
-    HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
+    HircKind, HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
+    WemChunk,
 };
 pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;

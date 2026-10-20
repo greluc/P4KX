@@ -10,7 +10,17 @@ use crate::{AudioError, ByteOrder, Codec};
 const SAMPLE_COUNT_OFFSET: usize = 0x18;
 const VORBIS_FMT_LEN: usize = 0x42;
 const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
+const EXTRA_LEN_OFFSET: usize = 0x10;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
+/// One RIFF chunk of a WEM: its tag and its body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WemChunk<'a> {
+    /// The four-character chunk tag, e.g. `*b"smpl"`.
+    pub id: [u8; 4],
+    /// The body after the 8-byte chunk header, without a pad byte.
+    pub body: &'a [u8],
+}
 
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
 #[derive(Debug, Clone)]
@@ -36,6 +46,7 @@ struct Format {
     bits: u16,
     channel_mask: u32,
     embedded_sample_count: Option<u32>,
+    extra_len: Option<u16>,
     len: usize,
 }
 
@@ -69,7 +80,12 @@ impl<B: AsRef<[u8]>> Wem<B> {
         let fmt = fmt.ok_or(AudioError::MissingChunk("fmt "))?;
         let data = data.ok_or(AudioError::MissingChunk("data"))?;
         let format = read_format(order, all.get(fmt).unwrap_or_default())?;
-        let codec = Codec::from_tag(format.tag);
+        let codec = Codec::of_format(
+            format.tag,
+            format.channels,
+            format.block_align,
+            format.extra_len,
+        );
         let vorb_sample_count = vorb.and_then(|vorb| order.u32_at(all, vorb.start));
         let sample_count = sample_count(codec, &format, vorb_sample_count, data.len() as u64)?;
         let loop_points = smpl.and_then(|smpl| {
@@ -93,6 +109,29 @@ impl<B: AsRef<[u8]>> Wem<B> {
             data,
             bytes,
         })
+    }
+
+    /// Returns every chunk of the RIFF in file order, those after `data` included, e.g. `smpl`,
+    /// `cue ` and `LIST`; the walk ends at the declared RIFF size, or at the first chunk that runs
+    /// past it.
+    pub fn chunks(&self) -> impl Iterator<Item = WemChunk<'_>> {
+        let bytes = self.bytes.as_ref();
+        Chunks::of(bytes)
+            .into_iter()
+            .flat_map(|(_, chunks)| chunks)
+            .map_while(Result::ok)
+            .map(move |Chunk { id, body }| WemChunk {
+                id,
+                body: bytes.get(body).unwrap_or_default(),
+            })
+    }
+
+    /// Returns the body of the first chunk tagged `id`, wherever it lies in the file.
+    #[must_use]
+    pub fn chunk(&self, id: [u8; 4]) -> Option<&[u8]> {
+        self.chunks()
+            .find(|chunk| chunk.id == id)
+            .map(|chunk| chunk.body)
     }
 
     /// Returns the bytes of the `data` chunk, the encoded audio.
@@ -217,6 +256,7 @@ fn read_format(order: ByteOrder, fmt: &[u8]) -> Result<Format, AudioError> {
         bits,
         channel_mask,
         embedded_sample_count: field32(SAMPLE_COUNT_OFFSET),
+        extra_len: field16(EXTRA_LEN_OFFSET),
         len: fmt.len(),
     })
 }

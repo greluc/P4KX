@@ -11,7 +11,10 @@ use crate::scene::{
 };
 use crate::scene_report::{SkipReason, Skipped};
 use crate::scene_shape::ShapeBuilder;
+use crate::scene_text::{MAX_SCENE_GLYPHS, TextState};
 use crate::shape::Shape;
+use crate::text::{EditText, StaticText};
+use crate::text_fonts::TextOptions;
 use crate::timeline::Sprite;
 use crate::walker::MAX_SPRITE_DEPTH;
 
@@ -24,6 +27,8 @@ enum Definition<'b> {
     Shape(&'b Shape),
     Morph(&'b MorphShape),
     Sprite(&'b Sprite),
+    StaticText(&'b StaticText),
+    EditText(&'b EditText),
     Other(u16),
 }
 
@@ -36,13 +41,20 @@ enum Target {
 
 /// What a timeline inherits from the placement that shows it.
 #[derive(Clone, Copy)]
-struct Context {
-    transform: Affine,
-    color_transform: ColorTransform,
-    mask: Option<usize>,
+pub(crate) struct Context {
+    pub(crate) transform: Affine,
+    pub(crate) color_transform: ColorTransform,
+    pub(crate) mask: Option<usize>,
     target: Target,
-    sprite: Option<u16>,
+    pub(crate) sprite: Option<u16>,
     depth: u32,
+}
+
+impl Context {
+    /// Returns the context with another transform.
+    pub(crate) const fn with_transform(self, transform: Affine) -> Self {
+        Self { transform, ..self }
+    }
 }
 
 /// The limits of one composition.
@@ -53,6 +65,7 @@ pub(crate) struct SceneLimits {
     pub(crate) segments: usize,
     pub(crate) records: usize,
     pub(crate) masks: usize,
+    pub(crate) glyphs: usize,
 }
 
 impl SceneLimits {
@@ -62,62 +75,91 @@ impl SceneLimits {
         segments: MAX_SCENE_SEGMENTS,
         records: MAX_SCENE_RECORDS,
         masks: MAX_SCENE_MASKS,
+        glyphs: MAX_SCENE_GLYPHS,
     };
+}
+
+/// Indexes the definitions of a movie by ID; the first definition of an ID wins.
+fn definitions<'b>(assets: &'b Assets<'_>) -> HashMap<u16, Definition<'b>> {
+    let mut definitions = HashMap::new();
+    for other in &assets.other_definitions {
+        definitions
+            .entry(other.id)
+            .or_insert(Definition::Other(other.code));
+    }
+    for text in &assets.static_texts {
+        definitions
+            .entry(text.id)
+            .or_insert(Definition::StaticText(text));
+    }
+    for text in &assets.edit_texts {
+        definitions
+            .entry(text.id)
+            .or_insert(Definition::EditText(text));
+    }
+    for font in &assets.fonts {
+        definitions
+            .entry(font.id)
+            .or_insert(Definition::Other(TAG_DEFINE_FONT));
+    }
+    for bitmap in &assets.bitmaps {
+        definitions
+            .entry(bitmap.id)
+            .or_insert(Definition::Other(TAG_DEFINE_BITS));
+    }
+    for sprite in &assets.sprites {
+        definitions
+            .entry(sprite.id)
+            .or_insert(Definition::Sprite(sprite));
+    }
+    for morph in &assets.morph_shapes {
+        definitions
+            .entry(morph.id)
+            .or_insert(Definition::Morph(morph));
+    }
+    for shape in &assets.shapes {
+        definitions
+            .entry(shape.id)
+            .or_insert(Definition::Shape(shape));
+    }
+    definitions
 }
 
 /// Composes the first frame of a movie into a [`Scene`].
 pub(crate) struct Composer<'b> {
-    limits: SceneLimits,
-    records: usize,
+    pub(crate) limits: SceneLimits,
+    pub(crate) records: usize,
     definitions: HashMap<u16, Definition<'b>>,
     shapes: HashMap<(u16, u16), usize>,
-    issues: Vec<Vec<SkipReason>>,
-    scene: Scene,
+    pub(crate) issues: Vec<Vec<SkipReason>>,
+    pub(crate) scene: Scene,
     placements: usize,
     paths: usize,
     segments: usize,
-    stopped: bool,
+    pub(crate) stopped: bool,
+    pub(crate) text: TextState<'b>,
 }
 
 impl<'b> Composer<'b> {
     /// Composes the display list of the main timeline's first frame.
-    pub(crate) fn compose(assets: &'b Assets<'_>, stage: Rect) -> Scene {
-        Self::compose_with(assets, stage, SceneLimits::DEFAULT)
+    pub(crate) fn compose(assets: &'b Assets<'_>, stage: Rect, options: &TextOptions<'b>) -> Scene {
+        Self::compose_within(assets, stage, SceneLimits::DEFAULT, options)
     }
 
-    /// Composes the display list as [`Composer::compose`] does within `limits`.
+    /// Composes the display list as [`Composer::compose`] does within `limits`, without
+    /// localisation or fonts beyond the movie.
+    #[cfg(test)]
     pub(crate) fn compose_with(assets: &'b Assets<'_>, stage: Rect, limits: SceneLimits) -> Scene {
-        let mut definitions = HashMap::new();
-        for other in &assets.other_definitions {
-            definitions
-                .entry(other.id)
-                .or_insert(Definition::Other(other.code));
-        }
-        for font in &assets.fonts {
-            definitions
-                .entry(font.id)
-                .or_insert(Definition::Other(TAG_DEFINE_FONT));
-        }
-        for bitmap in &assets.bitmaps {
-            definitions
-                .entry(bitmap.id)
-                .or_insert(Definition::Other(TAG_DEFINE_BITS));
-        }
-        for sprite in &assets.sprites {
-            definitions
-                .entry(sprite.id)
-                .or_insert(Definition::Sprite(sprite));
-        }
-        for morph in &assets.morph_shapes {
-            definitions
-                .entry(morph.id)
-                .or_insert(Definition::Morph(morph));
-        }
-        for shape in &assets.shapes {
-            definitions
-                .entry(shape.id)
-                .or_insert(Definition::Shape(shape));
-        }
+        Self::compose_within(assets, stage, limits, &TextOptions::default())
+    }
+
+    fn compose_within(
+        assets: &'b Assets<'_>,
+        stage: Rect,
+        limits: SceneLimits,
+        options: &TextOptions<'b>,
+    ) -> Scene {
+        let definitions = definitions(assets);
         let mut composer = Self {
             limits,
             records: 0,
@@ -133,6 +175,7 @@ impl<'b> Composer<'b> {
             paths: 0,
             segments: 0,
             stopped: false,
+            text: TextState::new(&assets.fonts, options),
         };
         let root = Context {
             transform: Affine::IDENTITY,
@@ -146,7 +189,7 @@ impl<'b> Composer<'b> {
         composer.scene
     }
 
-    fn skip(&mut self, placement: &Placement, context: Context, reason: SkipReason) {
+    pub(crate) fn skip(&mut self, placement: &Placement, context: Context, reason: SkipReason) {
         self.scene.skipped.push(Skipped {
             id: placement.id,
             depth: placement.depth,
@@ -251,6 +294,10 @@ impl<'b> Composer<'b> {
                 };
                 self.timeline(&sprite.timeline.first_frame, nested);
             }
+            Some(Definition::StaticText(text)) => {
+                self.static_text(placement, context, inner, text);
+            }
+            Some(Definition::EditText(text)) => self.edit_text(placement, context, inner, text),
             Some(Definition::Other(code)) => {
                 self.skip(placement, context, SkipReason::NotDrawn { code });
             }
@@ -282,7 +329,13 @@ impl<'b> Composer<'b> {
         Some(index)
     }
 
-    fn draw(&mut self, placement: &Placement, context: Context, inner: Context, index: usize) {
+    pub(crate) fn draw(
+        &mut self,
+        placement: &Placement,
+        context: Context,
+        inner: Context,
+        index: usize,
+    ) {
         let issues = self.issues.get(index).cloned().unwrap_or_default();
         for issue in issues {
             self.skip(placement, context, issue);
@@ -327,7 +380,7 @@ impl<'b> Composer<'b> {
         }
     }
 
-    fn stop(&mut self, placement: &Placement, context: Context, reason: SkipReason) {
+    pub(crate) fn stop(&mut self, placement: &Placement, context: Context, reason: SkipReason) {
         self.stopped = true;
         self.skip(placement, context, reason);
     }

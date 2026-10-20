@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use p4kx_extraction::Language;
 use p4kx_extraction::gfx::{Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Rgba};
 
 use crate::exit::EXIT_CODES_HELP;
@@ -36,8 +37,11 @@ pub(crate) enum UiAction {
     /// Renders the first frame of a GFx or SWF UI movie, with its sprites, as a PNG, or as an SVG
     /// with `--svg`. Shapes with solid, gradient and bitmap fills and strokes are drawn with the
     /// transforms, colour transforms and masks of their placements; external images are decoded as
-    /// `ui extract` decodes them. Texts, buttons and videos are skipped, filters and blend modes
-    /// are not applied, and every element left out is listed.
+    /// `ui extract` decodes them. Static texts and text fields are drawn from the glyph outlines of
+    /// the fonts of the movie, with their size, colour and alignment, as paths in an SVG; a
+    /// character whose font or glyph is missing is drawn as an empty box, since no system font is
+    /// used. Buttons and videos are skipped, filters and blend modes are not applied, and every
+    /// element left out or drawn as a fallback is listed.
     #[command(after_help = EXIT_CODES_HELP)]
     Render {
         /// The UI movie.
@@ -63,6 +67,11 @@ pub(crate) enum UiAction {
         /// movie sets, or `#RRGGBB` or `#RRGGBBAA`.
         #[arg(long, value_name = "COLOUR", default_value = "transparent", value_parser = parse_background)]
         background: Background,
+        /// The language that localisation keys (`@key`) of text fields resolve in: a code such as
+        /// `en` or `de`, or the folder name of the Archive. Needs an ENTRY; without it keys are drawn
+        /// as they are, and a key the language does not hold is listed.
+        #[arg(long, value_name = "LANGUAGE", requires = "entry", value_parser = clap::value_parser!(Language))]
+        lang: Option<Language>,
     },
 }
 

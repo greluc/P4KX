@@ -8,6 +8,7 @@ use crate::lossless::decode_lossless;
 use crate::morph::MorphShape;
 use crate::shape::Shape;
 use crate::tag::tag_name;
+use crate::text::{EditText, StaticText};
 use crate::timeline::{Export, ExporterInfo, Sprite, Timeline};
 
 /// Everything a movie defines, read from its tags and the tags of its sprites.
@@ -38,7 +39,11 @@ pub struct Assets<'a> {
     pub exporter_info: Option<ExporterInfo>,
     /// The JPEG tables `DefineBits` images share.
     pub jpeg_tables: Option<&'a [u8]>,
-    /// The buttons, texts and videos in file order, whose tags are not read beyond their ID.
+    /// The static texts in file order.
+    pub static_texts: Vec<StaticText>,
+    /// The text fields in file order.
+    pub edit_texts: Vec<EditText>,
+    /// The buttons and videos in file order, whose tags are not read beyond their ID.
     pub other_definitions: Vec<OtherDefinition>,
     /// The background colour of the first `SetBackgroundColor` tag.
     pub background: Option<Rgba>,
@@ -46,7 +51,7 @@ pub struct Assets<'a> {
     pub failures: Vec<TagFailure>,
 }
 
-/// A definition whose tag is not read beyond its ID: a button, a text or a video.
+/// A definition whose tag is not read beyond its ID: a button or a video.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OtherDefinition {
     /// The ID of the definition.

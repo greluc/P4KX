@@ -8,6 +8,7 @@ use p4kx_archive::Archive;
 use p4kx_gfx::Movie;
 use rayon::prelude::*;
 
+use crate::LocalizationEntry;
 use crate::entry_path::same_entry_path;
 use crate::output_file::read_error;
 use crate::sound::read_capped;
@@ -31,6 +32,7 @@ pub struct UiMovie<'a> {
     name: String,
     origin: Origin<'a>,
     movie: Movie,
+    texts: Option<LocalizationEntry>,
 }
 
 impl<'a> UiMovie<'a> {
@@ -109,12 +111,26 @@ impl<'a> UiMovie<'a> {
                 name,
                 origin,
                 movie,
+                texts: None,
             }),
             Err(source) => Err(ConversionError::UiMovie {
                 movie: name,
                 source,
             }),
         }
+    }
+
+    /// Sets the texts that localisation keys (`@key`) of text fields resolve in when the movie is
+    /// rendered; a key they do not hold is drawn as it is and listed in the report.
+    #[must_use]
+    pub fn with_texts(mut self, texts: LocalizationEntry) -> Self {
+        self.texts = Some(texts);
+        self
+    }
+
+    /// Returns the texts localisation keys resolve in, if set.
+    pub(crate) const fn texts(&self) -> Option<&LocalizationEntry> {
+        self.texts.as_ref()
     }
 
     /// Returns the name of the movie: its Entry path or its path on disk.

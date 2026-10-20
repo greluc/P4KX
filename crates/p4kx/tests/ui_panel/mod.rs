@@ -1,5 +1,5 @@
 //! The synthetic UI panel the `p4kx ui render` tests render: shapes with gradient, bitmap and
-//! solid fills and strokes, a rotated and tinted sprite, a mask and a text the renderer skips.
+//! solid fills and strokes, a rotated and tinted sprite, a mask and a button the renderer skips.
 
 use std::error::Error;
 use std::fs;
@@ -107,7 +107,7 @@ fn shapes() -> [TestShape; 5] {
 }
 
 /// A 64 x 48 pixel panel: the shapes, a sprite rotated and tinted, a mask cutting a stripe out
-/// of an inverted backdrop, and a text the renderer skips.
+/// of an inverted backdrop, and a button the renderer skips.
 pub(crate) fn panel() -> Vec<u8> {
     let checker = lossless_body(
         20,
@@ -140,7 +140,7 @@ pub(crate) fn panel() -> Vec<u8> {
         .stage(64, 48)
         .tag(9, &background_body([5, 5, 5]))
         .tag(20, &checker)
-        .tag(11, &[50, 0, 0])
+        .tag(34, &[50, 0, 0])
         .tag(39, &gauge);
     for shape in shapes() {
         movie = movie.tag(shape.code(), &shape.body());

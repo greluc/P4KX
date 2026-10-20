@@ -267,17 +267,24 @@ Early development (milestone M1). Available today:
   PNG: shapes with solid, gradient and bitmap fills (external images included) and strokes, with
   the transforms, colour transforms and masks of their placements, and morph shapes at their
   ratio. `--size` with both sides fits the stage centred into them, with one side keeps its
-  aspect ratio; the default is the stage size. Texts, buttons and videos are skipped, filters and
-  blend modes are not applied, and every element left out is listed (exit code 1). A movie is
+  aspect ratio; the default is the stage size. Static texts and text fields are drawn from the glyph
+  outlines of the fonts of the movie, with their size, colour and alignment; a character whose font
+  or glyph is missing is drawn as an empty box and listed, since no system font is used. Buttons and
+  videos are skipped, filters and blend modes are not applied, and every element left out is listed
+  (exit code 1). A movie is
   untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
   bounded, and what lies beyond a limit is listed instead of drawn.
+- `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
+  parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
+  A key the language does not hold is drawn as it is and listed.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
   same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
   same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
-  bitmap tiles it. A document is at most 1 GiB; a larger one is an error and no file is left.
+  bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
+  a larger one is an error and no file is left.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

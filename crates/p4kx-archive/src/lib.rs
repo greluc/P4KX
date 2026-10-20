@@ -20,9 +20,11 @@ mod entry_reader;
 mod error;
 mod file_source;
 mod format_error;
+mod hasher;
 mod issue;
 mod layout;
 mod source;
+mod verify;
 
 pub use archive::{Archive, MAX_DECODED_SKIP};
 pub use build::{Build, BuildError};
@@ -35,4 +37,5 @@ pub use data_error::DataError;
 pub use entry::Entry;
 pub use entry_reader::EntryReader;
 pub use error::ArchiveError;
+pub use hasher::ChecksumHasher;
 pub use issue::{EntryIssue, MAX_ENTRY_ISSUES};

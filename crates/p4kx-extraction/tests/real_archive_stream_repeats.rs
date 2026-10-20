@@ -1,5 +1,6 @@
 //! Survey of repeated stream tags in the mesh chunks of a real Archive; runs with `--ignored` when
-//! `P4KX_DATA_P4K` names one, and prints the tags that occur twice in a chunk with an example.
+//! `P4KX_DATA_P4K` names one, prints the tags that occur twice in a chunk with an example, and
+//! fails when a tag the model reads repeats, a stream overruns its chunk or a file cannot be read.
 
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -7,22 +8,28 @@ use std::io::Read;
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_chunks::{ChunkFile, ivo};
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{mesh_streams, real_archive_path};
 use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const EXTENSIONS: [&str; 4] = ["cgfm", "cgam", "skinm", "chrm"];
 const MAX_FILE_LEN: u64 = 512 << 20;
-const INDICES: u32 = 0xEECD_C168;
-const HEADER_LEN: usize = 24 + 48 + 8 + 88;
-const SUBMESH_LEN: usize = 48;
+const READ_TAGS: [u32; 7] = [
+    0xEECD_C168,
+    0x9132_9AE9,
+    0xB3A7_0D5E,
+    0x9CF3_F615,
+    0x38A5_81FE,
+    0xB95E_9A1B,
+    0xEE05_7252,
+];
 
 #[derive(Default)]
 struct Survey {
     chunks: u64,
     overlong: u64,
-    unreadable: u64,
+    unreadable: Vec<String>,
     repeats: BTreeMap<u32, (u64, String)>,
 }
 
@@ -37,42 +44,9 @@ impl Survey {
         }
         self.chunks += other.chunks;
         self.overlong += other.overlong;
-        self.unreadable += other.unreadable;
+        self.unreadable.extend(other.unreadable);
         self
     }
-}
-
-fn word(data: &[u8], at: usize) -> Option<u32> {
-    let bytes = data.get(at..at.checked_add(4)?)?;
-    Some(u32::from_le_bytes(<[u8; 4]>::try_from(bytes).ok()?))
-}
-
-fn tags_of(chunk: &[u8]) -> Option<(Vec<u32>, bool)> {
-    let vertices = usize::try_from(word(chunk, 8)?).ok()?;
-    let indices = usize::try_from(word(chunk, 12)?).ok()?;
-    let submeshes = usize::try_from(word(chunk, 16)?).ok()?;
-    let extra = usize::try_from(word(chunk, 24 + 48 + 4)?).ok()?;
-    let mut at = HEADER_LEN
-        .checked_add(submeshes.checked_mul(SUBMESH_LEN)?)?
-        .checked_add(extra.checked_mul(4)?)?;
-    let mut tags = Vec::new();
-    while at + 4 <= chunk.len() {
-        let tag = word(chunk, at)?;
-        at += 4;
-        if tag == 0 {
-            continue;
-        }
-        let size = usize::try_from(word(chunk, at)?).ok()?;
-        at += 4;
-        let count = if tag == INDICES { indices } else { vertices };
-        let end = at.checked_add(size.checked_mul(count)?)?;
-        if end > chunk.len() {
-            return Some((tags, true));
-        }
-        tags.push(tag);
-        at = end.next_multiple_of(8).min(chunk.len());
-    }
-    Some((tags, false))
 }
 
 fn scan(archive: &Archive, entry: &Entry) -> Survey {
@@ -91,7 +65,7 @@ fn scan(archive: &Archive, entry: &Entry) -> Survey {
         .map_err(|_| ())
         .and_then(|_| ChunkFile::parse(bytes).map_err(|_| ()))
     else {
-        survey.unreadable = 1;
+        survey.unreadable.push(entry.path().to_owned());
         return survey;
     };
     for (index, chunk) in file.chunks().iter().enumerate() {
@@ -99,22 +73,22 @@ fn scan(archive: &Archive, entry: &Entry) -> Survey {
         if kind != ivo::SKIN_2 && kind != ivo::SKIN {
             continue;
         }
-        let Some((tags, overlong)) = file.chunk_data(index).and_then(tags_of) else {
-            survey.unreadable += 1;
+        let Some(walked) = file.chunk_data(index).and_then(mesh_streams) else {
+            survey.unreadable.push(entry.path().to_owned());
             continue;
         };
         survey.chunks += 1;
-        survey.overlong += u64::from(overlong);
+        survey.overlong += u64::from(walked.truncated);
         let mut seen: Vec<u32> = Vec::new();
-        for tag in tags {
-            if seen.contains(&tag) {
-                let repeat = survey.repeats.entry(tag).or_default();
+        for stream in &walked.streams {
+            if seen.contains(&stream.tag) {
+                let repeat = survey.repeats.entry(stream.tag).or_default();
                 if repeat.0 == 0 {
                     entry.path().clone_into(&mut repeat.1);
                 }
                 repeat.0 += 1;
             } else {
-                seen.push(tag);
+                seen.push(stream.tag);
             }
         }
     }
@@ -134,22 +108,39 @@ fn repeated_stream_tags_in_mesh_chunks_are_counted_per_tag() -> TestResult {
         .par_iter()
         .filter(|entry| {
             let path = entry.path();
-            entry.uncompressed_size() <= MAX_FILE_LEN
-                && EXTENSIONS.iter().any(|extension| {
-                    path.len() > extension.len()
-                        && path[path.len() - extension.len()..].eq_ignore_ascii_case(extension)
-                })
+            EXTENSIONS.iter().any(|extension| {
+                path.len() > extension.len()
+                    && path[path.len() - extension.len()..].eq_ignore_ascii_case(extension)
+            })
         })
         .map(|entry| scan(&archive, entry))
         .reduce(Survey::default, Survey::merge);
     println!(
-        "mesh chunks: {}, with an overlong stream: {}, unreadable: {}",
-        survey.chunks, survey.overlong, survey.unreadable
+        "mesh chunks: {}, with an overlong stream: {}, unreadable: {} {:?}",
+        survey.chunks,
+        survey.overlong,
+        survey.unreadable.len(),
+        survey.unreadable.iter().take(5).collect::<Vec<_>>()
     );
     println!("tags repeated within a chunk: {}", survey.repeats.len());
     for (tag, (chunks, example)) in &survey.repeats {
         println!("0x{tag:08X}\t{chunks} chunks\t{example}");
     }
     assert!(survey.chunks > 0, "the Archive holds mesh chunks");
+    let read_repeats: Vec<_> = survey
+        .repeats
+        .iter()
+        .filter(|(tag, _)| READ_TAGS.contains(tag))
+        .collect();
+    assert!(
+        read_repeats.is_empty(),
+        "a stream the model reads repeats: {read_repeats:#?}"
+    );
+    assert_eq!(survey.overlong, 0, "streams that overrun their chunk");
+    assert!(
+        survey.unreadable.is_empty(),
+        "unreadable: {:#?}",
+        survey.unreadable
+    );
     Ok(())
 }

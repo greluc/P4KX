@@ -33,6 +33,7 @@ mod global_ini;
 mod hirc_node;
 mod layout_v1;
 mod layout_v2;
+mod mesh_streams;
 mod model;
 mod model_cube;
 mod model_nmc;
@@ -73,6 +74,7 @@ pub use glb::{CheckedGlb, check_glb};
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
+pub use mesh_streams::{MeshStream, MeshStreams, mesh_streams};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,

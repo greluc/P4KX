@@ -1,10 +1,12 @@
 use std::io::Write;
 
-use p4kx_model::Model;
+use gltf_json as json;
+use p4kx_model::{Lod, Model};
 
 use crate::GltfError;
 use crate::document::document;
 use crate::layout::Layout;
+use crate::materials::MaterialPlan;
 
 const MAGIC: &[u8; 4] = b"glTF";
 const VERSION: u32 = 2;
@@ -13,12 +15,24 @@ const BIN_CHUNK: u32 = 0x004E_4942;
 const HEADER_LEN: u64 = 12;
 const CHUNK_HEADER_LEN: u64 = 8;
 
+/// How an export writes the materials.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum MaterialMode {
+    /// Plain colours: base colour, opacity, roughness, metalness and emissive colour, no
+    /// textures.
+    #[default]
+    Colours,
+}
+
 /// The choices of a GLB export.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct GlbOptions {
     /// The level of detail to export, 0 for the most detailed.
     pub lod: u32,
+    /// How to write the materials.
+    pub materials: MaterialMode,
     /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`; viewers
     /// multiply the base colour of the material by them.
     pub vertex_colours: bool,
@@ -28,6 +42,7 @@ impl Default for GlbOptions {
     fn default() -> Self {
         Self {
             lod: 0,
+            materials: MaterialMode::Colours,
             vertex_colours: true,
         }
     }
@@ -38,6 +53,13 @@ impl GlbOptions {
     #[must_use]
     pub const fn with_lod(mut self, lod: u32) -> Self {
         self.lod = lod;
+        self
+    }
+
+    /// Returns the options with the material mode `materials`.
+    #[must_use]
+    pub const fn with_materials(mut self, materials: MaterialMode) -> Self {
+        self.materials = materials;
         self
     }
 
@@ -59,8 +81,15 @@ pub struct GlbSummary {
     pub meshes: usize,
     /// The number of primitives, one per submesh.
     pub primitives: usize,
-    /// The number of materials, one per material ID.
+    /// The number of materials: one per sub-material the drawn submeshes use, and one for the
+    /// engine's default material when any material ID falls back to it.
     pub materials: usize,
+    /// The number of material IDs drawn with the engine's default material, because the model
+    /// has no readable material library or the library has no sub-material for them.
+    pub default_material_ids: usize,
+    /// The number of submeshes left out because their material draws nothing: collision,
+    /// shield and helper geometry.
+    pub hidden_primitives: usize,
     /// The number of vertices of all meshes.
     pub vertices: usize,
     /// The number of triangles of all meshes.
@@ -82,21 +111,11 @@ pub fn write_glb(
     options: &GlbOptions,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
-    let lod = model
-        .lods
-        .iter()
-        .find(|lod| lod.level == options.lod)
-        .ok_or_else(|| GltfError::NoSuchLod {
-            lod: options.lod,
-            available: model
-                .lods
-                .iter()
-                .map(|lod| format!("LOD{}", lod.level))
-                .collect::<Vec<_>>()
-                .join(", "),
-        })?;
-    let layout = Layout::plan(lod, options.vertex_colours);
-    let root = document(model, &layout);
+    let lod = find_lod(model, options.lod)?;
+    let MaterialMode::Colours = options.materials;
+    let plan = MaterialPlan::new(model, lod);
+    let layout = Layout::plan(lod, options.vertex_colours, &plan);
+    let root = document(model, &layout, &plan);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -122,7 +141,31 @@ pub fn write_glb(
         layout.write(out)?;
     }
     out.flush()?;
+    Ok(summarise(&root, &layout, &plan, total))
+}
 
+fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
+    model
+        .lods
+        .iter()
+        .find(|lod| lod.level == level)
+        .ok_or_else(|| GltfError::NoSuchLod {
+            lod: level,
+            available: model
+                .lods
+                .iter()
+                .map(|lod| format!("LOD{}", lod.level))
+                .collect::<Vec<_>>()
+                .join(", "),
+        })
+}
+
+fn summarise(
+    root: &json::Root,
+    layout: &Layout<'_>,
+    plan: &MaterialPlan<'_>,
+    bytes: u64,
+) -> GlbSummary {
     let meshes = &layout.meshes;
     let vertices = meshes
         .iter()
@@ -135,13 +178,15 @@ pub fn write_glb(
         .filter_map(|primitive| layout.blocks.get(primitive.indices))
         .map(|block| block.data.count() / 3)
         .sum();
-    Ok(GlbSummary {
+    GlbSummary {
         nodes: root.nodes.len(),
         meshes: root.meshes.len(),
         primitives: meshes.iter().map(|mesh| mesh.primitives.len()).sum(),
         materials: root.materials.len(),
+        default_material_ids: plan.defaulted(),
+        hidden_primitives: layout.hidden_primitives,
         vertices,
         triangles,
-        bytes: total,
-    })
+        bytes,
+    }
 }

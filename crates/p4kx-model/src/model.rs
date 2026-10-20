@@ -1,7 +1,7 @@
 use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
-use crate::{CompanionResolver, ModelError, Transform};
+use crate::{CompanionResolver, MaterialStatus, ModelError, Transform};
 
 /// A model read from a chunk file and its companions, in `CryEngine` coordinates: Z up, metres.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +18,9 @@ pub struct Model {
     pub lods: Vec<Lod>,
     /// The material library the material IDs refer to, a path below `Data` without `.mtl`.
     pub material_library: Option<String>,
+    /// What reading the material library came to; a missing or unreadable library leaves the
+    /// model readable, with the engine's default material.
+    pub materials: MaterialStatus,
     /// The bones of the skeleton; empty for a static model.
     pub bones: Vec<Bone>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.

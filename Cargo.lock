@@ -3739,9 +3739,11 @@ version = "0.2.0"
 dependencies = [
  "half",
  "p4kx-chunks",
+ "p4kx-cryxml",
  "p4kx-foundation",
  "p4kx-testkit",
  "proptest",
+ "roxmltree",
  "thiserror 2.0.21",
 ]
 

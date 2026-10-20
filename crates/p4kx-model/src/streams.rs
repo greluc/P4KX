@@ -71,24 +71,33 @@ pub(crate) struct NormalStream<'a> {
 enum NormalKind {
     Float,
     Packed,
+    PackedSecond,
     TangentFrame,
     Quaternion,
+    /// Two quaternions per vertex; no real file has this layout, so reading the normal from the
+    /// first one is unverified.
+    QuaternionPair,
 }
 
 impl NormalKind {
     const fn stride(self) -> usize {
         match self {
             Self::Float => 12,
-            Self::Packed => 4,
+            Self::Packed | Self::PackedSecond => 4,
             Self::TangentFrame | Self::Quaternion => 8,
+            Self::QuaternionPair => 16,
         }
     }
 
+    /// The preference between the normal sources of one mesh; the packed vectors of the second
+    /// normal tag come last, as they disagree with the tangent frames of the meshes that hold both.
     const fn rank(self) -> u8 {
         match self {
-            Self::Float => 3,
-            Self::Packed => 2,
-            Self::TangentFrame | Self::Quaternion => 1,
+            Self::Float => 5,
+            Self::Packed => 4,
+            Self::TangentFrame | Self::Quaternion => 3,
+            Self::QuaternionPair => 2,
+            Self::PackedSecond => 1,
         }
     }
 }
@@ -100,9 +109,9 @@ impl NormalStream<'_> {
         let word = |at: usize| u32_at(bytes, at);
         let normal = match self.kind {
             NormalKind::Float => normalise([0, 4, 8].map(|at| f32::from_bits(word(at)))),
-            NormalKind::Packed => unpack_unit_vector(word(0)),
+            NormalKind::Packed | NormalKind::PackedSecond => unpack_unit_vector(word(0)),
             NormalKind::TangentFrame => normal_of_tangent_frame(word(0), word(4)),
-            NormalKind::Quaternion => {
+            NormalKind::Quaternion | NormalKind::QuaternionPair => {
                 normal_of_quaternion([0, 2, 4, 6].map(|at| i16_at(bytes, at)))
             }
         };
@@ -252,10 +261,12 @@ fn classify(
 }
 const fn normal_kind(tag: u32, size: u32) -> Option<NormalKind> {
     match (tag, size) {
-        (NORMALS_2, 12) => Some(NormalKind::Float),
+        (NORMALS | NORMALS_2, 12) => Some(NormalKind::Float),
         (NORMALS, 4) => Some(NormalKind::Packed),
+        (NORMALS_2, 4) => Some(NormalKind::PackedSecond),
         (QTANGENTS, 8) => Some(NormalKind::TangentFrame),
         (TANGENTS, 8) => Some(NormalKind::Quaternion),
+        (TANGENTS, 16) => Some(NormalKind::QuaternionPair),
         _ => None,
     }
 }

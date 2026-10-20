@@ -9,8 +9,10 @@ use p4kx_texture::SiblingReader;
 use rayon::prelude::*;
 
 use crate::entry_path::same_entry_path;
+use crate::path_index::PathIndex;
 
 const ALPHA_SUFFIX: &str = "a";
+const MAX_PROBED_PARTS: u32 = 32;
 
 /// Where the header and the parts of one split texture are stored.
 #[derive(Debug, Clone)]
@@ -101,6 +103,51 @@ impl<'a> Parts<'a> {
                 archive,
                 header,
                 parts: parts_of(is_alpha),
+                verify: false,
+            },
+            alpha,
+        })
+    }
+
+    /// Finds the Entry at `path`, its parts and its alpha tail through `index`, probing the
+    /// parts `.1`, `.2`, … until one is missing instead of scanning the Archive; `path` is
+    /// treated as [`Parts::in_archive`] treats it.
+    pub(crate) fn in_index(index: &PathIndex<'a>, path: &str) -> Option<Found<'a>> {
+        let (base, is_alpha) = split_alpha(path);
+        let archive = index.archive();
+        let header = index.find(&if is_alpha {
+            format!("{base}.{ALPHA_SUFFIX}")
+        } else {
+            base.to_owned()
+        })?;
+        let parts_of = |suffix: &str| {
+            let mut parts = BTreeMap::new();
+            for number in 1..=MAX_PROBED_PARTS {
+                let Some(part) = index.find(&format!("{base}.{number}{suffix}")) else {
+                    break;
+                };
+                parts.insert(number, part);
+            }
+            parts
+        };
+        let colour_suffix = if is_alpha { ALPHA_SUFFIX } else { "" };
+        let alpha = if is_alpha {
+            None
+        } else {
+            index
+                .find(&format!("{base}.{ALPHA_SUFFIX}"))
+                .map(|alpha| Self::Archive {
+                    archive,
+                    header: alpha,
+                    parts: parts_of(ALPHA_SUFFIX),
+                    verify: false,
+                })
+        };
+        Some(Found {
+            colour: Self::Archive {
+                archive,
+                header,
+                parts: parts_of(colour_suffix),
                 verify: false,
             },
             alpha,

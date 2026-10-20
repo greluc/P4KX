@@ -305,8 +305,9 @@ Early development (milestone M1). Available today:
   LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
-  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours]` writes
-  it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
+  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
+  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
@@ -314,9 +315,14 @@ Early development (milestone M1). Available today:
   material with base colour, opacity, roughness, metalness and emissive colour and no textures;
   submeshes whose material draws nothing (collision and helper geometry) are left out, and a
   missing or unreadable `.mtl` file is reported while the model exports with a grey default
-  material. A skin (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to
-  eight bones per vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes.
-  Both also take a model file on disk with its companions next to it.
+  material. `--materials textures` also embeds the textures of the materials as PNG images: the
+  diffuse map as base colour, the normal map (green flipped to glTF's up, the blue channel
+  reconstructed), a metallic-roughness image from the normal map's smoothness and the specular
+  map, shared images once; `--texture-mip` picks the mip level, 0 (the largest) by default. A
+  texture that is missing or cannot be decoded leaves the plain colour and is listed. A skin
+  (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to eight bones per
+  vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes. Both also take a
+  model file on disk with its companions next to it, which has no textures to read.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails

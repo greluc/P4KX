@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
-use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
+use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
 use p4kx_model::{LodSelection, Model};
 
 use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
+use crate::model_textures::ArchiveTextures;
 use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::texture_parts::is_same_file;
@@ -156,13 +157,46 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
+        self.export(options, out, None)
+    }
+
+    /// Writes the model as a GLB file to `out` like [`Self::write_glb`], taking the textures of
+    /// [`p4kx_gltf::MaterialMode::Textures`] from the Entries of the Archive `index` is over;
+    /// they are found there ignoring case and the kind of separator, and a `.tif` or `.tga` name
+    /// in the material file is the `.dds` Entry.
+    ///
+    /// A texture that is missing, not an image, too large or undecodable leaves the material its
+    /// plain colour and is listed in [`GlbSummary::texture_fallbacks`], never an error.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`].
+    pub fn write_glb_textured(
+        &self,
+        index: &PathIndex<'_>,
+        options: &GlbOptions,
+        out: &Path,
+    ) -> Result<GlbSummary, ConversionError> {
+        self.export(options, out, Some(&ArchiveTextures { index }))
+    }
+
+    fn export(
+        &self,
+        options: &GlbOptions,
+        out: &Path,
+        textures: Option<&dyn TextureLoader>,
+    ) -> Result<GlbSummary, ConversionError> {
         if is_same_file(out, self.inputs.iter().cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
         write_replacing(out, |writer| {
-            p4kx_gltf::write_glb(&self.model, options, writer).map_err(|error| match error {
+            let written = match textures {
+                Some(textures) => p4kx_gltf::write_glb_with(&self.model, options, textures, writer),
+                None => p4kx_gltf::write_glb(&self.model, options, writer),
+            };
+            written.map_err(|error| match error {
                 GltfError::Write(source) => write_error(out, source),
                 source => ConversionError::Glb {
                     file: self.name.clone(),

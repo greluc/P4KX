@@ -1,0 +1,185 @@
+use p4kx_model::Material;
+
+use crate::texture_report::TextureRole;
+
+const DATA_PREFIX: &str = "data/";
+const SOURCE_EXTENSIONS: [&str; 7] = ["tif", "tiff", "tga", "png", "bmp", "jpg", "dds"];
+const NORMAL_SLOTS: [&str; 2] = ["TexSlot2", "TexSlot3"];
+const DIFFUSE_SLOT: &str = "TexSlot1";
+const SPECULAR_SLOT: &str = "TexSlot4";
+const NORMAL_GLOSS_SUFFIX: &str = "ddna";
+const NORMAL_SUFFIX: &str = "ddn";
+const SPECULAR_SUFFIX: &str = "spec";
+const NOT_DIFFUSE: [&str; 16] = [
+    "ao", "blend", "mask", "opac", "id", "scalp", "dir", "dirm", "hal", "wear", "displ", "disp",
+    "detail", "gloss", "ddna", "ddn",
+];
+
+/// The texture files of a material that map to glTF's PBR textures, as canonical paths.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Sources {
+    pub(crate) diffuse: Option<Source>,
+    pub(crate) normal: Option<Source>,
+    pub(crate) specular: Option<Source>,
+    /// The files that would have been used but have no safe path, with their role.
+    pub(crate) refused: Vec<(TextureRole, String)>,
+}
+
+/// One texture file of a material.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Source {
+    /// The path as the loader takes it: below `Data`, `/` as separator, `.dds`.
+    pub(crate) path: String,
+    /// The path as the material file gives it, for reports.
+    pub(crate) file: String,
+    /// Whether the texture carries the smoothness in its alpha channel.
+    pub(crate) gloss: bool,
+}
+
+impl Source {
+    /// Returns the path folded to lower case, the identity of the texture.
+    pub(crate) fn identity(&self) -> String {
+        self.path.to_ascii_lowercase()
+    }
+}
+
+/// Returns the texture files of `material` that glTF can use: the diffuse map of `TexSlot1`, the
+/// normal map of `TexSlot2` or `TexSlot3` whose name ends in `_ddna` (with the smoothness in its
+/// alpha channel) or `_ddn`, and the specular map of `TexSlot4` ending in `_spec`. Engine
+/// placeholders such as `$RenderToTexture` are no files; a file whose path is unsafe is refused.
+pub(crate) fn sources(material: &Material) -> Sources {
+    let pick = |slots: &[&str], wanted: &dyn Fn(&str) -> bool| {
+        slots.iter().find_map(|slot| {
+            material.textures.iter().find_map(|texture| {
+                let file = texture.file.as_str();
+                (texture.map == *slot
+                    && !file.trim_start().starts_with('$')
+                    && wanted(&suffix(file)))
+                .then_some(file)
+            })
+        })
+    };
+    let mut found = Sources::default();
+    let mut resolve = |role: TextureRole, file: Option<&str>, gloss: bool| {
+        let file = file?;
+        if let Some(path) = canonical(file) {
+            Some(Source {
+                path,
+                file: file.to_owned(),
+                gloss,
+            })
+        } else {
+            found.refused.push((role, file.to_owned()));
+            None
+        }
+    };
+    let diffuse = pick(&[DIFFUSE_SLOT], &|name| !NOT_DIFFUSE.contains(&name));
+    let normal = pick(&NORMAL_SLOTS, &|name| {
+        name == NORMAL_GLOSS_SUFFIX || name == NORMAL_SUFFIX
+    });
+    let specular = pick(&[SPECULAR_SLOT], &|name| name == SPECULAR_SUFFIX);
+    let gloss = normal.is_some_and(|file| suffix(file) == NORMAL_GLOSS_SUFFIX);
+    let diffuse = resolve(TextureRole::Diffuse, diffuse, false);
+    let normal = resolve(TextureRole::Normal, normal, gloss);
+    let specular = resolve(TextureRole::Specular, specular, false);
+    found.diffuse = diffuse;
+    found.normal = normal;
+    found.specular = specular;
+    found
+}
+
+/// Returns the last `_` part of a texture file's name without extension, folded to lower case:
+/// `ddna` for `a/b_ddna.tif`.
+fn suffix(file: &str) -> String {
+    let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
+    stem.rsplit('_').next().unwrap_or(stem).to_ascii_lowercase()
+}
+
+/// Returns the path of the texture `file` as a loader takes it, or `None` for a placeholder such
+/// as `$RenderToTexture` and for a path that is empty, absolute, drive-qualified, has control
+/// characters or an empty, `.` or `..` component.
+///
+/// The extension of a source image (`.tif`, `.tga`, …) becomes `.dds`, the form the Archive holds.
+pub(crate) fn canonical(file: &str) -> Option<String> {
+    let unified = file.trim().replace('\\', "/");
+    let relative = match unified.get(..DATA_PREFIX.len()) {
+        Some(prefix) if prefix.eq_ignore_ascii_case(DATA_PREFIX) => {
+            unified.get(DATA_PREFIX.len()..)?
+        }
+        _ => &unified,
+    };
+    if relative.is_empty()
+        || relative.starts_with(['$', '/'])
+        || relative.contains(':')
+        || relative.chars().any(char::is_control)
+    {
+        return None;
+    }
+    let mut components: Vec<&str> = relative.split('/').collect();
+    if components
+        .iter()
+        .any(|part| matches!(*part, "" | "." | ".."))
+    {
+        return None;
+    }
+    let name = components.pop()?;
+    let stem = match name.rsplit_once('.') {
+        Some((stem, extension))
+            if !stem.is_empty()
+                && SOURCE_EXTENSIONS
+                    .iter()
+                    .any(|known| known.eq_ignore_ascii_case(extension)) =>
+        {
+            stem
+        }
+        _ => name,
+    };
+    let mut path = String::with_capacity(relative.len() + ".dds".len());
+    for part in components {
+        path.push_str(part);
+        path.push('/');
+    }
+    path.push_str(stem);
+    path.push_str(".dds");
+    Some(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::canonical;
+
+    #[test]
+    fn source_images_become_dds_below_data() {
+        for (file, expected) in [
+            ("Objects/a/b_diff.tif", "Objects/a/b_diff.dds"),
+            ("Objects\\a\\b_diff.TIF", "Objects/a/b_diff.dds"),
+            ("Data/Objects/a/b_diff.dds", "Objects/a/b_diff.dds"),
+            ("data\\a\\b", "a/b.dds"),
+            ("a/b.v2", "a/b.v2.dds"),
+            ("b.tga", "b.dds"),
+        ] {
+            assert_eq!(canonical(file).as_deref(), Some(expected), "{file}");
+        }
+    }
+
+    #[test]
+    fn placeholders_and_unsafe_paths_are_refused() {
+        for file in [
+            "",
+            "$RenderToTexture",
+            "/etc/x.dds",
+            "C:/x.dds",
+            "C:\\x.dds",
+            "../x.dds",
+            "a/../x.dds",
+            "a/./x.dds",
+            "a//x.dds",
+            "a/x\u{0}.dds",
+            "a/",
+            "Data/",
+        ] {
+            assert_eq!(canonical(file), None, "{file:?}");
+        }
+    }
+}

@@ -6,6 +6,10 @@
 //! --release <version> [--date <YYYY-MM-DD>]` folds them and `## [Unreleased]` into the section of
 //! a version.
 //!
+//! `cargo xtask notices` checks that `THIRD-PARTY-NOTICES` matches `cargo about` and
+//! `cargo xtask notices --write` regenerates it; both need `cargo-about` and are not part of the
+//! plain `cargo xtask`.
+//!
 //! `cargo xtask release-notes <tag> <file>` writes the `CHANGELOG.md` notes of a Release tag.
 
 mod changelog;
@@ -16,6 +20,7 @@ mod keys;
 mod layers;
 mod lints;
 mod metadata;
+mod notices;
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -76,6 +81,14 @@ fn run() -> Result<Vec<String>> {
             }
         }
         Some("keys") => keys::check(&root),
+        Some("notices") => match std::env::args().nth(2).as_deref() {
+            None => notices::check(&root),
+            Some("--write") => {
+                notices::write(&root)?;
+                Ok(Vec::new())
+            }
+            Some(other) => bail!("unknown option `{other}`; use `cargo xtask notices [--write]`"),
+        },
         Some("release-notes") => {
             let mut args = std::env::args().skip(2);
             let (Some(tag), Some(output)) = (args.next(), args.next()) else {
@@ -85,7 +98,7 @@ fn run() -> Result<Vec<String>> {
             Ok(Vec::new())
         }
         Some(other) => bail!(
-            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys` or `release-notes`"
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `notices` or `release-notes`"
         ),
     }
 }

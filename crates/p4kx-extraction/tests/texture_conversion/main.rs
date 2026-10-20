@@ -6,3 +6,4 @@ mod high_range;
 mod outputs;
 mod run_control;
 mod tails_and_cubes;
+mod verify;

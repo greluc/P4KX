@@ -43,6 +43,21 @@ pub(crate) enum SocpakAction {
         /// largest mip per texture. Every other Entry is written unchanged.
         #[arg(long)]
         convert: bool,
+        /// Checks each Entry against the CRC-32 of the container directory while it is written,
+        /// as `p4kx extract --verify` does.
+        #[arg(long)]
+        verify: bool,
+    },
+    /// Checks the data of the Entries of a socpak container against the CRC-32 of its directory
+    /// and reports every mismatch, as `p4kx verify` does; nothing is written.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Verify {
+        /// The container.
+        #[command(flatten)]
+        source: SocpakSource,
+        /// Checks only the Entries the Filter matches, with the rules of `p4kx search`.
+        #[arg(long, value_name = "FILTER")]
+        filter: Option<String>,
     },
 }
 

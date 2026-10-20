@@ -5,8 +5,11 @@
 //! with one primitive per submesh. The model's material library becomes glTF materials: with
 //! [`MaterialMode::Colours`] plain colours, opacity, roughness, metalness and emissive colour
 //! without textures; submeshes whose material draws nothing are left out, and a material ID the
-//! library lacks, or a model without a readable library, gets the engine's default material. The
-//! binary data is streamed to the writer after the JSON.
+//! library lacks, or a model without a readable library, gets the engine's default material. A
+//! skinned model is written with its skeleton: the bones as nodes, one glTF skin over all of them
+//! with inverse bind matrices, and `JOINTS_n` and `WEIGHTS_n` on the skinned meshes; a model with
+//! bones and no meshes is written as its bone nodes. The binary data is streamed to the writer
+//! after the JSON.
 
 mod axes;
 mod document;
@@ -14,6 +17,8 @@ mod error;
 mod glb;
 mod layout;
 mod materials;
+mod nodes;
+mod skin;
 
 pub use error::GltfError;
 pub use glb::{GlbOptions, GlbSummary, MaterialMode, write_glb};

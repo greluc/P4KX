@@ -11,6 +11,9 @@ const SKIN_2: u32 = 0xB875_7777;
 const TERMINATOR: u32 = 0xE018_1074;
 const IVO_VERSION: u32 = 0x900;
 
+/// Whether the stream has eight influences per vertex, and the (bone, weight) pairs of each vertex.
+pub(crate) type BoneMap = (bool, Vec<Vec<(u16, u8)>>);
+
 /// How a [`TestModel`] stores its vertex positions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestPositions {
@@ -105,6 +108,7 @@ pub struct TestModel {
     pub(crate) repeated_index_streams: usize,
     pub(crate) colours: Option<Vec<[u8; 4]>>,
     pub(crate) tangent_sign: f32,
+    pub(crate) bone_map: Option<BoneMap>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
@@ -137,6 +141,7 @@ impl TestModel {
             repeated_index_streams: 0,
             colours: None,
             tangent_sign: 1.0,
+            bone_map: None,
             lods: Vec::new(),
             extra_chunks: Vec::new(),
             single_file: false,
@@ -162,6 +167,15 @@ impl TestModel {
     #[must_use]
     pub const fn with_wide_indices(mut self) -> Self {
         self.wide_indices = true;
+        self
+    }
+
+    /// Sets the texture coordinate of the vertex `vertex` in stream order.
+    #[must_use]
+    pub fn with_uv(mut self, vertex: usize, uv: [f32; 2]) -> Self {
+        if let Some(slot) = self.vertices.get_mut(vertex) {
+            slot.uv = uv;
+        }
         self
     }
 
@@ -203,8 +217,8 @@ impl TestModel {
     }
 
     /// Adds the next level of detail, level 1 for the first call: the geometry of `lod` in
-    /// `_lod<level>.cgfm` and a `MeshInfo` chunk alone in `_lod<level>.cgf`; the nodes and the
-    /// material library of `lod` are not used.
+    /// `_lod<level>.cgfm` and a `MeshInfo` chunk, with the chunks added to `lod`, in
+    /// `_lod<level>.cgf`; the nodes and the material library of `lod` are not used.
     #[must_use]
     pub fn with_lod(mut self, lod: Self) -> Self {
         self.lods.push(lod);
@@ -314,15 +328,17 @@ impl TestModel {
             .bytes()
     }
 
-    /// Returns the bytes of the `_lod<level>.cgf` file, or `None` without that level.
+    /// Returns the bytes of the `_lod<level>.cgf` file, or `None` without that level: a
+    /// `MeshInfo` chunk and the chunks added to that level with [`Self::with_chunk`] or
+    /// [`Self::with_skeleton`], as the `_lod<level>.skin` file of a skin has its own skeleton.
     #[must_use]
     pub fn lod_cgf(&self, level: usize) -> Option<Vec<u8>> {
-        self.lod(level)?;
-        Some(
-            TestChunkFile::ivo()
-                .chunk(MESH_INFO, IVO_VERSION, [0; 104])
-                .bytes(),
-        )
+        let lod = self.lod(level)?;
+        let mut file = TestChunkFile::ivo().chunk(MESH_INFO, IVO_VERSION, [0; 104]);
+        for (type_id, data) in &lod.extra_chunks {
+            file = file.chunk(*type_id, IVO_VERSION, data.clone());
+        }
+        Some(file.bytes())
     }
 
     /// Returns the bytes of the `_lod<level>.cgfm` file, or `None` without that level.

@@ -149,6 +149,35 @@ pub enum CorruptChunk {
     /// A node is its own ancestor.
     #[error("node {0} is its own ancestor")]
     ParentCycle(usize),
+    /// A bone's parent does not exist.
+    #[error("bone {bone} has the parent {parent} of {bones}")]
+    BoneParent {
+        /// The bone's position.
+        bone: usize,
+        /// The parent index.
+        parent: i32,
+        /// The number of bones.
+        bones: usize,
+    },
+    /// A bone is its own ancestor.
+    #[error("bone {0} is its own ancestor")]
+    BoneCycle(usize),
+    /// The name table holds fewer names than there are bones.
+    #[error("the name table holds fewer than the {bones} bone names")]
+    BoneNames {
+        /// The number of bones.
+        bones: usize,
+    },
+    /// A vertex is weighted to a bone the skeleton does not have.
+    #[error("vertex {vertex} is weighted to bone {joint} of {bones}")]
+    JointRange {
+        /// The vertex in its mesh.
+        vertex: usize,
+        /// The bone index.
+        joint: u16,
+        /// The number of bones.
+        bones: usize,
+    },
     /// A value is NaN or infinite.
     #[error("a {0} is not finite")]
     NonFinite(&'static str),

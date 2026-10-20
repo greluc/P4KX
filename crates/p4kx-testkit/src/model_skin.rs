@@ -11,6 +11,8 @@ const NORMALS_2: u32 = 0x38A5_81FE;
 const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
 const UNKNOWN_STREAM: u32 = 0x9D51_C5EE;
+const BONEMAP: u32 = 0x677C_7B23;
+const BONEMAP32: u32 = 0x6ECA_3708;
 const HEADER_PADDING: usize = 88;
 const STREAM_ALIGNMENT: usize = 8;
 
@@ -47,6 +49,7 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     put_indices(&mut out, model);
     put_vertices(&mut out, model, min, max);
     put_normals(&mut out, model);
+    put_bone_map(&mut out, model);
     stream(&mut out, UNKNOWN_STREAM, 2, |data| {
         for _ in &model.vertices {
             put_u16(data, 0);
@@ -56,6 +59,25 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
         put_indices(&mut out, model);
     }
     out
+}
+
+fn put_bone_map(out: &mut Vec<u8>, model: &TestModel) {
+    let Some((wide, entries)) = &model.bone_map else {
+        return;
+    };
+    let (tag, influences) = if *wide { (BONEMAP32, 8) } else { (BONEMAP, 4) };
+    stream(out, tag, influences * 3, |data| {
+        for vertex in 0..model.vertices.len() {
+            let entry = entries.get(vertex).map(Vec::as_slice).unwrap_or_default();
+            let at = |slot: usize| entry.get(slot).copied().unwrap_or((0, 0));
+            for slot in 0..influences as usize {
+                put_u16(data, at(slot).0);
+            }
+            for slot in 0..influences as usize {
+                data.push(at(slot).1);
+            }
+        }
+    });
 }
 
 fn put_floats(out: &mut Vec<u8>, tag: u32, model: &TestModel) {

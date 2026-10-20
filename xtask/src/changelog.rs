@@ -3,16 +3,74 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 
-const FILE: &str = "CHANGELOG.md";
+use crate::fragments;
 
-/// Returns a message when `CHANGELOG.md` has no notes for the workspace version.
+pub(crate) const FILE: &str = "CHANGELOG.md";
+
+/// Returns a message when `CHANGELOG.md` has no notes for the workspace version, repeats or
+/// misorders a `### ` heading, or a fragment in `changelog.d/` is invalid.
 pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
     let version = workspace_version(root)?;
     let text = read(root)?;
-    Ok(match section(&text, &version) {
-        Some(_) => Vec::new(),
-        None => vec![missing(&version)],
-    })
+    let mut violations = Vec::new();
+    if section(&text, &version).is_none() {
+        violations.push(missing(&version));
+    }
+    violations.extend(subsection_violations(&text));
+    violations.extend(fragments::check(root)?);
+    Ok(violations)
+}
+
+pub(crate) const ORDER: [&str; 6] = [
+    "Added",
+    "Changed",
+    "Deprecated",
+    "Removed",
+    "Fixed",
+    "Security",
+];
+
+/// Returns a message for every `### ` heading that repeats within one `## ` section or breaks the
+/// Keep a Changelog order.
+fn subsection_violations(text: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let mut sections: Vec<(&str, Vec<&str>)> = Vec::new();
+    for line in text.lines() {
+        let line = line.trim_end();
+        if line.starts_with("## ") {
+            sections.push((line, Vec::new()));
+        } else if let (Some(name), Some((_, headings))) =
+            (line.strip_prefix("### "), sections.last_mut())
+        {
+            headings.push(name.trim());
+        }
+    }
+    for (title, headings) in sections {
+        let mut seen: Vec<&str> = Vec::new();
+        for name in &headings {
+            if seen.contains(name) {
+                continue;
+            }
+            seen.push(name);
+            let count = headings.iter().filter(|other| *other == name).count();
+            if count > 1 {
+                violations.push(format!("{FILE}: `{title}` has `### {name}` {count} times"));
+            }
+        }
+        let mut last: Option<(usize, &str)> = None;
+        for name in seen {
+            let Some(rank) = ORDER.iter().position(|known| *known == name) else {
+                continue;
+            };
+            match last {
+                Some((previous, previous_name)) if rank < previous => violations.push(format!(
+                    "{FILE}: `{title}` has `### {name}` after `### {previous_name}`"
+                )),
+                _ => last = Some((rank, name)),
+            }
+        }
+    }
+    violations
 }
 
 /// Writes the notes of the Release tagged `tag` to `output`.
@@ -37,7 +95,7 @@ fn missing(version: &str) -> String {
     format!("{FILE} has no notes under `## [{version}]`")
 }
 
-fn read(root: &Path) -> Result<String> {
+pub(crate) fn read(root: &Path) -> Result<String> {
     fs::read_to_string(root.join(FILE)).with_context(|| format!("cannot read {FILE}"))
 }
 
@@ -80,7 +138,7 @@ fn non_empty(notes: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::section;
+    use super::{section, subsection_violations};
 
     const CHANGELOG: &str = "# Changelog\n\n## [0.2.0] - 2026-11-01\n\n### Added\n\n- Search.\n\n## [0.1.0] - 2026-10-20\n\n- First Release.\n";
 
@@ -95,6 +153,43 @@ mod tests {
             section(CHANGELOG, "0.1.0"),
             Some("- First Release."),
             "the last section runs to the end"
+        );
+    }
+
+    #[test]
+    fn a_repeated_heading_in_unreleased_is_reported() {
+        let text = "## [Unreleased]\n\n### Fixed\n\n- a\n\n### Added\n\n### Fixed\n\n### Fixed\n";
+        let violations = subsection_violations(text);
+        assert!(
+            violations
+                .contains(&"CHANGELOG.md: `## [Unreleased]` has `### Fixed` 3 times".to_owned()),
+            "{violations:?}"
+        );
+    }
+
+    #[test]
+    fn a_repeated_heading_in_a_released_section_is_reported() {
+        let text =
+            "## [Unreleased]\n\n### Added\n\n## [0.2.0] - 2026-11-01\n\n### Added\n\n### Added\n";
+        assert_eq!(
+            subsection_violations(text),
+            vec!["CHANGELOG.md: `## [0.2.0] - 2026-11-01` has `### Added` 2 times".to_owned()],
+        );
+    }
+
+    #[test]
+    fn distinct_headings_pass() {
+        assert_eq!(subsection_violations(CHANGELOG), Vec::<String>::new());
+        let text = "## [Unreleased]\n\n### Added\n\n### Changed\n\n## [0.1.0]\n\n### Added\n\n### Fixed\n\n### Security\n";
+        assert_eq!(subsection_violations(text), Vec::<String>::new());
+    }
+
+    #[test]
+    fn headings_out_of_order_are_reported() {
+        let text = "## [Unreleased]\n\n### Fixed\n\n### Added\n";
+        assert_eq!(
+            subsection_violations(text),
+            vec!["CHANGELOG.md: `## [Unreleased]` has `### Added` after `### Fixed`".to_owned()],
         );
     }
 

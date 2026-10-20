@@ -2,7 +2,7 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, DataForge, DataForgeEntry, IndexedReference, ReferenceIndex};
+use p4kx_extraction::{DataForge, DataForgeEntry, IndexedReference, ReferenceIndex};
 use thiserror::Error;
 
 use crate::cli::{DcbRefsArgs, RefsFormat};
@@ -83,7 +83,7 @@ pub(crate) fn run(args: &DcbRefsArgs, as_json: bool) -> Result<ExitCode> {
         (true, Some(RefsFormat::Table)) => return Err(JsonWithTable.into()),
         (as_json, format) => as_json || format == Some(RefsFormat::Json),
     };
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let targets = match args.target.as_deref() {

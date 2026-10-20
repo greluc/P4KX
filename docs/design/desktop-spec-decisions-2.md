@@ -142,6 +142,28 @@ die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen i
 in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
 und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
 
+**D.31 Container als Ordner im Pfadbaum.** Ein `.socpak` steht nach den Unterordnern seines
+Ordners als gewöhnliche Baumzeile: Name unverändert (D.6), Chevron, Ebenen-Schienen. Ein eigenes
+Symbol gibt es nicht, weil das Icon-Set des DS keines für Archive hat; die Endung unterscheidet
+den Container schon. Während er geöffnet wird, stehen hinter dem Namen wie beim DataForge-Knoten
+der Inline-Spinner (14) und „Wird geöffnet …" in `color-gray-2-text`. Lässt er sich nicht öffnen,
+steht dort ein kurzer Hinweis: „Lässt sich nicht öffnen" in `color-danger-text`, weil der Container
+selbst defekt ist; „Nicht geöffnet: Speichergrenze", „Archiv geändert" und „Öffnen abgebrochen"
+in `color-warning` (D.8), weil sie wieder verschwinden, sobald Speicher frei ist oder das Archiv
+neu geladen wird. Der volle Grund steht im Tooltip der Zeile, weil die Seitenleiste für ihn zu schmal ist. Ein Container, der
+sich nicht lesen lässt, und einer nach einer Änderung des Archivs haben keinen Chevron; nach der
+Speichergrenze oder einem abgebrochenen Öffnen bleibt der Chevron, ein erneutes Aufklappen versucht
+es noch einmal. Schließt die Speichergrenze einen Container, klappen er und seine Ordner zu; die
+Haken seiner Einträge bleiben erhalten. Wählt man einen Container oder einen seiner Ordner,
+zeigt die Tabelle dessen Einträge. Suche, Auswahl, „Ausgewählte extrahieren …", „Angezeigte
+extrahieren …" und Vorschau gelten dann diesem Container, „Alle extrahieren …" weiter dem ganzen
+Archiv. Container liegen in den gefalteten Ordnern des Eintragsbaums (ADR-0023): Schreibweise und
+Trennzeichen (`/` oder `\`) ändern nicht, in welchem Ordner ein Container steht; das gilt auch in
+einem Container. Ein `.socpak`, dessen Ordnerpfad ein leeres Segment hat, steht im nächsten
+vorhandenen Ordner darüber, sonst an der Wurzel. Die Statusleiste nennt Pfad und Build weiter des
+Archivs; zeigt die Tabelle einen Container, steht an der Stelle der Eintragszahl des Archivs
+„Container: n Einträge" mit der Zahl seiner Einträge, passend zu „n angezeigt".
+
 **D.32 Tonformat der Extraktion als Radio-Zeile unter den Texturausgaben.** Ist die Umwandlung an,
 steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben eine Zeile „Sounds als"
 (14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,

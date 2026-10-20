@@ -44,9 +44,9 @@ fn write_local_entry(out: &mut Vec<u8>, entry: &TestEntry) -> u64 {
     put_u32(out, entry.crc32c);
     put_u32(out, MARKER_32);
     put_u32(out, MARKER_32);
-    put_u16(out, len_u16(entry.path.as_bytes()));
+    put_u16(out, len_u16(entry.path_bytes()));
     put_u16(out, 0);
-    out.extend_from_slice(entry.path.as_bytes());
+    out.extend_from_slice(entry.path_bytes());
     out.extend_from_slice(&entry.payload);
     offset
 }
@@ -62,14 +62,14 @@ fn write_central_entry(out: &mut Vec<u8>, entry: &TestEntry, local_offset: u64) 
     put_u32(out, entry.crc32c);
     put_u32(out, MARKER_32);
     put_u32(out, MARKER_32);
-    put_u16(out, len_u16(entry.path.as_bytes()));
+    put_u16(out, len_u16(entry.path_bytes()));
     put_u16(out, len_u16(&extra));
     put_u16(out, 0);
     put_u16(out, MARKER_16);
     put_u16(out, 0);
     put_u32(out, 0);
     put_u32(out, MARKER_32);
-    out.extend_from_slice(entry.path.as_bytes());
+    out.extend_from_slice(entry.path_bytes());
     out.extend_from_slice(&extra);
 }
 
@@ -85,9 +85,13 @@ fn central_extra(entry: &TestEntry, local_offset: u64) -> Vec<u8> {
     put_block(
         &mut extra,
         BLOCK_CIG_ENCRYPTION,
-        &u16::from(entry.encrypted).to_le_bytes(),
+        &entry
+            .encryption_block
+            .clone()
+            .unwrap_or_else(|| entry.encryption_value().to_le_bytes().to_vec()),
     );
     put_block(&mut extra, BLOCK_CIG_HASH, &[0; CIG_HASH_LEN]);
+    extra.extend_from_slice(&entry.extra_blocks);
     extra
 }
 

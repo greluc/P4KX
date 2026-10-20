@@ -217,7 +217,7 @@ fn an_invalid_tag_is_an_error_of_its_record() -> TestResult {
         + forge.data_mapping_count() * 8;
     let tag = records + 36 + 8;
     if let Some(field) = bytes.get_mut(tag..tag + 4) {
-        field.copy_from_slice(&u32::MAX.to_le_bytes());
+        field.copy_from_slice(&(u32::MAX - 1).to_le_bytes());
     }
 
     let forge = DataForge::open(&bytes)?;

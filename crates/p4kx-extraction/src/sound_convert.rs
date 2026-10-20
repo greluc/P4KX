@@ -156,8 +156,9 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok(Converted::of(Outcome::Cancelled));
         }
-        let relative = relative_path(entry.path()).ok_or(ExtractionError::UnsafePath)?;
-        let stem = sound_role(entry.path())
+        let disk_name = self.disk_name(entry);
+        let relative = relative_path(&disk_name).ok_or(ExtractionError::UnsafePath)?;
+        let stem = sound_role(&disk_name)
             .and_then(|(_, stem)| stem.rsplit(['\\', '/']).next())
             .ok_or(ExtractionError::UnsafePath)?;
         let folder = create_folders(self.target, relative.parent())?;

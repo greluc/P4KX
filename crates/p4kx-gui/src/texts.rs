@@ -5,6 +5,7 @@ mod audio_text;
 mod catalog_text;
 mod change_extraction_text;
 mod comparison_text;
+mod container_text;
 mod dataforge_text;
 mod diff_text;
 mod extraction_text;
@@ -24,6 +25,7 @@ pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
 pub use comparison_text::ComparisonText;
+pub use container_text::ContainerText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
 pub use extraction_text::ExtractionText;
@@ -167,6 +169,9 @@ pub enum Text {
     /// The notice that the open Archive changed on disk; takes `path` and `stopped`, `yes` when
     /// the change stopped a running Extraction.
     ArchiveChanged,
+    /// The notice that Entries of the open Archive have defects; takes `count`, the number of
+    /// defects, and `kind`, `one` for a single defect.
+    ArchiveIssues,
     /// The action that opens the changed Archive again.
     ActionReload,
     /// A text of the Extraction windows.
@@ -193,6 +198,8 @@ pub enum Text {
     Scroll(ScrollText),
     /// A text of the Query tab.
     Query(QueryText),
+    /// A text of the containers in the path tree.
+    Container(ContainerText),
     /// A text of the Export menu and the Record export windows.
     RecordExport(RecordExportText),
     /// A text of the Basetool catalog windows.

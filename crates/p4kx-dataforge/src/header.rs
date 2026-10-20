@@ -12,6 +12,7 @@ const PART: &str = "header";
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Header {
     pub(crate) version: u32,
+    pub(crate) words: [u32; 2],
     pub(crate) record_layout: RecordLayout,
     pub(crate) structs: u32,
     pub(crate) properties: u32,
@@ -33,7 +34,7 @@ impl Header {
         let Some(record_layout) = RecordLayout::for_version(version) else {
             return Err(DataForgeError::UnsupportedVersion { version });
         };
-        let _flags = [word()?, word()?];
+        let words = [word()?, word()?];
         let [structs, properties, enums, mappings, records] =
             [word()?, word()?, word()?, word()?, word()?];
         let mut values = [0; ValueKind::COUNT];
@@ -44,6 +45,7 @@ impl Header {
         }
         Ok(Self {
             version,
+            words,
             record_layout,
             structs,
             properties,

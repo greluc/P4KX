@@ -67,7 +67,8 @@ impl EntryWriter<'_> {
         if self.tracker.should_stop() {
             return Ok(Converted::of(Outcome::Cancelled));
         }
-        let stem = sound_role(entry.path())
+        let disk_name = self.disk_name(entry);
+        let stem = sound_role(&disk_name)
             .map(|(_, stem)| stem)
             .ok_or(ExtractionError::UnsafePath)?;
         let wem_folder = relative_path(stem).ok_or(ExtractionError::UnsafePath)?;

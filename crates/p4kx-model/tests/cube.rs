@@ -11,7 +11,7 @@ use p4kx_testkit::{
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const UNKNOWN_TYPE: u32 = 0x0A24_85B6;
+const UNKNOWN_TYPE: u32 = 0x00C0_FFEE;
 
 fn read(model: &TestModel) -> Result<Model, Box<dyn Error>> {
     let cgfm = model.cgfm();
@@ -124,6 +124,11 @@ fn every_vertex_and_normal_layout_decodes_to_the_same_cube() -> TestResult {
     for variant in [
         TestModel::cube().with_positions(TestPositions::Float),
         TestModel::cube().with_normals(TestNormals::Compressed),
+        TestModel::cube().with_normals(TestNormals::FloatOnNormals),
+        TestModel::cube().with_normals(TestNormals::PackedOnNormals),
+        TestModel::cube().with_normals(TestNormals::PackedOnNormals2),
+        TestModel::cube().with_normals(TestNormals::Tangents16),
+        TestModel::cube().with_normals(TestNormals::CompressedWithOpposedPacked),
         TestModel::cube().with_wide_indices(),
         TestModel::cube().scaled(0.1),
     ] {

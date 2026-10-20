@@ -3,8 +3,9 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
+use p4kx_extraction::gfx::TagFailure;
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
-use p4kx_extraction::{UiMovie, UiRender};
+use p4kx_extraction::{UiBitmapFailure, UiMovie};
 use serde::Serialize;
 
 use crate::ui::chain;
@@ -14,6 +15,7 @@ use crate::{exit, json};
 struct RenderJson<'a> {
     movie: &'a str,
     target: String,
+    format: &'static str,
     width: u32,
     height: u32,
     skipped: Vec<SkippedJson>,
@@ -43,34 +45,69 @@ struct FailedJson {
     error: String,
 }
 
+/// What a render left out, whichever format it wrote.
+struct Parts {
+    width: u32,
+    height: u32,
+    skipped: Vec<Skipped>,
+    bitmap_failures: Vec<UiBitmapFailure>,
+    tag_failures: Vec<TagFailure>,
+}
+
+impl Parts {
+    const fn is_complete(&self) -> bool {
+        self.skipped.is_empty() && self.bitmap_failures.is_empty() && self.tag_failures.is_empty()
+    }
+}
+
 /// Runs `p4kx ui render` on an opened movie.
 pub(crate) fn render(
     movie: &UiMovie<'_>,
     out: &Path,
     size: Option<CanvasSize>,
     background: Background,
+    svg: bool,
     as_json: bool,
 ) -> Result<ExitCode> {
     let options = RasterOptions {
         size: size.unwrap_or(CanvasSize::Stage),
         background,
     };
-    let render = movie.render_to_file(&options, out)?;
-    let skipped: Vec<SkippedJson> = render.skipped.iter().map(skipped_json).collect();
-    let failed = failed(&render);
+    let parts = if svg {
+        let written = movie.render_svg_to_file(&options, out)?;
+        Parts {
+            width: written.width,
+            height: written.height,
+            skipped: written.skipped,
+            bitmap_failures: written.bitmap_failures,
+            tag_failures: written.tag_failures,
+        }
+    } else {
+        let rendered = movie.render_to_file(&options, out)?;
+        Parts {
+            width: rendered.image.width(),
+            height: rendered.image.height(),
+            skipped: rendered.skipped,
+            bitmap_failures: rendered.bitmap_failures,
+            tag_failures: rendered.tag_failures,
+        }
+    };
+    let skipped: Vec<SkippedJson> = parts.skipped.iter().map(skipped_json).collect();
+    let failed = failed(&parts);
     if as_json {
         json::print(&RenderJson {
             movie: movie.name(),
             target: json::path(out),
-            width: render.image.width(),
-            height: render.image.height(),
+            format: if svg { "svg" } else { "png" },
+            width: parts.width,
+            height: parts.height,
             skipped,
             failed,
         })?;
     } else {
-        print_report(movie, out, &render, &skipped, &failed)?;
+        print_report(movie, out, &parts, &skipped, &failed)?;
     }
-    Ok(ExitCode::from(if render.is_complete() {
+    Ok(ExitCode::from(if parts.is_complete() {
         exit::SUCCESS
     } else {
         exit::PARTIAL_FAILURE
@@ -80,7 +117,7 @@ pub(crate) fn render(
 fn print_report(
     movie: &UiMovie<'_>,
     out: &Path,
-    render: &UiRender,
+    parts: &Parts,
     skipped: &[SkippedJson],
     failed: &[FailedJson],
 ) -> io::Result<()> {
@@ -117,14 +154,13 @@ fn print_report(
         "rendered {} into {}, {} x {} px; {} elements left out, {} bitmaps and {} tags unreadable",
         movie.name(),
         out.display(),
-        render.image.width(),
-        render.image.height(),
+        parts.width,
+        parts.height,
         skipped.len(),
-        render.bitmap_failures.len(),
-        render.tag_failures.len()
+        parts.bitmap_failures.len(),
+        parts.tag_failures.len()
     )
 }
-
 fn skipped_json(skipped: &Skipped) -> SkippedJson {
     SkippedJson {
         id: skipped.id,
@@ -136,7 +172,7 @@ fn skipped_json(skipped: &Skipped) -> SkippedJson {
     }
 }
 
-fn failed(render: &UiRender) -> Vec<FailedJson> {
+fn failed(render: &Parts) -> Vec<FailedJson> {
     let tags = render.tag_failures.iter().map(|failure| FailedJson {
         kind: "tag",
         id: None,

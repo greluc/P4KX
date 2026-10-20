@@ -183,7 +183,7 @@ impl Masks {
 }
 
 /// Returns `style`, with a hairline widened to one canvas pixel at the resolution `scale`.
-fn hairline_as_pixel(style: &StrokeStyle, scale: f32) -> StrokeStyle {
+pub(crate) fn hairline_as_pixel(style: &StrokeStyle, scale: f32) -> StrokeStyle {
     if style.width > 0.0 {
         return *style;
     }
@@ -194,7 +194,7 @@ fn hairline_as_pixel(style: &StrokeStyle, scale: f32) -> StrokeStyle {
 }
 
 /// Returns the parent of the mask `index`; a parent always comes before its child.
-fn parent(scene: &Scene, index: usize) -> Option<usize> {
+pub(crate) fn parent(scene: &Scene, index: usize) -> Option<usize> {
     scene
         .masks
         .get(index)

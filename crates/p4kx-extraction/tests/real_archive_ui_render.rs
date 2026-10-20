@@ -48,6 +48,43 @@ fn render(archive: &Archive, entry: &Entry, tally: &mut Tally) {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn every_real_ui_movie_writes_a_well_formed_svg_that_skips_what_the_raster_skips() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let dir = tempfile::tempdir()?;
+    let out = dir.path().join("movie.svg");
+    let options = RasterOptions {
+        size: CanvasSize::Width(256),
+        background: Background::Transparent,
+    };
+    let mut movies = 0_usize;
+    let mut largest = 0_u64;
+    for entry in archive.entries().iter().filter(|entry| {
+        entry.path().rsplit_once('.').is_some_and(|(_, extension)| {
+            extension.eq_ignore_ascii_case("gfx") || extension.eq_ignore_ascii_case("swf")
+        })
+    }) {
+        let movie = UiMovie::from_archive(&archive, entry.path())?;
+        let svg = movie.render_svg_to_file(&options, &out)?;
+        let raster = movie.render(&options)?;
+        assert_eq!(
+            svg.skipped,
+            raster.skipped,
+            "{}: the same elements are left out",
+            entry.path()
+        );
+        let text = std::fs::read_to_string(&out)?;
+        roxmltree::Document::parse(&text)
+            .map_err(|error| format!("{}: not well-formed: {error}", entry.path()))?;
+        largest = largest.max(u64::try_from(text.len())?);
+        movies += 1;
+    }
+    assert!(movies > 100, "UI movies: {movies}");
+    assert!(largest < 1 << 30, "the largest SVG has {largest} bytes");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
     let archive = Archive::open(real_archive_path()?)?;
     let movies: Vec<&Entry> = archive

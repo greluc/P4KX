@@ -47,8 +47,9 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             out,
             size,
             background,
+            svg,
             ..
-        } => render(&movie, out, *size, *background, as_json),
+        } => render(&movie, out, *size, *background, *svg, as_json),
     }
 }
 

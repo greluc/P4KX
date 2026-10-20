@@ -1,10 +1,11 @@
 use std::path::Path;
 
-use p4kx_gfx::{GfxError, MAX_BITMAP_PIXELS, RasterOptions, RgbaImage, Skipped, TagFailure};
+use p4kx_gfx::{GfxError, MAX_BITMAP_PIXELS, RasterOptions, RgbaImage, Scene, Skipped, TagFailure};
 
 use crate::output_file::{write_error, write_replacing};
 use crate::texture_parts::is_same_file;
 use crate::ui_movie::Origin;
+use crate::ui_render_bitmaps::FrameBitmaps;
 use crate::{ConversionError, UiMovie};
 
 /// The pixels the decoded bitmaps of one rendered frame may hold together, granted in ascending
@@ -33,6 +34,13 @@ pub struct UiRender {
     pub tag_failures: Vec<TagFailure>,
 }
 
+/// A composed first frame with its decoded bitmaps.
+pub(crate) struct ComposedFrame {
+    pub(crate) scene: Scene,
+    pub(crate) bitmaps: FrameBitmaps,
+    pub(crate) tag_failures: Vec<TagFailure>,
+}
+
 impl UiRender {
     /// Returns whether every tag was read and every element drawn with all its effects.
     #[must_use]
@@ -54,9 +62,53 @@ impl UiMovie<'_> {
     /// Returns [`ConversionError::UiMovie`] when the stage has no area and
     /// [`ConversionError::UiCanvas`] when the canvas is empty or too large.
     pub fn render(&self, options: &RasterOptions) -> Result<UiRender, ConversionError> {
+        let frame = self.compose_frame(options)?;
+        let raster = frame
+            .scene
+            .rasterize(&frame.bitmaps.images, options)
+            .map_err(|source| self.frame_error(source))?;
+        Ok(UiRender {
+            image: raster.image,
+            skipped: raster.skipped,
+            bitmap_failures: frame.bitmaps.failures,
+            tag_failures: frame.tag_failures,
+        })
+    }
+
+    /// Composes the first frame and decodes the bitmaps it fills with, after checking that the
+    /// canvas for `options` can be drawn.
+    pub(crate) fn compose_frame(
+        &self,
+        options: &RasterOptions,
+    ) -> Result<ComposedFrame, ConversionError> {
         let mut assets = self.movie().assets();
         let scene = self.movie().first_frame(&assets);
-        let movie_error = |source| match source {
+        scene
+            .canvas_size(options.size)
+            .map_err(|source| self.frame_error(source))?;
+        let bitmaps = self.frame_bitmaps(&assets, &scene.bitmap_ids());
+        Ok(ComposedFrame {
+            scene,
+            bitmaps,
+            tag_failures: std::mem::take(&mut assets.failures),
+        })
+    }
+
+    /// Refuses an output file that is the movie file itself.
+    pub(crate) fn check_output(&self, out: &Path) -> Result<(), ConversionError> {
+        if let Origin::File(file) = self.origin()
+            && is_same_file(out, [file.clone()])
+        {
+            return Err(ConversionError::OutputIsInput {
+                path: out.to_path_buf(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Wraps the error of drawing the frame.
+    pub(crate) fn frame_error(&self, source: GfxError) -> ConversionError {
+        match source {
             GfxError::CanvasSize { .. } => ConversionError::UiCanvas {
                 movie: self.name().to_owned(),
                 source,
@@ -65,18 +117,7 @@ impl UiMovie<'_> {
                 movie: self.name().to_owned(),
                 source,
             },
-        };
-        scene.canvas_size(options.size).map_err(movie_error)?;
-        let bitmaps = self.frame_bitmaps(&assets, &scene.bitmap_ids());
-        let raster = scene
-            .rasterize(&bitmaps.images, options)
-            .map_err(movie_error)?;
-        Ok(UiRender {
-            image: raster.image,
-            skipped: raster.skipped,
-            bitmap_failures: bitmaps.failures,
-            tag_failures: std::mem::take(&mut assets.failures),
-        })
+        }
     }
 
     /// Renders the first frame as [`UiMovie::render`] does and writes it to `out` as an 8-bit
@@ -93,13 +134,7 @@ impl UiMovie<'_> {
         options: &RasterOptions,
         out: &Path,
     ) -> Result<UiRender, ConversionError> {
-        if let Origin::File(file) = self.origin()
-            && is_same_file(out, [file.clone()])
-        {
-            return Err(ConversionError::OutputIsInput {
-                path: out.to_path_buf(),
-            });
-        }
+        self.check_output(out)?;
         let render = self.render(options)?;
         write_replacing(out, |writer| {
             render

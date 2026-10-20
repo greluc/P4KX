@@ -33,19 +33,26 @@ pub(crate) enum UiAction {
         #[arg(long, value_name = "FOLDER")]
         out: PathBuf,
     },
-    /// Renders the first frame of a GFx or SWF UI movie, with its sprites, as a PNG. Shapes with
-    /// solid, gradient and bitmap fills and strokes are drawn with the transforms, colour
-    /// transforms and masks of their placements; external images are decoded as `ui extract`
-    /// decodes them. Texts, buttons and videos are skipped, filters and blend modes are not
-    /// applied, and every element left out is listed.
+    /// Renders the first frame of a GFx or SWF UI movie, with its sprites, as a PNG, or as an SVG
+    /// with `--svg`. Shapes with solid, gradient and bitmap fills and strokes are drawn with the
+    /// transforms, colour transforms and masks of their placements; external images are decoded as
+    /// `ui extract` decodes them. Texts, buttons and videos are skipped, filters and blend modes
+    /// are not applied, and every element left out is listed.
     #[command(after_help = EXIT_CODES_HELP)]
     Render {
         /// The UI movie.
         #[command(flatten)]
         source: UiSource,
-        /// The PNG file to write; replaced if it exists.
+        /// The file to write, a PNG or with `--svg` an SVG; replaced if it exists.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
+        /// Write an SVG document that scales without loss instead of a PNG: shapes, gradients,
+        /// strokes, transforms, colour transforms and masks become SVG elements, bitmaps are
+        /// embedded as PNG data, and the output is the same for the same input. The size sets the
+        /// size of the document, and the same limits apply as for the PNG. A bitmap fill that does
+        /// not repeat is drawn once, without continuing its edge pixels.
+        #[arg(long)]
+        svg: bool,
         /// The image size in pixels: `WIDTHxHEIGHT` scales the stage to fit and centres it,
         /// `WIDTH` alone keeps its aspect ratio; by default one pixel per pixel of the stage. At most
         /// 16384 a side and 33554432 pixels.

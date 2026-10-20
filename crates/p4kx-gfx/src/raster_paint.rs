@@ -73,7 +73,7 @@ impl<'b> BitmapCache<'b> {
     }
 }
 
-fn key(transform: &ColorTransform) -> [u32; 8] {
+pub(crate) fn key(transform: &ColorTransform) -> [u32; 8] {
     let mut key = [0; 8];
     for (slot, value) in key
         .iter_mut()
@@ -209,7 +209,7 @@ fn bitmap_shader<'c>(
 }
 
 /// Returns the opacity a colour transform comes down to when it only scales alpha within 0–1.
-fn opacity_only(transform: &ColorTransform) -> Option<f32> {
+pub(crate) fn opacity_only(transform: &ColorTransform) -> Option<f32> {
     let [red, green, blue, alpha] = transform.multiply;
     let unchanged = (red - 1.0).abs() < f32::EPSILON
         && (green - 1.0).abs() < f32::EPSILON

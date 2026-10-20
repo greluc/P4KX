@@ -233,6 +233,12 @@ Early development (milestone M1). Available today:
   blend modes are not applied, and every element left out is listed (exit code 1). A movie is
   untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
   bounded, and what lies beyond a limit is listed instead of drawn.
+- `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
+  shapes are written once and placed with their transforms, gradients, strokes, colour transforms
+  and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
+  same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
+  same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
+  is drawn once without continuing its edge pixels.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

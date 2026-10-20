@@ -8,6 +8,13 @@ fails while its section is missing.
 
 ### Added
 
+- `p4kx ui render … --svg`: writes the first frame of a UI movie as an SVG document that scales
+  without loss, for the movie file or an Entry. Shapes become `<g>` elements placed with `<use>`,
+  gradients, strokes, colour transforms and masks become the matching SVG elements, and bitmaps
+  are embedded as PNG data; the output is deterministic, streamed to the file, and bounded by the
+  limits of the PNG, so both end at the same element. The Entry name is escaped into the title. A
+  bitmap fill that does not repeat is drawn once, without continuing its edge pixels. The
+  `--json` report of `ui render` names the written `format`.
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

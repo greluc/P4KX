@@ -209,7 +209,7 @@ the first 256 `WwiseEvent`s of a definition; further ones are left out without a
 The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
-(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+(`too_large`: a soundbank above 32 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
 `soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
@@ -687,7 +687,7 @@ it.
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [],
- "chunks": [{"file": "model", "index": 0, "type": "AssetMetadata", "type_id": 3193850174,
+ "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
              "usage": "read"}]}

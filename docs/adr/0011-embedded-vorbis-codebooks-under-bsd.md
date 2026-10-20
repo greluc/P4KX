@@ -15,6 +15,12 @@ pure-Rust Vorbis decoder that decodes packets without an Ogg container, and #93 
 anyway. lewton runs inside `catch_unwind`, so a panic on hostile input rejects the candidate; this
 relies on the workspace keeping `panic = "unwind"`, the default, in every profile.
 
+Validating the whole stream instead of the first 16 packets (as StarBreaker does) was measured
+and is not adopted: decoding 6,161 live Vorbis WEMs to their end costs 111 s of CPU time against
+16 s for rebuilding them, about eight times as much, and none of them fails after its first 16
+packets (`docs/audio-survey.md`). A wrong codebook library shows in the first packets; a later
+bad packet is still a typed error when the sound is converted.
+
 ## Considered Options
 
 - The `ww2ogg` crate as a dependency: least work, but couples the Vorbis path to a single-release

@@ -23,7 +23,7 @@ mod vorbis;
 mod wav;
 mod wem;
 
-pub use bank_error::{BankError, SectionId};
+pub use bank_error::{BankError, BankWarning, SectionId};
 pub use codec::Codec;
 pub use error::AudioError;
 pub use hirc::{ActionTarget, HircKind, HircObject, HircValue, MediaStorage, SoundSource};
@@ -35,4 +35,4 @@ pub use riff::ByteOrder;
 pub use soundbank::{BankHeader, EmbeddedWem, Section, Soundbank};
 pub use vorbis::{Codebooks, OggReport, VorbisError};
 pub use wav::WavReport;
-pub use wem::Wem;
+pub use wem::{Wem, WemChunk};

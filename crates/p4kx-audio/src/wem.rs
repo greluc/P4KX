@@ -13,6 +13,15 @@ const CHANNEL_LAYOUT_OFFSET: usize = 0x14;
 const EXTRA_LEN_OFFSET: usize = 0x10;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
+/// One RIFF chunk of a WEM: its tag and its body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WemChunk<'a> {
+    /// The four-character chunk tag, e.g. `*b"smpl"`.
+    pub id: [u8; 4],
+    /// The body after the 8-byte chunk header, without a pad byte.
+    pub body: &'a [u8],
+}
+
 /// A Wwise WEM sound parsed from bytes the caller holds, e.g. a `&[u8]` or a `Vec<u8>`.
 #[derive(Debug, Clone)]
 pub struct Wem<B> {
@@ -100,6 +109,29 @@ impl<B: AsRef<[u8]>> Wem<B> {
             data,
             bytes,
         })
+    }
+
+    /// Returns every chunk of the RIFF in file order, those after `data` included, e.g. `smpl`,
+    /// `cue ` and `LIST`; the walk ends at the declared RIFF size, or at the first chunk that runs
+    /// past it.
+    pub fn chunks(&self) -> impl Iterator<Item = WemChunk<'_>> {
+        let bytes = self.bytes.as_ref();
+        Chunks::of(bytes)
+            .into_iter()
+            .flat_map(|(_, chunks)| chunks)
+            .map_while(Result::ok)
+            .map(move |Chunk { id, body }| WemChunk {
+                id,
+                body: bytes.get(body).unwrap_or_default(),
+            })
+    }
+
+    /// Returns the body of the first chunk tagged `id`, wherever it lies in the file.
+    #[must_use]
+    pub fn chunk(&self, id: [u8; 4]) -> Option<&[u8]> {
+        self.chunks()
+            .find(|chunk| chunk.id == id)
+            .map(|chunk| chunk.body)
     }
 
     /// Returns the bytes of the `data` chunk, the encoded audio.

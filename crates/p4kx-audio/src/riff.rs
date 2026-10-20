@@ -116,14 +116,16 @@ impl Iterator for Chunks<'_> {
 impl Chunks<'_> {
     /// Returns where the chunk after an odd-sized chunk ending at `body_end` starts.
     ///
-    /// Plain RIFF pads the chunk with one byte, Wwise writes none. The position that holds a
-    /// valid chunk header wins; when both do, or neither, the pad byte is skipped as RIFF says.
+    /// Plain RIFF pads the chunk with one byte, Wwise writes none. A pad byte is 0 and never starts
+    /// a valid chunk tag, so a valid header at `body_end` means there is no pad; otherwise the pad
+    /// byte is skipped as RIFF says. The padded position is not tried first: the tag of an
+    /// unpadded chunk shifted by one byte, such as `ata` and the low byte of the size, often looks
+    /// valid.
     fn after_odd_chunk(&self, body_end: usize) -> usize {
-        let padded = body_end.saturating_add(1).min(self.end);
-        if self.is_chunk_at(padded) || !self.is_chunk_at(body_end) {
-            padded
-        } else {
+        if self.is_chunk_at(body_end) {
             body_end
+        } else {
+            body_end.saturating_add(1).min(self.end)
         }
     }
 

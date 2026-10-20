@@ -11,7 +11,7 @@ fn chunk(out: &mut Vec<u8>, id: [u8; 4], body: &[u8], pad: bool) {
     }
 }
 
-fn wem(odd: &[u8], pad: bool) -> Vec<u8> {
+fn wem(odd: &[u8], data: &[u8], pad: bool) -> Vec<u8> {
     let mut fmt = Vec::new();
     fmt.extend_from_slice(&1u16.to_le_bytes());
     fmt.extend_from_slice(&1u16.to_le_bytes());
@@ -22,37 +22,57 @@ fn wem(odd: &[u8], pad: bool) -> Vec<u8> {
     let mut body = b"WAVE".to_vec();
     chunk(&mut body, *b"fmt ", &fmt, pad);
     chunk(&mut body, *b"akd ", odd, pad);
-    chunk(&mut body, *b"data", &[1, 0, 2, 0], pad);
+    chunk(&mut body, *b"data", data, pad);
     let mut out = b"RIFF".to_vec();
     out.extend_from_slice(&u32::try_from(body.len()).unwrap_or(u32::MAX).to_le_bytes());
     out.extend_from_slice(&body);
     out
 }
 
+const DATA_LENS: [usize; 8] = [4, 0x20, 0x40, 0x42, 0x7E, 0x120, 0x2000, 0x4141];
+
+fn data_of(len: usize) -> Vec<u8> {
+    (0..len)
+        .map(|byte| u8::try_from(byte % 7).unwrap_or(0))
+        .collect()
+}
+
 #[test]
 fn a_padded_odd_chunk_is_followed_by_the_next_chunk() -> Result<(), AudioError> {
-    let bytes = wem(&[7; 5], true);
+    for len in DATA_LENS {
+        let data = data_of(len);
+        let bytes = wem(&[7; 5], &data, true);
 
-    assert_eq!(Wem::parse(bytes.as_slice())?.data(), [1, 0, 2, 0]);
+        assert_eq!(
+            Wem::parse(bytes.as_slice())?.data(),
+            data,
+            "{len} data bytes"
+        );
+    }
     Ok(())
 }
 
 #[test]
 fn an_unpadded_odd_chunk_as_wwise_writes_it_is_followed_by_the_next_chunk() -> Result<(), AudioError>
 {
-    let bytes = wem(&[7; 5], false);
+    for len in DATA_LENS {
+        let data = data_of(len);
+        let bytes = wem(&[7; 5], &data, false);
 
-    let wem = Wem::parse(bytes.as_slice())?;
+        let wem = Wem::parse(bytes.as_slice())?;
 
-    assert_eq!(wem.data(), [1, 0, 2, 0], "data");
-    assert_eq!(wem.codec(), Codec::Pcm);
+        assert_eq!(wem.data(), data, "{len} data bytes");
+        assert_eq!(wem.codec(), Codec::Pcm);
+    }
     Ok(())
 }
 
 #[test]
 fn an_odd_last_chunk_and_a_truncated_file_never_panic() {
-    let bytes = wem(&[7; 5], false);
-    for len in 0..bytes.len() {
-        let _ = Wem::parse(bytes.get(..len).unwrap_or_default());
+    for pad in [true, false] {
+        let bytes = wem(&[7; 5], &[0; 32], pad);
+        for len in 0..bytes.len() {
+            let _ = Wem::parse(bytes.get(..len).unwrap_or_default());
+        }
     }
 }

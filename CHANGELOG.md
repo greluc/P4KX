@@ -104,9 +104,6 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
-
-### Fixed
-
 - A WEM whose odd-sized chunk is not followed by a pad byte, as Wwise writes it, no longer
   misaligns the chunks after it: the reader takes the position that holds a valid chunk header,
   and skips the pad byte of plain RIFF when both or neither do. No WEM of the LIVE, PTU and

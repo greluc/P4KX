@@ -143,6 +143,12 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
 - Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
   starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
   reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`

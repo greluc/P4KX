@@ -2,6 +2,7 @@ mod containers;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use p4kx_channels::ChannelKind;
 use p4kx_extraction::{
     Archive, ArchiveWatch, DataForgeEntry, Entry, EntryTree, Filter, Folder, FolderId,
     LocalizationEntry, TextureGroups,
@@ -31,6 +32,7 @@ pub struct EntryIndex {
     forge: ForgeCache,
     text_languages: Vec<TextLanguage>,
     texts: TextCache,
+    channel: ChannelKind,
 }
 
 impl EntryIndex {
@@ -67,6 +69,7 @@ impl EntryIndex {
             .and_then(|found| entries.iter().position(|entry| std::ptr::eq(entry, found)));
         let text_languages = LocalizationEntry::languages(&archive);
         Self {
+            channel: ChannelKind::of_archive(archive.path()),
             watch: ArchiveWatch::new(&archive),
             archive,
             tree,
@@ -79,6 +82,12 @@ impl EntryIndex {
             text_languages,
             texts: TextCache::default(),
         }
+    }
+
+    /// Returns the kind of the Channel the Archive lives in, told when the index was built.
+    #[must_use]
+    pub const fn channel(&self) -> ChannelKind {
+        self.channel
     }
 
     /// Returns the ids of the containers directly in `folder`, by name ignoring case.

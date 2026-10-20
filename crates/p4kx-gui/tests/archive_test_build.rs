@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, ui};
+use p4kx_gui::{ComparisonSide, Language, Model, WorkTab, ui};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -97,5 +97,61 @@ fn live_and_unknown_folders_show_no_notice() -> TestResult {
             "{channel}: nothing to announce"
         );
     }
+    Ok(())
+}
+
+fn archive_in(root: &std::path::Path, channel: &str) -> Result<std::path::PathBuf, Box<dyn Error>> {
+    let folder = root.join(channel);
+    std::fs::create_dir_all(&folder)?;
+    let path = folder.join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\a.txt", "a"))
+        .write_to(&path)?;
+    Ok(path)
+}
+
+fn comparing(old: &str, new: &str) -> Result<(tempfile::TempDir, Model), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let mut model = Model::new(Language::BritishEnglish);
+    let tab = model.comparison_mut();
+    tab.set_archive(ComparisonSide::Old, archive_in(dir.path(), old)?);
+    tab.set_archive(ComparisonSide::New, archive_in(dir.path(), new)?);
+    model.set_work_tab(WorkTab::Comparison);
+    Ok((dir, model))
+}
+
+#[test]
+fn a_comparison_of_live_against_ptu_names_the_test_channel() -> TestResult {
+    let (_dir, model) = comparing("LIVE", "PTU")?;
+    let mut harness = harness(model);
+
+    harness.step();
+
+    harness.get_by_label_contains("belongs to the PTU Channel");
+    Ok(())
+}
+
+#[test]
+fn a_comparison_of_two_test_channels_names_both() -> TestResult {
+    let (_dir, model) = comparing("PTU", "EPTU")?;
+    let mut harness = harness(model);
+
+    harness.step();
+
+    harness.get_by_label_contains("belongs to the PTU, EPTU Channel");
+    Ok(())
+}
+
+#[test]
+fn a_comparison_of_live_against_live_shows_no_notice() -> TestResult {
+    let (_dir, model) = comparing("LIVE", "Elsewhere")?;
+    let mut harness = harness(model);
+
+    harness.step();
+
+    assert!(
+        harness.query_by_label_contains("test build").is_none(),
+        "nothing to announce"
+    );
     Ok(())
 }

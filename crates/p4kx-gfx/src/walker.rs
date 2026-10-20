@@ -9,10 +9,11 @@ use crate::morph::read_morph_shape;
 use crate::place::read_place;
 use crate::shape::{RecordBudget, read_shape};
 use crate::tag::{Tag, TagStream, tag_name};
+use crate::text::{GlyphBudget, read_edit_text, read_static_text};
 use crate::timeline::{DisplayList, Sprite, Timeline, placed_id, read_exporter_info, read_exports};
 
-/// The definition tags that a placement may name but that are not read: buttons, texts and video.
-const OTHER_DEFINITIONS: [u16; 6] = [7, 11, 33, 34, 37, 60];
+/// The definition tags that a placement may name but that are not read: buttons and video.
+const OTHER_DEFINITIONS: [u16; 3] = [7, 34, 60];
 
 /// Applies a `PlaceObject` or `RemoveObject` tag of the first frame to its display list.
 fn read_display_tag(tag: &Tag<'_>, display_list: &mut DisplayList) -> Result<(), GfxError> {
@@ -32,6 +33,7 @@ pub(crate) struct Walker<'a> {
     assets: Assets<'a>,
     counts: BTreeMap<u16, u32>,
     budget: RecordBudget,
+    text_budget: GlyphBudget,
     font_infos: Vec<FontInfo>,
     font_names: Vec<(u16, String)>,
 }
@@ -43,6 +45,7 @@ impl<'a> Walker<'a> {
             assets: Assets::default(),
             counts: BTreeMap::new(),
             budget: RecordBudget::MOVIE,
+            text_budget: GlyphBudget::MOVIE,
             font_infos: Vec::new(),
             font_names: Vec::new(),
         };
@@ -117,6 +120,7 @@ impl<'a> Walker<'a> {
         });
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per tag code")]
     fn read_tag(
         &mut self,
         tag: &Tag<'a>,
@@ -159,6 +163,13 @@ impl<'a> Walker<'a> {
                 .push(read_font2(tag, FontFormat::DefineFont3, &mut self.budget)?),
             1005 => assets.fonts.push(read_compacted_font(tag)?),
             91 => assets.fonts.push(read_font4(tag)?),
+            11 => assets
+                .static_texts
+                .push(read_static_text(tag, false, &mut self.text_budget)?),
+            33 => assets
+                .static_texts
+                .push(read_static_text(tag, true, &mut self.text_budget)?),
+            37 => assets.edit_texts.push(read_edit_text(tag)?),
             13 | 62 => self.font_infos.push(read_font_info(tag)?),
             88 => self.font_names.push(read_font_name(tag)?),
             56 => assets.exports.extend(read_exports(tag)?),

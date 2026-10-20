@@ -12,7 +12,7 @@ expression: "serde_json::to_string_pretty(&redacted)?"
       "depth": 7,
       "drawn": false,
       "id": 50,
-      "message": "DefineText definitions are not drawn",
+      "message": "DefineButton2 definitions are not drawn",
       "reason": "not_drawn"
     }
   ],

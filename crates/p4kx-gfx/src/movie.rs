@@ -3,6 +3,7 @@ use crate::assets::Assets;
 use crate::header::{Header, read_movie};
 use crate::scene::Scene;
 use crate::scene_compose::Composer;
+use crate::text_fonts::TextOptions;
 use crate::walker::Walker;
 
 /// A GFx or SWF movie, decompressed in memory.
@@ -59,6 +60,17 @@ impl Movie {
     /// Placements that cannot be drawn are skipped and listed in [`Scene::skipped`].
     #[must_use]
     pub fn first_frame(&self, assets: &Assets<'_>) -> Scene {
-        Composer::compose(assets, self.header.frame_size)
+        self.first_frame_with_text(assets, &TextOptions::default())
+    }
+
+    /// Composes the first frame as [`Movie::first_frame`] does, with the fonts and the
+    /// localisation of `options` for its texts.
+    ///
+    /// Static texts and text fields become glyph shapes of the scene, so every backend draws
+    /// them alike. A character whose font or glyph is missing is drawn as an empty box and listed
+    /// in [`Scene::skipped`]; no font of the system is used.
+    #[must_use]
+    pub fn first_frame_with_text(&self, assets: &Assets<'_>, options: &TextOptions<'_>) -> Scene {
+        Composer::compose(assets, self.header.frame_size, options)
     }
 }

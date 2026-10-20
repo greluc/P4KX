@@ -684,6 +684,7 @@ it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
+                       "tangents": false, "colours": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [],
@@ -699,15 +700,18 @@ without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of 
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
 metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
-lists the levels of detail, LOD0 first, each with its meshes, at most one per node; `first_index`
-and `index_count` locate a submesh in its mesh's triangle list. `bones` lists `name` and `parent`
+lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
+read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
+(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
+submesh in its mesh's triangle list. `bones` lists `name` and `parent`
 of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
-geometry companion (`file` is `model` or `geometry`) with `usage` `read` when the model was read
+geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when the model was read
 from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -719,10 +723,12 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 ```
 
 The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
-one primitive per submesh and one material per material ID, LOD0, in glTF axes (Y up) and metres;
+one primitive per submesh and one material per material ID, of the level of detail `--lod` names
+(LOD0 by default), in glTF axes (Y up) and metres; the counts do not say which of `NORMAL`,
+`TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
 `bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files exits with
-code 2.
+export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+`--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`
 

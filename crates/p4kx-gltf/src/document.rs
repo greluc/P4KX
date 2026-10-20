@@ -96,6 +96,14 @@ fn push_mesh(
         let accessor = push_accessor(root, buffer, &uvs, None);
         attributes.insert(Valid(Semantic::TexCoords(0)), accessor);
     }
+    if let Some(tangents) = mesh.tangents.and_then(block) {
+        let accessor = push_accessor(root, buffer, &tangents, None);
+        attributes.insert(Valid(Semantic::Tangents), accessor);
+    }
+    if let Some(colours) = mesh.colours.and_then(block) {
+        let accessor = push_accessor(root, buffer, &colours, None);
+        attributes.insert(Valid(Semantic::Colors(0)), accessor);
+    }
     let primitives = mesh
         .primitives
         .iter()
@@ -132,6 +140,8 @@ fn push_accessor(
             (ComponentType::F32, Type::Vec3, Target::ArrayBuffer)
         }
         BlockData::Uvs(_) => (ComponentType::F32, Type::Vec2, Target::ArrayBuffer),
+        BlockData::Tangents(_) => (ComponentType::F32, Type::Vec4, Target::ArrayBuffer),
+        BlockData::Colours(_) => (ComponentType::U8, Type::Vec4, Target::ArrayBuffer),
         BlockData::Short(_) => (ComponentType::U16, Type::Scalar, Target::ElementArrayBuffer),
         BlockData::Wide(_) => (ComponentType::U32, Type::Scalar, Target::ElementArrayBuffer),
     };
@@ -154,7 +164,7 @@ fn push_accessor(
         type_: Valid(kind),
         min: bounds.map(|(min, _)| bound(min)),
         max: bounds.map(|(_, max)| bound(max)),
-        normalized: false,
+        normalized: matches!(block.data, BlockData::Colours(_)),
         sparse: None,
         name: None,
         extensions: None,

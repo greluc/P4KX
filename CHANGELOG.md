@@ -8,6 +8,18 @@ fails while its section is missing.
 
 ### Added
 
+- Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
+  its vertex and triangle counts and whether its meshes have normals, tangents and colours;
+  `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
+  lacks exits with code 2) from the geometry companion `<stem>_lod<n>.<extension>m`, with the
+  nodes of the base model file. The GLB now carries `TANGENT` (with handedness) and `COLOR_0` for
+  the meshes that have them; `--no-vertex-colours` leaves the colours out. `Model::read_with`,
+  `LodSelection`, `Mesh::tangents`, `Mesh::colours` in `p4kx-model`, `GlbOptions::vertex_colours`
+  in `p4kx-gltf`. Real-Archive tests check the tangents against the texture axes, the LODs of 360
+  models and the node chain against the `MeshInfo` box (docs/model-lods-and-vertex-attributes.md,
+  ADR-0028). The red and blue order of the vertex colours is taken from StarBreaker; the data
+  cannot confirm it.
+
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

@@ -3,7 +3,8 @@ use p4kx_foundation::ByteReader;
 use crate::CorruptChunk;
 use crate::reader::to_usize;
 use crate::vector::{
-    dequantise, half, normal_of_quaternion, normal_of_tangent_frame, normalise, unpack_unit_vector,
+    dequantise, half, normal_of_quaternion, normal_of_tangent_frame, normalise,
+    tangent_of_quaternion, tangent_of_tangent_frame, unpack_unit_vector,
 };
 
 const INDICES: u32 = 0xEECD_C168;
@@ -14,6 +15,7 @@ const NORMALS_2: u32 = 0x38A5_81FE;
 const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
 const STREAM_ALIGNMENT: usize = 8;
+const COLOUR_FROM_END: usize = 8;
 
 /// The vertex positions and texture coordinates of a mesh.
 #[derive(Debug, Clone, Copy)]
@@ -58,6 +60,19 @@ impl VertexStream<'_> {
         }
         Ok((position, uv))
     }
+
+    /// Returns the colour of vertex `index` as red, green, blue and alpha.
+    pub(crate) fn colour(&self, index: usize) -> Result<[u8; 4], CorruptChunk> {
+        let stride = self.stride();
+        let bytes = element(self.data, index, stride, "vertex")?;
+        let [blue, green, red, alpha] = std::array::from_fn(|at| {
+            bytes
+                .get(stride - COLOUR_FROM_END + at)
+                .copied()
+                .unwrap_or(u8::MAX)
+        });
+        Ok([red, green, blue, alpha])
+    }
 }
 
 /// The vertex normals of a mesh in one of their stored forms.
@@ -87,6 +102,11 @@ impl NormalKind {
             Self::TangentFrame | Self::Quaternion => 8,
             Self::QuaternionPair => 16,
         }
+    }
+
+    /// Returns whether the stream stores a tangent frame whose tangent is verified.
+    const fn has_tangent(self) -> bool {
+        matches!(self, Self::TangentFrame | Self::Quaternion)
     }
 
     /// The preference between the normal sources of one mesh; the packed vectors of the second
@@ -120,6 +140,24 @@ impl NormalStream<'_> {
         }
         Ok(normal)
     }
+
+    /// Returns the unit tangent of vertex `index` and the handedness of its frame, +1 or −1, or
+    /// `None` when the stream stores no tangent frame.
+    pub(crate) fn tangent(&self, index: usize) -> Result<Option<[f32; 4]>, CorruptChunk> {
+        if !self.kind.has_tangent() {
+            return Ok(None);
+        }
+        let bytes = element(self.data, index, self.kind.stride(), "tangent")?;
+        let (tangent, handedness) = match self.kind {
+            NormalKind::TangentFrame => tangent_of_tangent_frame(u32_at(bytes, 0)),
+            _ => tangent_of_quaternion([0, 2, 4, 6].map(|at| i16_at(bytes, at))),
+        };
+        if tangent.iter().any(|value| !value.is_finite()) {
+            return Err(CorruptChunk::NonFinite("tangent"));
+        }
+        let [x, y, z] = tangent;
+        Ok(Some([x, y, z, handedness]))
+    }
 }
 
 /// The index list of a mesh, 16 or 32 bits per index.
@@ -145,6 +183,7 @@ impl IndexStream<'_> {
 pub(crate) struct Streams<'a> {
     pub(crate) vertices: VertexStream<'a>,
     pub(crate) normals: Option<NormalStream<'a>>,
+    pub(crate) tangents: Option<NormalStream<'a>>,
     pub(crate) indices: IndexStream<'a>,
 }
 
@@ -165,6 +204,7 @@ pub(crate) fn read_streams<'a>(
 ) -> Result<Streams<'a>, CorruptChunk> {
     let mut vertices = None;
     let mut normals: Option<NormalStream<'a>> = None;
+    let mut tangents: Option<NormalStream<'a>> = None;
     let mut indices = None;
     let mut seen = 0_u8;
     while reader.remaining() >= 4 {
@@ -196,17 +236,21 @@ pub(crate) fn read_streams<'a>(
         match classify(tag, size, data, counts)? {
             Some(Found::Indices(stream)) => indices = Some(stream),
             Some(Found::Vertices(stream)) => vertices = Some(stream),
-            Some(Found::Normals(stream))
-                if normals.is_none_or(|known| known.kind.rank() < stream.kind.rank()) =>
-            {
-                normals = Some(stream);
+            Some(Found::Normals(stream)) => {
+                if stream.kind.has_tangent() && tangents.is_none() {
+                    tangents = Some(stream);
+                }
+                if normals.is_none_or(|known| known.kind.rank() < stream.kind.rank()) {
+                    normals = Some(stream);
+                }
             }
-            Some(Found::Normals(_)) | None => {}
+            None => {}
         }
     }
     Ok(Streams {
         vertices: vertices.ok_or(CorruptChunk::MissingStream("vertex"))?,
         normals,
+        tangents,
         indices: indices.ok_or(CorruptChunk::MissingStream("index"))?,
     })
 }

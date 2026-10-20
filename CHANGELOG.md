@@ -117,6 +117,24 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
+  holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
+  is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM
+  and decodes. These are console variants; every Star Citizen WEM is Wwise Vorbis.
+- Soundbanks with a quirk that leaves the rest readable are no longer rejected whole: bytes after
+  the last `HIRC` object, a repeated `DIDX` WEM ID (the first entry is kept), `DIDX` without
+  `DATA` and a non-UTF-8 name in `STID` are worked around and listed by `Soundbank::warnings`.
+  The audio index reads soundbanks up to 32 MiB instead of 16 MiB, and `Wem::chunks` and
+  `Wem::chunk` list every RIFF chunk of a WEM, `smpl`, `cue ` and `LIST` after `data` included.
+  No soundbank or WEM of the LIVE, PTU and TECH-PREVIEW Archives has any of these quirks
+  (`docs/audio-survey.md`).
+- Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU compares the two boxes of
+  the mesh chunks (static models only; skins store floats). Of the about 30,000 `.cgfm` chunks
+  and about 31,000 `.cgam` chunks of each Archive whose boxes differ, the face normals can decide
+  about 6,000 in LIVE, and 99 % of those choose the second, scaling box; the rest are axis-aligned
+  and undecidable. The reader keeps the second box for every mesh, documents the evidence and its
+  limits (docs/mesh-bounding-boxes.md) and tests it with a differing model box; no exported model
+  changes.
 - Mesh streams: both normal tags now take 4-byte packed and 12-byte float vectors, and a
   16-byte tangent stream (two quaternions) gives normals, so a mesh that stores only such a
   stream keeps its normals; no real file has the 16-byte layout, so reading the normal from its

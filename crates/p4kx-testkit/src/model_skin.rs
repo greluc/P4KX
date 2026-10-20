@@ -23,10 +23,11 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     put_u32(&mut out, count(model.indices.len()));
     put_u32(&mut out, count(model.submeshes.len()));
     put_u32(&mut out, 0);
-    for _ in 0..2 {
-        put_vector(&mut out, min);
-        put_vector(&mut out, max);
-    }
+    let (model_min, model_max) = model.model_box.unwrap_or((min, max));
+    put_vector(&mut out, model_min);
+    put_vector(&mut out, model_max);
+    put_vector(&mut out, min);
+    put_vector(&mut out, max);
     put_u32(&mut out, 4);
     put_u32(&mut out, 0);
     out.resize(out.len() + HEADER_PADDING, 0);

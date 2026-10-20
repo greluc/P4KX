@@ -5,7 +5,7 @@ use std::error::Error;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use p4kx_archive::{Archive, Build, Compression, Entry};
+use p4kx_archive::{Archive, Build, Compression, Entry, KeyCheck};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -33,6 +33,17 @@ fn opens_and_lists_a_real_archive_in_seconds() -> TestResult {
         elapsed < OPEN_LIMIT,
         "opening and listing {listed} Entries took {elapsed:?}, more than {OPEN_LIMIT:?}"
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_real_key_is_verified_against_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let check = archive.verify_key(&p4kx_testkit::real_archive_key()?)?;
+
+    assert_eq!(check, KeyCheck::Verified, "the key decrypts an Entry");
     Ok(())
 }
 

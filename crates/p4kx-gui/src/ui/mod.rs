@@ -121,6 +121,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
+    model.poll_key_check();
     model.poll_key_request();
     model.query_mut().poll();
     model.localization_mut().poll();

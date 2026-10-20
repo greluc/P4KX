@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use p4kx_settings::KeyText;
 
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
@@ -32,15 +33,10 @@ pub(crate) struct Cli {
     /// Prefer the variable or the stored key: an option shows up in process lists and shell
     /// history.
     #[arg(long = "key", global = true, value_name = "HEX")]
-    pub(crate) archive_key: Option<String>,
-    /// Reads and writes the stored Archive key in this file instead of the one in your profile.
-    #[arg(
-        long,
-        global = true,
-        value_name = "FILE",
-        env = "P4KX_KEY_FILE",
-        hide = true
-    )]
+    pub(crate) archive_key: Option<KeyText>,
+    /// Reads and writes the stored Archive key in this file instead of the one in your profile;
+    /// the `P4KX_KEY_FILE` environment variable does the same.
+    #[arg(long, global = true, value_name = "FILE", env = "P4KX_KEY_FILE")]
     pub(crate) key_file: Option<PathBuf>,
     /// What to do.
     #[command(subcommand)]

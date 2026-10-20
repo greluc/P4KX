@@ -177,7 +177,7 @@ impl Archives {
         let opened = self.opened(path)?;
         let archive = opened.archive();
         if (!archive.has_key() || archive.take_key_request())
-            && let Some(key) = self.keys.current()
+            && let Some(key) = self.keys.current()?
         {
             archive.set_key(key);
         }

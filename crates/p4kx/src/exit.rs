@@ -105,14 +105,14 @@ pub(crate) fn for_compare_error(error: &anyhow::Error) -> ExitCode {
 }
 
 fn code_for(error: &anyhow::Error) -> u8 {
+    if crate::key::is_key_error(error) {
+        return KEY_ERROR;
+    }
     if let Some(error) = error.downcast_ref::<LineDiffError>() {
         return match error {
             LineDiffError::UnknownEntry { .. } => INVALID_INPUT,
             _ => ARCHIVE_ERROR,
         };
-    }
-    if crate::key::is_key_error(error) {
-        return KEY_ERROR;
     }
     let dataforge = error.downcast_ref::<DataForgeLoadError>();
     if error.downcast_ref::<ArchiveError>().is_some()

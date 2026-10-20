@@ -1,14 +1,15 @@
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use p4kx_channels::{SearchPaths, detect};
+use p4kx_comparison::LineDiffError;
 use p4kx_extraction::{
     Archive, ArchiveError, ArchiveKey, ArchiveKeyError, Entry, KeyCheck, archive_error_in,
 };
 use p4kx_settings::{
-    ChosenKey, KEY_VARIABLE, KeyChoiceError, KeySource, KeyStore, Settings, choose_key,
+    ChosenKey, KEY_VARIABLE, KeyChoiceError, KeySource, KeyStore, KeyText, Settings, choose_key,
     default_settings_file,
 };
 use serde::Serialize;
@@ -22,7 +23,7 @@ static KEY: OnceLock<Option<ArchiveKey>> = OnceLock::new();
 /// The key options of the command line.
 pub(crate) struct Given {
     /// The `--key` option.
-    pub(crate) key: Option<String>,
+    pub(crate) key: Option<KeyText>,
     /// The `--key-file` option.
     pub(crate) file: Option<PathBuf>,
 }
@@ -74,7 +75,7 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
     let store = store(cli.key_file.as_deref());
     let variable = std::env::var(KEY_VARIABLE).ok();
     let chosen = match choose_key(
-        cli.archive_key.as_deref(),
+        cli.archive_key.as_ref().map(KeyText::as_str),
         variable.as_deref(),
         store.as_ref(),
     ) {
@@ -96,7 +97,7 @@ pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
 
 /// Returns the line that tells how to give the key when `error` is about a missing or wrong key.
 pub(crate) fn hint(error: &anyhow::Error) -> Option<&'static str> {
-    let archive_error = archive_error_in(error.as_ref())?;
+    let archive_error = archive_error(error)?;
     if archive_error.is_key_required() {
         Some(
             "give the Archive key with --key <hex> or the P4KX_ARCHIVE_KEY environment variable, \
@@ -131,8 +132,15 @@ pub(crate) fn require(archive: &Archive, entries: &[&Entry]) -> Result<()> {
 
 /// Returns whether `error` is about a missing or wrong Archive key.
 pub(crate) fn is_key_error(error: &anyhow::Error) -> bool {
-    archive_error_in(error.as_ref())
-        .is_some_and(|error| error.is_key_required() || error.is_wrong_key())
+    archive_error(error).is_some_and(|error| error.is_key_required() || error.is_wrong_key())
+}
+
+fn archive_error(error: &anyhow::Error) -> Option<&ArchiveError> {
+    match error.downcast_ref::<LineDiffError>() {
+        Some(LineDiffError::Archive(found)) => Some(found),
+        Some(_) => None,
+        None => archive_error_in(error.as_ref()),
+    }
 }
 
 /// Stores, shows or removes the Archive key of the profile.
@@ -140,8 +148,13 @@ pub(crate) fn run(args: &KeyArgs, given: &Given, as_json: bool) -> Result<()> {
     let store = store(given.file.as_deref())
         .context("this platform has no config directory; give --key-file")?;
     match &args.action {
-        KeyAction::Set { key, archive } => set(&store, key.as_deref(), archive.as_deref(), as_json),
-        KeyAction::Show => show(&store, given.key.as_deref(), as_json),
+        KeyAction::Set { key, archive } => set(
+            &store,
+            key.as_ref().map(KeyText::as_str),
+            archive.as_deref(),
+            as_json,
+        ),
+        KeyAction::Show => show(&store, given.key.as_ref().map(KeyText::as_str), as_json),
         KeyAction::Remove => remove(&store, as_json),
     }
 }
@@ -151,11 +164,13 @@ fn store(key_file: Option<&Path>) -> Option<KeyStore> {
 }
 
 fn set(store: &KeyStore, text: Option<&str>, archive: Option<&Path>, as_json: bool) -> Result<()> {
-    let mut line = String::new();
-    if text.is_none() {
-        io::stdin().lock().read_line(&mut line)?;
-    }
-    let text = text.unwrap_or(&line);
+    let line;
+    let text = if let Some(text) = text {
+        text
+    } else {
+        line = read_line()?;
+        &line
+    };
     let key = ArchiveKey::from_hex(text).map_err(InvalidKey::Text)?;
     let checked_against = check_against(&key, archive)?;
     store.save(&key)?;
@@ -181,6 +196,17 @@ fn set(store: &KeyStore, text: Option<&str>, archive: Option<&Path>, as_json: bo
         )?;
     }
     Ok(())
+}
+
+/// Reads the key from the terminal without echoing it, or the first line of a piped stdin.
+fn read_line() -> io::Result<String> {
+    if io::stdin().is_terminal() {
+        write!(io::stderr().lock(), "Archive key (hidden): ")?;
+        return rpassword::read_password();
+    }
+    let mut line = String::new();
+    io::stdin().lock().read_line(&mut line)?;
+    Ok(line)
 }
 
 fn check_against(key: &ArchiveKey, archive: Option<&Path>) -> Result<Option<PathBuf>> {

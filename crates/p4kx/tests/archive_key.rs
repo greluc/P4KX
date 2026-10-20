@@ -340,3 +340,43 @@ fn a_command_that_opens_an_encrypted_container_exits_with_7_without_a_key() -> T
         .stdout(predicate::str::contains("room.xml"));
     Ok(())
 }
+
+#[test]
+fn comparing_an_encrypted_entry_line_by_line_without_a_key_exits_with_7() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let old = archive(dir.path())?;
+    let new = dir.path().join("New.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\plain.xml", b"<plain/>".to_vec()))
+        .entry(TestEntry::deflated("Data\\secret.xml", b"<other/>".to_vec()).encrypted())
+        .write_to(&new)?;
+
+    keyless(dir.path())?
+        .arg("compare")
+        .arg(&old)
+        .arg(&new)
+        .args(["--diff", "Data\\secret.xml"])
+        .assert()
+        .code(7)
+        .stderr(predicate::str::contains("P4KX_ARCHIVE_KEY"));
+    Ok(())
+}
+
+#[test]
+fn verifying_an_encrypted_entry_without_a_key_exits_with_7() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+
+    keyless(dir.path())?
+        .arg("verify")
+        .arg(&archive)
+        .assert()
+        .code(7);
+    keyless(dir.path())?
+        .arg("verify")
+        .arg(&archive)
+        .args(["--filter", "plain"])
+        .assert()
+        .code(0);
+    Ok(())
+}

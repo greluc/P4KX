@@ -42,27 +42,16 @@ fn window(
     setup: &Setup,
     stored: Option<&str>,
 ) -> Result<Window, Box<dyn Error>> {
-    let mut model = Model::new(language);
     if let Some(hex) = stored {
         let key = p4kx_gui::ArchiveKey::from_hex(hex)?;
         KeyStore::new(&setup.store).save(&key)?;
     }
     let store = KeyStore::new(&setup.store);
     let in_use = store.load()?;
-    model.set_key_store(Some(store));
-    model.set_archive_key(in_use);
-    let mut harness = Harness::builder()
-        .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1200.0, 800.0])
-        .build_ui_state(
-            |ui, model: &mut Model| {
-                ui::show(ui, model);
-            },
-            model,
-        );
-    harness.state_mut().open(setup.archive.clone(), || {});
-    wait_until(&mut harness, |model| model.browser().is_some())?;
-    Ok(harness)
+    keyless_window(language, setup, |model| {
+        model.set_key_store(Some(store));
+        model.set_archive_key(in_use);
+    })
 }
 
 fn wait_until(harness: &mut Window, done: impl Fn(&Model) -> bool) -> TestResult {
@@ -171,7 +160,11 @@ fn the_dialog_names_what_is_wrong_with_the_key_typed() -> TestResult {
 
     type_key(&mut harness, &other_test_key().to_hex());
     harness.get_by_label("Save").click();
-    harness.run();
+    wait_until(&mut harness, |model| {
+        model
+            .key_dialog()
+            .is_some_and(|dialog| !dialog.pending() && dialog.problem().is_some())
+    })?;
     assert_eq!(
         harness
             .state()
@@ -334,3 +327,26 @@ fn the_dialog_speaks_german_too() -> TestResult {
     }
     Ok(())
 }
+
+fn keyless_window(
+    language: Language,
+    setup: &Setup,
+    prepare: impl FnOnce(&mut Model),
+) -> Result<Window, Box<dyn Error>> {
+    let mut model = Model::new(language);
+    prepare(&mut model);
+    let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([1200.0, 800.0])
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            model,
+        );
+    harness.state_mut().open(setup.archive.clone(), || {});
+    wait_until(&mut harness, |model| model.browser().is_some())?;
+    Ok(harness)
+}
+
+mod notes;

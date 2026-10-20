@@ -3,12 +3,14 @@
 
 mod key_choice;
 mod key_store;
+mod key_text;
 mod queries;
 mod recent;
 mod settings;
 
 pub use key_choice::{ChosenKey, KeyChoiceError, KeySource, choose_key};
 pub use key_store::{KEY_VARIABLE, KeyStore, KeyStoreError};
+pub use key_text::KeyText;
 pub use queries::{NameProblem, SavedQueries, SavedQuery, SavedQueryEdit};
 pub use recent::RecentArchives;
 pub use settings::{

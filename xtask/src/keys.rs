@@ -18,7 +18,7 @@ const SAMPLES: [&str; 3] = [
 /// Returns one message per tracked file that looks like it holds an Archive key.
 ///
 /// Two checks run. The first needs no key: it flags any list of 16 or more hexadecimal bytes, any
-/// 32 hexadecimal digits and any 22-character base64 string of 16 bytes that stands close behind
+/// 32 hexadecimal digits (also as a `0x` literal) and any 22-character base64 string of 16 bytes that stands close behind
 /// the word `key`, so a key cannot come back under another name or spelling. The second runs
 /// only when `P4KX_ARCHIVE_KEY` holds the real key, as on the developer's machine and never in CI:
 /// it searches every tracked file for the 16 bytes as raw bytes, hexadecimal digits, a list of
@@ -77,6 +77,11 @@ pub(crate) fn literals(bytes: &[u8]) -> Vec<&'static str> {
     for start in byte_list_starts(&text) {
         if named_as_key(&text, start) {
             found.push("a list of 16 or more bytes");
+        }
+    }
+    for start in wide_literal_starts(&text) {
+        if named_as_key(&text, start) {
+            found.push("a 128-bit hexadecimal literal");
         }
     }
     for (start, token) in tokens(&text) {
@@ -138,6 +143,35 @@ fn byte_list_starts(text: &str) -> Vec<usize> {
         if !is_hex_byte_at(bytes, index) {
             run = 0;
         }
+    }
+    starts
+}
+
+/// Returns the start of every `0x` followed by exactly 32 hexadecimal digits, which may be
+/// separated by underscores, other than the documented samples.
+fn wide_literal_starts(text: &str) -> Vec<usize> {
+    let bytes = text.as_bytes();
+    let mut starts = Vec::new();
+    let mut index = 0;
+    while index + 2 < bytes.len() {
+        if !(bytes.get(index) == Some(&b'0') && matches!(bytes.get(index + 1), Some(b'x' | b'X'))) {
+            index += 1;
+            continue;
+        }
+        let mut digits = String::new();
+        let mut end = index + 2;
+        while let Some(&byte) = bytes.get(end) {
+            if byte.is_ascii_hexdigit() {
+                digits.push(char::from(byte));
+            } else if byte != b'_' {
+                break;
+            }
+            end += 1;
+        }
+        if digits.len() == KEY_LEN * 2 && !SAMPLES.contains(&digits.to_ascii_lowercase().as_str()) {
+            starts.push(index);
+        }
+        index = end.max(index + 2);
     }
     starts
 }
@@ -210,6 +244,27 @@ mod tests {
         let base64 = format!("{}==", "Q".repeat(22));
         assert!(flagged(&format!("key: {hex}")), "hex");
         assert!(flagged(&format!("KEY={base64}")), "base64");
+    }
+
+    #[test]
+    fn a_wide_literal_after_the_word_key_is_flagged_with_or_without_underscores() {
+        let digits = "ab12".repeat(8);
+        let grouped = digits
+            .as_bytes()
+            .chunks(4)
+            .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+            .collect::<Vec<_>>()
+            .join("_");
+        assert!(flagged(&format!("const KEY: u128 = 0x{digits};")), "plain");
+        assert!(
+            flagged(&format!("const KEY: u128 = 0x{grouped};")),
+            "grouped"
+        );
+        assert!(!flagged(&format!("let id: u128 = 0x{digits};")), "unnamed");
+        assert!(
+            !flagged(&format!("const KEY: u64 = 0x{};", "ab12".repeat(4))),
+            "shorter"
+        );
     }
 
     #[test]

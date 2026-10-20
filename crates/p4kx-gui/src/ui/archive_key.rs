@@ -38,7 +38,11 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     let stored = model.stored_key_masked().map(str::to_owned);
     let mut text = dialog.text().to_owned();
     let mut revealed = dialog.revealed();
-    let ready = !text.trim().is_empty();
+    let ready = !text.trim().is_empty() && !dialog.pending();
+    let notices = Notices {
+        variable_invalid: model.key_variable_invalid(),
+        store_problem: model.key_store_problem(),
+    };
     let shown =
         frames::modal(frames::modal_id("archive-key-dialog"), Tone::Normal).show(ui.ctx(), |ui| {
             ui.set_width(frames::MODAL_BODY_WIDTH);
@@ -49,6 +53,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 &dialog,
                 (&mut text, &mut revealed),
                 (stored.as_deref(), first),
+                notices,
             );
             let mut done = foot(ui, texts, ready);
             done.submit |= entered && ready;
@@ -85,6 +90,7 @@ fn body(
     dialog: &crate::KeyDialog,
     (text, revealed): (&mut String, &mut bool),
     (stored, first): (Option<&str>, bool),
+    notices: Notices<'_>,
 ) -> (bool, bool) {
     let reason = match dialog.reason() {
         KeyReason::Menu => ArchiveKeyText::Intro,
@@ -93,23 +99,71 @@ fn body(
     };
     ui.add(Label::new(plain(texts.get(reason), FS_SM, Weight::Regular)));
     ui.add_space(MODAL_GROUP_GAP - SPACE_3);
-    let entered = key_field(ui, texts, text, !*revealed, first);
+    let invalid = matches!(
+        dialog.problem(),
+        Some(KeyProblem::Length(_) | KeyProblem::Character(_) | KeyProblem::Wrong)
+    );
+    let entered = key_field(ui, texts, text, (!*revealed, invalid), first) && !dialog.pending();
+    if let Some(problem) = dialog.problem() {
+        field::error_note(ui, &problem_text(texts, problem));
+    }
     ui.add_space(SPACE_3);
     toggle::checkbox(ui, revealed, &texts.get(ArchiveKeyText::Show));
-    if let Some(problem) = dialog.problem() {
+    if dialog.pending() {
         ui.add_space(SPACE_3);
         ui.add(Label::new(
-            plain(problem_text(texts, problem), FS_SM, Weight::Regular).color(palette::DANGER_TEXT),
+            plain(texts.get(ArchiveKeyText::Checking), FS_SM, Weight::Regular)
+                .color(palette::GRAY_2_TEXT),
         ));
     }
+    notes(ui, texts, notices);
     ui.add_space(MODAL_GROUP_GAP - SPACE_3);
     let removed = stored_row(ui, texts, stored);
     (entered, removed)
 }
 
+/// What the window found wrong with the key it started with.
+#[derive(Debug, Default, Clone, Copy)]
+struct Notices<'a> {
+    variable_invalid: bool,
+    store_problem: Option<&'a str>,
+}
+
+/// Says in `color-warning` which source of the key was ignored, so that a malformed variable or
+/// stored key does not go unnoticed.
+fn notes(ui: &mut Ui, texts: &Texts, notices: Notices<'_>) {
+    if notices.variable_invalid {
+        ui.add_space(SPACE_3);
+        ui.add(Label::new(
+            plain(
+                texts.get(ArchiveKeyText::NoteVariable),
+                FS_SM,
+                Weight::Regular,
+            )
+            .color(palette::WARNING),
+        ));
+    }
+    if let Some(reason) = notices.store_problem {
+        ui.add_space(SPACE_3);
+        let note = texts.format(
+            ArchiveKeyText::NoteStore,
+            &[("reason", reason.to_owned().into())],
+        );
+        ui.add(Label::new(
+            plain(note, FS_SM, Weight::Regular).color(palette::WARNING),
+        ));
+    }
+}
+
 /// Shows the labelled key field, focused when the dialog opens; returns whether Enter was pressed
-/// in it.
-fn key_field(ui: &mut Ui, texts: &Texts, text: &mut String, hidden: bool, first: bool) -> bool {
+/// in it. The border is red while the field holds an error.
+fn key_field(
+    ui: &mut Ui,
+    texts: &Texts,
+    text: &mut String,
+    (hidden, invalid): (bool, bool),
+    first: bool,
+) -> bool {
     let label = ui.label(eyebrow(&texts.get(ArchiveKeyText::Label)));
     let bloom = field::bloom_slot(ui);
     let frame = field::frame_slot(ui);
@@ -123,7 +177,11 @@ fn key_field(ui: &mut Ui, texts: &Texts, text: &mut String, hidden: bool, first:
         .desired_width(ui.available_width())
         .align(Align2::LEFT_CENTER);
     let response = ui.add(edit).labelled_by(label.id);
-    field::paint_frame(ui, frame, response.rect, response.has_focus());
+    if invalid {
+        field::paint_error_frame(ui, frame, response.rect);
+    } else {
+        field::paint_frame(ui, frame, response.rect, response.has_focus());
+    }
     if response.has_focus() {
         field::paint_bloom(ui, bloom, response.rect);
     }

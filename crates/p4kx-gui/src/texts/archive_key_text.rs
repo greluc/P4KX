@@ -40,11 +40,17 @@ pub enum ArchiveKeyText {
     ErrorStore,
     /// The stored key could not be removed; takes `reason`.
     ErrorRemove,
+    /// The key typed is being checked against the Archive.
+    Checking,
+    /// The `P4KX_ARCHIVE_KEY` environment variable holds no valid key and is ignored.
+    NoteVariable,
+    /// The stored key cannot be read; takes `reason`.
+    NoteStore,
 }
 
 impl ArchiveKeyText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 22] = [
         Self::Menu,
         Self::Title,
         Self::Needed,
@@ -64,6 +70,9 @@ impl ArchiveKeyText {
         Self::ErrorCheck,
         Self::ErrorStore,
         Self::ErrorRemove,
+        Self::Checking,
+        Self::NoteVariable,
+        Self::NoteStore,
     ];
 
     /// Returns the Fluent message id.
@@ -89,6 +98,9 @@ impl ArchiveKeyText {
             Self::ErrorCheck => "key-error-check",
             Self::ErrorStore => "key-error-store",
             Self::ErrorRemove => "key-error-remove",
+            Self::Checking => "key-checking",
+            Self::NoteVariable => "key-note-variable",
+            Self::NoteStore => "key-note-store",
         }
     }
 }

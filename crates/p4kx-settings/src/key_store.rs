@@ -7,6 +7,7 @@ use thiserror::Error;
 const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "archive.key";
 const MAX_KEY_FILE_LEN: u64 = 1024;
+const TEMPORARY_ATTEMPTS: u32 = 8;
 
 /// The environment variable that holds the Archive key.
 pub const KEY_VARIABLE: &str = "P4KX_ARCHIVE_KEY";
@@ -99,18 +100,40 @@ impl KeyStore {
         if let Some(folder) = self.file.parent() {
             std::fs::create_dir_all(folder).map_err(|source| self.io_error(source))?;
         }
-        let mut temporary = self.file.as_os_str().to_owned();
-        temporary.push(format!(".{}.tmp", std::process::id()));
-        let temporary = PathBuf::from(temporary);
         let mut text = key.to_hex();
         text.push('\n');
-        let written = write_private(&temporary, text.as_bytes())
-            .and_then(|()| std::fs::rename(&temporary, &self.file));
-        if let Err(source) = written {
+        let (temporary, written) = self.write_temporary(text.as_bytes());
+        let published = written.and_then(|()| {
+            std::fs::rename(&temporary, &self.file)?;
+            sync_folder(self.file.parent())
+        });
+        if let Err(source) = published {
             let _ignored = std::fs::remove_file(&temporary);
             return Err(self.io_error(source));
         }
         Ok(())
+    }
+
+    fn write_temporary(&self, bytes: &[u8]) -> (PathBuf, io::Result<()>) {
+        let mut last = self.file.clone();
+        for attempt in 0..TEMPORARY_ATTEMPTS {
+            let mut name = self.file.as_os_str().to_owned();
+            name.push(format!(".{}.{attempt}.tmp", std::process::id()));
+            let temporary = PathBuf::from(name);
+            match create_private(&temporary) {
+                Ok(mut file) => {
+                    let written = file.write_all(bytes).and_then(|()| file.sync_all());
+                    return (temporary, written);
+                }
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => last = temporary,
+                Err(error) => return (temporary, Err(error)),
+            }
+        }
+        let exhausted = io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "no unused temporary file name for the Archive key",
+        );
+        (last, Err(exhausted))
     }
 
     /// Removes the stored key; returns whether one was stored.
@@ -140,19 +163,29 @@ fn create_private(path: &Path) -> io::Result<std::fs::File> {
 
     std::fs::OpenOptions::new()
         .write(true)
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .mode(0o600)
         .open(path)
 }
 
 #[cfg(not(unix))]
 fn create_private(path: &Path) -> io::Result<std::fs::File> {
-    std::fs::File::create(path)
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
 }
 
-fn write_private(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let mut file = create_private(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()
+#[cfg(unix)]
+fn sync_folder(folder: Option<&Path>) -> io::Result<()> {
+    folder.map_or(Ok(()), |folder| std::fs::File::open(folder)?.sync_all())
+}
+
+#[cfg(not(unix))]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "same signature as the Unix version"
+)]
+const fn sync_folder(_folder: Option<&Path>) -> io::Result<()> {
+    Ok(())
 }

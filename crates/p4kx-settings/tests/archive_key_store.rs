@@ -140,3 +140,19 @@ fn a_mistyped_key_is_reported_and_not_replaced_by_a_lower_source() -> TestResult
     );
     Ok(())
 }
+
+#[test]
+fn a_leftover_temporary_file_is_neither_followed_nor_overwritten() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let store = store(&dir);
+    let folder = store.file().parent().ok_or("a folder")?;
+    std::fs::create_dir_all(folder)?;
+    let stale = folder.join(format!("archive.key.{}.0.tmp", std::process::id()));
+    std::fs::write(&stale, "left behind")?;
+
+    store.save(&key(FIRST)?)?;
+
+    assert_eq!(store.load()?, Some(key(FIRST)?), "saved");
+    assert_eq!(std::fs::read_to_string(&stale)?, "left behind", "untouched");
+    Ok(())
+}

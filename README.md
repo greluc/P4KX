@@ -287,6 +287,7 @@ Early development (milestone M1). Available today:
   key, for the command line, the window and the MCP server alike.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
+
 ### Exit codes
 
 | Code | Meaning |

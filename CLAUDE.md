@@ -25,8 +25,8 @@ never write into the game folders. Extraction output during development goes und
 
 Never read `loginData.json` or other launcher credential files in the game folders. Tests against a
 real Archive are `#[ignore]`d and need `P4KX_DATA_P4K` and `P4KX_ARCHIVE_KEY`; CI uses synthetic
-fixtures. Run them with `TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the extracted subset lands
-there:
+fixtures. Run them with `TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the
+extracted subset lands there:
 
 ```powershell
 $env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
@@ -38,7 +38,8 @@ cargo test --release --workspace --locked -- --ignored
 
 That runs every real-Archive test in the workspace, whatever test file it lives in. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
-and takes the path from `p4kx_testkit::real_archive_path`, and from
+(a test that reads encrypted Entries also needs `P4KX_ARCHIVE_KEY`; its failure message says so,
+the reason stays as written) and takes the path from `p4kx_testkit::real_archive_path`, and from
 `p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`, and the key
 from `p4kx_testkit::real_archive_key`, which opens it with `Archive::open_with_key`. A test
 needing the second Archive returns early when it is not set (`real_archive_b_path` gives `None`),

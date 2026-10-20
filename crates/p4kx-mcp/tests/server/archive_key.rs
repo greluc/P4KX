@@ -101,6 +101,22 @@ fn a_mistyped_key_option_stops_the_server_before_it_starts() -> TestResult {
 }
 
 #[test]
+fn a_malformed_stored_key_is_reported_instead_of_read_as_no_key() -> TestResult {
+    let install = install()?;
+    std::fs::write(install.config().join("archive.key"), "not-a-key-0123\n")?;
+    let mut server = install.serve_without_key(&["--archive", "LIVE"])?;
+
+    let message = server.error("read_entry_text", &json!({ "path": "Data/secret.xml" }))?;
+
+    assert!(message.contains("malformed"), "{message}");
+    assert!(
+        !message.contains("not-a-key-0123"),
+        "the content is not repeated: {message}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_corrected_stored_key_applies_to_the_next_call() -> TestResult {
     let install = install()?;
     let key_file = install.config().join("archive.key");

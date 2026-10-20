@@ -25,7 +25,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use p4kx_settings::{KeyStore, default_settings_file};
+use p4kx_settings::{KeyStore, KeyText, default_settings_file};
 use rmcp::ServiceExt;
 
 use crate::keys::KeyChoice;
@@ -57,7 +57,7 @@ struct Args {
     /// stored with `p4kx key set` or in the GUI. Prefer the variable or the stored key: an option
     /// shows up in process lists.
     #[arg(long = "key", value_name = "HEX")]
-    archive_key: Option<String>,
+    archive_key: Option<KeyText>,
     /// The file holding the stored Archive key; `archive.key` in the config folder or in the
     /// profile of the current user when omitted.
     #[arg(long, env = "P4KX_KEY_FILE", value_name = "FILE")]

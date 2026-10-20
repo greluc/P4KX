@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use p4kx_settings::KeyText;
 
 use crate::exit::EXIT_CODES_HELP;
 
@@ -21,7 +22,7 @@ pub(crate) enum KeyAction {
     Set {
         /// The key as 32 hexadecimal digits; read from the first line of stdin when omitted, which
         /// keeps it out of the process list and the shell history.
-        key: Option<String>,
+        key: Option<KeyText>,
         /// The Archive to check the key against; the first installed Channel when omitted.
         #[arg(long, value_name = "ARCHIVE")]
         archive: Option<PathBuf>,
@@ -33,4 +34,26 @@ pub(crate) enum KeyAction {
     /// Removes the stored Archive key.
     #[command(after_help = EXIT_CODES_HELP)]
     Remove,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use crate::cli::Cli;
+
+    #[test]
+    fn debug_output_of_the_parsed_command_line_holds_no_key_text() {
+        let digits = "00112233".repeat(4);
+        for arguments in [
+            vec!["p4kx", "--key", &digits, "key", "show"],
+            vec!["p4kx", "key", "set", &digits, "--json"],
+        ] {
+            let cli = Cli::try_parse_from(arguments).expect("the arguments parse");
+
+            let shown = format!("{cli:?} {cli:#?}");
+
+            assert!(!shown.contains("00112233"), "{shown}");
+        }
+    }
 }

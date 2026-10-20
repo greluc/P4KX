@@ -12,14 +12,17 @@ egui's frame.
   graphics dependency; the one new crate is `bytemuck` (1.25.2, the version `egui-wgpu` already
   uses) so that vertex and index slices are cast to bytes without `unsafe`.
 - **The model is drawn into its own picture, which the callback blits into the panel.** `prepare`
-  records one render pass into egui's command encoder: a 4× multisampled `Rgba8Unorm` colour
-  attachment resolved into a texture, and a `Depth32Float` attachment. `paint` draws that texture
-  as a full-panel triangle with nearest filtering. The main window pass keeps no depth and no
-  multisampling, so `NativeOptions` and egui's own pipelines stay as they are and the viewer
-  cannot disturb them. The picture grows in steps of 64 pixels, so resizing the panel does not
+  records one render pass into an encoder of its own and returns the finished command buffer: a 4×
+  multisampled `Rgba8UnormSrgb` colour attachment resolved into a texture, and a `Depth32Float`
+  attachment. A repaint with the same scene, camera and size skips the pass; the resolved picture
+  persists. `paint` draws that texture as a full-panel triangle with nearest filtering. The main
+  window pass keeps no depth and no multisampling, so egui's own pipelines stay as they are and the
+  viewer cannot disturb them; `window::native_options` fixes both settings and a test guards them,
+  because the blit pipeline would be incompatible with another pass. The picture grows in steps of 64 pixels, so resizing the panel does not
   allocate a texture per pixel of change; the pass draws into its top-left corner and the blit
-  samples only that corner. Shaders write sRGB-encoded colours; a blit to an sRGB surface decodes
-  them first, so both surface kinds show the same colours.
+  samples only that corner. The scene shader writes linear colours into the sRGB picture, so
+  multisampling resolves in linear space; the blit encodes them for a surface that is not sRGB, so
+  both surface kinds show the same colours.
 - **One scene for the GPU, flattened off the window thread.** `ModelPreview` reads the model and
   its geometry companion on a background thread (level 0 only, `LodSelection::Only(0)`) and
   flattens it into a `Scene`: one vertex list of position, normal and texture coordinate and one
@@ -42,9 +45,13 @@ egui's frame.
   bind group and the shader already sample it, so textures arrive without a new pipeline.
 - **A device that cannot draw, or is lost, is a message, not a crash.** The first frame probes the
   device: texture and buffer limits, 4× multisampling for both formats (else 1×), and shader and
-  pipeline creation inside a validation error scope. Each frame's mesh upload and its drawing run
-  inside validation and out-of-memory scopes: an upload that fails rejects that scene only, a
-  drawing that fails stops the viewer; a device-lost callback sets a flag. All of it ends up in a
+  pipeline creation inside a validation error scope. Buffers are created without mapping and
+  filled with `queue.write_buffer`, so an out-of-memory creation is an error for the scope, never a
+  panic inside wgpu. Each frame's mesh upload, and the recording and `finish()` of the viewer's
+  pass, run inside validation and out-of-memory scopes (wgpu raises render-pass errors at
+  `finish()`, outside any scope in egui's own encoder): an upload that fails rejects that scene
+  only, and a drawing that fails marks that scene failed while the next scene is drawn again; a
+  device-lost callback sets a flag. All of it ends up in a
   `GpuReport` the window reads. `ViewerSupport` turns it into `Problem`s that the Model tab shows
   in place of the view while every other tab, table and tree keeps working.
 - **Deviation from the design system: the 3D view has square corners.** Controls and surfaces have a

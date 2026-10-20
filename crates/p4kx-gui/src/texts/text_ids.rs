@@ -1,7 +1,8 @@
 use super::{
     ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
     DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText, ModelText,
-    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText, Text, XmlText,
+    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText,
+    Text, XmlText,
 };
 use crate::Language;
 

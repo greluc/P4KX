@@ -20,6 +20,7 @@ mod container_note;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;
+mod entry_status;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;

@@ -3,16 +3,17 @@ mod archive_change_tests;
 mod audio;
 mod contents;
 mod image;
+mod start;
 mod texture_info;
 mod xml;
 mod xml_document;
 
-use std::io::Read;
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{Entry, Texture};
+use p4kx_extraction::Texture;
+use start::read_start;
 
 pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_wem_path};
 pub use contents::PreviewContents;
@@ -387,16 +388,4 @@ fn read(index: &EntryIndex, id: u32, deliver: impl FnOnce(ReadResult) -> bool, w
             wake,
         );
     }
-}
-
-fn read_start(reader: &mut impl Read, entry: &Entry) -> Result<Vec<u8>, String> {
-    let limit = u64::try_from(PREVIEW_READ_LIMIT).unwrap_or(u64::MAX);
-    let capacity = usize::try_from(entry.uncompressed_size().min(limit)).unwrap_or(0);
-    let mut bytes = Vec::with_capacity(capacity);
-    reader
-        .by_ref()
-        .take(limit)
-        .read_to_end(&mut bytes)
-        .map_err(|error| describe(&error))?;
-    Ok(bytes)
 }

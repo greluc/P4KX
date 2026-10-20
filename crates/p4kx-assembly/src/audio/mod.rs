@@ -9,6 +9,9 @@ mod entity;
 mod error;
 mod hash;
 mod index;
+mod language;
+mod locate;
+mod media;
 mod read;
 mod references;
 mod resolve;
@@ -23,6 +26,7 @@ pub use entity::{EntityAudio, EntityTrigger, EventMatch, Unmatched};
 pub use error::{AudioFileError, AudioIssue};
 pub use hash::wwise_id;
 pub use index::AudioIndex;
+pub use language::LanguageChoice;
 pub use references::{TriggerReference, trigger_references};
 pub use sounds::{NodeKind, PathStep, SoundVariant, SourceKind, TriggerSounds, WemLocation};
 
@@ -44,6 +48,16 @@ pub const MAX_TRIGGER_EVENTS: usize = 256;
 
 /// The folder of the ATL definition Entries, ignoring ASCII case.
 pub const ATL_FOLDER: &str = "Data\\Libs\\GameAudio\\";
+
+/// The language folder the game reads when its settings name none.
+pub const DEFAULT_LANGUAGE: &str = "English(US)";
+
+/// The most loose WEM Entries one index holds; further ones are left out and the first of them is
+/// reported.
+pub const MAX_LOOSE_WEMS: usize = 1 << 22;
+
+/// The most language folders one index holds; WEMs in further ones are left out.
+pub const MAX_LANGUAGES: usize = 1 << 10;
 
 /// The most objects a container path holds, the Event object included.
 pub const MAX_PATH_DEPTH: usize = 32;

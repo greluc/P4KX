@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
+use crate::cli_wwise::AudioLanguageArgs;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx entity`.
@@ -21,7 +22,10 @@ pub(crate) enum EntityAction {
     Loadout(EntityLoadoutArgs),
     /// Lists the audio triggers an Entity names, each with the Wwise events its ATL definition
     /// posts and the soundbanks that hold them; triggers that reach no soundbank are listed with
-    /// the reason. Reads every ATL definition and soundbank of the Archive once.
+    /// the reason. With --sounds each trigger also lists the sounds it plays, with the source
+    /// (embedded, streamed, localised) and the location of every WEM. Reads every ATL definition
+    /// and soundbank of the Archive once, and with --sounds the soundbanks of the triggers
+    /// again.
     #[command(after_help = EXIT_CODES_HELP)]
     Audio(EntityAudioArgs),
 }
@@ -44,4 +48,9 @@ pub(crate) struct EntityAudioArgs {
     /// The Entity: a class name such as `ORIG_890Jump`, a GUID, or a record path such as
     /// `libs/foundry/records/entities/spaceships/orig_890jump`; ignores case.
     pub(crate) entity: String,
+    /// Also lists the sounds of every trigger: each variant with its source and WEM location.
+    #[arg(long)]
+    pub(crate) sounds: bool,
+    #[command(flatten)]
+    pub(crate) language: AudioLanguageArgs,
 }

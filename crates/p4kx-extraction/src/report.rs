@@ -1,7 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use p4kx_archive::ArchiveError;
+use p4kx_archive::{ArchiveError, Checksum, DataError};
 use p4kx_cryxml::CryXmlError;
 use p4kx_dataforge::DataForgeError;
 use thiserror::Error;
@@ -59,6 +59,31 @@ pub enum ExtractionError {
         #[source]
         source: io::Error,
     },
+    /// The data of the Entry does not match the checksum of the directory; reported only by a
+    /// run that verifies, and the Entry is not written.
+    #[error("{actual} computed, {expected} stored")]
+    ChecksumMismatch {
+        /// The checksum the directory states.
+        expected: Checksum,
+        /// The checksum of the decoded data.
+        actual: Checksum,
+    },
+}
+
+impl ExtractionError {
+    /// Returns the error for a failed read of Entry data: a checksum mismatch when that is what
+    /// the reader reported, otherwise [`Read`](Self::Read).
+    pub(crate) fn read(source: io::Error) -> Self {
+        let mismatch = source
+            .get_ref()
+            .and_then(|inner| inner.downcast_ref::<DataError>());
+        match mismatch {
+            Some(&DataError::ChecksumMismatch {
+                expected, actual, ..
+            }) => Self::ChecksumMismatch { expected, actual },
+            _ => Self::Read(source),
+        }
+    }
 }
 
 /// One Entry that an Extraction did not write.
@@ -79,6 +104,16 @@ impl EntryFailure {
     #[must_use]
     pub const fn error(&self) -> &ExtractionError {
         &self.error
+    }
+
+    /// Returns the stored and the computed checksum when the Entry failed because its data does
+    /// not match the checksum of the directory.
+    #[must_use]
+    pub const fn checksum_mismatch(&self) -> Option<(Checksum, Checksum)> {
+        match self.error {
+            ExtractionError::ChecksumMismatch { expected, actual } => Some((expected, actual)),
+            _ => None,
+        }
     }
 }
 
@@ -120,6 +155,14 @@ impl ExtractionReport {
     #[must_use]
     pub fn failures(&self) -> &[EntryFailure] {
         &self.failures
+    }
+
+    /// Returns the Entries among the [`failures`](Self::failures) whose data did not match the
+    /// checksum of the directory.
+    pub fn checksum_mismatches(&self) -> impl Iterator<Item = &EntryFailure> {
+        self.failures
+            .iter()
+            .filter(|failure| failure.checksum_mismatch().is_some())
     }
 
     /// Returns the textures, by the path of their header Entry, that a Conversion could not

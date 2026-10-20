@@ -17,7 +17,7 @@ fn ivo_model() -> Vec<u8> {
         .chunk(0xBE5E_493E, 0x900, [0; 16])
         .chunk(0x8335_3333, 0x900, *b"cube_material\0\0\0")
         .chunk(0x9293_B9D8, 0x901, [9; 40])
-        .chunk(0x0A24_85B6, 0x900, [1; 8])
+        .chunk(0x00C0_FFEE, 0x900, [1; 8])
         .bytes()
 }
 

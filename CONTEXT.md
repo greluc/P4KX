@@ -282,6 +282,11 @@ The chunk file next to a model that holds its mesh data, named like the model wi
 appended, e.g. `box.cgfm` for `box.cgf`.
 _Avoid_: mesh file, streaming file
 
+**LOD companion**:
+The geometry companion of a level of detail from 1 on, named `<stem>_lod<n>.<extension>m`, e.g.
+`box_lod1.cgfm`. Its meshes belong to the nodes of the base model file.
+_Avoid_: LOD file, lod mesh
+
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
 with the sizes of the whole texture. A part or tail without a header Entry is in no group and
@@ -331,6 +336,12 @@ What an Extraction does with a file already in the target folder: skip it, overw
 overwrite it only if changed (its size or the Entry's checksum differs from the Entry, or its size or
 CRC-32C from the converted output).
 _Avoid_: collision mode, overwrite mode
+
+**Verification**:
+Checking the decoded data of an Entry against the checksum its directory states, while the data is
+read: `p4kx verify` for a whole Archive or a Filter, `--verify` during an Extraction. Off unless
+asked for.
+_Avoid_: validation, integrity scan
 
 **Conversion**:
 Turning an Entry or Record from its game-internal format into a readable one, e.g. CryXml or a

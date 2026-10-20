@@ -6,7 +6,9 @@ use crate::model::{TestModel, TestNormals, TestPositions};
 const INDICES: u32 = 0xEECD_C168;
 const VERTS_UVS: u32 = 0x9132_9AE9;
 const VERTS_UVS_2: u32 = 0xB3A7_0D5E;
+const NORMALS: u32 = 0x9CF3_F615;
 const NORMALS_2: u32 = 0x38A5_81FE;
+const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
 const UNKNOWN_STREAM: u32 = 0x9D51_C5EE;
 const HEADER_PADDING: usize = 88;
@@ -21,10 +23,11 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     put_u32(&mut out, count(model.indices.len()));
     put_u32(&mut out, count(model.submeshes.len()));
     put_u32(&mut out, 0);
-    for _ in 0..2 {
-        put_vector(&mut out, min);
-        put_vector(&mut out, max);
-    }
+    let (model_min, model_max) = model.model_box.unwrap_or((min, max));
+    put_vector(&mut out, model_min);
+    put_vector(&mut out, model_max);
+    put_vector(&mut out, min);
+    put_vector(&mut out, max);
     put_u32(&mut out, 4);
     put_u32(&mut out, 0);
     out.resize(out.len() + HEADER_PADDING, 0);
@@ -43,27 +46,92 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     }
     put_indices(&mut out, model);
     put_vertices(&mut out, model, min, max);
-    match model.normals {
-        TestNormals::Float => stream(&mut out, NORMALS_2, 12, |data| {
-            for vertex in &model.vertices {
-                put_vector(data, vertex.normal);
-            }
-        }),
-        TestNormals::Compressed => stream(&mut out, QTANGENTS, 8, |data| {
-            for vertex in &model.vertices {
-                let (tangent, bitangent) = tangent_frame(vertex.normal);
-                put_u32(data, pack_unit_vector(tangent));
-                put_u32(data, pack_unit_vector(bitangent));
-            }
-        }),
-        TestNormals::None => {}
-    }
+    put_normals(&mut out, model);
     stream(&mut out, UNKNOWN_STREAM, 2, |data| {
         for _ in &model.vertices {
             put_u16(data, 0);
         }
     });
+    for _ in 0..model.repeated_index_streams {
+        put_indices(&mut out, model);
+    }
     out
+}
+
+fn put_floats(out: &mut Vec<u8>, tag: u32, model: &TestModel) {
+    stream(out, tag, 12, |data| {
+        for vertex in &model.vertices {
+            put_vector(data, vertex.normal);
+        }
+    });
+}
+
+fn put_tangent_frames(out: &mut Vec<u8>, model: &TestModel) {
+    stream(out, QTANGENTS, 8, |data| {
+        for vertex in &model.vertices {
+            let (tangent, bitangent) = tangent_frame(vertex.normal);
+            if model.tangent_sign < 0.0 {
+                put_u32(data, pack_unit_vector(tangent) | (1 << 31));
+                put_u32(data, pack_unit_vector(bitangent.map(|value| -value)));
+            } else {
+                put_u32(data, pack_unit_vector(tangent));
+                put_u32(data, pack_unit_vector(bitangent));
+            }
+        }
+    });
+}
+
+fn put_normals(out: &mut Vec<u8>, model: &TestModel) {
+    match model.normals {
+        TestNormals::Float => put_floats(out, NORMALS_2, model),
+        TestNormals::Compressed => put_tangent_frames(out, model),
+        TestNormals::CompressedWithOpposedPacked => {
+            put_tangent_frames(out, model);
+            stream(out, NORMALS_2, 4, |data| {
+                for vertex in &model.vertices {
+                    put_u32(data, pack_unit_vector(vertex.normal.map(|value| -value)));
+                }
+            });
+        }
+        TestNormals::FloatOnNormals => put_floats(out, NORMALS, model),
+        TestNormals::PackedOnNormals => put_packed(out, NORMALS, model),
+        TestNormals::PackedOnNormals2 => put_packed(out, NORMALS_2, model),
+        TestNormals::Tangents16 => stream(out, TANGENTS, 16, |data| {
+            for vertex in &model.vertices {
+                put_quaternion(data, quaternion_of_normal(vertex.normal));
+                put_quaternion(data, [0.0, 0.0, 0.0, 1.0]);
+            }
+        }),
+        TestNormals::None => {}
+    }
+}
+
+fn put_packed(out: &mut Vec<u8>, tag: u32, model: &TestModel) {
+    stream(out, tag, 4, |data| {
+        for vertex in &model.vertices {
+            put_u32(data, pack_unit_vector(vertex.normal));
+        }
+    });
+}
+
+fn quaternion_of_normal([x, y, z]: [f32; 3]) -> [f32; 4] {
+    let scale = 2.0_f32.mul_add(z, 2.0).sqrt();
+    if scale < 1e-6 {
+        [1.0, 0.0, 0.0, 0.0]
+    } else {
+        [-y / scale, x / scale, 0.0, (1.0 + z) / scale]
+    }
+}
+
+fn put_quaternion(out: &mut Vec<u8>, quaternion: [f32; 4]) {
+    for value in quaternion {
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the value is clamped and rounded to the i16 range"
+        )]
+        let raw = (value.clamp(-1.0, 1.0) * 32767.0).round() as i16;
+        out.extend_from_slice(&raw.to_le_bytes());
+    }
 }
 
 fn put_indices(out: &mut Vec<u8>, model: &TestModel) {
@@ -85,7 +153,7 @@ fn put_vertices(out: &mut Vec<u8>, model: &TestModel, min: [f32; 3], max: [f32; 
         TestPositions::Float => (VERTS_UVS, 20),
     };
     stream(out, tag, size, |data| {
-        for vertex in &model.vertices {
+        for (at, vertex) in model.vertices.iter().enumerate() {
             match model.positions {
                 TestPositions::Quantized => {
                     for axis in 0..3 {
@@ -104,7 +172,13 @@ fn put_vertices(out: &mut Vec<u8>, model: &TestModel, min: [f32; 3], max: [f32; 
                 }
                 TestPositions::Float => put_vector(data, vertex.position),
             }
-            data.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]);
+            let [red, green, blue, alpha] = model
+                .colours
+                .as_ref()
+                .and_then(|colours| colours.get(at))
+                .copied()
+                .unwrap_or([0xFF; 4]);
+            data.extend_from_slice(&[blue, green, red, alpha]);
             for value in vertex.uv {
                 put_u16(data, f16::from_f32(value).to_bits());
             }
@@ -136,7 +210,7 @@ fn bounds(model: &TestModel) -> ([f32; 3], [f32; 3]) {
     (min, max)
 }
 
-fn tangent_frame(normal: [f32; 3]) -> ([f32; 3], [f32; 3]) {
+pub(crate) fn tangent_frame(normal: [f32; 3]) -> ([f32; 3], [f32; 3]) {
     let helper = if normal[2].abs() < 0.9 {
         [0.0, 0.0, 1.0]
     } else {

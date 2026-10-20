@@ -12,8 +12,11 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn model(cube: &TestModel) -> Result<Model, Box<dyn Error>> {
     let cgfm = cube.cgfm();
-    let mut companions = move |_: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
-        Ok(Some(cgfm.clone()))
+    let mut companions = move |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Sibling("cube.cgfm") => Some(cgfm.clone()),
+            _ => None,
+        })
     };
     Ok(Model::read(
         "cube.cgf",

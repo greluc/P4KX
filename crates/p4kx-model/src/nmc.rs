@@ -1,5 +1,6 @@
 use p4kx_foundation::ByteReader;
 
+use crate::hierarchy::find_cycle;
 use crate::reader::{ReadValues, to_usize};
 use crate::{CorruptChunk, Node, Transform};
 
@@ -67,36 +68,9 @@ pub(crate) fn read_nodes(data: &[u8]) -> Result<Vec<Node>, CorruptChunk> {
             transform,
         });
     }
-    check_acyclic(&nodes)?;
-    Ok(nodes)
-}
-
-fn check_acyclic(nodes: &[Node]) -> Result<(), CorruptChunk> {
-    const UNSEEN: u8 = 0;
-    const ON_PATH: u8 = 1;
-    const ROOTED: u8 = 2;
-    let mut state = vec![UNSEEN; nodes.len()];
-    let mut path = Vec::new();
-    for start in 0..nodes.len() {
-        let mut at = Some(start);
-        while let Some(index) = at {
-            match state.get(index).copied() {
-                Some(UNSEEN) => {}
-                Some(ON_PATH) => return Err(CorruptChunk::ParentCycle(index)),
-                _ => break,
-            }
-            if let Some(slot) = state.get_mut(index) {
-                *slot = ON_PATH;
-            }
-            path.push(index);
-            at = nodes.get(index).and_then(|node| node.parent);
-        }
-        for &index in &path {
-            if let Some(slot) = state.get_mut(index) {
-                *slot = ROOTED;
-            }
-        }
-        path.clear();
+    let parents: Vec<Option<usize>> = nodes.iter().map(|node| node.parent).collect();
+    if let Some(node) = find_cycle(&parents) {
+        return Err(CorruptChunk::ParentCycle(node));
     }
-    Ok(())
+    Ok(nodes)
 }

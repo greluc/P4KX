@@ -6,6 +6,7 @@ use p4kx_extraction::{ConversionError, GltfError, ModelSource};
 
 use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
 use crate::json;
+use crate::model_bones::write_bones;
 use crate::model_glb;
 use crate::model_json::{InfoJson, file_name, node_name, usage_name};
 use crate::model_text::printable;
@@ -50,6 +51,7 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     write_lods(&mut out, model)?;
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
+    write_bones(&mut out, model)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
     Ok(())
@@ -75,8 +77,8 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  Material IDs",
-        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours"
+        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  Material IDs",
+        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours", "Skinned"
     )?;
     for lod in &model.lods {
         for mesh in &lod.meshes {
@@ -87,7 +89,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {}",
+                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
                 lod.level,
                 printable(node_name(model, mesh.node)),
                 mesh.positions.len(),
@@ -95,6 +97,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 yes_no(mesh.normals.is_some()),
                 yes_no(mesh.tangents.is_some()),
                 yes_no(mesh.colours.is_some()),
+                yes_no(mesh.influences.is_some()),
                 ids.join(", ")
             )?;
         }

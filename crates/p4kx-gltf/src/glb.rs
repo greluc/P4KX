@@ -7,6 +7,7 @@ use crate::GltfError;
 use crate::document::document;
 use crate::layout::Layout;
 use crate::materials::{MaterialPlan, Slot};
+use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
 use crate::texture_report::TextureFallback;
@@ -117,6 +118,11 @@ pub struct GlbSummary {
     /// The number of submeshes left out because their material draws nothing: collision,
     /// shield and helper geometry.
     pub hidden_primitives: usize,
+    /// The number of bones written as nodes: those of a skinned model, and those of a skeleton
+    /// file without meshes.
+    pub bones: usize,
+    /// The number of meshes that carry bone weights.
+    pub skinned_meshes: usize,
     /// The number of vertices of all meshes.
     pub vertices: usize,
     /// The number of triangles of all meshes.
@@ -160,7 +166,10 @@ pub fn write_glb_with(
 ) -> Result<GlbSummary, GltfError> {
     let lod = find_lod(model, options.lod)?;
     let plan = MaterialPlan::new(model, lod);
-    let mut layout = Layout::plan(lod, options.vertex_colours, &plan);
+    let bones = model.bones_of(lod);
+    let binds = (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
+        .then(|| inverse_binds(bones));
+    let mut layout = Layout::plan(lod, options.vertex_colours, &plan, binds.as_deref());
     let images = match options.materials {
         MaterialMode::Colours => TextureSet::default(),
         MaterialMode::Textures => {
@@ -178,7 +187,7 @@ pub fn write_glb_with(
         }
     };
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let root = document(model, &layout, &plan, &images);
+    let root = document(model, lod, &layout, &plan, &images);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -204,7 +213,7 @@ pub fn write_glb_with(
         layout.write(out, &images.images)?;
     }
     out.flush()?;
-    Ok(summarise(&root, &layout, &plan, images, total))
+    Ok(summarise(model, &root, &layout, &plan, images, total))
 }
 
 fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
@@ -224,6 +233,7 @@ fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
 }
 
 fn summarise(
+    model: &Model,
     root: &json::Root,
     layout: &Layout<'_>,
     plan: &MaterialPlan<'_>,
@@ -264,6 +274,8 @@ fn summarise(
         texture_fallbacks: images.fallbacks,
         default_material_ids: plan.defaulted(),
         hidden_primitives: layout.hidden_primitives,
+        bones: root.nodes.len().saturating_sub(model.nodes.len()),
+        skinned_meshes: meshes.iter().filter(|mesh| !mesh.joints.is_empty()).count(),
         vertices,
         triangles,
         bytes,

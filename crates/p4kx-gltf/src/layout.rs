@@ -1,9 +1,10 @@
 use std::io::Write;
 
-use p4kx_model::{Lod, Mesh};
+use p4kx_model::{Influences, Lod, Mesh};
 
 use crate::axes::to_y_up;
 use crate::materials::MaterialPlan;
+use crate::skin::{SET_LEN, joint_set, weight_set};
 use crate::texture_plan::EncodedImage;
 
 const ALIGNMENT: u64 = 4;
@@ -27,6 +28,12 @@ pub(crate) enum BlockData<'m> {
     Short(&'m [u32]),
     /// A submesh's indices as 32-bit values.
     Wide(&'m [u32]),
+    /// The bone indices of influence set `.1` as 16-bit values, four per vertex.
+    Joints(&'m [Influences], usize),
+    /// The weights of influence set `.1` as normalised bytes, four per vertex.
+    Weights(&'m [Influences], usize),
+    /// The inverse bind matrices of the skeleton's bones, column-major.
+    InverseBinds(&'m [[f32; 16]]),
 }
 
 impl<'m> BlockData<'m> {
@@ -38,8 +45,11 @@ impl<'m> BlockData<'m> {
             Self::Colours(values) => (values.len(), 4),
             Self::Short(values) => (values.len(), 2),
             Self::Wide(values) => (values.len(), 4),
+            Self::Joints(values, _) => (values.len(), 2 * SET_LEN),
+            Self::Weights(values, _) => (values.len(), SET_LEN),
+            Self::InverseBinds(values) => (values.len(), 64),
         };
-        count as u64 * size
+        count as u64 * size as u64
     }
 
     pub(crate) const fn count(&self) -> usize {
@@ -49,6 +59,8 @@ impl<'m> BlockData<'m> {
             Self::Tangents(values) => values.len(),
             Self::Colours(values) => values.len(),
             Self::Short(values) | Self::Wide(values) => values.len(),
+            Self::Joints(values, _) | Self::Weights(values, _) => values.len(),
+            Self::InverseBinds(values) => values.len(),
         }
     }
 
@@ -63,6 +75,15 @@ impl<'m> BlockData<'m> {
             Self::Colours(values) => Self::Colours(values.get(start..end).unwrap_or_default()),
             Self::Short(values) => Self::Short(values.get(start..end).unwrap_or_default()),
             Self::Wide(values) => Self::Wide(values.get(start..end).unwrap_or_default()),
+            Self::Joints(values, set) => {
+                Self::Joints(values.get(start..end).unwrap_or_default(), set)
+            }
+            Self::Weights(values, set) => {
+                Self::Weights(values.get(start..end).unwrap_or_default(), set)
+            }
+            Self::InverseBinds(values) => {
+                Self::InverseBinds(values.get(start..end).unwrap_or_default())
+            }
         }
     }
 
@@ -101,6 +122,23 @@ impl<'m> BlockData<'m> {
                     out.extend_from_slice(&value.to_le_bytes());
                 }
             }
+            Self::Joints(values, set) => {
+                for influences in *values {
+                    for joint in joint_set(influences, *set) {
+                        out.extend_from_slice(&joint.to_le_bytes());
+                    }
+                }
+            }
+            Self::Weights(values, set) => {
+                for influences in *values {
+                    out.extend_from_slice(&weight_set(influences, *set));
+                }
+            }
+            Self::InverseBinds(values) => {
+                for value in values.iter().flatten() {
+                    out.extend_from_slice(&value.to_le_bytes());
+                }
+            }
         }
     }
 }
@@ -129,6 +167,8 @@ pub(crate) struct MeshLayout {
     pub(crate) uvs: Option<usize>,
     pub(crate) tangents: Option<usize>,
     pub(crate) colours: Option<usize>,
+    pub(crate) joints: Vec<usize>,
+    pub(crate) weights: Vec<usize>,
     pub(crate) primitives: Vec<PrimitiveLayout>,
     pub(crate) min: [f32; 3],
     pub(crate) max: [f32; 3],
@@ -147,6 +187,7 @@ pub(crate) struct Layout<'m> {
     pub(crate) blocks: Vec<Block<'m>>,
     pub(crate) meshes: Vec<MeshLayout>,
     pub(crate) images: Vec<ImageBlock>,
+    pub(crate) inverse_binds: Option<usize>,
     pub(crate) len: u64,
     pub(crate) hidden_primitives: usize,
 }
@@ -154,21 +195,67 @@ pub(crate) struct Layout<'m> {
 impl<'m> Layout<'m> {
     /// Plans the blocks of every mesh of `lod` that has vertices and triangles, leaving out the
     /// submeshes whose material draws nothing; vertex colours only when `colours_wanted` is set.
-    pub(crate) fn plan(lod: &'m Lod, colours_wanted: bool, materials: &MaterialPlan<'_>) -> Self {
+    /// A skinned mesh gets its bone weights when `binds`, the inverse bind matrices of the
+    /// skeleton, are given.
+    pub(crate) fn plan(
+        lod: &'m Lod,
+        colours_wanted: bool,
+        materials: &MaterialPlan<'_>,
+        binds: Option<&'m [[f32; 16]]>,
+    ) -> Self {
         let mut layout = Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
             images: Vec::new(),
+            inverse_binds: None,
             len: 0,
             hidden_primitives: 0,
         };
         for mesh in &lod.meshes {
-            layout.plan_mesh(mesh, colours_wanted, materials);
+            layout.plan_mesh(mesh, colours_wanted, materials, binds);
         }
         layout
     }
 
-    fn plan_mesh(&mut self, mesh: &'m Mesh, colours_wanted: bool, materials: &MaterialPlan<'_>) {
+    fn plan_skin(
+        &mut self,
+        mesh: &'m Mesh,
+        binds: Option<&'m [[f32; 16]]>,
+    ) -> (Vec<usize>, Vec<usize>) {
+        let influences = mesh
+            .influences
+            .as_deref()
+            .filter(|influences| influences.len() == mesh.positions.len());
+        let (Some(influences), Some(binds)) = (influences, binds) else {
+            return (Vec::new(), Vec::new());
+        };
+        if self.inverse_binds.is_none() {
+            self.inverse_binds = Some(self.push(BlockData::InverseBinds(binds)));
+        }
+        let sets = if influences
+            .iter()
+            .any(|influences| influences.count() > SET_LEN)
+        {
+            2
+        } else {
+            1
+        };
+        let mut joints = Vec::new();
+        let mut weights = Vec::new();
+        for set in 0..sets {
+            joints.push(self.push(BlockData::Joints(influences, set)));
+            weights.push(self.push(BlockData::Weights(influences, set)));
+        }
+        (joints, weights)
+    }
+
+    fn plan_mesh(
+        &mut self,
+        mesh: &'m Mesh,
+        colours_wanted: bool,
+        materials: &MaterialPlan<'_>,
+        binds: Option<&'m [[f32; 16]]>,
+    ) {
         let drawn: Vec<(&'m [u32], u16)> = mesh
             .submeshes
             .iter()
@@ -206,18 +293,8 @@ impl<'m> Layout<'m> {
             .as_ref()
             .filter(|colours| colours_wanted && colours.len() == mesh.positions.len())
             .map(|colours| self.push(BlockData::Colours(colours)));
-        let short = u16::try_from(mesh.positions.len()).is_ok();
-        let primitives = primitives
-            .into_iter()
-            .map(|(indices, material_id)| PrimitiveLayout {
-                indices: self.push(if short {
-                    BlockData::Short(indices)
-                } else {
-                    BlockData::Wide(indices)
-                }),
-                material_id,
-            })
-            .collect();
+        let (joints, weights) = self.plan_skin(mesh, binds);
+        let primitives = self.plan_primitives(&primitives, mesh.positions.len());
         self.meshes.push(MeshLayout {
             node: mesh.node,
             positions,
@@ -225,10 +302,31 @@ impl<'m> Layout<'m> {
             uvs,
             tangents,
             colours,
+            joints,
+            weights,
             primitives,
             min,
             max,
         });
+    }
+
+    fn plan_primitives(
+        &mut self,
+        primitives: &[(&'m [u32], u16)],
+        vertices: usize,
+    ) -> Vec<PrimitiveLayout> {
+        let short = u16::try_from(vertices).is_ok();
+        primitives
+            .iter()
+            .map(|&(indices, material_id)| PrimitiveLayout {
+                indices: self.push(if short {
+                    BlockData::Short(indices)
+                } else {
+                    BlockData::Wide(indices)
+                }),
+                material_id,
+            })
+            .collect()
     }
 
     fn push(&mut self, data: BlockData<'m>) -> usize {

@@ -8,8 +8,10 @@
 //! library lacks, or a model without a readable library, gets the engine's default material. With
 //! [`MaterialMode::Textures`] and [`write_glb_with`] the diffuse, normal and specular maps of the
 //! materials, which a [`TextureLoader`] supplies, are embedded as PNG images; one that cannot be
-//! loaded leaves the plain colour and is reported. The binary data is streamed to the writer after
-//! the JSON.
+//! loaded leaves the plain colour and is reported. A skinned model is written with its skeleton:
+//! the bones as nodes, one glTF skin over all of them with inverse bind matrices, and `JOINTS_n`
+//! and `WEIGHTS_n` on the skinned meshes; a model with bones and no meshes is written as its bone
+//! nodes. The binary data is streamed to the writer after the JSON.
 
 mod axes;
 mod document;
@@ -17,6 +19,8 @@ mod error;
 mod glb;
 mod layout;
 mod materials;
+mod nodes;
+mod skin;
 mod texture_loader;
 mod texture_make;
 mod texture_pixels;

@@ -766,10 +766,12 @@ it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false,
+                       "tangents": false, "colours": false, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
- "bones": [],
+ "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
+            "relative": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]},
+            "world": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]}}, …],
  "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
@@ -792,8 +794,15 @@ lists the levels of detail, LOD0 first, each with its meshes, at most one per no
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
 (`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `bones` lists `name` and `parent`
-of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
+submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+`bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
+of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
+bone by; `node` is the index of the node of the model the bone drives (the bones of a static
+model with animated parts) or `null`; `relative` is the bind pose relative to the parent and
+`world` the bind pose in the model's space, each a rotation as a quaternion `x, y, z, w` and a
+translation, in CryEngine axes (Z up) and metres. A level of detail of a skin whose own file has a
+different skeleton is weighted to that one; `model info` lists the skeleton of the model file.
+`chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
@@ -812,7 +821,7 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
                         "file": "Objects/Test/plate_diff.tif",
                         "reason": "the texture does not exist"}],
  "default_material_ids": 0, "hidden_primitives": 0,
- "vertices": 24, "triangles": 12, "bytes": 2412,
+ "bones": 0, "skinned_meshes": 0, "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
@@ -826,7 +835,10 @@ default material when any ID falls back to it), of the level of detail `--lod` n
 `TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
 `bytes` is the length of the file. `default_material_ids` counts the material IDs drawn with the
 default material because the `.mtl` file is missing, unreadable or has no sub-material for them,
-and `hidden_primitives` the submeshes left out because their material draws nothing; `library` is
+and `hidden_primitives` the submeshes left out because their material draws nothing; `bones` the
+bones written as nodes (those of a skinned model and those of a skeleton file such as a `.chr`, which
+has no mesh; a skin gets a glTF skin with a joint per bone, and its `skinned_meshes` carry
+`JOINTS_n` and `WEIGHTS_n`, ADR-0039); `library` is
 the status of the `.mtl` file as in `p4kx model info`. `textures` counts the PNG images embedded
 with `--materials textures` (an image several materials use counts once), `texture_pixels` their
 pixels and `textured_materials` the materials that use at least one; all are 0 with

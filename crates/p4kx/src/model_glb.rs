@@ -26,6 +26,8 @@ struct GlbJson<'a> {
     texture_fallbacks: Vec<FallbackJson<'a>>,
     default_material_ids: usize,
     hidden_primitives: usize,
+    bones: usize,
+    skinned_meshes: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -116,6 +118,13 @@ fn report(
 
 fn write_notes(out: &mut impl Write, model: &Model, summary: &GlbSummary) -> io::Result<()> {
     let stdout = out;
+    if summary.bones > 0 {
+        writeln!(
+            stdout,
+            "{} bones, {} skinned meshes",
+            summary.bones, summary.skinned_meshes
+        )?;
+    }
     if let Some(problem) = model.materials.problem() {
         writeln!(
             stdout,
@@ -210,6 +219,8 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &'a GlbSummary) ->
             .collect(),
         default_material_ids: summary.default_material_ids,
         hidden_primitives: summary.hidden_primitives,
+        bones: summary.bones,
+        skinned_meshes: summary.skinned_meshes,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,

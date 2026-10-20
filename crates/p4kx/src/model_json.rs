@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
 use p4kx_extraction::ModelSource;
-use p4kx_extraction::model::{ChunkUsage, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
+use p4kx_extraction::model::{
+    Bone, BoneTransform, ChunkUsage, Mesh, Model, ModelChunk, ModelFile, Node, Submesh,
+};
 use serde::Serialize;
 
 use crate::model_materials_json::{LibraryJson, MaterialJson};
@@ -42,14 +44,7 @@ impl<'a> InfoJson<'a> {
                     meshes: lod.meshes.iter().map(MeshJson::of).collect(),
                 })
                 .collect(),
-            bones: model
-                .bones
-                .iter()
-                .map(|bone| BoneJson {
-                    name: &bone.name,
-                    parent: bone.parent,
-                })
-                .collect(),
+            bones: model.bones.iter().enumerate().map(BoneJson::of).collect(),
             chunks: model.chunks.iter().map(ChunkJson::of).collect(),
         }
     }
@@ -83,6 +78,10 @@ struct LodJson {
 }
 
 #[derive(Serialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the JSON has one flag per optional vertex stream of a mesh"
+)]
 struct MeshJson {
     node: usize,
     vertices: usize,
@@ -90,6 +89,7 @@ struct MeshJson {
     normals: bool,
     tangents: bool,
     colours: bool,
+    skinned: bool,
     submeshes: Vec<SubmeshJson>,
 }
 
@@ -102,6 +102,7 @@ impl MeshJson {
             normals: mesh.normals.is_some(),
             tangents: mesh.tangents.is_some(),
             colours: mesh.colours.is_some(),
+            skinned: mesh.influences.is_some(),
             submeshes: mesh.submeshes.iter().map(SubmeshJson::of).collect(),
         }
     }
@@ -126,8 +127,42 @@ impl SubmeshJson {
 
 #[derive(Serialize)]
 struct BoneJson<'a> {
+    index: usize,
     name: &'a str,
     parent: Option<usize>,
+    controller_id: u32,
+    node: Option<usize>,
+    relative: PoseJson,
+    world: PoseJson,
+}
+
+impl<'a> BoneJson<'a> {
+    fn of((index, bone): (usize, &'a Bone)) -> Self {
+        Self {
+            index,
+            name: &bone.name,
+            parent: bone.parent,
+            controller_id: bone.controller_id,
+            node: bone.node,
+            relative: PoseJson::of(&bone.relative),
+            world: PoseJson::of(&bone.world),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct PoseJson {
+    rotation: [f32; 4],
+    translation: [f32; 3],
+}
+
+impl PoseJson {
+    const fn of(pose: &BoneTransform) -> Self {
+        Self {
+            rotation: pose.rotation,
+            translation: pose.translation,
+        }
+    }
 }
 
 /// The JSON shape of one chunk of a model's files.

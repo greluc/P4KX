@@ -284,12 +284,14 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
-- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
-  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
-  counts, the material library and material IDs, its bones and every chunk with whether it was
-  read, skipped or unknown, and the materials of its `.mtl` file;
+- `p4kx model info <archive> <entry>` shows an `#ivo` model (`.cgf` or `.skin` with its geometry
+  companion `.cgfm` or `.skinm`, or a skeleton file `.chr`): its nodes with their hierarchy, its
+  LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones
+  with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
+  the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
-  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
+  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
@@ -301,8 +303,10 @@ Early development (milestone M1). Available today:
   diffuse map as base colour, the normal map (green flipped to glTF's up, the blue channel
   reconstructed), a metallic-roughness image from the normal map's smoothness and the specular
   map, shared images once; `--texture-mip` picks the mip level, 0 (the largest) by default. A
-  texture that is missing or cannot be decoded leaves the plain colour and is listed. Both also
-  take a model file on disk with its companions next to it, which has no textures to read.
+  texture that is missing or cannot be decoded leaves the plain colour and is listed. A skin
+  (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to eight bones per
+  vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes. Both also take a
+  model file on disk with its companions next to it, which has no textures to read.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails

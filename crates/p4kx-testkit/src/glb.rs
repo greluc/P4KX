@@ -2,6 +2,7 @@ use gltf::accessor::{DataType, Dimensions};
 use gltf::{Accessor, Document, Gltf, Semantic};
 
 use crate::glb_container::split_glb;
+use crate::glb_skin::check_skins;
 
 /// A GLB file that passed [`check_glb`], with its document and binary chunk.
 #[derive(Debug)]
@@ -68,7 +69,9 @@ impl CheckedGlb {
 /// The rules are those a writer can break: container lengths and padding, buffer, view and accessor
 /// bounds and alignment, finite floats, exact `POSITION` bounds, unit normals, unit tangents with
 /// a handedness of ±1, colour types, index range and primitive restart values, triangle counts,
-/// unit rotations and a node forest.
+/// unit rotations and a node forest, and for skins unique joints, affine inverse bind matrices,
+/// the skeleton root, skinned meshes at the root of the scene and per vertex weights that add up
+/// to 1 over bones the skin has.
 ///
 /// # Errors
 ///
@@ -86,6 +89,7 @@ pub fn check_glb(bytes: &[u8]) -> Result<CheckedGlb, String> {
     check_meshes(&checked)?;
     check_nodes(&checked)?;
     crate::glb_images::check_textures(&checked)?;
+    check_skins(&checked)?;
     Ok(checked)
 }
 

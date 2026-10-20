@@ -68,10 +68,10 @@ pub use extraction::{
 };
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
-pub use model::{Failure, Model, WorkTab};
+pub use model::{Failure, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
-pub use p4kx_extraction::{Folder, FolderId};
+pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
 pub use p4kx_update::{Release, ReleaseCheck};
 pub use preview::{
     AudioPreview, AudioStatus, ImagePreview, ImageStatus, MAX_PREVIEW_PIXELS, MipStatus,
@@ -97,8 +97,8 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText, DataForgeText,
-    DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText, RecordChangeText,
-    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, ScrollText, Text, Texts,
-    XmlText,
+    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
+    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText,
+    RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText, RecordText,
+    ScrollText, Text, Texts, XmlText,
 };

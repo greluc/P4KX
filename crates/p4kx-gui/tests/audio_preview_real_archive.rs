@@ -28,7 +28,10 @@ fn audio(browser: &Browser) -> Option<&AudioPreview> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_wems_of_a_real_archive_decode_for_every_codec_with_a_decoder() -> TestResult {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
     let sounds: Vec<u32> = (0..u32::try_from(index.len())?)
         .filter(|&id| {
             index

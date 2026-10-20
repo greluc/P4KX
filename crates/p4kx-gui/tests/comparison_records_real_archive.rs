@@ -45,6 +45,7 @@ fn compared_records() -> Result<Option<Model>, Box<dyn Error>> {
         return Ok(None);
     };
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);

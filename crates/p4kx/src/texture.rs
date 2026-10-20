@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, ConversionError, CubemapLayout, Texture, TextureError};
+use p4kx_extraction::{ConversionError, CubemapLayout, Texture, TextureError};
 use serde::Serialize;
 
 use crate::cli::{TextureAction, TextureArgs, TextureSource};
@@ -114,7 +114,7 @@ fn with_texture(
 ) -> Result<()> {
     match &source.entry {
         Some(entry) => {
-            let archive = Archive::open(&source.path)?;
+            let archive = crate::key::open(&source.path)?;
             run(&Texture::from_archive(&archive, entry)?)
         }
         None => run(&Texture::from_file(&source.path)?),

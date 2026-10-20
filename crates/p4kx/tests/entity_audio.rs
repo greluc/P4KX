@@ -4,7 +4,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestAtl, TestBank, TestEntity, TestEntry, TestHircObject,
     audio_schema, entity_schema, real_archive_path, wwise_short_id,
@@ -83,7 +82,7 @@ fn write_archive(dir: &Path, broken: bool) -> Result<std::path::PathBuf, Box<dyn
 }
 
 fn audio(archive: &Path, entity: &str, json: bool, code: i32) -> Result<Run, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
     }

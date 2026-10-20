@@ -27,8 +27,14 @@ pub(crate) fn pair(
     let new = new
         .into_iter()
         .fold(ArchiveBuilder::v2(), ArchiveBuilder::entry);
-    let old = Archive::open(write(dir.path(), "LIVE", &old)?)?;
-    let new = Archive::open(write(dir.path(), "PTU", &new)?)?;
+    let old = Archive::open_with_key(
+        write(dir.path(), "LIVE", &old)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let new = Archive::open_with_key(
+        write(dir.path(), "PTU", &new)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     Ok((dir, old, new))
 }
 

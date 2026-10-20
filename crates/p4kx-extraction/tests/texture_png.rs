@@ -21,7 +21,10 @@ fn write_archive(folder: &Path, dds: &SplitDds) -> Result<Archive, Box<dyn Error
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
-    Ok(Archive::open(&path)?)
+    Ok(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?)
 }
 
 fn read_png(path: &Path) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {

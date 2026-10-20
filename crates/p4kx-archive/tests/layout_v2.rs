@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::Path;
 
 use p4kx_archive::{Archive, ArchiveError, Compression};
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -34,7 +34,7 @@ fn v2_archive() -> Vec<u8> {
 fn open_bytes(dir: &Path, bytes: &[u8]) -> Result<Result<Archive, ArchiveError>, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     std::fs::write(&path, bytes)?;
-    Ok(Archive::open(&path))
+    Ok(Archive::open_with_key(&path, Some(test_key())))
 }
 
 fn summary(archive: &Archive) -> Vec<(String, u64, u64, Compression, bool)> {

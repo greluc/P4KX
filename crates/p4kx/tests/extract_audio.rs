@@ -63,7 +63,7 @@ fn fixture() -> Result<Fixture, Box<dyn Error>> {
 }
 
 fn extract(fixture: &Fixture) -> Result<Command, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command
         .arg("extract")
         .arg(&fixture.archive)
@@ -172,7 +172,7 @@ fn audio_wav_and_raw_choose_the_format() -> TestResult {
     );
 
     let raw = fixture.out.with_file_name("raw");
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&fixture.archive)
         .args(["--filter", "Sounds", "--convert", "--audio", "raw", "--out"])

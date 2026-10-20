@@ -19,7 +19,10 @@ const MIN_RESOLVED_MANUFACTURERS: f64 = 0.95;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_item_classes_are_the_options_of_the_dataforge_enum() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let options = forge
@@ -40,7 +43,10 @@ fn the_item_classes_are_the_options_of_the_dataforge_enum() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn builds_items_and_ships_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog: Value = serde_json::from_slice(built.json())?;
     let summary = built.summary();

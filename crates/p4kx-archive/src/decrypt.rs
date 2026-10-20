@@ -1,14 +1,14 @@
 use std::io::{self, Read};
 
 use cbc::cipher::{Block, BlockModeDecrypt, KeyIvInit};
-use p4kx_foundation::ARCHIVE_KEY;
+use p4kx_foundation::ArchiveKey;
 
 type Decryptor = cbc::Decryptor<aes::Aes128>;
 
 /// The AES block length; encrypted Entry data is a whole number of blocks.
 pub(crate) const AES_BLOCK_LEN: usize = 16;
 
-/// Decrypts AES-128-CBC data with the `CryEngine` key while it is read.
+/// Decrypts AES-128-CBC data with the Archive key while it is read.
 pub(crate) struct Decrypting<R> {
     inner: R,
     decryptor: Decryptor,
@@ -19,11 +19,16 @@ pub(crate) struct Decrypting<R> {
 
 impl<R: Read> Decrypting<R> {
     /// Wraps `inner`, whose data must be a whole number of AES blocks chained from `iv`,
-    /// decrypting up to `buffer_len` bytes at a time.
-    pub(crate) fn new(inner: R, buffer_len: usize, iv: [u8; AES_BLOCK_LEN]) -> Self {
+    /// decrypting up to `buffer_len` bytes at a time with `key`.
+    pub(crate) fn new(
+        inner: R,
+        buffer_len: usize,
+        iv: [u8; AES_BLOCK_LEN],
+        key: &ArchiveKey,
+    ) -> Self {
         Self {
             inner,
-            decryptor: Decryptor::new(&ARCHIVE_KEY.into(), &iv.into()),
+            decryptor: Decryptor::new(key.as_bytes().into(), &iv.into()),
             buffer: vec![0; buffer_len.next_multiple_of(AES_BLOCK_LEN)],
             start: 0,
             end: 0,

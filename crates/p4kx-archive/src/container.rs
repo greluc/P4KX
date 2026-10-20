@@ -1,5 +1,7 @@
 use std::io::Read;
 
+use p4kx_foundation::ArchiveKey;
+
 use crate::entry_reader;
 use crate::format_error::FormatError;
 use crate::issue::{Directory, IssueLog};
@@ -23,6 +25,7 @@ pub(crate) fn source_of(
     parent: &Source,
     entry: &Entry,
     budget: u64,
+    key: Option<&ArchiveKey>,
 ) -> Result<(Source, u64), FormatError> {
     if entry.compression == Compression::Store && !entry.encrypted {
         let offset = entry_reader::data_offset(parent, entry)?;
@@ -45,7 +48,7 @@ pub(crate) fn source_of(
         .uncompressed_size
         .min(entry.compressed_size.saturating_mul(MAX_COMPRESSION_RATIO));
     let mut bytes = Vec::with_capacity(usize::try_from(capacity).unwrap_or(0));
-    entry_reader::open(parent, entry)?.read_to_end(&mut bytes)?;
+    entry_reader::open(parent, entry, key)?.read_to_end(&mut bytes)?;
     Ok((Source::memory(bytes), left))
 }
 

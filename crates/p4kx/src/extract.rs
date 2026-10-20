@@ -37,7 +37,7 @@ impl NoMatch {
 /// skipped and cancelled Entries and a summary to stdout and the failed Entries and a change of
 /// the Archive to stderr.
 pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     crate::issues::warn(&archive)?;
     let entries = requested_entries(args, &archive)?;
     let settings = Settings {
@@ -77,6 +77,7 @@ pub(crate) fn execute(
     settings: &Settings<'_>,
     as_json: bool,
 ) -> Result<ExitCode> {
+    crate::key::require(archive, entries)?;
     let watch = ArchiveWatch::new(archive);
     let target = prepare_target(settings.out, archive)?;
     let cancel = cancel_on_interrupt()?;
@@ -230,7 +231,7 @@ mod tests {
     use std::error::Error;
     use std::fs;
 
-    use p4kx_extraction::{Archive, ArchiveWatch, ExtractOptions, extract};
+    use p4kx_extraction::{ArchiveWatch, ExtractOptions, extract};
     use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
     use super::exit_code;
@@ -244,7 +245,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("Data.p4k");
         builder().write_to(&path)?;
-        let archive = Archive::open(&path)?;
+        let archive = crate::key::open(&path)?;
         let watch = ArchiveWatch::new(&archive);
         if change {
             builder()

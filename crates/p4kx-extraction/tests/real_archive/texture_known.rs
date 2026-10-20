@@ -72,7 +72,10 @@ fn merged_size(texture: &Texture<'_>) -> Result<u64, Box<dyn Error>> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_known_icon_decodes_to_its_dimensions() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let dir = tempfile::tempdir()?;
     let mut checked = 0;
     for (path, width, height) in ICONS {
@@ -100,7 +103,10 @@ fn a_known_icon_decodes_to_its_dimensions() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_known_cubemap_exports_as_faces_a_cross_and_exr() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let texture = open_first(&archive, &CUBEMAPS)?;
     let dir = tempfile::tempdir()?;
     assert!(texture.header().is_cubemap(), "a cubemap");
@@ -138,7 +144,10 @@ fn a_known_cubemap_exports_as_faces_a_cross_and_exr() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_texture_with_an_alpha_tail_exports_with_its_alpha() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let texture = open_first(&archive, &ALPHA_TAILS)?;
     let dir = tempfile::tempdir()?;
     assert!(texture.has_alpha_tail(), "the texture has an alpha tail");
@@ -185,7 +194,10 @@ fn a_texture_with_an_alpha_tail_exports_with_its_alpha() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_inventory_probe_cubemap_with_a_cryengine_trailer_merges_and_exports() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry: &Entry = archive
         .entries()
         .iter()

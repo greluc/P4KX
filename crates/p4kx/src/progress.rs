@@ -39,6 +39,21 @@ impl ProgressLine {
         });
     }
 
+    /// Redraws the line with the Entries verified so far, at most every 100 ms.
+    pub(crate) fn show_verifying(&self, progress: Progress) {
+        self.draw(|| {
+            let percent = progress
+                .bytes_done
+                .saturating_mul(100)
+                .checked_div(progress.bytes_total)
+                .unwrap_or(100);
+            format!(
+                "verifying {}/{} Entries, {percent} %",
+                progress.entries_done, progress.entries_total
+            )
+        });
+    }
+
     /// Redraws the line with the Records checked for a catalog, at most every 100 ms.
     pub(crate) fn show_records(&self, progress: CatalogProgress) {
         self.draw(|| {

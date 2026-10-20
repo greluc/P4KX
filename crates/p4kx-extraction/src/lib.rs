@@ -60,6 +60,7 @@ mod ui_jobs;
 mod ui_movie;
 mod ui_render;
 mod ui_render_bitmaps;
+mod verify;
 mod watch;
 mod write;
 
@@ -87,11 +88,12 @@ pub use p4kx_archive::{
     MAX_CONTAINER_LEN,
 };
 pub use p4kx_audio::{
-    ActionTarget, BankError, BankHeader, Container, ContainerKind, EmbeddedWem, HircKind,
-    HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
+    HircKind, HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
+    WemChunk,
 };
 pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
@@ -138,4 +140,5 @@ pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
+pub use verify::{VerificationReport, VerifyOptions, verify};
 pub use watch::{ArchiveChanged, ArchiveWatch, DEFAULT_WATCH_INTERVAL};

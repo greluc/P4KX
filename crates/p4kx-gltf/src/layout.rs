@@ -16,6 +16,10 @@ pub(crate) enum BlockData<'m> {
     Normals(&'m [[f32; 3]]),
     /// Texture coordinates.
     Uvs(&'m [[f32; 2]]),
+    /// Vertex tangents with the handedness in `w`; the tangent converted to Y up.
+    Tangents(&'m [[f32; 4]]),
+    /// Vertex colours, red, green, blue and alpha as normalised bytes.
+    Colours(&'m [[u8; 4]]),
     /// A submesh's indices as 16-bit values.
     Short(&'m [u32]),
     /// A submesh's indices as 32-bit values.
@@ -27,6 +31,8 @@ impl<'m> BlockData<'m> {
         let (count, size) = match self {
             Self::Positions(values) | Self::Normals(values) => (values.len(), 12),
             Self::Uvs(values) => (values.len(), 8),
+            Self::Tangents(values) => (values.len(), 16),
+            Self::Colours(values) => (values.len(), 4),
             Self::Short(values) => (values.len(), 2),
             Self::Wide(values) => (values.len(), 4),
         };
@@ -37,6 +43,8 @@ impl<'m> BlockData<'m> {
         match self {
             Self::Positions(values) | Self::Normals(values) => values.len(),
             Self::Uvs(values) => values.len(),
+            Self::Tangents(values) => values.len(),
+            Self::Colours(values) => values.len(),
             Self::Short(values) | Self::Wide(values) => values.len(),
         }
     }
@@ -48,6 +56,8 @@ impl<'m> BlockData<'m> {
             Self::Positions(values) => Self::Positions(part(values)),
             Self::Normals(values) => Self::Normals(part(values)),
             Self::Uvs(values) => Self::Uvs(values.get(start..end).unwrap_or_default()),
+            Self::Tangents(values) => Self::Tangents(values.get(start..end).unwrap_or_default()),
+            Self::Colours(values) => Self::Colours(values.get(start..end).unwrap_or_default()),
             Self::Short(values) => Self::Short(values.get(start..end).unwrap_or_default()),
             Self::Wide(values) => Self::Wide(values.get(start..end).unwrap_or_default()),
         }
@@ -68,6 +78,15 @@ impl<'m> BlockData<'m> {
                     out.extend_from_slice(&component.to_le_bytes());
                 }
             }
+            Self::Tangents(values) => {
+                for &[x, y, z, w] in *values {
+                    let [x, y, z] = to_y_up([x, y, z]);
+                    for component in [x, y, z, w] {
+                        out.extend_from_slice(&component.to_le_bytes());
+                    }
+                }
+            }
+            Self::Colours(values) => out.extend(values.iter().flatten()),
             Self::Short(values) => {
                 for &value in *values {
                     let short = u16::try_from(value).unwrap_or(u16::MAX);
@@ -105,6 +124,8 @@ pub(crate) struct MeshLayout {
     pub(crate) positions: usize,
     pub(crate) normals: Option<usize>,
     pub(crate) uvs: Option<usize>,
+    pub(crate) tangents: Option<usize>,
+    pub(crate) colours: Option<usize>,
     pub(crate) primitives: Vec<PrimitiveLayout>,
     pub(crate) min: [f32; 3],
     pub(crate) max: [f32; 3],
@@ -119,20 +140,21 @@ pub(crate) struct Layout<'m> {
 }
 
 impl<'m> Layout<'m> {
-    /// Plans the blocks of every mesh of `lod` that has vertices and triangles.
-    pub(crate) fn plan(lod: &'m Lod) -> Self {
+    /// Plans the blocks of every mesh of `lod` that has vertices and triangles; vertex colours
+    /// only when `colours_wanted` is set.
+    pub(crate) fn plan(lod: &'m Lod, colours_wanted: bool) -> Self {
         let mut layout = Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
             len: 0,
         };
         for mesh in &lod.meshes {
-            layout.plan_mesh(mesh);
+            layout.plan_mesh(mesh, colours_wanted);
         }
         layout
     }
 
-    fn plan_mesh(&mut self, mesh: &'m Mesh) {
+    fn plan_mesh(&mut self, mesh: &'m Mesh, colours_wanted: bool) {
         let primitives: Vec<(&'m [u32], u16)> = mesh
             .submeshes
             .iter()
@@ -154,6 +176,16 @@ impl<'m> Layout<'m> {
             .map(|normals| self.push(BlockData::Normals(normals)));
         let uvs =
             (mesh.uvs.len() == mesh.positions.len()).then(|| self.push(BlockData::Uvs(&mesh.uvs)));
+        let tangents = mesh
+            .tangents
+            .as_ref()
+            .filter(|tangents| tangents.len() == mesh.positions.len())
+            .map(|tangents| self.push(BlockData::Tangents(tangents)));
+        let colours = mesh
+            .colours
+            .as_ref()
+            .filter(|colours| colours_wanted && colours.len() == mesh.positions.len())
+            .map(|colours| self.push(BlockData::Colours(colours)));
         let short = u16::try_from(mesh.positions.len()).is_ok();
         let primitives = primitives
             .into_iter()
@@ -171,6 +203,8 @@ impl<'m> Layout<'m> {
             positions,
             normals,
             uvs,
+            tangents,
+            colours,
             primitives,
             min,
             max,

@@ -26,8 +26,8 @@ pub use index::AudioIndex;
 pub use references::{TriggerReference, trigger_references};
 pub use sounds::{NodeKind, PathStep, SoundVariant, SourceKind, TriggerSounds, WemLocation};
 
-/// The largest soundbank Entry that is read, 16 MiB.
-pub const MAX_SOUNDBANK_LEN: u64 = 16 << 20;
+/// The largest soundbank Entry that is read, 32 MiB: six times the largest live soundbank.
+pub const MAX_SOUNDBANK_LEN: u64 = 32 << 20;
 
 /// The largest ATL definition Entry that is read, 8 MiB.
 pub const MAX_ATL_LEN: u64 = 8 << 20;

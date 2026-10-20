@@ -37,7 +37,7 @@ fn resolve_bytes(
         ))
         .entry(TestEntry::stored("Data\\Sounds\\wwise\\Deep.bnk", bytes))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let audio = ArchiveAudio::new(&archive);
     let sounds = audio.resolve_trigger("Play_It").ok_or("Play_It resolves")?;
     check(&sounds)

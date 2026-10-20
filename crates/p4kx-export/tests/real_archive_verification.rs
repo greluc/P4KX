@@ -30,7 +30,7 @@ const MIN_GERMAN_SHARE: f64 = 0.5;
 const MIN_HEADROOM_FACTOR: u64 = 2;
 
 fn built(path: &Path) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
-    let archive = Archive::open(path)?;
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog = serde_json::from_slice(built.json())?;
     Ok((built, catalog))

@@ -28,7 +28,10 @@ fn schema() -> Result<Value, Box<dyn Error>> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_record_of_a_real_archive_is_valid_ndjson() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records: Vec<_> = forge.records().collect();
@@ -82,7 +85,10 @@ fn every_record_of_a_real_archive_is_valid_ndjson() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn ship_records_of_a_real_archive_are_json_files_under_their_record_paths() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records: Vec<_> = forge

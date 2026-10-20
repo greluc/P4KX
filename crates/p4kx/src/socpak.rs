@@ -74,7 +74,7 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
 /// Opens the Archive and every container of the chain in turn; returns the last container and
 /// the Entry paths of the chain as the Archive and the containers store them.
 fn open(source: &SocpakSource) -> Result<(Archive, Vec<String>)> {
-    let mut current = Archive::open(&source.archive)?;
+    let mut current = crate::key::open(&source.archive)?;
     let mut chain = Vec::with_capacity(source.containers.len());
     for path in &source.containers {
         let found = select_entries(&current, &[path])?;

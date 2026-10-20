@@ -49,7 +49,10 @@ fn render(archive: &Archive, entry: &Entry, tally: &mut Tally) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_ui_movie_renders_its_first_frame() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let movies: Vec<&Entry> = archive
         .entries()
         .iter()

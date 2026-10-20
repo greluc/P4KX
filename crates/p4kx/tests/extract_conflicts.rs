@@ -34,7 +34,7 @@ fn prefilled() -> Result<Prefilled, Box<dyn Error>> {
 }
 
 fn extract_all(fixture: &Prefilled) -> Result<Command, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command
         .arg("extract")
         .arg(&fixture.archive)

@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::Read;
 
 use p4kx_archive::{Archive, ArchiveError, MAX_DECODED_SKIP};
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -21,7 +21,7 @@ fn archive(entries: Vec<TestEntry>) -> Result<(tempfile::TempDir, Archive), Box<
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(test_key()))?;
     Ok((dir, archive))
 }
 

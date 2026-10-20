@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 use predicates::prelude::predicate;
 
@@ -23,7 +22,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn searched_paths(archive: &Path, filter: &str) -> Result<Vec<String>, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("search")
         .arg(archive)
         .arg(filter)
@@ -90,7 +89,7 @@ fn search_of_a_file_that_is_not_an_archive_exits_with_code_3() -> TestResult {
     let not_archive = dir.path().join("notes.txt");
     std::fs::write(&not_archive, "plain text")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("search")
         .arg(&not_archive)
         .arg("x")
@@ -106,7 +105,7 @@ fn extract_with_a_filter_writes_every_matching_entry() -> TestResult {
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("--filter")
@@ -138,7 +137,7 @@ fn extract_with_a_filter_that_matches_nothing_exits_with_code_2() -> TestResult 
     let archive = write_archive(dir.path())?;
     let out = dir.path().join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("--filter")
@@ -158,7 +157,7 @@ fn extract_takes_either_entry_paths_or_a_filter() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .arg("Data\\readme.txt")

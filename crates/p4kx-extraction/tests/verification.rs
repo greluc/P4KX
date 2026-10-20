@@ -7,7 +7,7 @@ use p4kx_extraction::{
     Archive, Checksum, ConflictPolicy, Entry, ExtractOptions, ExtractionError, VerifyOptions,
     extract, verify,
 };
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -17,7 +17,7 @@ fn open(builder: &ArchiveBuilder) -> Result<(tempfile::TempDir, Archive), Box<dy
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     builder.write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(test_key()))?;
     Ok((dir, archive))
 }
 

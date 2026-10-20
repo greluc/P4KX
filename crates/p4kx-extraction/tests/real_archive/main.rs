@@ -50,7 +50,10 @@ const MAX_CRYXML_SIZE: u64 = 64 << 20;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn converts_every_cryxml_entry_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let candidates: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -127,7 +130,10 @@ fn convert(archive: &Archive, entry: &Entry) -> Result<Option<Format>, SendError
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn extracts_a_small_subset_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let subset = small_subset(archive.entries());
     let target = tempfile::tempdir()?;
 

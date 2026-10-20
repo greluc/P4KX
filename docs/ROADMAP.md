@@ -29,7 +29,8 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 ### M1 — Archive, browsing, Extraction, CLI
 
 - Read Archive layouts v1 and v2 (`Jiji` trailer): ZIP64 central directory, Store / Deflate / Zstd
-  (method 100), AES-128-CBC encrypted Entries; positional reads from a handle pool.
+  (method 100), AES-128-CBC encrypted Entries with a key the user supplies (ADR-0027); positional
+  reads from a handle pool.
 - Read the Channel's Build from `build_manifest.id`.
 - GUI: Channel picker, drag and drop, path tree, sortable Entry table, preview (text, hex), search
   with globs and substrings, quick-filter chips, status bar.

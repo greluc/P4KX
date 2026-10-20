@@ -36,6 +36,7 @@ fn browser(model: &mut Model) -> Result<&mut Browser, Box<dyn Error>> {
 /// returns the containers of that folder.
 fn opened() -> Result<(Model, Vec<ContainerId>), Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, Duration::from_secs(120), |model| {
         model.browser().is_some() || model.failure().is_some()

@@ -68,7 +68,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     if args.combined && form != RecordForm::Xml {
         return Err(CombinedNeedsXml.into());
     }
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records = select_records(&forge, args.filter.as_deref())?;

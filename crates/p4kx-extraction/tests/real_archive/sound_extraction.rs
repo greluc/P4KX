@@ -22,9 +22,13 @@ fn has_extension(entry: &Entry, extension: &[u8]) -> bool {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario over a real Archive")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_real_sounds_and_soundbanks_is_converted_during_an_extraction() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let wems: Vec<&Entry> = archive
         .entries()
         .iter()

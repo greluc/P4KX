@@ -32,7 +32,7 @@ fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 /// Returns the lowest signal-to-noise ratio in dB of any channel of `decoded` against `signal`.

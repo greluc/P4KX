@@ -78,7 +78,10 @@ fn compared(old: &Path, new: &Path, levels: ComparisonLevels) -> Result<Model, B
 }
 
 fn cli_report(old: &Path, new: &Path, levels: Levels, out: &Path) -> TestResult {
-    let (old, new) = (Archive::open(old)?, Archive::open(new)?);
+    let (old, new) = (
+        Archive::open_with_key(old, Some(p4kx_testkit::test_key()))?,
+        Archive::open_with_key(new, Some(p4kx_testkit::test_key()))?,
+    );
     let (old_forge, new_forge) = (DataForgeEntry::read(&old)?, DataForgeEntry::read(&new)?);
     let (old_forge, new_forge) = (old_forge.open()?, new_forge.open()?);
     let forges = DataForges {

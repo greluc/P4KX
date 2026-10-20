@@ -24,7 +24,7 @@ struct Summary<'a> {
 
 /// Prints the Channel, the Build and a summary of the Archive, one `Label: value` line each.
 pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     if archive.build().is_none() {
         warn_about_manifest(&archive)?;
     }

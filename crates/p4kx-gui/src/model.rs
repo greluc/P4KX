@@ -7,6 +7,7 @@ use p4kx_extraction::{Archive, ArchiveError};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
 mod archive_change;
+mod archive_key;
 mod audio_control;
 mod catalog_control;
 mod extraction_control;
@@ -15,6 +16,8 @@ mod record_text;
 mod update;
 mod work_tab;
 
+use archive_key::KeyState;
+pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use catalog_control::CatalogState;
 use record_export_control::RecordExportState;
 use update::UpdateState;
@@ -67,6 +70,7 @@ pub struct Model {
     record_export: RecordExportState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
+    key: KeyState,
 }
 
 impl std::fmt::Debug for Model {
@@ -95,6 +99,7 @@ impl std::fmt::Debug for Model {
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
+            .field("key", &self.key)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -130,6 +135,7 @@ impl Model {
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
+            key: KeyState::default(),
         }
     }
 
@@ -177,10 +183,11 @@ impl Model {
     pub fn open(&mut self, path: PathBuf, wake: impl Fn() + Send + 'static) {
         let (sender, result) = mpsc::channel();
         let thread_path = path.clone();
+        let key = self.key_in_use();
         let spawned = thread::Builder::new()
             .name("open-archive".to_owned())
             .spawn(move || {
-                let index = Archive::open(&thread_path).map(EntryIndex::build);
+                let index = Archive::open_with_key(&thread_path, key).map(EntryIndex::build);
                 if sender.send(index).is_ok() {
                     wake();
                 }
@@ -220,6 +227,7 @@ impl Model {
                 self.browser = Some(Browser::new(index));
                 self.apply_record_language();
                 self.stopped_by_change = false;
+                self.key_archive_opened();
                 self.query.archive_opened();
                 self.localization.archive_opened();
             }

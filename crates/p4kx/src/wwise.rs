@@ -5,7 +5,6 @@ use p4kx_assembly::audio::{
     ArchiveAudio, AudioIndex, BrokenLink, IndexedSoundbank, LanguageChoice, PathStep, SoundVariant,
     SourceKind, TriggerSounds, WemLocation,
 };
-use p4kx_extraction::Archive;
 use thiserror::Error;
 
 use crate::cli::{AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseResolveArgs};
@@ -60,7 +59,7 @@ pub(crate) fn language_choice(
 
 /// Prints every sound variant of an audio trigger and every broken link.
 fn resolve(args: &WwiseResolveArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
     let choice = language_choice(index, &args.language)?;

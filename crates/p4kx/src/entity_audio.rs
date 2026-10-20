@@ -7,7 +7,7 @@ use p4kx_assembly::audio::{
     ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, IndexedSoundbank,
     TriggerSounds, Unmatched, trigger_references,
 };
-use p4kx_extraction::{Archive, DataForgeEntry, Record};
+use p4kx_extraction::{DataForgeEntry, Record};
 use serde::Serialize;
 
 use crate::cli::EntityAudioArgs;
@@ -92,7 +92,7 @@ struct Counts {
 
 /// Prints the audio triggers of an Entity with their Wwise events and soundbanks.
 pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let entity = Entities::new(&forge).find(&args.entity)?;

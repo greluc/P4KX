@@ -89,6 +89,22 @@ o_localisation broken link. p4kx entity audio
 
 ### Changed
 
+- **Breaking:** the Archive key is no longer part of the tool; you enter it
+  ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). The constant `ARCHIVE_KEY` of
+  `p4kx-foundation` is gone: `ArchiveKey` is a value that `Archive::open_with_key` or
+  `Archive::set_key` give an Archive, and `p4kx_testkit` encrypts its Archives with a test key
+  of its own. Without a key an Archive still opens, lists, searches and compares, and reads every
+  unencrypted Entry; an encrypted Entry fails with `ArchiveError::KeyRequired`, and a key that
+  does not decrypt the Archive with `ArchiveError::WrongKey`, found by decrypting one encrypted
+  Entry and comparing its CRC-32C. `p4kx --key <hex>`, the environment variable
+  `P4KX_ARCHIVE_KEY` and the key stored with `p4kx key set|show|remove` in your profile give
+  the key, in that order; the MCP server takes the same three (`--key`, `P4KX_ARCHIVE_KEY`, the
+  stored key), and the window asks in a dialog when an encrypted Entry is first needed, and from
+  **Archive key…** in the Archive menu. A missing or wrong key exits `p4kx` with the new code 7.
+  The key is stored in `archive.key` next to the settings, written atomically and readable by
+  your user alone where the platform allows it, and never appears in logs, error messages or JSON.
+  `cargo xtask keys` fails when a tracked file holds a key-like literal named as a key, or the
+  real key while `P4KX_ARCHIVE_KEY` is set. Real-Archive tests need `P4KX_ARCHIVE_KEY`.
 - Models: `p4kx_model::ModelFile` is `#[non_exhaustive]` and has the new variant
   `LodGeometry(u32)` for the geometry companion of a level of detail from 1 on (`lod<n>-geometry`
   in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
@@ -144,6 +160,12 @@ o_localisation broken link. p4kx entity audio
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
 - Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
   starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
   reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`

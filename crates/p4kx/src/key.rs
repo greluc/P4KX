@@ -90,9 +90,12 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
     Ok(())
 }
 
-/// Opens the Archive at `path` with the key of this run, if there is one.
+/// Opens the Archive at `path` with the key of this run, if there is one, and notes on stderr
+/// that it belongs to a test build.
 pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
-    Archive::open_with_key(path, KEY.get().cloned().flatten())
+    let archive = Archive::open_with_key(path.as_ref(), KEY.get().cloned().flatten())?;
+    crate::notice::announce(path.as_ref());
+    Ok(archive)
 }
 
 /// Returns the line that tells how to give the key when `error` is about a missing or wrong key.

@@ -43,6 +43,7 @@ mod list;
 mod loc;
 mod model;
 mod model_json;
+mod notice;
 mod progress;
 mod query_file;
 mod query_rows;

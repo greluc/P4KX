@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Build;
 
+use crate::ChannelKind;
+
 const UNKNOWN: &str = "unknown";
 
 /// Where a Channel was found.
@@ -53,6 +55,12 @@ impl Channel {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Returns the kind of the Channel, told by its name.
+    #[must_use]
+    pub fn kind(&self) -> ChannelKind {
+        ChannelKind::from_name(&self.name)
     }
 
     /// Returns the path of the Archive.

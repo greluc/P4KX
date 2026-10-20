@@ -27,6 +27,8 @@ use run::{Job, Outcome, Run};
 pub enum QueryStage {
     /// DataForge is read from the Archive.
     Loading,
+    /// The References between the Records are indexed, which `referencing` needs.
+    Indexing,
     /// The Query is checked and the Records are selected.
     Selecting,
     /// The rows are read; `done` of `total` Records.

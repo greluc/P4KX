@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::{DataForge, ReferenceIndex};
+use p4kx_extraction::{CancelToken, DataForge, ReferenceIndex};
 
 use super::{FieldLine, LineValue, RecordLink};
 use crate::forge_cache::ReadFailure;
@@ -121,11 +121,76 @@ enum Unread {
 
 type Answer = (u64, Result<IncomingView, Unread>);
 
-/// The list for the selected Record and the threads that find it; the index of References is
-/// built once per Archive by the first of them.
+/// A Record whose referrers are asked for, as request `generation`.
+struct Request {
+    generation: u64,
+    id: RecordId,
+}
+
+/// The one thread that finds the lists, the newest request first; it ends once this handle is
+/// dropped, and stops building the index of References that moment.
+#[derive(Debug)]
+struct Worker {
+    requests: Sender<Request>,
+    cancel: CancelToken,
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.cancel.cancel();
+    }
+}
+
+impl Worker {
+    fn start(
+        index: &Arc<EntryIndex>,
+        answers: Sender<Answer>,
+        wake: Arc<dyn Fn() + Send + Sync>,
+    ) -> Result<Self, String> {
+        let (requests, waiting) = mpsc::channel();
+        let cancel = CancelToken::new();
+        let index = Arc::clone(index);
+        let stop = cancel.clone();
+        thread::Builder::new()
+            .name("record-incoming".to_owned())
+            .spawn(move || serve(&index, &waiting, &answers, &*wake, &stop))
+            .map_err(|error| describe(&error))?;
+        Ok(Self { requests, cancel })
+    }
+}
+
+fn serve(
+    index: &EntryIndex,
+    waiting: &Receiver<Request>,
+    answers: &Sender<Answer>,
+    wake: &dyn Fn(),
+    cancel: &CancelToken,
+) {
+    while let Some(request) = next(waiting) {
+        let Some(found) = find(index, request.id, cancel) else {
+            return;
+        };
+        if answers.send((request.generation, found)).is_err() {
+            return;
+        }
+        wake();
+    }
+}
+
+fn next(waiting: &Receiver<Request>) -> Option<Request> {
+    let mut request = waiting.recv().ok()?;
+    while let Ok(newer) = waiting.try_recv() {
+        request = newer;
+    }
+    Some(request)
+}
+
+/// The list for the selected Record and the thread that finds it; the first search of an Archive
+/// builds its index of References, and a Record selected meanwhile waits for it.
 #[derive(Debug)]
 pub(crate) struct IncomingList {
     preview: Option<IncomingPreview>,
+    worker: Option<Worker>,
     answers: Sender<Answer>,
     arrivals: Receiver<Answer>,
 }
@@ -135,6 +200,7 @@ impl Default for IncomingList {
         let (answers, arrivals) = mpsc::channel();
         Self {
             preview: None,
+            worker: None,
             answers,
             arrivals,
         }
@@ -147,39 +213,39 @@ impl IncomingList {
         self.preview.as_ref()
     }
 
-    /// Finds the Records that refer to `id` on a background thread unless that is done or running,
-    /// calling `wake` from it once it is done.
+    /// Returns whether the list of `id` is shown, found or being found; a list that could not be
+    /// found is asked for again once another Record was asked for in between.
+    pub(crate) fn requests(&self, id: RecordId) -> bool {
+        self.preview
+            .as_ref()
+            .is_some_and(|shown| shown.record == id)
+    }
+
+    /// Asks the worker thread, started by the first request, for the Records that refer to `id`,
+    /// calling `wake` from it once it has them.
     pub(crate) fn request(
         &mut self,
         id: RecordId,
         index: &Arc<EntryIndex>,
         wake: Arc<dyn Fn() + Send + Sync>,
     ) {
-        if self
-            .preview
-            .as_ref()
-            .is_some_and(|shown| shown.record == id && !matches!(shown.state, State::Failed(_)))
-        {
-            return;
-        }
         let generation = GENERATIONS.fetch_add(1, Ordering::Relaxed);
         let mut preview = IncomingPreview {
             record: id,
             generation,
             state: State::Loading,
         };
-        let answers = self.answers.clone();
-        let index = Arc::clone(index);
-        let spawned = thread::Builder::new()
-            .name("record-incoming".to_owned())
-            .spawn(move || {
-                let found = find(&index, id);
-                if answers.send((generation, found)).is_ok() {
-                    wake();
-                }
-            });
-        if let Err(error) = spawned {
-            preview.state = State::Failed(Some(describe(&error)));
+        if self.worker.is_none() {
+            match Worker::start(index, self.answers.clone(), wake) {
+                Ok(worker) => self.worker = Some(worker),
+                Err(reason) => preview.state = State::Failed(Some(reason)),
+            }
+        }
+        if let Some(worker) = &self.worker
+            && worker.requests.send(Request { generation, id }).is_err()
+        {
+            self.worker = None;
+            preview.state = State::Failed(None);
         }
         self.preview = Some(preview);
     }
@@ -214,22 +280,34 @@ impl IncomingList {
     }
 }
 
-fn find(index: &EntryIndex, id: RecordId) -> Result<IncomingView, Unread> {
+/// Finds the list of `id`, or returns `None` once `cancel` stopped the work.
+fn find(
+    index: &EntryIndex,
+    id: RecordId,
+    cancel: &CancelToken,
+) -> Option<Result<IncomingView, Unread>> {
     let unread = |failure: ReadFailure| match failure {
         ReadFailure::ArchiveChanged(_) => Unread::ArchiveChanged,
         ReadFailure::Unreadable(reason) => Unread::Failed(reason),
     };
-    let source = index.forge().read(index, || {}).map_err(unread)?;
-    let references = source.references().map_err(unread)?;
-    let forge = source
-        .entry
-        .open()
-        .map_err(|error| Unread::Failed(describe(&error)))?;
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(failure) => return Some(Err(unread(failure))),
+    };
+    let references = match source.references(&|| cancel.is_cancelled()) {
+        Ok(Some(references)) => references,
+        Ok(None) => return None,
+        Err(failure) => return Some(Err(unread(failure))),
+    };
+    let forge = match source.entry.open() {
+        Ok(forge) => forge,
+        Err(error) => return Some(Err(Unread::Failed(describe(&error)))),
+    };
     let view = view(&forge, &references, id);
     if index.watch().check().is_err() {
-        return Err(Unread::ArchiveChanged);
+        return Some(Err(Unread::ArchiveChanged));
     }
-    Ok(view)
+    Some(Ok(view))
 }
 
 fn view(forge: &DataForge<'_>, references: &ReferenceIndex, id: RecordId) -> IncomingView {

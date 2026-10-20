@@ -18,6 +18,8 @@ pub enum IncomingText {
     ArchiveChanged,
     /// Shown instead of the list when no Record refers to the Record.
     None,
+    /// The accessible name of the link to a referring Record; takes `path` and `field`.
+    Follow,
     /// The count line; takes `references` and `records`, the texts of the two counts.
     Summary,
     /// The number of References; takes `count` and the formatted `number`.
@@ -33,7 +35,7 @@ pub enum IncomingText {
 
 impl IncomingText {
     /// Every text of the "Referenced by" tab.
-    pub(crate) const ALL: [Self; 13] = [
+    pub(crate) const ALL: [Self; 14] = [
         Self::Tab,
         Self::HeadField,
         Self::HeadRecord,
@@ -42,6 +44,7 @@ impl IncomingText {
         Self::Stopped,
         Self::ArchiveChanged,
         Self::None,
+        Self::Follow,
         Self::Summary,
         Self::ReferenceCount,
         Self::RecordCount,
@@ -61,6 +64,7 @@ impl IncomingText {
             Self::Stopped => "incoming-stopped",
             Self::ArchiveChanged => "incoming-archive-changed",
             Self::None => "incoming-none",
+            Self::Follow => "incoming-follow",
             Self::Summary => "incoming-summary",
             Self::ReferenceCount => "incoming-reference-count",
             Self::RecordCount => "incoming-record-count",

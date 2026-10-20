@@ -1,34 +1,22 @@
-use egui::{Align, Label, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
+use egui::{Label, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview::{self, AudioAction};
 use super::record_preview::{self, RecordStep};
-use super::{dataforge_summary, hex_view, image_preview, record_incoming, xml_preview};
+use super::{
+    dataforge_summary, hex_view, image_preview, preview_bar, record_incoming, xml_preview,
+};
 use crate::theme::desktop::{HEX_ROW_HEIGHT, PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, SPACE_2, TOUCH_TARGET, Weight};
-use crate::widgets::button::{self, Kind, Size};
+use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
 use crate::widgets::frames;
 use crate::widgets::scroll_region;
-use crate::widgets::tab;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, IncomingText, Model, PREVIEW_SIZE_LIMIT, Preview,
-    PreviewContents, PreviewStatus, PreviewTab, RecordText, ScrollText, Text, Texts, XmlDocument,
-    XmlPreview, XmlText, format, is_wem_path,
+    Browser, Model, PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab,
+    ScrollText, Text, Texts, format, is_wem_path,
 };
-
-const TABS: [(PreviewTab, Text); 8] = [
-    (PreviewTab::Text, Text::PreviewTabText),
-    (PreviewTab::Hex, Text::PreviewTabHex),
-    (PreviewTab::Xml, Text::Xml(XmlText::Tab)),
-    (PreviewTab::Image, Text::Image(ImageText::Tab)),
-    (PreviewTab::Audio, Text::Audio(AudioText::Tab)),
-    (PreviewTab::DataForge, Text::DataForge(DataForgeText::Tab)),
-    (PreviewTab::Record, Text::Record(RecordText::Tab)),
-    (PreviewTab::Incoming, Text::Incoming(IncomingText::Tab)),
-];
 
 /// What the body of a tab asks for.
 enum Asked {
@@ -88,7 +76,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         return;
     };
     let texts = model.texts();
-    let bar = tab_bar(ui, texts, browser, model.preview_tab());
+    let bar = preview_bar::tab_bar(ui, texts, browser, model.preview_tab());
     let tab = bar.tab;
     let asked = tab_body(ui, texts, browser, tab, model.audio_volume());
     if let Some(text) = bar.copy {
@@ -110,104 +98,6 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     {
         let ctx = ui.ctx().clone();
         browser.load_records(move || ctx.request_repaint());
-    }
-}
-
-/// What the tab bar asks for: the tab to show, the text to copy and a step through the Records.
-struct Bar {
-    tab: PreviewTab,
-    copy: Option<String>,
-    step: Option<RecordStep>,
-}
-
-/// Shows the tabs `browser` offers with back and forward through the Records and the copy
-/// action; the tab to show is `tab` unless another was clicked or it is not offered.
-fn tab_bar(ui: &mut Ui, texts: &Texts, browser: &Browser, mut tab: PreviewTab) -> Bar {
-    let image = browser.preview().and_then(Preview::image);
-    let audio = browser.preview().and_then(Preview::audio);
-    let record = browser.selected_record().is_some();
-    let xml = browser.preview().and_then(Preview::xml).filter(|_| !record);
-    let records = browser.records();
-    let offered = |candidate: PreviewTab| match candidate {
-        PreviewTab::Xml => xml.is_some() || record,
-        PreviewTab::Image => image.is_some(),
-        PreviewTab::Audio => audio.is_some(),
-        PreviewTab::DataForge => records.is_some(),
-        PreviewTab::Record | PreviewTab::Incoming => record,
-        PreviewTab::Text | PreviewTab::Hex => true,
-    };
-    let tabs: Vec<(PreviewTab, Text)> = TABS
-        .into_iter()
-        .filter(|&(candidate, _)| offered(candidate))
-        .collect();
-    if !offered(tab) {
-        tab = PreviewTab::Text;
-    }
-    let labels: Vec<String> = tabs.iter().map(|&(_, text)| texts.get(text)).collect();
-    let current = tabs
-        .iter()
-        .position(|(candidate, _)| *candidate == tab)
-        .unwrap_or(0);
-    let bar = ui.max_rect().with_max_y(ui.max_rect().top() + TOUCH_TARGET);
-    if let Some(index) = tab::tab_bar(ui, &labels, current)
-        && let Some((candidate, _)) = tabs.get(index)
-    {
-        tab = *candidate;
-    }
-    let contents = browser
-        .preview()
-        .and_then(|preview| preview.contents())
-        .filter(|_| matches!(tab, PreviewTab::Text | PreviewTab::Hex));
-    let document = shown_xml(browser, xml).filter(|_| tab == PreviewTab::Xml);
-    let copy_label = texts.get(Text::PreviewCopy);
-    let mut copy = None;
-    let mut step = None;
-    ui.scope_builder(
-        egui::UiBuilder::new().max_rect(bar.shrink2(vec2(SPACE_2, 0.0))),
-        |ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let enabled = contents.is_some() || document.is_some();
-                if button::button(ui, Kind::Ghost, Size::Compact, &copy_label, enabled).clicked() {
-                    copy = contents.map(|contents| contents.copied(tab)).or_else(|| {
-                        document.map(|document| String::from_utf8_lossy(document).into_owned())
-                    });
-                }
-                if browser.shows_records() {
-                    step = steps(ui, texts, browser);
-                }
-            });
-        },
-    );
-    Bar { tab, copy, step }
-}
-
-/// Returns the XML the XML tab shows: that of the selected Record, else the converted Entry.
-fn shown_xml<'b>(browser: &'b Browser, xml: Option<&'b XmlPreview>) -> Option<&'b [u8]> {
-    if browser.selected_record().is_some() {
-        record_preview::xml_bytes(browser)
-    } else {
-        xml.and_then(XmlPreview::text).map(XmlDocument::bytes)
-    }
-}
-
-/// Shows forward and back, right to left; returns the step that was clicked.
-fn steps(ui: &mut Ui, texts: &Texts, browser: &Browser) -> Option<RecordStep> {
-    let forward = texts.get(RecordText::Forward);
-    let back = texts.get(RecordText::Back);
-    let forward = button::button(
-        ui,
-        Kind::Ghost,
-        Size::Compact,
-        &forward,
-        browser.can_go_forward(),
-    )
-    .clicked();
-    let back =
-        button::button(ui, Kind::Ghost, Size::Compact, &back, browser.can_go_back()).clicked();
-    if back {
-        Some(RecordStep::Back)
-    } else {
-        forward.then_some(RecordStep::Forward)
     }
 }
 

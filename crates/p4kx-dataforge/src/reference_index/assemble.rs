@@ -3,36 +3,51 @@ use std::collections::HashMap;
 use super::ReferenceIndex;
 use super::collect::Chunk;
 
-/// Joins the chunks, which are in Record order, into one index of at most `limit` References.
-pub(super) fn assemble(chunks: Vec<Chunk>, record_count: usize, limit: usize) -> ReferenceIndex {
-    let total: usize = chunks.iter().map(|chunk| chunk.sources.len()).sum();
-    let kept = total.min(limit);
-    let mut index = ReferenceIndex {
-        sources: Vec::with_capacity(kept),
-        targets: Vec::with_capacity(kept),
-        shapes: Vec::with_capacity(kept),
-        index_starts: Vec::with_capacity(kept),
-        truncated: total > limit,
-        ..ReferenceIndex::default()
-    };
-    let mut shape_ids: HashMap<Box<str>, u32> = HashMap::new();
-    for chunk in chunks {
-        index.unreadable += chunk.unreadable;
-        let room = kept.saturating_sub(index.sources.len());
+/// Joins the chunks, which arrive in Record order, into one index of at most `limit` References.
+/// The caller drops each chunk once it is pushed, so only one wave of chunks lives at a time.
+pub(super) struct Assembler {
+    index: ReferenceIndex,
+    shape_ids: HashMap<Box<str>, u32>,
+    limit: usize,
+}
+
+impl Assembler {
+    pub(super) fn new(limit: usize) -> Self {
+        Self {
+            index: ReferenceIndex::default(),
+            shape_ids: HashMap::new(),
+            limit,
+        }
+    }
+
+    /// Returns whether References were left out, so that no later chunk can add any.
+    pub(super) const fn is_full(&self) -> bool {
+        self.index.truncated
+    }
+
+    /// Appends the References of `chunk`, those past the limit are dropped and mark the index as
+    /// truncated.
+    pub(super) fn push(&mut self, chunk: &Chunk) {
+        if self.index.truncated {
+            return;
+        }
+        self.index.unreadable += chunk.unreadable;
+        let room = self.limit.saturating_sub(self.index.sources.len());
         let take = chunk.sources.len().min(room);
         if take < chunk.sources.len() {
-            index.truncated = true;
+            self.index.truncated = true;
         }
-        let base = index.sources.len();
-        let remap = remap_shapes(&mut index, &mut shape_ids, &chunk);
-        let Some(index_base) = u32::try_from(index.indices.len()).ok() else {
-            index.truncated = true;
-            break;
+        let base = self.index.sources.len();
+        let remap = remap_shapes(&mut self.index, &mut self.shape_ids, chunk);
+        let Some(index_base) = u32::try_from(self.index.indices.len()).ok() else {
+            self.index.truncated = true;
+            return;
         };
         let indices_end = chunk
             .index_starts
             .get(take)
             .map_or(chunk.indices.len(), |end| *end as usize);
+        let index = &mut self.index;
         index.sources.extend_from_slice(head(&chunk.sources, take));
         index.targets.extend_from_slice(head(&chunk.targets, take));
         index.shapes.extend(
@@ -54,12 +69,13 @@ pub(super) fn assemble(chunks: Vec<Chunk>, record_count: usize, limit: usize) ->
                 index.unresolved.push((entry, *guid));
             }
         }
-        if take < chunk.sources.len() {
-            break;
-        }
     }
-    index.finish(record_count);
-    index
+
+    /// Builds the lookup tables of the index over `record_count` Records.
+    pub(super) fn finish(mut self, record_count: usize) -> ReferenceIndex {
+        self.index.finish(record_count);
+        self.index
+    }
 }
 
 fn head<T>(items: &[T], count: usize) -> &[T] {

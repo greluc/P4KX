@@ -32,6 +32,7 @@ mod localization_table;
 mod menu;
 mod moved_path;
 mod preview;
+mod preview_bar;
 mod query;
 mod query_editor;
 mod query_table;

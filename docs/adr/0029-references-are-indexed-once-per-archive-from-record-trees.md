@@ -14,25 +14,36 @@ indices of a Reference are exactly those of the Record preview and the Query, an
 held by a struct nested in an array is found like any other. A Reference field, a weak pointer to
 another Record and a dangling Reference are References; a Reference or weak pointer into the
 Record that holds it is not, because "the Record refers to itself" says nothing about its place
-among the other Records.
+among the other Records. A weak pointer to a nested instance of another Record is not indexed
+either: the Record tree reports it as outside the Record (`ValueError::OutsideRecord`) and does
+not know which Record owns the instance, so only a weak pointer to the instance a Record is
+defined by links the two Records.
 
 The References live in columns of `u32` without a heap object per Reference: source Record,
 target Record (or none), an interned field shape with `[]` for every array on the way, and the
 index of the element in each array in one shared buffer. A shape is `Components[].fireActions[].ammo`;
 the text with indices, `Components[3].fireActions[0].ammo`, is built on demand. Each parallel task
-collects its Records in order with a local interner; the tasks are joined in Record order, so the
+collects its Records in order with a local interner; the tasks run in waves of a few per thread
+and the chunks of a wave are appended in Record order and freed as they are moved, so the
 outgoing References of a Record are one run, and incoming ones are grouped by target with one
 counting pass. The work per Record is bounded by `MAX_RECORD_VALUES`, the index by
-`MAX_INDEXED_REFERENCES` (2^26); a Record whose tree cannot be built adds nothing and is counted,
-and an index that stopped at the limit says so. All of it runs outside any `OnceLock`
-initialiser, because the build uses rayon.
+`MAX_INDEXED_REFERENCES` (2^23, five times the 1.55 million of LIVE): the limit is applied only
+while appending, in Record order, so a truncated index holds the first References of the first
+Records whatever the number of threads, and no wave starts once it is full. A Record whose tree
+cannot be built adds nothing and is counted, and an index that stopped at the limit says so. The
+build polls a stop function between Records, so the window can cancel it. All of it runs outside
+any `OnceLock` initialiser, because the build uses rayon.
 
-The window builds the index lazily, the first time the "Referenced by" tab is shown, on a thread
-of its own, and keeps it in the shared cache of the Archive next to the completion schema: the
-build is serialised by a mutex, the result is stored afterwards, and a change of the Archive on
-disk drops it with the DataForge. The CLI builds it for the one command. A Query with
-`referencing` takes the index of the window's cache; elsewhere `Query::compile` builds one when
-the Query needs it.
+The window builds the index lazily, the first time the "Referenced by" tab is shown or a Query
+with `referencing` runs, and keeps it in the shared cache of the Archive next to the completion
+schema: the build is serialised by a mutex, a consumer that waits for it polls its own stop
+flag, the result is stored afterwards, and a change of the Archive on disk drops it with the
+DataForge. The "Referenced by" tab has one worker thread for all its lists, which serves the
+newest request after the build, and dropping the Archive stops the build; a Query run shows
+"Indexing References" while it waits and stops with its Cancel. The CLI builds the index for the
+one command. `Query::compile` builds one after the type and field names are checked and only
+for a `referencing` Record that exists; `Query::compile_with` without an index is an error for a
+`referencing` Query.
 
 The file graph groups Records by record path (ignoring case, separators and `.xml`, as the
 Record search does) and has an edge from file A to file B, A different from B, when a Record of A

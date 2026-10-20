@@ -100,6 +100,9 @@ pub enum QueryErrorKind {
         /// The text as written.
         text: String,
     },
+    /// `referencing` was compiled without the index of References it reads.
+    #[error("the index of References is missing, so `referencing` cannot select Records")]
+    MissingReferenceIndex,
     /// A path names a field that its struct, or without `from` any struct, does not declare.
     #[error("unknown field `{name}`{}{}", Owner(.owner.as_deref()), Suggestion(.suggestion.as_deref()))]
     UnknownField {

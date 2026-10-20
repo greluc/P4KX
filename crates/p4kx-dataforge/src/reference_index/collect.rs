@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::ops::Range;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{DataForge, Field, Guid, Record, TreeBuilder, Value, ValueError};
 
@@ -34,14 +33,15 @@ impl Chunk {
     }
 }
 
-/// Reads the References of the Records in `range` into one chunk, stopping once `budget` has
-/// counted more than `limit` References over all chunks.
+/// Reads the References of the Records in `range` into one chunk, stopping once the chunk alone
+/// holds more than `limit` References or `stop` says so; what the chunk holds depends on the
+/// Records alone.
 pub(super) fn collect<'f>(
     forge: &'f DataForge<'f>,
     builder: &mut TreeBuilder<'f>,
     range: Range<u32>,
-    budget: &AtomicUsize,
     limit: usize,
+    stop: &(dyn Fn() -> bool + Sync),
 ) -> Chunk {
     let mut chunk = Chunk::default();
     let mut walker = Walker {
@@ -53,18 +53,15 @@ pub(super) fn collect<'f>(
         chunk: &mut chunk,
     };
     for index in range {
-        if budget.load(Ordering::Relaxed) > limit {
+        if walker.chunk.sources.len() > limit || stop() {
             break;
         }
         let Some(record) = forge.record(index) else {
             continue;
         };
-        let before = walker.chunk.sources.len();
         if !walker.record(builder, &record) {
             walker.chunk.unreadable += 1;
         }
-        let added = walker.chunk.sources.len().saturating_sub(before);
-        budget.fetch_add(added, Ordering::Relaxed);
     }
     chunk
 }

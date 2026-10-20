@@ -4,7 +4,6 @@ mod files;
 
 use std::fmt::Write as _;
 use std::ops::Range;
-use std::sync::atomic::AtomicUsize;
 
 use rayon::prelude::*;
 
@@ -12,20 +11,26 @@ use crate::{DataForge, Guid, TreeBuilder};
 
 pub use files::FileGraph;
 
-/// The most References an index keeps; a DataForge with more is indexed up to this many and
-/// reported as [truncated](ReferenceIndex::is_truncated).
-pub const MAX_INDEXED_REFERENCES: usize = 1 << 26;
+/// The most References an index keeps: 8,388,608 against the 1.6 million of Star Citizen's LIVE.
+///
+/// A DataForge with more is indexed up to this many, the first ones in Record order, and reported
+/// as [truncated](ReferenceIndex::is_truncated).
+pub const MAX_INDEXED_REFERENCES: usize = 1 << 23;
+
+const WAVE_TASKS_PER_THREAD: usize = 4;
 
 pub(crate) const UNRESOLVED: u32 = u32::MAX;
 
 /// Every Reference of every Record of a DataForge, with the field it stands in, answering which
 /// Records refer to a Record and which Records a Record refers to.
 ///
-/// A Reference is a Reference field or a weak pointer to another Record; a weak pointer into the
-/// Record that holds it is no Reference of the index. Each Reference keeps the field path of its
-/// place, with `[]` for every array on the way, and the index of the element in each of them.
-/// A Reference to a GUID no Record has is unresolved: it is listed and counted but has no
-/// target. The index holds Record indices and borrows nothing from the DataForge.
+/// A Reference is a Reference field or a weak pointer to the Record instance of another Record; a
+/// weak pointer into the Record that holds it is no Reference of the index, and neither is one
+/// to a nested instance of another Record, which the Record tree reports as outside the Record.
+/// Each Reference keeps the field path of its place, with `[]` for every array on the way, and
+/// the index of the element in each of them. A Reference to a GUID no Record has is unresolved:
+/// it is listed and counted but has no target. The index holds Record indices and borrows
+/// nothing from the DataForge.
 #[derive(Debug, Default)]
 pub struct ReferenceIndex {
     sources: Vec<u32>,
@@ -56,25 +61,60 @@ impl ReferenceIndex {
         Self::build_limited(forge, MAX_INDEXED_REFERENCES)
     }
 
-    /// Indexes like [uild](Self::build) but keeps at most limit References.
+    /// Indexes like [build](Self::build) but keeps at most `limit` References: the first ones in
+    /// the order of the Records, whatever the number of threads.
     #[must_use]
     pub fn build_limited(forge: &DataForge<'_>, limit: usize) -> Self {
+        Self::build_until(forge, limit, &|| false).unwrap_or_default()
+    }
+
+    /// Indexes like [build](Self::build) but gives up with `None` once `stop` returns `true`;
+    /// `stop` is polled from the worker threads between Records.
+    #[must_use]
+    pub fn build_cancellable(
+        forge: &DataForge<'_>,
+        stop: &(dyn Fn() -> bool + Sync),
+    ) -> Option<Self> {
+        Self::build_until(forge, MAX_INDEXED_REFERENCES, stop)
+    }
+
+    fn build_until(
+        forge: &DataForge<'_>,
+        limit: usize,
+        stop: &(dyn Fn() -> bool + Sync),
+    ) -> Option<Self> {
         let count = u32::try_from(forge.record_count()).unwrap_or(u32::MAX);
         let _warm = forge.record_by_guid(Guid::default());
-        let ranges: Vec<Range<u32>> = (0..count.div_ceil(collect::RECORDS_PER_TASK))
-            .map(|task| {
-                let start = task * collect::RECORDS_PER_TASK;
-                start..count.min(start.saturating_add(collect::RECORDS_PER_TASK))
-            })
-            .collect();
-        let budget = AtomicUsize::new(0);
-        let chunks: Vec<_> = ranges
-            .into_par_iter()
-            .map_init(TreeBuilder::new, |builder, range| {
-                collect::collect(forge, builder, range, &budget, limit)
-            })
-            .collect();
-        assemble::assemble(chunks, forge.record_count(), limit)
+        let tasks = count.div_ceil(collect::RECORDS_PER_TASK);
+        let wave =
+            u32::try_from(rayon::current_num_threads().saturating_mul(WAVE_TASKS_PER_THREAD))
+                .unwrap_or(u32::MAX)
+                .max(1);
+        let mut assembler = assemble::Assembler::new(limit);
+        let mut next = 0_u32;
+        while next < tasks && !assembler.is_full() {
+            if stop() {
+                return None;
+            }
+            let end = tasks.min(next.saturating_add(wave));
+            let chunks: Vec<_> = (next..end)
+                .into_par_iter()
+                .map_init(TreeBuilder::new, |builder, task| {
+                    let start = task * collect::RECORDS_PER_TASK;
+                    let range: Range<u32> =
+                        start..count.min(start.saturating_add(collect::RECORDS_PER_TASK));
+                    collect::collect(forge, builder, range, limit, stop)
+                })
+                .collect();
+            for chunk in chunks {
+                assembler.push(&chunk);
+            }
+            next = end;
+        }
+        if stop() {
+            return None;
+        }
+        Some(assembler.finish(forge.record_count()))
     }
 
     fn finish(&mut self, record_count: usize) {

@@ -203,6 +203,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Abfrage ausführen
 query-cancel = Abbrechen
 query-loading = DataForge wird gelesen …
+query-indexing = Referenzen werden indiziert …
 query-selecting = Records werden ausgewählt …
 query-progress = { $done } von { $total } Records, { $percent } %
 query-cancelled = Die Abfrage wurde abgebrochen.
@@ -557,6 +558,7 @@ incoming-failed = Die Records, die auf { $path } verweisen, lassen sich nicht fi
 incoming-stopped = Die Suche nach den Records, die auf { $path } verweisen, brach ohne Ergebnis ab.
 incoming-archive-changed = Das Archiv wurde auf der Festplatte geändert. Neu laden, um die Records zu finden, die auf einen Record verweisen.
 incoming-none = Kein Record verweist auf diesen Record.
+incoming-follow = Den Record { $path } öffnen, der in { $field } auf diesen Record verweist
 incoming-summary = { $references } von { $records }
 incoming-reference-count =
     { $count ->

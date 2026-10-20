@@ -228,6 +228,7 @@ fn a_query_selects_the_records_that_refer_to_a_record() -> TestResult {
     );
     Ok(())
 }
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_real_archive_has_plausible_counts_and_incoming_references_of_a_ship() -> TestResult {

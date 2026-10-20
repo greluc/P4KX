@@ -23,10 +23,9 @@ use crate::{model, texture};
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries or Records failed or were cancelled, the data of an Entry does not match its
-/// checksum, the target folder could not be created, a
-/// texture is invalid or cannot be merged, decoded or written, a sound or soundbank is invalid or
-/// cannot be converted or written, a tag or definition of a UI movie cannot be read or written,
-/// or a model cannot be exported or written.
+/// checksum, the target folder could not be created, a texture is invalid or cannot be merged,
+/// decoded or written, a sound or soundbank is invalid or cannot be converted or written, a tag or
+/// definition of a UI movie cannot be read or written, or a model cannot be exported or written.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;
@@ -34,9 +33,9 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs, has an invalid Query or a Query
-/// output that does not fit --json, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as
-/// CHF, asks loc for a language the Archive holds no global.ini for, or looks up a localisation
-/// key that has no text.
+/// output that does not fit --json, names a Record dcb refs does not find, or gives CHF JSON that
+/// is invalid or cannot be written as CHF, asks loc for a language the Archive holds no global.ini
+/// for, or looks up a localisation key that has no text.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.

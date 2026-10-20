@@ -2,7 +2,7 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{Archive, DataForge, DataForgeEntry, Guid, IndexedReference, ReferenceIndex};
+use p4kx_extraction::{Archive, DataForge, DataForgeEntry, IndexedReference, ReferenceIndex};
 use thiserror::Error;
 
 use crate::cli::{DcbRefsArgs, RefsFormat};
@@ -128,17 +128,7 @@ pub(crate) fn run(args: &DcbRefsArgs, as_json: bool) -> Result<ExitCode> {
 /// Returns the indices of the Records `text` names: the one with that GUID, or those at that
 /// record path.
 fn resolve(forge: &DataForge<'_>, text: &str) -> Result<Vec<u32>, UnknownRecord> {
-    let by_path = || forge.records_at_path(text).map(|record| record.index());
-    let found: Vec<u32> = text.parse::<Guid>().map_or_else(
-        |_| by_path().collect(),
-        |guid| {
-            forge
-                .record_by_guid(guid)
-                .map(|record| record.index())
-                .into_iter()
-                .collect()
-        },
-    );
+    let found = forge.records_named(text);
     if found.is_empty() {
         return Err(UnknownRecord(text.to_owned()));
     }

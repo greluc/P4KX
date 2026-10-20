@@ -52,14 +52,18 @@ impl Browser {
             .filter(|preview| preview.record() == selected)
     }
 
-    /// Finds the Records that refer to the selected Record on a background thread unless that is
-    /// done or running; the first search of an Archive builds the index of its References, which
-    /// takes a moment, and every later one uses it. `wake` is called from the thread once the list
-    /// is there.
+    /// Finds the Records that refer to the selected Record on the background thread of the list
+    /// unless that is done or running; the first search of an Archive builds the index of its
+    /// References, which takes a moment, and every later one uses it. `wake` is called from the
+    /// thread once the list is there; the thread keeps the `wake` of the first call.
     pub fn load_incoming(&mut self, wake: impl Fn() + Send + Sync + 'static) {
-        if let Some(id) = self.selected_record() {
-            self.incoming.request(id, &self.index, Arc::new(wake));
+        let Some(id) = self.selected_record() else {
+            return;
+        };
+        if self.incoming.requests(id) {
+            return;
         }
+        self.incoming.request(id, &self.index, Arc::new(wake));
     }
 
     /// Returns how often the index of References was built for the DataForge of the open Archive;

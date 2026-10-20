@@ -32,10 +32,11 @@ const HEADS: [Text; 2] = [
 ];
 
 /// The lines a list shows with what tells it from the other lists: its heads, the name of its
-/// scroll view and the key of its caches.
+/// scroll view, the key of its caches and the text that names a link; it takes `path` and `field`.
 pub(super) struct List<'a> {
     pub(super) lines: &'a [FieldLine],
     pub(super) heads: [Text; 2],
+    pub(super) follow: Text,
     pub(super) scroll: ScrollText,
     pub(super) salt: &'static str,
 }
@@ -155,6 +156,7 @@ pub(super) fn show(
     let list = List {
         lines: view.lines(),
         heads: HEADS,
+        follow: Text::Record(RecordText::Follow),
         scroll: ScrollText::Lines,
         salt: "record-lines",
     };
@@ -185,7 +187,8 @@ pub(super) fn show_list(
             area.show_rows(ui, ROW_HEIGHT, list.lines.len(), |ui, range| {
                 for index in range {
                     if let Some(field) = list.lines.get(index)
-                        && let Some(followed) = row(ui, texts, &mut cache, (index, field))
+                        && let Some(followed) =
+                            row(ui, texts, &mut cache, (index, field), list.follow)
                     {
                         step = Some(followed);
                     }
@@ -219,6 +222,7 @@ fn row(
     texts: &Texts,
     cache: &mut LineCache,
     (index, field): (usize, &FieldLine),
+    follow: Text,
 ) -> Option<RecordStep> {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
@@ -254,34 +258,47 @@ fn row(
     tooltip::hover(response, |ui| {
         tooltip::line(ui, described());
     });
+    value(ui, texts, (index, field, follow), (value_cell, &laid))
+}
+
+/// Shows the value of `field` in `cell`: a link to the Record it refers to, named by `follow`, or
+/// the value as text; returns the step a click asks for.
+fn value(
+    ui: &Ui,
+    texts: &Texts,
+    (index, field, follow): (usize, &FieldLine, Text),
+    (cell, laid): (Rect, &Laid),
+) -> Option<RecordStep> {
     match field.value() {
         LineValue::Reference(link) => {
             let label = || {
                 texts.format(
-                    RecordText::Follow,
-                    &[("path", link.record_path().to_owned().into())],
+                    follow,
+                    &[
+                        ("path", link.record_path().to_owned().into()),
+                        ("field", field.name().to_owned().into()),
+                    ],
                 )
             };
-            let clicked = link_cell(ui, (index, value_cell), &laid, label);
+            let clicked = link_cell(ui, (index, cell), laid, label);
             clicked.then(|| RecordStep::Follow(link.clone()))
         }
         LineValue::Dangling { guid, .. } => {
             let label = || value_text(texts, field.value()).0;
-            let clicked = link_cell(ui, (index, value_cell), &laid, label);
+            let clicked = link_cell(ui, (index, cell), laid, label);
             clicked.then_some(RecordStep::Dangling(*guid))
         }
         _ => {
             let (galley, colour) = &laid.value;
-            paint_left(ui, value_cell, Arc::clone(galley), *colour);
+            paint_left(ui, cell, Arc::clone(galley), *colour);
             if let Some(trailer) = &laid.trailer {
-                let after = value_cell.left() + galley.size().x + SPACE_2;
-                trailer.paint(ui, value_cell.with_min_x(after.min(value_cell.right())));
+                let after = cell.left() + galley.size().x + SPACE_2;
+                trailer.paint(ui, cell.with_min_x(after.min(cell.right())));
             }
             None
         }
     }
 }
-
 /// Paints the depth rails and the name of a line of `depth` in `cell`.
 fn name(ui: &Ui, cell: Rect, depth: u16, galley: &Arc<Galley>) {
     for level in 0..depth {

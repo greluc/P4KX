@@ -203,6 +203,7 @@ query-hint = from EntityClassDefinition at "*/spaceships/*" select Category
 query-run = Run Query
 query-cancel = Cancel
 query-loading = Reading DataForge…
+query-indexing = Indexing References…
 query-selecting = Selecting Records…
 query-progress = { $done } of { $total } Records, { $percent } %
 query-cancelled = The Query was cancelled.
@@ -557,6 +558,7 @@ incoming-failed = Cannot find the Records that refer to { $path }: { $reason }
 incoming-stopped = Finding the Records that refer to { $path } stopped without a result.
 incoming-archive-changed = The Archive changed on disk. Reload it to find the Records that refer to a Record.
 incoming-none = No Record refers to this Record.
+incoming-follow = Open the Record { $path }, which refers to this Record in { $field }
 incoming-summary = { $references } from { $records }
 incoming-reference-count =
     { $count ->

@@ -115,7 +115,10 @@ fn the_tab_lists_the_referring_records_and_a_line_follows_its_record() -> TestRe
         "the field and the referring Record"
     );
     harness
-        .get_by_role_and_label(Role::Link, "Follow the Reference to libs/items/sample")
+        .get_by_role_and_label(
+            Role::Link,
+            "Open the Record libs/items/sample, which refers to this Record in maker",
+        )
         .click();
     wait_until(&mut harness, |model| {
         selected_path(model).as_deref() == Some(ITEM_PATH) && listed(model)
@@ -170,6 +173,15 @@ fn the_tab_speaks_german() -> TestResult {
             .query_by_label_contains("1 Referenz von 1 Record")
             .is_some(),
         "the count line"
+    );
+    assert!(
+        harness
+            .query_by_role_and_label(
+                Role::Link,
+                "Den Record libs/items/sample öffnen, der in maker auf diesen Record verweist"
+            )
+            .is_some(),
+        "the link names the Record and the field"
     );
     Ok(())
 }

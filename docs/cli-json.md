@@ -291,7 +291,7 @@ reach `null` and change no exit code.
 
 `<record>` is a GUID or a record path; a record path that several Records share lists each of
 them. `--incoming` lists the Records that hold a Reference to the Record, `--outgoing` the
-Records it refers to with its Reference to a GUID no Record has apart, `--files` the edges of the
+Records it refers to, with the Reference to a GUID no Record has listed apart, `--files` the edges of the
 file graph ([ADR-0029](adr/0029-references-are-indexed-once-per-archive-from-record-trees.md)),
 limited to the edges from or to the file of `<record>` when one is given, and `--unresolved`
 every Reference to a GUID no Record has. `--json` is `--format json`; with `--format table` it is
@@ -306,7 +306,9 @@ invalid input (exit code 2), as is a `<record>` no Record matches.
  "unresolved": []}]}
 ```
 
-`records` has one entry per Record `<record>` names. In an entry, `record` is the Record the
+`records` has one entry per Record `<record>` names. `reference_count` is the number of
+References listed in `references` and `record_count` the number of distinct Records among their
+other ends. In an entry, `record` is the Record the
 listing is about; in each of its `references`, `record` is the other end: the Record that holds
 the Reference for `incoming`, the Record it links to for `outgoing`. `location` is the place of
 the Reference in the Record that holds it as the Record preview writes it, `field` the same with
@@ -318,8 +320,10 @@ GUIDs no Record has, with `"record": null` and the `guid` they name.
 [{"from": "libs/ships/alpha", "to": "libs/makers/aegis"}]}`, the files by record path, and
 `--unresolved --json` writes `{"archive": "…", "count": 880, "unresolved": [{"record": {…},
 "guid": "…", "location": "…", "field": "…", "indices": […]}]}` where `record` is the Record that
-holds the Reference. A DataForge that holds more than 67,108,864 References, or Records that
-cannot be read, give a warning on stderr; the index is then incomplete.
+holds the Reference. A DataForge that holds more than 8,388,608 References, or Records that
+cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
+8,388,608 References in the order of the Records.
+
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json

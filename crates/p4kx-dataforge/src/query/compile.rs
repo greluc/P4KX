@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use p4kx_foundation::PathPattern;
 
 use crate::query::path_plan::PathPlan;
@@ -7,7 +9,7 @@ use crate::query::schema::{StructFields, ancestors_include};
 use crate::query::suggest::closest;
 use crate::query::syntax::{Name, Query};
 use crate::query::{Comparison, QueryError, QueryErrorKind};
-use crate::{DataForge, DataForgeError, DataType, Guid, ReferenceIndex};
+use crate::{DataForge, DataForgeError, DataType, ReferenceIndex};
 
 /// A Query checked against one DataForge and ready to run.
 #[derive(Debug)]
@@ -89,30 +91,36 @@ impl Query {
     /// comparison whose literal does not fit the value's type, or of a number too large in
     /// magnitude to compare.
     pub fn compile<'f>(&self, forge: &'f DataForge<'f>) -> Result<CompiledQuery<'f>, QueryError> {
-        let built;
-        let references = if self.referencing.is_some() {
-            built = ReferenceIndex::build(forge);
-            Some(&built)
-        } else {
-            None
-        };
-        self.compile_with(forge, references)
+        self.compile_lazily(forge, || Some(ReferenceIndex::build(forge)))
     }
 
     /// Compiles like [`compile`](Self::compile) with the `references` index of `forge` that
-    /// `referencing` reads, built before for another use; without it a `referencing` clause
-    /// selects no Record.
+    /// `referencing` reads, built before for another use.
     ///
     /// # Errors
     ///
     /// Returns the [`QueryError`] of [`compile`](Self::compile), and one for a `referencing`
-    /// text that is no GUID or record path of a Record.
+    /// clause given without `references`.
     pub fn compile_with<'f>(
         &self,
         forge: &'f DataForge<'f>,
         references: Option<&ReferenceIndex>,
     ) -> Result<CompiledQuery<'f>, QueryError> {
-        let referrers = self.referrers(forge, references)?;
+        self.compile_lazily(forge, || references)
+    }
+
+    /// Compiles like [`compile`](Self::compile), asking `references` for the index of `forge`
+    /// only once the type and field names are checked and only for a `referencing` clause whose
+    /// Record exists; `None` from it yields the error of [`compile_with`](Self::compile_with).
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`QueryError`] of [`compile_with`](Self::compile_with).
+    pub fn compile_lazily<'f, R: Borrow<ReferenceIndex>>(
+        &self,
+        forge: &'f DataForge<'f>,
+        references: impl FnOnce() -> Option<R>,
+    ) -> Result<CompiledQuery<'f>, QueryError> {
         let structs = StructFields::read_all(forge);
         let selected = match &self.from {
             Some(name) => select_type(&structs, name)?,
@@ -162,6 +170,7 @@ impl Query {
                 }
             })
             .collect();
+        let referrers = self.referrers(forge, references)?;
         Ok(CompiledQuery {
             forge,
             kinds,
@@ -176,26 +185,16 @@ impl Query {
 
 impl Query {
     /// Returns the sorted indices of the Records that refer to the Records `referencing` names.
-    fn referrers(
+    fn referrers<R: Borrow<ReferenceIndex>>(
         &self,
         forge: &DataForge<'_>,
-        references: Option<&ReferenceIndex>,
+        references: impl FnOnce() -> Option<R>,
     ) -> Result<Option<Box<[u32]>>, QueryError> {
         let Some(referent) = &self.referencing else {
             return Ok(None);
         };
         let text = referent.as_str();
-        let by_path = || forge.records_at_path(text).map(|record| record.index());
-        let targets: Vec<u32> = text.parse::<Guid>().map_or_else(
-            |_| by_path().collect(),
-            |guid| {
-                forge
-                    .record_by_guid(guid)
-                    .map(|record| record.index())
-                    .into_iter()
-                    .collect()
-            },
-        );
+        let targets = forge.records_named(text);
         if targets.is_empty() {
             return Err(QueryError::new(
                 QueryErrorKind::UnknownReferencedRecord {
@@ -204,14 +203,16 @@ impl Query {
                 referent.span(),
             ));
         }
-        let mut found: Vec<u32> = references
-            .map(|index| {
-                targets
-                    .iter()
-                    .flat_map(|target| index.referrers(*target))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let Some(index) = references() else {
+            return Err(QueryError::new(
+                QueryErrorKind::MissingReferenceIndex,
+                referent.span(),
+            ));
+        };
+        let mut found: Vec<u32> = targets
+            .iter()
+            .flat_map(|target| index.borrow().referrers(*target))
+            .collect();
         found.sort_unstable();
         found.dedup();
         Ok(Some(found.into_boxed_slice()))

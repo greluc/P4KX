@@ -1,7 +1,8 @@
 use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, TryLockError};
 use std::thread;
+use std::time::Duration;
 
 use p4kx_export::RecordFilePlans;
 use p4kx_extraction::DataForgeEntry;
@@ -10,6 +11,9 @@ use p4kx_extraction::query::QuerySchema;
 
 use crate::EntryIndex;
 use crate::model::describe;
+
+/// How often a consumer waiting for the build of the index of References looks at its stop flag.
+const TURN_POLL: Duration = Duration::from_millis(25);
 
 /// The DataForge of one open Archive as every consumer reads it: its Entry, read once, the files
 /// of its Records, planned once per form, and the Query completion schema, built once.
@@ -69,27 +73,45 @@ impl ForgeSource {
 
 impl ForgeSource {
     /// Returns the index of the References between the Records, building it from the DataForge
-    /// already read unless it was built before. The build runs outside the [`OnceLock`], because
-    /// it uses rayon, and one at a time, so that it happens once per read.
+    /// already read unless it was built before, or `None` once `stop` returns `true`, while
+    /// building or while waiting for the build of another consumer. The build runs outside the
+    /// [`OnceLock`], because it uses rayon, and one at a time, so that it happens once per read.
     ///
     /// # Errors
     ///
     /// Returns why the DataForge cannot be opened.
-    pub(crate) fn references(&self) -> Result<Arc<ReferenceIndex>, ReadFailure> {
-        let _turn = self
-            .references_turn
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
+    pub(crate) fn references(
+        &self,
+        stop: &(dyn Fn() -> bool + Sync),
+    ) -> Result<Option<Arc<ReferenceIndex>>, ReadFailure> {
         if let Some(references) = self.references.get() {
-            return Ok(Arc::clone(references));
+            return Ok(Some(Arc::clone(references)));
+        }
+        let _turn = loop {
+            match self.references_turn.try_lock() {
+                Ok(turn) => break turn,
+                Err(TryLockError::Poisoned(poisoned)) => break poisoned.into_inner(),
+                Err(TryLockError::WouldBlock) => {
+                    if stop() {
+                        return Ok(None);
+                    }
+                    thread::sleep(TURN_POLL);
+                }
+            }
+        };
+        if let Some(references) = self.references.get() {
+            return Ok(Some(Arc::clone(references)));
         }
         let forge = self
             .entry
             .open()
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        let Some(built) = ReferenceIndex::build_cancellable(&forge, stop) else {
+            return Ok(None);
+        };
         self.references_builds.fetch_add(1, Ordering::Relaxed);
-        let built = Arc::new(ReferenceIndex::build(&forge));
-        Ok(Arc::clone(self.references.get_or_init(|| built)))
+        let built = Arc::new(built);
+        Ok(Some(Arc::clone(self.references.get_or_init(|| built))))
     }
 }
 

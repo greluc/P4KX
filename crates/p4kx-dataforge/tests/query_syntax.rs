@@ -1,218 +1,16 @@
 //! Parsing and printing Queries: the canonical form is stable, and no input makes the parser or
 //! the error marker panic.
 
+mod generator;
+
 use std::error::Error;
 
+use generator::{Random, random_query};
 use p4kx_dataforge::query::{
     Condition, Glob, MAX_QUERY_LEN, Name, Path, Query, QueryError, QueryErrorKind, Segment,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
-
-/// A small deterministic generator, so a failure repeats with its seed.
-struct Random(u64);
-
-impl Random {
-    const fn next(&mut self) -> u64 {
-        self.0 ^= self.0 << 13;
-        self.0 ^= self.0 >> 7;
-        self.0 ^= self.0 << 17;
-        self.0
-    }
-
-    fn below(&mut self, bound: usize) -> usize {
-        usize::try_from(self.next() % u64::try_from(bound).unwrap_or(1)).unwrap_or(0)
-    }
-
-    fn pick<'a>(&mut self, items: &[&'a str]) -> &'a str {
-        items
-            .get(self.below(items.len()))
-            .copied()
-            .unwrap_or_default()
-    }
-
-    fn chance(&mut self, percent: usize) -> bool {
-        self.below(100) < percent
-    }
-}
-
-const NAMES: [&str; 12] = [
-    "mass",
-    "Size",
-    "_x1",
-    "select",
-    "FROM",
-    "at",
-    "Where",
-    "a b",
-    "Größe",
-    "x.y",
-    "\"q\"",
-    "EntityClassDefinition",
-];
-
-const SPACES: [&str; 5] = [" ", "  ", "\n", "\t ", " \u{3000}"];
-
-fn keyword(random: &mut Random, word: &str) -> String {
-    match random.below(3) {
-        0 => word.to_owned(),
-        1 => word.to_ascii_uppercase(),
-        _ => word
-            .chars()
-            .enumerate()
-            .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
-            .collect(),
-    }
-}
-
-fn name(random: &mut Random) -> String {
-    let name = random.pick(&NAMES);
-    let bare = name
-        .chars()
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-        && ![
-            "from",
-            "at",
-            "referencing",
-            "select",
-            "where",
-            "and",
-            "or",
-            "not",
-        ]
-        .iter()
-        .any(|keyword| keyword.eq_ignore_ascii_case(name));
-    if bare && random.chance(70) {
-        name.to_owned()
-    } else {
-        format!("`{name}`")
-    }
-}
-
-/// Writes a random path of up to four segments: dotted fields, `->` fields, indices, `[*]` and
-/// types, with random whitespace around the arrows, brackets and dots.
-fn path(random: &mut Random) -> String {
-    let mut text = name(random);
-    for _ in 0..random.below(5) {
-        let gap = if random.chance(20) {
-            random.pick(&SPACES)
-        } else {
-            ""
-        };
-        text.push_str(gap);
-        let inner = match random.below(5) {
-            0 | 4 => {
-                text.push_str(if random.chance(50) { "." } else { "->" });
-                text.push_str(gap);
-                text.push_str(&name(random));
-                continue;
-            }
-            1 => random.pick(&["0", "7", "007", "4294967295"]).to_owned(),
-            2 => "*".to_owned(),
-            _ => name(random),
-        };
-        for part in ["[", gap, &inner, gap, "]"] {
-            text.push_str(part);
-        }
-    }
-    text
-}
-
-/// Writes a random valid Query with random keyword case and whitespace.
-fn random_query(random: &mut Random) -> String {
-    let mut text = String::new();
-    let has_from = random.chance(60);
-    if has_from {
-        text.push_str(&keyword(random, "from"));
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&name(random));
-    }
-    if !has_from || random.chance(50) {
-        let glob = random.pick(&["*/ships/*", "", "libs\\foundry", "?a*", "Größe ö", "a\"\"b"]);
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&keyword(random, "at"));
-        text.push_str(random.pick(&SPACES));
-        text.push('"');
-        text.push_str(glob);
-        text.push('"');
-    }
-    if random.chance(30) {
-        let target = random.pick(&["libs/ships/avenger", "00000000-0000-0000-0000-000000000001"]);
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&keyword(random, "referencing"));
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&["\"", target, "\""].concat());
-    }
-    if random.chance(70) {
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&keyword(random, "select"));
-        for column in 0..=random.below(3) {
-            if column > 0 {
-                text.push_str(random.pick(&SPACES));
-                text.push(',');
-            }
-            text.push_str(random.pick(&SPACES));
-            text.push_str(&path(random));
-        }
-    }
-    if random.chance(60) {
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&keyword(random, "where"));
-        text.push_str(random.pick(&SPACES));
-        text.push_str(&random_condition(random, 0));
-    }
-    text.push_str(random.pick(&SPACES));
-    text
-}
-
-/// Writes a random valid condition nested at most three levels.
-fn random_condition(random: &mut Random, depth: usize) -> String {
-    let space = |random: &mut Random| random.pick(&SPACES).to_owned();
-    let mut text = String::new();
-    for part in 0..=random.below(3) {
-        if part > 0 {
-            let joint = if random.chance(50) { "and" } else { "or" };
-            text += &space(random);
-            text += &keyword(random, joint);
-            text += &space(random);
-        }
-        if random.chance(20) {
-            text += &keyword(random, "not");
-            text += &space(random);
-        }
-        if depth < 3 && random.chance(25) {
-            text.push('(');
-            text += &random_condition(random, depth + 1);
-            text.push(')');
-            continue;
-        }
-        text += &path(random);
-        let operator = random.pick(&[
-            "=",
-            "!=",
-            "<",
-            "<=",
-            ">",
-            ">=",
-            "contains",
-            "starts with",
-            "like",
-        ]);
-        let literal = if ["contains", "starts with", "like"].contains(&operator) {
-            random.pick(&["\"x\"", "\"\"", "\"a\"\"b\"", "\"*?\""])
-        } else {
-            random.pick(&["0", "-12", "1.5", "2e-3", "1E+9", "\"s\"", "true", "FALSE"])
-        };
-        let operator = keyword(random, operator).replace(' ', &space(random));
-        text += &space(random);
-        text += &operator;
-        text += &space(random);
-        text += literal;
-    }
-    text
-}
 
 /// Writes the segments of a path by kind and value, without spans.
 fn segments(path: &Path) -> String {
@@ -290,6 +88,23 @@ fn the_canonical_form_is_spelt_out() -> TestResult {
         query.to_string(),
         "from Ship at \"*/ships/*\" select crew, `select`.x, `a b`",
         "canonical form"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_field_named_like_the_referencing_keyword_is_printed_in_backticks() -> TestResult {
+    let text = "from Ship referencing \"a\" select `referencing`, REFERENCING2";
+    let query = Query::parse(text)?;
+
+    assert_eq!(
+        query.to_string(),
+        text,
+        "the keyword is quoted as a name, a longer name is not"
+    );
+    assert!(
+        Query::parse("from Ship select referencing").is_err(),
+        "the bare keyword is no name"
     );
     Ok(())
 }

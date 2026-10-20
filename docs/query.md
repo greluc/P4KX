@@ -17,8 +17,8 @@ at "*/spaceships/*" select Icon, Category where Icon like "default.*" and (Categ
 from EntityClassDefinition at "libs/foundry/records/entities/spaceships/*" select Components[VehicleComponentParams].vehicleName, Components[VehicleComponentParams].crewSize where Components[VehicleComponentParams].crewSize >= 4
 from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Size, Components[SAttachableComponentParams].AttachDef.Type where Components[SAttachableComponentParams].AttachDef.Size >= 7
 from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Manufacturer->Code, Components[SAttachableComponentParams].AttachDef.Manufacturer->Localization.Name where Components[SAttachableComponentParams].AttachDef.Manufacturer->Code = "BEH"
-from EntityClassDefinition referencing "libs/foundry/records/entities/scitem/ships/armor/armr_aegs_avenger_stalker"
-referencing "70000000-0000-4000-8000-000000000001" at "*/spaceships/*"
+from EntityClassDefinition at "*/ships/weapons/*" referencing "libs/foundry/records/scitemmanufacturer/personalweapons/scitemmanufacturer.behr" select Components[SAttachableComponentParams].AttachDef.Size
+referencing "65a5d887-3b21-4046-a718-6912c0c7c3be" select Components[SAttachableComponentParams].AttachDef.Type where Components[SAttachableComponentParams].AttachDef.Size >= 7
 ```
 
 - `from EntityClassDefinition` lists every Record of type `EntityClassDefinition` or of a struct
@@ -31,8 +31,9 @@ referencing "70000000-0000-4000-8000-000000000001" at "*/spaceships/*"
   ([Paths into nested data](#paths-into-nested-data)).
 - `Manufacturer->Code` follows the Reference `Manufacturer` to the Record it links to and reads
   its field `Code` ([Following References](#following-references)).
-- `referencing "libs/makers/aegis"` selects the Records that hold a Reference to the Record at that
-  record path, or with that GUID ([Records that refer to a Record](#records-that-refer-to-a-record)).
+- `referencing "<record path or GUID>"` selects the Records that hold a Reference to the Record at
+  that record path, or with that GUID, e.g. the weapons of one manufacturer
+  ([Records that refer to a Record](#records-that-refer-to-a-record)).
 
 The opt-in tests against a real Archive run these examples.
 
@@ -223,8 +224,12 @@ fields and weak pointers to another Record, wherever they stand in the Record, n
 array elements included. The text is the GUID of the Record, or its record path (ignoring ASCII
 case, `/` and `\` alike and a trailing `.xml`); a record path that several Records share names all
 of them, and the Query selects the Records that refer to any of them. A Record that refers to
-itself is not selected for that. It combines with `from` and `at`: both keep only the Records
-that also meet them. The first Query with `referencing` of an Archive reads every Record once to
+itself is not selected for that. A weak pointer to a nested instance of another Record, not to
+that Record itself, is not a Reference and selects nothing. It combines with `from` and `at`:
+both keep only the Records that also meet them. The clauses stand in the order `from`, `at`,
+`referencing`, `select`, `where`; `at "…"` behind `referencing` is an error that says so. An
+Archive with more than 8,388,608 References is indexed up to that many, the first ones in Record
+order. The first Query with `referencing` of an Archive reads every Record once to
 index the References ([ADR-0029](adr/0029-references-are-indexed-once-per-archive-from-record-trees.md));
 the window keeps that index for the Archive, and `p4kx dcb refs` lists the References themselves
 with their fields.

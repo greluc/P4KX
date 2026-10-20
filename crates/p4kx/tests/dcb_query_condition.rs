@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
 };
@@ -67,7 +66,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 fn query(text: &str, code: i32) -> Result<(String, String), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "query"])
         .arg(&archive)
         .arg(text)

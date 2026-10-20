@@ -23,6 +23,9 @@ pub(crate) enum FormatError {
         entry: String,
         compression: Compression,
     },
+    KeyRequired {
+        entry: String,
+    },
 }
 
 impl FormatError {
@@ -57,6 +60,7 @@ impl FormatError {
                     compression,
                 }
             }
+            Self::KeyRequired { entry } => ArchiveError::KeyRequired { path, entry },
         }
     }
 }

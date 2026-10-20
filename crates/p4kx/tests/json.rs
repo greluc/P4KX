@@ -66,7 +66,7 @@ impl Fixture {
     }
 
     fn p4kx(&self) -> Result<Command, Box<dyn Error>> {
-        let mut command = Command::cargo_bin("p4kx")?;
+        let mut command = p4kx_testkit::p4kx()?;
         command
             .env("P4KX_CONFIG_DIR", self.dir().join("config"))
             .env("P4KX_LAUNCHER_DIR", self.dir().join("rsilauncher"))
@@ -146,7 +146,7 @@ fn search_without_a_match() -> TestResult {
 fn json_may_follow_the_subcommand() -> TestResult {
     let fixture = Fixture::new()?;
     let archive = fixture.channel("LIVE", false)?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("info")
         .arg(&archive)
         .arg("--json")

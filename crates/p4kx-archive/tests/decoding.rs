@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::{self, Read};
 
 use p4kx_archive::{Archive, ArchiveError, Compression, DataError};
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -18,7 +18,7 @@ fn open(builder: &ArchiveBuilder) -> Result<(tempfile::TempDir, Archive), Box<dy
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     builder.write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(test_key()))?;
     Ok((dir, archive))
 }
 
@@ -136,10 +136,12 @@ fn corrupt_zstd_data_fails_with_a_zstd_error() -> TestResult {
     let mut payload = entry.payload().to_vec();
     payload.truncate(12);
     payload.extend_from_slice(&[0xFF; 64]);
-    let builder = ArchiveBuilder::new().entry(entry.with_payload(payload).encrypted());
+    let builder = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\anchor.bin", b"anchor".to_vec()).encrypted())
+        .entry(entry.with_payload(payload).encrypted());
     let (_dir, archive) = open(&builder)?;
 
-    let error = data_error(read_entry(&archive, 0)?)?;
+    let error = data_error(read_entry(&archive, 1)?)?;
 
     assert!(
         matches!(

@@ -66,6 +66,10 @@ pub enum PreviewStatus<'a> {
     Failed(Option<&'a str>),
     /// The Archive changed on disk, so the Entry was not read or its data was dropped.
     ArchiveChanged,
+    /// The Entry is encrypted and the Archive has no key.
+    KeyRequired,
+    /// The Entry is encrypted and the Archive key does not decrypt it.
+    KeyRejected,
     /// The Entry was read.
     Ready(&'a PreviewContents),
 }
@@ -74,6 +78,8 @@ pub enum PreviewStatus<'a> {
 enum Unread {
     Failed(Option<String>),
     ArchiveChanged,
+    KeyRequired,
+    KeyRejected,
 }
 
 #[derive(Debug)]
@@ -90,6 +96,8 @@ enum State {
     TooLarge,
     Failed(Option<String>),
     ArchiveChanged,
+    KeyRequired,
+    KeyRejected,
     Ready(PreviewContents),
 }
 
@@ -229,6 +237,8 @@ impl Preview {
             State::TooLarge => PreviewStatus::TooLarge,
             State::Failed(reason) => PreviewStatus::Failed(reason.as_deref()),
             State::ArchiveChanged => PreviewStatus::ArchiveChanged,
+            State::KeyRequired => PreviewStatus::KeyRequired,
+            State::KeyRejected => PreviewStatus::KeyRejected,
             State::Ready(contents) => PreviewStatus::Ready(contents),
         }
     }
@@ -281,6 +291,8 @@ impl Preview {
             }
             Err(Unread::Failed(reason)) => State::Failed(reason),
             Err(Unread::ArchiveChanged) => State::ArchiveChanged,
+            Err(Unread::KeyRequired) => State::KeyRequired,
+            Err(Unread::KeyRejected) => State::KeyRejected,
         }
     }
 }
@@ -330,17 +342,17 @@ fn read(index: &EntryIndex, id: u32, deliver: impl FnOnce(ReadResult) -> bool, w
         }
         return;
     };
-    let opened = index
-        .archive()
-        .open_entry(entry)
-        .map_err(|error| describe(&error));
-    let mut reader = match opened {
+    let mut reader = match index.archive().open_entry(entry) {
         Ok(reader) => reader,
-        Err(reason) => {
+        Err(error) => {
             let unread = if index.watch().check().is_err() {
                 Unread::ArchiveChanged
+            } else if error.is_key_required() {
+                Unread::KeyRequired
+            } else if error.is_wrong_key() {
+                Unread::KeyRejected
             } else {
-                Unread::Failed(Some(reason))
+                Unread::Failed(Some(describe(&error)))
             };
             if deliver(Err(unread)) {
                 wake();

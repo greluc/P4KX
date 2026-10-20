@@ -58,7 +58,7 @@ fn fixture(entries: Vec<TestEntry>) -> Result<Fixture, Box<dyn Error>> {
     let target = dir.path().join("out");
     fs::create_dir(&target)?;
     Ok(Fixture {
-        archive: Archive::open(&path)?,
+        archive: Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?,
         target,
         _dir: dir,
     })

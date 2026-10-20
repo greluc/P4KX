@@ -2,7 +2,6 @@
 
 use std::error::Error;
 
-use assert_cmd::Command;
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 use predicates::prelude::predicate;
 
@@ -20,10 +19,7 @@ fn list_prints_one_line_per_entry_with_method_encryption_and_sizes() -> TestResu
         .entry(TestEntry::stored("Data\\Scripts\\empty.lua", Vec::new()).flagged_encrypted())
         .write_to(&archive)?;
 
-    let output = Command::cargo_bin("p4kx")?
-        .arg("list")
-        .arg(&archive)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("list").arg(&archive).output()?;
 
     assert!(output.status.success(), "list succeeds: {output:?}");
     let stdout = String::from_utf8(output.stdout)?;
@@ -58,10 +54,7 @@ fn list_prints_the_entries_of_a_v2_archive() -> TestResult {
         .entry(TestEntry::zstd("Data\\b.xml", b"<zstd/>".to_vec()).encrypted())
         .write_to(&archive)?;
 
-    let output = Command::cargo_bin("p4kx")?
-        .arg("list")
-        .arg(&archive)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("list").arg(&archive).output()?;
 
     assert!(output.status.success(), "list succeeds: {output:?}");
     let stdout = String::from_utf8(output.stdout)?;
@@ -98,7 +91,7 @@ fn list_of_an_archive_in_an_unknown_layout_names_the_layout() -> TestResult {
         .copy_from_slice(&7_u16.to_le_bytes());
     std::fs::write(&archive, bytes)?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("list")
         .arg(&archive)
         .assert()
@@ -113,7 +106,7 @@ fn list_of_a_file_that_is_not_an_archive_fails_with_a_message() -> TestResult {
     let not_archive = dir.path().join("notes.txt");
     std::fs::write(&not_archive, "plain text")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("list")
         .arg(&not_archive)
         .assert()
@@ -136,7 +129,7 @@ fn list_of_a_corrupt_archive_fails_with_the_offset() -> TestResult {
     bytes[header + 2] = 0x09;
     std::fs::write(&archive, bytes)?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("list")
         .arg(&archive)
         .assert()
@@ -151,7 +144,7 @@ fn list_of_a_corrupt_archive_fails_with_the_offset() -> TestResult {
 fn list_of_a_missing_file_fails_with_a_message() -> TestResult {
     let dir = tempfile::tempdir()?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("list")
         .arg(dir.path().join("missing.p4k"))
         .assert()

@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use p4kx_extraction::query::{
     CompiledQuery, Query, QueryError, QueryErrorKind, QueryRun, ResultFormat, ResultWriter,
 };
-use p4kx_extraction::{Archive, DataForgeEntry, QueryExportOptions, export_query, is_same_file};
+use p4kx_extraction::{DataForgeEntry, QueryExportOptions, export_query, is_same_file};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -68,7 +68,7 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     }
     let query = Query::parse(&args.query)
         .map_err(|error| InvalidQuery(error.marked(&args.query).to_string()))?;
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let compiled = query

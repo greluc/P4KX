@@ -47,7 +47,10 @@ fn line(index: &PathIndex<'_>, entry: &Entry, position: usize, dir: &std::path::
 )]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_glb_of_a_sample_of_models_is_hashed() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut sample: Vec<&Entry> = Vec::new();
     for (extension, count) in SAMPLES {

@@ -13,7 +13,7 @@ use predicates::prelude::predicate;
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 /// A mode 11 block with 10-bit endpoints `first` and `second` in every channel, index 0 for

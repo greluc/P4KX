@@ -95,8 +95,8 @@ const fn levels(args: &CompareArgs) -> Levels {
 
 fn open_both(old: &Path, new: &Path) -> Result<(Archive, Archive), ArchiveError> {
     std::thread::scope(|scope| {
-        let new = scope.spawn(|| Archive::open(new));
-        let old = Archive::open(old);
+        let new = scope.spawn(|| crate::key::open(new));
+        let old = crate::key::open(old);
         let new = new
             .join()
             .unwrap_or_else(|panic| std::panic::resume_unwind(panic));

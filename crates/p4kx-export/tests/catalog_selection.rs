@@ -146,7 +146,8 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 
 fn catalog_with(options: &CatalogOptions<'_>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     let built = build_catalog(&archive, options)?;
     let json = serde_json::from_slice(built.json())?;
     Ok((built, json))
@@ -300,7 +301,8 @@ fn the_source_names_channel_build_archive_tool_and_export_time() -> TestResult {
 #[test]
 fn two_runs_write_identical_bytes() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     let first = build_catalog(&archive, &options())?;
     let second = build_catalog(&archive, &options())?;
     assert!(first.json() == second.json(), "byte-identical");
@@ -330,7 +332,8 @@ fn progress_reaches_every_record_and_cancellation_stops_the_build() -> TestResul
     let cancel = CancelToken::new();
     cancel.cancel();
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path())?)?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
     let result = build_catalog(
         &archive,
         &CatalogOptions {
@@ -352,7 +355,7 @@ fn an_archive_without_dataforge_is_an_error() -> TestResult {
             b"no database".to_vec(),
         ))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let result = build_catalog(&archive, &options());
     assert!(matches!(result, Err(CatalogError::Load(_))), "load error");
     Ok(())

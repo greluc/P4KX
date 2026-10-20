@@ -5,7 +5,6 @@ use p4kx_assembly::audio::{
     ArchiveAudio, BrokenLink, IndexedSoundbank, PathStep, SoundVariant, SourceKind, TriggerSounds,
     WemLocation,
 };
-use p4kx_extraction::Archive;
 use thiserror::Error;
 
 use crate::cli::{WwiseAction, WwiseArgs, WwiseResolveArgs};
@@ -28,7 +27,7 @@ pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<()> {
 
 /// Prints every sound variant of an audio trigger and every broken link.
 fn resolve(args: &WwiseResolveArgs, as_json: bool) -> Result<()> {
-    let archive = Archive::open(&args.archive)?;
+    let archive = crate::key::open(&args.archive)?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
     let sounds = audio

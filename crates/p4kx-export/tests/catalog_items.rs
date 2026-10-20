@@ -23,7 +23,10 @@ fn options() -> CatalogOptions<'static> {
 
 fn catalog_with(options: &CatalogOptions<'_>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive(dir.path(), &[english()])?)?;
+    let archive = Archive::open_with_key(
+        write_archive(dir.path(), &[english()])?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     let built = build_catalog(&archive, options)?;
     let json = serde_json::from_slice(built.json())?;
     Ok((built, json))
@@ -31,7 +34,10 @@ fn catalog_with(options: &CatalogOptions<'_>) -> Result<(BuiltCatalog, Value), B
 
 fn catalog_of(maker: Maker) -> Result<Value, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = Archive::open(write_archive_with(dir.path(), &[english()], maker)?)?;
+    let archive = Archive::open_with_key(
+        write_archive_with(dir.path(), &[english()], maker)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     let built = build_catalog(&archive, &options())?;
     Ok(serde_json::from_slice(built.json())?)
 }

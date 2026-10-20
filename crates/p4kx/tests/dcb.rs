@@ -4,7 +4,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType,
     real_archive_path,
@@ -47,7 +46,7 @@ fn write_archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn
 }
 
 fn run(archive: &Path, json: bool, code: i32) -> Result<(String, String), Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
     }
@@ -209,7 +208,7 @@ fn dcb_info_of_a_corrupt_entry_exits_with_code_3() -> TestResult {
 fn dcb_info_reads_the_dataforge_of_a_real_archive() -> TestResult {
     let archive = real_archive_path()?;
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .arg("--json")
         .arg("dcb")
         .arg("info")

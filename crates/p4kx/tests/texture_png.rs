@@ -14,7 +14,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const HEADER: &str = "Data\\Textures\\panel_diff.dds";
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 fn write_archive(folder: &Path, dds: &SplitDds) -> Result<PathBuf, Box<dyn Error>> {

@@ -51,9 +51,13 @@ const STRANGERS: [EdgePair; 6] = [
 ];
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario over a real Archive")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_bc6h_cubemaps_decode_face_by_face_with_matching_edges() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let cubemaps: Vec<Texture<'_>> = archive
         .entries()
         .par_iter()

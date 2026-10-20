@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
     TestValue,
@@ -124,7 +123,7 @@ fn report(old: Side, new: Side) -> Result<String, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     write(dir.path(), OLD, database(old))?;
     write(dir.path(), NEW, database(new))?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .current_dir(dir.path())
         .args(["compare", OLD, NEW, "--records", "--report", "report.json"])
         .output()?;
@@ -171,7 +170,7 @@ fn identical_nested_records_exit_with_code_0() -> TestResult {
     write(dir.path(), OLD, database(side()))?;
     write(dir.path(), NEW, database(side()))?;
 
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .current_dir(dir.path())
         .args(["compare", OLD, NEW, "--records"])
         .output()?;

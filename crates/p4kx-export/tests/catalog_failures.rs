@@ -72,7 +72,7 @@ fn built() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted())
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let options = CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000));
     let built = build_catalog(&archive, &options)?;
     let catalog = serde_json::from_slice(built.json())?;
@@ -135,7 +135,7 @@ fn a_catalog_without_unreadable_records_is_complete() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", forge.build()).encrypted())
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     let built = build_catalog(
         &archive,

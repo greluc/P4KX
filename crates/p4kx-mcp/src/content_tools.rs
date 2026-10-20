@@ -14,7 +14,8 @@ impl Server {
         description = "Read an Entry as text, from a byte offset of its UTF-8 form and at most max_bytes long, \
         starting and ending on whole characters. CryXml is converted to XML, UTF-16 is recognised by its \
         byte order mark, other Entries must be UTF-8; binary Entries are an error. more and next_offset \
-        say whether and where the text continues.",
+        say whether and where the text continues. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
         annotations(
             title = "Read Entry text",
             read_only_hint = true,
@@ -46,7 +47,8 @@ impl Server {
     #[tool(
         description = "Read the decompressed and decrypted data of an Entry from a byte offset, at most \
         max_bytes long, as base64 (standard alphabet, padded). more and next_offset say whether and \
-        where the data continues.",
+        where the data continues. The content may be forwarded by the client to third parties; game \
+        texts and media must not be redistributed.",
         annotations(
             title = "Read Entry bytes",
             read_only_hint = true,

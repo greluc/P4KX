@@ -6,6 +6,7 @@ use p4kx_settings::KeyText;
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
+pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_dcb::{
@@ -20,10 +21,17 @@ pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 pub(crate) use crate::cli_verify::VerifyArgs;
 pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
+use crate::notice::{LEGAL_NOTICE, LONG_VERSION};
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
 #[derive(Debug, Parser)]
-#[command(name = "p4kx", version, after_help = EXIT_CODES_HELP)]
+#[command(
+    name = "p4kx",
+    version,
+    long_version = LONG_VERSION,
+    before_help = LEGAL_NOTICE,
+    after_help = EXIT_CODES_HELP
+)]
 pub(crate) struct Cli {
     /// Prints the result as one line of JSON instead of text.
     #[arg(long, global = true)]
@@ -357,42 +365,4 @@ pub(crate) enum Conflict {
     Overwrite,
     /// Replace the existing file only when its size or CRC-32C differs from the new content.
     IfChanged,
-}
-
-/// Arguments of `p4kx channels`.
-#[derive(Debug, Args)]
-pub(crate) struct ChannelsArgs {
-    /// Adds or removes a manual entry; without one, the Channels are listed.
-    #[command(subcommand)]
-    pub(crate) action: Option<ChannelsAction>,
-    /// Folder of settings.toml; defaults to the platform config directory, %APPDATA%\P4K-Extractor
-    /// on Windows.
-    #[arg(long, global = true, env = "P4KX_CONFIG_DIR", value_name = "FOLDER")]
-    pub(crate) config_dir: Option<PathBuf>,
-    /// The RSI Launcher's application-data folder; defaults to %APPDATA%\rsilauncher.
-    #[arg(long, global = true, env = "P4KX_LAUNCHER_DIR", value_name = "FOLDER")]
-    pub(crate) launcher_dir: Option<PathBuf>,
-    /// The default library folder; defaults to C:\Program Files\Roberts Space Industries\StarCitizen.
-    #[arg(
-        long,
-        global = true,
-        env = "P4KX_DEFAULT_LIBRARY",
-        value_name = "FOLDER"
-    )]
-    pub(crate) default_library: Option<PathBuf>,
-}
-
-/// The actions of `p4kx channels`.
-#[derive(Debug, Subcommand)]
-pub(crate) enum ChannelsAction {
-    /// Adds a Channel folder, a library folder or an Archive to the settings.
-    Add {
-        /// Path of the folder or Archive.
-        path: PathBuf,
-    },
-    /// Removes a manually added folder or Archive from the settings.
-    Remove {
-        /// Path of the folder or Archive.
-        path: PathBuf,
-    },
 }

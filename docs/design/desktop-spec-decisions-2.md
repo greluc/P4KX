@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.32
+# P4K-Extractor · Desktop-Vorgaben, Entscheidungen D.22 bis D.32 und D.37
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -176,3 +176,13 @@ Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. D
 Ogg-Form als WAV geschrieben wird und Soundbanks zusätzlich in einen Ordner je Bank entpackt werden.
 Ist die Umwandlung aus, verschwindet die Zeile mit den Texturausgaben. Die Wahl gilt für die nächste
 Extraktion weiter und steht als `extraction_audio` in der Einstellungsdatei.
+
+**D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
+P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
+Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Der Körper steht in
+14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien, Absätze 12
+voneinander: die Version (700), die Lizenz mit der Quelltext-Adresse, der Hinweis auf ein
+inoffizielles Fanprojekt ohne Verbindung zur Cloud-Imperium-Gruppe, dass keine Spieldaten
+mitgeliefert und nur die eigene Installation gelesen wird, die Verantwortung für EULA und Terms of
+Service, der Eigentumshinweis und zuletzt die Markenangabe. Die Markenangabe ist Rechtstext und
+steht in beiden Sprachen im englischen Wortlaut der Fankit. Nur Text, kein Fankit-Logo.

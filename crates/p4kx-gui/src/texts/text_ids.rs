@@ -1,7 +1,8 @@
 use super::{
-    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText, QueryText,
-    RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText, Text, XmlText,
+    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
+    ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, LocalizationText,
+    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, ScrollText,
+    Text, XmlText,
 };
 use crate::Language;
 
@@ -99,6 +100,7 @@ impl Text {
             .chain(RecordLanguageText::ALL.map(Self::RecordLanguage))
             .chain(LocalizationText::ALL.map(Self::Localization))
             .chain(ArchiveKeyText::ALL.map(Self::Key))
+            .chain(AboutText::ALL.map(Self::About))
     }
 
     /// Returns the Fluent message id.
@@ -191,6 +193,7 @@ impl Text {
             Self::RecordLanguage(text) => text.id(),
             Self::Localization(text) => text.id(),
             Self::Key(text) => text.id(),
+            Self::About(text) => text.id(),
         }
     }
 }

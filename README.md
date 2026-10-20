@@ -4,7 +4,14 @@ Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. S
 [docs/ROADMAP.md](docs/ROADMAP.md) for the plan, [CONTEXT.md](CONTEXT.md) for the terms and
 [docs/user-help.md](docs/user-help.md) for using the window.
 
-This is an unofficial fan tool, not affiliated with Cloud Imperium Games.
+P4K-Extractor is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium
+group of companies and not endorsed by it. It ships no game data and reads only your own Star
+Citizen installation. You are responsible for complying with the Star Citizen End User Licence
+Agreement (EULA) and Terms of Service when you use it.
+
+All content not authored by its authors or users is property of its respective owners. Star
+Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud
+Imperium Rights LLC.
 
 ## Status
 
@@ -310,7 +317,12 @@ Early development (milestone M1). Available today:
 `p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
 stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
 (`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
-write a file:
+write a file.
+
+What the tools return is the content of the Star Citizen Archive. The AI client may forward it to
+third parties, for example the cloud model provider behind the client. Game texts and media must
+not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
+Service.
 
 | Tool | Result |
 |------|--------|

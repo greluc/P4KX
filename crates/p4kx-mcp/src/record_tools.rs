@@ -18,7 +18,8 @@ impl Server {
     #[tool(
         description = "Get a Record of the Archive's DataForge by GUID, or every Record with a record path, as Record JSON: \
         $type, $guid, $path and the fields; References are links with guid, path and type, never the linked Record. \
-        Large results page: pass next_cursor back as cursor.",
+        Large results page: pass next_cursor back as cursor. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<RecordResult>(),
         annotations(
             title = "Get Record",

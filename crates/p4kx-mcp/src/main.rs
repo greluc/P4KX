@@ -37,7 +37,19 @@ const KEY_FILE: &str = "archive.key";
 
 /// Read-only MCP server over stdio for the Data.p4k Archives of Star Citizen.
 #[derive(Debug, Parser)]
-#[command(name = "p4kx-mcp", version)]
+#[command(
+    name = "p4kx-mcp",
+    version,
+    long_version = concat!(
+        env!("CARGO_PKG_VERSION"),
+        "\nUnofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of \
+         companies. You are responsible for complying with the Star Citizen EULA and Terms of \
+         Service."
+    ),
+    before_help = "Unofficial Star Citizen fan project, not affiliated with the Cloud Imperium \
+                   group of companies. Content returned to the MCP client may be forwarded by it \
+                   to third parties; game texts and media must not be redistributed."
+)]
 struct Args {
     /// The Archive tools use when a call names none: a Channel name such as `LIVE` or the
     /// absolute path of a `.p4k` file.

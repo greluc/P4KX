@@ -26,5 +26,7 @@ node (`0x11`), effect share set, custom effect, auxiliary bus, LFO, envelope and
 `HircKind::Other`. Version 127 follows the new numbering (no bank of version 127 is known).
 
 Bank versions of the Archives, measured on 2026-10-20 by
-`real_archive/soundbank.rs::every_real_soundbank_parses_with_its_wems_and_hirc_objects`:
-see the pull request of #296; LIVE, PTU and TECH-PREVIEW hold only version 154.
+`real_archive/soundbank.rs::every_real_soundbank_parses_with_its_wems_and_hirc_objects` (it prints
+the versions and fails on any `Malformed` object): LIVE 2,386 banks, PTU 2,376 and TECH-PREVIEW
+2,401, every one of version 154. LIVE holds 249,522 Sound, 72,889 Action and 62,061 Event objects,
+all decoded.

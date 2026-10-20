@@ -60,7 +60,7 @@ pub enum BankError {
     },
     /// The layout of an object is not known for the bank version, so its body is kept raw.
     #[error(
-        "the soundbank section HIRC holds a {kind:?} object of version {version}, whose layout is not known"
+        "the soundbank section HIRC holds an object of type {kind} in version {version}, whose \n         layout is not known"
     )]
     UnsupportedObjectLayout {
         /// The object type.

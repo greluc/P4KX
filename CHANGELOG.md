@@ -109,6 +109,9 @@ fails while its section is missing.
   reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
   maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
   Citizen's banks are all version 154 and decode as before.
+- A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
+  versions from 151 on write before the in-memory media size, so the media size was read one field
+  late. Star Citizen's version 154 banks were not affected.
 
 ## [0.2.0]
 

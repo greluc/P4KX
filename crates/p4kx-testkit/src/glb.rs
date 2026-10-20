@@ -27,6 +27,12 @@ impl CheckedGlb {
             .collect()
     }
 
+    /// Returns the bytes of an accessor, element after element.
+    #[must_use]
+    pub fn bytes(&self, accessor: &Accessor<'_>) -> Vec<u8> {
+        self.elements(accessor).flatten().copied().collect()
+    }
+
     /// Returns the values of an unsigned integer accessor.
     #[must_use]
     pub fn indices(&self, accessor: &Accessor<'_>) -> Vec<u32> {
@@ -60,8 +66,9 @@ impl CheckedGlb {
 /// Checks a GLB file against the glTF 2.0 schema and the Khronos validator's data rules.
 ///
 /// The rules are those a writer can break: container lengths and padding, buffer, view and accessor
-/// bounds and alignment, finite floats, exact `POSITION` bounds, unit normals, index range and
-/// primitive restart values, triangle counts, unit rotations and a node forest.
+/// bounds and alignment, finite floats, exact `POSITION` bounds, unit normals, unit tangents with
+/// a handedness of ±1, colour types, index range and primitive restart values, triangle counts,
+/// unit rotations and a node forest.
 ///
 /// # Errors
 ///
@@ -191,8 +198,11 @@ fn check_meshes(glb: &CheckedGlb) -> Result<(), String> {
                 if attribute.count() != vertices {
                     return Err(format!("{name}: {semantic:?} count differs from POSITION"));
                 }
-                if semantic == Semantic::Normals {
-                    check_unit(glb, &attribute, &name)?;
+                match semantic {
+                    Semantic::Normals => check_unit(glb, &attribute, &name)?,
+                    Semantic::Tangents => check_tangents(glb, &attribute, &name)?,
+                    Semantic::Colors(_) => check_colours(&attribute, &name)?,
+                    _ => {}
                 }
             }
             let indices = primitive
@@ -213,6 +223,37 @@ fn check_unit(glb: &CheckedGlb, normals: &Accessor<'_>, name: &str) -> Result<()
         if (len - 1.0).abs() > 0.0005 {
             return Err(format!("{name}: normal {normal:?} is not of unit length"));
         }
+    }
+    Ok(())
+}
+
+fn check_tangents(glb: &CheckedGlb, tangents: &Accessor<'_>, name: &str) -> Result<(), String> {
+    if tangents.dimensions() != Dimensions::Vec4 || tangents.data_type() != DataType::F32 {
+        return Err(format!("{name}: TANGENT is no VEC4 of floats"));
+    }
+    for tangent in glb.floats(tangents).as_chunks::<4>().0 {
+        let [x, y, z, w] = *tangent;
+        let len = z.mul_add(z, y.mul_add(y, x * x)).sqrt();
+        if (len - 1.0).abs() > 0.0005 {
+            return Err(format!("{name}: tangent {tangent:?} is not of unit length"));
+        }
+        if (w.abs() - 1.0).abs() > f32::EPSILON {
+            return Err(format!(
+                "{name}: tangent {tangent:?} has no handedness of ±1"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn check_colours(colours: &Accessor<'_>, name: &str) -> Result<(), String> {
+    let wide = matches!(colours.dimensions(), Dimensions::Vec3 | Dimensions::Vec4);
+    let normalised =
+        matches!(colours.data_type(), DataType::U8 | DataType::U16) && colours.normalized();
+    if !wide || !(normalised || colours.data_type() == DataType::F32) {
+        return Err(format!(
+            "{name}: COLOR is no VEC3 or VEC4 of normalised integers or floats"
+        ));
     }
     Ok(())
 }

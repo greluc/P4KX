@@ -53,6 +53,7 @@ fn export(
 fn the_ships_of_a_real_archive_are_exported_as_json_and_ndjson() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, |model| model.browser().is_some())?;
 

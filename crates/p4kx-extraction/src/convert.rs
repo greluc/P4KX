@@ -34,7 +34,7 @@ impl EntryWriter<'_> {
         {
             match self
                 .read_chunk(reader, rest)
-                .map_err(ExtractionError::Read)?
+                .map_err(ExtractionError::read)?
             {
                 Chunk::Data(count) => {
                     filled += count;
@@ -112,7 +112,7 @@ impl EntryWriter<'_> {
             let want = (len - start).clamp(1, READ_LEN);
             data.resize(start + want, 0);
             let chunk = data.get_mut(start..).map_or(Ok(Chunk::End), |rest| {
-                self.read_chunk(reader, rest).map_err(ExtractionError::Read)
+                self.read_chunk(reader, rest).map_err(ExtractionError::read)
             });
             match chunk {
                 Ok(Chunk::Data(count)) if start + count <= len => {

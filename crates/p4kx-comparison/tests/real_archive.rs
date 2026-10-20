@@ -92,7 +92,10 @@ fn both_levels_of_two_real_archives_complete_with_plausible_counts_and_a_valid_r
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_real_archive_has_no_differences_with_itself_on_either_level() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let (old, new) = (entry.open()?, entry.open()?);
 

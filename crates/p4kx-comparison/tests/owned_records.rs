@@ -29,8 +29,8 @@ fn owned(
     levels: Levels,
     forges: bool,
 ) -> Result<OwnedComparison, Box<dyn Error>> {
-    let old = Archive::open(pair.old.path())?;
-    let new = Archive::open(pair.new.path())?;
+    let old = Archive::open_with_key(pair.old.path(), Some(p4kx_testkit::test_key()))?;
+    let new = Archive::open_with_key(pair.new.path(), Some(p4kx_testkit::test_key()))?;
     let dataforges = forges
         .then(|| -> Result<_, Box<dyn Error>> {
             Ok(OwnedDataForges {

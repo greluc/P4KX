@@ -241,7 +241,7 @@ fn exported(
     guid: p4kx_extraction::Guid,
     language: Option<TextLanguage>,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
-    let archive = Archive::open(path)?;
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::test_key()))?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let tree = forge.record_by_guid(guid).ok_or("no such Record")?.tree()?;

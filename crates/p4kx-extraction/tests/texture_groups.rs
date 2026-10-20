@@ -29,7 +29,10 @@ fn open(dir: &std::path::Path) -> Result<Archive, Box<dyn Error>> {
         builder = builder.entry(TestEntry::stored(*entry, vec![1; index + 1]));
     }
     builder.write_to(&path)?;
-    Ok(Archive::open(&path)?)
+    Ok(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?)
 }
 
 fn position(archive: &Archive, path: &str) -> Result<usize, Box<dyn Error>> {
@@ -135,7 +138,7 @@ fn an_archive_without_textures_has_no_groups() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::stored("Data\\a.txt", vec![1]))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let groups = TextureGroups::build(&archive);
     assert!(groups.is_empty(), "no groups");
     assert!(groups.group_of(0).is_none(), "no group");

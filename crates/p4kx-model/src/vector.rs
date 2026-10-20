@@ -53,6 +53,25 @@ pub(crate) fn normal_of_quaternion(raw: [i16; 4]) -> [f32; 3] {
     normalise(normal)
 }
 
+/// Decodes the tangent of a compressed tangent frame and its handedness: the packed tangent, with
+/// −1 when bit 31 of the tangent is set.
+pub(crate) fn tangent_of_tangent_frame(tangent: u32) -> ([f32; 3], f32) {
+    let handedness = if tangent & (1 << 31) == 0 { 1.0 } else { -1.0 };
+    (unpack_unit_vector(tangent), handedness)
+}
+
+/// Decodes the tangent of a tangent frame stored as a quaternion of four signed 16-bit values:
+/// the rotated X axis, with −1 as handedness when W is negative.
+pub(crate) fn tangent_of_quaternion(raw: [i16; 4]) -> ([f32; 3], f32) {
+    let [x, y, z, w] = raw.map(|value| f32::from(value) / SNORM16);
+    let tangent = [
+        2.0f32.mul_add(-y.mul_add(y, z * z), 1.0),
+        2.0 * x.mul_add(y, w * z),
+        2.0 * x.mul_add(z, -(w * y)),
+    ];
+    (normalise(tangent), if w < 0.0 { -1.0 } else { 1.0 })
+}
+
 /// Returns the signed 16-bit normalised `raw` scaled into the bounding box `min`…`max`; an axis
 /// narrower than 2 m stores the offset from the centre unscaled.
 pub(crate) fn dequantise(raw: [i16; 3], min: [f32; 3], max: [f32; 3]) -> [f32; 3] {
@@ -90,7 +109,10 @@ fn cross([ax, ay, az]: [f32; 3], [bx, by, bz]: [f32; 3]) -> [f32; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::{dequantise, normal_of_quaternion, normal_of_tangent_frame, unpack_unit_vector};
+    use super::{
+        dequantise, normal_of_quaternion, normal_of_tangent_frame, tangent_of_quaternion,
+        tangent_of_tangent_frame, unpack_unit_vector,
+    };
 
     const X: u32 = 0x7FFE | (0x3FFF << 15);
     const Y: u32 = 0x3FFF | (0x7FFE << 15);
@@ -131,6 +153,41 @@ mod tests {
             decoded,
             [10.0, -0.75, 0.0],
             "wide X scales, narrow Y does not"
+        );
+    }
+
+    #[test]
+    fn tangent_frame_tangent_is_the_packed_vector_and_bit_31_is_the_handedness() {
+        assert_eq!(
+            tangent_of_tangent_frame(X),
+            ([1.0, 0.0, 0.0], 1.0),
+            "right-handed"
+        );
+        assert_eq!(
+            tangent_of_tangent_frame(X | (1 << 31)),
+            ([1.0, 0.0, 0.0], -1.0),
+            "mirrored"
+        );
+    }
+
+    #[test]
+    fn quaternion_tangent_is_the_rotated_x_axis() {
+        assert_eq!(
+            tangent_of_quaternion([0, 0, 0, 32767]),
+            ([1.0, 0.0, 0.0], 1.0),
+            "identity"
+        );
+        let half_turn = 23170;
+        let (tangent, handedness) = tangent_of_quaternion([0, 0, half_turn, half_turn]);
+        assert!(
+            tangent[0].abs() < 1e-3 && (tangent[1] - 1.0).abs() < 1e-3,
+            "a quarter turn about Z takes X to Y: {tangent:?}"
+        );
+        assert_eq!(handedness, 1.0, "positive W");
+        assert_eq!(
+            tangent_of_quaternion([0, 0, 0, -32767]).1,
+            -1.0,
+            "negative W is mirrored"
         );
     }
 }

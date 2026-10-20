@@ -9,8 +9,8 @@ use crate::{CompanionResolver, ModelError, Transform};
 pub struct Model {
     /// The model's file name.
     pub name: String,
-    /// The file name of the geometry companion the meshes come from, or `None` when they are in
-    /// the model file itself.
+    /// The file name of the geometry companion of level 0, or `None` when its meshes are in the
+    /// model file itself or level 0 was not read.
     pub geometry: Option<String>,
     /// The nodes; a model without a `NodeMeshCombo` chunk has one root node named after the file.
     pub nodes: Vec<Node>,
@@ -80,6 +80,12 @@ pub struct Mesh {
     pub positions: Vec<[f32; 3]>,
     /// The unit vertex normals, or `None` when the mesh stores none.
     pub normals: Option<Vec<[f32; 3]>>,
+    /// The unit vertex tangents with the handedness of their frame in `w`, +1 or −1, or `None`
+    /// when the mesh stores no tangent frame. The bitangent is `cross(normal, tangent) * w`.
+    pub tangents: Option<Vec<[f32; 4]>>,
+    /// The vertex colours as red, green, blue and alpha, or `None` when every vertex is opaque
+    /// white, the colour of a mesh that stores none.
+    pub colours: Option<Vec<[u8; 4]>>,
     /// The texture coordinates, one per vertex.
     pub uvs: Vec<[f32; 2]>,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
@@ -102,11 +108,36 @@ pub struct Submesh {
 
 /// Which file of a model a chunk is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ModelFile {
     /// The model file itself, e.g. the `.cgf`.
     Model,
     /// The geometry companion, e.g. the `.cgfm`.
     Geometry,
+    /// The geometry companion of a level of detail from 1 on, e.g. `_lod1.cgfm`.
+    LodGeometry(u32),
+}
+
+/// Which levels of detail [`Model::read_with`] reads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum LodSelection {
+    /// Every level the model has.
+    #[default]
+    All,
+    /// Only this level; reading fails when the model lacks it.
+    Only(u32),
+}
+
+impl LodSelection {
+    /// Returns whether the selection includes `level`.
+    #[must_use]
+    pub const fn wants(self, level: u32) -> bool {
+        match self {
+            Self::All => true,
+            Self::Only(only) => only == level,
+        }
+    }
 }
 
 /// How a model used one of its chunks.
@@ -151,13 +182,30 @@ impl Model {
         file: &ChunkFile<B>,
         companions: &mut dyn CompanionResolver,
     ) -> Result<Self, ModelError> {
+        Self::read_with(name, file, companions, LodSelection::All)
+    }
+
+    /// Reads the levels of detail `lods` of the model `file` named `name`. Level 0 is in the
+    /// geometry companion `<name>m`, level `n` from 1 on in `<stem>_lod<n>.<extension>m`; a level
+    /// whose companion does not exist is left out. The nodes always come from `file`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read`], and [`ModelError::NoSuchLod`] when `lods` is [`LodSelection::Only`]
+    /// and the model lacks that level.
+    pub fn read_with<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+    ) -> Result<Self, ModelError> {
         if file.container() != Container::Ivo {
             return Err(ModelError::UnsupportedContainer {
                 file: name.to_owned(),
                 container: file.container(),
             });
         }
-        build(name, file, companions)
+        build(name, file, companions, lods)
     }
 
     /// Returns the chunks of unknown type, which the model skipped.

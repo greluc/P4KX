@@ -21,7 +21,7 @@ fn a_wem_entry_is_found_ignoring_case_and_separators() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd(ENTRY, pcm_wem()))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     let sound = Sound::from_archive(&archive, "data/sounds/WWISE/media/12345.WEM")?;
 
@@ -38,7 +38,7 @@ fn an_unknown_entry_is_reported_by_its_path() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::stored(ENTRY, pcm_wem()))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     let error = Sound::from_archive(&archive, "Data\\missing.wem").err();
 

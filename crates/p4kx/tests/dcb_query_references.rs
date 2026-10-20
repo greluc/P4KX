@@ -4,7 +4,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
     real_archive_path,
@@ -97,7 +96,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 fn query(args: &[&str], text: &str, code: i32) -> Result<(String, String), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "query"])
         .args(args)
         .arg(&archive)
@@ -165,7 +164,7 @@ fn the_summary_counts_unresolved_references() -> TestResult {
     let file = dir.path().join("result.csv");
     let file_text = file.display().to_string();
     let run = |json: bool| -> Result<std::process::Output, Box<dyn Error>> {
-        let mut command = Command::cargo_bin("p4kx")?;
+        let mut command = p4kx_testkit::p4kx()?;
         command.args(["dcb", "query", "--format", "csv", "--out", &file_text]);
         if json {
             command.arg("--json");
@@ -234,7 +233,7 @@ fn the_documented_reference_examples_select_values_of_a_real_archive() -> TestRe
         ),
     ];
     for (text, record, value) in examples {
-        let output = Command::cargo_bin("p4kx")?
+        let output = p4kx_testkit::p4kx()?
             .args(["dcb", "query"])
             .arg(&archive)
             .arg(text)

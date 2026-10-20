@@ -21,6 +21,7 @@ struct Tally {
     prefetch: usize,
     codecs: BTreeMap<String, usize>,
     kinds: BTreeMap<String, usize>,
+    versions: BTreeMap<u32, usize>,
     media: Vec<(u32, u64)>,
     sources: Vec<(MediaStorage, u32, u32)>,
     failures: Vec<String>,
@@ -40,15 +41,22 @@ impl Tally {
         for (kind, count) in other.kinds {
             *self.kinds.entry(kind).or_default() += count;
         }
+        for (version, count) in other.versions {
+            *self.versions.entry(version).or_default() += count;
+        }
         self.failures.extend(other.failures);
         self
     }
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario over a real Archive")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let banks: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -66,9 +74,10 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
     let found = sources_found(&archive, &tally);
     writeln!(
         std::io::stderr(),
-        "{} banks, {} embedded WEMs ({} plug-in media, {} prefetched starts), codecs {:?}, HIRC kinds {:?}, \
-         Sound sources found: {:?}",
+        "{} banks of versions {:?}, {} embedded WEMs ({} plug-in media, {} prefetched starts), codecs {:?}, \
+         HIRC kinds {:?}, Sound sources found: {:?}",
         tally.banks,
+        tally.versions,
         tally.wems,
         tally.plugin_media,
         tally.prefetch,
@@ -83,6 +92,7 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
         tally.failures.iter().take(20).collect::<Vec<_>>()
     );
     assert_eq!(tally.banks, banks.len(), "every bank parsed");
+    assert_decoded_kinds(&tally);
     for (storage, (present, total)) in &found {
         assert!(
             *total > 0 && *present * 10 >= *total * 9,
@@ -109,6 +119,15 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
     Ok(())
 }
 
+fn assert_decoded_kinds(tally: &Tally) {
+    for kind in ["Sound", "Event"] {
+        assert!(
+            tally.kinds.get(kind).is_some_and(|&count| count > 0),
+            "{kind} objects"
+        );
+    }
+}
+
 fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
     let mut tally = Tally::default();
     let mut bytes = Vec::new();
@@ -132,6 +151,7 @@ fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
         }
     };
     tally.banks = 1;
+    tally.versions.insert(bank.header().version, 1);
     for wem in bank.wems() {
         tally.wems += 1;
         if wem.is_prefetch() {

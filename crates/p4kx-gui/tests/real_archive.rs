@@ -80,7 +80,7 @@ fn split_textures_of_a_real_archive_are_grouped_once_and_stay_consistent() -> Te
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult {
-    let mut harness = opened()?;
+    let mut harness = opened(false)?;
     assert!(
         harness
             .state()
@@ -154,7 +154,7 @@ fn searching_a_real_archive_finds_what_p4kx_search_finds() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
-    let mut harness = opened()?;
+    let mut harness = opened(false)?;
     harness
         .get_by_role(egui::accesskit::Role::TextInput)
         .click();
@@ -187,7 +187,7 @@ fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
-    let mut harness = opened()?;
+    let mut harness = opened(true)?;
 
     harness.get_by_label("Expand DataForge").click();
     let took = timed_step(&mut harness);
@@ -244,7 +244,7 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn searching_the_records_of_a_real_archive_keeps_frames_short() -> TestResult {
-    let mut harness = opened()?;
+    let mut harness = opened(true)?;
     harness
         .get_by_role_and_label(egui::accesskit::Role::Button, "DataForge")
         .click();
@@ -314,7 +314,7 @@ fn records<'h>(harness: &'h Harness<'_, Model>) -> Option<&'h RecordTree> {
     harness.state().browser().and_then(Browser::records)
 }
 
-fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {
+fn opened(with_key: bool) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
         .with_size([1400.0, 900.0])
@@ -325,6 +325,11 @@ fn opened() -> Result<Harness<'static, Model>, Box<dyn Error>> {
             },
             Model::new(Language::BritishEnglish),
         );
+    if with_key {
+        harness
+            .state_mut()
+            .set_archive_key(Some(p4kx_testkit::real_archive_key()?));
+    }
     harness.state_mut().open(real_archive_path()?, || {});
     let deadline = Instant::now() + Duration::from_secs(120);
     while harness.state().browser().is_none() {

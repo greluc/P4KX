@@ -24,7 +24,10 @@ fn write(dir: &Path, channel: &str, forge: &DataForgeBuilder) -> Result<Archive,
     ArchiveBuilder::new()
         .entry(TestEntry::stored("Data\\Game2.dcb", forge.build()))
         .write_to(&path)?;
-    Ok(Archive::open(path)?)
+    Ok(Archive::open_with_key(
+        path,
+        Some(p4kx_testkit::test_key()),
+    )?)
 }
 
 impl ForgePair {

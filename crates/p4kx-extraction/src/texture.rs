@@ -9,7 +9,7 @@ use p4kx_texture::{
 };
 
 use crate::output_file::{read_error, write_replacing};
-use crate::texture_parts::{Found, PartReader, Parts, is_same_file};
+use crate::texture_parts::{Found, PartReader, Parts, is_same_file, open_entry};
 use crate::{ConversionError, UnknownEntries};
 
 /// A DDS texture whose header is an Entry of an Archive or a file on disk, with its sibling parts
@@ -288,8 +288,11 @@ impl<'a> Texture<'a> {
     pub(crate) fn open_header(&self) -> Result<PartReader<'_>, ConversionError> {
         match &self.parts {
             Parts::Archive {
-                archive, header, ..
-            } => Ok(PartReader::Entry(archive.open_entry(header)?)),
+                archive,
+                header,
+                verify,
+                ..
+            } => Ok(PartReader::Entry(open_entry(archive, header, *verify)?)),
             Parts::Files { header, .. } => File::open(header)
                 .map(PartReader::File)
                 .map_err(|source| read_error(header, source)),

@@ -24,21 +24,24 @@ never write into the game folders. Extraction output during development goes und
 `D:\Coding\claude-worktrees\p4k-extractor\`.
 
 Never read `loginData.json` or other launcher credential files in the game folders. Tests against a
-real Archive are `#[ignore]`d and need `P4KX_DATA_P4K`; CI uses synthetic fixtures. Run them with
-`TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the extracted subset lands
-there:
+real Archive are `#[ignore]`d and need `P4KX_DATA_P4K` and `P4KX_ARCHIVE_KEY`; CI uses synthetic
+fixtures. Run them with `TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the
+extracted subset lands there:
 
 ```powershell
 $env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
+$env:P4KX_ARCHIVE_KEY = '<the Archive key as 32 hexadecimal digits>'
 cargo test --release --workspace --locked -- --ignored
 ```
 
 That runs every real-Archive test in the workspace, whatever test file it lives in. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
-and takes the path from `p4kx_testkit::real_archive_path`, and from
-`p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`. A test
+(a test that reads encrypted Entries also needs `P4KX_ARCHIVE_KEY`; its failure message says so,
+the reason stays as written) and takes the path from `p4kx_testkit::real_archive_path`, and from
+`p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`, and the key
+from `p4kx_testkit::real_archive_key`, which opens it with `Archive::open_with_key`. A test
 needing the second Archive returns early when it is not set (`real_archive_b_path` gives `None`),
 so it skips cleanly. A test over both Archives takes them from `p4kx_testkit::real_archive_pair`
 and returns early when it gives `None`. A timing test that must not share the cores with other tests
@@ -66,21 +69,31 @@ when the variable is unset.
 - `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
   manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks
   that (ADR-0006).
-- The look follows the KRT design system strictly: dark only, Lato only (ADR-0006). See
-  "GUI design" below.
+- The look follows the KRT design system strictly, at the current `main` of its repository: dark
+  only, Lato only (ADR-0006). See "GUI design (hard rule)" below.
 - Source files stay below about 400 lines; split by responsibility before that.
 - One canonical Record tree serialised to XML and JSON; References are links, never embedded
   (ADR-0004).
+- The Archive key is never part of the repository (ADR-0027): no constant, fixture, document or
+  commit holds it, in any spelling. Synthetic Archives use `p4kx_testkit::test_key`, real-Archive
+  tests read `P4KX_ARCHIVE_KEY`, and `cargo xtask keys` fails on a key-like literal named as a
+  key, and on the real key itself while `P4KX_ARCHIVE_KEY` is set.
 - UI strings live in Fluent files for `de-DE` and `en-GB` (British spelling), never inline.
 
-## GUI design
+## GUI design (hard rule)
 
-- **Binding source:** the current `main` of
-  [krt-profit/design-system](https://github.com/krt-profit/design-system) is the leading and
-  binding KRT design system for every GUI change. Read it fresh before GUI work, never from
-  memory: `README.md` and `SKILL.md` for the rules, `tokens.json` for every colour, type size,
-  weight, spacing, radius and glow, `krt-components.css` and `components/<Name>/preview.html`
-  for the component contracts.
+- **The KRT design system is always followed, for the whole repository.** Its binding state is
+  the current `main` of [krt-profit/design-system](https://github.com/krt-profit/design-system),
+  never an older copy, a fixture or a memory of it. This holds for every person and every agent,
+  for every change to anything the tool shows (windows, dialogs, views, icons, the About view) and
+  for every review of such a change.
+- **Agents:** an agent that delegates work touching the GUI passes this rule on to the agent
+  doing it. A change that does not meet the design system's current `main` is not merged.
+- **Binding source:** read it fresh before GUI work, never from memory: `git pull` a checkout of
+  its `main`, then `README.md` and `SKILL.md` for the rules, `tokens.json` for every colour, type
+  size, weight, spacing, radius and glow, `krt-components.css` and
+  `components/<Name>/preview.html` for the component contracts. Verify a visual change with a
+  render against those contracts.
 - `p4kx_gui::theme` mirrors those tokens 1:1 and draws the components after those contracts.
   Never invent a colour, size, spacing or radius; when the design system changes, the theme
   follows.

@@ -119,8 +119,8 @@ the Records that are not written at all are those of [Record XML](record-xml.md#
 `p4kx dcb export --lang <language>` writes the text of every localisation key in the `global.ini` of
 that language. Without `--lang` a key is the plain string above and the output is byte for byte
 the output described above, free of any language. With `--lang` a localisation key that is no
-placeholder (`@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`) and not empty is an object in
-the place of the string, in fields and in arrays alike:
+placeholder (`@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED`, `@blank_space`) and not empty
+is an object in the place of the string, in fields and in arrays alike:
 
 ```json
 {"key": "@item_Name", "text": "Crate"}

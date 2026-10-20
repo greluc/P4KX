@@ -6,7 +6,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
     real_archive_path,
@@ -63,7 +62,7 @@ fn write_archive(dir: &Path, forge: &DataForgeBuilder) -> Result<PathBuf, Box<dy
 
 fn run(archive: &Path, flags: &[&str], query: &str) -> Result<Output, Box<dyn Error>> {
     let (global, local): (Vec<&str>, Vec<&str>) = flags.iter().partition(|flag| **flag == "--json");
-    Ok(Command::cargo_bin("p4kx")?
+    Ok(p4kx_testkit::p4kx()?
         .args(global)
         .args(["dcb", "query"])
         .arg(archive)

@@ -83,6 +83,7 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
         tally.failures.iter().take(20).collect::<Vec<_>>()
     );
     assert_eq!(tally.banks, banks.len(), "every bank parsed");
+    assert_decoded_kinds(&tally);
     for (storage, (present, total)) in &found {
         assert!(
             *total > 0 && *present * 10 >= *total * 9,
@@ -107,6 +108,15 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
         );
     }
     Ok(())
+}
+
+fn assert_decoded_kinds(tally: &Tally) {
+    for kind in ["Sound", "Event"] {
+        assert!(
+            tally.kinds.get(kind).is_some_and(|&count| count > 0),
+            "{kind} objects"
+        );
+    }
 }
 
 fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {

@@ -209,7 +209,7 @@ the first 256 `WwiseEvent`s of a definition; further ones are left out without a
 The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
-(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+(`too_large`: a soundbank above 32 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
 `soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 

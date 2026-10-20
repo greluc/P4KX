@@ -3530,6 +3530,7 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",
+ "p4kx-foundation",
  "p4kx-testkit",
  "rayon",
  "roxmltree",
@@ -3659,6 +3660,7 @@ dependencies = [
  "p4kx-foundation",
  "p4kx-gfx",
  "p4kx-gltf",
+ "p4kx-guard",
  "p4kx-localization",
  "p4kx-model",
  "p4kx-testkit",
@@ -3706,6 +3708,16 @@ dependencies = [
  "p4kx-model",
  "p4kx-testkit",
  "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-guard"
+version = "0.2.0"
+dependencies = [
+ "p4kx-channels",
+ "same-file",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

@@ -1,7 +1,8 @@
 use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
-use crate::{CompanionResolver, MaterialStatus, ModelError, Transform};
+use crate::crch::build as build_crch;
+use crate::{Bone, CompanionResolver, Influences, MaterialStatus, ModelError, Transform};
 
 /// A model read from a chunk file and its companions, in `CryEngine` coordinates: Z up, metres.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,7 +22,9 @@ pub struct Model {
     /// What reading the material library came to; a missing or unreadable library leaves the
     /// model readable, with the engine's default material.
     pub materials: MaterialStatus,
-    /// The bones of the skeleton; empty for a static model.
+    /// The bones of the skeleton from the model file's `CompiledBones2` chunk (a skin or a
+    /// skeleton file) or its `CompiledBones` chunk (a static model with animated parts); empty
+    /// for a model with neither.
     pub bones: Vec<Bone>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.
     pub chunks: Vec<ModelChunk>,
@@ -39,16 +42,6 @@ pub struct Node {
     pub transform: Transform,
 }
 
-/// One bone of a skeleton.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct Bone {
-    /// The bone's name.
-    pub name: String,
-    /// The index of the parent bone, or `None` for the root.
-    pub parent: Option<usize>,
-}
-
 /// One level of detail: the meshes of the nodes at that level.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -57,6 +50,10 @@ pub struct Lod {
     pub level: u32,
     /// The meshes, at most one per node, in node order.
     pub meshes: Vec<Mesh>,
+    /// The skeleton the bone indices of this level's meshes refer to, when the level's own
+    /// `<stem>_lod<n>.<extension>` file carries one that differs from [`Model::bones`]; see
+    /// [`Model::bones_of`].
+    pub bones: Option<Vec<Bone>>,
 }
 
 impl Lod {
@@ -89,7 +86,10 @@ pub struct Mesh {
     /// The vertex colours as red, green, blue and alpha, or `None` when every vertex is opaque
     /// white, the colour of a mesh that stores none.
     pub colours: Option<Vec<[u8; 4]>>,
-    /// The texture coordinates, one per vertex.
+    /// The bones each vertex is weighted to, one entry per vertex, or `None` for a mesh that is
+    /// not skinned. Every bone with a weight is in [`Model::bones`].
+    pub influences: Option<Vec<Influences>>,
+    /// The texture coordinates, one per vertex, or empty when the mesh stores none.
     pub uvs: Vec<[f32; 2]>,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
     pub indices: Vec<u32>,
@@ -171,12 +171,12 @@ pub struct ModelChunk {
 impl Model {
     /// Reads the model `file`, named `name`, fetching its geometry companion `<name>m` from
     /// `companions` unless the file holds its mesh itself; a file without `MeshInfo` chunk whose
-    /// companion does not exist is read as helper nodes without meshes.
+    /// companion does not exist is read as helper nodes without meshes. A `CrCh` file holds its
+    /// meshes itself and needs `companions` only for its material library.
     ///
     /// # Errors
     ///
-    /// Returns [`ModelError::UnsupportedContainer`] for a `CrCh` file,
-    /// [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
+    /// Returns [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
     /// [`ModelError::CompanionChunks`] when the companion is missing or unreadable,
     /// [`ModelError::NoMesh`] when the companion holds no mesh, and [`ModelError::Corrupt`] when a chunk
     /// the model reads is corrupt.
@@ -202,13 +202,17 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
-        if file.container() != Container::Ivo {
-            return Err(ModelError::UnsupportedContainer {
-                file: name.to_owned(),
-                container: file.container(),
-            });
+        match file.container() {
+            Container::Ivo => build(name, file, companions, lods),
+            Container::CrCh => build_crch(name, file, companions, lods),
         }
-        build(name, file, companions, lods)
+    }
+
+    /// Returns the bones the meshes of `lod` are weighted to: those of the level's own file when
+    /// it differs, otherwise those of the model file.
+    #[must_use]
+    pub fn bones_of<'a>(&'a self, lod: &'a Lod) -> &'a [Bone] {
+        lod.bones.as_deref().unwrap_or(&self.bones)
     }
 
     /// Returns the chunks of unknown type, which the model skipped.

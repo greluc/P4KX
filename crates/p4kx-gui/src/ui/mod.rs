@@ -28,6 +28,7 @@ mod entry_status;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod game_running;
 mod hex_view;
 mod image_preview;
 mod licence;
@@ -127,17 +128,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
     };
-    if let Some(browser) = model.browser_mut() {
-        browser.poll();
-    }
-    model.poll_extraction();
-    model.poll_record_export();
-    model.poll_catalog();
-    model.poll_update();
-    model.comparison_mut().poll();
-    model.poll_key_check();
-    model.poll_key_request();
-    model.query_mut().poll();
+    poll_background(model);
     poll_search(ui, model);
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
@@ -154,6 +145,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .exact_size(HEADER_HEIGHT)
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
+    game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
     archive_notice::show(ui, model);
@@ -185,12 +177,26 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     requests
 }
 
-/// Takes the result of the texts and a content search and shows a hit that waited for its data.
+/// Takes the result of a content search and shows a hit that waited for its data.
 fn poll_search(ui: &Ui, model: &mut Model) {
-    model.localization_mut().poll();
     model.content_search_mut().poll();
     let ctx = ui.ctx().clone();
     model.apply_pending_hit(move || ctx.request_repaint());
+}
+
+fn poll_background(model: &mut Model) {
+    if let Some(browser) = model.browser_mut() {
+        browser.poll();
+    }
+    model.poll_extraction();
+    model.poll_record_export();
+    model.poll_catalog();
+    model.poll_update();
+    model.comparison_mut().poll();
+    model.poll_key_check();
+    model.poll_key_request();
+    model.query_mut().poll();
+    model.localization_mut().poll();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {

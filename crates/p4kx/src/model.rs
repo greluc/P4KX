@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
@@ -10,10 +11,25 @@ use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction, ModelArgs, ModelFileSource};
 use crate::json;
+use crate::model_bones::write_bones;
 use crate::model_json::{ChunkJson, InfoJson, file_name, node_name, usage_name};
 use crate::model_materials_json::LibraryJson;
 
 const NONE: &str = "-";
+
+/// Returns `text` with every control character replaced by U+FFFD, so that a name read from a
+/// model cannot drive the terminal.
+fn clean(text: &str) -> Cow<'_, str> {
+    if text.chars().any(char::is_control) {
+        Cow::Owned(
+            text.chars()
+                .map(|c| if c.is_control() { '\u{fffd}' } else { c })
+                .collect(),
+        )
+    } else {
+        Cow::Borrowed(text)
+    }
+}
 
 #[derive(Serialize)]
 struct GlbJson<'a> {
@@ -25,6 +41,8 @@ struct GlbJson<'a> {
     materials: usize,
     default_material_ids: usize,
     hidden_primitives: usize,
+    bones: usize,
+    skinned_meshes: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -74,7 +92,7 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     }
     let model = source.model();
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(out, "Model:       {}", source.name())?;
+    writeln!(out, "Model:       {}", clean(source.name()))?;
     writeln!(
         out,
         "Geometry:    {}",
@@ -88,6 +106,7 @@ fn info(source: &ModelSource, as_json: bool) -> Result<()> {
     write_lods(&mut out, model)?;
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
+    write_bones(&mut out, model)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
     Ok(())
@@ -113,8 +132,8 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  Material IDs",
-        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours"
+        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  Material IDs",
+        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours", "Skinned"
     )?;
     for lod in &model.lods {
         for mesh in &lod.meshes {
@@ -125,14 +144,15 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {}",
+                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
                 lod.level,
-                node_name(model, mesh.node),
+                clean(node_name(model, mesh.node)),
                 mesh.positions.len(),
                 mesh.indices.len() / 3,
                 yes_no(mesh.normals.is_some()),
                 yes_no(mesh.tangents.is_some()),
                 yes_no(mesh.colours.is_some()),
+                yes_no(mesh.influences.is_some()),
                 ids.join(", ")
             )?;
         }
@@ -151,7 +171,11 @@ fn write_nodes(out: &mut impl Write, model: &Model) -> io::Result<()> {
         let parent = node
             .parent
             .map_or_else(|| NONE.to_owned(), |parent| parent.to_string());
-        writeln!(out, "{index:>5}  {parent:<6}  {}", node_name(model, index))?;
+        writeln!(
+            out,
+            "{index:>5}  {parent:<6}  {}",
+            clean(node_name(model, index))
+        )?;
     }
     Ok(())
 }
@@ -185,7 +209,7 @@ fn materials(model: &Model) -> String {
     };
     model.material_library.as_ref().map_or_else(
         || format!("no material library, {ids}"),
-        |library| format!("{library} ({}), {ids}", status(model)),
+        |library| format!("{} ({}), {ids}", clean(library), status(model)),
     )
 }
 
@@ -219,9 +243,9 @@ fn write_materials(out: &mut impl Write, model: &Model) -> io::Result<()> {
         writeln!(
             out,
             "{id:>3}  {:<24}  {:<16}  {:<18}  {:<20}  {:>7}  {}",
-            or_none(&material.name),
-            or_none(&material.shader),
-            or_none(&material.surface_type),
+            clean(or_none(&material.name)),
+            clean(or_none(&material.shader)),
+            clean(or_none(&material.surface_type)),
             format!("{red:.3} {green:.3} {blue:.3}"),
             material.opacity,
             material.textures.len()
@@ -263,7 +287,7 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
         stdout,
         "wrote {} of {}: {} nodes, {} meshes, {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
         out.display(),
-        source.name(),
+        clean(source.name()),
         summary.nodes,
         summary.meshes,
         summary.primitives,
@@ -272,8 +296,21 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
         summary.triangles,
         summary.bytes
     )?;
+    write_notes(&mut stdout, model, &summary)?;
+    stdout.flush()?;
+    Ok(())
+}
+
+fn write_notes(stdout: &mut impl Write, model: &Model, summary: &GlbSummary) -> io::Result<()> {
+    if summary.bones > 0 {
+        writeln!(
+            stdout,
+            "{} bones, {} skinned meshes",
+            summary.bones, summary.skinned_meshes
+        )?;
+    }
     if let Some(problem) = model.materials.problem() {
-        writeln!(stdout, "{problem}; the default material is used")?;
+        writeln!(stdout, "{}; the default material is used", clean(&problem))?;
     }
     if summary.default_material_ids > 0 && model.materials.problem().is_none() {
         writeln!(
@@ -307,7 +344,6 @@ fn glb(source: &ModelSource, options: GlbOptions, out: &Path, as_json: bool) -> 
             file_name(chunk.file)
         )?;
     }
-    stdout.flush()?;
     Ok(())
 }
 
@@ -321,6 +357,8 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &GlbSummary) -> Gl
         materials: summary.materials,
         default_material_ids: summary.default_material_ids,
         hidden_primitives: summary.hidden_primitives,
+        bones: summary.bones,
+        skinned_meshes: summary.skinned_meshes,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,

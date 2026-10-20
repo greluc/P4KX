@@ -15,7 +15,9 @@ mod media;
 mod read;
 mod references;
 mod resolve;
+mod search;
 mod sounds;
+mod users;
 mod walk;
 
 pub use atl::{AtlTrigger, WwiseEvent};
@@ -28,7 +30,9 @@ pub use hash::wwise_id;
 pub use index::AudioIndex;
 pub use language::LanguageChoice;
 pub use references::{TriggerReference, trigger_references};
+pub use search::{MAX_SEARCH_PAGE, SearchPage, TriggerHit};
 pub use sounds::{NodeKind, PathStep, SoundVariant, SourceKind, TriggerSounds, WemLocation};
+pub use users::TriggerUsers;
 
 /// The largest soundbank Entry that is read, 32 MiB: six times the largest live soundbank.
 pub const MAX_SOUNDBANK_LEN: u64 = 32 << 20;

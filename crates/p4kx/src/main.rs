@@ -43,6 +43,7 @@ mod failure_report;
 mod grep;
 mod grep_json;
 mod grep_table;
+mod guard;
 mod info;
 mod issues;
 mod json;
@@ -50,6 +51,7 @@ mod key;
 mod list;
 mod loc;
 mod model;
+mod model_bones;
 mod model_json;
 mod model_materials_json;
 mod notice;
@@ -67,6 +69,7 @@ mod ui_json;
 mod ui_render;
 mod verify;
 mod wwise;
+mod wwise_events;
 mod wwise_json;
 
 use std::io::{self, Write};
@@ -80,6 +83,10 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
     let success = |()| ExitCode::from(exit::SUCCESS);
+    p4kx_extraction::protect_libraries();
+    if !matches!(cli.command, Command::Key(_)) {
+        guard::start_game_check();
+    }
     if let Err(error) = key::init(&cli) {
         report(&error);
         return exit::for_error(&error);

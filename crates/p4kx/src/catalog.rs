@@ -111,6 +111,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     print_notes(summary.text_notes());
     print_failures(summary.failures())?;
     warn_about_size(summary)?;
+    crate::guard::ensure_writable(out)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
     let printed = if as_json {
         json::print(&summary_json(&archive, out, summary))

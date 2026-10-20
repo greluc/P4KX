@@ -279,6 +279,9 @@ pub enum ConversionError {
         #[source]
         source: io::Error,
     },
+    /// The output lies inside a Star Citizen installation; nothing is written there.
+    #[error(transparent)]
+    Installation(#[from] p4kx_guard::WriteRefused),
 }
 
 impl ConversionError {

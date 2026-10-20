@@ -182,6 +182,8 @@ pub enum Text {
     /// The notice that Entries of the open Archive have defects; takes `count`, the number of
     /// defects, and `kind`, `one` for a single defect.
     ArchiveIssues,
+    /// The notice that `StarCitizen.exe` is running and the tool is best used with the game closed.
+    GameRunning,
     /// The notice that the open Archive belongs to a test build and its material is confidential;
     /// takes `channel`, the Channel name.
     ArchiveTestBuild,

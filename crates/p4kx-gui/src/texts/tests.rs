@@ -103,6 +103,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("place", "libs/ships/alpha name".into()),
         ("digits", "4".into()),
         ("masked", "****1234".into()),
+        ("installation", "C:\\StarCitizen".into()),
     ]
 }
 

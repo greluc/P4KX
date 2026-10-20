@@ -46,7 +46,7 @@ fn fixture() -> Result<Fixture, Box<dyn Error>> {
 }
 
 fn extract(fixture: &Fixture) -> Result<Command, Box<dyn Error>> {
-    let mut command = Command::cargo_bin("p4kx")?;
+    let mut command = p4kx_testkit::p4kx()?;
     command
         .arg("extract")
         .arg(&fixture.archive)
@@ -243,7 +243,7 @@ fn convert_merges_an_alpha_tail_into_the_png_and_writes_cubemap_faces() -> TestR
         .write_to(&archive)?;
     let out = dir.path().join("out");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("extract")
         .arg(&archive)
         .args(["--filter", "Data\\", "--convert", "--out"])

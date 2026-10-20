@@ -6,6 +6,7 @@ use std::time::SystemTime;
 use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge};
 
 use crate::error::{ToolError, chain};
+use crate::keys::KeyChoice;
 
 /// How many opened Archives stay in memory.
 const CAPACITY: usize = 2;
@@ -20,6 +21,7 @@ const CAPACITY: usize = 2;
 pub(crate) struct Archives {
     kept: Mutex<Kept>,
     opening: Mutex<()>,
+    keys: KeyChoice,
 }
 
 #[derive(Debug, Default)]
@@ -145,7 +147,11 @@ impl Opened {
                 Ok(loaded)
             }
             Err(error) => {
-                let message = chain(&error);
+                let mut message = chain(&error);
+                if let Some(hint) = crate::keys::hint(&error) {
+                    message.push_str(". ");
+                    message.push_str(hint);
+                }
                 if !error.is_transient() {
                     *slot = Some(Err(message.clone()));
                 }
@@ -156,8 +162,29 @@ impl Opened {
 }
 
 impl Archives {
-    /// Returns the Archive at `path`, opening it unless it is open and unchanged.
+    /// Creates the cache; Archives are opened with the key `keys` chooses.
+    pub(crate) fn new(keys: KeyChoice) -> Self {
+        Self {
+            keys,
+            ..Self::default()
+        }
+    }
+
+    /// Returns the Archive at `path`, opening it unless it is open and unchanged. An Archive that
+    /// has no key yet, or whose key was found not to fit, gets the one chosen now, so a key stored
+    /// since it was opened applies.
     pub(crate) fn get(&self, path: &Path) -> Result<Arc<Opened>, ToolError> {
+        let opened = self.opened(path)?;
+        let archive = opened.archive();
+        if (!archive.has_key() || archive.take_key_request())
+            && let Some(key) = self.keys.current()?
+        {
+            archive.set_key(key);
+        }
+        Ok(opened)
+    }
+
+    fn opened(&self, path: &Path) -> Result<Arc<Opened>, ToolError> {
         let key = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         if let Some(opened) = self.cached(&key) {
             return Ok(opened);

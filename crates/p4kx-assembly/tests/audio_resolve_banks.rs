@@ -79,7 +79,7 @@ fn a_wem_is_taken_from_a_bank_that_is_not_localised_before_another_language() ->
             media_bank("Zzz", 7000, 4),
         ))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     assert_eq!(
         holders(&ArchiveAudio::new(&archive))?,
         [Some("Data\\Sounds\\wwise\\Zzz.bnk".to_owned())],
@@ -103,7 +103,7 @@ fn an_event_held_by_several_soundbanks_lists_the_variants_of_each() -> TestResul
             voice_bank("B", 701, 7001),
         ))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let audio = ArchiveAudio::new(&archive);
     let sounds = audio
         .resolve_trigger("Play_Voice")
@@ -147,7 +147,7 @@ fn a_soundbank_that_cannot_be_read_again_is_a_broken_link_at_the_event() -> Test
             voice_bank("A", 700, 7000),
         ))
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let audio = ArchiveAudio::new(&archive);
     let _ = audio.index();
     corrupt_bank_magic(&path)?;

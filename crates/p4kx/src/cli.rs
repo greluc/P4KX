@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use p4kx_settings::KeyText;
 
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
@@ -11,10 +12,12 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, QueryFormat, RecordFormat,
 };
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_verify::VerifyArgs;
 pub(crate) use crate::cli_wwise::{WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::exit::EXIT_CODES_HELP;
 
@@ -25,6 +28,16 @@ pub(crate) struct Cli {
     /// Prints the result as one line of JSON instead of text.
     #[arg(long, global = true)]
     pub(crate) json: bool,
+    /// The Archive key as 32 hexadecimal digits, needed to read encrypted Entries. Without it the
+    /// `P4KX_ARCHIVE_KEY` environment variable is used, then the key stored with `p4kx key set`.
+    /// Prefer the variable or the stored key: an option shows up in process lists and shell
+    /// history.
+    #[arg(long = "key", global = true, value_name = "HEX")]
+    pub(crate) archive_key: Option<KeyText>,
+    /// Reads and writes the stored Archive key in this file instead of the one in your profile;
+    /// the `P4KX_KEY_FILE` environment variable does the same.
+    #[arg(long, global = true, value_name = "FILE", env = "P4KX_KEY_FILE")]
+    pub(crate) key_file: Option<PathBuf>,
     /// What to do.
     #[command(subcommand)]
     pub(crate) command: Command,
@@ -42,6 +55,11 @@ pub(crate) enum Command {
     /// Extracts the given Entries of an Archive into a new target folder.
     #[command(after_help = EXIT_CODES_HELP)]
     Extract(ExtractArgs),
+    /// Checks the data of the Entries of an Archive against the CRC-32C of its directory, in
+    /// parallel, and reports every mismatch; nothing is written. Exits with 1 when an Entry
+    /// mismatches or cannot be read.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Verify(VerifyArgs),
     /// Prints the Channel and Build of an Archive and a summary of its Entries.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(InfoArgs),
@@ -100,6 +118,9 @@ pub(crate) enum Command {
     /// Shows a static #ivo model with its nodes, meshes and materials, or writes it as GLB.
     #[command(after_help = EXIT_CODES_HELP)]
     Model(ModelArgs),
+    /// Stores, shows or removes the Archive key of your profile.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Key(KeyArgs),
 }
 
 /// Arguments of `p4kx cryxml`.
@@ -291,6 +312,14 @@ pub(crate) struct ExtractArgs {
         value_name = "FORMAT"
     )]
     pub(crate) audio: AudioOutput,
+    /// Checks each Entry against the CRC-32C of the Archive directory while it is written: an
+    /// Entry that does not match is not written and counted as a checksum mismatch in the
+    /// summary and as `mismatched` in the JSON report, and the exit code is 1. Costs one
+    /// checksum pass over the extracted bytes. An Entry skipped because its file exists is not read
+    /// and so not verified; an unchanged file under the if-changed Conflict policy matched the
+    /// stored CRC-32C.
+    #[arg(long)]
+    pub(crate) verify: bool,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,

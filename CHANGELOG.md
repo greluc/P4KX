@@ -8,6 +8,25 @@ fails while its section is missing.
 
 ### Added
 
+- Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
+  its vertex and triangle counts and whether its meshes have normals, tangents and colours;
+  `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
+  lacks exits with code 2) from the geometry companion `<stem>_lod<n>.<extension>m`, with the
+  nodes of the base model file. The GLB now carries `TANGENT` (with handedness) and `COLOR_0` for
+  the meshes that have them; `--no-vertex-colours` leaves the colours out. `Model::read_with`,
+  `LodSelection`, `Mesh::tangents`, `Mesh::colours` in `p4kx-model`, `GlbOptions::vertex_colours`
+  in `p4kx-gltf`. Real-Archive tests check the tangents against the texture axes, the LODs of 360
+  models and the node chain against the `MeshInfo` box (docs/model-lods-and-vertex-attributes.md,
+  ADR-0028). The vertex colours are read as BGRA; models whose names say `blue` are mostly blue
+  and those named `red` or `orange` mostly red under that order, which a real-Archive test checks.
+- Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
+  filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
+  mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and
+  `p4kx socpak extract --verify` check each Entry while it is written, do not write a mismatching
+  Entry and count it in the summary; `p4kx socpak verify` does the same with the plain CRC-32 of
+  a container. The checksum is computed while the data streams, without a second pass, and
+  reading stays unchecked unless asked for. `Archive::open_entry_verified` and
+  `ExtractOptions::verify` are the library switches.
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected
@@ -65,6 +84,27 @@ fails while its section is missing.
 
 ### Changed
 
+- **Breaking:** the Archive key is no longer part of the tool; you enter it
+  ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). The constant `ARCHIVE_KEY` of
+  `p4kx-foundation` is gone: `ArchiveKey` is a value that `Archive::open_with_key` or
+  `Archive::set_key` give an Archive, and `p4kx_testkit` encrypts its Archives with a test key
+  of its own. Without a key an Archive still opens, lists, searches and compares, and reads every
+  unencrypted Entry; an encrypted Entry fails with `ArchiveError::KeyRequired`, and a key that
+  does not decrypt the Archive with `ArchiveError::WrongKey`, found by decrypting one encrypted
+  Entry and comparing its CRC-32C. `p4kx --key <hex>`, the environment variable
+  `P4KX_ARCHIVE_KEY` and the key stored with `p4kx key set|show|remove` in your profile give
+  the key, in that order; the MCP server takes the same three (`--key`, `P4KX_ARCHIVE_KEY`, the
+  stored key), and the window asks in a dialog when an encrypted Entry is first needed, and from
+  **Archive key…** in the Archive menu. A missing or wrong key exits `p4kx` with the new code 7.
+  The key is stored in `archive.key` next to the settings, written atomically and readable by
+  your user alone where the platform allows it, and never appears in logs, error messages or JSON.
+  `cargo xtask keys` fails when a tracked file holds a key-like literal named as a key, or the
+  real key while `P4KX_ARCHIVE_KEY` is set. Real-Archive tests need `P4KX_ARCHIVE_KEY`.
+- Models: `p4kx_model::ModelFile` is `#[non_exhaustive]` and has the new variant
+  `LodGeometry(u32)` for the geometry companion of a level of detail from 1 on (`lod<n>-geometry`
+  in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
+  `p4kx model info` has the columns Tangents and Colours, and its chunk table is wider for the
+  `lod<n>-geometry` names.
 - GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
   `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
   bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
@@ -96,6 +136,11 @@ fails while its section is missing.
   Record, at most 1024 listed, all counted by `issue_count`), and `DataForge::survey` counts the
   format details no tool interprets (docs/dataforge-format.md). A real-Archive canary test
   checks them for `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
+- Three `#ivo` chunk types change their name in `p4kx chunks list` and `p4kx model info`, also in
+  the `type` field of their `--json` output: `0x2B7ECF9F` is `PositionBonemap` (was
+  `BoundingData`), `0x58DE1772` `StatObjPhysics` (was `LodMeshData`) and `0xBE5E493E`
+  `ExportFlags` (was `AssetMetadata`); `0x57A38888` is now `BShapesGpu` and `0xF5C6EB5B`
+  `BShapes`.
 
 ### Fixed
 
@@ -110,6 +155,56 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- Localisation: `@blank_space`, the filler Records use for an empty line (372 fields in the LIVE
+  Build), is a placeholder key like `@LOC_EMPTY`: it has no text, so `p4kx loc get` reports
+  `placeholder` instead of the single space of the English `global.ini`, and `p4kx dcb export
+  --lang` no longer annotates it. A `global.ini` that holds both `key=` and `key,P=` keeps both
+  lines; a lookup prefers the plain key (`GlobalIni::resolve_suffixed` returns the other). The
+  Basetool catalog of the LIVE Build is unchanged.
+- Soundbanks of a version above 154 are no longer misdecoded: their layouts differ (an Event
+  starts with other fields), so a Sound, Action, Event or container of such a bank is kept raw and
+  reported as an object whose layout is not known (`docs/audio-bank-versions.md`). `HircKind::of`
+  maps the type numbers of `HIRC` objects by bank version, which differ up to version 126. Star
+  Citizen's banks are all version 154 and decode as before.
+- A Sound object of a version 150 soundbank is decoded correctly: it has no `cacheID`, which
+  versions from 151 on write before the in-memory media size, so the media size was read one field
+  late. Star Citizen's version 154 banks were not affected.
+- A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
+  holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
+  is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM
+  and decodes. These are console variants; every Star Citizen WEM is Wwise Vorbis.
+- Soundbanks with a quirk that leaves the rest readable are no longer rejected whole: bytes after
+  the last `HIRC` object, a repeated `DIDX` WEM ID (the first entry is kept), `DIDX` without
+  `DATA` and a non-UTF-8 name in `STID` are worked around and listed by `Soundbank::warnings`.
+  The audio index reads soundbanks up to 32 MiB instead of 16 MiB, and `Wem::chunks` and
+  `Wem::chunk` list every RIFF chunk of a WEM, `smpl`, `cue ` and `LIST` after `data` included.
+  No soundbank or WEM of the LIVE, PTU and TECH-PREVIEW Archives has any of these quirks
+  (`docs/audio-survey.md`).
+- Mesh dequantisation: a survey of LIVE, PTU, TECH-PREVIEW and EPTU compares the two boxes of
+  the mesh chunks (static models only; skins store floats). Of the about 30,000 `.cgfm` chunks
+  and about 31,000 `.cgam` chunks of each Archive whose boxes differ, the face normals can decide
+  about 6,000 in LIVE, and 99 % of those choose the second, scaling box; the rest are axis-aligned
+  and undecidable. The reader keeps the second box for every mesh, documents the evidence and its
+  limits (docs/mesh-bounding-boxes.md) and tests it with a differing model box; no exported model
+  changes.
+- Mesh streams: both normal tags now take 4-byte packed and 12-byte float vectors, and a
+  16-byte tangent stream (two quaternions) gives normals, so a mesh that stores only such a
+  stream keeps its normals; no real file has the 16-byte layout, so reading the normal from its
+  first quaternion is unverified. The packed vectors of the second normal tag rank last: in LIVE they
+  disagree with the tangent frames of the 17,902 meshes that hold both, so no exported model
+  changes.
+- Mesh streams: a mesh chunk that holds one of the streams a model reads (indices, vertices,
+  normals, tangents) twice is reported as corrupt (`RepeatedStream`) instead of the later stream
+  silently replacing the first. No mesh chunk of LIVE, PTU, TECH-PREVIEW or EPTU does.
+- The `#ivo` chunk type table follows a survey of LIVE, PTU and TECH-PREVIEW
+  (docs/chunk-types.md): twelve types that `p4kx chunks list` reported as unknown are named
+  (`BShapes`, `BShapesGpu`, `RigLogic`, `RigInfo`, `ProtosInfo`, `PhysicalHierarchy`, `VisAreas`,
+  `Skeleton` and four more), seven stay unknown, and the table entries that occur in no measured
+  Archive are marked unverified.
+- A WEM whose odd-sized chunk is not followed by a pad byte, as Wwise writes it, no longer
+  misaligns the chunks after it: the reader takes the position right after the chunk when it
+  holds a valid chunk header, and skips the pad byte of plain RIFF otherwise. No WEM of the LIVE,
+  PTU and TECH-PREVIEW Archives has an odd-sized chunk before its last.
 
 ## [0.2.0]
 

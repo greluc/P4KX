@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::Range;
 
 use crate::bank_reader::SectionReader;
@@ -6,8 +7,11 @@ use crate::{BankError, SectionId};
 
 const OBJECT_HEADER_LEN: usize = 5;
 const ID_LEN: usize = 4;
-const FIRST_SOUND_CACHE_ID_VERSION: u32 = 150;
+const FIRST_SOUND_VERSION: u32 = 150;
+const LAST_SOUND_WITHOUT_CACHE_ID_VERSION: u32 = 150;
 const CONTAINER_VERSION: u32 = 154;
+const LAST_KNOWN_VERSION: u32 = 154;
+const LAST_OLD_TYPE_NUMBERING_VERSION: u32 = 126;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
 const PLAY_ACTION_GROUP: u16 = 0x04;
@@ -64,8 +68,38 @@ pub enum HircKind {
     Other(u8),
 }
 
+impl fmt::Display for HircKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RandomSequenceContainer => f.write_str("random or sequence container"),
+            Self::SwitchContainer => f.write_str("switch container"),
+            Self::LayerContainer => f.write_str("blend container"),
+            Self::Other(byte) => write!(f, "{byte:#04x}"),
+            other => write!(f, "{other:?}"),
+        }
+    }
+}
+
 impl HircKind {
-    /// Returns the kind of the type byte `kind`.
+    /// Returns the kind of the type byte `kind` in a bank of `version`.
+    ///
+    /// Up to version 126 the types from `0x10` on are numbered differently: `0x10` and `0x11` are
+    /// a feedback bus and a feedback node, which this reader reports as [`HircKind::Other`], and
+    /// `0x12` to `0x17` are the effect share set, custom effect, auxiliary bus, LFO, envelope and
+    /// audio device that later versions number `0x10` to `0x15`.
+    #[must_use]
+    pub const fn of(version: u32, kind: u8) -> Self {
+        if version > LAST_OLD_TYPE_NUMBERING_VERSION {
+            return Self::from_byte(kind);
+        }
+        match kind {
+            0x10 | 0x11 => Self::Other(kind),
+            0x12..=0x17 => Self::from_byte(kind - 2),
+            other => Self::from_byte(other),
+        }
+    }
+
+    /// Returns the kind of the type byte `kind` as banks of version 128 and later number it.
     #[must_use]
     pub const fn from_byte(kind: u8) -> Self {
         match kind {
@@ -200,8 +234,14 @@ impl HircObject {
     }
 }
 
+/// The objects of a `HIRC` section and the number of bytes after the last of them.
+pub(crate) struct Hirc {
+    pub(crate) objects: Vec<HircObject>,
+    pub(crate) trailing: usize,
+}
+
 /// Parses the body of the `HIRC` section, found at `base` in a bank of `version`.
-pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircObject>, BankError> {
+pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Hirc, BankError> {
     let mut reader = SectionReader::new(SectionId::HIRC, body);
     let count = reader.u32()?;
     let capacity = usize::try_from(count)
@@ -209,7 +249,7 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
         .min(reader.remaining() / (OBJECT_HEADER_LEN + ID_LEN));
     let mut objects = Vec::with_capacity(capacity);
     for _ in 0..count {
-        let kind = HircKind::from_byte(reader.u8()?);
+        let kind = HircKind::of(version, reader.u8()?);
         let len = usize::try_from(reader.u32()?).unwrap_or(usize::MAX);
         if len < ID_LEN {
             return Err(BankError::invalid(
@@ -229,26 +269,58 @@ pub(crate) fn parse(version: u32, body: &[u8], base: usize) -> Result<Vec<HircOb
             body: base + range.start..base + range.end,
         });
     }
-    if reader.remaining() > 0 {
-        return Err(BankError::invalid(
-            SectionId::HIRC,
-            "bytes follow the last object",
-        ));
-    }
-    Ok(objects)
+    Ok(Hirc {
+        objects,
+        trailing: reader.remaining(),
+    })
 }
 
+/// Returns whether a Sound object or a music track playlist item of a bank of `version` carries
+/// a `cacheID` before its in-memory media size.
+pub(crate) const fn has_cache_id(version: u32) -> bool {
+    version > LAST_SOUND_WITHOUT_CACHE_ID_VERSION
+}
+
+/// Returns whether an object of `kind` is one this reader decodes but whose layout in a bank of
+/// `version` is not known, because the version is newer than 154.
+const fn has_unknown_layout(kind: HircKind, version: u32) -> bool {
+    version > LAST_KNOWN_VERSION
+        && matches!(
+            kind,
+            HircKind::Sound
+                | HircKind::Action
+                | HircKind::Event
+                | HircKind::RandomSequenceContainer
+                | HircKind::SwitchContainer
+                | HircKind::LayerContainer
+        )
+}
+
+/// Decodes the fields of an object after its ID.
+///
+/// The layouts known are those of bank versions up to 154: a Sound from version 150 (plug-in ID,
+/// storage byte, source ID, with a `cacheID` after the source ID from version 151, then the
+/// in-memory media size), an Action and an Event from version 49 (an Event counts its actions in
+/// 4 bytes up to version 122, in a variable-length integer after), a random, sequence, switch or
+/// blend container in version 154 only. The body of such an object in a bank above version 154,
+/// whose layouts changed, is kept raw with [`BankError::UnsupportedObjectLayout`]; below its first
+/// version it is kept raw without a reason. Other objects are never decoded.
 fn value(
     kind: HircKind,
     version: u32,
     fields: &mut SectionReader<'_>,
 ) -> Result<HircValue, BankError> {
+    if has_unknown_layout(kind, version) {
+        return Err(BankError::UnsupportedObjectLayout { kind, version });
+    }
     Ok(match kind {
-        HircKind::Sound if version >= FIRST_SOUND_CACHE_ID_VERSION => {
+        HircKind::Sound if version >= FIRST_SOUND_VERSION => {
             let plugin_id = fields.u32()?;
             let storage = MediaStorage::from_byte(fields.u8()?);
             let source_id = fields.u32()?;
-            let _cache_id = fields.u32()?;
+            if has_cache_id(version) {
+                fields.u32()?;
+            }
             let in_memory_size = fields.u32()?;
             HircValue::Sound(SoundSource {
                 plugin_id,

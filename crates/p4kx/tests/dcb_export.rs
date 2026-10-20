@@ -5,7 +5,6 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
     TestValue,
@@ -84,7 +83,7 @@ struct Run {
 }
 
 fn export(archive: &Path, out: &Path, args: &[&str], code: i32) -> Result<Run, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
+    let output = p4kx_testkit::p4kx()?
         .args(["dcb", "export"])
         .arg(archive)
         .arg("--out")

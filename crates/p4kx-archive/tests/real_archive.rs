@@ -5,7 +5,7 @@ use std::error::Error;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use p4kx_archive::{Archive, Build, Compression, Entry};
+use p4kx_archive::{Archive, Build, Compression, Entry, KeyCheck};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -19,7 +19,7 @@ const MAX_SIZE: u64 = 64 << 20;
 fn opens_and_lists_a_real_archive_in_seconds() -> TestResult {
     let path = real_archive_path()?;
     let started = Instant::now();
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
     let listed = archive
         .entries()
         .iter()
@@ -38,9 +38,20 @@ fn opens_and_lists_a_real_archive_in_seconds() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_real_key_is_verified_against_a_real_archive() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let check = archive.verify_key(&p4kx_testkit::real_archive_key()?)?;
+
+    assert_eq!(check, KeyCheck::Verified, "the key decrypts an Entry");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn reads_the_build_of_a_real_archive() -> TestResult {
     let path = real_archive_path()?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
     let folder = path.parent().ok_or("the Archive path has a folder")?;
 
     let manifest_build = Build::read_from(folder)?
@@ -59,7 +70,10 @@ fn reads_the_build_of_a_real_archive() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn reads_entries_of_every_compression_and_encryption_state() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
 
     let samples = samples_per_kind(archive.entries());
     for (kind, entries) in &samples {
@@ -86,6 +100,31 @@ fn reads_entries_of_every_compression_and_encryption_state() -> TestResult {
         "the Archive has encrypted Entries: {:?}",
         samples.keys()
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+
+    let samples = samples_per_kind(archive.entries());
+    let mut checked = 0;
+    for entries in samples.values() {
+        for entry in entries {
+            let size = io::copy(&mut archive.open_entry_verified(entry)?, &mut io::sink())
+                .map_err(|error| format!("{}: {error}", entry.path()))?;
+            assert_eq!(
+                size,
+                entry.uncompressed_size(),
+                "{} reads fully",
+                entry.path()
+            );
+            checked += 1;
+        }
+    }
+
+    assert!(checked > 0, "the Archive yields samples");
     Ok(())
 }
 

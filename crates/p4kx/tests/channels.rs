@@ -40,7 +40,7 @@ impl Install {
     }
 
     fn p4kx(&self) -> Result<Command, Box<dyn Error>> {
-        let mut command = Command::cargo_bin("p4kx")?;
+        let mut command = p4kx_testkit::p4kx()?;
         command
             .env("P4KX_CONFIG_DIR", self.config())
             .env("P4KX_LAUNCHER_DIR", self.launcher())

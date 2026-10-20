@@ -14,7 +14,10 @@ const CONVERTED: usize = 200;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn looping_wems_keep_their_loop_in_wav_and_ogg() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let (mut parsed, mut looping, mut converted, mut single_frame) =
         (0_usize, 0_usize, 0_usize, 0_usize);
     let mut bytes = Vec::new();

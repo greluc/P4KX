@@ -36,7 +36,10 @@ impl Tally {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_static_models_exports_valid_glb_with_normals_along_the_winding() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let mut sample: Vec<&Entry> = Vec::new();

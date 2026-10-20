@@ -23,6 +23,7 @@ fn opened(builder: &ArchiveBuilder) -> Result<(TempDir, Model, PathBuf), Box<dyn
     let path = dir.path().join("Data.p4k");
     builder.write_to(&path)?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(path, || {});
     let deadline = Instant::now() + Duration::from_secs(10);
     while model.browser().is_none() {

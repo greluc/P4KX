@@ -2,6 +2,7 @@
 
 mod archive_change;
 mod archive_issues;
+mod archive_key;
 mod archive_picker;
 mod audio_controls;
 mod audio_preview;
@@ -124,6 +125,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
+    model.poll_key_check();
+    model.poll_key_request();
     model.query_mut().poll();
     model.localization_mut().poll();
     if let Some(path) = dropped_file(ui) {
@@ -165,6 +168,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests
 }

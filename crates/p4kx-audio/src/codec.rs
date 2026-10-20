@@ -1,17 +1,23 @@
 use std::fmt;
 
+const DSP_HEADER_LEN: u32 = 0x0C;
+const DSP_CHANNEL_LEN: u32 = 0x2E;
+const PTADPCM_FRAME_LEN: u32 = 0x104;
+
 /// The codec of a WEM, detected from the format tag of its `fmt` chunk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Codec {
     /// Uncompressed 16-bit PCM, tags `0x0001` and `0xFFFE`.
     Pcm,
-    /// IMA ADPCM, tags `0x0002`, `0x0011` and `0x0069`.
+    /// IMA ADPCM, tags `0x0002`, `0x0011` and `0x0069`; a `0x0002` `fmt` chunk of the layout of
+    /// [`Codec::Dsp`] or [`Codec::PtAdpcm`] is one of those instead.
     ImaAdpcm,
     /// Wwise Vorbis with stripped headers, tag `0xFFFF`.
     Vorbis,
     /// Opus, tags `0x3039`, `0x3040` and `0x3041`.
     Opus,
-    /// Platinum ADPCM, tag `0x8311`.
+    /// Platinum ADPCM, tag `0x8311`, or tag `0x0002` with a block alignment of 260 bytes per
+    /// channel.
     PtAdpcm,
     /// Xbox WMA, tags `0x0161` and `0x0162`.
     Xwma,
@@ -19,7 +25,8 @@ pub enum Codec {
     Xma2,
     /// AAC, tag `0xAAC0`.
     Aac,
-    /// Nintendo DSP ADPCM, tag `0xFFF0`.
+    /// Nintendo DSP ADPCM, tag `0xFFF0`, or tag `0x0002` with `12 + 46 × channels` bytes after
+    /// the `fmt` fields.
     Dsp,
     /// Sony HEVAG, tag `0xFFFB`.
     Hevag,
@@ -31,6 +38,9 @@ pub enum Codec {
 
 impl Codec {
     /// Returns the codec a Wwise `fmt` chunk's format tag stands for.
+    ///
+    /// The tag `0x0002` alone is taken for IMA ADPCM; [`Codec::of_format`] also reads the rest of
+    /// the `fmt` chunk and tells DSP and PTADPCM apart.
     #[must_use]
     pub const fn from_tag(tag: u16) -> Self {
         match tag {
@@ -46,6 +56,30 @@ impl Codec {
             0xFFFB => Self::Hevag,
             0xFFFC => Self::Atrac9,
             other => Self::Unknown(other),
+        }
+    }
+
+    /// Returns the codec of a `fmt` chunk with the format tag `tag`, `channels` channels, a block
+    /// alignment of `block_align` bytes and `extra_len` bytes after the common fields, if the chunk
+    /// states them.
+    ///
+    /// Tag `0x0002` is IMA ADPCM unless the chunk holds DSP coefficients (`extra_len` is
+    /// `12 + 46 × channels`) or its block alignment is 260 bytes per channel (PTADPCM).
+    #[must_use]
+    pub const fn of_format(
+        tag: u16,
+        channels: u16,
+        block_align: u16,
+        extra_len: Option<u16>,
+    ) -> Self {
+        if tag != 0x0002 {
+            return Self::from_tag(tag);
+        }
+        let channels = channels as u32;
+        match extra_len {
+            Some(extra) if extra as u32 == DSP_HEADER_LEN + channels * DSP_CHANNEL_LEN => Self::Dsp,
+            _ if block_align as u32 == PTADPCM_FRAME_LEN * channels => Self::PtAdpcm,
+            _ => Self::ImaAdpcm,
         }
     }
 

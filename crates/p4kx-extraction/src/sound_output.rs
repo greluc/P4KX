@@ -119,7 +119,7 @@ mod tests {
             .entry(TestEntry::stored("a.wem", vec![0; 4]))
             .write_to(&path)
             .expect("archive");
-        let archive = Archive::open(&path).expect("open");
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key())).expect("open");
         let target = dir.path().join("out");
         fs::create_dir(&target).expect("target");
         let cancel = CancelToken::new();
@@ -131,6 +131,7 @@ mod tests {
             convert: true,
             textures: TextureConversion::default(),
             audio: AudioConversion::Wav,
+            verify: false,
             tracker: &tracker,
         };
         let destination = Destination::new(target.clone(), "a.wav".as_ref()).expect("destination");

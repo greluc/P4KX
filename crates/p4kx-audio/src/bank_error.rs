@@ -2,6 +2,8 @@ use std::fmt;
 
 use thiserror::Error;
 
+use crate::HircKind;
+
 /// The four-character tag of a soundbank section, e.g. `BKHD`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SectionId(pub [u8; 4]);
@@ -44,6 +46,36 @@ impl fmt::Debug for SectionId {
     }
 }
 
+/// A quirk of a soundbank that the reader works around; the rest of the bank stays readable.
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum BankWarning {
+    /// Bytes follow the last `HIRC` object the section declares; they are ignored.
+    #[error("{len} bytes follow the last object of the soundbank section HIRC")]
+    TrailingHircBytes {
+        /// How many bytes.
+        len: u64,
+    },
+    /// A `DIDX` entry repeats the ID of an earlier entry; only the first is kept.
+    #[error("the soundbank section DIDX lists WEM {id} again; the first entry is kept")]
+    DuplicateMedia {
+        /// The WEM ID.
+        id: u32,
+    },
+    /// `DIDX` lists WEMs but the bank has no `DATA` section; none of them is readable.
+    #[error("the soundbank section DIDX lists {entries} WEMs but the bank has no DATA section")]
+    MediaWithoutData {
+        /// How many entries `DIDX` holds.
+        entries: u64,
+    },
+    /// A name in `STID` is not UTF-8; it is left out.
+    #[error("the soundbank section STID names {id} in bytes that are not UTF-8")]
+    NonUtf8BankName {
+        /// The soundbank ID the name belongs to.
+        id: u32,
+    },
+}
+
 /// A failure to read a soundbank; every variant names the section at fault.
 #[derive(Debug, Clone, Error, PartialEq, Eq, Hash)]
 pub enum BankError {
@@ -54,6 +86,17 @@ pub enum BankError {
     #[error("the soundbank version {version} in BKHD is not supported")]
     UnsupportedVersion {
         /// The version `BKHD` declares.
+        version: u32,
+    },
+    /// The layout of an object is not known for the bank version, so its body is kept raw.
+    #[error(
+        "the soundbank section HIRC holds an object of type {kind} in version {version}, whose \
+         layout is not known"
+    )]
+    UnsupportedObjectLayout {
+        /// The object type.
+        kind: HircKind,
+        /// The bank version.
         version: u32,
     },
     /// A section ends before a field or an item it declares.
@@ -101,6 +144,7 @@ impl BankError {
         match self {
             Self::NotSoundbank => None,
             Self::UnsupportedVersion { .. } => Some(SectionId::BKHD),
+            Self::UnsupportedObjectLayout { .. } => Some(SectionId::HIRC),
             Self::Truncated { section, .. }
             | Self::InvalidSection { section, .. }
             | Self::DuplicateSection(section) => Some(*section),

@@ -20,7 +20,10 @@ fn index_of(entries: Vec<TestEntry>) -> Result<AudioIndex, Box<dyn Error>> {
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)?;
-    Ok(AudioIndex::build(&Archive::open(&path)?))
+    Ok(AudioIndex::build(&Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::test_key()),
+    )?))
 }
 
 fn too_large(limit: u64) -> Result<Vec<u8>, Box<dyn Error>> {

@@ -20,7 +20,10 @@ const DANGLING: &str = "dangling Reference";
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn reads_the_dataforge_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
 
     let entry = DataForgeEntry::read(&archive)?;
 
@@ -75,7 +78,10 @@ fn check_record(forge: &DataForge<'_>, record: Record<'_>) -> Result<(), String>
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn builds_and_writes_every_record_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let errors: Mutex<HashMap<String, usize>> = Mutex::default();
@@ -137,7 +143,10 @@ fn error_kind(error: &ValueError) -> String {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn exports_a_known_record_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records: Vec<_> = forge.records_at_path(KNOWN_RECORD).collect();

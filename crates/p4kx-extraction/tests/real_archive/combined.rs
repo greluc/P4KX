@@ -18,7 +18,10 @@ const KNOWN_RECORD: &str = "libs/foundry/records/entities/spaceships/aegs_avenge
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_combined_document_of_a_real_archive_parses() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records: Vec<_> = forge.records().collect();
@@ -112,7 +115,10 @@ fn parse_record(head: &str, chunk: &str) -> Result<(String, String), Box<dyn std
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn extracting_the_dataforge_entry_with_conversion_writes_every_record() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::locate(&archive).ok_or("the Archive holds a DataForge")?;
     let record_count = DataForgeEntry::read(&archive)?.open()?.record_count();
     let target = tempfile::tempdir()?;

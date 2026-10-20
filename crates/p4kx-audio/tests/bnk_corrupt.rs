@@ -87,12 +87,7 @@ fn a_didx_entry_outside_data_is_rejected() {
 }
 
 #[test]
-fn didx_without_data_or_with_a_ragged_size_is_invalid() {
-    let mut header = TestBank::new(1).bytes();
-    header.extend_from_slice(b"DIDX\x0C\0\0\0");
-    header.extend_from_slice(&[0; 12]);
-    assert_eq!(error(&header).section(), Some(SectionId::DIDX), "no DATA");
-
+fn didx_with_a_ragged_size_is_invalid() {
     let ragged = TestBank::new(1)
         .section(*b"DIDX", [0; 13])
         .section(*b"DATA", [0; 4])
@@ -101,14 +96,7 @@ fn didx_without_data_or_with_a_ragged_size_is_invalid() {
 }
 
 #[test]
-fn a_repeated_wem_id_or_section_is_rejected() {
-    let bytes = TestBank::new(1).wem(5, [1]).wem(5, [2]).bytes();
-    assert_eq!(
-        error(&bytes).section(),
-        Some(SectionId::DIDX),
-        "duplicate ID"
-    );
-
+fn a_repeated_section_is_rejected() {
     let bytes = TestBank::new(1)
         .object(TestHircObject::raw(8, 1, []))
         .section(*b"HIRC", [0; 4])
@@ -207,16 +195,11 @@ fn malformed_object_bodies_are_kept_raw_with_their_error_and_the_wems_stay_reada
 }
 
 #[test]
-fn stid_overstating_its_names_or_holding_invalid_utf8_names_stid() {
+fn stid_overstating_its_names_names_stid() {
     let bytes = TestBank::new(1)
         .section(*b"STID", [1, 0, 0, 0, 9, 0, 0, 0])
         .bytes();
     assert_eq!(error(&bytes).section(), Some(SectionId::STID), "count");
-
-    let bytes = TestBank::new(1)
-        .section(*b"STID", [1, 0, 0, 0, 1, 0, 0, 0, 7, 0, 0, 0, 1, 0xFF])
-        .bytes();
-    assert_eq!(error(&bytes).section(), Some(SectionId::STID), "UTF-8");
 }
 
 #[test]

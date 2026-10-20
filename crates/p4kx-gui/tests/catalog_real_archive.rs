@@ -30,6 +30,7 @@ fn the_catalog_of_a_real_archive_is_written_with_its_summary() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = dir.path().join("basetool-catalog.json");
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, |model| model.browser().is_some())?;
 

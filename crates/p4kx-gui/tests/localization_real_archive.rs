@@ -26,6 +26,7 @@ fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_texts_of_a_real_archive_are_listed_and_searched() -> TestResult {
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.open(real_archive_path()?, || {});
     wait_until(&mut model, |model| model.browser().is_some())?;
 

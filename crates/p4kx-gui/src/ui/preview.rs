@@ -293,12 +293,30 @@ fn body(
             );
             ui.colored_label(palette::DANGER_TEXT, text);
         }
-        PreviewStatus::ArchiveChanged => {
-            ui.colored_label(palette::WARNING, texts.get(Text::PreviewArchiveChanged));
-        }
+        status @ (PreviewStatus::ArchiveChanged
+        | PreviewStatus::KeyRequired
+        | PreviewStatus::KeyRejected) => note(ui, texts, status, path),
         PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
     });
     None
+}
+
+/// Shows the note that stands for the preview of an Entry that cannot be read until the Archive is
+/// reloaded or has the right key.
+fn note(ui: &mut Ui, texts: &Texts, status: PreviewStatus<'_>, path: &str) {
+    let path = [("path", FluentValue::from(path.to_owned()))];
+    let (colour, text) = match status {
+        PreviewStatus::KeyRequired => (
+            palette::WARNING,
+            texts.format(Text::PreviewKeyRequired, &path),
+        ),
+        PreviewStatus::KeyRejected => (
+            palette::DANGER_TEXT,
+            texts.format(Text::PreviewKeyRejected, &path),
+        ),
+        _ => (palette::WARNING, texts.get(Text::PreviewArchiveChanged)),
+    };
+    ui.colored_label(colour, text);
 }
 
 /// Shows the path line of the preview: `path`, then `size` muted.

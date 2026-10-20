@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod archive_key_text;
 mod audio_text;
 mod catalog_text;
 mod change_extraction_text;
@@ -21,6 +22,7 @@ mod scroll_text;
 mod text_ids;
 mod xml_text;
 
+pub use archive_key_text::ArchiveKeyText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
@@ -174,6 +176,12 @@ pub enum Text {
     ArchiveIssues,
     /// The action that opens the changed Archive again.
     ActionReload,
+    /// Shown instead of the preview of an encrypted Entry while the Archive has no key; takes
+    /// path.
+    PreviewKeyRequired,
+    /// Shown instead of the preview of an encrypted Entry when the Archive key does not fit; takes
+    /// path.
+    PreviewKeyRejected,
     /// A text of the Extraction windows.
     Extraction(ExtractionText),
     /// A text of the Comparison tab.
@@ -210,6 +218,8 @@ pub enum Text {
     RecordLanguage(RecordLanguageText),
     /// A text of the localisation tab.
     Localization(LocalizationText),
+    /// A text of the Archive key dialog.
+    Key(ArchiveKeyText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

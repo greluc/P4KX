@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// The checksum of an Entry's data after decryption and decompression, as its directory states it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -6,6 +8,12 @@ pub enum Checksum {
     Crc32c(u32),
     /// The plain ZIP CRC-32, which containers and other plain ZIP archives use.
     Crc32(u32),
+}
+
+impl fmt::Display for Checksum {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {:08x}", self.name(), self.value())
+    }
 }
 
 impl Checksum {

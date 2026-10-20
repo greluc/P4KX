@@ -84,7 +84,6 @@ impl EntryWriter<'_> {
             data: RefCell::new(std::mem::take(&mut buffers.data)),
         };
         let merged = self
-            .archive
             .open_entry(source.header)
             .map_err(ExtractionError::from)
             .and_then(|header| {

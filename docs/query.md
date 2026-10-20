@@ -225,7 +225,7 @@ case, `/` and `\` alike and a trailing `.xml`); a record path that several Recor
 of them, and the Query selects the Records that refer to any of them. A Record that refers to
 itself is not selected for that. It combines with `from` and `at`: both keep only the Records
 that also meet them. The first Query with `referencing` of an Archive reads every Record once to
-index the References ([ADR-0028](adr/0028-references-are-indexed-once-per-archive-from-record-trees.md));
+index the References ([ADR-0029](adr/0029-references-are-indexed-once-per-archive-from-record-trees.md));
 the window keeps that index for the Archive, and `p4kx dcb refs` lists the References themselves
 with their fields.
 

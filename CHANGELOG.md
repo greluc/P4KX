@@ -10,11 +10,19 @@ fails while its section is missing.
 
 - Incoming References: `p4kx dcb refs <archive> <guid|record path> --incoming|--outgoing [--format table|json]`
   lists the Records that refer to a Record, or those it refers to, with the field and the array
-  indices of every Reference and its Reference to a GUID no Record has apart; `--files` lists the
+  indices of every Reference, the References to a GUID no Record has apart; `--files` lists the
   edges between record files, `--unresolved` every Reference to a GUID no Record has. The window
   shows a *Referenced by* tab for the selected Record, a Query selects Records with `referencing
   "<GUID or record path>"`. One index over all Records, built in parallel on first use and kept
   per Archive, serves all of them.
+- Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
+  filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
+  mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and
+  `p4kx socpak extract --verify` check each Entry while it is written, do not write a mismatching
+  Entry and count it in the summary; `p4kx socpak verify` does the same with the plain CRC-32 of
+  a container. The checksum is computed while the data streams, without a second pass, and
+  reading stays unchecked unless asked for. `Archive::open_entry_verified` and
+  `ExtractOptions::verify` are the library switches.
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected
@@ -116,6 +124,10 @@ fails while its section is missing.
   lists them; at most 1024 issues are listed and all are counted. A ZIP64 locator that does not
   stand right before the end record is found by searching backwards. Extraction now also rejects
   the Windows device names `COM¹` to `COM³` and `LPT¹` to `LPT³` as Entry paths.
+- A WEM with the format tag `0x0002` is no longer always taken for IMA ADPCM: a `fmt` chunk that
+  holds DSP coefficients (`12 + 46 × channels` bytes after the common fields) is DSP ADPCM, which
+  is reported as unsupported, and one with a block alignment of 260 bytes per channel is PTADPCM
+  and decodes. These are console variants; every Star Citizen WEM is Wwise Vorbis.
 - Soundbanks with a quirk that leaves the rest readable are no longer rejected whole: bytes after
   the last `HIRC` object, a repeated `DIDX` WEM ID (the first entry is kept), `DIDX` without
   `DATA` and a non-UTF-8 name in `STID` are worked around and listed by `Soundbank::warnings`.

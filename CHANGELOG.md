@@ -15,6 +15,17 @@ fails while its section is missing.
   shows a *Referenced by* tab for the selected Record, a Query selects Records with `referencing
   "<GUID or record path>"`. One index over all Records, built in parallel on first use and kept
   per Archive, serves all of them.
+- Models: levels of detail, tangents and vertex colours. `p4kx model info` lists every LOD with
+  its vertex and triangle counts and whether its meshes have normals, tangents and colours;
+  `p4kx model glb --lod <n>` exports the level of detail `n` (0 by default; a level the model
+  lacks exits with code 2) from the geometry companion `<stem>_lod<n>.<extension>m`, with the
+  nodes of the base model file. The GLB now carries `TANGENT` (with handedness) and `COLOR_0` for
+  the meshes that have them; `--no-vertex-colours` leaves the colours out. `Model::read_with`,
+  `LodSelection`, `Mesh::tangents`, `Mesh::colours` in `p4kx-model`, `GlbOptions::vertex_colours`
+  in `p4kx-gltf`. Real-Archive tests check the tangents against the texture axes, the LODs of 360
+  models and the node chain against the `MeshInfo` box (docs/model-lods-and-vertex-attributes.md,
+  ADR-0028). The vertex colours are read as BGRA; models whose names say `blue` are mostly blue
+  and those named `red` or `orange` mostly red under that order, which a real-Archive test checks.
 - Entry checksums: `p4kx verify <archive> [--filter <filter>]` checks the data of all or the
   filtered Entries against the CRC-32C of the Archive directory in parallel and reports every
   mismatch (exit code 1, `--json` lists them as `mismatched`); `p4kx extract --verify` and
@@ -77,6 +88,11 @@ fails while its section is missing.
 - GUI: alerts fill the width of their panel like the design system's `.alert`, and the tabs of
   the preview scroll sideways with the mouse wheel when they do not fit next to Back, Forward and
   Copy, like `.tab-nav` with `overflow-x: auto`.
+- Models: `p4kx_model::ModelFile` is `#[non_exhaustive]` and has the new variant
+  `LodGeometry(u32)` for the geometry companion of a level of detail from 1 on (`lod<n>-geometry`
+  in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
+  `p4kx model info` has the columns Tangents and Colours, and its chunk table is wider for the
+  `lod<n>-geometry` names.
 - GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
   `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
   bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge

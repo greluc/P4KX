@@ -13,6 +13,9 @@
 //! [`Animation::read_caf`] and [`Dba::read`] read the animations of `.caf` files and `.dba`
 //! animation databases into [`Track`]s of rotation and translation [`Keys`] per controller;
 //! [`Animation::bind`] matches them to the [`Bone`]s of a skeleton by controller ID.
+//!
+//! Both containers are read: an `#ivo` model keeps its meshes in a geometry companion, a `CrCh`
+//! model in its own file, as the physics mesh a `Mesh` chunk refers to (docs/crch-models.md).
 
 mod animation;
 mod animation_error;
@@ -22,6 +25,9 @@ mod bone;
 mod bone_map;
 mod build;
 mod companion;
+mod crch;
+mod crch_mesh;
+mod crch_node;
 mod error;
 mod hierarchy;
 mod material;

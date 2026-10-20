@@ -69,6 +69,9 @@ pub enum QueryExportError {
         #[source]
         source: io::Error,
     },
+    /// The target lies inside a Star Citizen installation; nothing is written there.
+    #[error(transparent)]
+    Installation(#[from] p4kx_guard::WriteRefused),
 }
 
 /// Writes the result of `run`, selected by `query` over the Archive at `archive`, to the file
@@ -82,7 +85,8 @@ pub enum QueryExportError {
 ///
 /// Returns [`QueryExportError::OutputIsArchive`] when `out` is the file at `archive`,
 /// [`QueryExportError::Cancelled`] once `options.cancel` is set and [`QueryExportError::Write`]
-/// when the file cannot be written; the temporary file is removed in every case.
+/// when the file cannot be written; the temporary file is removed in every case. A target inside
+/// a Star Citizen installation gives [`QueryExportError::Installation`].
 pub fn export_query(
     query: &CompiledQuery<'_>,
     run: &QueryRun<'_, '_>,
@@ -93,6 +97,7 @@ pub fn export_query(
     if is_same_file(out, archive) {
         return Err(QueryExportError::OutputIsArchive(out.to_path_buf()));
     }
+    p4kx_guard::ensure_writable(out)?;
     let write_error = |source| QueryExportError::Write {
         path: out.to_path_buf(),
         source,

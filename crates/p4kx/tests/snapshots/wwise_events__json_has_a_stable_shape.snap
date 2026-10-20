@@ -1,0 +1,49 @@
+---
+source: crates/p4kx/tests/wwise_events.rs
+expression: "serde_json::to_string_pretty(&value)?"
+---
+{
+  "archive": "<archive>",
+  "issues": [],
+  "limit": 100,
+  "next_offset": null,
+  "offset": 0,
+  "search": "shield",
+  "total": 1,
+  "triggers": [
+    {
+      "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
+      "entities": {
+        "count": 2,
+        "listed": [
+          {
+            "class_name": "TEST_Avenger",
+            "guid": "00000000-0000-0000-0000-000000000001",
+            "record_path": "libs/foundry/records/entities/spaceships/test_avenger"
+          }
+        ]
+      },
+      "events": [
+        {
+          "id": 1958147595,
+          "localised": false,
+          "matched": true,
+          "name": "Play_Shield_Up",
+          "soundbanks": [
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Shared.bnk"
+            },
+            {
+              "language": null,
+              "path": "Data\\Sounds\\wwise\\Ship.bnk"
+            }
+          ]
+        }
+      ],
+      "matched_trigger": true,
+      "name": "Play_Shield",
+      "unmatched": null
+    }
+  ]
+}

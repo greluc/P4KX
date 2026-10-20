@@ -1,0 +1,12 @@
+---
+source: crates/p4kx/tests/wwise_events.rs
+expression: second.stdout
+---
+Play_Shield  Data\Libs\GameAudio\SC_Ship.xml
+  Play_Shield_Up in Shared.bnk, Ship.bnk
+  Entities (2): TEST_Avenger, TEST_Gladius
+Play_Nowhere  Data\Libs\GameAudio\SC_Ship.xml
+  Play_In_No_Bank in no soundbank
+  unmatched: no soundbank holds the Wwise event
+  Entities (0)
+7 of 7 triggers match: showing 3-4 of 7; next page: --offset 4

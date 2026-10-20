@@ -17,6 +17,11 @@ A folder holding Channel folders, e.g. `C:\Program Files\Roberts Space Industrie
 RSI Launcher installs every Channel into one.
 _Avoid_: install folder, game folder
 
+**Installation**:
+The folders of Star Citizen the tool never writes into: the Library folders and the folder of an
+opened Archive that holds the game's `Bin64` folder (ADR-0036).
+_Avoid_: game folder
+
 **Manual entry**:
 A Channel folder, Library folder or Archive the user added by hand, searched in addition to the
 detected places.

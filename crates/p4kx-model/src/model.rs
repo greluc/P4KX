@@ -1,6 +1,7 @@
 use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
+use crate::crch::build as build_crch;
 use crate::{Bone, CompanionResolver, Influences, MaterialStatus, ModelError, Transform};
 
 /// A model read from a chunk file and its companions, in `CryEngine` coordinates: Z up, metres.
@@ -88,7 +89,7 @@ pub struct Mesh {
     /// The bones each vertex is weighted to, one entry per vertex, or `None` for a mesh that is
     /// not skinned. Every bone with a weight is in [`Model::bones`].
     pub influences: Option<Vec<Influences>>,
-    /// The texture coordinates, one per vertex.
+    /// The texture coordinates, one per vertex, or empty when the mesh stores none.
     pub uvs: Vec<[f32; 2]>,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
     pub indices: Vec<u32>,
@@ -170,12 +171,12 @@ pub struct ModelChunk {
 impl Model {
     /// Reads the model `file`, named `name`, fetching its geometry companion `<name>m` from
     /// `companions` unless the file holds its mesh itself; a file without `MeshInfo` chunk whose
-    /// companion does not exist is read as helper nodes without meshes.
+    /// companion does not exist is read as helper nodes without meshes. A `CrCh` file holds its
+    /// meshes itself and needs `companions` only for its material library.
     ///
     /// # Errors
     ///
-    /// Returns [`ModelError::UnsupportedContainer`] for a `CrCh` file,
-    /// [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
+    /// Returns [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
     /// [`ModelError::CompanionChunks`] when the companion is missing or unreadable,
     /// [`ModelError::NoMesh`] when the companion holds no mesh, and [`ModelError::Corrupt`] when a chunk
     /// the model reads is corrupt.
@@ -201,13 +202,10 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
-        if file.container() != Container::Ivo {
-            return Err(ModelError::UnsupportedContainer {
-                file: name.to_owned(),
-                container: file.container(),
-            });
+        match file.container() {
+            Container::Ivo => build(name, file, companions, lods),
+            Container::CrCh => build_crch(name, file, companions, lods),
         }
-        build(name, file, companions, lods)
     }
 
     /// Returns the bones the meshes of `lod` are weighted to: those of the level's own file when

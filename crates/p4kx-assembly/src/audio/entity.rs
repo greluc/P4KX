@@ -47,6 +47,17 @@ impl<'i> EventMatch<'i> {
         self.event
     }
 
+    pub(crate) fn of_trigger(
+        index: &'i AudioIndex,
+        trigger: &'i AtlTrigger,
+    ) -> impl Iterator<Item = Self> + use<'i> {
+        trigger.events().iter().map(move |event| Self {
+            event,
+            holders: index.event_holders(event.id()),
+            index,
+        })
+    }
+
     /// Returns the soundbanks whose `HIRC` section holds the event, in path order.
     pub fn soundbanks(&self) -> impl Iterator<Item = &'i IndexedSoundbank> + use<'i> {
         self.index.soundbanks_at(self.holders)
@@ -97,13 +108,8 @@ impl<'i> EntityTrigger<'i> {
     pub fn events(&self) -> impl Iterator<Item = EventMatch<'i>> + use<'i> {
         let index = self.index;
         self.definition
-            .map_or(&[][..], AtlTrigger::events)
-            .iter()
-            .map(move |event| EventMatch {
-                event,
-                holders: index.event_holders(event.id()),
-                index,
-            })
+            .into_iter()
+            .flat_map(move |definition| EventMatch::of_trigger(index, definition))
     }
 
     /// Returns why the trigger leads to no soundbank, or `None` when a soundbank holds one of its
@@ -113,11 +119,16 @@ impl<'i> EntityTrigger<'i> {
         let Some(definition) = self.definition else {
             return Some(Unmatched::NoDefinition);
         };
-        if definition.events().is_empty() {
-            return Some(Unmatched::NoEvent);
-        }
-        (!self.events().any(|event| event.is_matched())).then_some(Unmatched::NoSoundbank)
+        unmatched_of(self.index, definition)
     }
+}
+
+pub(crate) fn unmatched_of(index: &AudioIndex, definition: &AtlTrigger) -> Option<Unmatched> {
+    if definition.events().is_empty() {
+        return Some(Unmatched::NoEvent);
+    }
+    (!EventMatch::of_trigger(index, definition).any(|event| event.is_matched()))
+        .then_some(Unmatched::NoSoundbank)
 }
 
 /// The audio triggers one Entity names, resolved against an [`AudioIndex`].

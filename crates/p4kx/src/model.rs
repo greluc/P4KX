@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
@@ -20,6 +21,20 @@ use crate::model_json::{ChunkJson, InfoJson, file_name, node_name, usage_name};
 use crate::model_materials_json::LibraryJson;
 
 const NONE: &str = "-";
+
+/// Returns `text` with every control character replaced by U+FFFD, so that a name read from a
+/// model cannot drive the terminal.
+fn clean(text: &str) -> Cow<'_, str> {
+    if text.chars().any(char::is_control) {
+        Cow::Owned(
+            text.chars()
+                .map(|c| if c.is_control() { '\u{fffd}' } else { c })
+                .collect(),
+        )
+    } else {
+        Cow::Borrowed(text)
+    }
+}
 
 #[derive(Serialize)]
 struct GlbJson<'a> {
@@ -120,7 +135,7 @@ fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     }
     let model = source.model();
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(out, "Model:       {}", source.name())?;
+    writeln!(out, "Model:       {}", clean(source.name()))?;
     writeln!(
         out,
         "Geometry:    {}",
@@ -177,7 +192,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 out,
                 "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
                 lod.level,
-                node_name(model, mesh.node),
+                clean(node_name(model, mesh.node)),
                 mesh.positions.len(),
                 mesh.indices.len() / 3,
                 yes_no(mesh.normals.is_some()),
@@ -202,7 +217,11 @@ fn write_nodes(out: &mut impl Write, model: &Model) -> io::Result<()> {
         let parent = node
             .parent
             .map_or_else(|| NONE.to_owned(), |parent| parent.to_string());
-        writeln!(out, "{index:>5}  {parent:<6}  {}", node_name(model, index))?;
+        writeln!(
+            out,
+            "{index:>5}  {parent:<6}  {}",
+            clean(node_name(model, index))
+        )?;
     }
     Ok(())
 }
@@ -236,7 +255,7 @@ fn materials(model: &Model) -> String {
     };
     model.material_library.as_ref().map_or_else(
         || format!("no material library, {ids}"),
-        |library| format!("{library} ({}), {ids}", status(model)),
+        |library| format!("{} ({}), {ids}", clean(library), status(model)),
     )
 }
 
@@ -270,9 +289,9 @@ fn write_materials(out: &mut impl Write, model: &Model) -> io::Result<()> {
         writeln!(
             out,
             "{id:>3}  {:<24}  {:<16}  {:<18}  {:<20}  {:>7}  {}",
-            or_none(&material.name),
-            or_none(&material.shader),
-            or_none(&material.surface_type),
+            clean(or_none(&material.name)),
+            clean(or_none(&material.shader)),
+            clean(or_none(&material.surface_type)),
             format!("{red:.3} {green:.3} {blue:.3}"),
             material.opacity,
             material.textures.len()
@@ -319,7 +338,7 @@ fn glb(
         stdout,
         "wrote {} of {}: {} nodes, {} meshes, {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
         out.display(),
-        source.name(),
+        clean(source.name()),
         summary.nodes,
         summary.meshes,
         summary.primitives,
@@ -343,7 +362,7 @@ fn write_notes(stdout: &mut impl Write, model: &Model, summary: &GlbSummary) -> 
         )?;
     }
     if let Some(problem) = model.materials.problem() {
-        writeln!(stdout, "{problem}; the default material is used")?;
+        writeln!(stdout, "{}; the default material is used", clean(&problem))?;
     }
     if summary.default_material_ids > 0 && model.materials.problem().is_none() {
         writeln!(

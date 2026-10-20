@@ -41,6 +41,7 @@ mod layout_v1;
 mod layout_v2;
 mod mesh_streams;
 mod model;
+mod model_crch;
 mod model_cube;
 mod model_nmc;
 mod model_rig;
@@ -93,6 +94,7 @@ pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
 };
+pub use model_crch::{CRCH_CUBE_ROOT_OFFSET, TestCrchModel};
 pub use model_skeleton::{TestBone, TestSkeleton};
 pub use mtl::{TestMtl, TestMtlMaterial};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};

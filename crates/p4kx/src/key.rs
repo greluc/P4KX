@@ -93,6 +93,7 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
 /// Opens the Archive at `path` with the key of this run, if there is one, and notes on stderr
 /// that it belongs to a test build.
 pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
+    crate::guard::on_archive_open(path.as_ref());
     let archive = Archive::open_with_key(path.as_ref(), KEY.get().cloned().flatten())?;
     crate::test_build::announce(path.as_ref());
     Ok(archive)

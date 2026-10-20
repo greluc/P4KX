@@ -3650,11 +3650,13 @@ dependencies = [
 name = "p4kx-gfx"
 version = "0.2.0"
 dependencies = [
+ "base64",
  "flate2",
  "lzma-rs",
  "p4kx-foundation",
  "p4kx-testkit",
  "png",
+ "roxmltree",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

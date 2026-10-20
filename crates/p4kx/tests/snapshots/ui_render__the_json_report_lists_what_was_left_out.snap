@@ -4,6 +4,7 @@ expression: "serde_json::to_string_pretty(&redacted)?"
 ---
 {
   "failed": [],
+  "format": "png",
   "height": 48,
   "movie": "Data\\UI\\Screens\\SWF\\Panel.gfx",
   "skipped": [

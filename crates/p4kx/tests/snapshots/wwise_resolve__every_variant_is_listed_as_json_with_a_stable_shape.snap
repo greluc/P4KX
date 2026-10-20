@@ -13,6 +13,10 @@ expression: "serde_json::to_string_pretty(&value)?"
     "variants": 5
   },
   "issues": [],
+  "language": {
+    "fallback": null,
+    "requested": null
+  },
   "trigger": {
     "definition": "Data\\Libs\\GameAudio\\SC_Ship.xml",
     "events": [
@@ -32,6 +36,9 @@ expression: "serde_json::to_string_pretty(&value)?"
   "variants": [
     {
       "event": "Play_Engine_Start",
+      "fallback": false,
+      "language": null,
+      "localised": false,
       "location": {
         "kind": "soundbank",
         "len": 40,
@@ -66,6 +73,9 @@ expression: "serde_json::to_string_pretty(&value)?"
     },
     {
       "event": "Play_Engine_Start",
+      "fallback": false,
+      "language": null,
+      "localised": false,
       "location": {
         "kind": "soundbank",
         "len": 24,
@@ -100,6 +110,9 @@ expression: "serde_json::to_string_pretty(&value)?"
     },
     {
       "event": "Play_Engine_Loop",
+      "fallback": false,
+      "language": null,
+      "localised": false,
       "location": {
         "kind": "soundbank",
         "len": 16,
@@ -138,6 +151,9 @@ expression: "serde_json::to_string_pretty(&value)?"
     },
     {
       "event": "Play_Engine_Loop",
+      "fallback": false,
+      "language": null,
+      "localised": false,
       "location": null,
       "path": [
         {
@@ -171,6 +187,9 @@ expression: "serde_json::to_string_pretty(&value)?"
     },
     {
       "event": "Play_Engine_Loop",
+      "fallback": false,
+      "language": null,
+      "localised": false,
       "location": null,
       "path": [
         {

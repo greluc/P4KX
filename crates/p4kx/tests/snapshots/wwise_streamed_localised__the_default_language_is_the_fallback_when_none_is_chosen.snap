@@ -1,0 +1,7 @@
+---
+source: crates/p4kx/tests/wwise_streamed_localised.rs
+expression: run.stdout
+---
+Play_Line  Data\Libs\GameAudio\SC_Audio.xml
+  Play_Line in Common.bnk: WEM 9000 streamed localised English(US), at Data\Sounds\wwise\Media\English(US)\9000.wem (41 bytes); event 3747118996 > action 4 > sound 300
+1 variants: 1 located, 0 not located, 0 plug-in; 0 broken links

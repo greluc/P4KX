@@ -7,12 +7,16 @@ use crate::scene::StrokeStyle;
 /// cover in total, each counted by its bounds clipped to the canvas.
 pub const MAX_COVERAGE_FACTOR: u64 = 64;
 
+/// The most bytes an SVG document may have.
+pub const MAX_SVG_BYTES: u64 = 1 << 30;
+
 /// The limits of one rasterisation.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RasterLimits {
     pub(crate) coverage_factor: u64,
     pub(crate) mask_bytes: u64,
     pub(crate) bitmap_pixels: u64,
+    pub(crate) svg_bytes: u64,
 }
 
 impl RasterLimits {
@@ -20,6 +24,7 @@ impl RasterLimits {
         coverage_factor: MAX_COVERAGE_FACTOR,
         mask_bytes: 1 << 28,
         bitmap_pixels: 4 * MAX_BITMAP_PIXELS,
+        svg_bytes: MAX_SVG_BYTES,
     };
 }
 

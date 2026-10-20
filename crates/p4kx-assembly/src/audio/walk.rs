@@ -1,8 +1,9 @@
 use p4kx_audio::{HircKind, HircObject, HircValue, SoundSource, Soundbank};
 
+use super::locate::locate;
 use super::{
-    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, MAX_CONTAINER_CHILDREN, MAX_PATH_DEPTH,
-    NodeKind, PathStep, SoundVariant, SourceKind, WemLocation, WwiseEvent,
+    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, LanguageChoice, MAX_CONTAINER_CHILDREN,
+    MAX_PATH_DEPTH, NodeKind, PathStep, SoundVariant, WwiseEvent,
 };
 
 /// The variants and broken links one Wwise event leads to in one soundbank.
@@ -19,10 +20,12 @@ pub(crate) fn event<'i>(
     bank: &Soundbank<Vec<u8>>,
     soundbank: &'i IndexedSoundbank,
     event: &'i WwiseEvent,
+    choice: &LanguageChoice,
     budget: usize,
 ) -> Found<'i> {
     let mut walk = Walk {
         index,
+        choice,
         bank,
         soundbank,
         event,
@@ -38,6 +41,7 @@ pub(crate) fn event<'i>(
 
 struct Walk<'w, 'i> {
     index: &'i AudioIndex,
+    choice: &'w LanguageChoice,
     bank: &'w Soundbank<Vec<u8>>,
     soundbank: &'i IndexedSoundbank,
     event: &'i WwiseEvent,
@@ -48,7 +52,7 @@ struct Walk<'w, 'i> {
     found: Found<'i>,
 }
 
-impl<'w, 'i> Walk<'w, 'i> {
+impl<'w> Walk<'w, '_> {
     fn follow(&mut self, id: u32) {
         if self.objects >= self.budget {
             if !self.exhausted {
@@ -133,40 +137,23 @@ impl<'w, 'i> Walk<'w, 'i> {
     }
 
     fn sound(&mut self, source: SoundSource) {
-        let location = match SourceKind::of(&source) {
-            SourceKind::Embedded | SourceKind::PrefetchStreamed => self.embedded(source.source_id),
-            _ => None,
-        };
+        let located = locate(self.index, self.soundbank, self.choice, &source);
+        if located.missing_localisation {
+            self.broke(self.choice.no_localisation());
+        }
         self.found.variants.push(SoundVariant {
             event: self.event,
             soundbank: self.soundbank,
             sound_id: self.path.last().map_or(0, |step| step.id),
             path: self.path.as_slice().into(),
             source,
-            location,
+            location: located.location,
+            localised: located.localised,
+            language: located.language,
+            fallback: located.fallback,
         });
     }
 
-    fn embedded(&self, wem: u32) -> Option<WemLocation<'i>> {
-        let holder = |location: &WemLocation<'i>| match location {
-            WemLocation::Soundbank { soundbank, .. } => *soundbank,
-        };
-        let find = |accepts: &dyn Fn(&'i IndexedSoundbank) -> bool| {
-            self.index
-                .embedded_wem(wem)
-                .find(|location| accepts(holder(location)))
-        };
-        let ours = self.soundbank.language();
-        find(&|bank| std::ptr::eq(bank, self.soundbank))
-            .or_else(|| {
-                find(&|bank| match (bank.language(), ours) {
-                    (Some(theirs), Some(ours)) => theirs.eq_ignore_ascii_case(ours),
-                    _ => false,
-                })
-            })
-            .or_else(|| find(&|bank| bank.language().is_none()))
-            .or_else(|| self.index.embedded_wem(wem).next())
-    }
     fn broke(&mut self, reason: BreakReason) {
         self.found.breaks.push(BrokenLink {
             event: self.event,

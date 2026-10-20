@@ -180,7 +180,7 @@ order is attached. The same Archive always gives the same document.
 ## `p4kx entity audio <archive> <entity> --json`
 
 ```json
-{"archive": "…", "entry": "Data\\Game2.dcb",
+{"archive": "…", "entry": "Data\\Game2.dcb", "language": {…},
  "entity": {"guid": "…", "record_path": "…", "name": "EntityClassDefinition.ORIG_890Jump",
             "class_name": "ORIG_890Jump"},
  "triggers": [Trigger, …], "counts": {"triggers": 47, "matched": 47, "unmatched": 0},
@@ -204,6 +204,12 @@ A **Trigger**:
 | `definition` | string or `null` | Path of the ATL definition Entry; `null` when no definition has the trigger |
 | `events` | array | One Event per `WwiseEvent` of the definition, in order |
 | `unmatched` | object or `null` | Why the trigger reaches no soundbank: `kind` and `message` |
+| `sounds` | object | With `--sounds` only: `variants` and `breaks` as `p4kx wwise resolve` lists them |
+
+With `--sounds`, each trigger that has a definition is resolved as by `p4kx wwise resolve` (the
+soundbanks of the trigger are read again) and the document gets a `language` object with
+`requested` and `fallback`, the same as the one of `wwise resolve`; `--lang` and `--fallback-lang`
+choose the languages. Without `--sounds` the two flags change nothing but are still checked.
 
 An **Event** has `name`, `id` (its Wwise short ID, the 32-bit FNV-1 hash of the name in lower
 case, which is the ID of its Event object in a soundbank's `HIRC` section), `localised` (the
@@ -215,13 +221,14 @@ The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
 (`too_large`: a soundbank above 32 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
-`soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
+`soundbank`, `too_many_triggers`: the index already holds 262,144 triggers, or `too_many_media`:
+the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json
-{"archive": "…",
+{"archive": "…", "language": {"requested": "German", "fallback": "English(US)"},
  "trigger": {"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
              "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false}]},
  "variants": [Variant, …], "breaks": [Break, …],
@@ -246,12 +253,23 @@ A **Variant**:
 | `sound_id` | number | ID of the Sound object |
 | `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
 | `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
-| `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`; `null` when no soundbank embeds the WEM |
+| `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
+| `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
+| `fallback` | boolean | `language` is the fallback language, not `requested` |
+| `location` | object or `null` | `kind` `soundbank` with the `soundbank` path, `offset` in its `DATA` section and `len`, or `kind` `entry` with the `entry` path of a loose WEM and its `len`; `null` when neither holds the WEM |
 | `path` | array | Container path from the Event object to the Sound object, each step with `kind` and `id` |
 
-An embedded or prefetched WEM is looked for in the soundbank of the hierarchy first, then in a
-soundbank of the same language folder, then in a soundbank that is not localised, then in every
-other soundbank; for a prefetched WEM the location holds only its start. Step kinds are
+A streamed or prefetched WEM is looked for as a loose WEM Entry named `<id>.wem` below
+`Data\Sounds\wwise\` (also in its `Media` folder): a localised one in the language folder of its
+soundbank, else of `requested`, else of the fallback language, else among the WEMs that are not
+localised; a prefetched WEM without such an Entry has the start in the soundbank as its location.
+An embedded WEM is looked for in the soundbank of the hierarchy first, then in a soundbank of the
+same language folder, then in a soundbank that is not localised, then in every other soundbank,
+and last as a loose WEM. A localised event is followed only in the soundbanks of `requested` or,
+where it has none, of the fallback; `requested` and `fallback` are `null` for a language not
+named, and the command line fills the fallback with `English(US)` or the first language folder.
+`--lang` and `--fallback-lang` must name a language folder of the Archive (`Data\Sounds\wwise\<folder>`),
+otherwise the exit code is 2. Step kinds are
 `event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
 not followed its `HIRC` type, e.g. `music_track`.
 
@@ -262,7 +280,9 @@ ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The ki
 an ID the soundbank does not hold), `malformed`, `unknown_layout` (a sound or container of a bank
 version other than 154), `unsupported` (an object kind that is not followed, e.g. music), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a
-container are followed) and `too_many_objects` (at most 16,384 objects per event and soundbank).
+container are followed), `too_many_objects` (at most 16,384 objects per event and soundbank) and
+`no_localisation` (a localised event or streamed sound has no soundbank or WEM in `requested` nor
+in the fallback language).
 New kinds may be added in later versions.
 
 ## `p4kx dcb query <archive> <query> --json`
@@ -607,12 +627,13 @@ each a `style_change` (a `move_to` position and new style numbers), a `straight_
 `delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
 not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
-## `p4kx ui render <archive> <entry> --out <file.png> [--size <W>x<H>|<W>] [--background …] --json`
+## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] --json`
 
 Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on disk.
 
 ```json
-{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "width": 64, "height": 48,
+{"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
+ "width": 64, "height": 48,
  "skipped": [{"id": 50, "depth": 7, "sprite": 9, "reason": "not_drawn", "drawn": false,
               "message": "DefineText definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
@@ -620,9 +641,9 @@ Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on di
              refers to ../Textures/gone.dds, which does not exist; …"}]}
 ```
 
-`width` and `height` are the pixels of the PNG written to `target`. `skipped` lists in drawing
-order every element the frame left out or drew without an effect: `id` and `depth` name the
-placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
+`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
+of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
+left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
 one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `filters` and

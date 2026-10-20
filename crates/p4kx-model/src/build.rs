@@ -247,7 +247,7 @@ fn first_of<B: AsRef<[u8]>>(file: &ChunkFile<B>, types: &[ChunkType]) -> Option<
         .map(|(index, _)| index)
 }
 
-fn usage<B: AsRef<[u8]>>(
+pub(crate) fn usage<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     which: ModelFile,
     read: &[(ModelFile, usize)],
@@ -274,7 +274,7 @@ fn usage<B: AsRef<[u8]>>(
         .collect()
 }
 
-fn root_node(name: &str) -> Node {
+pub(crate) fn root_node(name: &str) -> Node {
     let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
     Node {
         name: stem.to_owned(),
@@ -283,7 +283,7 @@ fn root_node(name: &str) -> Node {
     }
 }
 
-fn corrupt(
+pub(crate) fn corrupt(
     file: &str,
     index: usize,
     chunk: &'static str,

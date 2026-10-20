@@ -8,9 +8,15 @@
 //! `.mtl` file the IDs index. Coordinates stay in the `CryEngine`
 //! convention, Z up, in metres. Chunks the model does not read are listed with their
 //! [`ChunkUsage`].
+//!
+//! Both containers are read: an `#ivo` model keeps its meshes in a geometry companion, a `CrCh`
+//! model in its own file, as the physics mesh a `Mesh` chunk refers to (docs/crch-models.md).
 
 mod build;
 mod companion;
+mod crch;
+mod crch_mesh;
+mod crch_node;
 mod error;
 mod material;
 mod mesh;

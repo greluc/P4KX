@@ -71,7 +71,7 @@ pub(crate) fn read_nodes(data: &[u8]) -> Result<Vec<Node>, CorruptChunk> {
     Ok(nodes)
 }
 
-fn check_acyclic(nodes: &[Node]) -> Result<(), CorruptChunk> {
+pub(crate) fn check_acyclic(nodes: &[Node]) -> Result<(), CorruptChunk> {
     const UNSEEN: u8 = 0;
     const ON_PATH: u8 = 1;
     const ROOTED: u8 = 2;

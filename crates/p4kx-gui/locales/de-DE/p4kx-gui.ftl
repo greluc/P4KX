@@ -645,3 +645,46 @@ about-no-game-data = Es liefert keine Spieldaten mit und liest nur deine eigene 
 about-responsibility = Du bist dafür verantwortlich, bei der Nutzung die Endbenutzer-Lizenzvereinbarung (EULA) und die Nutzungsbedingungen (Terms of Service) von Star Citizen einzuhalten.
 about-owners = Alle Inhalte, die nicht von den Mitwirkenden von P4K-Extractor oder seinen Nutzern stammen, sind Eigentum ihrer jeweiligen Inhaber.
 about-trademark = Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.
+scroll-hits = Suchtreffer
+content-search-tab = Suche
+content-search-label = Suche
+content-search-hint = Gesuchter Text, z. B. Gladi
+content-search-run = Suchen
+content-search-cancel = Abbrechen
+content-search-sources = Suchen in
+content-search-source-records = Records
+content-search-source-localization = Lokalisierung
+content-search-source-entries = Einträge
+content-search-empty-title = Kein Archiv geöffnet
+content-search-empty-hint = Öffnen Sie ein Archiv, um die Inhalte seiner Records, Lokalisierungstexte und Einträge zu durchsuchen.
+content-search-prompt = Geben Sie einen Text ein und wählen Sie Suchen. Er wird auch als Teil eines längeren Textes gefunden, unabhängig von der Groß- und Kleinschreibung.
+content-search-searching = Suche läuft …
+content-search-cancelled = Die Suche wurde abgebrochen.
+content-search-failed = Die Suche ist fehlgeschlagen: { $reason }
+content-search-stopped = Die Suche wurde ohne Ergebnis beendet.
+content-search-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um es zu durchsuchen.
+content-search-no-match = Nichts passt zu „{ $text }“.
+content-search-none-here = Diese Quelle hat keinen Treffer.
+content-search-segment = { $name } ({ $number })
+content-search-segment-more = { $name } ({ $number }+)
+content-search-hits =
+    { $count ->
+        [one] { $number } Treffer in { $seconds } s
+       *[other] { $number } Treffer in { $seconds } s
+    }
+content-search-more = Es gibt weitere Treffer. Pro Quelle bleiben nur die ersten { $number }; ein längerer Text grenzt die Suche ein.
+content-search-skipped =
+    { $count ->
+        [one] { $number } Eintrag wurde nicht durchsucht: { $binary } binär, { $large } zu groß, { $key } verschlüsselt ohne passenden Archivschlüssel, { $unreadable } nicht lesbar.
+       *[other] { $number } Einträge wurden nicht durchsucht: { $binary } binär, { $large } zu groß, { $key } verschlüsselt ohne passenden Archivschlüssel, { $unreadable } nicht lesbar.
+    }
+content-search-no-dataforge = Das Archiv enthält keine DataForge, deshalb wurde kein Record durchsucht.
+content-search-scanned = Durchsucht: { $records } Records, { $texts } Texte und { $entries } Einträge.
+content-search-column-record = Record-Pfad
+content-search-column-field = Feld
+content-search-column-text = Text
+content-search-column-language = Sprache
+content-search-column-key = Schlüssel
+content-search-column-entry = Eintrag
+content-search-column-line = Zeile
+content-search-row = { $place }: { $text }

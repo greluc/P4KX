@@ -3725,6 +3725,7 @@ dependencies = [
  "p4kx-comparison",
  "p4kx-export",
  "p4kx-extraction",
+ "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
  "p4kx-update",

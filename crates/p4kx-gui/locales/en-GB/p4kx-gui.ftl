@@ -645,3 +645,46 @@ about-no-game-data = It ships no game data and reads only your own Star Citizen 
 about-responsibility = You are responsible for complying with the Star Citizen End User Licence Agreement and Terms of Service when you use it.
 about-owners = All content not authored by the P4K-Extractor contributors or its users is the property of its respective owners.
 about-trademark = Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.
+scroll-hits = Search hits
+content-search-tab = Search
+content-search-label = Search
+content-search-hint = Text to find, e.g. Gladi
+content-search-run = Search
+content-search-cancel = Cancel
+content-search-sources = Look in
+content-search-source-records = Records
+content-search-source-localization = Localisation
+content-search-source-entries = Entries
+content-search-empty-title = No Archive open
+content-search-empty-hint = Open an Archive to search the contents of its Records, localisation texts and Entries.
+content-search-prompt = Type a text and press Search. It is found as part of a longer text, whatever its case.
+content-search-searching = Searching…
+content-search-cancelled = The search was cancelled.
+content-search-failed = The search failed: { $reason }
+content-search-stopped = The search stopped without a result.
+content-search-archive-changed = The Archive changed on disk. Reload it to search it.
+content-search-no-match = Nothing matches “{ $text }”.
+content-search-none-here = This source has no hit.
+content-search-segment = { $name } ({ $number })
+content-search-segment-more = { $name } ({ $number }+)
+content-search-hits =
+    { $count ->
+        [one] { $number } hit in { $seconds } s
+       *[other] { $number } hits in { $seconds } s
+    }
+content-search-more = More matches exist. Only the first { $number } of a source are kept; make the text longer to narrow the search.
+content-search-skipped =
+    { $count ->
+        [one] { $number } Entry was not searched: { $binary } binary, { $large } too large, { $key } encrypted without a matching Archive key, { $unreadable } unreadable.
+       *[other] { $number } Entries were not searched: { $binary } binary, { $large } too large, { $key } encrypted without a matching Archive key, { $unreadable } unreadable.
+    }
+content-search-no-dataforge = The Archive holds no DataForge, so no Record was searched.
+content-search-scanned = Searched { $records } Records, { $texts } texts and { $entries } Entries.
+content-search-column-record = Record path
+content-search-column-field = Field
+content-search-column-text = Text
+content-search-column-language = Language
+content-search-column-key = Key
+content-search-column-entry = Entry
+content-search-column-line = Line
+content-search-row = { $place }: { $text }

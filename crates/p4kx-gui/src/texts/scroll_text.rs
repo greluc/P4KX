@@ -22,11 +22,13 @@ pub enum ScrollText {
     Incoming,
     /// The embedded WEMs of a soundbank.
     Soundbank,
+    /// The hits of the Search tab.
+    Hits,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 10] = [
+    pub(crate) const ALL: [Self; 11] = [
         Self::Text,
         Self::Hex,
         Self::Image,
@@ -37,6 +39,7 @@ impl ScrollText {
         Self::SavedQueries,
         Self::Incoming,
         Self::Soundbank,
+        Self::Hits,
     ];
 
     /// Returns the Fluent message id.
@@ -53,6 +56,7 @@ impl ScrollText {
             Self::SavedQueries => "scroll-saved-queries",
             Self::Incoming => "scroll-incoming",
             Self::Soundbank => "scroll-soundbank",
+            Self::Hits => "scroll-hits",
         }
     }
 }

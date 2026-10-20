@@ -1,4 +1,4 @@
-use p4kx_extraction::{Archive, DataForgeEntry, DataForgeError, DataForgeLoadError};
+use p4kx_extraction::{Archive, DataForge, DataForgeEntry, DataForgeError, DataForgeLoadError};
 use thiserror::Error;
 
 use crate::{
@@ -34,42 +34,59 @@ pub fn search(
     options: &SearchOptions,
     stop: &(dyn Fn() -> bool + Sync),
 ) -> Result<Option<SearchReport>, SearchError> {
+    if !options.sources.contains(Source::Records) {
+        return Ok(search_in(archive, None, needle, options, stop));
+    }
+    match DataForgeEntry::read(archive) {
+        Ok(entry) => {
+            let forge = entry.open().map_err(SearchError::DataForgeOpen)?;
+            Ok(search_in(archive, Some(&forge), needle, options, stop))
+        }
+        Err(DataForgeLoadError::Missing) => Ok(search_in(archive, None, needle, options, stop)),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Searches `archive` like [`search`] with a DataForge the caller already holds.
+///
+/// A window searches the one it keeps in memory. Without `forge` the search of Records adds
+/// [`Unavailable`] to the report. Returns `None` once `stop` has returned `true`.
+#[must_use]
+pub fn search_in<'f>(
+    archive: &Archive,
+    forge: Option<&'f DataForge<'f>>,
+    needle: &Needle,
+    options: &SearchOptions,
+    stop: &(dyn Fn() -> bool + Sync),
+) -> Option<SearchReport> {
     let mut report = SearchReport::default();
     if options.sources.contains(Source::Records) {
-        match DataForgeEntry::read(archive) {
-            Ok(entry) => {
-                let forge = entry.open().map_err(SearchError::DataForgeOpen)?;
-                let Some(found) = search_records(&forge, needle, options, stop) else {
-                    return Ok(None);
-                };
+        match forge {
+            Some(forge) => {
+                let found = search_records(forge, needle, options, stop)?;
                 take(&mut report, Source::Records, found, |report| {
                     &mut report.records
                 });
             }
-            Err(DataForgeLoadError::Missing) => report.unavailable.push(Unavailable {
+            None => report.unavailable.push(Unavailable {
                 source: Source::Records,
                 reason: DataForgeLoadError::Missing.to_string(),
             }),
-            Err(error) => return Err(error.into()),
         }
     }
     if options.sources.contains(Source::Localization) {
-        let Some(found) = search_localization(archive, needle, options, stop) else {
-            return Ok(None);
-        };
+        let found = search_localization(archive, needle, options, stop)?;
         take(&mut report, Source::Localization, found, |report| {
             &mut report.localization
         });
     }
     if options.sources.contains(Source::Entries) {
-        let Some(found) = search_entries(archive, needle, options, stop) else {
-            return Ok(None);
-        };
+        let found = search_entries(archive, needle, options, stop)?;
         take(&mut report, Source::Entries, found, |report| {
             &mut report.entries
         });
     }
-    Ok(Some(report))
+    Some(report)
 }
 
 fn take<T>(

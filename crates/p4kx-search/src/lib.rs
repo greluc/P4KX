@@ -39,4 +39,4 @@ pub use records::search_records;
 pub use report::{
     EntryHit, Found, LocalizationHit, RecordHit, SearchReport, SearchStats, Unavailable,
 };
-pub use search::{SearchError, search};
+pub use search::{SearchError, search, search_in};

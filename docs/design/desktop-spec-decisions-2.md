@@ -269,3 +269,35 @@ Cloud-Imperium-Gruppe, dass keine Spieldaten mitgeliefert und nur die eigene Ins
 wird, die Verantwortung für EULA und Terms of Service, der Eigentumshinweis und zuletzt die
 Markenangabe. Die Urheberzeile und die Markenangabe sind Rechtstext und stehen in beiden Sprachen
 im englischen Wortlaut. Nur Text, kein Fankit-Logo.
+
+**D.39 Tab „Suche" durchsucht die Inhalte des Archivs.** Hinter „Lokalisierung" steht der Tab
+„Suche" (Tab-Leiste wie D.1, Großbuchstaben, orange Unterstreichung). Er liegt neben dem
+Pfad-Filter des Tabs „Durchsuchen": der Filter wählt Einträge nach Pfad, die Suche findet Text in
+den Inhalten (ADR-0044). Kopf: das Suchfeld wie in Durchsuchen und Lokalisierung (Eyebrow „Suche",
+Lupe, Hinweis in kursiv), rechts die CTA „Suchen" (die eine Hauptaktion; während der Suche die
+Ghost-Schaltfläche „Abbrechen"); Enter im Feld startet ebenfalls. Darunter die Zeile „Suchen in"
+mit drei Checkboxen (Records, Lokalisierung, Einträge, alle gewählt; ohne Quelle ist die CTA
+gesperrt). Die Suche läuft nicht bei jedem Tastendruck, sondern auf Befehl, weil ein Lauf alle
+Quellen liest; ein laufender Lauf zeigt den Spinner (`SPINNER_INLINE`) und „Suche läuft …".
+
+Das Ergebnis: eine Warnleiste (`.alert--warning`) je Hinweis, wenn weitere Treffer existieren
+(je Quelle höchstens 1.000), wenn Records fehlen, weil das Archiv keine DataForge hat, und wenn
+Einträge nicht durchsucht wurden (binär, zu groß, verschlüsselt ohne passenden Archivschlüssel,
+nicht lesbar, jeweils mit Zahl). Darunter die Segmentleiste (`.krt-segmented`, D.1) mit einer
+Quelle je Segment und der Trefferzahl, „Records (2)", mit „+" hinter der Zahl bei weiteren
+Treffern; sie wählt die Quelle, deren Treffer die Liste zeigt, anfangs die erste mit Treffern.
+Die Liste ist eine virtuelle Tabelle mit drei Spalten in Tabellenkopf und Zeilenhöhe von D.2
+(Records: Record-Pfad, Feld, Text; Lokalisierung: Sprache, Schlüssel, Text; Einträge: Pfad, Zeile,
+Text). Der Ausschnitt in der letzten Spalte steht in 13,8 / 400 `color-gray-1`, der Treffer darin
+in 700 `color-white` (Daten sind weiß, Orange bleibt Aktion und Identität). Die gewählte Zeile
+trägt den orangen Balken von D.2; die Liste ist eine fokussierbare Scrollfläche (D.24) mit dem
+Namen „Suchtreffer". Der Fuß (`.list-panel__footer`) nennt Trefferzahl und Dauer. Texte aus dem
+Archiv (Pfade, Schlüssel, Feldnamen, Ausschnitte) laufen durch denselben Filter wie die Ausgabe
+der CLI: Steuer- und Bidi-Zeichen werden durch U+FFFD ersetzt.
+
+Ein Klick auf einen Treffer öffnet ihn: ein Record wird im Record-Baum gewählt (die Vorschau
+wechselt auf „Record"), ein Eintrag in seinem Ordner mit aufgeklappten Ordnern darüber, ein
+Lokalisierungstext im Tab „Lokalisierung" mit der Zelle der Sprache. Wartet das Ziel auf Daten
+(DataForge, Lokalisierungsdateien), wird es geöffnet, sobald sie gelesen sind. Der Tab fügt
+keine Farbe, Größe oder Form hinzu; alle Werte stammen aus `tokens.json`. Geprüft mit Renders in
+en-GB und de-DE.

@@ -210,3 +210,47 @@ fn a_container_entry_is_checked_against_its_plain_crc32() -> TestResult {
     );
     Ok(())
 }
+
+fn stored_deflate_block(data: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+    let len = u16::try_from(data.len())?;
+    let mut block = vec![0x01];
+    block.extend_from_slice(&len.to_le_bytes());
+    block.extend_from_slice(&(!len).to_le_bytes());
+    block.extend_from_slice(data);
+    Ok(block)
+}
+
+fn raw_zstd_frame(data: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+    let size = u8::try_from(data.len())?;
+    let header = (u32::from(size) << 3) | 1;
+    let mut frame = vec![0x28, 0xB5, 0x2F, 0xFD, 0x20, size];
+    frame.extend_from_slice(header.to_le_bytes().get(..3).ok_or("header")?);
+    frame.extend_from_slice(data);
+    Ok(frame)
+}
+
+#[test]
+fn a_flipped_data_byte_that_still_decodes_is_reported_for_deflate_and_zstd() -> TestResult {
+    for (entry, framed) in [
+        (
+            TestEntry::deflated("Data\\a.bin", DATA),
+            stored_deflate_block(DATA)?,
+        ),
+        (TestEntry::zstd("Data\\a.bin", DATA), raw_zstd_frame(DATA)?),
+    ] {
+        let (_dir, intact) =
+            open(&ArchiveBuilder::new().entry(entry.clone().with_payload(framed.clone())))?;
+        assert_eq!(read_verified(&intact)??, DATA, "the framed data decodes");
+        let mut broken = framed;
+        *broken.last_mut().ok_or("empty")? ^= 0x01;
+        let (_dir, archive) = open(&ArchiveBuilder::new().entry(entry.with_payload(broken)))?;
+
+        let error = mismatch(read_verified(&archive)?)?;
+
+        assert!(
+            matches!(error, DataError::ChecksumMismatch { .. }),
+            "got {error}"
+        );
+    }
+    Ok(())
+}

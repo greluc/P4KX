@@ -3,14 +3,13 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::{
-    Archive, ArchiveWatch, Checksum, Entry, EntryFailure, Filter, VerificationReport,
-    VerifyOptions, verify,
+    Archive, ArchiveWatch, Entry, Filter, VerificationReport, VerifyOptions, verify,
 };
 use serde::Serialize;
 
 use crate::cli::VerifyArgs;
 use crate::extract::{self, NoMatch};
-use crate::extract_report::reason;
+use crate::failure_report::{FailureJson, MismatchJson, reason, unreadable, write_mismatch};
 use crate::progress::ProgressLine;
 use crate::{exit, json};
 
@@ -22,38 +21,6 @@ struct ReportJson<'a> {
     failed: Vec<FailureJson<'a>>,
     cancelled: &'a [String],
     archive_changed: bool,
-}
-
-/// The JSON shape of an Entry whose data does not match its checksum.
-#[derive(Serialize)]
-pub(crate) struct MismatchJson<'a> {
-    path: &'a str,
-    kind: &'static str,
-    expected: String,
-    actual: String,
-}
-
-impl<'a> MismatchJson<'a> {
-    /// Returns the JSON of `failure` when it is a checksum mismatch.
-    pub(crate) fn of(failure: &'a EntryFailure) -> Option<Self> {
-        let (expected, actual) = failure.checksum_mismatch()?;
-        Some(Self {
-            path: failure.path(),
-            kind: expected.name(),
-            expected: hex(expected),
-            actual: hex(actual),
-        })
-    }
-}
-
-#[derive(Serialize)]
-struct FailureJson<'a> {
-    path: &'a str,
-    error: String,
-}
-
-fn hex(checksum: Checksum) -> String {
-    format!("{:08x}", checksum.value())
 }
 
 /// Checks the Entries of the Archive, or those the Filter matches, against their checksums and
@@ -131,33 +98,9 @@ fn report_json<'a>(archive: &Archive, report: &'a VerificationReport) -> ReportJ
             .iter()
             .filter_map(MismatchJson::of)
             .collect(),
-        failed: unreadable(report.failures())
-            .map(|failure| FailureJson {
-                path: failure.path(),
-                error: reason(failure),
-            })
-            .collect(),
+        failed: unreadable(report.failures()).map(FailureJson::of).collect(),
         cancelled: report.cancelled(),
         archive_changed: report.archive_changed(),
-    }
-}
-
-/// Returns the failures that are no checksum mismatch.
-pub(crate) fn unreadable(failures: &[EntryFailure]) -> impl Iterator<Item = &EntryFailure> {
-    failures
-        .iter()
-        .filter(|failure| failure.checksum_mismatch().is_none())
-}
-
-/// Writes the line of a checksum mismatch to `out`.
-pub(crate) fn write_mismatch(out: &mut impl Write, failure: &EntryFailure) -> io::Result<()> {
-    match failure.checksum_mismatch() {
-        Some((expected, actual)) => writeln!(
-            out,
-            "mismatch {}: {actual} computed, {expected} stored",
-            failure.path()
-        ),
-        None => Ok(()),
     }
 }
 

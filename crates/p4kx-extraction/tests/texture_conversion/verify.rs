@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use p4kx_extraction::{ConflictPolicy, ExtractOptions, extract};
+use p4kx_extraction::{ConflictPolicy, ExtractOptions, TextureConversion, extract};
 
 use crate::fixture::{Fixture, HEADER, files, rock, texture_entries};
 
@@ -40,6 +40,44 @@ fn a_part_with_a_wrong_checksum_fails_a_verified_texture_run() -> TestResult {
             "Data/Textures/rock_diff.dds.3"
         ],
         "the mismatching part is not written and the texture falls back to its raw Entries"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_header_with_a_flipped_data_byte_fails_a_verified_png_export() -> TestResult {
+    let mut entries = texture_entries(&rock());
+    let header = entries.remove(0);
+    let mut payload = header.payload().to_vec();
+    if let Some(last) = payload.last_mut() {
+        *last ^= 0x01;
+    }
+    entries.insert(0, header.with_payload(payload));
+    let fixture = Fixture::new(entries)?;
+    let all: Vec<_> = fixture.archive.entries().iter().collect();
+    let options = ExtractOptions {
+        policy: ConflictPolicy::Skip,
+        convert: true,
+        textures: TextureConversion {
+            merge: false,
+            png: Some(0),
+            keep_raw: false,
+        },
+        verify: true,
+        ..ExtractOptions::default()
+    };
+
+    let report = extract(&fixture.archive, &all, &fixture.target, &options);
+
+    let bad: Vec<_> = report
+        .checksum_mismatches()
+        .map(p4kx_extraction::EntryFailure::path)
+        .collect();
+    assert_eq!(bad, [HEADER], "the header is reported as a mismatch");
+    assert!(!report.is_complete(), "the run fails");
+    assert!(
+        !files(&fixture.target)?.contains(&"Data/Textures/rock_diff.png".to_owned()),
+        "no PNG is written from unverified header bytes"
     );
     Ok(())
 }

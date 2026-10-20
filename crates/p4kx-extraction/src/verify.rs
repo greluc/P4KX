@@ -134,7 +134,7 @@ pub fn verify(
         .par_iter()
         .enumerate()
         .fold(
-            || (Tally::default(), vec![0; CHUNK_LEN]),
+            || (Tally::default(), Vec::new()),
             |(mut tally, mut buffer), (position, entry)| {
                 match check(archive, entry, &mut buffer, &tracker) {
                     Verdict::Verified => tally.verified += 1,
@@ -171,7 +171,7 @@ pub fn verify(
     }
 }
 
-fn check(archive: &Archive, entry: &Entry, buffer: &mut [u8], tracker: &Tracker<'_>) -> Verdict {
+fn check(archive: &Archive, entry: &Entry, buffer: &mut Vec<u8>, tracker: &Tracker<'_>) -> Verdict {
     let mut read = 0;
     let verdict = read_all(archive, entry, buffer, tracker, &mut read);
     tracker.ended(entry, read);
@@ -183,14 +183,23 @@ fn check(archive: &Archive, entry: &Entry, buffer: &mut [u8], tracker: &Tracker<
     }
 }
 
-/// Reads `entry` to its end; returns `false` once the run is to stop.
+/// Reads `entry` to its end; returns `false` once the run is to stop. The buffer grows to the
+/// size of the largest Entry read, up to one chunk.
 fn read_all(
     archive: &Archive,
     entry: &Entry,
-    buffer: &mut [u8],
+    buffer: &mut Vec<u8>,
     tracker: &Tracker<'_>,
     read: &mut u64,
 ) -> Result<bool, ExtractionError> {
+    if tracker.should_stop() {
+        return Ok(false);
+    }
+    let wanted = usize::try_from(entry.uncompressed_size())
+        .map_or(CHUNK_LEN, |size| size.clamp(1, CHUNK_LEN));
+    if buffer.len() < wanted {
+        buffer.resize(wanted, 0);
+    }
     let mut reader = archive.open_entry_verified(entry)?;
     loop {
         if tracker.should_stop() {

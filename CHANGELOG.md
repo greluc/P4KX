@@ -16,7 +16,6 @@ fails while its section is missing.
   a container. The checksum is computed while the data streams, without a second pass, and
   reading stays unchecked unless asked for. `Archive::open_entry_verified` and
   `ExtractOptions::verify` are the library switches.
-
 - socpak containers in the path tree of the window: a container expands like a folder, opened in
   the background with a spinner and cancelled by collapsing it, and nested containers expand too.
   Selecting a container lists its Entries for search, preview and the extraction of the selected

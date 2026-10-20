@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -7,8 +6,9 @@ use serde::Serialize;
 
 use crate::cli::Conflict;
 use crate::dcb_export;
+use crate::failure_report::{FailureJson, MismatchJson, reason, write_mismatch};
 use crate::json;
-use crate::verify::{MismatchJson, write_mismatch};
+
 #[derive(Serialize)]
 pub(crate) struct ReportJson<'a> {
     target: String,
@@ -35,12 +35,6 @@ struct RecordsJson<'a> {
     cancelled: usize,
     error_values: usize,
     records_with_errors: usize,
-}
-
-#[derive(Serialize)]
-struct FailureJson<'a> {
-    path: &'a str,
-    error: String,
 }
 
 pub(crate) fn report_json<'a>(
@@ -85,23 +79,8 @@ fn failures_json(failures: &[EntryFailure], without_mismatches: bool) -> Vec<Fai
     failures
         .iter()
         .filter(|failure| !(without_mismatches && failure.checksum_mismatch().is_some()))
-        .map(|failure| FailureJson {
-            path: failure.path(),
-            error: reason(failure),
-        })
+        .map(FailureJson::of)
         .collect()
-}
-
-/// Returns the error of `failure` followed by its causes, separated by colons.
-pub(crate) fn reason(failure: &EntryFailure) -> String {
-    let mut reason = failure.error().to_string();
-    let mut source = failure.error().source();
-    while let Some(cause) = source {
-        reason.push_str(": ");
-        reason.push_str(&cause.to_string());
-        source = cause.source();
-    }
-    reason
 }
 
 pub(crate) fn print_report(

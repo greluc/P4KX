@@ -70,8 +70,9 @@ pub struct ExtractOptions<'a> {
     pub audio: AudioConversion,
     /// Checks the data of each Entry against the checksum of the directory while it is written
     /// and reports a mismatch as a failure of that Entry, which is then not written. Costs one
-    /// checksum over the decoded bytes; a Conversion that reads only the start of an Entry
-    /// checks nothing there.
+    /// checksum over the decoded bytes; a texture header that a PNG or EXR export
+    /// parses only in part is read to its end first. An Entry skipped by the Conflict policy is not
+    /// read and so not verified.
     pub verify: bool,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,

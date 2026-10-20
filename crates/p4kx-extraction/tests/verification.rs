@@ -4,7 +4,8 @@ use std::error::Error;
 use std::fs;
 
 use p4kx_extraction::{
-    Archive, Checksum, Entry, ExtractOptions, ExtractionError, VerifyOptions, extract, verify,
+    Archive, Checksum, ConflictPolicy, Entry, ExtractOptions, ExtractionError, VerifyOptions,
+    extract, verify,
 };
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
@@ -170,5 +171,34 @@ fn extraction_with_verify_also_checks_converted_cryxml() -> TestResult {
         !target.join("Data").join("a.xml").exists(),
         "nothing is written"
     );
+    Ok(())
+}
+
+#[test]
+fn a_mismatch_keeps_an_existing_file_under_overwrite_and_leaves_no_temporary_file() -> TestResult {
+    let (dir, archive) =
+        open(&ArchiveBuilder::new().entry(TestEntry::zstd("Data\\a.bin", DATA).with_crc32c(5)))?;
+    let entries: Vec<&Entry> = archive.entries().iter().collect();
+    let target = dir.path().join("out");
+    fs::create_dir_all(target.join("Data"))?;
+    fs::write(target.join("Data").join("a.bin"), b"old content")?;
+    let options = ExtractOptions {
+        policy: ConflictPolicy::Overwrite,
+        verify: true,
+        ..ExtractOptions::default()
+    };
+
+    let report = extract(&archive, &entries, &target, &options);
+
+    assert_eq!(report.checksum_mismatches().count(), 1, "one mismatch");
+    assert_eq!(
+        fs::read(target.join("Data").join("a.bin"))?,
+        b"old content",
+        "the existing file survives"
+    );
+    let names: Vec<_> = fs::read_dir(target.join("Data"))?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<_, _>>()?;
+    assert_eq!(names.len(), 1, "no temporary file is left: {names:?}");
     Ok(())
 }

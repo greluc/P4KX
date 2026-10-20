@@ -300,7 +300,9 @@ pub(crate) struct ExtractArgs {
     /// Checks each Entry against the CRC-32C of the Archive directory while it is written: an
     /// Entry that does not match is not written and counted as a checksum mismatch in the
     /// summary and as `mismatched` in the JSON report, and the exit code is 1. Costs one
-    /// checksum pass over the extracted bytes.
+    /// checksum pass over the extracted bytes. An Entry skipped because its file exists is not read
+    /// and so not verified; an unchanged file under the if-changed Conflict policy matched the
+    /// stored CRC-32C.
     #[arg(long)]
     pub(crate) verify: bool,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.

@@ -32,8 +32,11 @@ and every front-end unchanged.
   is `ExtractionError::ChecksumMismatch`, kept apart from `Read` so reports can count it
   (`ExtractionReport::checksum_mismatches`, `mismatched` in the JSON report). Every path that
   reads a whole Entry for a Conversion (CryXml, DataForge, sounds, soundbanks, the header and
-  parts of a texture merge) opens it verified; a Conversion that only reads the start of an
-  Entry checks nothing there.
+  parts of a texture merge) opens it verified. A Conversion that parses only the start of an
+  Entry, as the PNG and EXR export of a texture does with its header, first reads that Entry to its
+  end through the verified reader, so a mismatch is reported there too. An Entry the Conflict policy
+  skips is never read and so never verified; an unchanged file under `IfChanged` matched the stored
+  CRC-32C when it was compared.
 - **`verify` is a service, not an Extraction.** `p4kx_extraction::verify` reads the Entries on
   the rayon pool into one 1 MiB chunk per worker and writes nothing. Per-Entry results are
   folded per worker and merged in Entry order, so memory grows with the number of failures, not

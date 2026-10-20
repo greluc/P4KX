@@ -33,6 +33,7 @@ mod entity_json;
 mod exit;
 mod extract;
 mod extract_report;
+mod failure_report;
 mod info;
 mod issues;
 mod json;

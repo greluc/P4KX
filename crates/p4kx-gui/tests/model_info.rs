@@ -1,12 +1,13 @@
 //! The Info tab of the model preview over a synthetic Archive with a cube model, driven headless.
 
 mod headless;
+mod info_models;
 mod viewing;
 
 use egui_kittest::kittest::Queryable;
 use headless::{opened, ready, status_is_ready};
 use p4kx_gui::{ChunkFile, Language, LodInfo, MaterialsInfo, ModelInfo, ModelPreview, PreviewTab};
-use viewing::{TestResult, model_preview, select};
+use viewing::{TestResult, model_preview, opened_at, select};
 
 fn info(harness: &egui_kittest::Harness<'_, p4kx_gui::Model>) -> Result<ModelInfo, &'static str> {
     model_preview(harness.state())
@@ -159,7 +160,12 @@ fn a_file_that_is_no_model_has_no_info_and_says_so() -> TestResult {
 
 #[test]
 fn chunks_the_model_did_not_read_are_counted_and_listed() -> TestResult {
-    let (_folder, mut harness) = opened(Language::BritishEnglish, ready())?;
+    let (_folder, mut harness) = opened_at(
+        Language::BritishEnglish,
+        ready(),
+        info_models::site(),
+        |b| b,
+    )?;
     select(&mut harness, "extra.cgf")?;
 
     let info = info(&harness)?;
@@ -198,7 +204,12 @@ fn chunks_the_model_did_not_read_are_counted_and_listed() -> TestResult {
 
 #[test]
 fn a_missing_material_library_is_named_in_the_facts() -> TestResult {
-    let (_folder, mut harness) = opened(Language::BritishEnglish, ready())?;
+    let (_folder, mut harness) = opened_at(
+        Language::BritishEnglish,
+        ready(),
+        info_models::site(),
+        |b| b,
+    )?;
     select(&mut harness, "painted.cgf")?;
 
     assert_eq!(

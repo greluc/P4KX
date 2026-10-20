@@ -4,6 +4,7 @@
 //! The tests need a graphics adapter, a software one is enough, and return early without one.
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
+mod info_models;
 mod viewing;
 
 use std::fs::File;
@@ -16,7 +17,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
 use p4kx_gui::{Language, Model, Unavailable, ViewerSupport};
-use viewing::{TestResult, opened_with, select, wait_until};
+use viewing::{TestResult, opened_at, opened_with, select, wait_until};
 
 #[expect(
     clippy::print_stderr,
@@ -68,8 +69,9 @@ fn the_info_tab_and_the_export_windows_render_in_both_languages() -> TestResult 
             return Ok(());
         };
         let support = ViewerSupport::Unavailable(Unavailable::NoDevice);
-        let (folder, mut harness) =
-            opened_with(language, support, |builder| builder.renderer(renderer))?;
+        let (folder, mut harness) = opened_at(language, support, info_models::site(), |builder| {
+            builder.renderer(renderer)
+        })?;
         select(&mut harness, "extra.cgf")?;
 
         harness.get_by_label(info).click();
@@ -95,4 +97,21 @@ fn the_info_tab_and_the_export_windows_render_in_both_languages() -> TestResult 
         harness.state_mut().close_model_export();
     }
     Ok(())
+}
+
+#[test]
+fn the_info_of_a_plain_model_renders_without_the_chunk_table() -> TestResult {
+    let Some(renderer) = renderer() else {
+        return Ok(());
+    };
+    let support = ViewerSupport::Unavailable(Unavailable::NoDevice);
+    let (_folder, mut harness) = opened_with(Language::BritishEnglish, support, |builder| {
+        builder.renderer(renderer)
+    })?;
+    select(&mut harness, "helpers.cgf")?;
+
+    harness.get_by_label("Info").click();
+    harness.run();
+
+    save("model-info-helpers-en-GB.png", &mut harness)
 }

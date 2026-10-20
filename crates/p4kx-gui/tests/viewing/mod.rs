@@ -16,13 +16,7 @@ pub(crate) fn entries() -> Vec<TestEntry> {
     let cube = TestModel::cube();
     let helpers = TestModel::cube().helpers_only();
     let tower = TestModel::cube().moved([0.0, 0.0, 6.0]);
-    let extra = TestModel::cube().with_chunk(0x0BAD_F00D, vec![0; 8]);
-    let painted = TestModel::cube().with_material_library("objects/gone");
     vec![
-        TestEntry::zstd("Data\\Objects\\extra.cgf", extra.cgf()),
-        TestEntry::zstd("Data\\Objects\\extra.cgfm", extra.cgfm()),
-        TestEntry::zstd("Data\\Objects\\painted.cgf", painted.cgf()),
-        TestEntry::zstd("Data\\Objects\\painted.cgfm", painted.cgfm()),
         TestEntry::zstd("Data\\Objects\\cube.cgf", cube.cgf()),
         TestEntry::zstd("Data\\Objects\\cube.cgfm", cube.cgfm()),
         TestEntry::zstd("Data\\Objects\\helpers.cgf", helpers.cgf()),

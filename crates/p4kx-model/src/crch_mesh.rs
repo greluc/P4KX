@@ -6,7 +6,8 @@ use crate::{CorruptChunk, Mesh, Submesh};
 const STREAM_SLOTS: usize = 16;
 const PHYSICS_SLOTS: usize = 4;
 const PHYSICS_HEADER_LEN: usize = 24;
-const PHYSICS_VERSION: u32 = 1;
+const PRIMITIVE_AT: usize = 0x44;
+const POLYHEDRON: u32 = 1;
 const COUNTS_AT: usize = 0x48;
 const VERTICES_AT: usize = 0x5A;
 const VERTEX_LEN: u64 = 12;
@@ -45,7 +46,8 @@ pub(crate) fn physics_chunk_id(data: &[u8]) -> Result<Option<u32>, CorruptChunk>
 /// or `None` when it has no triangles.
 ///
 /// The chunk is a 24-byte header whose first word is the length of the physics data, then the
-/// data: a version word of 1, the number of vertices and of triangles at byte `0x48`, the
+/// data: the primitive type at byte `0x44`, which must be 1 (a polyhedron), the number of
+/// vertices and of triangles at byte `0x48`, the
 /// vertices as three `f32` each from byte `0x5A`, then the triangles as three `u16` vertex
 /// indices each. A triangle has no material ID of its own that is read; the mesh is one submesh
 /// of material ID 0, and it has no normals or texture coordinates.
@@ -55,11 +57,12 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
     header.skip(PHYSICS_HEADER_LEN - 4)?;
     let mut reader = ByteReader::new(header.read_bytes(len)?);
 
-    let version = reader.read_u32()?;
-    if version != PHYSICS_VERSION {
-        return Err(CorruptChunk::PhysicsVersion(version));
+    reader.skip(PRIMITIVE_AT)?;
+    let primitive = reader.read_u32()?;
+    if primitive != POLYHEDRON {
+        return Err(CorruptChunk::PhysicsPrimitive(primitive));
     }
-    reader.skip(COUNTS_AT - 4)?;
+    reader.skip(COUNTS_AT - PRIMITIVE_AT - 4)?;
     let vertex_count = reader.read_u32()?;
     let triangle_count = reader.read_u32()?;
     reader.skip(VERTICES_AT - COUNTS_AT - 8)?;

@@ -78,9 +78,9 @@ fn an_index_beyond_the_vertices_is_rejected() -> TestResult {
 }
 
 #[test]
-fn an_unknown_physics_version_is_rejected() -> TestResult {
-    let (error, _) = corrupt_of(TestCrchModel::cube().with_physics_version(7).bytes())?;
-    assert_eq!(error, CorruptChunk::PhysicsVersion(7));
+fn a_physics_primitive_other_than_a_polyhedron_is_rejected() -> TestResult {
+    let (error, _) = corrupt_of(TestCrchModel::cube().with_physics_primitive(5).bytes())?;
+    assert_eq!(error, CorruptChunk::PhysicsPrimitive(5));
     Ok(())
 }
 
@@ -130,17 +130,6 @@ fn nodes_that_are_each_others_parents_are_rejected() -> TestResult {
     patch(&mut bytes, at, &6_u32.to_le_bytes())?;
     let (error, _) = corrupt_of(bytes)?;
     assert!(matches!(error, CorruptChunk::ParentCycle(_)), "{error:?}");
-    Ok(())
-}
-
-#[test]
-fn a_singular_parent_transform_is_rejected() -> TestResult {
-    let model = TestCrchModel::cube();
-    let mut bytes = model.bytes();
-    let at = node_offset(&model, 0)? + NODE_MATRIX_AT;
-    patch(&mut bytes, at, &0.0_f32.to_le_bytes())?;
-    let (error, _) = corrupt_of(bytes)?;
-    assert_eq!(error, CorruptChunk::SingularTransform(1));
     Ok(())
 }
 

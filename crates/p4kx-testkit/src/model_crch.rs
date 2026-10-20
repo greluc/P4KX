@@ -20,11 +20,12 @@ const NAME_LEN: usize = 64;
 const MTL_NAME_LEN: usize = 196;
 const MESH_LEN: usize = 260;
 const PHYSICS_HEADER_LEN: usize = 24;
+const BLOB_PRIMITIVE_AT: usize = 0x44;
 const BLOB_COUNTS_AT: usize = 0x48;
 const BLOB_VERTICES_AT: usize = 0x5A;
 const BLOB_TREE_LEN: usize = 64;
 
-/// The translation of the root node of the [`TestCrchModel`] cube, in world space.
+/// The translation of the root node of the [`TestCrchModel`] cube.
 pub const CRCH_CUBE_ROOT_OFFSET: [f32; 3] = [5.0, 0.0, 0.0];
 
 /// A synthetic `CrCh` model laid out like the model of the Archives.
@@ -34,9 +35,8 @@ pub const CRCH_CUBE_ROOT_OFFSET: [f32; 3] = [5.0, 0.0, 0.0];
 /// complete it.
 ///
 /// [`Self::cube`] holds the 24 vertices and 12 triangles of [`TestModel::cube`]. The nodes carry
-/// world matrices: the root is moved by [`CRCH_CUBE_ROOT_OFFSET`] and the geometry node by that
-/// and [`CUBE_MESH_OFFSET`], so relative to its parent the geometry node sits at
-/// [`CUBE_MESH_OFFSET`].
+/// local matrices: the root is moved by [`CRCH_CUBE_ROOT_OFFSET`] and the geometry node, relative
+/// to its parent, by [`CUBE_MESH_OFFSET`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct TestCrchModel {
     vertices: Vec<TestVertex>,
@@ -44,7 +44,7 @@ pub struct TestCrchModel {
     material_library: String,
     declared_vertices: Option<u32>,
     streamed_vertices: u32,
-    physics_version: u32,
+    physics_primitive: u32,
     extra: Vec<(u32, u32, Vec<u8>)>,
 }
 
@@ -59,7 +59,7 @@ impl TestCrchModel {
             material_library: CUBE_MATERIAL_LIBRARY.to_owned(),
             declared_vertices: None,
             streamed_vertices: 0,
-            physics_version: 1,
+            physics_primitive: 1,
             extra: Vec::new(),
         }
     }
@@ -90,10 +90,10 @@ impl TestCrchModel {
         self
     }
 
-    /// Writes the physics data with the version word `version`.
+    /// Writes the physics data with the primitive type `primitive` at byte `0x44`.
     #[must_use]
-    pub const fn with_physics_version(mut self, version: u32) -> Self {
-        self.physics_version = version;
+    pub const fn with_physics_primitive(mut self, primitive: u32) -> Self {
+        self.physics_primitive = primitive;
         self
     }
 
@@ -131,12 +131,7 @@ impl TestCrchModel {
             .chunk(
                 NODE,
                 0x824,
-                node_chunk(
-                    "cube_mesh",
-                    MESH_ID,
-                    ROOT_ID,
-                    [root_x + mesh_x, root_y + mesh_y, root_z + mesh_z],
-                ),
+                node_chunk("cube_mesh", MESH_ID, ROOT_ID, [mesh_x, mesh_y, mesh_z]),
             )
             .chunk(UNKNOWN_TYPE, 1, vec![0; 24]);
         for (type_id, version, data) in &self.extra {
@@ -163,7 +158,7 @@ impl TestCrchModel {
     fn physics_chunk(&self) -> Vec<u8> {
         let triangles = self.indices.len() / 3;
         let mut blob = vec![0; BLOB_VERTICES_AT];
-        write_u32(&mut blob, 0, self.physics_version);
+        write_u32(&mut blob, BLOB_PRIMITIVE_AT, self.physics_primitive);
         write_u32(
             &mut blob,
             BLOB_COUNTS_AT,

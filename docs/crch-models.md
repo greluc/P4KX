@@ -53,8 +53,9 @@ the parent or `0xFFFFFFFF`, at `0x48` the number of children, at `0x4C` the chun
 the last row (the row-vector convention); then position, rotation and scale, three controller IDs
 and the length of the property string, which are not read. The matrices of the two nodes are the
 identity (to 2 × 10⁻⁷), so the files do not show whether the matrix is a world or a local
-transform. The reader takes it for the world transform, as the engine's loader does, and makes
-it relative to the parent's: this is a decision (ADR-0041), not a measurement.
+transform. The reader takes it for the local transform, relative to the parent, as
+Cryengine-Converter (`ChunkNode.LocalTransform`) and the engine's CGF loader (`localTM`) do: this
+is a decision (ADR-0041), not a measurement.
 
 **`Mesh` `0x801`**, 260 bytes: flags, flags 2, then at `0x08` the numbers of vertices and indices
 and of subsets, at `0x14` the chunk ID of the subsets, at `0x1C` sixteen chunk IDs of data
@@ -69,16 +70,17 @@ data, then the data. In the data of the Carrack proxy (offsets from the start of
 
 | Offset | Content | Evidence |
 |---|---|---|
-| `0x00` | version word `1` | read; any other value is refused |
+| `0x00` | the first header field, not a version | not read |
+| `0x44` | primitive type `1` (Cryengine-Converter `PhysicsData.cs`: 0 cube, 1 polyhedron, 5 cylinder, 6 other) | read; any other value is refused with `PhysicsPrimitive` |
 | `0x48` | number of vertices `913`, number of triangles `474` | read; the vertex table below fills exactly the declared count and its box equals the box in the `Mesh` header (−30.118…30.118, −64.801…57.380, −14.882…8.388) |
 | `0x50` | `8` and `64`: probably the least and most triangles per node of the bounding-volume tree | not read |
 | `0x5A` | 913 vertices of three `f32` | read |
 | after them | 474 triangles of three `u16` vertex indices; the largest index is 835 | read, every index is checked against the vertex count |
 | after them | about 500 bytes that are zero but for one word, then the bounding-volume tree | not read; the zeros are probably the material IDs of the triangles, so every triangle has the material ID 0 here |
 
-The data from `0x04` to `0x48`, the bytes from `0x58` to `0x5A` and the tree are not decoded;
-the triangles do not need them. The offsets `0x48` and `0x5A` are those of this one file. A file
-with another layout is refused by the version word or by the bounds checks, or its vertices and
+The data before `0x44`, from `0x4C` to `0x5A` and the tree are not decoded; the triangles do not need them. The offsets `0x48` and
+`0x5A` are those of this one file. A file with another layout is refused by the primitive type or
+by the bounds checks, or its vertices and
 triangles are misread; that cannot be told from one sample.
 
 **`MtlName` `0x802`**: the first 128 bytes are the material library, the same field as in `#ivo`.

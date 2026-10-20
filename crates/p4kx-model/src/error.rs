@@ -158,9 +158,6 @@ pub enum CorruptChunk {
         /// The parent chunk ID.
         parent: u32,
     },
-    /// A node's transform cannot be inverted to make it relative to its parent.
-    #[error("the transform of node {0} is singular")]
-    SingularTransform(usize),
     /// A chunk refers to a chunk ID the file does not hold, or one of the wrong type.
     #[error("it refers to the chunk ID {0}, which is missing or of another type")]
     ReferencedChunk(u32),
@@ -175,9 +172,9 @@ pub enum CorruptChunk {
         /// The number of indices the header declares.
         indices: u32,
     },
-    /// A physics mesh chunk is not laid out like the one the Archives hold.
-    #[error("its physics mesh has the version {0}, which is not supported")]
-    PhysicsVersion(u32),
+    /// A physics mesh chunk holds another primitive than a polyhedron, the one the Archives hold.
+    #[error("its physics data has the primitive type {0}, which is not supported")]
+    PhysicsPrimitive(u32),
     /// A physics mesh declares more vertices or triangles than its data holds.
     #[error(
         "the physics mesh declares {vertices} vertices and {triangles} triangles for {len} bytes"

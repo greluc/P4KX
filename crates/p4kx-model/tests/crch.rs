@@ -34,7 +34,7 @@ fn assert_close(actual: [f32; 3], expected: [f32; 3], what: &str) {
 }
 
 #[test]
-fn cube_nodes_keep_names_hierarchy_and_parent_relative_transforms() -> TestResult {
+fn cube_nodes_keep_names_hierarchy_and_local_transforms() -> TestResult {
     let model = read(&TestCrchModel::cube())?;
 
     let names: Vec<&str> = model.nodes.iter().map(|node| node.name.as_str()).collect();
@@ -47,12 +47,12 @@ fn cube_nodes_keep_names_hierarchy_and_parent_relative_transforms() -> TestResul
     assert_close(
         root.transform.translation(),
         CRCH_CUBE_ROOT_OFFSET,
-        "the root keeps its world matrix",
+        "the root keeps its matrix",
     );
     assert_close(
         mesh_node.transform.translation(),
         CUBE_MESH_OFFSET,
-        "the geometry node is relative to its parent",
+        "the geometry node keeps its local matrix",
     );
     Ok(())
 }

@@ -24,11 +24,11 @@ struct Raw {
     object: u32,
     parent: u32,
     name: String,
-    world: Transform,
+    local: Transform,
 }
 
 /// Reads the version `0x824` `Node` chunks of `file`, in table order: name, object chunk ID,
-/// parent chunk ID and the world matrix, which is made relative to the parent's.
+/// parent chunk ID and the matrix, which is the transform relative to the parent.
 pub(crate) fn read_nodes<B: AsRef<[u8]>>(
     file_name: &str,
     file: &ChunkFile<B>,
@@ -54,7 +54,6 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
     }
 
     let mut nodes = Vec::with_capacity(raw.len());
-    let mut parents = Vec::with_capacity(raw.len());
     for (position, (index, record)) in raw.iter().enumerate() {
         let parent = if record.parent == NO_PARENT {
             None
@@ -67,23 +66,15 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
                 })
             })?)
         };
-        parents.push(parent);
         nodes.push(Node {
             name: record.name.clone(),
             parent,
-            transform: record.world,
+            transform: record.local,
         });
     }
     let first = raw.first().map_or(0, |&(index, _)| index);
     check_acyclic(&nodes).map_err(corrupt(file_name, first, "Node"))?;
 
-    let locals = relative_to_parents(&raw, &parents).map_err(|position| {
-        let index = raw.get(position).map_or(first, |&(index, _)| index);
-        corrupt(file_name, index, "Node")(CorruptChunk::SingularTransform(position))
-    })?;
-    for (node, local) in nodes.iter_mut().zip(locals) {
-        node.transform = local;
-    }
     Ok(nodes
         .into_iter()
         .zip(&raw)
@@ -92,24 +83,6 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
             node,
         })
         .collect())
-}
-
-fn relative_to_parents(
-    raw: &[(usize, Raw)],
-    parents: &[Option<usize>],
-) -> Result<Vec<Transform>, usize> {
-    let mut locals = Vec::with_capacity(raw.len());
-    for (position, ((_, record), parent)) in raw.iter().zip(parents).enumerate() {
-        let local = match parent.and_then(|parent| raw.get(parent)) {
-            Some((_, parent)) => {
-                let inverse = parent.world.inverse().ok_or(position)?;
-                inverse.after(&record.world)
-            }
-            None => record.world,
-        };
-        locals.push(local);
-    }
-    Ok(locals)
 }
 
 fn read_record(data: &[u8]) -> Result<Raw, CorruptChunk> {
@@ -130,13 +103,13 @@ fn read_record(data: &[u8]) -> Result<Raw, CorruptChunk> {
         object,
         parent,
         name: String::from_utf8_lossy(name).into_owned(),
-        world: world_transform(&matrix),
+        local: local_transform(&matrix),
     })
 }
 
 /// Converts the row-vector matrix of a node, translation in the last row, to a [`Transform`];
 /// an all-zero matrix is the identity.
-fn world_transform(matrix: &[[f32; 4]; 4]) -> Transform {
+fn local_transform(matrix: &[[f32; 4]; 4]) -> Transform {
     if matrix.iter().flatten().all(|&value| value == 0.0) {
         return Transform::IDENTITY;
     }

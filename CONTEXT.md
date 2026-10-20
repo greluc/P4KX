@@ -39,6 +39,12 @@ _Avoid_: pak, package, zip
 One file inside an Archive, identified by its path in the Archive.
 _Avoid_: file, asset, member
 
+**Entry issue**:
+A defect of one Entry found while the Archive's directory is read, such as data outside the file,
+an encryption field other than 0 or 1, or a path that is not UTF-8. The Archive still opens and the
+Entry stays listed (ADR-0025).
+_Avoid_: warning, error (an error stops the open)
+
 **Folder**:
 A path prefix that Entries share, e.g. `Data\Libs`; spellings that differ only by ASCII case or
 separator kind are one folder, named as its first Entry in path order spells it (ADR-0023).
@@ -98,6 +104,12 @@ _Avoid_: record group, file node
 A label DataForge version 8 stores with every Record, e.g. `SystemsDesign` or `Unknown`; version 6
 Records have none.
 _Avoid_: category, kind
+
+**DataForge issue**:
+A deviation from the known DataForge layout that the reader tolerates and reports instead of
+failing: conversion flags above the low byte of a property, or a Record without name or tag.
+Distinct from an error value, which marks one value that cannot be read.
+_Avoid_: warning
 
 **Reference**:
 A link from one Record to another by GUID; it is never expanded into the referring Record. A weak

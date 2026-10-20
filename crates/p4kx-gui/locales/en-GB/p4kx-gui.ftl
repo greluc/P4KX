@@ -68,6 +68,11 @@ archive-changed =
         [yes] { $path } changed on disk, probably updated by the RSI Launcher. A running Extraction was stopped; reload the Archive to extract or preview Entries again.
        *[no] { $path } changed on disk, probably updated by the RSI Launcher. Reload the Archive to extract or preview Entries again.
     }
+archive-issues =
+    { $kind ->
+        [one] The directory of the Archive has one defect in an Entry. The Entry stays listed, but its data may not be readable; an Extraction reports it if it fails, and `p4kx info` names it.
+       *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
+    }
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…
@@ -87,12 +92,17 @@ extraction-policy-heading = Files that already exist
 extraction-policy-skip = Skip
 extraction-policy-overwrite = Overwrite
 extraction-policy-if-changed = Overwrite only if changed
-extraction-conversion = Convert CryXml and DataForge to XML and textures
+extraction-conversion = Convert CryXml and DataForge to XML, textures and sounds
 extraction-texture-merge = Merge split textures into one DDS
 extraction-texture-png = Export textures as PNG (high-range as OpenEXR)
 extraction-texture-mip-largest = Largest mip
 extraction-texture-mip-level = Mip level
 extraction-texture-raw = Keep the raw texture parts
+extraction-audio-label = Sounds as
+extraction-audio-ogg = Ogg
+extraction-audio-wav = WAV
+extraction-audio-raw = WEM, unchanged
+extraction-audio-banks = Ogg falls back to WAV for a codec without an Ogg form. Soundbanks are also unpacked into a folder per bank, each WEM named by its ID.
 extraction-start = Extract
 extraction-close = Close
 extraction-confirm-all =
@@ -342,6 +352,20 @@ image-decoding = Decoding mip { $level } of { $path }…
 image-unsupported = The preview cannot decode { $format } textures. The Text and Hex tabs still show the data of { $path }.
 image-failed = Cannot decode { $path }: { $reason }
 image-unshowable = Every mip of { $path } is larger than the preview can show.
+container-opening = Opening…
+container-unreadable = Cannot open
+container-unreadable-detail = Cannot open { $name }: { $reason }
+container-over-budget = Not opened: memory limit
+container-over-budget-detail = { $name } was not opened: the open containers already hold { $limit }. Collapse other containers and expand it again.
+container-stopped = Opening stopped
+container-stopped-detail = Opening { $name } stopped without a result. Expand it again to retry.
+container-archive-changed = Archive changed
+container-archive-changed-detail = The Archive changed on disk. Reload it to open { $name }.
+container-status-entries =
+    { $count ->
+        [one] Container: { $number } Entry
+       *[other] Container: { $number } Entries
+    }
 
 menu-export = Export
 record-export-action = Record export…

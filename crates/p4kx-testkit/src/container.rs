@@ -73,9 +73,9 @@ fn write_local_entry(out: &mut Vec<u8>, entry: &TestEntry) -> u32 {
     put_u32(out, entry.crc32);
     put_u32(out, len_u32(&entry.payload));
     put_u32(out, size_u32(entry.uncompressed_size));
-    put_u16(out, len_u16(entry.path.as_bytes()));
+    put_u16(out, len_u16(entry.path_bytes()));
     put_u16(out, 0);
-    out.extend_from_slice(entry.path.as_bytes());
+    out.extend_from_slice(entry.path_bytes());
     out.extend_from_slice(&entry.payload);
     offset
 }
@@ -90,14 +90,14 @@ fn write_central_entry(out: &mut Vec<u8>, entry: &TestEntry, local_offset: u32) 
     put_u32(out, entry.crc32);
     put_u32(out, len_u32(&entry.payload));
     put_u32(out, size_u32(entry.uncompressed_size));
-    put_u16(out, len_u16(entry.path.as_bytes()));
+    put_u16(out, len_u16(entry.path_bytes()));
     put_u16(out, 0);
     put_u16(out, 0);
     put_u16(out, 0);
     put_u16(out, 0);
     put_u32(out, 0);
     put_u32(out, local_offset);
-    out.extend_from_slice(entry.path.as_bytes());
+    out.extend_from_slice(entry.path_bytes());
 }
 
 fn len_u32(bytes: &[u8]) -> u32 {

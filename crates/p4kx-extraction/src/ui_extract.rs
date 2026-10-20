@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use p4kx_gfx::{Assets, Bitmap, BitmapSource, GfxError, MAX_BITMAP_PIXELS, TagFailure};
 use rayon::prelude::*;
 
+use crate::budget::Budget;
 use crate::output_file::write_error;
-use crate::pixel_budget::PixelBudget;
 use crate::ui_jobs::{Job, Outcome, jobs};
 use crate::{ConversionError, UiMovie};
 
@@ -102,7 +102,7 @@ impl UiMovie<'_> {
     pub fn extract_assets(&self, folder: &Path) -> Result<UiExtraction, ConversionError> {
         fs::create_dir_all(folder).map_err(|source| write_error(folder, source))?;
         let mut assets = self.movie().assets();
-        let budget = PixelBudget::new(PIXEL_BUDGET);
+        let budget = Budget::new(PIXEL_BUDGET);
         let mut outcomes: Vec<Outcome> = {
             let jobs = jobs(&assets);
             jobs.par_iter()
@@ -138,7 +138,7 @@ impl UiMovie<'_> {
         assets: &Assets<'_>,
         job: &Job<'_, '_>,
         folder: &Path,
-        budget: &PixelBudget,
+        budget: &Budget,
     ) -> Vec<Outcome> {
         match job {
             Job::Shape(order, shape) => {

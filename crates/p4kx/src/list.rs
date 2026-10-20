@@ -20,6 +20,7 @@ struct EntriesJson<'a> {
 /// its `.dds` header unless `--parts` is given.
 pub(crate) fn run(args: &ListArgs, as_json: bool) -> Result<()> {
     let archive = Archive::open(&args.archive)?;
+    crate::issues::warn(&archive)?;
     if args.parts {
         let entries: Vec<&Entry> = archive.entries().iter().collect();
         return print(archive.path(), None, &entries, as_json);

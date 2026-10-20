@@ -23,7 +23,7 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
-- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>]]` writes the
+- `p4kx extract <archive> <entry paths…> [--out <folder>] [--conflict <policy>] [--convert [--textures <outputs>] [--mip <level>] [--audio <format>]]` writes the
   given Entries (stored, deflate or zstd, encrypted or not) into a new folder
   `SC-EXPORT-<Channel>-<Build version>-<timestamp>` in the current directory (the Channel is the
   name of the folder holding the Archive, an unknown Build is `UnknownBuild`, the timestamp is
@@ -60,10 +60,24 @@ Early development (milestone M1). Available today:
   reason, its raw Entries are written (the parts only when the merged DDS was written), and the
   Extraction continues with exit code 1. A part selected without its header is written
   unchanged.
+  `--convert` also converts WEM sounds (`<name>.wem`) as `--audio` says, by default `ogg`: Wwise
+  Vorbis is rebuilt as Ogg Vorbis and Opus repackaged as Ogg Opus, `<name>.ogg`, without
+  re-encoding, and every other codec decoded to a 16-bit PCM WAV `<name>.wav`; `wav` decodes every
+  sound to WAV, and `raw` keeps the WEMs. Each soundbank (`<name>.bnk`) is written unchanged and
+  unpacked into the folder `<name>` next to it, each embedded WEM named by its ID and written in
+  the same format. A sound whose codec cannot be decoded is reported as not converted, naming the
+  codec, and written unchanged as `.wem`; plug-in media and the prefetched start of a streamed WEM
+  are written unchanged without a report. Every file follows `--conflict`, `if-changed` comparing
+  with the converted output. Sounds and soundbanks are converted on a few threads of their own,
+  within a memory budget of 1 GiB.
   `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
-  Entries. An Archive without a readable manifest has an unknown Build and still opens.
+  Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has
+  an unknown Build and still opens. A malformed field of one directory record, such as a path
+  that is not UTF-8, an encryption value other than 0 or 1 or v2 data outside the file, does not
+  stop an Archive from opening: `info`, `list` and `extract` print up to ten `warning: Entry …`
+  lines to stderr for the Entries concerned.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
@@ -273,7 +287,7 @@ write a file:
 | Tool | Result |
 |------|--------|
 | `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |
-| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes |
+| `archive_info` | Channel, Build, number of Entries and encrypted Entries, sizes, `issue_count` and the first 50 `issues` (Entry path and defect) of the directory |
 | `list_entries` | One folder of an Archive (`folder`, e.g. `Data/Libs`): its subfolders with their Entry count, then its Entries |
 | `search_entries` | The Entries matching a Filter (`filter`), with the rules of `p4kx search` |
 | `read_entry_text` | A range of an Entry as text (`path`, `offset`, `max_bytes`): CryXml as XML, UTF-16 by its byte order mark, otherwise UTF-8 |

@@ -3,15 +3,16 @@ use std::sync::Arc;
 use crate::Browser;
 
 impl Browser {
-    /// Returns whether the Entry `id` is checked.
+    /// Returns whether the Entry `id` of the shown place is checked.
     #[must_use]
     pub fn is_checked(&self, id: u32) -> bool {
-        self.checked.get(id as usize).copied().unwrap_or(false)
+        self.checks.is_checked(id)
     }
 
-    /// Checks or unchecks the Entry `id`, and with it every other Entry of its split texture.
+    /// Checks or unchecks the Entry `id` of the shown place, and with it every other Entry of its
+    /// split texture.
     pub fn set_checked(&mut self, id: u32, checked: bool) {
-        let index = Arc::clone(&self.index);
+        let index = Arc::clone(self.shown_index());
         match index.texture_members(id) {
             Some(members) => {
                 for &member in members {
@@ -24,19 +25,12 @@ impl Browser {
 
     fn set_checked_entry(&mut self, id: u32, checked: bool) {
         let shown = self.is_in_view(id);
-        let Some(slot) = self.checked.get_mut(id as usize) else {
-            return;
-        };
-        if *slot == checked {
-            return;
-        }
-        *slot = checked;
-        if checked {
-            self.checked_count += 1;
-            self.shown_checked_count += usize::from(shown);
-        } else {
-            self.checked_count -= 1;
-            self.shown_checked_count -= usize::from(shown);
+        if self.checks.set(id, checked) && shown {
+            if checked {
+                self.shown_checked_count += 1;
+            } else {
+                self.shown_checked_count -= 1;
+            }
         }
     }
 
@@ -55,15 +49,15 @@ impl Browser {
         self.shown = shown;
     }
 
-    /// Returns the number of checked Entries in the whole Archive.
+    /// Returns the number of checked Entries of the shown place.
     #[must_use]
     pub const fn checked_count(&self) -> usize {
-        self.checked_count
+        self.checks.count()
     }
 
-    /// Returns the number of checked Entries that are not shown.
+    /// Returns the number of checked Entries of the shown place that are not shown.
     #[must_use]
     pub const fn hidden_checked_count(&self) -> usize {
-        self.checked_count - self.shown_checked_count
+        self.checks.count() - self.shown_checked_count
     }
 }

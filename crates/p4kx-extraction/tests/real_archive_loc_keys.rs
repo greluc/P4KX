@@ -114,7 +114,7 @@ fn records_use_blank_space_and_it_is_a_placeholder() -> TestResult {
         .filter(|use_| {
             use_.split(':')
                 .next()
-                .is_some_and(|name| CATALOG_TEXT_FIELDS.iter().any(|f| *f == name))
+                .is_some_and(|name| CATALOG_TEXT_FIELDS.contains(&name))
         })
         .collect();
     assert!(

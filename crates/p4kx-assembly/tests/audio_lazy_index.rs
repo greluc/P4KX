@@ -53,7 +53,7 @@ fn the_audio_index_builds_while_rayon_tasks_wait_for_it() -> TestResult {
         ));
     }
     builder.write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
 
     let (done, finished) = mpsc::channel();
     std::thread::spawn(move || {

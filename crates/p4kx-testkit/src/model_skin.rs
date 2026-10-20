@@ -23,10 +23,11 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     put_u32(&mut out, count(model.indices.len()));
     put_u32(&mut out, count(model.submeshes.len()));
     put_u32(&mut out, 0);
-    for _ in 0..2 {
-        put_vector(&mut out, min);
-        put_vector(&mut out, max);
-    }
+    let (model_min, model_max) = model.model_box.unwrap_or((min, max));
+    put_vector(&mut out, model_min);
+    put_vector(&mut out, model_max);
+    put_vector(&mut out, min);
+    put_vector(&mut out, max);
     put_u32(&mut out, 4);
     put_u32(&mut out, 0);
     out.resize(out.len() + HEADER_PADDING, 0);
@@ -69,8 +70,13 @@ fn put_tangent_frames(out: &mut Vec<u8>, model: &TestModel) {
     stream(out, QTANGENTS, 8, |data| {
         for vertex in &model.vertices {
             let (tangent, bitangent) = tangent_frame(vertex.normal);
-            put_u32(data, pack_unit_vector(tangent));
-            put_u32(data, pack_unit_vector(bitangent));
+            if model.tangent_sign < 0.0 {
+                put_u32(data, pack_unit_vector(tangent) | (1 << 31));
+                put_u32(data, pack_unit_vector(bitangent.map(|value| -value)));
+            } else {
+                put_u32(data, pack_unit_vector(tangent));
+                put_u32(data, pack_unit_vector(bitangent));
+            }
         }
     });
 }
@@ -147,7 +153,7 @@ fn put_vertices(out: &mut Vec<u8>, model: &TestModel, min: [f32; 3], max: [f32; 
         TestPositions::Float => (VERTS_UVS, 20),
     };
     stream(out, tag, size, |data| {
-        for vertex in &model.vertices {
+        for (at, vertex) in model.vertices.iter().enumerate() {
             match model.positions {
                 TestPositions::Quantized => {
                     for axis in 0..3 {
@@ -166,7 +172,13 @@ fn put_vertices(out: &mut Vec<u8>, model: &TestModel, min: [f32; 3], max: [f32; 
                 }
                 TestPositions::Float => put_vector(data, vertex.position),
             }
-            data.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]);
+            let [red, green, blue, alpha] = model
+                .colours
+                .as_ref()
+                .and_then(|colours| colours.get(at))
+                .copied()
+                .unwrap_or([0xFF; 4]);
+            data.extend_from_slice(&[blue, green, red, alpha]);
             for value in vertex.uv {
                 put_u16(data, f16::from_f32(value).to_bits());
             }
@@ -198,7 +210,7 @@ fn bounds(model: &TestModel) -> ([f32; 3], [f32; 3]) {
     (min, max)
 }
 
-fn tangent_frame(normal: [f32; 3]) -> ([f32; 3], [f32; 3]) {
+pub(crate) fn tangent_frame(normal: [f32; 3]) -> ([f32; 3], [f32; 3]) {
     let helper = if normal[2].abs() < 0.9 {
         [0.0, 0.0, 1.0]
     } else {

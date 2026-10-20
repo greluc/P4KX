@@ -15,7 +15,10 @@ const SAMPLE_PER_EXTENSION: usize = 40;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_every_chunk_file_extension_opens_and_its_chunks_are_readable() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let mut failures = Vec::new();
     let mut opened = 0;
     for extension in EXTENSIONS {

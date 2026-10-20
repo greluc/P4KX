@@ -209,7 +209,7 @@ the first 256 `WwiseEvent`s of a definition; further ones are left out without a
 The `unmatched` kinds are `no_definition` (no ATL definition has the trigger), `no_event` (its
 definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of its events). An
 **Issue** is an ATL definition or soundbank left out of the index, with `path`, `kind`
-(`too_large`: a soundbank above 16 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
+(`too_large`: a soundbank above 32 MiB or an ATL definition above 8 MiB, `unreadable`, `atl`,
 `soundbank` or `too_many_triggers`: the index already holds 262,144 triggers) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
@@ -336,10 +336,10 @@ unresolved texts of every language.
 ```
 
 `key` is the key as given. `status` is `found` (the text is in `language`), `fallback` (it is in
-`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER` and
-`@LOC_UNINITIALIZED`, which stand for no text) or `missing`. `text_language` and `text` are `null`
-for the last two; `text` has `\n` decoded to a line feed. A `missing` key is printed and then ends
-the command with exit code 2.
+`fallback`), `placeholder` (the key is one of `@LOC_EMPTY`, `@LOC_PLACEHOLDER`,
+`@LOC_UNINITIALIZED` and `@blank_space`, which stand for no text) or `missing`. `text_language`
+and `text` are `null` for the last two; `text` has `\n` decoded to a line feed. A `missing` key is
+printed and then ends the command with exit code 2.
 
 ## `p4kx loc export <archive> [--lang <language>,…] [--format json|csv] [--out <file>]`
 
@@ -363,6 +363,18 @@ use the JSON format.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
+
+## `p4kx key set|show|remove --json`
+
+`p4kx key set [<hex>] [--archive <archive>] --json` prints
+`{"action": "stored", "file": "…", "checked_against": "…"}`; `checked_against` is the Archive
+whose encrypted Entry the key decrypted, or `null` when no Archive with a suitable encrypted
+Entry was found and the key was stored unchecked. `p4kx key remove --json` prints
+`{"action": "removed", "file": "…"}`, or `"none_stored"` when there was nothing to remove.
+
+`p4kx key show --json` prints `{"file": "…", "stored": "****…1234" | null, "in_use": {"source":
+"flag" | "environment" | "profile", "key": "****…1234"} | null}`. Keys are always masked: every
+digit but the last four is `*`. No command prints or logs a key in full.
 
 ## `p4kx channels --json`
 
@@ -655,8 +667,8 @@ of a known type and `null` for an unknown one, which `known` marks as well; `typ
 the chunk ID of `CrCh` and `null` in `#ivo`, and `byte_order` `little` or `big`, which only `CrCh`
 chunks can be. `#ivo` stores no sizes: `size` is then the distance to the next greater offset of
 any chunk, the chunk table or the end of the file, alignment padding included, so chunks that
-share an offset share their span; the table may list chunks in any order. A file that is no chunk file, has
-another container version or is truncated prints no JSON; it fails with exit code 3.
+share an offset share their span; the table may list chunks in any order. A file that is no chunk
+file, has another container version or is truncated prints no JSON; it fails with exit code 3.
 
 ## `p4kx chunks dump <archive> <entry> --chunk <index> --out <file> --json`
 
@@ -684,6 +696,7 @@ it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
+                       "tangents": false, "colours": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [],
@@ -699,15 +712,19 @@ without `.mtl` the material IDs refer to, or `null`. `nodes` keeps the order of 
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
 metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
-lists the levels of detail, LOD0 first, each with its meshes, at most one per node; `first_index`
-and `index_count` locate a submesh in its mesh's triangle list. `bones` lists `name` and `parent`
+lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
+read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
+(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
+submesh in its mesh's triangle list. `bones` lists `name` and `parent`
 of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
-geometry companion (`file` is `model` or `geometry`) with `usage` `read` when the model was read
-from it, `skipped` for a known type the model does not read and `unknown` for an unknown type.
+geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
+the model was read from it, `skipped` for a known type the model does not read and `unknown` for
+an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3, and a `CrCh` model, which is not supported yet, with 1.
 
-## `p4kx model glb <archive> <entry> --out <file> --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -719,10 +736,12 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 ```
 
 The counts are those of the GLB written: one glTF node per node, one mesh per node with geometry,
-one primitive per submesh and one material per material ID, LOD0, in glTF axes (Y up) and metres;
+one primitive per submesh and one material per material ID, of the level of detail `--lod` names
+(LOD0 by default), in glTF axes (Y up) and metres; the counts do not say which of `NORMAL`,
+`TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
 `bytes` is the length of the file. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files exits with
-code 2.
+export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+`--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`
 
@@ -749,10 +768,35 @@ the Record files relative to the folder of the DataForge Entry. Otherwise that f
 `failed` lists the Entries that were not written, with the reason and its causes joined by `: `;
 `cancelled` lists the Entries not written because the run was cancelled and, once a cancelled run
 had written a soundbank itself, each of its WEMs not unpacked as `<bank> WEM <ID>`, after the
-Entries. The Entries in all three are in Archive order. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
+Entries. The Entries in all three are in Archive order. With `--verify` the report also holds `"mismatched": [{"path":
+"Data\\x.xml", "kind": "crc32c", "expected": "12345678", "actual": "b492e797"}]`, the Entries
+whose data did not match the checksum of the directory, as in [`p4kx verify`](#p4kx-verify-archive---filter-filter---json);
+they are not repeated in `failed`, and none of them is written. Without `--verify` the field is
+absent. With `--json` failures are not repeated on stderr. `archive_changed` is `true`
 when the Archive changed on disk after it was opened: the Extraction then stops, the Entries not
 yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exit code is 1 when
-`failed` or `cancelled` is not empty.
+`failed`, `mismatched` or `cancelled` is not empty.
+
+## `p4kx verify <archive> [--filter <filter>] --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "verified": 1362045,
+ "mismatched": [{"path": "Data\\Libs\\x.xml", "kind": "crc32c",
+                 "expected": "12345678", "actual": "b492e797"}],
+ "failed": [{"path": "Data\\broken.xml", "error": "cannot read the Entry data"}],
+ "cancelled": [], "archive_changed": false}
+```
+
+`verified` counts the Entries whose data matched the checksum of the directory. `mismatched`
+lists the Entries whose data did not, with the kind of the checksum (`crc32c` in an Archive,
+`crc32` in a container) and the stored (`expected`) and computed (`actual`) value as eight
+lower-case hex digits; `failed` lists the Entries that could not be read or decoded, with the
+reason and its causes joined by `: `; `cancelled` lists the Entries not checked because the run was
+cancelled. The three lists are in Archive order. `archive_changed` is `true` when the Archive
+changed on disk: the run then stops and the exit code is 4. Otherwise the exit code is 1 when
+`mismatched`, `failed` or `cancelled` is not empty. `p4kx socpak verify <archive> <container…>
+--json` prints the same document for the Entries of the last container; its `archive` is the
+Archive path followed by the Entry paths of the containers.
 
 ## `p4kx compare <old> <new> --json`
 

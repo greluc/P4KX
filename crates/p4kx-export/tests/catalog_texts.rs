@@ -104,7 +104,7 @@ fn catalog(entries: Vec<TestEntry>) -> Result<(Value, Vec<TextSummary>), Box<dyn
             ArchiveBuilder::entry,
         )
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let built = build_catalog(&archive, &CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT))?;
     let json = serde_json::from_slice(built.json())?;
     Ok((json, built.summary().texts().to_vec()))
@@ -231,7 +231,7 @@ fn a_catalog_from_a_read_entry_equals_one_read_from_the_archive() -> TestResult 
         .entry(english())
         .entry(german())
         .write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
     let options = CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT);
 
     let read = build_catalog(&archive, &options)?;

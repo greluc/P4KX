@@ -96,6 +96,22 @@ pub enum ArchiveError {
         #[source]
         source: Box<Self>,
     },
+    /// The Entry is encrypted and the Archive has no key set.
+    #[error("{path}: Entry {entry} is encrypted and no Archive key is set")]
+    KeyRequired {
+        /// Location of the Archive or container holding the Entry.
+        path: PathBuf,
+        /// Path of the Entry inside the Archive.
+        entry: String,
+    },
+    /// The Archive key does not decrypt the Entry's data to data matching its checksum.
+    #[error("{path}: the Archive key does not decrypt Entry {entry}")]
+    WrongKey {
+        /// Location of the Archive or container holding the Entry.
+        path: PathBuf,
+        /// Path of the encrypted Entry the key was tried on.
+        entry: String,
+    },
     /// The Entry uses a compression method this version cannot read yet.
     #[error("{path}: Entry {entry} uses {compression} compression, which is not supported yet")]
     UnsupportedCompression {
@@ -106,4 +122,26 @@ pub enum ArchiveError {
         /// The compression method of the Entry.
         compression: Compression,
     },
+}
+
+impl ArchiveError {
+    /// Returns whether the error, or the container error it wraps, is [`ArchiveError::KeyRequired`].
+    #[must_use]
+    pub fn is_key_required(&self) -> bool {
+        match self {
+            Self::KeyRequired { .. } => true,
+            Self::Container { source, .. } => source.is_key_required(),
+            _ => false,
+        }
+    }
+
+    /// Returns whether the error, or the container error it wraps, is [`ArchiveError::WrongKey`].
+    #[must_use]
+    pub fn is_wrong_key(&self) -> bool {
+        match self {
+            Self::WrongKey { .. } => true,
+            Self::Container { source, .. } => source.is_wrong_key(),
+            _ => false,
+        }
+    }
 }

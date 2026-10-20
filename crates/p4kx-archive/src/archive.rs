@@ -3,14 +3,19 @@ use std::io::{self, Read};
 use std::path::{MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::time::SystemTime;
 
+use p4kx_foundation::ArchiveKey;
+
 use crate::container::{self, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES, MAX_CONTAINER_LEN};
 use crate::format_error::FormatError;
 use crate::issue::{Directory, IssueLog};
+use crate::key_slot::KeySlot;
+use crate::source::Source;
+use crate::{ArchiveError, Build, Entry, EntryIssue, EntryReader, entry_reader, layout};
+
+mod key;
 
 /// The most decoded bytes [`Archive::open_entry_at`] skips in a compressed Entry to reach an offset.
 pub const MAX_DECODED_SKIP: u64 = 1 << 30;
-use crate::source::Source;
-use crate::{ArchiveError, Build, Entry, EntryIssue, EntryReader, entry_reader, layout};
 
 /// An opened Archive with its Entries, or a container opened from one of its Entries.
 #[derive(Debug)]
@@ -25,6 +30,7 @@ pub struct Archive {
     entries: Vec<Entry>,
     log: IssueLog,
     build: Option<Build>,
+    key: KeySlot,
 }
 
 impl Archive {
@@ -56,6 +62,7 @@ impl Archive {
             entries,
             log,
             build,
+            key: KeySlot::default(),
         })
     }
 
@@ -76,7 +83,11 @@ impl Archive {
         location.push(MAIN_SEPARATOR_STR);
         location.push(&entry.path);
         let location = PathBuf::from(location);
-        match self.read_container(entry) {
+        let container = self.key_for(entry).and_then(|key| {
+            self.read_container(entry, key.as_ref())
+                .map_err(|error| error.at(&location))
+        });
+        match container {
             Ok((source, decoded_budget, Directory { entries, log })) => Ok(Self {
                 path: self.path.clone(),
                 location,
@@ -88,22 +99,27 @@ impl Archive {
                 entries,
                 log,
                 build: self.build.clone(),
+                key: self.key.clone(),
             }),
             Err(error) => Err(ArchiveError::Container {
                 path: self.location.clone(),
                 entry: entry.path.clone(),
-                source: Box::new(error.at(&location)),
+                source: Box::new(error),
             }),
         }
     }
 
-    fn read_container(&self, entry: &Entry) -> Result<(Source, u64, Directory), FormatError> {
+    fn read_container(
+        &self,
+        entry: &Entry,
+        key: Option<&ArchiveKey>,
+    ) -> Result<(Source, u64, Directory), FormatError> {
         if self.depth >= MAX_CONTAINER_DEPTH {
             return Err(FormatError::LimitExceeded(format!(
                 "containers nest deeper than {MAX_CONTAINER_DEPTH} levels"
             )));
         }
-        let (source, budget) = container::source_of(&self.source, entry, self.decoded_budget)?;
+        let (source, budget) = container::source_of(&self.source, entry, self.decoded_budget, key)?;
         let max_entries = Some(MAX_CONTAINER_ENTRIES as u64);
         let entries = container::admit(layout::read_entries(&source, max_entries)?, &source)?;
         Ok((source, budget, entries))
@@ -183,6 +199,20 @@ impl Archive {
         self.open_entry_at(entry, 0)
     }
 
+    /// Opens the data of `entry` like [`open_entry`](Self::open_entry) and checks it against the
+    /// checksum of the directory while it streams, without a second pass or buffering: the read
+    /// that reaches the end of the data fails with a
+    /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) when they differ.
+    /// The check costs one checksum over the decoded bytes; a reader that stops before the end
+    /// checks nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`open_entry`](Self::open_entry).
+    pub fn open_entry_verified(&self, entry: &Entry) -> Result<EntryReader<'_>, ArchiveError> {
+        self.open_entry(entry).map(|reader| reader.verified(entry))
+    }
+
     /// Opens the decrypted and decompressed data of `entry` from byte `offset` on.
     ///
     /// Stored Entries start there directly, encrypted ones at the AES block holding `offset`.
@@ -209,7 +239,8 @@ impl Archive {
                 size,
             });
         }
-        let (mut reader, skip) = entry_reader::open_at(&self.source, entry, offset)
+        let key = self.key_for(entry)?;
+        let (mut reader, skip) = entry_reader::open_at(&self.source, entry, offset, key.as_ref())
             .map_err(|error| error.at(&self.location))?;
         if skip > MAX_DECODED_SKIP {
             return Err(ArchiveError::SkipTooLong {

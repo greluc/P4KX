@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::{self, Read};
 
 use p4kx_archive::{Archive, DataError};
-use p4kx_testkit::{ArchiveBuilder, TestEntry};
+use p4kx_testkit::{ArchiveBuilder, TestEntry, test_key};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -16,7 +16,7 @@ fn read(entry: TestEntry, reject: bool) -> Result<io::Result<Vec<u8>>, Box<dyn E
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
     ArchiveBuilder::new().entry(entry).write_to(&path)?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(test_key()))?;
     let entry = archive.entries().first().ok_or("Entry missing")?;
     let mut reader = archive.open_entry(entry)?;
     if reject {

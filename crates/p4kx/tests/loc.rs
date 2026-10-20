@@ -53,7 +53,7 @@ fn standard(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn p4kx() -> Result<Command, Box<dyn Error>> {
-    Ok(Command::cargo_bin("p4kx")?)
+    Ok(p4kx_testkit::p4kx()?)
 }
 
 fn stdout_of(command: &mut Command, code: i32) -> Result<String, Box<dyn Error>> {

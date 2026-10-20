@@ -30,7 +30,7 @@ fn prefilled() -> Result<Prefilled, Box<dyn Error>> {
     fs::write(target.join("Data").join("edited.txt"), "old!")?;
     fs::write(target.join("Data").join("resized.txt"), "short")?;
     Ok(Prefilled {
-        archive: Archive::open(&path)?,
+        archive: Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?,
         target,
         _dir: dir,
     })

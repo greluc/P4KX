@@ -458,6 +458,7 @@ scroll-fields = Geänderte Felder
 scroll-lines = Record-Felder
 scroll-localization = Lokalisierungszeilen
 scroll-saved-queries = Gespeicherte Abfragen
+scroll-soundbank = Eingebettete WEMs
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -476,6 +477,21 @@ audio-unsupported = Die Vorschau kann Töne im Codec { $codec } nicht abspielen.
 audio-too-long = { $path } ist zu lang für die Vorschau: der dekodierte Ton wäre größer als { $limit }.
 audio-failed = { $path } kann nicht dekodiert werden: { $reason }
 audio-output-failed = Der Ton kann nicht abgespielt werden: { $reason }
+audio-column-id = ID
+audio-prefetched = Vorgeladen
+audio-prefetched-note = WEM { $id } ist in dieser Soundbank nur vorgeladen und kann hier nicht abgespielt werden. Der ganze Ton steht im losen WEM-Eintrag mit derselben ID.
+audio-plugin = Plug-in
+audio-plugin-note = WEM { $id } ist ein Plug-in-Medium, etwa ein Faltungshall-Impuls, und enthält keinen Ton zum Abspielen.
+audio-bank-summary =
+    { $size } · { $count ->
+        [one] { $number } WEM
+       *[other] { $number } WEMs
+    }
+audio-bank-empty = { $path } enthält keine WEMs.
+audio-bank-failed = Die Soundbank { $path } kann nicht gelesen werden: { $reason }
+audio-wem-name = WEM { $id } aus { $bank }
+audio-wem-row = WEM { $id }, { $codec }, { $duration }
+audio-unsupported-wem = Die Vorschau kann Töne im Codec { $codec } nicht abspielen ({ $name }).
 
 texture-parts =
     { $count ->
@@ -547,3 +563,27 @@ localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
 localization-copy-key = Schlüssel kopieren
 localization-copy-text = Text kopieren
 localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:
+preview-key-required = { $path } ist verschlüsselt. Gib den Archiv-Schlüssel ein, um es zu lesen.
+preview-key-rejected = Der Archiv-Schlüssel entschlüsselt { $path } nicht. Gib den richtigen Schlüssel ein, um es zu lesen.
+key-menu = Archiv-Schlüssel…
+key-title = Archiv-Schlüssel
+key-needed = Ein verschlüsselter Eintrag braucht den Schlüssel dieses Archivs. Gib ihn einmal ein; er wird als Datei in deinem Benutzerprofil gespeichert.
+key-rejected = Der verwendete Schlüssel entschlüsselt dieses Archiv nicht. Gib den richtigen Schlüssel ein.
+key-intro = Verschlüsselte Einträge lassen sich nur mit dem Schlüssel des Archivs lesen. Gib ihn einmal ein; er wird als Datei in deinem Benutzerprofil gespeichert.
+key-label = Schlüssel
+key-hint = 32 Hexadezimalziffern
+key-show = Schlüssel anzeigen
+key-stored = Ein Schlüssel ist gespeichert: { $masked }
+key-not-stored = Es ist kein Schlüssel gespeichert.
+key-save = Speichern
+key-cancel = Abbrechen
+key-remove = Gespeicherten Schlüssel entfernen
+key-error-length = Ein Schlüssel hat 32 Hexadezimalziffern; eingegeben wurden { $digits }.
+key-error-character = Zeichen { $position } ist keine Hexadezimalziffer.
+key-error-wrong = Dieser Schlüssel entschlüsselt das Archiv nicht.
+key-error-check = Der Schlüssel konnte nicht geprüft werden: { $reason }
+key-error-store = Der Schlüssel konnte nicht gespeichert werden: { $reason }
+key-error-remove = Der gespeicherte Schlüssel konnte nicht entfernt werden: { $reason }
+key-checking = Der Schlüssel wird am Archiv geprüft…
+key-note-variable = Die Umgebungsvariable P4KX_ARCHIVE_KEY enthält keinen gültigen Schlüssel und wird ignoriert.
+key-note-store = Der gespeicherte Schlüssel kann nicht verwendet werden. Gib den Schlüssel erneut ein, um ihn zu ersetzen. ({ $reason })

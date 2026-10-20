@@ -16,7 +16,10 @@ const PER_FORMAT: usize = 12;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_real_textures_merges_into_standard_dds_files() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let headers = dds_headers(&archive);
     let stride = (headers.len() / TEXTURE_SAMPLE).max(1);
 
@@ -63,7 +66,10 @@ fn a_sample_of_real_textures_merges_into_standard_dds_files() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_real_textures_of_every_format_decodes_and_exports_png() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let headers = dds_headers(&archive);
     let stride = (headers.len() / DECODE_SAMPLE).max(1);
     let sampled: Vec<Texture<'_>> = headers

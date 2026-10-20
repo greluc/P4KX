@@ -3,7 +3,6 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
 use predicates::prelude::predicate;
 
@@ -32,10 +31,7 @@ fn write_file(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, Box<dyn E
 }
 
 fn stdout_of(file: &Path) -> Result<String, Box<dyn Error>> {
-    let output = Command::cargo_bin("p4kx")?
-        .arg("cryxml")
-        .arg(file)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("cryxml").arg(file).output()?;
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     Ok(String::from_utf8(output.stdout)?)
 }
@@ -81,7 +77,7 @@ fn cryxml_writes_to_an_output_path() -> TestResult {
     let file = write_file(dir.path(), "vehicle.xml", &bytes)?;
     let out = dir.path().join("converted.xml");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("cryxml")
         .arg(&file)
         .arg("--out")
@@ -104,10 +100,7 @@ fn text_xml_is_written_byte_identical() -> TestResult {
     let text = b"\xEF\xBB\xBF<?xml version=\"1.0\"?>\r\n<a b='1'>\r\n</a>";
     let file = write_file(dir.path(), "text.xml", text)?;
 
-    let output = Command::cargo_bin("p4kx")?
-        .arg("cryxml")
-        .arg(&file)
-        .output()?;
+    let output = p4kx_testkit::p4kx()?.arg("cryxml").arg(&file).output()?;
 
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     assert_eq!(output.stdout, text, "byte-identical");
@@ -125,7 +118,7 @@ fn truncated_cryxml_exits_with_code_3_and_writes_nothing() -> TestResult {
     )?;
     let out = dir.path().join("converted.xml");
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("cryxml")
         .arg(&file)
         .arg("--out")
@@ -144,7 +137,7 @@ fn a_file_that_is_not_xml_exits_with_code_3() -> TestResult {
     let dir = tempfile::tempdir()?;
     let file = write_file(dir.path(), "notes.txt", b"plain text")?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("cryxml")
         .arg(&file)
         .assert()
@@ -157,7 +150,7 @@ fn a_file_that_is_not_xml_exits_with_code_3() -> TestResult {
 fn a_missing_file_exits_with_code_3() -> TestResult {
     let dir = tempfile::tempdir()?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("cryxml")
         .arg(dir.path().join("missing.xml"))
         .assert()
@@ -172,7 +165,7 @@ fn json_without_an_output_path_exits_with_code_2() -> TestResult {
     let bytes = vehicle().to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
     let file = write_file(dir.path(), "vehicle.xml", &bytes)?;
 
-    Command::cargo_bin("p4kx")?
+    p4kx_testkit::p4kx()?
         .arg("--json")
         .arg("cryxml")
         .arg(&file)

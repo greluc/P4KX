@@ -53,6 +53,7 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
     let new = empty.path().join("Data.p4k");
     ArchiveBuilder::new().write_to(&new)?;
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, real_archive_path()?);

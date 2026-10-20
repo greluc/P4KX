@@ -93,7 +93,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
             .checked_add(Duration::from_secs(seconds))
             .ok_or(InvalidExportTime(seconds))?,
     };
-    let archive = Archive::open(archive)?;
+    let archive = crate::key::open(archive)?;
     let filter = args.filter.as_deref().map(Filter::new);
     let cancel = cancel_on_interrupt()?;
     let line = ProgressLine::new();

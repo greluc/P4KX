@@ -45,8 +45,14 @@ fn pair() -> Result<(tempfile::TempDir, Archive, Archive), Box<dyn Error>> {
         .entry(TestEntry::stored("Data\\added.txt", b"new".to_vec()))
         .entry(TestEntry::stored("DATA\\SAME.TXT", b"same".to_vec()))
         .entry(TestEntry::stored("root.txt", b"r".to_vec()));
-    let old = Archive::open(write(dir.path(), "LIVE", &old)?)?;
-    let new = Archive::open(write(dir.path(), "PTU", &new)?)?;
+    let old = Archive::open_with_key(
+        write(dir.path(), "LIVE", &old)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let new = Archive::open_with_key(
+        write(dir.path(), "PTU", &new)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     Ok((dir, old, new))
 }
 
@@ -191,8 +197,14 @@ fn the_entry_level_reads_no_entry_data() -> TestResult {
         TestEntry::zstd("Data\\config.xml", data.clone()).with_payload(b"no zstd frame".to_vec()),
     );
     let intact = ArchiveBuilder::v2().entry(TestEntry::stored("Data\\config.xml", data));
-    let old = Archive::open(write(dir.path(), "LIVE", &corrupt)?)?;
-    let new = Archive::open(write(dir.path(), "PTU", &intact)?)?;
+    let old = Archive::open_with_key(
+        write(dir.path(), "LIVE", &corrupt)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let new = Archive::open_with_key(
+        write(dir.path(), "PTU", &intact)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
 
     let comparison = compare(&old, &new, None, &entries_only())?;
 
@@ -218,7 +230,10 @@ fn both_sides_carry_channel_and_build() -> TestResult {
         "12999999",
         "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
     )?;
-    let new = Archive::open(dir.path().join("PTU").join("Data.p4k"))?;
+    let new = Archive::open_with_key(
+        dir.path().join("PTU").join("Data.p4k"),
+        Some(p4kx_testkit::test_key()),
+    )?;
 
     let comparison = compare(&old, &new, None, &entries_only())?;
 

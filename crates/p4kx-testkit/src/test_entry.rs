@@ -3,7 +3,9 @@ use std::io::Read;
 use cbc::cipher::{Block, BlockModeEncrypt, KeyIvInit};
 use flate2::Compression;
 use flate2::read::DeflateEncoder;
-use p4kx_foundation::{ARCHIVE_IV, ARCHIVE_KEY};
+use p4kx_foundation::{ARCHIVE_IV, ArchiveKey};
+
+use crate::test_key::test_key;
 use ruzstd::encoding::{CompressionLevel, compress_to_vec};
 
 type Encryptor = cbc::Encryptor<aes::Aes128>;
@@ -62,14 +64,20 @@ impl TestEntry {
         Self::with_method(path, METHOD_ZSTD, data.clone(), &data)
     }
 
-    /// Encrypts the Entry's data with AES-128-CBC under the `CryEngine` key, zero-padded to whole
-    /// blocks, and marks the Entry as encrypted.
+    /// Encrypts the Entry's data with AES-128-CBC under [`test_key`], zero-padded to whole blocks,
+    /// and marks the Entry as encrypted.
     #[must_use]
-    pub fn encrypted(mut self) -> Self {
+    pub fn encrypted(self) -> Self {
+        self.encrypted_with(&test_key())
+    }
+
+    /// Encrypts the Entry's data like [`TestEntry::encrypted`] under `key`.
+    #[must_use]
+    pub fn encrypted_with(mut self, key: &ArchiveKey) -> Self {
         let padded_len = self.payload.len().div_ceil(AES_BLOCK_LEN) * AES_BLOCK_LEN;
         self.payload.resize(padded_len, 0);
         let (blocks, _) = Block::<Encryptor>::slice_as_chunks_mut(&mut self.payload);
-        Encryptor::new(&ARCHIVE_KEY.into(), &ARCHIVE_IV.into()).encrypt_blocks(blocks);
+        Encryptor::new(key.as_bytes().into(), &ARCHIVE_IV.into()).encrypt_blocks(blocks);
         self.encrypted = true;
         self
     }
@@ -85,6 +93,21 @@ impl TestEntry {
     #[must_use]
     pub fn with_payload(mut self, payload: impl Into<Vec<u8>>) -> Self {
         self.payload = payload.into();
+        self
+    }
+
+    /// Writes `value` as the CRC-32C of the directory instead of the one of the data.
+    #[must_use]
+    pub const fn with_crc32c(mut self, value: u32) -> Self {
+        self.crc32c = value;
+        self
+    }
+
+    /// Writes `value` as the plain CRC-32 of a container directory instead of the one of the
+    /// data.
+    #[must_use]
+    pub const fn with_crc32(mut self, value: u32) -> Self {
+        self.crc32 = value;
         self
     }
 

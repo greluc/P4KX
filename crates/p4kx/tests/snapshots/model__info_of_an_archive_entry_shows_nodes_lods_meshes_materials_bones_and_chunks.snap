@@ -13,18 +13,18 @@ Chunks:      7 (3 read, 3 skipped, 1 unknown)
  LOD    Vertices   Triangles  Meshes
    0          24          12       1
 
- LOD  Node                        Vertices   Triangles  Normals  Material IDs
-   0  cube_mesh                         24          12  yes      1, 2
+ LOD  Node                        Vertices   Triangles  Normals  Tangents  Colours  Material IDs
+   0  cube_mesh                         24          12  yes      no        no       1, 2
 
  Node  Parent  Name
     0  -       cube
     1  0       cube_mesh
 
-File      Index  Type                         Type ID  Usage
-model         0  ExportFlags               0xBE5E493E  skipped
-model         1  MtlName320                0x83353333  read
-model         2  NodeMeshCombo             0x70697FDA  read
-model         3  MeshInfo                  0x92914444  skipped
-model         4  unknown                   0x00C0FFEE  unknown
-geometry      0  Skin2                     0xB8757777  read
-geometry      1  Terminator                0xE0181074  skipped
+File           Index  Type                         Type ID  Usage
+model              0  ExportFlags               0xBE5E493E  skipped
+model              1  MtlName320                0x83353333  read
+model              2  NodeMeshCombo             0x70697FDA  read
+model              3  MeshInfo                  0x92914444  skipped
+model              4  unknown                   0x00C0FFEE  unknown
+geometry           0  Skin2                     0xB8757777  read
+geometry           1  Terminator                0xE0181074  skipped

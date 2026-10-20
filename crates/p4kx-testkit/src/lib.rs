@@ -12,6 +12,7 @@ mod build_manifest;
 mod bytes;
 mod chf;
 mod chunk_file;
+mod cli;
 mod container;
 mod cryxml;
 mod dataforge_builder;
@@ -44,6 +45,7 @@ mod real_archive;
 mod split_dds;
 mod test_entry;
 mod test_jpeg;
+mod test_key;
 mod vorbis;
 mod wem;
 
@@ -53,6 +55,7 @@ pub use bnk::{TestBank, TestHircObject};
 pub use build_manifest::write_build_manifest;
 pub use chf::{TestChf, TestItemPort, TestMaterial, TestSubMaterial};
 pub use chunk_file::TestChunkFile;
+pub use cli::p4kx;
 pub use container::TestContainer;
 pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
@@ -81,11 +84,12 @@ pub use model::{
 };
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
-    MissingRealArchive, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_VAR, real_archive_b_path,
-    real_archive_pair, real_archive_path,
+    MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR,
+    real_archive_b_path, real_archive_key, real_archive_pair, real_archive_path,
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
 pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};
+pub use test_key::{other_test_key, test_key};
 pub use vorbis::{TestCodebook, TestVorbis};
 pub use wem::{TestCodec, TestWem, test_signal};

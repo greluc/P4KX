@@ -20,7 +20,10 @@ fn normalised(path: &str) -> String {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_dataforge_of_a_real_archive_has_plausible_counts() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let started = Instant::now();
 
     let entry = DataForgeEntry::read(&archive)?;
@@ -53,7 +56,10 @@ fn the_dataforge_of_a_real_archive_has_plausible_counts() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_open_unp4k_cases_do_not_occur_in_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
 
@@ -79,7 +85,10 @@ fn the_open_unp4k_cases_do_not_occur_in_a_real_archive() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn no_record_file_replaces_an_entry_of_a_real_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let folder = normalised(entry.path())

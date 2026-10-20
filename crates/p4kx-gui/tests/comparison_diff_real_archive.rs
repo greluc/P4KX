@@ -61,6 +61,7 @@ fn a_changed_real_xml_entry_diffs_off_the_ui_thread_and_frames_stay_short() -> T
         return Ok(());
     };
     let mut model = Model::new(Language::BritishEnglish);
+    model.set_archive_key(Some(p4kx_testkit::real_archive_key()?));
     model.set_work_tab(WorkTab::Comparison);
     let tab = model.comparison_mut();
     tab.set_archive(ComparisonSide::Old, old);

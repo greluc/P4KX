@@ -2,21 +2,29 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_assembly::audio::{
-    ArchiveAudio, BrokenLink, IndexedSoundbank, PathStep, SoundVariant, SourceKind, TriggerSounds,
-    WemLocation,
+    ArchiveAudio, AudioIndex, BrokenLink, IndexedSoundbank, LanguageChoice, PathStep, SoundVariant,
+    SourceKind, TriggerSounds, WemLocation,
 };
 use thiserror::Error;
 
-use crate::cli::{WwiseAction, WwiseArgs, WwiseResolveArgs};
+use crate::cli::{AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseResolveArgs};
 use crate::entity_audio::{issues_json, warn};
 use crate::json;
 use crate::query_table::one_line;
-use crate::wwise_json::{self, Counts, ResolveJson};
+use crate::wwise_json::{self, Counts, LanguageJson, ResolveJson};
 
 /// No ATL definition of the Archive has the requested audio trigger.
 #[derive(Debug, Error)]
 #[error("no ATL definition has the audio trigger {0}")]
 pub(crate) struct UnknownTrigger(String);
+
+/// The requested audio language is no language folder of the Archive.
+#[derive(Debug, Error)]
+#[error("the Archive holds no audio language {language}; its language folders are: {available}")]
+pub(crate) struct UnknownAudioLanguage {
+    language: String,
+    available: String,
+}
 
 /// Runs a `p4kx wwise` subcommand.
 pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<()> {
@@ -25,18 +33,44 @@ pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<()> {
     }
 }
 
+/// Returns the language choice of the command line: the languages must be language folders of the
+/// Archive, and the fallback defaults to the game's default language.
+pub(crate) fn language_choice(
+    index: &AudioIndex,
+    args: &AudioLanguageArgs,
+) -> Result<LanguageChoice, UnknownAudioLanguage> {
+    let known = |name: &str| {
+        index.language(name).ok_or_else(|| UnknownAudioLanguage {
+            language: name.to_owned(),
+            available: if index.languages().is_empty() {
+                "none".to_owned()
+            } else {
+                index.languages().join(", ")
+            },
+        })
+    };
+    let preferred = args.lang.as_deref().map(known).transpose()?;
+    let fallback = match args.fallback_lang.as_deref() {
+        Some(name) => Some(known(name)?),
+        None => index.default_language(),
+    };
+    Ok(LanguageChoice::new(preferred, fallback))
+}
+
 /// Prints every sound variant of an audio trigger and every broken link.
 fn resolve(args: &WwiseResolveArgs, as_json: bool) -> Result<()> {
     let archive = crate::key::open(&args.archive)?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
+    let choice = language_choice(index, &args.language)?;
     let sounds = audio
-        .resolve_trigger(&args.trigger)
+        .resolve_trigger_in(&args.trigger, &choice)
         .ok_or_else(|| UnknownTrigger(args.trigger.clone()))?;
     let counts = Counts::of(&sounds);
     if as_json {
         json::print(&ResolveJson {
             archive: json::path(archive.path()),
+            language: LanguageJson::of(&choice),
             trigger: wwise_json::trigger(&sounds),
             variants: sounds.variants().iter().map(wwise_json::variant).collect(),
             breaks: sounds
@@ -78,7 +112,7 @@ fn print_text(sounds: &TriggerSounds<'_>, counts: Counts) -> io::Result<()> {
     out.flush()
 }
 
-fn variant_line(variant: &SoundVariant<'_>) -> String {
+pub(crate) fn variant_line(variant: &SoundVariant<'_>) -> String {
     let location = match variant.location() {
         Some(WemLocation::Soundbank {
             soundbank,
@@ -95,12 +129,19 @@ fn variant_line(variant: &SoundVariant<'_>) -> String {
                 soundbank_name(soundbank)
             )
         }
+        Some(WemLocation::Entry { path, len, .. }) => format!("at {path} ({len} bytes)"),
         Some(_) => "at an unknown location".to_owned(),
         None => "not located".to_owned(),
     };
     let media = variant.wem_id().map_or_else(
         || format!("plug-in source {}, no WEM", variant.source().source_id),
-        |wem| format!("WEM {wem} {}, {location}", variant.source_kind().name()),
+        |wem| {
+            format!(
+                "WEM {wem} {}{}, {location}",
+                variant.source_kind().name(),
+                localisation(variant)
+            )
+        },
     );
     format!(
         "{} in {}: {media}; {}",
@@ -110,7 +151,18 @@ fn variant_line(variant: &SoundVariant<'_>) -> String {
     )
 }
 
-fn break_line(link: &BrokenLink<'_>) -> String {
+fn localisation(variant: &SoundVariant<'_>) -> String {
+    if !variant.is_localised() {
+        return String::new();
+    }
+    match (variant.language(), variant.used_fallback()) {
+        (Some(language), true) => format!(" localised {language} (fallback)"),
+        (Some(language), false) => format!(" localised {language}"),
+        (None, _) => " localised".to_owned(),
+    }
+}
+
+pub(crate) fn break_line(link: &BrokenLink<'_>) -> String {
     let bank = link
         .soundbank()
         .map_or_else(String::new, |bank| format!(" in {}", soundbank_name(bank)));

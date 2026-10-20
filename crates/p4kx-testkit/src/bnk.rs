@@ -17,7 +17,14 @@ impl TestHircObject {
     /// streams it.
     #[must_use]
     pub fn sound(id: u32, source_id: u32, storage: u8, in_memory_size: u32) -> Self {
-        Self::sound_with(id, source_id, storage, in_memory_size, true)
+        Self::sound_with(id, source_id, storage, in_memory_size, true, 0)
+    }
+
+    /// A Sound object like [sound](Self::sound) whose media is language-specific: the source
+    /// bits mark it, so its WEM lies in a language folder.
+    #[must_use]
+    pub fn language_sound(id: u32, source_id: u32, storage: u8, in_memory_size: u32) -> Self {
+        Self::sound_with(id, source_id, storage, in_memory_size, true, 1)
     }
 
     /// A Sound object as bank version 150 lays it out: the in-memory media size follows the source
@@ -29,7 +36,7 @@ impl TestHircObject {
         storage: u8,
         in_memory_size: u32,
     ) -> Self {
-        Self::sound_with(id, source_id, storage, in_memory_size, false)
+        Self::sound_with(id, source_id, storage, in_memory_size, false, 0)
     }
 
     fn sound_with(
@@ -38,6 +45,7 @@ impl TestHircObject {
         storage: u8,
         in_memory_size: u32,
         cache_id: bool,
+        source_bits: u8,
     ) -> Self {
         let mut body = Vec::new();
         put_u32(&mut body, VORBIS_PLUGIN_ID);
@@ -47,7 +55,7 @@ impl TestHircObject {
             put_u32(&mut body, source_id ^ 0x5A5A_5A5A);
         }
         put_u32(&mut body, in_memory_size);
-        body.push(0);
+        body.push(source_bits);
         body.extend_from_slice(&[0; 12]);
         Self { kind: 2, id, body }
     }

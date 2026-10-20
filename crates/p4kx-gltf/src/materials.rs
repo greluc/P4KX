@@ -164,24 +164,26 @@ fn plain_roughness(material: &Material) -> f32 {
 
 /// Returns the glTF material that draws `material` with `textures` over its plain colours.
 ///
-/// The diffuse colour multiplies a base colour texture that does not hold it already (one made
-/// with a specular map does). A normal texture needs no factor. The
-/// factors of the metallic-roughness texture are 1 for the channels it carries; for the others the
-/// plain value stays. A material with a base colour texture but no metalness texture is a
-/// dielectric: its specular colour is not the colour of its metal.
+/// The diffuse colour multiplies a base colour texture that does not hold the colours already (one
+/// made with a specular map does). A normal texture needs no factor. The factors of the
+/// metallic-roughness texture are 1 for the channels it carries; for the others the plain value
+/// stays. A metal whose base colour image lacks the colours, because it has no specular map, the
+/// map failed to load or it has no diffuse map, keeps the plain metal of the colours mode: its
+/// specular colour is the base colour factor, which a diffuse texture multiplies, and its
+/// metalness is 1.
 pub(crate) fn build_material(
     material: &Material,
     fallback_name: &str,
     textures: &MaterialTextures,
 ) -> json::Material {
-    let has_base = textures.base.is_some();
     let (carries_roughness, carries_metalness) = textures
         .metallic_roughness
         .map_or((false, false), |(_, roughness, metallic)| {
             (roughness, metallic)
         });
-    let plain_metal = is_metal(material) && !has_base;
-    let colour = if textures.base.is_some_and(|(_, tinted)| tinted) {
+    let tinted = textures.base.is_some_and(|(_, tinted)| tinted);
+    let plain_metal = is_metal(material) && !tinted;
+    let colour = if tinted {
         [1.0; 3]
     } else if plain_metal {
         material.specular

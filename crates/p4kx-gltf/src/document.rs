@@ -9,7 +9,8 @@ use json::validation::USize64;
 use json::{Accessor, Index, Root};
 use p4kx_model::{Lod, Model};
 
-use crate::layout::{Block, BlockData, Layout, MeshLayout};
+use crate::block_data::BlockData;
+use crate::layout::{Block, Layout, MeshLayout};
 use crate::materials::{MaterialPlan, MaterialTextures, Slot, build_material, display_name};
 use crate::nodes::{Skeleton, push_nodes};
 use crate::texture_plan::TextureSet;

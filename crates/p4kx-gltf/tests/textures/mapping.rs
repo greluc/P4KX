@@ -118,8 +118,7 @@ fn without_a_specular_map_the_diffuse_colour_stays_a_factor_and_the_material_is_
 -> TestResult {
     let mtl = TestMtlMaterial::new("cloth")
         .diffuse([0.5, 0.25, 1.0])
-        .specular([1.0; 3])
-        .surface_type("metal_dense")
+        .specular([0.04; 3])
         .texture("TexSlot1", "Objects/Test/cloth_diff.tif");
     let stub = Stub::default().with(
         "objects/test/cloth_diff.dds",

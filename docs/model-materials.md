@@ -141,8 +141,10 @@ the `chipped_paint` and `Metal_*` materials of the Gladius), so with a specular 
 holds `Diffuse` times the diffuse map moved towards `Specular` times the specular map by the
 texel's metalness, in linear light, and the base colour factor is white. The key of that image
 holds both colours, so materials that differ only in them do not share it. A diffuse map without
-a specular map is a dielectric: the `Diffuse` colour stays a factor, shares the image, and the
-metal heuristic of the plain colours does not apply. A specular map is only used with a diffuse
+a specular map (or whose specular map failed to load) is a dielectric when the metal heuristic of
+the plain colours does not take the material for a metal: the `Diffuse` colour stays a factor and
+the image is shared. A metal keeps the plain metal instead: the `Specular` colour is the base
+colour factor, the metalness 1, and the diffuse map multiplies the factor untouched. A specular map is only used with a diffuse
 map to blend with. Different sizes are sampled to the larger (nearest texel).
 
 *Alpha.* A masked material uses the alpha channel of its diffuse map with the cutoff

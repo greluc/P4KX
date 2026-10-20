@@ -20,8 +20,12 @@ chunk of the GLB.
   multiply the texture. The engine has no metalness map: metalness is the linear luminance of the
   tinted specular map from 0.15 to 0.5, and a metal's colour is its specular colour, so with a
   specular map the base colour image is the tinted diffuse colour moved towards the tinted
-  specular colour by that metalness, and its factor is white. Without a specular map a diffuse map
-  is a dielectric.
+  specular colour by that metalness, and its factor is white. A metal without that image, because
+  it has no specular map or the map failed to load, keeps the plain metal of ADR-0032: its
+  specular colour is the base colour factor, its metalness 1, and a diffuse map multiplies the
+  factor untouched (a dark diffuse colour would otherwise export a black dielectric). Only
+  what the heuristic of the plain colours takes for a metal is treated so; any other material
+  with a diffuse map and no specular map is a dielectric whose diffuse colour is the factor.
 - **Roles by slot and name.** `TexSlot1` `_diff`, `TexSlot2` or `TexSlot3` `_ddna`/`_ddn`,
   `TexSlot4` `_spec`; the second layer, detail, displacement and tint maps are #127. The `.tif`
   name of the `.mtl` file is the `.dds` Entry; diffuse and specular bytes are sRGB although the

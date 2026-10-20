@@ -14,6 +14,7 @@
 //! nodes. The binary data is streamed to the writer after the JSON.
 
 mod axes;
+mod block_data;
 mod document;
 mod error;
 mod glb;

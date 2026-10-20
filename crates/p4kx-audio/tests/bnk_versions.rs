@@ -138,3 +138,16 @@ fn a_bank_reads_its_type_numbers_by_its_own_version() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn the_unsupported_layout_message_names_the_type_and_the_version() {
+    let error = BankError::UnsupportedObjectLayout {
+        kind: HircKind::Event,
+        version: 160,
+    };
+
+    assert_eq!(
+        error.to_string(),
+        "the soundbank section HIRC holds an object of type Event in version 160, whose layout is not known"
+    );
+}

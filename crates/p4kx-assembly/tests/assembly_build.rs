@@ -210,6 +210,34 @@ fn the_level_of_detail_applies_to_every_model_that_has_it() -> TestResult {
 }
 
 #[test]
+fn a_level_beyond_every_model_falls_back_to_the_deepest_one_each_has() -> TestResult {
+    let fixture = fixture(entries())?;
+    let archive = Archive::open(&fixture.path)?;
+
+    let assembly = assemble(&archive, "TEST_Ship", 15)?;
+
+    let level = |path: &str| -> Result<(usize, u32), &'static str> {
+        let model = assembly
+            .part_at(path)
+            .ok_or("a part")?
+            .model()
+            .ok_or("a model")?;
+        Ok((model.lods.len(), model.lods[0].level))
+    };
+    assert_eq!(
+        level("hardpoint_weapon_nose")?,
+        (1, 0),
+        "the mount has only LOD0"
+    );
+    let ship = assembly.root().ok_or("root")?.model().ok_or("model")?;
+    assert_eq!(
+        (ship.lods.len(), ship.lods[0].level),
+        (1, 1),
+        "the ship keeps just LOD1"
+    );
+    Ok(())
+}
+#[test]
 fn a_missing_library_is_reported_once_and_the_part_keeps_its_model() -> TestResult {
     let kept: Vec<_> = entries()
         .into_iter()

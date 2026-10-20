@@ -116,7 +116,7 @@ fn read_geometry<B: AsRef<[u8]>>(
             read,
         )?;
     }
-    if let LodSelection::Only(level) = selection
+    if let LodSelection::Only(level) | LodSelection::AtMost(level) = selection
         && lods.is_empty()
     {
         return Err(ModelError::NoSuchLod {

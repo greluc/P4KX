@@ -176,6 +176,25 @@ fn glb_without_vertex_colours_leaves_them_out() -> TestResult {
 }
 
 #[test]
+fn a_level_beyond_the_probed_ones_is_a_usage_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("cube.glb");
+
+    let output = p4kx()?
+        .args(["model", "glb"])
+        .arg(&archive)
+        .arg(MODEL_ENTRY)
+        .arg("--out")
+        .arg(&out)
+        .args(["--lod", "16"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "usage: {output:?}");
+    assert!(!out.exists(), "nothing written");
+    Ok(())
+}
+#[test]
 fn an_absent_level_is_invalid_input() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;

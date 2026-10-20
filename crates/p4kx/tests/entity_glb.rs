@@ -123,6 +123,20 @@ fn an_output_that_is_the_archive_is_invalid_input() -> TestResult {
 }
 
 #[test]
+fn a_level_beyond_the_probed_ones_is_a_usage_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), assembly_entries())?;
+    let out = dir.path().join("ship.glb");
+
+    let rejected = glb(&archive, &out, &["--lod", "16"], false)?;
+    let accepted = glb(&archive, &out, &["--lod", "15"], false)?;
+
+    assert_eq!(rejected.code, Some(2), "{}", rejected.stderr);
+    assert!(rejected.stderr.contains("--lod"), "{}", rejected.stderr);
+    assert_eq!(accepted.code, Some(0), "{}", accepted.stderr);
+    Ok(())
+}
+#[test]
 fn an_unknown_entity_is_invalid_input() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), assembly_entries())?;

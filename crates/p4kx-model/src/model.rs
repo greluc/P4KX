@@ -130,6 +130,9 @@ pub enum LodSelection {
     All,
     /// Only this level; reading fails when the model lacks it.
     Only(u32),
+    /// Every level up to and including this one that the model has; reading fails when it has
+    /// none of them.
+    AtMost(u32),
 }
 
 impl LodSelection {
@@ -139,6 +142,7 @@ impl LodSelection {
         match self {
             Self::All => true,
             Self::Only(only) => only == level,
+            Self::AtMost(most) => level <= most,
         }
     }
 }
@@ -195,7 +199,7 @@ impl Model {
     /// # Errors
     ///
     /// As [`Self::read`], and [`ModelError::NoSuchLod`] when `lods` is [`LodSelection::Only`]
-    /// and the model lacks that level.
+    /// and the model lacks that level, or [`LodSelection::AtMost`] and it has none up to it.
     pub fn read_with<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,

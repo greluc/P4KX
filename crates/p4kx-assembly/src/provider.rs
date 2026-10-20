@@ -119,30 +119,26 @@ impl<'a> ArchiveModels<'a> {
 impl ModelProvider for ArchiveModels<'_> {
     fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
         let entry = self.entry_of(path).ok_or(ModelFailure::Missing)?;
-        for level in (0..=lod).rev() {
-            match ModelSource::from_index_without_materials(
-                &self.index,
-                &entry,
-                LodSelection::Only(level),
-            ) {
-                Ok(source) => {
-                    return Ok(ProvidedModel {
-                        entry,
-                        model: source.into_model(),
-                    });
-                }
-                Err(ConversionError::Model {
-                    source: ModelError::NoSuchLod { .. },
-                    ..
-                }) => {}
-                Err(error) => return Err(failure(error)),
-            }
+        let source = ModelSource::from_index_without_materials(
+            &self.index,
+            &entry,
+            LodSelection::AtMost(lod),
+        )
+        .map_err(|error| match error {
+            ConversionError::Model {
+                source: ModelError::NoSuchLod { .. },
+                ..
+            } => ModelFailure::Unreadable {
+                reason: "the model has no level of detail".to_owned(),
+            },
+            error => failure(error),
+        })?;
+        let mut model = source.into_model();
+        if let Some(nearest) = model.lods.iter().map(|found| found.level).max() {
+            model.lods.retain(|found| found.level == nearest);
         }
-        Err(ModelFailure::Unreadable {
-            reason: "the model has no level of detail".to_owned(),
-        })
+        Ok(ProvidedModel { entry, model })
     }
-
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         ModelSource::material_library(&self.index, entry, name)
     }

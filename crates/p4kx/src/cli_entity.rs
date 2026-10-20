@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use crate::cli_model::MaterialsArg;
+use crate::cli_model::{MaterialsArg, lod_range};
 use crate::cli_wwise::AudioLanguageArgs;
 use crate::exit::EXIT_CODES_HELP;
 
@@ -51,7 +51,7 @@ pub(crate) struct EntityGlbArgs {
     pub(crate) out: PathBuf,
     /// The level of detail of every model: 0 is the most detailed. A model that lacks the level
     /// is written at the nearest lower level it has.
-    #[arg(long, value_name = "N", default_value_t = 0)]
+    #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
     pub(crate) lod: u32,
     /// How to write the materials. colours: one glTF material per distinct material, with base
     /// colour, opacity, roughness, metalness and emissive colour and no textures. A material

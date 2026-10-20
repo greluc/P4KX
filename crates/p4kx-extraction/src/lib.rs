@@ -109,7 +109,7 @@ pub use p4kx_dataforge::{
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;
-pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError};
+pub use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, MaterialMode};
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
 };

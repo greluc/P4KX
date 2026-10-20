@@ -5,13 +5,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestChunkFile, TestEntry, TestModel, check_glb};
+use p4kx_testkit::{
+    ArchiveBuilder, TestChunkFile, TestEntry, TestModel, TestMtl, TestMtlMaterial, check_glb,
+};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const MODEL_ENTRY: &str = "Data\\Objects\\Test\\cube.cgf";
 const GEOMETRY_ENTRY: &str = "Data\\Objects\\Test\\cube.cgfm";
+const MATERIAL_ENTRY: &str = "Data\\objects\\test\\CUBE.mtl";
 const LONELY_ENTRY: &str = "Data\\Objects\\Test\\lonely.cgf";
 const UNKNOWN_TYPE: u32 = 0x00C0_FFEE;
 
@@ -19,11 +22,23 @@ fn cube() -> TestModel {
     TestModel::cube().with_chunk(UNKNOWN_TYPE, [7; 12])
 }
 
+fn cube_mtl() -> Vec<u8> {
+    TestMtl::multi(&[
+        TestMtlMaterial::new("unused"),
+        TestMtlMaterial::new("caps").diffuse([0.8, 0.1, 0.1]),
+        TestMtlMaterial::new("sides")
+            .diffuse([0.1, 0.1, 0.8])
+            .opacity(0.5),
+    ])
+    .cryxml()
+}
+
 fn write_archive(folder: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = folder.join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd(MODEL_ENTRY, cube().cgf()))
         .entry(TestEntry::zstd(GEOMETRY_ENTRY, cube().cgfm()))
+        .entry(TestEntry::zstd(MATERIAL_ENTRY, cube_mtl()))
         .entry(TestEntry::zstd(LONELY_ENTRY, cube().cgf()))
         .write_to(&path)?;
     Ok(path)
@@ -157,6 +172,7 @@ fn glb_of_a_file_on_disk_takes_its_companion_from_the_same_folder() -> TestResul
     let dir = tempfile::tempdir()?;
     fs::write(dir.path().join("cube.cgf"), cube().cgf())?;
     fs::write(dir.path().join("cube.cgfm"), cube().cgfm())?;
+    fs::write(dir.path().join("cube.mtl"), cube_mtl())?;
 
     let output = p4kx()?
         .current_dir(dir.path())
@@ -165,7 +181,7 @@ fn glb_of_a_file_on_disk_takes_its_companion_from_the_same_folder() -> TestResul
 
     assert_eq!(output.status.code(), Some(0), "success: {output:?}");
     let glb = check_glb(&fs::read(dir.path().join("cube.glb"))?)?;
-    assert_eq!(glb.document.materials().len(), 2, "materials");
+    assert_eq!(glb.document.materials().len(), 2, "materials from cube.mtl");
     Ok(())
 }
 

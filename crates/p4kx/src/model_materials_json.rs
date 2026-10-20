@@ -1,0 +1,96 @@
+use p4kx_extraction::model::{Material, MaterialStatus, Model};
+use serde::Serialize;
+
+/// The JSON shape of what reading a model's material library came to.
+#[derive(Serialize)]
+pub(crate) struct LibraryJson<'a> {
+    path: Option<&'a str>,
+    status: &'static str,
+    problem: Option<String>,
+    single: Option<bool>,
+    default_palette: Option<&'a str>,
+}
+
+impl<'a> LibraryJson<'a> {
+    pub(crate) fn of(model: &'a Model) -> Self {
+        let library = model.materials.library();
+        Self {
+            path: model.material_library.as_deref(),
+            status: match &model.materials {
+                MaterialStatus::Missing { .. } => "missing",
+                MaterialStatus::Unreadable { .. } => "unreadable",
+                MaterialStatus::Loaded(_) => "loaded",
+                _ => "unnamed",
+            },
+            problem: model.materials.problem(),
+            single: library.map(|library| library.single),
+            default_palette: library.and_then(|library| library.default_palette.as_deref()),
+        }
+    }
+}
+
+/// The JSON shape of one material of a model's library.
+#[derive(Serialize)]
+pub(crate) struct MaterialJson<'a> {
+    id: Option<usize>,
+    name: &'a str,
+    flags: u32,
+    shader: &'a str,
+    surface_type: &'a str,
+    string_gen_mask: &'a str,
+    diffuse: [f32; 3],
+    specular: [f32; 3],
+    emissive: [f32; 3],
+    shininess: f32,
+    opacity: f32,
+    alpha_test: f32,
+    glow: f32,
+    textures: Vec<TextureJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct TextureJson<'a> {
+    map: &'a str,
+    file: &'a str,
+}
+
+impl<'a> MaterialJson<'a> {
+    /// Returns the materials of the model's library, empty when it was not read.
+    pub(crate) fn of_model(model: &'a Model) -> Vec<Self> {
+        let Some(library) = model.materials.library() else {
+            return Vec::new();
+        };
+        library
+            .materials
+            .iter()
+            .enumerate()
+            .map(|(position, material)| Self::of(material, (!library.single).then_some(position)))
+            .collect()
+    }
+
+    fn of(material: &'a Material, id: Option<usize>) -> Self {
+        Self {
+            id,
+            name: &material.name,
+            flags: material.flags.0,
+            shader: &material.shader,
+            surface_type: &material.surface_type,
+            string_gen_mask: &material.string_gen_mask,
+            diffuse: material.diffuse,
+            specular: material.specular,
+            emissive: material.emissive,
+            shininess: material.shininess,
+            opacity: material.opacity,
+            alpha_test: material.alpha_test,
+            glow: material.glow,
+            textures: material
+                .textures
+                .iter()
+                .map(|texture| TextureJson {
+                    map: &texture.map,
+                    file: &texture.file,
+                })
+                .collect(),
+        }
+    }
+}

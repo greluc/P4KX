@@ -27,11 +27,13 @@ enum Found {
     Unmanned(Guid),
 }
 
-/// The Records the ship rule looks up: the crew manifests that list a crew and the `Unmanned` tags.
+/// The Records the ship rule looks up: the crew manifests that list a crew, the `Unmanned` tags,
+/// and the manifests and tags that could not be read.
 #[derive(Debug, Default)]
 pub(crate) struct Evidence {
     crewed: HashSet<Guid>,
     unmanned: HashSet<Guid>,
+    unreadable: HashSet<Guid>,
 }
 
 impl Evidence {
@@ -70,7 +72,10 @@ impl Evidence {
                     evidence.unmanned.insert(guid);
                 }
                 Ok(None) => {}
-                Err(failure) => failures.push(failure),
+                Err(failure) => {
+                    evidence.unreadable.insert(failure.guid);
+                    failures.push(failure);
+                }
             }
         }
         (evidence, failures)
@@ -121,17 +126,29 @@ fn explodes_on_death(vehicle: Option<&StructValue<'_>>) -> bool {
 /// 3. `special`: `inclusionMode` is `DoNotInclude`.
 /// 4. `player`: `inclusionMode` is `ReadyToInclude` and, for a spaceship,
 ///    `powerPlantsCanExplodeOnDeath` is not true.
+///
+/// Any other `inclusionMode` value matches neither rule 3 nor rule 4. A crew manifest or a tag
+/// the Record links to that could not be read gives `None` before any rule, as its evidence
+/// is missing.
 pub(crate) fn ship(tree: &RecordTree<'_>, evidence: &Evidence) -> Option<Playability> {
+    let manifest_link = reference(
+        component(tree, "SEntityComponentCrewManifestParams"),
+        "crewManifest",
+    );
+    let unreadable_link = manifest_link
+        .is_some_and(|manifest| evidence.unreadable.contains(&manifest.0))
+        || elements(Some(tree.root()), "tags").iter().any(
+            |tag| matches!(tag, Value::Reference(tag) if evidence.unreadable.contains(&tag.guid())),
+        );
+    if unreadable_link {
+        return None;
+    }
     let vehicle = component(tree, "VehicleComponentParams");
     let inclusion = inclusion_mode(tree);
     let ready = inclusion == Some(READY);
     let spaceship = under(tree, SPACESHIPS);
     let hull_explodes = spaceship && explodes_on_death(vehicle);
-    let crewed = reference(
-        component(tree, "SEntityComponentCrewManifestParams"),
-        "crewManifest",
-    )
-    .is_some_and(|manifest| evidence.crewed.contains(&manifest.0));
+    let crewed = manifest_link.is_some_and(|manifest| evidence.crewed.contains(&manifest.0));
     let critical = spaceship
         && number(vehicle, "criticalPartExplosionChance").is_some_and(|chance| chance > 0.0);
     if crewed || critical || (hull_explodes && !ready) {

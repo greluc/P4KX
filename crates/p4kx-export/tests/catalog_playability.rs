@@ -7,7 +7,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use p4kx_export::{CatalogOptions, Playability, PlayabilityCounts, build_catalog};
 use p4kx_extraction::Archive;
-use playability_fixture::write_archive;
+use playability_fixture::{Corrupt, write_archive_with};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -15,9 +15,15 @@ type TestResult = Result<(), Box<dyn Error>>;
 const EXPORTED_AT: Duration = Duration::from_secs(1_792_000_000);
 
 fn catalog() -> Result<(p4kx_export::BuiltCatalog, Value), Box<dyn Error>> {
+    catalog_of(Corrupt::Nothing)
+}
+
+fn catalog_of(corrupt: Corrupt) -> Result<(p4kx_export::BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive =
-        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
+    let archive = Archive::open_with_key(
+        write_archive_with(dir.path(), corrupt)?,
+        Some(p4kx_testkit::test_key()),
+    )?;
     let built = build_catalog(&archive, &CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT))?;
     let json = serde_json::from_slice(built.json())?;
     Ok((built, json))
@@ -160,7 +166,62 @@ fn the_summary_counts_every_value_and_the_unclassified() -> TestResult {
         assert_eq!(actual, values, "player, ai, mission, special");
         assert_eq!(counts.unclassified(), unclassified, "unclassified");
     };
-    expect(summary.ships, [3, 3, 2, 1], 2);
-    expect(summary.items, [2, 0, 2, 2], 1);
+    expect(summary.ships, [3, 5, 3, 1], 3);
+    expect(summary.items, [3, 0, 2, 2], 1);
     Ok(())
+}
+
+#[test]
+fn the_rules_apply_in_order() -> TestResult {
+    let (_, catalog) = catalog()?;
+    assert_ships(
+        &catalog,
+        &[
+            ("Ship_Crewed_Salvage", Some("ai")),
+            ("Ship_Not_Shipped_Salvage", Some("mission")),
+            ("Rover_Crewed", Some("ai")),
+        ],
+    )?;
+    assert_eq!(
+        playability(&catalog, "items", "Item_Mission_Shop")?,
+        "player",
+        "a shop display wins over the mission folder"
+    );
+    Ok(())
+}
+
+#[test]
+fn any_other_inclusion_mode_leaves_a_ship_without_playability() -> TestResult {
+    let (_, catalog) = catalog()?;
+    assert_ships(&catalog, &[("Ship_Other_Inclusion", None)])
+}
+
+#[test]
+fn a_ship_linking_to_an_unreadable_crew_manifest_has_no_playability() -> TestResult {
+    let (built, catalog) = catalog_of(Corrupt::Manifests)?;
+    assert!(!built.summary().is_complete(), "the manifests failed");
+    assert_ships(
+        &catalog,
+        &[
+            ("Ship_Crewed", None),
+            ("Ship_Empty_Manifest", None),
+            ("Rover_Crewed", None),
+            ("Ship_Player", Some("player")),
+        ],
+    )
+}
+
+#[test]
+fn a_ship_linking_to_an_unreadable_tag_has_no_playability() -> TestResult {
+    let (built, catalog) = catalog_of(Corrupt::Tags)?;
+    assert!(!built.summary().is_complete(), "the tags failed");
+    assert_ships(
+        &catalog,
+        &[
+            ("Ship_Player", None),
+            ("Ship_Salvage", None),
+            ("Ship_Crewed", None),
+            ("Rover_Player", None),
+        ],
+    )
 }

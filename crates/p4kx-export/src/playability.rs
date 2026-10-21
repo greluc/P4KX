@@ -7,13 +7,15 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum Playability {
-    /// A player can own, buy or fit it: a ship the hangar lists, or an item with a shop display.
+    /// Has the structural markers of a player entity: a hangar-ready ship without AI crew or hull,
+    /// or an item with a shop display name. Not proof that a player can obtain it.
     Player,
     /// Part of the AI: a ship with an NPC crew, an AI hull setup or a spawn-only configuration.
     Ai,
     /// Part of a mission: an unmanned mission or salvage ship, or an item of a mission folder.
     Mission,
-    /// Neither: a ship the game does not ship to players, or an item without a player-visible name.
+    /// Neither: a ship whose `inclusionMode` is `DoNotInclude`, or an item without a
+    /// player-visible name.
     Special,
 }
 

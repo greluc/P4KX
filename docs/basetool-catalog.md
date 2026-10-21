@@ -128,13 +128,16 @@ folders); no class name or Record name enters them.
 
 | Value | Meaning |
 |-------|---------|
-| `player` | A player can own, buy or fit it |
+| `player` | Has the structural markers of a player entity |
 | `ai` | Part of the AI; ships only |
 | `mission` | Part of a mission: an unmanned ship or an item of a mission folder |
-| `special` | Neither: a ship the game does not ship, or an item without a player-visible name |
+| `special` | Neither: a ship with `inclusionMode` `DoNotInclude`, or an item without a player-visible name |
 
 For a ship or ground vehicle the first rule that holds decides. `inclusionMode` is
-`StaticEntityClassData[EAEntityDataParams].inclusionMode`.
+`StaticEntityClassData[EAEntityDataParams].inclusionMode` (`EAEntityDataParams`, believed to
+govern Electronic Access / Arena Commander inclusion). It correlates on LIVE with hangar-listed
+ships; it is used as evidence, not as a definition. Any value other than `ReadyToInclude` and
+`DoNotInclude` leads to `null`, unless rule 1 or 2 holds.
 
 1. `ai` when `Components[SEntityComponentCrewManifestParams].crewManifest` links to a
    `CrewManifest` Record whose `crew` array is not empty (the NPC crew; the empty manifest
@@ -148,7 +151,10 @@ For a ship or ground vehicle the first rule that holds decides. `inclusionMode` 
 3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
 4. `player` when `inclusionMode` is `ReadyToInclude` and, for a spaceship,
    `powerPlantsCanExplodeOnDeath` is not true.
-5. Otherwise `null`: no `EAEntityDataParams`, or a `ReadyToInclude` spaceship whose hull
+5. Also `null` when the crew manifest or a tag the Record links to could not be read (the
+   catalog reports that Record as a failure), since its evidence is missing; checked before
+   rule 1.
+6. Otherwise `null`: no `EAEntityDataParams`, another `inclusionMode`, or a `ReadyToInclude` spaceship whose hull
    explodes on death and that no crew manifest marks (LIVE: Stingray, Skylark, Railen and the
    `ai_template` ships mix here; the data does not separate them).
 
@@ -170,9 +176,12 @@ leaves out is no entity and has no playability. Known limit: a few leftover-like
 the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
 structural marker and read as `player`.
 
-**The Basetool should seed `player` ships and items only.** It matches the other values and `null`
-against what it knows, and seeds none of them. An item that is `null` may be promoted later when a
-rule for it exists; a ship `null` is a hand-made decision.
+**The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
+means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
+mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
+it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+matches every other value and `null` against what it knows and seeds none of them. A `null` ship
+(LIVE: Stingray, Skylark, Railen) is added by hand.
 
 `p4kx catalog` prints the count per value and the unclassified count for items and ships; `--json`
 lists them under `playability`. LIVE, 2026-10-21:

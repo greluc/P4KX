@@ -667,8 +667,8 @@ content-search-stopped = The search stopped without a result.
 content-search-archive-changed = The Archive changed on disk. Reload it to search it.
 content-search-no-match = Nothing matches “{ $text }”.
 content-search-none-here = This source has no hit.
-content-search-segment = { $name } ({ $number })
-content-search-segment-more = { $name } ({ $number }+)
+content-search-segment = { $number }
+content-search-segment-more = { $number }+
 content-search-hits =
     { $count ->
         [one] { $number } hit in { $seconds } s
@@ -677,11 +677,16 @@ content-search-hits =
 content-search-more = More matches exist. Only the first { $number } of a source are kept; make the text longer to narrow the search.
 content-search-skipped =
     { $count ->
-        [one] { $number } Entry was not searched: { $binary } binary, { $large } too large, { $key } encrypted without a matching Archive key, { $unreadable } unreadable.
-       *[other] { $number } Entries were not searched: { $binary } binary, { $large } too large, { $key } encrypted without a matching Archive key, { $unreadable } unreadable.
+        [one] { $number } Entry was not searched: { $binary } binary, { $large } too large, { $unreadable } unreadable.
+       *[other] { $number } Entries were not searched: { $binary } binary, { $large } too large, { $unreadable } unreadable.
     }
+content-search-key-required =
+    { $count ->
+        [one] { $number } Entry is encrypted and was not searched: the Archive has no key, or the key does not match.
+       *[other] { $number } Entries are encrypted and were not searched: the Archive has no key, or the key does not match.
+    }
+content-search-key-button = Enter the Archive key
 content-search-no-dataforge = The Archive holds no DataForge, so no Record was searched.
-content-search-scanned = Searched { $records } Records, { $texts } texts and { $entries } Entries.
 content-search-column-record = Record path
 content-search-column-field = Field
 content-search-column-text = Text

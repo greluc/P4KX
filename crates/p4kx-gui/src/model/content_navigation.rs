@@ -101,10 +101,9 @@ impl Model {
     /// Shows the hit that waited for its data once the data is read; returns whether a hit was
     /// shown or dropped; wake is called from a search the hit starts.
     pub fn apply_pending_hit(&mut self, wake: impl Fn() + Send + 'static) -> bool {
-        match self.pending_hit.clone() {
+        match self.pending_hit.take() {
             Some(PendingHit::Record(id)) => {
                 let Some(browser) = &mut self.browser else {
-                    self.pending_hit = None;
                     return true;
                 };
                 let ready = browser
@@ -120,8 +119,8 @@ impl Model {
                 if ready {
                     browser.pick_record(id);
                 }
-                if ready || lost {
-                    self.pending_hit = None;
+                if !(ready || lost) {
+                    self.pending_hit = Some(PendingHit::Record(id));
                 }
                 ready || lost
             }
@@ -134,9 +133,9 @@ impl Model {
                         | LocalizationStatus::ArchiveChanged
                 );
                 if !ready {
+                    self.pending_hit = Some(PendingHit::Localization(key, language));
                     return false;
                 }
-                self.pending_hit = None;
                 self.select_localization_key(&key, language, wake);
                 true
             }

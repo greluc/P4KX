@@ -20,6 +20,7 @@ mod comparison_summary;
 mod comparison_table;
 mod container_note;
 mod content_search;
+mod content_search_notes;
 mod content_search_rows;
 mod dataforge_summary;
 mod diff_rows;

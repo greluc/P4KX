@@ -39,21 +39,23 @@ pub enum ContentSearchText {
     NoMatch,
     /// Shown when the listed source has no hit although another has.
     NoneHere,
-    /// The label of a source with its number of hits; takes `name` and `number`.
+    /// The number of hits of a source, shown as the count of its segment; takes `number`.
     Segment,
-    /// The label of a source with more hits than were kept; takes `name` and `number`.
+    /// The number of hits of a source with more hits than were kept; takes `number`.
     SegmentMore,
     /// The number of hits and the time; takes `count`, `number` and `seconds`.
     Hits,
     /// The note that more matches exist than were kept; takes `number`.
     More,
-    /// The note that Entries were not searched; takes `count`, `number`, `binary`, `large`,
-    /// `key` and `unreadable`.
+    /// The note that Entries were not searched; takes `count`, `number`, `binary`, `large` and
+    /// `unreadable`.
     Skipped,
+    /// The note that encrypted Entries were not searched; takes `count` and `number`.
+    KeyRequired,
+    /// The action that opens the Archive key dialog from that note.
+    KeyButton,
     /// The note that Records were not searched because the Archive holds no DataForge.
     NoDataForge,
-    /// What was read; takes `records`, `texts`, `entries` and `seconds`.
-    Scanned,
     /// The head of the column of the record path.
     ColumnRecord,
     /// The head of the column of the field path.
@@ -74,7 +76,7 @@ pub enum ContentSearchText {
 
 impl ContentSearchText {
     /// Every text of the Search tab.
-    pub(crate) const ALL: [Self; 34] = [
+    pub(crate) const ALL: [Self; 35] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -99,8 +101,9 @@ impl ContentSearchText {
         Self::Hits,
         Self::More,
         Self::Skipped,
+        Self::KeyRequired,
+        Self::KeyButton,
         Self::NoDataForge,
-        Self::Scanned,
         Self::ColumnRecord,
         Self::ColumnField,
         Self::ColumnText,
@@ -139,8 +142,9 @@ impl ContentSearchText {
             Self::Hits => "content-search-hits",
             Self::More => "content-search-more",
             Self::Skipped => "content-search-skipped",
+            Self::KeyRequired => "content-search-key-required",
+            Self::KeyButton => "content-search-key-button",
             Self::NoDataForge => "content-search-no-dataforge",
-            Self::Scanned => "content-search-scanned",
             Self::ColumnRecord => "content-search-column-record",
             Self::ColumnField => "content-search-column-field",
             Self::ColumnText => "content-search-column-text",

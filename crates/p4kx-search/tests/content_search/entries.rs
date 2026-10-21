@@ -56,6 +56,17 @@ fn an_encrypted_entry_without_the_key_is_skipped_and_counted() -> TestResult {
 }
 
 #[test]
+fn a_search_without_the_key_does_not_request_it() -> TestResult {
+    let fixture = fixture(&archive_builder())?;
+    run(&fixture.archive, "gladius", &SearchOptions::default())?;
+    assert!(
+        !fixture.archive.take_key_request(),
+        "the search leaves the key dialog to the user"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_hit_shows_the_line_without_its_line_break() -> TestResult {
     let fixture = fixture(&archive_builder())?;
     let found = run(&fixture.archive, "other", &SearchOptions::default())?;

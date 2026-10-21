@@ -66,6 +66,9 @@ pub(crate) fn scan(
     if size > context.max_len {
         return Outcome::TooLarge;
     }
+    if entry.is_encrypted() && !archive.has_key() {
+        return Outcome::KeyRequired;
+    }
     let mut reader = match archive.open_entry(entry) {
         Ok(reader) => reader.reject_overlong(),
         Err(error) => return opening_failed(&error),

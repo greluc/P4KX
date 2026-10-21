@@ -61,6 +61,7 @@ fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
             "Data\\Scripts\\binary.xml",
             b"gladius\0\x01".to_vec(),
         ))
+        .entry(TestEntry::zstd("Data\\Scripts\\secret.xml", b"<secret/>".to_vec()).encrypted())
         .write_to(&path)?;
     Ok(path)
 }
@@ -159,7 +160,7 @@ fn a_search_lists_the_hits_of_each_source_with_the_counts() -> TestResult {
     assert_eq!(result.len(Source::Localization), 1, "localisation");
     assert_eq!(result.len(Source::Entries), 1, "Entries");
     assert_eq!(result.stats().entries_binary, 1, "binary counted");
-    for label in ["Records (2)", "Localisation (1)", "Entries (1)"] {
+    for label in ["Records 2", "Localisation 1", "Entries 1"] {
         assert!(harness.query_by_label(label).is_some(), "segment {label}");
     }
     assert!(
@@ -175,7 +176,7 @@ fn a_search_lists_the_hits_of_each_source_with_the_counts() -> TestResult {
         "skipped note"
     );
 
-    harness.get_by_label("Localisation (1)").click();
+    harness.get_by_label("Localisation 1").click();
     harness.run_steps(3);
     assert_eq!(
         harness.state().content_search().shown(),
@@ -213,7 +214,7 @@ fn a_click_on_a_hit_opens_the_record_the_entry_and_the_text() -> TestResult {
 
     harness.state_mut().set_work_tab(WorkTab::Search);
     harness.run_steps(2);
-    harness.get_by_label("Entries (1)").click();
+    harness.get_by_label("Entries 1").click();
     harness.run_steps(3);
     click_row(&harness, "Data\\Scripts\\ship.xml")?;
     wait_until(&mut harness, |model| {
@@ -234,7 +235,7 @@ fn a_click_on_a_hit_opens_the_record_the_entry_and_the_text() -> TestResult {
 
     harness.state_mut().set_work_tab(WorkTab::Search);
     harness.run_steps(2);
-    harness.get_by_label("Localisation (1)").click();
+    harness.get_by_label("Localisation 1").click();
     harness.run_steps(3);
     click_row(&harness, "vehicle_NameAEGS_Gladius")?;
     wait_until(&mut harness, |model| {
@@ -265,7 +266,7 @@ fn nothing_found_says_so_and_an_empty_text_cannot_be_searched() -> TestResult {
 fn the_german_window_is_in_german() -> TestResult {
     let (_dir, harness) = searched(Language::German, "gladi")?;
 
-    for label in ["Records (2)", "Lokalisierung (1)", "Einträge (1)"] {
+    for label in ["Records 2", "Lokalisierung 1", "Einträge 1"] {
         assert!(harness.query_by_label(label).is_some(), "segment {label}");
     }
     assert!(
@@ -273,6 +274,53 @@ fn the_german_window_is_in_german() -> TestResult {
             .query_by_role_and_label(Role::ColumnHeader, "Record-Pfad")
             .is_some(),
         "German column"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_search_leaves_the_key_to_the_user_and_offers_the_dialog() -> TestResult {
+    let (_dir, mut harness) = searched(Language::BritishEnglish, "gladi")?;
+
+    assert_eq!(
+        harness
+            .state()
+            .content_search()
+            .result()
+            .map(|result| result.stats().entries_key_required),
+        Some(1),
+        "the encrypted Entry is counted"
+    );
+    assert!(harness.state().key_dialog().is_none(), "no dialog opened");
+    assert!(
+        harness
+            .query_by_label_contains("1 Entry is encrypted")
+            .is_some(),
+        "alert"
+    );
+
+    harness
+        .get_by_role_and_label(Role::Button, "Enter the Archive key")
+        .click();
+    harness.run_steps(3);
+    assert!(harness.state().key_dialog().is_some(), "dialog opened");
+    Ok(())
+}
+
+#[test]
+fn a_source_without_a_hit_says_so() -> TestResult {
+    let (_dir, mut harness) = searched(Language::BritishEnglish, "alpha")?;
+
+    harness.get_by_label("Entries 0").click();
+    harness.run_steps(3);
+    assert_eq!(
+        harness.state().content_search().shown(),
+        Source::Entries,
+        "switched"
+    );
+    assert!(
+        harness.query_by_label("This source has no hit.").is_some(),
+        "empty state"
     );
     Ok(())
 }

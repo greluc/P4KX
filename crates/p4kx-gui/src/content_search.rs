@@ -257,6 +257,7 @@ impl ContentSearchTab {
     pub fn cancel(&mut self) {
         if self.is_running() {
             self.state = State::Cancelled;
+            self.serial += 1;
         }
     }
 

@@ -48,7 +48,10 @@ paths, keys and field names through the same filter.
 
 **The Archive key.** An encrypted Entry needs the user's key (ADR-0027). Without it, or with a
 wrong one, it is counted as `entries_key_required` and the CLI prints a hint; the search of the
-other sources goes on. An encrypted DataForge is an error with exit code 7, an Archive without a
+other sources goes on. A search never asks for a missing key: an encrypted Entry is counted before it
+is opened when the Archive has no key, so `Archive::take_key_request` stays false, and the window
+shows the count as an alert with a button that opens the key dialog for the user to decide. With
+a key set the Entries are opened as before and a wrong key is counted like a missing one. An encrypted DataForge is an error with exit code 7, an Archive without a
 DataForge is reported as unavailable for the Records source.
 
 **Measured** on LIVE 4.10 without the Archive key, in release mode on the development machine:

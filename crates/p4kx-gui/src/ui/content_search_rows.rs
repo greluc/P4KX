@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    Color32, CornerRadius, Galley, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2,
+    Color32, CornerRadius, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2,
 };
 use p4kx_search::{Excerpt, Source, display_text};
 
@@ -12,7 +13,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{Weight, font};
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_table_row, row_weight};
+use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_table_row};
 use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, line, paint_left, plain};
 use crate::{ContentResult, ContentSearchTab, ContentSearchText, ScrollText, Texts, format};
@@ -27,6 +28,23 @@ struct Cells<'a> {
     excerpt: &'a Excerpt,
 }
 
+/// A row laid out once: the cells in regular weight, in bold once the row was selected, and the
+/// excerpt, whose unmatched text takes the colour the row is painted in.
+struct Laid {
+    cells: [Arc<Galley>; 2],
+    bold: Option<[Arc<Galley>; 2]>,
+    excerpt: Arc<Galley>,
+}
+
+/// The laid-out heads and rows of the listed source, made again only when the list, the
+/// language, the width or the scale change; rows are laid out as they come into view.
+struct Cache {
+    key: u64,
+    heads: [(Arc<str>, Arc<Galley>); 3],
+    row_width: f32,
+    rows: Vec<Option<Laid>>,
+}
+
 /// Shows the hits of the listed source as rows of three columns and returns the position of the
 /// hit that was clicked.
 pub(super) fn show(
@@ -36,10 +54,11 @@ pub(super) fn show(
     tab: &ContentSearchTab,
 ) -> Option<usize> {
     let source = tab.shown();
-    let heads = heads(texts, source);
-    let widths = widths(ui.available_width());
-    head(ui, &heads, widths);
     let total = result.len(source);
+    let width = ui.available_width();
+    let widths = widths(width);
+    let cache = cache(ui, texts, tab, total, width);
+    head(ui, &lock(&cache).heads, widths);
     let hovered_id = ui.scope_id().with("content-search-hovered");
     let hovered = ui.data(|data| data.get_temp::<usize>(hovered_id));
     let mut clicked = None;
@@ -57,17 +76,19 @@ pub(super) fn show(
         |area, ui| {
             area.show_rows(ui, ROW_HEIGHT, total, |ui, range| {
                 ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                let mut cache = lock(&cache);
                 for position in range {
-                    let Some(cells) = cells(texts, result, source, position) else {
-                        continue;
-                    };
                     let row = Row {
                         position,
                         active: tab.selected() == Some(position),
                         hovered: hovered == Some(position),
                         widths,
                     };
-                    let (was_clicked, is_hovered) = show_row(ui, texts, &cells, &row);
+                    let hit = (texts, result, source);
+                    let Some(laid) = laid(ui, hit, &mut cache, &row) else {
+                        continue;
+                    };
+                    let (was_clicked, is_hovered) = show_row(ui, hit, laid, &row);
                     if was_clicked {
                         clicked = Some(position);
                     }
@@ -89,14 +110,40 @@ pub(super) fn show(
     clicked
 }
 
-struct Row {
-    position: usize,
-    active: bool,
-    hovered: bool,
-    widths: [f32; 2],
+fn lock(cache: &Mutex<Cache>) -> MutexGuard<'_, Cache> {
+    cache.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-fn heads(texts: &Texts, source: Source) -> [String; 3] {
+fn cache(
+    ui: &Ui,
+    texts: &Texts,
+    tab: &ContentSearchTab,
+    total: usize,
+    width: f32,
+) -> Arc<Mutex<Cache>> {
+    let mut hasher = DefaultHasher::new();
+    texts.language().hash(&mut hasher);
+    tab.serial().hash(&mut hasher);
+    width.to_bits().hash(&mut hasher);
+    ui.ctx().pixels_per_point().to_bits().hash(&mut hasher);
+    let key = hasher.finish();
+    let id = Id::unique("p4kx-content-search-rows");
+    if let Some(cache) = ui.data(|data| data.get_temp::<Arc<Mutex<Cache>>>(id))
+        && lock(&cache).key == key
+    {
+        return cache;
+    }
+    let cache = Arc::new(Mutex::new(Cache {
+        key,
+        heads: heads(ui, texts, tab.shown(), width),
+        row_width: f32::NAN,
+        rows: std::iter::repeat_with(|| None).take(total).collect(),
+    }));
+    ui.data_mut(|data| data.insert_temp(id, Arc::clone(&cache)));
+    cache
+}
+
+fn heads(ui: &Ui, texts: &Texts, source: Source, width: f32) -> [(Arc<str>, Arc<Galley>); 3] {
     let (first, second) = match source {
         Source::Records => (
             ContentSearchText::ColumnRecord,
@@ -111,11 +158,24 @@ fn heads(texts: &Texts, source: Source) -> [String; 3] {
             ContentSearchText::ColumnLine,
         ),
     };
-    [
-        texts.get(first),
-        texts.get(second),
-        texts.get(ContentSearchText::ColumnText),
-    ]
+    let row = Rect::from_min_size(pos2(0.0, 0.0), vec2(width, ROW_HEIGHT));
+    [(0, first), (1, second), (2, ContentSearchText::ColumnText)].map(|(index, text)| {
+        let name = texts.get(text);
+        let column = column_rect(row, widths(width), index);
+        let galley = line(
+            ui,
+            caps(&name, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING),
+            column.width(),
+        );
+        (Arc::<str>::from(name), galley)
+    })
+}
+
+struct Row {
+    position: usize,
+    active: bool,
+    hovered: bool,
+    widths: [f32; 2],
 }
 
 fn widths(available: f32) -> [f32; 2] {
@@ -125,27 +185,22 @@ fn widths(available: f32) -> [f32; 2] {
     ]
 }
 
-fn head(ui: &mut Ui, heads: &[String; 3], widths: [f32; 2]) {
+fn head(ui: &mut Ui, heads: &[(Arc<str>, Arc<Galley>); 3], widths: [f32; 2]) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
     ui.painter()
         .rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
     let rule = Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.max);
     ui.painter()
         .rect_filled(rule, CornerRadius::ZERO, palette::PRIMARY);
-    for (index, name) in heads.iter().enumerate() {
+    for (index, (name, galley)) in heads.iter().enumerate() {
         let column = column_rect(rect, widths, index);
-        let galley = line(
-            ui,
-            caps(name, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING),
-            column.width(),
-        );
         let response = ui.interact(
             column,
             ui.scope_id().with(("content-search-head", index)),
             Sense::hover(),
         );
-        response.widget_info(|| WidgetInfo::labeled(Role::ColumnHeader, true, name));
-        paint_left(ui, column, galley, palette::GRAY_1);
+        response.widget_info(|| WidgetInfo::labeled(Role::ColumnHeader, true, &**name));
+        paint_left(ui, column, Arc::clone(galley), palette::GRAY_1);
     }
 }
 
@@ -196,43 +251,96 @@ fn cells<'a>(
     }
 }
 
-fn show_row(ui: &mut Ui, texts: &Texts, cells: &Cells<'_>, row: &Row) -> (bool, bool) {
+type Hit<'a> = (&'a Texts, &'a ContentResult, Source);
+
+/// Returns the laid-out row, laying it out first when it comes into view or becomes selected.
+fn laid<'a>(
+    ui: &Ui,
+    (texts, result, source): Hit<'_>,
+    cache: &'a mut Cache,
+    row: &Row,
+) -> Option<&'a Laid> {
+    let width = ui.available_width();
+    if cache.row_width.to_bits() != width.to_bits() {
+        cache.row_width = width;
+        cache.rows.fill_with(|| None);
+    }
+    let row_rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(width, ROW_HEIGHT));
+    let widths: [f32; 3] =
+        std::array::from_fn(|index| column_rect(row_rect, row.widths, index).width());
+    let slot = cache.rows.get_mut(row.position)?;
+    if slot.is_none() {
+        let cells = cells(texts, result, source, row.position)?;
+        *slot = Some(Laid {
+            cells: lay_cells(ui, &cells, widths, Weight::Regular),
+            bold: None,
+            excerpt: excerpt_galley(ui, cells.excerpt, widths[2]),
+        });
+    }
+    let laid = slot.as_mut()?;
+    if row.active && laid.bold.is_none() {
+        let cells = cells(texts, result, source, row.position)?;
+        laid.bold = Some(lay_cells(ui, &cells, widths, Weight::Bold));
+    }
+    Some(&*laid)
+}
+
+fn lay_cells(ui: &Ui, cells: &Cells<'_>, widths: [f32; 3], weight: Weight) -> [Arc<Galley>; 2] {
+    let lay = |text: &str, width| line(ui, plain(text, ROW_FONT, weight), width);
+    [lay(&cells.first, widths[0]), lay(&cells.second, widths[1])]
+}
+
+fn show_row(ui: &mut Ui, (texts, result, source): Hit<'_>, laid: &Laid, row: &Row) -> (bool, bool) {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let state = RowState::of(row.active, false, row.hovered);
     paint_table_row(ui.painter(), rect, state, row.position % 2 == 1);
     paint_divider(ui.painter(), rect);
     let (_, colour) = state.colours();
-    let weight = row_weight(row.active);
-    for (index, text) in [&cells.first, &cells.second].into_iter().enumerate() {
-        let column = column_rect(rect, row.widths, index);
-        let galley = line(ui, plain(text, ROW_FONT, weight), column.width());
-        paint_left(ui, column, galley, colour);
+    let shown = laid
+        .bold
+        .as_ref()
+        .filter(|_| row.active)
+        .unwrap_or(&laid.cells);
+    for (index, galley) in shown.iter().enumerate() {
+        paint_left(
+            ui,
+            column_rect(rect, row.widths, index),
+            Arc::clone(galley),
+            colour,
+        );
     }
     let column = column_rect(rect, row.widths, 2);
-    let galley = excerpt_galley(ui, cells.excerpt, column.width(), colour);
     let painter = ui
         .painter()
         .with_clip_rect(column.intersect(ui.clip_rect()));
     painter.galley(
-        pos2(column.left(), column.center().y - galley.size().y / 2.0),
-        galley,
+        pos2(
+            column.left(),
+            column.center().y - laid.excerpt.size().y / 2.0,
+        ),
+        Arc::clone(&laid.excerpt),
         colour,
     );
-    let name = texts.format(
-        ContentSearchText::Row,
-        &[
-            ("place", format!("{} {}", cells.first, cells.second).into()),
-            ("text", cells.excerpt.text().to_owned().into()),
-        ],
-    );
-    response.widget_info(|| WidgetInfo::selected(Role::Row, true, row.active, name.clone()));
+    response.widget_info(|| {
+        let name = cells(texts, result, source, row.position).map_or_else(String::new, |name| {
+            texts.format(
+                ContentSearchText::Row,
+                &[
+                    ("place", format!("{} {}", name.first, name.second).into()),
+                    ("text", name.excerpt.text().to_owned().into()),
+                ],
+            )
+        });
+        WidgetInfo::selected(Role::Row, true, row.active, name)
+    });
     focus_inside(ui.painter(), rect, &response);
     (response.clicked(), response.hovered())
 }
 
-/// Lays the excerpt out on one line with the match in bold white, cut at `width`.
-fn excerpt_galley(ui: &Ui, excerpt: &Excerpt, width: f32, colour: Color32) -> Arc<Galley> {
+/// Lays the excerpt out on one line with the match in bold white, cut at `width`; the rest takes
+/// the colour the row is painted in.
+fn excerpt_galley(ui: &Ui, excerpt: &Excerpt, width: f32) -> Arc<Galley> {
     let plain_format = |weight, colour| TextFormat::simple(font(ROW_FONT, weight), colour);
     let mut job = LayoutJob::default();
     let parts: [(&str, bool); 3] = [
@@ -247,7 +355,7 @@ fn excerpt_galley(ui: &Ui, excerpt: &Excerpt, width: f32, colour: Color32) -> Ar
         let format = if matched {
             plain_format(Weight::Bold, palette::WHITE)
         } else {
-            plain_format(Weight::Regular, colour)
+            plain_format(Weight::Regular, Color32::PLACEHOLDER)
         };
         job.append(text, 0.0, format);
     }

@@ -278,14 +278,24 @@ Lupe, Hinweis in kursiv), rechts die CTA „Suchen" (die eine Hauptaktion; währ
 Ghost-Schaltfläche „Abbrechen"); Enter im Feld startet ebenfalls. Darunter die Zeile „Suchen in"
 mit drei Checkboxen (Records, Lokalisierung, Einträge, alle gewählt; ohne Quelle ist die CTA
 gesperrt). Die Suche läuft nicht bei jedem Tastendruck, sondern auf Befehl, weil ein Lauf alle
-Quellen liest; ein laufender Lauf zeigt den Spinner (`SPINNER_INLINE`) und „Suche läuft …".
+Quellen liest; ein laufender Lauf zeigt den Spinner (`SPINNER_INLINE`) und „Suche läuft …" im
+Rand der Vorschau (`preview_body`), wie die Meldungen vor und nach einem Lauf.
 
-Das Ergebnis: eine Warnleiste (`.alert--warning`) je Hinweis, wenn weitere Treffer existieren
-(je Quelle höchstens 1.000), wenn Records fehlen, weil das Archiv keine DataForge hat, und wenn
-Einträge nicht durchsucht wurden (binär, zu groß, verschlüsselt ohne passenden Archivschlüssel,
-nicht lesbar, jeweils mit Zahl). Darunter die Segmentleiste (`.krt-segmented`, D.1) mit einer
-Quelle je Segment und der Trefferzahl, „Records (2)", mit „+" hinter der Zahl bei weiteren
-Treffern; sie wählt die Quelle, deren Treffer die Liste zeigt, anfangs die erste mit Treffern.
+Das Ergebnis: eine einzige Warnleiste (`.alert.alert-warning`) mit einer Zeile je Hinweis, wenn
+weitere Treffer existieren (je Quelle höchstens 1.000), wenn Records fehlen, weil das Archiv keine
+DataForge hat, und wenn Einträge nicht durchsucht wurden (binär, zu groß, nicht lesbar, jeweils mit
+Zahl). Verschlüsselte Einträge ohne passenden Archivschlüssel sind eine eigene Zeile derselben
+Leiste mit der Ghost-Schaltfläche „Archivschlüssel eingeben", die den Schlüsseldialog öffnet
+(`KeyReason::Menu`): Eine Suche öffnet den Dialog nie von selbst, sie zählt diese Einträge nur
+(ADR-0044). Die Leiste hat den Rand des Panels wie die Segmentleiste (`SPACE_3`) und den
+Außenabstand unten des `.alert` (`margin-bottom: 1.5rem`, `SPACE_6`). Darunter die Segmentleiste
+(`.krt-segmented`, D.1) mit einer Quelle je Segment und der Trefferzahl als `.krt-segmented__count`:
+eigener Text im Segment in 700, `color-gray-2-text` (im gewählten Segment `control-selected-fg`),
+ohne Klammern, mit „+" hinter der Zahl bei weiteren Treffern, getrennt vom Namen durch 0,5 rem
+(`SEGMENT_COUNT_GAP`); die Ziffern von Lato sind tabellarisch. Die Segmente tragen den Namen und
+die Zahl auch als zugänglichen Namen, „Records 2". Die Segmentleiste wählt die Quelle, deren
+Treffer die Liste zeigt, anfangs die erste mit Treffern; hat die gewählte Quelle keinen Treffer,
+steht statt der Liste „Diese Quelle hat keinen Treffer."
 Die Liste ist eine virtuelle Tabelle mit drei Spalten in Tabellenkopf und Zeilenhöhe von D.2
 (Records: Record-Pfad, Feld, Text; Lokalisierung: Sprache, Schlüssel, Text; Einträge: Pfad, Zeile,
 Text). Der Ausschnitt in der letzten Spalte steht in 13,8 / 400 `color-gray-1`, der Treffer darin
@@ -293,7 +303,10 @@ in 700 `color-white` (Daten sind weiß, Orange bleibt Aktion und Identität). Di
 trägt den orangen Balken von D.2; die Liste ist eine fokussierbare Scrollfläche (D.24) mit dem
 Namen „Suchtreffer". Der Fuß (`.list-panel__footer`) nennt Trefferzahl und Dauer. Texte aus dem
 Archiv (Pfade, Schlüssel, Feldnamen, Ausschnitte) laufen durch denselben Filter wie die Ausgabe
-der CLI: Steuer- und Bidi-Zeichen werden durch U+FFFD ersetzt.
+der CLI: Steuer- und Bidi-Zeichen werden durch U+FFFD ersetzt. Lato hat für U+FFFD kein Glyph;
+das Fenster zeigt das Ersatzzeichen wie jedes Zeichen ohne Glyph als Ersatzkästchen der
+Schriftenkette und zeichnet kein eigenes Zeichen dafür. Die Zeilen der Liste werden einmal je
+Liste, Sprache, Breite und Skalierung gesetzt und beim Scrollen wiederverwendet.
 
 Ein Klick auf einen Treffer öffnet ihn: ein Record wird im Record-Baum gewählt (die Vorschau
 wechselt auf „Record"), ein Eintrag in seinem Ordner mit aufgeklappten Ordnern darüber, ein

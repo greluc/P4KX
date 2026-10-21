@@ -13,6 +13,18 @@ pub enum GltfError {
         /// The levels the model has, e.g. `LOD0`.
         available: String,
     },
+    /// A node of a scene names a parent that does not come before it.
+    #[error(
+        "the scene node {index} ({name}) names the parent {parent}, which does not come before it"
+    )]
+    InvalidSceneNode {
+        /// The position of the node.
+        index: usize,
+        /// Its name.
+        name: String,
+        /// The parent it names.
+        parent: usize,
+    },
     /// The model does not fit in a GLB file, whose length is a 32-bit number.
     #[error("the model needs {len} bytes, more than a GLB file can hold")]
     TooLarge {

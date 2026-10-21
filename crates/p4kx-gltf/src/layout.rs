@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use p4kx_model::{Lod, Mesh};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::axes::to_y_up;
 use crate::block_data::BlockData;
@@ -10,6 +11,7 @@ use crate::texture_plan::EncodedImage;
 
 const ALIGNMENT: u64 = 4;
 const BATCH: usize = 1 << 14;
+const WINDOW: u64 = 32 << 20;
 
 /// One block of the binary chunk at its offset.
 #[derive(Debug, Clone, Copy)]
@@ -29,6 +31,7 @@ pub(crate) struct PrimitiveLayout {
 /// The blocks of one mesh and the bounds of its converted positions.
 #[derive(Debug, Clone)]
 pub(crate) struct MeshLayout {
+    pub(crate) part: usize,
     pub(crate) node: usize,
     pub(crate) positions: usize,
     pub(crate) normals: Option<usize>,
@@ -61,28 +64,33 @@ pub(crate) struct Layout<'m> {
 }
 
 impl<'m> Layout<'m> {
-    /// Plans the blocks of every mesh of `lod` that has vertices and triangles, leaving out the
-    /// submeshes whose material draws nothing; vertex colours only when `colours_wanted` is set.
-    /// A skinned mesh gets its bone weights when `binds`, the inverse bind matrices of the
-    /// skeleton, are given.
-    pub(crate) fn plan(
-        lod: &'m Lod,
-        colours_wanted: bool,
-        materials: &MaterialPlan<'_>,
-        binds: Option<&'m [[f32; 16]]>,
-    ) -> Self {
-        let mut layout = Self {
+    /// Creates a layout without blocks.
+    pub(crate) const fn new() -> Self {
+        Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
             images: Vec::new(),
             inverse_binds: None,
             len: 0,
             hidden_primitives: 0,
-        };
-        for mesh in &lod.meshes {
-            layout.plan_mesh(mesh, colours_wanted, materials, binds);
         }
-        layout
+    }
+
+    /// Plans the blocks of every mesh of `lod`, a level of the model instance `part`, that has
+    /// vertices and triangles, leaving out the submeshes whose material draws nothing; vertex
+    /// colours only when `colours_wanted` is set. A skinned mesh gets its bone weights when
+    /// `binds`, the inverse bind matrices of the skeleton, are given.
+    pub(crate) fn add_part(
+        &mut self,
+        part: usize,
+        lod: &'m Lod,
+        colours_wanted: bool,
+        materials: &MaterialPlan<'_>,
+        binds: Option<&'m [[f32; 16]]>,
+    ) {
+        for mesh in &lod.meshes {
+            self.plan_mesh(part, mesh, colours_wanted, materials, binds);
+        }
     }
 
     fn plan_skin(
@@ -119,6 +127,7 @@ impl<'m> Layout<'m> {
 
     fn plan_mesh(
         &mut self,
+        part: usize,
         mesh: &'m Mesh,
         colours_wanted: bool,
         materials: &MaterialPlan<'_>,
@@ -164,6 +173,7 @@ impl<'m> Layout<'m> {
         let (joints, weights) = self.plan_skin(mesh, binds);
         let primitives = self.plan_primitives(&primitives, mesh.positions.len());
         self.meshes.push(MeshLayout {
+            part,
             node: mesh.node,
             positions,
             normals,
@@ -210,9 +220,19 @@ impl<'m> Layout<'m> {
 
     /// Returns the material IDs of the primitives, sorted, each once.
     pub(crate) fn material_ids(&self) -> Vec<u16> {
+        self.ids_where(|_| true)
+    }
+
+    /// Returns the material IDs of the primitives of the model instance `part`, sorted, each once.
+    pub(crate) fn part_material_ids(&self, part: usize) -> Vec<u16> {
+        self.ids_where(|mesh| mesh.part == part)
+    }
+
+    fn ids_where(&self, keep: impl Fn(&MeshLayout) -> bool) -> Vec<u16> {
         let mut ids: Vec<u16> = self
             .meshes
             .iter()
+            .filter(|mesh| keep(mesh))
             .flat_map(|mesh| &mesh.primitives)
             .map(|primitive| primitive.material_id)
             .collect();
@@ -232,30 +252,36 @@ impl<'m> Layout<'m> {
         }
     }
 
-    /// Writes every block with its padding to `out`, a batch of elements at a time through one
-    /// reused buffer, then the PNG bytes of `images` in the order of their blocks.
+    /// Writes every block with its padding to `out`, then the PNG bytes of `images` in the order
+    /// of their blocks. Runs of small blocks are encoded in parallel, a window of at most
+    /// [`WINDOW`] bytes at a time; a block alone in its window is streamed a batch of elements at
+    /// a time through one reused buffer.
     pub(crate) fn write(
         &self,
         out: &mut impl Write,
         images: &[EncodedImage],
     ) -> std::io::Result<()> {
-        let mut buffer = Vec::new();
-        for block in &self.blocks {
-            let count = block.data.count();
-            for start in (0..count).step_by(BATCH) {
-                buffer.clear();
-                block
-                    .data
-                    .slice(start, (start + BATCH).min(count))
-                    .encode(&mut buffer);
-                out.write_all(&buffer)?;
+        let mut start = 0;
+        while start < self.blocks.len() {
+            let mut end = start;
+            let mut bytes = 0_u64;
+            while let Some(block) = self.blocks.get(end) {
+                if end > start && bytes.saturating_add(block.len) > WINDOW {
+                    break;
+                }
+                bytes = bytes.saturating_add(block.len);
+                end += 1;
             }
-            let padding = block.len.next_multiple_of(ALIGNMENT) - block.len;
-            out.write_all(
-                [0; 4]
-                    .get(..usize::try_from(padding).unwrap_or(0))
-                    .unwrap_or_default(),
-            )?;
+            match self.blocks.get(start..end).unwrap_or_default() {
+                [block] => block.stream(out)?,
+                window => {
+                    let encoded: Vec<Vec<u8>> = window.par_iter().map(Block::encoded).collect();
+                    for bytes in &encoded {
+                        out.write_all(bytes)?;
+                    }
+                }
+            }
+            start = end;
         }
         for (image, block) in images.iter().zip(&self.images) {
             out.write_all(&image.png)?;
@@ -267,6 +293,32 @@ impl<'m> Layout<'m> {
             )?;
         }
         Ok(())
+    }
+}
+
+impl Block<'_> {
+    fn padding(&self) -> usize {
+        usize::try_from(self.len.next_multiple_of(ALIGNMENT) - self.len).unwrap_or(0)
+    }
+
+    fn encoded(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(usize::try_from(self.len).unwrap_or(0) + 4);
+        self.data.encode(&mut bytes);
+        bytes.resize(bytes.len() + self.padding(), 0);
+        bytes
+    }
+
+    fn stream(&self, out: &mut impl Write) -> std::io::Result<()> {
+        let mut buffer = Vec::new();
+        let count = self.data.count();
+        for start in (0..count).step_by(BATCH) {
+            buffer.clear();
+            self.data
+                .slice(start, (start + BATCH).min(count))
+                .encode(&mut buffer);
+            out.write_all(&buffer)?;
+        }
+        out.write_all([0; 4].get(..self.padding()).unwrap_or_default())
     }
 }
 

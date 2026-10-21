@@ -50,6 +50,10 @@ example `m_cds_legacy_medium_helmet_01_01_hd_sec`). Of the static models with a 
 (`Objects_default_grid_blue`, `kbar_s1-3_bas_1`). A library that is missing is a status of the
 model, not an error: the model reads and exports with the default material.
 
+In an Assembly the library comes from the Entity: the Material of the Record's
+`SGeometryResourceParams` geometry replaces the library the model names, and the model's own
+library applies only when the Record names none (ADR-0040).
+
 A name is checked before any file is asked for: an empty, absolute or drive-qualified path, or one
 with an empty, `.` or `..` component, is `Unreadable` and never reaches the resolver. The Archive
 resolver only looks the path up in its index; the disk resolver reads `<last component>.mtl`

@@ -106,6 +106,16 @@ impl LoadoutError {
     }
 }
 
+/// An Assembly cannot be built at all.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum AssemblyError {
+    /// The source of the models fails for every file, e.g. the Archive key is missing; parts that
+    /// merely cannot be resolved are issues of the Assembly instead.
+    #[error("the models cannot be read")]
+    Provider(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
+
 /// An Entity named by record path, GUID or class name cannot be found.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]

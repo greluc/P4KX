@@ -10,7 +10,22 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
     loadout_structs()
         .into_iter()
         .chain(port_structs())
+        .chain(geometry_structs())
         .fold(builder, DataForgeBuilder::structure)
+}
+
+fn geometry_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("SGeometryResourceParams")
+            .parent("DataForgeComponentParams")
+            .field("Geometry", class("SGeometryNodeParams")),
+        TestStruct::new("SGeometryNodeParams").field("Geometry", class("SGeometryDataParams")),
+        TestStruct::new("SGeometryDataParams")
+            .field("Geometry", class("GlobalResourceGeometry"))
+            .field("Material", class("GlobalResourceMaterial")),
+        TestStruct::new("GlobalResourceGeometry").field("path", TestType::String),
+        TestStruct::new("GlobalResourceMaterial").field("path", TestType::String),
+    ]
 }
 
 fn pointer(name: &str) -> TestType {

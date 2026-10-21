@@ -4,6 +4,14 @@ use clap::{Args, Subcommand, ValueEnum};
 
 use crate::exit::EXIT_CODES_HELP;
 
+/// The deepest level of detail a model can have, as `Model::read` probes them.
+const MAX_LOD: u32 = 15;
+
+/// Parses a level of detail from 0 to the deepest one.
+pub(crate) fn lod_range() -> clap::builder::RangedI64ValueParser<u32> {
+    clap::value_parser!(u32).range(0..=i64::from(MAX_LOD))
+}
+
 /// Arguments of `p4kx model`.
 #[derive(Debug, Args)]
 pub(crate) struct ModelArgs {
@@ -37,7 +45,7 @@ pub(crate) enum ModelAction {
         /// The level of detail to export: 0 is the most detailed, level n from 1 on comes from
         /// the geometry companion `<name>_lod<n>.<extension>m`; the model's nodes are those of
         /// the model file whatever the level. A level the model lacks is invalid input.
-        #[arg(long, value_name = "N", default_value_t = 0)]
+        #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
         lod: u32,
         /// How to write the materials. colours: one glTF material per sub-material of the
         /// model's .mtl file, with base colour, opacity, roughness, metalness and emissive colour

@@ -11,7 +11,12 @@ const WRITE_BUFFER_LEN: usize = 256 * 1024;
 
 /// Writes the file `out` through `write`, replacing it; the data goes to a temporary file next to
 /// it first, so a failed write leaves nothing behind.
-pub(crate) fn write_replacing<T>(
+///
+/// # Errors
+///
+/// Returns the error of `write`, and [`ConversionError::Write`] when the file cannot be created,
+/// flushed or moved into place.
+pub fn write_replacing<T>(
     out: &Path,
     write: impl FnOnce(&mut BufWriter<File>) -> Result<T, ConversionError>,
 ) -> Result<T, ConversionError> {

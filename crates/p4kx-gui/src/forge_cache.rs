@@ -1,5 +1,5 @@
 use std::fmt;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, TryLockError};
 use std::thread;
 use std::time::Duration;
@@ -186,7 +186,7 @@ pub(crate) struct ForgeCache {
     source: Mutex<Option<Arc<ForgeSource>>>,
     generation: AtomicU64,
     reads: AtomicUsize,
-    schema_asked: AtomicBool,
+    schema_asked: AtomicU64,
     schema_attempted: AtomicU64,
 }
 
@@ -259,24 +259,24 @@ impl ForgeCache {
     /// since the cache was last cleared.
     pub(crate) fn schema_unattempted(&self) -> bool {
         let current = self.generation.load(Ordering::Acquire).wrapping_add(1);
-        !self.schema_asked.load(Ordering::Acquire)
+        self.schema_asked.load(Ordering::Acquire) != current
             && self.schema_attempted.load(Ordering::Acquire) != current
             && self.schema().is_none()
     }
 
     /// Builds the completion schema of `index` on a background thread, reading its DataForge
     /// unless it was read before, and calls `wake` once it is there. Nothing starts while a build
-    /// runs or after one succeeded; after a failed build or spawn the next call tries again. A
-    /// schema built for a DataForge that was cleared meanwhile is dropped with it.
+    /// of the current DataForge runs or after one succeeded; after a failed build or spawn the
+    /// next call tries again. A build still running for a DataForge that was cleared meanwhile
+    /// does not hold the call back, and its schema is dropped with that DataForge.
     pub(crate) fn prepare_schema(index: &Arc<EntryIndex>, wake: impl Fn() + Send + 'static) {
         let cache = index.forge();
-        if cache.schema().is_some() || cache.schema_asked.swap(true, Ordering::AcqRel) {
+        let current = cache.generation.load(Ordering::Acquire).wrapping_add(1);
+        if cache.schema().is_some() || cache.schema_asked.swap(current, Ordering::AcqRel) == current
+        {
             return;
         }
-        cache.schema_attempted.store(
-            cache.generation.load(Ordering::Acquire).wrapping_add(1),
-            Ordering::Release,
-        );
+        cache.schema_attempted.store(current, Ordering::Release);
         let thread_index = Arc::clone(index);
         let spawned = thread::Builder::new()
             .name("query-schema".to_owned())
@@ -285,13 +285,23 @@ impl ForgeCache {
                 let built = cache
                     .read(&thread_index, || {})
                     .and_then(|source| source.schema());
-                cache.schema_asked.store(false, Ordering::Release);
+                let _ = cache.schema_asked.compare_exchange(
+                    current,
+                    0,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                );
                 if built.is_ok() {
                     wake();
                 }
             });
         if spawned.is_err() {
-            cache.schema_asked.store(false, Ordering::Release);
+            let _ = cache.schema_asked.compare_exchange(
+                current,
+                0,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            );
         }
     }
 

@@ -6,11 +6,12 @@ use p4kx_model::{LodSelection, MaterialStatus, Model};
 
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
+use crate::model_observed::{Observed, is_cancelled};
 use crate::model_textures::ArchiveTextures;
 use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::texture_parts::is_same_file;
-use crate::{AnimationSet, ConversionError};
+use crate::{AnimationSet, CancelToken, ConversionError};
 
 /// A model read from a chunk file Entry of an Archive or from a file on disk, with the
 /// companions next to it.
@@ -204,7 +205,7 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(&AnimationSet::default(), options, out, None)
+        self.write_glb_animated(&AnimationSet::default(), options, out)
     }
 
     /// Writes the model with the `animations` as a GLB file to `out`, replacing it; see
@@ -220,7 +221,14 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(animations, options, out, None)
+        self.write_glb_observed(
+            animations,
+            options,
+            out,
+            None,
+            &CancelToken::new(),
+            &|_, _| {},
+        )
     }
 
     /// Writes the model as a GLB file to `out` like [`Self::write_glb`], taking the textures of
@@ -240,12 +248,7 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(
-            &AnimationSet::default(),
-            options,
-            out,
-            Some(&ArchiveTextures { index }),
-        )
+        self.write_glb_animated_textured(index, &AnimationSet::default(), options, out)
     }
 
     /// Writes the model with the `animations` and the textures of the Archive `index` is over as
@@ -261,38 +264,60 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(animations, options, out, Some(&ArchiveTextures { index }))
+        self.write_glb_observed(
+            animations,
+            options,
+            out,
+            Some(&ArchiveTextures::new(index)),
+            &CancelToken::new(),
+            &|_, _| {},
+        )
     }
 
-    fn export(
+    /// Writes the model as [`Self::write_glb`] does, taking the textures from `textures` when it
+    /// is given, calling `progress` with the bytes written and the length of the file as it goes,
+    /// and stopping once `cancel` is set.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`], and [`ConversionError::Cancelled`] when `cancel` was set; nothing is
+    /// left at `out` then.
+    pub fn write_glb_observed(
         &self,
         animations: &AnimationSet,
         options: &GlbOptions,
         out: &Path,
         textures: Option<&dyn TextureLoader>,
+        cancel: &CancelToken,
+        progress: &dyn Fn(u64, u64),
     ) -> Result<GlbSummary, ConversionError> {
         if is_same_file(out, self.inputs.iter().chain(&animations.inputs).cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
+        if cancel.is_cancelled() {
+            return Err(ConversionError::Cancelled);
+        }
         write_replacing(out, |writer| {
+            let mut observed = Observed::new(writer, cancel, progress);
             let written = match textures {
                 Some(textures) => p4kx_gltf::write_glb_animated_with(
                     &self.model,
                     &animations.animations,
                     options,
                     textures,
-                    writer,
+                    &mut observed,
                 ),
                 None => p4kx_gltf::write_glb_animated(
                     &self.model,
                     &animations.animations,
                     options,
-                    writer,
+                    &mut observed,
                 ),
             };
             written.map_err(|error| match error {
+                GltfError::Write(source) if is_cancelled(&source) => ConversionError::Cancelled,
                 GltfError::Write(source) => write_error(out, source),
                 source => ConversionError::Glb {
                     file: self.name.clone(),

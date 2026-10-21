@@ -9,8 +9,11 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use headless::{opened, ready, status_is_ready};
-use p4kx_gui::{Browser, Language, Model, ModelStatus, PreviewTab, Unavailable, ViewerSupport};
-use viewing::{TestResult, entries, model_preview, select, wait_until};
+use p4kx_gui::{
+    Browser, Language, MODEL_FILE_LIMIT, Model, ModelStatus, PreviewTab, Unavailable, ViewerSupport,
+};
+use p4kx_testkit::{TestEntry, TestModel};
+use viewing::{Site, TestResult, entries, model_preview, opened_at, select, wait_until};
 
 const CUBE: &str = "Data\\Objects\\cube.cgf";
 const VIEW: &str = "3D view of Data\\Objects\\cube.cgf: 24 vertices, 12 triangles";
@@ -316,4 +319,53 @@ fn wait_for_contents(harness: &mut Harness<'_, Model>) -> TestResult {
             .and_then(Browser::preview)
             .is_some_and(|preview| !preview.is_loading())
     })
+}
+
+fn too_large_with(sibling: &str) -> Result<Option<u64>, Box<dyn std::error::Error>> {
+    const GEOMETRY: &str = "Data\\Objects\\cube.cgfm";
+    let cube = TestModel::cube();
+    let mut entries = vec![TestEntry::zstd("Data\\Objects\\cube.cgf", cube.cgf())];
+    if sibling != GEOMETRY {
+        entries.push(TestEntry::zstd(GEOMETRY, cube.cgfm()));
+    }
+    entries
+        .push(TestEntry::stored(sibling, "not read").with_uncompressed_size(MODEL_FILE_LIMIT + 1));
+    let site = Site {
+        entries,
+        installation: false,
+        key: false,
+    };
+    let (_folder, mut harness) = opened_at(Language::BritishEnglish, ready(), site, |b| b)?;
+    select(&mut harness, "cube.cgf")?;
+    Ok(
+        model_preview(harness.state()).and_then(|preview| match preview.status() {
+            ModelStatus::FileTooLarge(bytes) => Some(bytes),
+            _ => None,
+        }),
+    )
+}
+
+#[test]
+fn a_geometry_companion_above_the_limit_is_not_read() -> TestResult {
+    assert_eq!(
+        too_large_with("Data\\Objects\\cube.cgfm")?,
+        Some(MODEL_FILE_LIMIT + 1),
+        "named"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_level_of_detail_companion_above_the_limit_is_not_read() -> TestResult {
+    for sibling in [
+        "Data\\Objects\\cube_lod3.cgfm",
+        "Data\\Objects\\cube_lod15.cgf",
+    ] {
+        assert_eq!(
+            too_large_with(sibling)?,
+            Some(MODEL_FILE_LIMIT + 1),
+            "{sibling}"
+        );
+    }
+    Ok(())
 }

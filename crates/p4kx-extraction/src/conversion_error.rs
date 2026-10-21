@@ -313,6 +313,9 @@ pub enum ConversionError {
     /// The output lies inside a Star Citizen installation; nothing is written there.
     #[error(transparent)]
     Installation(#[from] p4kx_guard::WriteRefused),
+    /// The caller cancelled the export; nothing is left at the output.
+    #[error("cancelled")]
+    Cancelled,
 }
 
 impl ConversionError {

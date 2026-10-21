@@ -38,6 +38,11 @@ mod localization;
 mod localization_laid;
 mod localization_table;
 mod menu;
+mod model_export;
+mod model_export_animations;
+mod model_export_outcome;
+mod model_info;
+mod model_info_rows;
 mod model_preview;
 mod model_view;
 mod moved_path;
@@ -110,6 +115,8 @@ pub enum Dialog {
     RecordExportFolder,
     /// Picks the file the Basetool catalog is written to.
     CatalogFile,
+    /// Picks the GLB file a model is exported to.
+    ModelFile,
 }
 
 /// What the window asks of its host after a frame.
@@ -170,6 +177,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     extraction_outcome::show(ui, model);
     record_export::setup(ui, model, &mut requests);
     record_export_outcome::show(ui, model);
+    model_export::setup(ui, model, &mut requests);
+    model_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
     about::show(ui, model);
@@ -191,6 +200,7 @@ fn poll_background(model: &mut Model) {
     }
     model.poll_extraction();
     model.poll_record_export();
+    model.poll_model_export();
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();

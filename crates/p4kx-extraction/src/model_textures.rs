@@ -15,8 +15,16 @@ const DXGI_WITH_ALPHA: &[u32] = &[
 ];
 
 /// Loads the textures of a model's materials from the Entries of an Archive.
-pub(crate) struct ArchiveTextures<'i, 'a> {
-    pub(crate) index: &'i PathIndex<'a>,
+pub struct ArchiveTextures<'i, 'a> {
+    index: &'i PathIndex<'a>,
+}
+
+impl<'i, 'a> ArchiveTextures<'i, 'a> {
+    /// Loads textures from the Entries `index` is over.
+    #[must_use]
+    pub const fn new(index: &'i PathIndex<'a>) -> Self {
+        Self { index }
+    }
 }
 
 impl TextureLoader for ArchiveTextures<'_, '_> {

@@ -151,6 +151,17 @@ A null or dangling link that a Query path follows with `->`; it reaches null and
  keeps every Reference to a GUID no Record has and counts it.
 _Avoid_: broken link, missing Reference
 
+**Field path**:
+The field names from a Record down to a value, joined by `/`, with no array positions; the
+target of a strong pointer adds the name of its actual struct as a segment. Not a Query path.
+_Avoid_: JSON path, XPath
+
+**Field statistics**:
+For every field path of some Records: how many values it has, in how many Records, of which kinds,
+how many are empty or distinct, and the smallest and largest number; `p4kx dcb fields` lists them
+(ADR-0049).
+_Avoid_: schema (the schema lists what fields may exist, the statistics what the Records hold)
+
 **Query**:
 A path expression that selects Records or values inside Records.
 _Avoid_: search (searching is over Entry paths), filter (a Filter selects Entries)

@@ -270,7 +270,9 @@ A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more
 says.
 
 On LIVE the 1,087 catalog ships split into 1,048 `spaceship` and 39 `groundVehicle`, none `null`:
-no Record under `entities/spaceships` has a wheel or tread.
+no Record under `entities/spaceships` has a wheel or tread. The folder `entities/groundvehicles`
+holds 40 Records; the 40th, `RSI_Ursa_Rover_Unmanned_Template`, is left out of the catalog as a
+development leftover (the whole word `template`, see "Selection").
 
 **Minimum crew.** The game has none. A survey of the field names of all 1,144 ship Records on LIVE
 finds only `crewSize` (on `VehicleComponentParams` and on `StaticEntityClassData/displayParams`) and
@@ -759,9 +761,11 @@ the cost tree, every line with its null fields), the pools 0.43 MB (824 entries,
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 5.5 s) before the ship base fields; with them LIVE took
-10.5 s in a release test run (the `p4kx ships` export alone: 2.9 s). The scan shares its ship
-readers across the parallel splits to keep their Entity caches; the time is to be re-measured. Left out as development leftovers on
+A catalog builds in 4 to 7 seconds (LIVE 5.5 s) before the ship base fields. With them LIVE builds
+in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version that gave
+every split of the parallel scan its own ship reader took 10.5 s, because each reader began with
+empty Entity caches; the scan now keeps the readers in a pool, so a reader keeps its caches across
+splits. Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

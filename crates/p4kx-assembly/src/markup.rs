@@ -3,7 +3,7 @@ use p4kx_cryxml::Xml;
 /// The deepest element nesting that is read.
 pub(crate) const MAX_ELEMENT_DEPTH: usize = 128;
 
-/// The most elements one document may hold.
+/// The most elements one implementation and its patch may hold.
 pub(crate) const MAX_ELEMENTS: usize = 1 << 21;
 
 /// An owned XML element of a text or `CryXml` document.
@@ -54,21 +54,6 @@ impl Element {
     }
 }
 
-/// Reads the root element of a text XML or `CryXml` document.
-pub(crate) fn parse(bytes: &[u8]) -> Result<Element, String> {
-    let mut budget = MAX_ELEMENTS;
-    match p4kx_cryxml::read(bytes).map_err(|error| error.to_string())? {
-        Xml::CryXml(document) => from_cry(document.root(), 0, &mut budget),
-        Xml::Text(text) => {
-            let text = std::str::from_utf8(text).map_err(|error| error.to_string())?;
-            let text = text.trim_start_matches('\u{feff}');
-            check_depth(text)?;
-            let document = roxmltree::Document::parse(text).map_err(|error| error.to_string())?;
-            from_text(document.root_element(), 0, &mut budget)
-        }
-    }
-}
-
 /// Returns an error when the elements of the text XML `text` nest deeper than
 /// [`MAX_ELEMENT_DEPTH`], before the parser recurses that deep.
 pub(crate) fn check_depth(text: &str) -> Result<(), String> {
@@ -82,13 +67,13 @@ pub(crate) fn check_depth(text: &str) -> Result<(), String> {
         at = at.saturating_add(offset);
         let rest = bytes.get(at..).unwrap_or_default();
         if rest.starts_with(b"<!--") {
-            at = skip_past(bytes, at, b"-->");
+            at = skip_past(bytes, at.saturating_add(4), b"-->");
         } else if rest.starts_with(b"<![CDATA[") {
-            at = skip_past(bytes, at, b"]]>");
+            at = skip_past(bytes, at.saturating_add(9), b"]]>");
         } else if rest.starts_with(b"<?") {
-            at = skip_past(bytes, at, b"?>");
+            at = skip_past(bytes, at.saturating_add(2), b"?>");
         } else if rest.starts_with(b"<!") {
-            at = skip_past(bytes, at, b">");
+            at = skip_past(bytes, at.saturating_add(2), b">");
         } else {
             let end = tag_end(bytes, at);
             let tag = bytes.get(at..end).unwrap_or_default();
@@ -136,34 +121,136 @@ fn tag_end(bytes: &[u8], from: usize) -> usize {
     bytes.len()
 }
 
-fn spend(depth: usize, budget: &mut usize) -> Result<(), String> {
-    if depth > MAX_ELEMENT_DEPTH {
-        return Err(format!(
-            "its elements are nested deeper than {MAX_ELEMENT_DEPTH}"
-        ));
+/// The most attributes the elements of one implementation and its patch may hold.
+const MAX_ATTRIBUTES: usize = 1 << 22;
+
+/// The least bytes of names and values a document may be read into.
+const MIN_BYTES: usize = 1 << 16;
+
+/// What reading and patching one implementation may spend: elements, attributes, and bytes of
+/// names and values copied, the last at four times the input read.
+#[derive(Debug)]
+pub(crate) struct Budget {
+    elements: usize,
+    attributes: usize,
+    bytes: usize,
+}
+
+impl Budget {
+    /// Creates a budget for reading `input` bytes.
+    pub(crate) fn new(input: usize) -> Self {
+        Self {
+            elements: MAX_ELEMENTS,
+            attributes: MAX_ATTRIBUTES,
+            bytes: input.saturating_mul(4).max(MIN_BYTES),
+        }
     }
-    *budget = budget
-        .checked_sub(1)
-        .ok_or_else(|| format!("it holds more than {MAX_ELEMENTS} elements"))?;
-    Ok(())
+
+    /// Adds the allowance for reading `input` more bytes.
+    pub(crate) const fn grow(&mut self, input: usize) {
+        self.bytes = self.bytes.saturating_add(input.saturating_mul(4));
+    }
+
+    fn take(left: &mut usize, count: usize, what: &str) -> Result<(), String> {
+        *left = left
+            .checked_sub(count)
+            .ok_or_else(|| format!("it needs more {what} than are allowed"))?;
+        Ok(())
+    }
+
+    fn element(&mut self, name: &str) -> Result<(), String> {
+        Self::take(&mut self.elements, 1, "elements")?;
+        Self::take(&mut self.bytes, name.len(), "bytes of names and values")
+    }
+
+    fn attribute(&mut self, name: &str, value: &str) -> Result<(), String> {
+        Self::take(&mut self.attributes, 1, "attributes")?;
+        Self::take(
+            &mut self.bytes,
+            name.len().saturating_add(value.len()),
+            "bytes of names and values",
+        )
+    }
+
+    /// Charges the cost of copying `element` with everything below it.
+    pub(crate) fn charge_copy(&mut self, element: &Element) -> Result<(), String> {
+        self.element(&element.name)?;
+        for (name, value) in &element.attributes {
+            self.attribute(name, value)?;
+        }
+        element
+            .children
+            .iter()
+            .try_for_each(|child| self.charge_copy(child))
+    }
+
+    /// Charges the cost of setting an attribute on an element with `attributes` attributes.
+    pub(crate) fn charge_set(
+        &mut self,
+        attributes: usize,
+        name: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        Self::take(&mut self.attributes, attributes.max(1), "attributes")?;
+        Self::take(
+            &mut self.bytes,
+            name.len().saturating_add(value.len()),
+            "bytes of names and values",
+        )
+    }
+}
+
+/// Returns the depth of `element`: 1 for an element without children.
+pub(crate) fn depth(element: &Element) -> usize {
+    element
+        .children
+        .iter()
+        .map(depth)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1)
+}
+
+/// Returns the error for a document nested deeper than [`MAX_ELEMENT_DEPTH`].
+pub(crate) fn too_deep() -> String {
+    format!("its elements are nested deeper than {MAX_ELEMENT_DEPTH}")
+}
+
+/// Reads the root element of a text XML or `CryXml` document, spending `budget`.
+pub(crate) fn parse(bytes: &[u8], budget: &mut Budget) -> Result<Element, String> {
+    match p4kx_cryxml::read(bytes).map_err(|error| error.to_string())? {
+        Xml::CryXml(document) => from_cry(document.root(), 0, budget),
+        Xml::Text(text) => {
+            let text = std::str::from_utf8(text).map_err(|error| error.to_string())?;
+            let text = text.trim_start_matches('\u{feff}');
+            check_depth(text)?;
+            let document = roxmltree::Document::parse(text).map_err(|error| error.to_string())?;
+            from_text(document.root_element(), 0, budget)
+        }
+    }
 }
 
 fn from_cry(
     element: p4kx_cryxml::Element<'_>,
     depth: usize,
-    budget: &mut usize,
+    budget: &mut Budget,
 ) -> Result<Element, String> {
-    spend(depth, budget)?;
+    if depth > MAX_ELEMENT_DEPTH {
+        return Err(too_deep());
+    }
+    budget.element(element.name())?;
+    let mut attributes = Vec::new();
+    for attribute in element.attributes() {
+        budget.attribute(attribute.name(), attribute.value())?;
+        attributes.push((attribute.name().to_owned(), attribute.value().to_owned()));
+    }
     let children = element
         .children()
         .map(|child| from_cry(child, depth.saturating_add(1), budget))
         .collect::<Result<_, _>>()?;
     Ok(Element {
         name: element.name().to_owned(),
-        attributes: element
-            .attributes()
-            .map(|attribute| (attribute.name().to_owned(), attribute.value().to_owned()))
-            .collect(),
+        attributes,
         children,
     })
 }
@@ -171,9 +258,17 @@ fn from_cry(
 fn from_text(
     element: roxmltree::Node<'_, '_>,
     depth: usize,
-    budget: &mut usize,
+    budget: &mut Budget,
 ) -> Result<Element, String> {
-    spend(depth, budget)?;
+    if depth > MAX_ELEMENT_DEPTH {
+        return Err(too_deep());
+    }
+    budget.element(element.tag_name().name())?;
+    let mut attributes = Vec::new();
+    for attribute in element.attributes() {
+        budget.attribute(attribute.name(), attribute.value())?;
+        attributes.push((attribute.name().to_owned(), attribute.value().to_owned()));
+    }
     let children = element
         .children()
         .filter(roxmltree::Node::is_element)
@@ -181,10 +276,7 @@ fn from_text(
         .collect::<Result<_, _>>()?;
     Ok(Element {
         name: element.tag_name().name().to_owned(),
-        attributes: element
-            .attributes()
-            .map(|attribute| (attribute.name().to_owned(), attribute.value().to_owned()))
-            .collect(),
+        attributes,
         children,
     })
 }

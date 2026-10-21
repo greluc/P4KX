@@ -136,8 +136,8 @@ A **Vehicle** is the vehicle implementation XML of
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `path` | string | The implementation file that was read, as the Archive spells it below `Data\` |
-| `patch_path` | string or `null` | The Modification's patch file that was applied |
+| `path` | string | The implementation file that was read, as looked up: the Record's spelling with `/` as separator and without a leading `Data` |
+| `patch_path` | string or `null` | The Modification's patch file that was applied, spelled like `path` |
 | `modification` | string or `null` | The Modification the Record selects (`VehicleComponentParams.modification`) |
 | `name` | string | The `name` of the `Vehicle` element |
 | `ports` | array | One object per part with an item port, depth first in file order, parts marked `skipPart` left out: `name` (the part name, which is the port name), `visibility` (`invisible` when the item port's `flags` contain `invisible`, else `visible`), `min_size` and `max_size` (numbers or `null`) and `flags` (as stored) |
@@ -180,7 +180,7 @@ target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
   it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
   could be read is still listed), and `vehicle_implementation` (the implementation file is
   missing, corrupt or no `Vehicle` document, so `vehicle` is absent, or its Modification names a
-  patch file that is missing or corrupt, or no Modification of that name exists; the
+  patch file that is missing (even when a fallback file is applied), corrupt, outside the implementation folder or too large to apply within the limits, a patch child or `id` that matches nothing in the base, or no Modification of that name exists; the
   implementation without the patch is still listed).
 
 New kinds may be added in later versions; a script should treat an unknown `kind` as an error it

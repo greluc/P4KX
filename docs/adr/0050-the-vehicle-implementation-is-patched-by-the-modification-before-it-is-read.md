@@ -29,7 +29,7 @@ takes effect before anything is interpreted.
 - **Parts.** Parts marked `skipPart` are dropped with their subtree after the Elems, so an Elem
   can bring one back. A part's port name is the part's `name`, matched ignoring ASCII case like
   every port key (ADR-0012); StarBreaker's case-sensitive matching is deliberately not followed.
-  Numbers with stray characters are read leniently (`12.5kg` is 12.5; no digits is none).
+  Numbers are read as below.
 - **Visibility.** A port of the Loadout tree is `invisible` when the part of that name carries
   the flag `invisible` on its item port, `visible` when it carries the part without it, and
   unspecified when the implementation has no such part. A Modification that clears the flag
@@ -41,9 +41,28 @@ takes effect before anything is interpreted.
 - **Failure.** A missing or corrupt implementation, patch file or Modification is a
   `vehicle_implementation` issue of the Entity; the rest of the tree still resolves, and a patch
   that cannot be read leaves the base implementation in place.
-- **Limits.** Text XML is first scanned for its element depth and CryXml and text trees are read
-  with a depth of at most 128 and at most 2^21 elements, so a hostile file cannot exhaust the
-  stack (the XML parser recurses per element). The file size limit is that of XML Loadouts.
+- **Limits.** Text XML is first scanned for its element depth (comments, CDATA and processing
+  instructions are skipped from the end of their opening, as the parser does), and trees are read
+  with a depth of at most 128, so a hostile file cannot exhaust the stack (the XML parser recurses
+  per element). One budget covers reading, patching and the Elems: at most 2^21 elements, 2^22
+  attributes (an attribute set costs the attributes it scans) and copied bytes at four times the
+  input read. It stops CryXml nodes that share one attribute range, a patch copied into many
+  elements with one `id`, and an Elem fanned out over them. A patch that exhausts it, or nests
+  the tree deeper than 128, is an issue and the unpatched base stays. The file size limit is that
+  of XML Loadouts.
+- **Visible outcomes.** A patch file that dangles (even when a fallback file is applied), a
+  replacing patch child with no base counterpart and a patch `id` that matches nothing are
+  `vehicle_implementation` issues, and `VehicleImplementation::modification_report` counts the
+  patch shapes and the unmatched `id`s and `idRef`s, so a real Archive can show whether the rule
+  above fits.
+- **Paths.** Every path read lies below `Scripts/Entities/Vehicles/Implementations/Xml/` (an
+  optional leading `Data` is dropped); a `.` or `..` segment, a drive colon, or a separator in a
+  class or Modification name makes the candidate unusable.
+- **Numbers.** A number is the longest numeric prefix of the trimmed value (`12.5kg` is 12.5,
+  `1,5` is 1, `v2 1500` is none); `VehiclePart::attribute` gives the raw value for readers with
+  their own rule (#304, #316).
+- **Layers.** `p4kx-assembly` is a service, and a service may depend on another service
+  (ADR-0003), so `p4kx-export` can call `VehicleImplementation::read` directly.
 
 The library API is `VehicleImplementation::read` (an implementation without a Loadout tree, for
 exports) and `EntityNode::vehicle`, `EntityNode::landing_gear` and `PortNode::visibility` (in the

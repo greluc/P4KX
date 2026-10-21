@@ -11,6 +11,7 @@ use crate::merge::port_key;
 use crate::{LoadoutError, LoadoutFiles};
 
 pub(crate) use locate::load;
+pub use patch::ModificationReport;
 
 /// Whether a part of the vehicle implementation shows its item port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -104,6 +105,7 @@ pub struct VehiclePart {
     pub(crate) mass: Option<f64>,
     pub(crate) damage_max: Option<f64>,
     pub(crate) detach_ratio: Option<f64>,
+    pub(crate) attributes: Vec<(String, String)>,
     pub(crate) item_port: Option<VehicleItemPort>,
     pub(crate) tread_wheels: Vec<String>,
     pub(crate) children: Vec<Self>,
@@ -144,6 +146,16 @@ impl VehiclePart {
     #[must_use]
     pub const fn detach_ratio(&self) -> Option<f64> {
         self.detach_ratio
+    }
+
+    /// Returns the raw value of the part's attribute `name`, ignoring ASCII case, or `None`
+    /// when the part has none; for readers that apply their own rule to e.g. `mass`.
+    #[must_use]
+    pub fn attribute(&self, name: &str) -> Option<&str> {
+        self.attributes
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
     }
 
     /// Returns the part's item port, or `None` when it holds none.
@@ -192,6 +204,7 @@ pub struct VehicleImplementation {
     pub(crate) path: String,
     pub(crate) patch_path: Option<String>,
     pub(crate) modification: Option<String>,
+    pub(crate) report: Option<ModificationReport>,
     pub(crate) name: String,
     pub(crate) parts: Vec<VehiclePart>,
     pub(crate) visibility: HashMap<String, PortVisibility>,
@@ -227,8 +240,8 @@ impl VehicleImplementation {
         )
     }
 
-    /// Returns the path of the implementation file as the Archive spells it, or as the Record
-    /// names it when the Archive gives another.
+    /// Returns the path of the implementation file as it was looked up: the candidate built from
+    /// the Record's spelling with `/` as separator and without a leading `Data`.
     #[must_use]
     pub fn path(&self) -> &str {
         &self.path
@@ -244,6 +257,12 @@ impl VehicleImplementation {
     #[must_use]
     pub fn modification(&self) -> Option<&str> {
         self.modification.as_deref()
+    }
+
+    /// Returns what applying the Modification did, or `None` when the Entity selects none.
+    #[must_use]
+    pub const fn modification_report(&self) -> Option<&ModificationReport> {
+        self.report.as_ref()
     }
 
     /// Returns the `name` of the `Vehicle` element.

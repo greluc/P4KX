@@ -68,9 +68,14 @@ pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
 pub use vehicle::{
-    LandingGear, PartKind, PortVisibility, VehicleImplementation, VehicleItemPort, VehiclePart,
+    LandingGear, ModificationReport, PartKind, PortVisibility, VehicleImplementation,
+    VehicleItemPort, VehiclePart,
 };
 pub use xml::MAX_XML_INCLUDE_DEPTH;
+
+/// The deepest element nesting of a vehicle implementation or patch file that is read; deeper
+/// files are refused.
+pub const MAX_XML_ELEMENT_DEPTH: usize = markup::MAX_ELEMENT_DEPTH;
 
 /// The deepest chain of attached Entities below the root that is resolved; deeper attachments
 /// are [`LoadoutError::TooDeep`].

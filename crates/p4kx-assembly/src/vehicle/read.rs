@@ -42,6 +42,7 @@ fn part(element: &Element) -> Option<VehiclePart> {
         mass: number(element.attribute("mass")),
         damage_max: number(element.attribute("damageMax")),
         detach_ratio: number(element.attribute("detachRatio")),
+        attributes: element.attributes.clone(),
         item_port: element.child("ItemPort").map(item_port),
         tread_wheels: if kind == PartKind::Tread {
             tread_wheels(element)
@@ -94,20 +95,43 @@ fn size(value: Option<&str>) -> Option<u32> {
     value?.trim().parse().ok()
 }
 
-/// Reads a number that may carry stray characters, as `mass` values of some builds do: only
-/// digits, signs, the exponent mark and the decimal point count.
+/// Reads the longest numeric prefix of a value after trimming, e.g. `12.5` of `12.5kg`; a value
+/// that does not start with a number, such as `v2 1500`, has none.
 fn number(value: Option<&str>) -> Option<f64> {
-    let value = value?;
-    let parsed = value.trim().parse::<f64>().ok().or_else(|| {
-        let clean: String = value
-            .chars()
-            .filter(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | 'e' | 'E' | '.'))
-            .collect();
-        clean.parse().ok()
-    })?;
+    let text = value?.trim();
+    let bytes = text.as_bytes();
+    let digits = |from: usize| {
+        bytes.get(from..).map_or(0, |rest| {
+            rest.iter().take_while(|b| b.is_ascii_digit()).count()
+        })
+    };
+    let mut end = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let whole = digits(end);
+    end = end.saturating_add(whole);
+    let mut fraction = 0;
+    if bytes.get(end) == Some(&b'.') {
+        fraction = digits(end.saturating_add(1));
+        if whole > 0 || fraction > 0 {
+            end = end.saturating_add(1).saturating_add(fraction);
+        }
+    }
+    if whole == 0 && fraction == 0 {
+        return None;
+    }
+    if matches!(bytes.get(end), Some(b'e' | b'E')) {
+        let sign = usize::from(matches!(
+            bytes.get(end.saturating_add(1)),
+            Some(b'+' | b'-')
+        ));
+        let start = end.saturating_add(1).saturating_add(sign);
+        let exponent = digits(start);
+        if exponent > 0 {
+            end = start.saturating_add(exponent);
+        }
+    }
+    let parsed = text.get(..end)?.parse::<f64>().ok()?;
     parsed.is_finite().then_some(parsed)
 }
-
 /// Returns the visibility of each item port by lower-case part name; the first part decides.
 pub(super) fn visibility(parts: &[VehiclePart]) -> HashMap<String, PortVisibility> {
     let mut map = HashMap::new();

@@ -2,8 +2,10 @@
 
 mod vehicle_support;
 
-use p4kx_assembly::{LoadoutError, PortVisibility};
-use vehicle_support::{DEFINITION, TestResult, part_names, resolve, standard_files, visibility};
+use p4kx_assembly::{LoadoutError, PortVisibility, VehicleImplementation};
+use vehicle_support::{
+    BASE, DEFINITION, TestResult, files, part_names, resolve, standard_files, visibility,
+};
 
 #[test]
 fn elems_of_a_modification_clear_invisible_and_restore_skipped_parts() -> TestResult {
@@ -125,9 +127,6 @@ fn a_missing_patch_file_or_modification_is_an_issue_and_the_base_stays() -> Test
 
 #[test]
 fn a_wrapper_with_an_id_no_element_has_replaces_the_child_of_its_name() -> TestResult {
-    use p4kx_assembly::VehicleImplementation;
-    use vehicle_support::{BASE, files};
-
     let patch = r#"<Modifications><Parts id="modParts"><Part name="other" class="Animated"/></Parts></Modifications>"#;
     let base = BASE.replace(
         r#"<Modification name="Patched""#,
@@ -146,5 +145,67 @@ fn a_wrapper_with_an_id_no_element_has_replaces_the_child_of_its_name() -> TestR
     let report = vehicle.modification_report().ok_or("no report")?;
     assert_eq!((report.wholesale_children(), report.id_children()), (1, 0));
     assert_eq!(report.unmatched_ids().len(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_wrapper_without_matching_children_is_recorded_as_replaced() -> TestResult {
+    let patch = r#"<Modifications><Parts id="modParts"><Part name="other" class="Animated"/></Parts></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Wrapped" patchFile="Modifications/Wrapped"/><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Wrapped.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Wrapped"))?;
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!(report.replaced_ids(), ["modParts"]);
+    Ok(())
+}
+
+#[test]
+fn a_wrapper_whose_children_match_merges_into_the_base_child_and_keeps_the_rest() -> TestResult {
+    let patch = r#"<Modifications><Parts id="modParts">
+        <Part id="partGun" name="Hardpoint_Gun" class="ItemPort"><ItemPort id="portGun" flags=""/></Part>
+        <Part id="typo" name="x"/>
+    </Parts></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Wrapped" patchFile="Modifications/Wrapped"/><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Wrapped.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Wrapped"))?;
+    assert_eq!(
+        part_names(vehicle.item_ports()),
+        ["Hardpoint_Gun", "hardpoint_seat"],
+        "the other parts stay"
+    );
+    assert_eq!(
+        vehicle.port_visibility("hardpoint_gun"),
+        PortVisibility::Visible
+    );
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!(report.id_children(), 1);
+    assert_eq!(report.unmatched_ids(), ["typo"]);
+    assert_eq!(report.replaced_ids().len(), 0);
+    assert!(
+        vehicle
+            .issues()
+            .iter()
+            .any(|issue| issue.to_string().contains("typo")),
+        "{:?}",
+        vehicle.issues()
+    );
     Ok(())
 }

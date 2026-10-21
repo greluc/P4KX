@@ -87,7 +87,7 @@ impl LoadoutResolver<'_> {
             None
         };
         let landing_gear = if expanded {
-            self.landing_gear_of(spec)
+            self.landing_gear_of(spec, &mut issues)
         } else {
             Arc::from([])
         };

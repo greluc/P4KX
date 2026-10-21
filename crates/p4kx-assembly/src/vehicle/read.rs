@@ -70,6 +70,7 @@ fn item_port(element: &Element) -> VehicleItemPort {
         min_size: size(element.attribute("minSize")),
         max_size: size(element.attribute("maxSize")),
         flags: element.attribute("flags").unwrap_or_default().to_owned(),
+        id: element.attribute("id").map(str::to_owned),
     }
 }
 

@@ -44,7 +44,7 @@ pub struct LoadoutResolver<'f> {
     specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
     vehicles: HashMap<String, VehicleResult>,
-    landing: HashMap<Guid, Arc<[LandingGear]>>,
+    landing: HashMap<Guid, Result<Arc<[LandingGear]>, LoadoutError>>,
     builder: TreeBuilder<'f>,
     pub(crate) stop_at_docked: bool,
 }
@@ -177,9 +177,14 @@ impl<'f> LoadoutResolver<'f> {
         Some(loaded.clone())
     }
 
-    /// Returns the gears of the landing gear Record the vehicle component of spec names, read once
-    /// per resolver; empty when it names none or the Record cannot be read.
-    pub(crate) fn landing_gear_of(&mut self, spec: &EntitySpec) -> Arc<[LandingGear]> {
+    /// Returns the gears of the landing gear Record the vehicle component of `spec` names, read
+    /// once per resolver; empty when it names none, and then also when the Record is missing or
+    /// cannot be read, which is pushed to `issues`.
+    pub(crate) fn landing_gear_of(
+        &mut self,
+        spec: &EntitySpec,
+        issues: &mut Vec<LoadoutError>,
+    ) -> Arc<[LandingGear]> {
         let Some(guid) = spec
             .vehicle
             .as_ref()
@@ -187,19 +192,29 @@ impl<'f> LoadoutResolver<'f> {
         else {
             return Arc::from([]);
         };
-        if let Some(gears) = self.landing.get(&guid) {
-            return Arc::clone(gears);
+        if !self.landing.contains_key(&guid) {
+            let read = match self.entities.forge().record_by_guid(guid) {
+                None => Err(LoadoutError::DanglingReference { guid }),
+                Some(record) => self
+                    .builder
+                    .build(&record)
+                    .map(|tree| vehicle::gears(&tree))
+                    .map_err(|error| LoadoutError::UnreadableRecord {
+                        guid,
+                        reason: error.to_string(),
+                    }),
+            };
+            self.landing.insert(guid, read);
         }
-        let gears = self
-            .entities
-            .forge()
-            .record_by_guid(guid)
-            .and_then(|record| self.builder.build(&record).ok())
-            .map_or_else(|| Arc::from([]), |tree| vehicle::gears(&tree));
-        self.landing.insert(guid, Arc::clone(&gears));
-        gears
+        match self.landing.get(&guid) {
+            Some(Ok(gears)) => Arc::clone(gears),
+            Some(Err(error)) => {
+                issues.push(error.clone());
+                Arc::from([])
+            }
+            None => Arc::from([]),
+        }
     }
-
     /// Returns the Record a target names, or `None` when there is none.
     pub(crate) fn record_of(&self, target: &TargetSpec) -> Option<Record<'f>> {
         match target {

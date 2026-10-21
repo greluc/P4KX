@@ -26,6 +26,7 @@ pub struct ModificationReport {
     pub(crate) id_children: usize,
     pub(crate) unmatched_children: Vec<String>,
     pub(crate) unmatched_ids: Vec<String>,
+    pub(crate) replaced_ids: Vec<String>,
     pub(crate) unmatched_elems: Vec<String>,
 }
 
@@ -60,6 +61,13 @@ impl ModificationReport {
     #[must_use]
     pub fn unmatched_ids(&self) -> &[String] {
         &self.unmatched_ids
+    }
+
+    /// Returns the `id`s of the patch's wrappers that no element has, and none of whose children
+    /// has an `id` the base's child of that name has either, so they replaced that child wholesale.
+    #[must_use]
+    pub fn replaced_ids(&self) -> &[String] {
+        &self.replaced_ids
     }
 
     /// Returns the `idRef`s of the Modification's `Elem`s that no element has.
@@ -111,8 +119,8 @@ pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modific
 /// `id`, such as `Parts`, replaces the child of the same name of the base wholesale. Any other
 /// child with an `id` is merged into every element of the base with that `id`: its attributes
 /// are set and its children replace the element's. A child with an `id` that no base element has
-/// replaces the base's child of the same name wholesale, as a wrapper such as
-/// `<Parts id="modParts">` does.
+/// is merged into the base's child of its name by the `id`s of its own children, or replaces it
+/// wholesale when none matches, as a wrapper such as `<Parts id="modParts">` does.
 ///
 /// # Errors
 ///
@@ -131,22 +139,61 @@ pub(super) fn apply_patch(
         if child.name.eq_ignore_ascii_case("Vehicle") {
             replace_children(base, child, &mut report, budget)?;
         } else {
-            let id = child.attribute("id");
-            if let Some(id) = id
-                && merge_by_id(base, id, child, budget)? > 0
-            {
-                report.id_children = report.id_children.saturating_add(1);
-            } else if let Some(id) = id
-                && base.child(&child.name).is_none()
-            {
-                report.unmatched_ids.push(id.to_owned());
-            } else {
-                report.wholesale_children = report.wholesale_children.saturating_add(1);
-                replace_child(base, child, &mut report, budget)?;
-            }
+            apply_child(base, child, &mut report, budget)?;
         }
     }
     Ok(report)
+}
+
+/// Applies one child of the patch root that is not a `Vehicle`: a child with an `id` some base
+/// element has is merged by `id`; a wrapper whose `id` no element has but whose name a base child
+/// has is merged into that child by the `id`s of its own children, or replaces it wholesale when
+/// none of them matches; anything else replaces the base's child of its name wholesale.
+fn apply_child(
+    base: &mut Element,
+    child: &Element,
+    report: &mut ModificationReport,
+    budget: &mut Budget,
+) -> Result<(), String> {
+    let Some(id) = child.attribute("id") else {
+        report.wholesale_children = report.wholesale_children.saturating_add(1);
+        return replace_child(base, child, report, budget);
+    };
+    if merge_by_id(base, id, child, budget)? > 0 {
+        report.id_children = report.id_children.saturating_add(1);
+        return Ok(());
+    }
+    let Some(at) = base
+        .children
+        .iter()
+        .position(|existing| existing.name.eq_ignore_ascii_case(&child.name))
+    else {
+        report.unmatched_ids.push(id.to_owned());
+        return Ok(());
+    };
+    let mut matched = 0_usize;
+    let mut missed = Vec::new();
+    if let Some(target) = base.children.get_mut(at) {
+        for part in &child.children {
+            let Some(part_id) = part.attribute("id") else {
+                continue;
+            };
+            if merge_by_id(target, part_id, part, budget)? > 0 {
+                matched = matched.saturating_add(1);
+            } else {
+                missed.push(part_id.to_owned());
+            }
+        }
+    }
+    if matched > 0 {
+        report.id_children = report.id_children.saturating_add(1);
+        report.unmatched_ids.extend(missed);
+    } else {
+        report.replaced_ids.push(id.to_owned());
+        report.wholesale_children = report.wholesale_children.saturating_add(1);
+        replace_child(base, child, report, budget)?;
+    }
+    Ok(())
 }
 
 fn replace_children(

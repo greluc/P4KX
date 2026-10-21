@@ -5,8 +5,13 @@ mod vehicle_support;
 
 use std::collections::HashMap;
 
-use p4kx_assembly::{LoadoutError, PartKind, PortVisibility, VehicleImplementation};
-use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
+use p4kx_assembly::{
+    LoadoutError, LoadoutResolver, PartKind, PortVisibility, VehicleImplementation,
+};
+use p4kx_dataforge::DataForge;
+use p4kx_testkit::{
+    CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, TestElement, TestEntity, entity_schema,
+};
 use vehicle_support::{
     DEFINITION, Files, TestResult, files, part_names, resolve, standard_files, visibility,
 };
@@ -210,5 +215,23 @@ fn an_implementation_nested_too_deep_is_refused() -> TestResult {
     let tree = resolve(DEFINITION, "", Some(&files(&[(DEFINITION, &text)])))?;
     assert!(tree.vehicle().is_none());
     assert_eq!(tree.issues().len(), 1, "issues: {:?}", tree.issues());
+    Ok(())
+}
+
+#[test]
+fn a_landing_system_that_resolves_to_no_record_is_an_issue() -> TestResult {
+    let ship = TestEntity::new(0x1, "TEST_Ship", "entities/test_ship.xml")
+        .vehicle(DEFINITION, "")
+        .landing_system(0x99);
+    let bytes = entity_schema(DataForgeBuilder::new())
+        .record(ship.record())
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let entity = resolver.entities().find("TEST_Ship")?;
+    let tree = resolver.resolve(&entity)?;
+    assert_eq!(tree.landing_gear().len(), 0);
+    let kinds: Vec<_> = tree.issues().iter().map(LoadoutError::kind).collect();
+    assert_eq!(kinds, ["dangling_reference"]);
     Ok(())
 }

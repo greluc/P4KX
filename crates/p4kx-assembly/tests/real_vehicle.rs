@@ -7,11 +7,15 @@ use std::collections::BTreeMap;
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveFiles, Attachment, ENTITY_TYPE, EntityNode, LoadoutFiles, LoadoutResolver,
-    MAX_XML_ELEMENT_DEPTH, MAX_XML_LOADOUT_LEN, PortVisibility, VehicleImplementation, VehiclePart,
+    ArchiveFiles, ENTITY_TYPE, EntityNode, LoadoutResolver, MAX_XML_ELEMENT_DEPTH,
+    MAX_XML_LOADOUT_LEN, PortVisibility, VehicleImplementation,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
+
+mod real_vehicle_support;
+
+use real_vehicle_support::{depth, file_len, flipped_ports, mass, nodes, port_names};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -71,39 +75,59 @@ struct Tally {
     differs: BTreeMap<String, bool>,
     changes: Vec<String>,
     misses: Vec<String>,
+    flips: Vec<String>,
+    replaced: BTreeMap<String, Vec<String>>,
 }
 
-fn nodes(root: &EntityNode) -> Vec<&EntityNode> {
-    let mut all = vec![root];
-    all.extend(
-        root.walk()
-            .into_iter()
-            .filter_map(|(_, port)| match port.attachment() {
-                Attachment::Entity(child) => Some(child.as_ref()),
-                _ => None,
-            }),
-    );
-    all
+fn patches<'a>(tally: &'a Tally, needle: &str) -> Vec<(&'a str, Shape)> {
+    tally
+        .users
+        .keys()
+        .filter(|patch| patch.contains(needle))
+        .map(|patch| {
+            (
+                patch.as_str(),
+                tally.shapes.get(patch).copied().unwrap_or_default(),
+            )
+        })
+        .collect()
 }
 
-fn depth(parts: &[VehiclePart]) -> usize {
-    parts
-        .iter()
-        .map(|part| depth(part.children()).saturating_add(1))
-        .max()
-        .unwrap_or(0)
-}
-
-fn mass(vehicle: &VehicleImplementation) -> f64 {
-    vehicle.iter().filter_map(VehiclePart::mass).sum()
-}
-
-fn port_names(vehicle: &VehicleImplementation) -> Vec<&str> {
-    vehicle.item_ports().map(VehiclePart::name).collect()
-}
-
-fn file_len(files: &ArchiveFiles<'_>, path: &str) -> usize {
-    files.read(path).map_or(0, |bytes| bytes.len())
+fn note_report(
+    tally: &mut Tally,
+    class_name: &str,
+    patch: &str,
+    base: &VehicleImplementation,
+    vehicle: &VehicleImplementation,
+) {
+    if let Some(report) = vehicle.modification_report() {
+        let shape = tally.shapes.entry(patch.to_owned()).or_default();
+        shape.vehicle = shape.vehicle.max(report.vehicle_children());
+        shape.wholesale = shape.wholesale.max(report.wholesale_children());
+        shape.id = shape.id.max(report.id_children());
+        tally.unmatched_ids += report.unmatched_ids().len();
+        tally.unmatched_children += report.unmatched_children().len();
+        tally.unmatched_elems += report.unmatched_elems().len();
+        if !report.replaced_ids().is_empty() {
+            tally
+                .replaced
+                .insert(class_name.to_owned(), report.replaced_ids().to_vec());
+        }
+        if !report.unmatched_elems().is_empty() {
+            let known: Vec<&str> = base.ids().collect();
+            let in_base: Vec<&str> = report
+                .unmatched_elems()
+                .iter()
+                .map(String::as_str)
+                .filter(|id| known.contains(id))
+                .collect();
+            tally.misses.push(format!(
+                "{class_name}: {}; in the pre-patch base: {}",
+                report.unmatched_elems().join(", "),
+                in_base.join(", ")
+            ));
+        }
+    }
 }
 
 fn note_patch(
@@ -123,22 +147,16 @@ fn note_patch(
         .entry(patch.clone())
         .or_default()
         .push(class_name.to_owned());
-    if let Some(report) = vehicle.modification_report() {
-        let shape = tally.shapes.entry(patch).or_default();
-        shape.vehicle = shape.vehicle.max(report.vehicle_children());
-        shape.wholesale = shape.wholesale.max(report.wholesale_children());
-        shape.id = shape.id.max(report.id_children());
-        tally.unmatched_ids += report.unmatched_ids().len();
-        tally.unmatched_children += report.unmatched_children().len();
-        tally.unmatched_elems += report.unmatched_elems().len();
-        if !report.unmatched_elems().is_empty() {
-            tally.misses.push(format!(
-                "{class_name}: {}",
-                report.unmatched_elems().join(", ")
-            ));
-        }
-    }
     let base = VehicleImplementation::read(files, class_name, vehicle.path(), None)?;
+    note_report(tally, class_name, &patch, &base, vehicle);
+    let flips = flipped_ports(&base, vehicle);
+    if !flips.is_empty() {
+        tally.flips.push(format!(
+            "{class_name} ({modification}): {} ports: {}",
+            flips.len(),
+            flips.join(", ")
+        ));
+    }
     tally.differs.insert(
         class_name.to_owned(),
         port_names(&base) != port_names(vehicle) || base.iter().count() != vehicle.iter().count(),
@@ -234,23 +252,27 @@ fn report(tally: &Tally) {
     for miss in &tally.misses {
         println!("unmatched Elems {miss}");
     }
-}
-
-fn patches<'a>(tally: &'a Tally, needle: &str) -> Vec<(&'a str, Shape)> {
-    tally
-        .users
-        .keys()
-        .filter(|patch| patch.contains(needle))
-        .map(|patch| {
-            (
-                patch.as_str(),
-                tally.shapes.get(patch).copied().unwrap_or_default(),
-            )
-        })
-        .collect()
+    for flip in &tally.flips {
+        println!("visibility flips {flip}");
+    }
+    for (class, ids) in &tally.replaced {
+        println!("wrapper replaced wholesale {class}: {}", ids.join(", "));
+    }
 }
 
 fn assert_known_vehicles(tally: &Tally, jump: &EntityNode) {
+    assert!(
+        !tally.flips.is_empty(),
+        "no Modification flips the visibility of a port"
+    );
+    let harbinger = tally.replaced.get("AEGS_Vanguard_Harbinger");
+    let merged = patches(tally, "harbinger")
+        .iter()
+        .any(|(_, shape)| shape.id > 0);
+    assert!(
+        harbinger.is_some_and(|ids| ids.iter().any(|id| id == "modParts")) || merged,
+        "the Harbinger wrapper is replaced wholesale or merged by id: {harbinger:?}"
+    );
     assert!(
         nodes(jump)
             .iter()

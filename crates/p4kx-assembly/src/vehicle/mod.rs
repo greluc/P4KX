@@ -58,6 +58,7 @@ pub struct VehicleItemPort {
     pub(crate) min_size: Option<u32>,
     pub(crate) max_size: Option<u32>,
     pub(crate) flags: String,
+    pub(crate) id: Option<String>,
 }
 
 impl VehicleItemPort {
@@ -71,6 +72,12 @@ impl VehicleItemPort {
     #[must_use]
     pub const fn max_size(&self) -> Option<u32> {
         self.max_size
+    }
+
+    /// Returns the item port's own id, which Modifications address, if it has one.
+    #[must_use]
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
     }
 
     /// Returns the flags as stored, e.g. `invisible $uneditable`.
@@ -299,6 +306,15 @@ impl VehicleImplementation {
             let part = stack.pop()?;
             stack.extend(part.children.iter().rev());
             Some(part)
+        })
+    }
+
+    /// Returns every id of a part or item port, the ones Modifications address.
+    pub fn ids(&self) -> impl Iterator<Item = &str> {
+        self.iter().flat_map(|part| {
+            part.attribute("id")
+                .into_iter()
+                .chain(part.item_port.as_ref().and_then(VehicleItemPort::id))
         })
     }
 

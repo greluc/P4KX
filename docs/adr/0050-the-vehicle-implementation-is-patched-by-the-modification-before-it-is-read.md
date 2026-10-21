@@ -21,9 +21,11 @@ takes effect before anything is interpreted.
   the same name of the base wholesale (the parts-only files of the F7CM and the 350r; the full
   override of the Sentinel). A child with an `id` is merged into every base element with that
   `id`: its attributes are set and its children replace the element's; a child whose `id` no base
-  element has replaces the base's child of the same name wholesale, as the wrapper
-  `<Parts id="modParts">` of the Harbinger does. The base's own `Modifications` element is never
-  replaced.
+  element has is a wrapper (the Harbinger's `<Parts id="modParts">`): if the base has a child of
+  its name, the wrapper's children are merged into it by their own `id`s, and only when none of
+  them matches does the wrapper replace that child wholesale, so a mistyped wrapper on a partial
+  patch does not drop the other parts; a wrapper with no base child of its name is an unmatched
+  `id`. The base's own `Modifications` element is never replaced.
 - **Elems.** After the patch, each `Elem` of the selected Modification sets the attribute `name`
   to `value` on every element whose `id` equals `idRef`, wherever it sits (`Part` or `ItemPort`).
   Attribute names and element names match ignoring ASCII case (`minSize`/`minsize`,
@@ -53,8 +55,10 @@ takes effect before anything is interpreted.
   the tree deeper than 128, is an issue and the unpatched base stays. The file size limit is that
   of XML Loadouts.
 - **Visible outcomes.** A patch file that dangles (even when a fallback file is applied), a
-  replacing patch child with no base counterpart and a patch `id` that matches nothing are
-  `vehicle_implementation` issues, and `VehicleImplementation::modification_report` counts the
+  replacing patch child with no base counterpart, and an `id` (of an element or of a wrapper's
+  child) that matches nothing in the base and has no base child of its name to replace are
+  `vehicle_implementation` issues; a wrapper that replaced a child wholesale is listed in the report
+  (`replaced_ids`) without an issue, and `VehicleImplementation::modification_report` counts the
   patch shapes and the unmatched `id`s and `idRef`s, so a real Archive can show whether the rule
   above fits.
 - **Paths.** Every path read lies below `Scripts/Entities/Vehicles/Implementations/Xml/` (an
@@ -74,7 +78,7 @@ tree). Mass, hull points and number noise beyond the lenient reading above belon
 ## Check on the live Archive
 
 LIVE (1140 vehicles, 97 with a patch file) read with no unexpected issue. Patch files of all three
-shapes occur: `Vehicle` children (Sentinel), id-less children (Harbinger's wrapper, Taurus) and
+shapes occur: `Vehicle` children (Sentinel), id-less children (Taurus), a wrapper whose id matches no element (Harbinger) and
 id children (350r, F7CM, Freelancer). The only issues are the wrecked Starfarer's Modifications,
 which name patch files `MISC_Starfarer_Dead*.xml` that the Archive does not hold. 128 `Elem`s
 match no element; they are not issues, and they are CIG data, not rule gaps: the `idRef` is the

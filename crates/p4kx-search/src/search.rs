@@ -1,0 +1,103 @@
+use p4kx_extraction::{Archive, DataForge, DataForgeEntry, DataForgeError, DataForgeLoadError};
+use thiserror::Error;
+
+use crate::{
+    Found, Needle, SearchOptions, SearchReport, Source, Unavailable, search_entries,
+    search_localization, search_records,
+};
+
+/// A search that could not run.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum SearchError {
+    /// The Archive's DataForge cannot be read.
+    #[error(transparent)]
+    DataForge(#[from] DataForgeLoadError),
+    /// The Archive's DataForge cannot be opened.
+    #[error("the DataForge cannot be opened")]
+    DataForgeOpen(#[source] DataForgeError),
+}
+
+/// Searches `archive` in the sources of `options`, in the order Records, localisation, Entries.
+///
+/// The DataForge is read for the search of Records and dropped with it. An Archive without a
+/// DataForge adds [`Unavailable`] to the report instead of failing. Returns `Ok(None)` once `stop`
+/// has returned `true`.
+///
+/// # Errors
+///
+/// Returns a [`SearchError`] when the DataForge exists but cannot be read, e.g. because it is
+/// encrypted and the Archive has no key.
+pub fn search(
+    archive: &Archive,
+    needle: &Needle,
+    options: &SearchOptions,
+    stop: &(dyn Fn() -> bool + Sync),
+) -> Result<Option<SearchReport>, SearchError> {
+    if !options.sources.contains(Source::Records) {
+        return Ok(search_in(archive, None, needle, options, stop));
+    }
+    match DataForgeEntry::read(archive) {
+        Ok(entry) => {
+            let forge = entry.open().map_err(SearchError::DataForgeOpen)?;
+            Ok(search_in(archive, Some(&forge), needle, options, stop))
+        }
+        Err(DataForgeLoadError::Missing) => Ok(search_in(archive, None, needle, options, stop)),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Searches `archive` like [`search`] with a DataForge the caller already holds.
+///
+/// A window searches the one it keeps in memory. Without `forge` the search of Records adds
+/// [`Unavailable`] to the report. Returns `None` once `stop` has returned `true`.
+#[must_use]
+pub fn search_in<'f>(
+    archive: &Archive,
+    forge: Option<&'f DataForge<'f>>,
+    needle: &Needle,
+    options: &SearchOptions,
+    stop: &(dyn Fn() -> bool + Sync),
+) -> Option<SearchReport> {
+    let mut report = SearchReport::default();
+    if options.sources.contains(Source::Records) {
+        match forge {
+            Some(forge) => {
+                let found = search_records(forge, needle, options, stop)?;
+                take(&mut report, Source::Records, found, |report| {
+                    &mut report.records
+                });
+            }
+            None => report.unavailable.push(Unavailable {
+                source: Source::Records,
+                reason: DataForgeLoadError::Missing.to_string(),
+            }),
+        }
+    }
+    if options.sources.contains(Source::Localization) {
+        let found = search_localization(archive, needle, options, stop)?;
+        take(&mut report, Source::Localization, found, |report| {
+            &mut report.localization
+        });
+    }
+    if options.sources.contains(Source::Entries) {
+        let found = search_entries(archive, needle, options, stop)?;
+        take(&mut report, Source::Entries, found, |report| {
+            &mut report.entries
+        });
+    }
+    Some(report)
+}
+
+fn take<T>(
+    report: &mut SearchReport,
+    source: Source,
+    found: Found<T>,
+    hits: impl FnOnce(&mut SearchReport) -> &mut Vec<T>,
+) {
+    *hits(report) = found.hits;
+    if found.has_more {
+        report.has_more = report.has_more.with(source);
+    }
+    report.stats.merge(&found.stats);
+}

@@ -19,6 +19,9 @@ mod comparison_rows;
 mod comparison_summary;
 mod comparison_table;
 mod container_note;
+mod content_search;
+mod content_search_notes;
+mod content_search_rows;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;
@@ -82,8 +85,8 @@ use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    ComparisonSide, ComparisonText, LocalizationText, Model, PreviewTab, QueryExportFormat,
-    QueryText, Text, WorkTab,
+    ComparisonSide, ComparisonText, ContentSearchText, LocalizationText, Model, PreviewTab,
+    QueryExportFormat, QueryText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -127,6 +130,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         ..Requests::default()
     };
     poll_background(model);
+    poll_search(ui, model);
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -174,6 +178,13 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     requests
 }
 
+/// Takes the result of a content search and shows a hit that waited for its data.
+fn poll_search(ui: &Ui, model: &mut Model) {
+    model.content_search_mut().poll();
+    let ctx = ui.ctx().clone();
+    model.apply_pending_hit(move || ctx.request_repaint());
+}
+
 fn poll_background(model: &mut Model) {
     if let Some(browser) = model.browser_mut() {
         browser.poll();
@@ -199,6 +210,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),
         WorkTab::Localization => return localization::show(ui, model),
+        WorkTab::Search => return content_search::show(ui, model),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -234,7 +246,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 4] = [
+const WORK_TABS: [(WorkTab, Text); 5] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -248,6 +260,7 @@ const WORK_TABS: [(WorkTab, Text); 4] = [
         WorkTab::Localization,
         Text::Localization(LocalizationText::Tab),
     ),
+    (WorkTab::Search, Text::ContentSearch(ContentSearchText::Tab)),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

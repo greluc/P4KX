@@ -231,6 +231,16 @@ impl EntryIndex {
         self.groups.part_count()
     }
 
+    /// Returns the id of the Entry at `path`, ignoring ASCII case and the separator kind, or
+    /// `None` when there is none.
+    #[must_use]
+    pub fn id_of_path(&self, path: &str) -> Option<u32> {
+        let position = self.path_index().position(path)?;
+        (0..self.len())
+            .filter_map(|id| u32::try_from(id).ok())
+            .find(|&id| self.tree.position(id) == Some(position))
+    }
+
     /// Returns the Entry with id `id`, or `None` when there is none.
     #[must_use]
     pub fn entry(&self, id: u32) -> Option<&Entry> {

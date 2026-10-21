@@ -114,6 +114,11 @@ pub(crate) fn preview_body() -> Frame {
     Frame::NONE.inner_margin(margin(PREVIEW_PADDING_X, 8.0))
 }
 
+/// Returns the width a text inside an `.alert` that is `outer` wide may take.
+pub(crate) const fn alert_text_width(outer: f32) -> f32 {
+    outer - 2.0 * SPACE_4 - ACCENT_BAR - 2.0
+}
+
 /// Shows an `.alert.alert-warning` with `body` inside.
 pub(crate) fn warning_alert<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
     alert(ui, (ALERT_WARNING_FILL, palette::WARNING), body)

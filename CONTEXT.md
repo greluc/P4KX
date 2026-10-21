@@ -75,6 +75,13 @@ Text that selects Entries by path: a glob over the full path when it holds `*` o
 a substring anywhere in the path; case and separator kind do not matter.
 _Avoid_: query (a Query selects Records), search pattern
 
+**Content search**:
+A search for a text, as part of a longer one and ignoring case, in the string, localisation key and
+enum values of Records, in the texts of each language's `global.ini` and in the lines of text and
+CryXml Entries; a **hit** names the place and carries a short excerpt. It scans on demand and keeps
+no index (ADR-0044); Entries it cannot read, such as binary ones, are skipped and counted.
+_Avoid_: full-text index, grep (only the command), Filter (a Filter selects Entries by path)
+
 **Layout**:
 The on-disk structure of an Archive's directory: v1 (ZIP64 central directory with local headers)
 or v2 (fixed 204-byte records and a name table behind a trailer ending in `Jiji`).

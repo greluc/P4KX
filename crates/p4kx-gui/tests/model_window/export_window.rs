@@ -34,7 +34,7 @@ fn a_file_that_cannot_be_written_shows_a_message_and_the_window_keeps_working() 
     harness.run();
     assert!(harness.state().model_export().is_none(), "dismissed");
     harness.get_by_label("readme.txt").click();
-    harness.run();
+    harness.run_steps(8);
     assert!(
         harness
             .state()

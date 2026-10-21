@@ -1,5 +1,9 @@
 //! The Tags tab in the window, driven headless over a synthetic Archive with a tag tree.
 
+#[expect(
+    dead_code,
+    reason = "each test file uses a part of the shared Tags fixtures"
+)]
 mod tagging;
 
 use egui::accesskit::Role;

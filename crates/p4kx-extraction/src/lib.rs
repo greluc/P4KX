@@ -114,10 +114,11 @@ pub use p4kx_dataforge::{
     FieldStat, FieldStatistics, FieldStatisticsError, FileGraph, FormatSurvey, Guid,
     IndexedReference, InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_DISTINCT_VALUES,
     MAX_FIELD_PATHS, MAX_INDEXED_REFERENCES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES, MAX_TAG_DEPTH,
-    Number, PointerSurvey, Property, RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree,
-    RecordXml, Reference, ReferenceIndex, Resolution, Struct, StructValue, TAG_DATABASE_TYPE,
-    TAG_PATH_SEPARATOR, TAG_TYPE, Tag, TagResolver, TagTree, TagTreeIssues, TextResolver,
-    TrailingSurvey, TreeBuilder, Value, ValueError, ValueKind,
+    MAX_TAG_NAME_BYTES, MAX_TAG_PATH_BYTES, MAX_TAG_TEXT_BYTES, Number, PointerSurvey, Property,
+    RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml, Reference, ReferenceIndex,
+    Resolution, Struct, StructValue, TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, TAG_TYPE, Tag,
+    TagResolver, TagTree, TagTreeIssues, TextResolver, TrailingSurvey, TreeBuilder, Value,
+    ValueError, ValueKind,
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;

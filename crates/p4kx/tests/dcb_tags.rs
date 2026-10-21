@@ -205,7 +205,7 @@ fn tags_json_is_the_flat_list_with_parent_and_children() -> TestResult {
     assert_eq!(value["tree"], false);
     assert_eq!(
         value["issues"],
-        serde_json::json!({"unreadable": 0, "dangling": 0, "repeated": 0, "too_deep": 0, "unlisted": 0})
+        serde_json::json!({"unreadable": 0, "dangling": 0, "repeated": 0, "too_deep": 0, "too_long": 0, "duplicate": 0, "unlisted": 0})
     );
     let tags = value["tags"].as_array().ok_or("no tags")?;
     assert_eq!(tags.len(), 4);

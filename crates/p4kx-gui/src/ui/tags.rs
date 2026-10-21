@@ -1,33 +1,17 @@
-use egui::{
-    Align, Color32, CornerRadius, Label, Layout, Margin, Rect, Role, ScrollArea, Sense, Ui,
-    WidgetInfo, pos2, vec2,
-};
+use egui::{Align, Color32, Label, Layout, Margin, Ui, vec2};
 use fluent_bundle::FluentValue;
 
 use super::search::{eyebrow, field};
-use super::tree::{rails, toggle};
+use super::tags_table::{self, Action};
 use super::{empty, list_footer};
-use crate::theme::desktop::{
-    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, SPINNER, SPINNER_INLINE, TABLE_HEAD_SIZE,
-    TABLE_HEAD_TRACKING, TOOLBAR_PADDING,
-};
+use crate::theme::desktop::{SPINNER, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::theme::palette;
-use crate::theme::tags_metrics::{TAGS_GUID_WIDTH, TAGS_LEGACY_WIDTH};
-use crate::theme::tokens::{FS_SM, SPACE_2, Weight};
+use crate::theme::tokens::{FS_SM, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
-use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
-use crate::widgets::text::{caps, hairline_below, line, paint_left, plain};
-use crate::widgets::tooltip;
-use crate::{Model, TagRow, TagsStatus, TagsText, TagsView, Texts, format};
-
-/// What the user did in the tree: the position in the pre-order of the tag it is about.
-#[derive(Clone, Copy)]
-enum Action {
-    Select(usize),
-    Toggle(usize),
-}
+use crate::widgets::text::{hairline_below, plain};
+use crate::{Model, TagsStatus, TagsText, TagsView, Texts, format};
 
 /// Shows the Tags tab: the search and copy actions, then the tag tree with the number of tags
 /// below it, or the state of reading the tags.
@@ -127,11 +111,15 @@ fn body(ui: &mut Ui, model: &Model) -> Option<Action> {
 
 fn ready(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action> {
     if view.irregularities() > 0 {
-        let number = format::number(
-            u64::try_from(view.irregularities()).unwrap_or(u64::MAX),
-            texts.language(),
+        let irregular = u64::try_from(view.irregularities()).unwrap_or(u64::MAX);
+        let number = format::number(irregular, texts.language());
+        let text = texts.format(
+            TagsText::Irregular,
+            &[
+                ("count", FluentValue::from(irregular)),
+                ("number", number.into()),
+            ],
         );
-        let text = texts.format(TagsText::Irregular, &[("number", number.into())]);
         frames::warning_alert(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.add(Label::new(text).selectable(true));
@@ -157,8 +145,7 @@ fn ready(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action> {
         message(ui, texts.get(TagsText::NoMatch), palette::GRAY_2_TEXT);
         return None;
     }
-    head(ui, texts);
-    rows(ui, texts, view)
+    tags_table::show(ui, texts, view)
 }
 
 fn count(texts: &Texts, shown: usize, total: usize) -> String {
@@ -179,135 +166,6 @@ fn count(texts: &Texts, shown: usize, total: usize) -> String {
                 ("total", number(total).into()),
             ],
         )
-    }
-}
-
-/// Returns the cells of a row from the right: the GUID, the legacy ID, and where the tag ends.
-fn columns(rect: Rect) -> (Rect, Rect, f32) {
-    let legacy = Rect::from_min_max(pos2(rect.right() - TAGS_LEGACY_WIDTH, rect.top()), rect.max);
-    let guid = Rect::from_min_max(
-        pos2(legacy.left() - TAGS_GUID_WIDTH, rect.top()),
-        pos2(legacy.left(), rect.bottom()),
-    );
-    (guid, legacy, guid.left() - SPACE_2)
-}
-
-/// Paints the head of the columns: the table head of the design system with its orange rule.
-fn head(ui: &mut Ui, texts: &Texts) {
-    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::hover());
-    ui.painter()
-        .rect_filled(rect, CornerRadius::ZERO, palette::SURFACE_INPUT);
-    let rule = Rect::from_min_max(pos2(rect.left(), rect.bottom() - 2.0), rect.max);
-    ui.painter()
-        .rect_filled(rule, CornerRadius::ZERO, palette::PRIMARY);
-    let (guid, legacy, tag_right) = columns(rect);
-    let cells = [
-        (
-            Rect::from_min_max(rect.min, pos2(tag_right, rect.bottom())),
-            TagsText::ColumnTag,
-        ),
-        (guid, TagsText::ColumnGuid),
-        (legacy, TagsText::ColumnLegacy),
-    ];
-    for (cell, text) in cells {
-        let name = texts.get(text);
-        let inner = cell.shrink2(vec2(CELL_PADDING_X, 0.0));
-        let galley = line(
-            ui,
-            caps(&name, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING),
-            inner.width().max(0.0),
-        );
-        paint_left(ui, inner, galley, palette::GRAY_1);
-        let id = ui.scope_id().with(("tags-head", text.id()));
-        ui.interact(cell, id, Sense::hover())
-            .widget_info(|| WidgetInfo::labeled(Role::ColumnHeader, true, &name));
-    }
-}
-
-fn rows(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action> {
-    let mut action = None;
-    ui.spacing_mut().scroll.bar_width = SCROLLBAR_THIN;
-    ui.spacing_mut().item_spacing.y = 0.0;
-    ScrollArea::vertical()
-        .id_salt("tags-rows")
-        .auto_shrink(false)
-        .show_rows(ui, ROW_HEIGHT, view.shown_len(), |ui, visible| {
-            for index in visible {
-                if let Some(row) = view.row(index)
-                    && let Some(clicked) = show_row(ui, texts, &row, index)
-                {
-                    action = Some(clicked);
-                }
-            }
-        });
-    action
-}
-
-fn show_row(ui: &mut Ui, texts: &Texts, row: &TagRow<'_>, index: usize) -> Option<Action> {
-    let tag = row.tag();
-    let position = tag.position();
-    let (rect, response) =
-        ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
-    response
-        .widget_info(|| WidgetInfo::selected(Role::Button, true, row.is_selected(), tag.path()));
-    let state = RowState::of_tree(row.is_selected(), response.hovered());
-    paint_row(ui.painter(), rect, state);
-    paint_divider(ui.painter(), rect);
-    let chevron = rails(ui, rect, tag.depth());
-    let mut action = None;
-    if row.is_expandable() {
-        let id = ui.scope_id().with(("tags-toggle", position, index));
-        if toggle(ui, texts, (id, chevron), row.is_expanded(), tag.name()) {
-            action = Some(Action::Toggle(position));
-        }
-    }
-    paint_cells(ui, (rect, chevron.right()), row, state);
-    focus_inside(ui.painter(), rect, &response);
-    let response = tooltip::hover(response, |ui| {
-        tooltip::line(ui, tag.path());
-    });
-    if response.double_clicked() && row.is_expandable() {
-        return Some(Action::Toggle(position));
-    }
-    if response.clicked() && action.is_none() {
-        action = Some(Action::Select(position));
-    }
-    action
-}
-
-/// Paints the name, the GUID and the legacy ID of a row at `rect`, the name from `name_left`.
-fn paint_cells(ui: &Ui, (rect, name_left): (Rect, f32), row: &TagRow<'_>, state: RowState) {
-    let tag = row.tag();
-    let (guid, legacy, tag_right) = columns(rect);
-    let (_, colour) = state.colours();
-    let muted = if row.is_selected() {
-        colour
-    } else {
-        palette::GRAY_2_TEXT
-    };
-    let tag_rect = Rect::from_min_max(pos2(name_left, rect.top()), pos2(tag_right, rect.bottom()));
-    let name = line(
-        ui,
-        plain(tag.name(), ROW_FONT, row_weight(row.is_selected())),
-        tag_rect.width().max(0.0),
-    );
-    paint_left(ui, tag_rect, name, colour);
-    let cells = [
-        (guid, tag.guid().to_string()),
-        (
-            legacy,
-            tag.legacy_id()
-                .map_or_else(String::new, |id| id.to_string()),
-        ),
-    ];
-    for (cell, text) in cells {
-        let inner = cell.shrink2(vec2(CELL_PADDING_X, 0.0));
-        let galley = line(
-            ui,
-            plain(text, ROW_FONT, Weight::Regular),
-            inner.width().max(0.0),
-        );
-        paint_left(ui, inner, galley, muted);
     }
 }
 

@@ -70,6 +70,49 @@ pub(crate) fn forge() -> Vec<u8> {
         .build()
 }
 
+/// Returns the GUID of tag `index` of [`forge_many`].
+pub(crate) const fn many_guid(index: usize) -> u128 {
+    0x00c0_0000_0000_4000_8000_0000_0000_0000 + index as u128
+}
+
+/// Returns a DataForge with `count` tags: a chain of `depth` tags, each below the one before, then
+/// the others as roots; tag `i` is called `Tag{i}` and has the legacy ID `1000 + i`.
+pub(crate) fn forge_many(count: usize, depth: usize) -> Vec<u8> {
+    let roots: Vec<u128> = std::iter::once(0)
+        .chain(depth..count)
+        .map(many_guid)
+        .collect();
+    let mut builder = DataForgeBuilder::new()
+        .structure(
+            TestStruct::new("Tag")
+                .field("tagName", TestType::String)
+                .field("legacyGUID", TestType::UInt32)
+                .array("children", TestType::ReferenceTo("Tag".to_owned())),
+        )
+        .structure(
+            TestStruct::new("TagDatabase").array("tags", TestType::ReferenceTo("Tag".to_owned())),
+        )
+        .record(
+            TestRecord::new(DATABASE, "TagDatabase", "TagDatabase.TagDatabase", PATH)
+                .value("tags", references(&roots)),
+        );
+    for index in 0..count {
+        let children = if index + 1 < depth {
+            vec![many_guid(index + 1)]
+        } else {
+            Vec::new()
+        };
+        let legacy = 1000 + u32::try_from(index).unwrap_or_default();
+        builder = builder.record(tag(
+            many_guid(index),
+            &format!("Tag{index}"),
+            legacy,
+            &children,
+        ));
+    }
+    builder.build()
+}
+
 pub(crate) fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     let mut builder = ArchiveBuilder::new();
@@ -81,9 +124,13 @@ pub(crate) fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Bo
 }
 
 pub(crate) fn harness(model: Model) -> Harness<'static, Model> {
+    harness_sized(model, [1400.0, 900.0])
+}
+
+pub(crate) fn harness_sized(model: Model, size: [f32; 2]) -> Harness<'static, Model> {
     Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1400.0, 900.0])
+        .with_size(size)
         .build_ui_state(
             |ui, model: &mut Model| {
                 ui::show(ui, model);
@@ -121,9 +168,18 @@ pub(crate) fn opened(
     entries: Vec<TestEntry>,
     language: Language,
 ) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
+    opened_sized(entries, language, [1400.0, 900.0])
+}
+
+/// Opens the Archive of `entries` like [`opened`] in a window of `size` points.
+pub(crate) fn opened_sized(
+    entries: Vec<TestEntry>,
+    language: Language,
+    size: [f32; 2],
+) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let path = archive(dir.path(), entries)?;
-    let mut harness = harness(Model::new(language));
+    let mut harness = harness_sized(Model::new(language), size);
     harness.state_mut().open(path, || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
     harness.state_mut().set_work_tab(WorkTab::Tags);

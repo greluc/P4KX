@@ -16,6 +16,7 @@ fn the_tag_tree_metrics_match_the_desktop_spec() {
     for (key, value) in [
         ("guidColumnWidth", t::TAGS_GUID_WIDTH),
         ("legacyColumnWidth", t::TAGS_LEGACY_WIDTH),
+        ("nameColumnMinWidth", t::TAGS_NAME_MIN_WIDTH),
         ("rowHeight", d::ROW_HEIGHT),
     ] {
         let expected = json["tagTree"][key].as_f64();

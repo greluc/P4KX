@@ -117,7 +117,8 @@ children below their parent. The tree starts collapsed at its roots; the chevron
 the row, opens and closes a Tag. **Search** matches the tag path, e.g. `Weapon.Gun`, ignoring case, and
 shows the matches with the Tags above them, however the tree is opened. Select a row and press **Copy
 tag path** or **Copy GUID** to put it on the clipboard; the tooltip of a row gives its full tag path.
-The tab reads the tags in the background when it is first opened for an Archive and shares the
+The table keeps the width of its columns and scrolls sideways in a narrow window; the legacy ID is
+a number and stands right-aligned. The tab reads the tags in the background when it is first opened for an Archive and shares the
 DataForge with the other views. A note above the tree says when it differs from what the
 `TagDatabase` lists, for example Tags that no `TagDatabase` reaches, which stand as roots of their
 own. `p4kx dcb tags` prints the same tree; `p4kx dcb export --tags` writes the tag path next to every

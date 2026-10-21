@@ -593,7 +593,11 @@ tags-count-shown =
 tags-no-match = Kein Tag-Pfad passt zur Suche.
 tags-copy-path = Tag-Pfad kopieren
 tags-copy-guid = GUID kopieren
-tags-irregular = Der Tag-Baum weicht an { $number } Stellen von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags nennt sie.
+tags-irregular =
+    { $count ->
+        [one] Der Tag-Baum weicht an { $number } Stelle von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags zählt sie.
+       *[other] Der Tag-Baum weicht an { $number } Stellen von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags zählt sie.
+    }
 preview-tab-model = Modell
 model-reset = Ansicht zurücksetzen
 model-hint = Ziehen: drehen · Rechtsklick-Ziehen oder Umschalt-Ziehen: verschieben · Mausrad: zoomen · Pfeile: drehen, Umschalt und Pfeile: verschieben · + und -: zoomen · Pos1: zurücksetzen

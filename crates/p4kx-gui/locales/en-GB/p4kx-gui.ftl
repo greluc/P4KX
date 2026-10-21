@@ -593,7 +593,11 @@ tags-count-shown =
 tags-no-match = No tag path matches the search.
 tags-copy-path = Copy tag path
 tags-copy-guid = Copy GUID
-tags-irregular = The tag tree differs from what the TagDatabase lists in { $number } places. The command p4kx dcb tags names them.
+tags-irregular =
+    { $count ->
+        [one] The tag tree differs from what the TagDatabase lists in { $number } place. The command p4kx dcb tags counts it.
+       *[other] The tag tree differs from what the TagDatabase lists in { $number } places. The command p4kx dcb tags counts them.
+    }
 preview-tab-model = Model
 model-reset = Reset view
 model-hint = Drag: orbit · right-drag or Shift-drag: pan · wheel: zoom · arrows: orbit, Shift and arrows: pan · + and -: zoom · Home: reset

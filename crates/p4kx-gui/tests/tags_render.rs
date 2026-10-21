@@ -19,9 +19,10 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
+use p4kx_gui::theme::tags_metrics::TAGS_NAME_MIN_WIDTH;
 use p4kx_gui::{Language, Model, WorkTab, ui};
 use p4kx_testkit::TestEntry;
-use tagging::{TestResult, archive, forge, wait_until};
+use tagging::{TestResult, archive, forge, forge_many, wait_until};
 
 const PRIMARY: [u8; 3] = [0xE7, 0x7E, 0x23];
 
@@ -59,11 +60,12 @@ fn window(
     renderer: WgpuTestRenderer,
     language: Language,
     dir: &std::path::Path,
+    (size, forge): ([f32; 2], Vec<u8>),
 ) -> Result<Harness<'static, Model>, Box<dyn std::error::Error>> {
-    let path = archive(dir, vec![TestEntry::zstd("Data\\Game2.dcb", forge())])?;
+    let path = archive(dir, vec![TestEntry::zstd("Data\\Game2.dcb", forge)])?;
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1100.0, 560.0])
+        .with_size(size)
         .renderer(renderer)
         .build_ui_state(
             |ui, model: &mut Model| {
@@ -89,7 +91,7 @@ fn the_tag_tree_is_drawn_with_its_head_rows_and_chevrons() -> TestResult {
             return Ok(());
         };
         let dir = tempfile::tempdir()?;
-        let mut harness = window(renderer, language, dir.path())?;
+        let mut harness = window(renderer, language, dir.path(), ([1100.0, 560.0], forge()))?;
         let expand = if language == Language::German {
             "Weapon aufklappen"
         } else {
@@ -118,5 +120,42 @@ fn the_tag_tree_is_drawn_with_its_head_rows_and_chevrons() -> TestResult {
             "the head rule and the selected row bar are orange: {orange} pixels"
         );
     }
+    Ok(())
+}
+
+#[test]
+fn a_deep_tree_in_a_narrow_window_scrolls_sideways_instead_of_overlapping() -> TestResult {
+    let Some(renderer) = renderer() else {
+        return Ok(());
+    };
+    let dir = tempfile::tempdir()?;
+    let mut harness = window(
+        renderer,
+        Language::BritishEnglish,
+        dir.path(),
+        ([640.0, 760.0], forge_many(100, 12)),
+    )?;
+    for position in 0..11 {
+        harness.state_mut().tags_mut().toggle(position);
+    }
+    harness.run_steps(4);
+
+    let image = harness.render()?;
+    save(
+        "tags-narrow-en-GB.png",
+        image.width(),
+        image.height(),
+        &image.into_raw(),
+    )?;
+    let name = harness
+        .get_by_role_and_label(
+            Role::Button,
+            "Tag0.Tag1.Tag2.Tag3.Tag4.Tag5.Tag6.Tag7.Tag8.Tag9.Tag10.Tag11",
+        )
+        .rect();
+    assert!(
+        name.width() >= TAGS_NAME_MIN_WIDTH - 0.5,
+        "the tag column keeps its width: {name:?}"
+    );
     Ok(())
 }

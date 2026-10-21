@@ -37,7 +37,7 @@ pub enum TagsText {
     CopyPath,
     /// The action that copies the GUID of the selected tag.
     CopyGuid,
-    /// The remark that the tree differs from what the `TagDatabase` lists; takes `number`.
+    /// The remark that the tree differs from what the `TagDatabase` lists; takes `count` and `number`.
     Irregular,
 }
 

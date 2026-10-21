@@ -73,7 +73,10 @@ pub use record::Record;
 pub use reference_index::{FileGraph, IndexedReference, MAX_INDEXED_REFERENCES, ReferenceIndex};
 pub use schema::{Enum, Property, Struct};
 pub use survey::{FormatSurvey, PointerSurvey, TrailingSurvey};
-pub use tags::{MAX_TAG_DEPTH, TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, Tag, TagTree, TagTreeIssues};
+pub use tags::{
+    MAX_TAG_DEPTH, MAX_TAG_NAME_BYTES, MAX_TAG_PATH_BYTES, MAX_TAG_TEXT_BYTES, TAG_DATABASE_TYPE,
+    TAG_PATH_SEPARATOR, Tag, TagTree, TagTreeIssues,
+};
 pub use texts::{Resolution, TextResolver};
 pub use tree::RecordTree;
 pub use value::{Field, Value};

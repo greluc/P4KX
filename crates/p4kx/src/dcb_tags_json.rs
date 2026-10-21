@@ -59,11 +59,13 @@ impl Serialize for Nested<'_> {
 
 impl Serialize for Issues {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(Some(5))?;
+        let mut map = serializer.serialize_map(Some(7))?;
         map.serialize_entry("unreadable", &self.0.unreadable())?;
         map.serialize_entry("dangling", &self.0.dangling())?;
         map.serialize_entry("repeated", &self.0.repeated())?;
         map.serialize_entry("too_deep", &self.0.too_deep())?;
+        map.serialize_entry("too_long", &self.0.too_long())?;
+        map.serialize_entry("duplicate", &self.0.duplicate())?;
         map.serialize_entry("unlisted", &self.0.unlisted())?;
         map.end()
     }

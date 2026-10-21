@@ -107,6 +107,14 @@ fn warn(issues: TagTreeIssues) {
         ),
         (issues.too_deep(), "tags are too deep and left out"),
         (
+            issues.too_long(),
+            "tags have a name or path that is too long and are left out",
+        ),
+        (
+            issues.duplicate(),
+            "Tag Records repeat the GUID of an earlier one and are left out",
+        ),
+        (
             issues.unlisted(),
             "tags are not listed by the TagDatabase and stand as roots of their own",
         ),

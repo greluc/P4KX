@@ -10,6 +10,17 @@ pub const TAG_PATH_SEPARATOR: char = '.';
 /// The deepest tag the tree keeps; the children of a tag that deep are left out.
 pub const MAX_TAG_DEPTH: usize = 64;
 
+/// The longest tag name the tree keeps, in bytes; a longer one is left out with everything below.
+pub const MAX_TAG_NAME_BYTES: usize = 256;
+
+/// The longest tag path the tree keeps, in bytes; a tag with a longer one is left out with
+/// everything below it.
+pub const MAX_TAG_PATH_BYTES: usize = 1024;
+
+/// The most bytes the tag paths of one tree may take together; a tag past it is left out with
+/// everything below it.
+pub const MAX_TAG_TEXT_BYTES: usize = 64 << 20;
+
 /// What the tag tree could not take from the DataForge. The tree is built from whatever reads.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TagTreeIssues {
@@ -17,6 +28,8 @@ pub struct TagTreeIssues {
     pub(crate) dangling: usize,
     pub(crate) repeated: usize,
     pub(crate) too_deep: usize,
+    pub(crate) too_long: usize,
+    pub(crate) duplicate: usize,
     pub(crate) unlisted: usize,
 }
 
@@ -40,11 +53,25 @@ impl TagTreeIssues {
         self.repeated
     }
 
-    /// Returns the number of children left out because their parent is
+    /// Returns the number of tags left out, with everything below each, because their parent is
     /// [`MAX_TAG_DEPTH`] levels deep.
     #[must_use]
     pub const fn too_deep(&self) -> usize {
         self.too_deep
+    }
+
+    /// Returns the number of tags left out, with everything below each, because their name is
+    /// over [`MAX_TAG_NAME_BYTES`], their path over [`MAX_TAG_PATH_BYTES`] or the tree over
+    /// [`MAX_TAG_TEXT_BYTES`] of paths.
+    #[must_use]
+    pub const fn too_long(&self) -> usize {
+        self.too_long
+    }
+
+    /// Returns the number of Tag Records left out because an earlier one has their GUID.
+    #[must_use]
+    pub const fn duplicate(&self) -> usize {
+        self.duplicate
     }
 
     /// Returns the number of tags the `TagDatabase` does not reach; they are roots of their own
@@ -61,6 +88,8 @@ impl TagTreeIssues {
             && self.dangling == 0
             && self.repeated == 0
             && self.too_deep == 0
+            && self.too_long == 0
+            && self.duplicate == 0
             && self.unlisted == 0
     }
 }
@@ -68,8 +97,8 @@ impl TagTreeIssues {
 #[derive(Debug)]
 pub(crate) struct Node {
     pub(crate) guid: Guid,
-    pub(crate) name: Box<str>,
     pub(crate) path: Box<str>,
+    pub(crate) name_start: u32,
     pub(crate) legacy_id: Option<u32>,
     pub(crate) parent: Option<u32>,
     pub(crate) children: Vec<u32>,
@@ -158,12 +187,9 @@ impl TagTree {
     /// Returns the tag with the Tag Record `guid`, or `None` when the tree has none.
     #[must_use]
     pub fn get(&self, guid: Guid) -> Option<Tag<'_>> {
-        let found = self
-            .by_guid
-            .binary_search_by(|(other, _)| other.cmp(&guid))
-            .ok()?;
-        let &(_, index) = self.by_guid.get(found)?;
-        Some(Tag { tree: self, index })
+        let first = self.by_guid.partition_point(|(other, _)| *other < guid);
+        let &(found, index) = self.by_guid.get(first)?;
+        (found == guid).then_some(Tag { tree: self, index })
     }
 
     /// Returns the tag path of the Tag Record `guid`, e.g. `Weapon.Gun`, or `None` when the tree
@@ -212,7 +238,9 @@ impl<'t> Tag<'t> {
     /// Returns the name of the tag alone, e.g. `Gun`.
     #[must_use]
     pub fn name(&self) -> &'t str {
-        self.node().map_or("", |node| &node.name)
+        self.node()
+            .and_then(|node| node.path.get(node.name_start as usize..))
+            .unwrap_or_default()
     }
 
     /// Returns the tag path: the names from the root down to the tag, joined by

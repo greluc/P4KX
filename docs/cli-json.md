@@ -414,7 +414,7 @@ everything below it is listed, without it every Tag. `--json` is `--format json`
 
 ```json
 {"archive": "…", "tag_count": 18891, "shown_count": 3, "issues": {"unreadable": 0, "dangling": 0,
- "repeated": 0, "too_deep": 0, "unlisted": 0}, "tree": false, "tags": [{"guid": "…", "name": "Gun",
+ "repeated": 0, "too_deep": 0, "too_long": 0, "duplicate": 0, "unlisted": 0}, "tree": false, "tags": [{"guid": "…", "name": "Gun",
  "path": "Weapon.Gun", "legacy_id": null, "parent": "…", "depth": 1, "children": ["…"]}]}
 ```
 
@@ -427,8 +427,10 @@ of the DataForge and `shown_count` the Tags listed, which differs with `<tag>`. 
 the tree could not take as the DataForge lists it, and each non-zero count is also a warning on
 stderr: `unreadable` Tag Records left out, `dangling` listed Tags that are no Tag Record,
 `repeated` Tags listed more than once (the first listing counts, which also cuts a cycle),
-`too_deep` Tags left out below 64 levels and `unlisted` Tags no `TagDatabase` reaches, which stand as
-roots of their own.
+`too_deep` Tags left out, with everything below each, below 64 levels, `too_long` Tags left out, with
+everything below each, whose name is over 256 bytes, whose path is over 1,024 bytes or that would
+take the paths of the tree over 64 MiB, `duplicate` Tag Records left out because an earlier one has
+their GUID, and `unlisted` Tags no `TagDatabase` reaches, which stand as roots of their own.
 
 With `--tree` the document holds `"tree": true` and `tags` holds only the top of the listing, the
 roots or the Tags `<tag>` names, each with its `children` nested as objects of the same shape; they

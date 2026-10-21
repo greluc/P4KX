@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::annotations::TAG_TYPE;
-use crate::tags::{MAX_TAG_DEPTH, Node, TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, TagTreeIssues};
+use crate::tags::{
+    MAX_TAG_DEPTH, MAX_TAG_NAME_BYTES, MAX_TAG_PATH_BYTES, MAX_TAG_TEXT_BYTES, Node,
+    TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, TagTreeIssues,
+};
 use crate::{DataForge, Guid, TreeBuilder, Value};
 
 const NO_LEGACY_ID: u32 = u32::MAX;
@@ -37,6 +40,7 @@ pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
         visited: vec![false; raws.len()],
         nodes: Vec::with_capacity(raws.len()),
         roots: Vec::new(),
+        text_bytes: 0,
         issues,
     };
     for guid in &database_roots {
@@ -60,10 +64,12 @@ pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
     }
 }
 
-/// Reads the Tag Records and the root tags every `TagDatabase` lists.
+/// Reads the Tag Records and the root tags every `TagDatabase` lists. Of Tag Records that share a
+/// GUID the first counts.
 fn read<'f>(forge: &'f DataForge<'f>, issues: &mut TagTreeIssues) -> (Vec<Raw<'f>>, Vec<Guid>) {
     let mut builder = TreeBuilder::new();
     let mut raws = Vec::new();
+    let mut seen = HashSet::new();
     let mut roots = Vec::new();
     for record in forge.records() {
         let Ok(type_name) = record.type_name() else {
@@ -78,6 +84,10 @@ fn read<'f>(forge: &'f DataForge<'f>, issues: &mut TagTreeIssues) -> (Vec<Raw<'f
         };
         if type_name == TAG_DATABASE_TYPE {
             references(tree.field("tags"), &mut roots, issues);
+            continue;
+        }
+        if !seen.insert(record.guid()) {
+            issues.duplicate += 1;
             continue;
         }
         let name = match tree.field("tagName") {
@@ -121,6 +131,7 @@ struct Walk<'a, 'f> {
     visited: Vec<bool>,
     nodes: Vec<Node>,
     roots: Vec<u32>,
+    text_bytes: usize,
     issues: TagTreeIssues,
 }
 
@@ -175,6 +186,7 @@ impl Walk<'_, '_> {
             }
             if stack.len() >= MAX_TAG_DEPTH {
                 self.issues.too_deep += 1;
+                self.leave_out(position);
                 continue;
             }
             if let Some(entered) = self.enter(position, Some(parent), listed)
@@ -190,21 +202,38 @@ impl Walk<'_, '_> {
         }
     }
 
-    /// Adds the tag `position` below `parent` and returns its index.
+    /// Adds the tag `position` below `parent` and returns its index; a tag whose name or path is
+    /// too long, or that would take the text of the tree over its budget, is left out with
+    /// everything below it.
     fn enter(&mut self, position: usize, parent: Option<u32>, listed: bool) -> Option<u32> {
         let raw = self.raws.get(position)?;
-        *self.visited.get_mut(position)? = true;
         let parent_node = parent.and_then(|parent| self.nodes.get(parent as usize));
-        let path = parent_node.map_or_else(
-            || raw.name.into(),
-            |parent| format!("{}{TAG_PATH_SEPARATOR}{}", parent.path, raw.name).into(),
-        );
+        let prefix = parent_node.map_or(0, |parent| {
+            parent.path.len() + TAG_PATH_SEPARATOR.len_utf8()
+        });
+        let path_len = prefix + raw.name.len();
+        let index = u32::try_from(self.nodes.len()).ok();
+        let fits = raw.name.len() <= MAX_TAG_NAME_BYTES
+            && path_len <= MAX_TAG_PATH_BYTES
+            && self.text_bytes.saturating_add(path_len) <= MAX_TAG_TEXT_BYTES;
+        let (Some(index), true) = (index, fits) else {
+            self.issues.too_long += 1;
+            self.leave_out(position);
+            return None;
+        };
+        *self.visited.get_mut(position)? = true;
+        let mut path = String::with_capacity(path_len);
+        if let Some(parent) = parent_node {
+            path.push_str(&parent.path);
+            path.push(TAG_PATH_SEPARATOR);
+        }
+        path.push_str(raw.name);
         let depth = parent_node.map_or(0, |parent| parent.depth.saturating_add(1));
-        let index = u32::try_from(self.nodes.len()).ok()?;
+        self.text_bytes += path_len;
         self.nodes.push(Node {
             guid: raw.guid,
-            name: raw.name.into(),
-            path,
+            path: path.into(),
+            name_start: u32::try_from(prefix).unwrap_or(u32::MAX),
             legacy_id: raw.legacy_id,
             parent,
             children: Vec::new(),
@@ -213,6 +242,26 @@ impl Walk<'_, '_> {
             listed,
         });
         Some(index)
+    }
+
+    /// Marks the tag `position` and every tag only reachable through it as visited, so that none
+    /// of them becomes a root of its own.
+    fn leave_out(&mut self, position: usize) {
+        let mut stack = vec![position];
+        while let Some(position) = stack.pop() {
+            match self.visited.get_mut(position) {
+                Some(flag) if !*flag => *flag = true,
+                _ => continue,
+            }
+            let Some(raw) = self.raws.get(position) else {
+                continue;
+            };
+            stack.extend(
+                raw.children
+                    .iter()
+                    .filter_map(|child| self.positions.get(child).copied()),
+            );
+        }
     }
 
     /// Makes every tag the roots did not reach a root of its own: first those no tag lists as a

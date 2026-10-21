@@ -95,6 +95,8 @@ impl TagsView {
             + issues.dangling()
             + issues.repeated()
             + issues.too_deep()
+            + issues.too_long()
+            + issues.duplicate()
             + issues.unlisted()
     }
 

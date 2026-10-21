@@ -22,8 +22,12 @@ match tags.
 - **A tree that is not what the database lists is still built.** A Tag Record no `TagDatabase`
   reaches becomes a root of its own, unlisted, after those that no other Tag lists as a child and
   before a cycle's members; a Tag listed twice stays where it was listed first, which also cuts a
-  cycle; children below 64 levels, and GUIDs that are no Tag Record, are counted and left out. The
-  counts are `TagTreeIssues`; the command and the window say so, nothing fails. On LIVE (4.3) the
+  cycle; a Tag Record with the GUID of an earlier one, GUIDs that are no Tag Record, and tags below
+  64 levels are counted and left out. The DataForge is untrusted, so the text is bounded too: a name
+  over 256 bytes, a path over 1,024 bytes, or paths over 64 MiB together leave the tag out with
+  everything below it, counted as too long and never rooted again. A path holds its name as its end,
+  so a tag stores its text once. The counts are `TagTreeIssues`; the command and the window say so,
+  nothing fails. On LIVE (4.3) the
   tree holds 18,891 Tags in 66 roots, at most 12 levels deep, and every Tag is listed once.
 - **Output only, like localisation text.** The Record tree stays what ADR-0004 says: links, never
   content. The writers of Record XML and Record JSON take `Annotations`, which hold the text

@@ -68,6 +68,7 @@ mod status;
 mod table;
 mod table_name;
 mod tags;
+mod tags_table;
 mod tree;
 mod viewer_input;
 mod xml_preview;

@@ -642,6 +642,8 @@
     "rowHeight": 36,
     "guidColumnWidth": 300,
     "legacyColumnWidth": 150,
+    "nameColumnMinWidth": 320,
+    "table": "TreeTable: one TableBuilder in a horizontal scroll area, the head and the rows share the columns, the tag column fills what the GUID and legacy ID columns leave and is never narrower than nameColumnMinWidth; the legacy ID is a number and right-aligned with its head",
     "search": "the tag path ignoring case; matches are shown with the tags above them, whatever is expanded",
     "footer": "listFooter with the number of tags, or the number shown of all tags while searching; a warningAlert above the header when the tree differs from what the TagDatabase lists"
   },

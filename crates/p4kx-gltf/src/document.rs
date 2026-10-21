@@ -7,7 +7,9 @@ use json::mesh::{Mode, Primitive, Semantic};
 use json::validation::Checked::Valid;
 use json::validation::USize64;
 use json::{Accessor, Index, Root};
+use p4kx_model::{Lod, Model};
 
+use crate::animations::{AnimationPlan, push_animations};
 use crate::block_data::BlockData;
 use crate::instance::{Instance, MaterialIds, Wrapper, materials};
 use crate::layout::{Block, Layout, MeshLayout};
@@ -22,12 +24,14 @@ const PNG_MIME: &str = "image/png";
 ///
 /// Without wrappers and with one instance, the bones become nodes when a mesh of the level of
 /// detail is skinned and when the level has no mesh at all, as in a skeleton file; the skinned
-/// meshes then share one skin.
+/// meshes then share one skin. The animations of `animations` are written after the nodes they
+/// move.
 pub(crate) fn document(
     wrappers: &[Wrapper<'_>],
     instances: &[Instance<'_>],
     layout: &Layout<'_>,
     textures: &TextureSet,
+    animations: &[AnimationPlan],
 ) -> Root {
     let mut root = Root {
         asset: json::Asset {
@@ -60,7 +64,9 @@ pub(crate) fn document(
         skinned.as_slice(),
     ) {
         ([], [instance], [meshes], [skinned]) => {
-            push_single(&mut root, buffer, layout, instance, meshes, skinned);
+            push_single(
+                &mut root, buffer, layout, instance, meshes, skinned, animations,
+            );
         }
         _ => push_scene_nodes(&mut root, wrappers, instances, &node_meshes),
     }
@@ -120,6 +126,7 @@ fn push_single(
     instance: &Instance<'_>,
     meshes: &[Option<Index<json::Mesh>>],
     skinned: &[bool],
+    animations: &[AnimationPlan],
 ) {
     let binds = buffer
         .zip(
@@ -143,6 +150,19 @@ fn push_single(
             inverse_binds: binds.filter(|_| has_skin),
         },
     );
+    if let Some(buffer) = buffer {
+        push_animations(root, buffer, layout, animations);
+    }
+}
+
+/// Returns whether the document writes the bones of the level of detail as nodes: when a mesh
+/// is skinned, and when the level has no mesh at all, as in a skeleton file.
+pub(crate) fn skeleton_written(model: &Model, lod: &Lod, layout: &Layout<'_>) -> bool {
+    let skinned = layout
+        .meshes
+        .iter()
+        .any(|mesh| !mesh.joints.is_empty() && mesh.node < model.nodes.len());
+    (skinned && layout.inverse_binds.is_some()) || lod.meshes.is_empty()
 }
 
 /// Pushes the sampler, an image of the binary chunk and a texture for each embedded image, and
@@ -208,7 +228,12 @@ fn push_mesh(
     let mut attributes = BTreeMap::new();
     let block = |index: usize| layout.blocks.get(index).copied();
     if let Some(positions) = block(mesh.positions) {
-        let accessor = push_accessor(root, buffer, &positions, Some((mesh.min, mesh.max)));
+        let accessor = push_accessor(
+            root,
+            buffer,
+            &positions,
+            Some((mesh.min.as_slice(), mesh.max.as_slice())),
+        );
         attributes.insert(Valid(Semantic::Positions), accessor);
     }
     if let Some(normals) = mesh.normals.and_then(block) {
@@ -261,16 +286,20 @@ fn push_mesh(
     })
 }
 
-fn push_accessor(
+/// Writes the buffer view and accessor of `block`; `bounds` are the accessor's `min` and `max`.
+pub(crate) fn push_accessor(
     root: &mut Root,
     buffer: Index<json::Buffer>,
     block: &Block<'_>,
-    bounds: Option<([f32; 3], [f32; 3])>,
+    bounds: Option<(&[f32], &[f32])>,
 ) -> Index<Accessor> {
     let (component, kind, target) = match block.data {
         BlockData::Positions(_) | BlockData::Normals(_) => {
             (ComponentType::F32, Type::Vec3, Some(Target::ArrayBuffer))
         }
+        BlockData::Times(..) => (ComponentType::F32, Type::Scalar, None),
+        BlockData::Translations(_) => (ComponentType::F32, Type::Vec3, None),
+        BlockData::Rotations(_) => (ComponentType::F32, Type::Vec4, None),
         BlockData::Uvs(_) => (ComponentType::F32, Type::Vec2, Some(Target::ArrayBuffer)),
         BlockData::Tangents(_) => (ComponentType::F32, Type::Vec4, Some(Target::ArrayBuffer)),
         BlockData::Colours(_) | BlockData::Weights(..) => {
@@ -299,7 +328,9 @@ fn push_accessor(
         extensions: None,
         extras: json::extras::Void::default(),
     });
-    let bound = |values: [f32; 3]| json::Value::from(values.map(f64::from).to_vec());
+    let bound = |values: &[f32]| {
+        json::Value::from(values.iter().copied().map(f64::from).collect::<Vec<_>>())
+    };
     root.push(Accessor {
         buffer_view: Some(view),
         byte_offset: None,

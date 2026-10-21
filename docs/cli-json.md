@@ -32,6 +32,7 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 | `version` | string | e.g. `4.11.42.1234` |
 | `change_number` | string | The requested Perforce change number |
 | `build_id` | string | The BuildId |
+| `public_patch` | string or null | The public patch, e.g. `4.7.2`, from the RSI Launcher log line with the same change number; `null` when the log has none (ADR-0053) |
 
 ## `p4kx list <archive> --json`
 
@@ -421,6 +422,30 @@ holds the Reference. A DataForge that holds more than 8,388,608 References, or R
 cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
 8,388,608 References in the order of the Records.
 
+## `p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json] --json`
+
+The statistics per field path of the selected Records ([query.md](query.md#field-statistics)).
+`--json` is `--format json`; with `--format table` or `--format csv` it is invalid input (exit
+code 2).
+
+```json
+{"archive": "…", "records": 29693, "unreadable_records": 0, "unreadable_values": 0,
+ "max_distinct": 32, "field_count": 87514, "fields": [{"path":
+ "Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate",
+ "occurrences": 161, "records": 161, "empty": 0, "kinds": [{"kind": "Int32", "count": 161}],
+ "distinct": 17, "distinct_capped": false, "min": 42, "max": 1600}]}
+```
+
+`records` is the number of Records examined, `unreadable_records` those not counted and
+`unreadable_values` the values not counted. `field_count` is the length of `fields`, after
+`--path`; `fields` is in path order. In a field, `occurrences` is the number of values,
+`records` the number of Records that have the path, `empty` the number of empty values, `kinds`
+the data types of the values with their counts (`Single`, `Int32[]` for the elements of an array,
+`StrongPointer`, `Class` for a path that holds fields, …), `distinct` the number of distinct
+non-empty values, at most `max_distinct`, with `distinct_capped` true when there are more, and
+`min` and `max` the smallest and the largest number, `null` for a path without numbers (or an
+infinite float). Integers are JSON integers, floats JSON numbers; `-0.0` is `0`.
+
 ## `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…] [--limit <n>] [--per-item <n>] [--max-entry-size <bytes>] [--format table|json] --json`
 
 Finds `<text>` as part of a longer text, ignoring case, in the string, localisation key and enum
@@ -725,8 +750,14 @@ Also `p4kx ui assets <file> --json` for a GFx or SWF file on disk.
               "file": null, "image_id": 2, "export_name": null}],
  "fonts": [{"id": 8, "format": "DefineFont3", "name": "Electrolize", "full_name": null,
             "bold": true, "italic": false, "glyphs": 1, "outlines": true, "export_name": null}],
- "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"], "placed": [4],
+ "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"],
+              "frame_labels": [{"frame": 1, "name": "idle"}], "placed": [4],
               "export_name": "PanelButton"}],
+ "imports": [{"url": "../../fonts/Shared/fonts_en.swf",
+              "assets": [{"id": 12, "name": "$OrbitronMed"}]}],
+ "symbol_classes": [{"id": 9, "name": "PanelButton"}],
+ "scaling_grids": [{"id": 9, "splitter": {"x_min": 100, "x_max": 900, "y_min": 100, "y_max": 400}}],
+ "unread_tags": [{"code": 12, "name": "DoAction", "count": 3}],
  "failures": [{"code": 2, "offset": 508, "error": "unexpected end of data at offset 510: …"}]}
 ```
 
@@ -745,7 +776,12 @@ in the uncompressed movie. Shapes, morph shapes, bitmaps, fonts and sprites are 
 embedded image and the GFx file format (`dds`, `tiff`, `tga`, …) of an external one; `width` and
 `height` are `null` where the movie does not state them. A font's `format` names its tag; `glyphs`
 is its glyph count and `outlines` whether glyph shapes are stored. A sprite lists its frame
-`labels` and the IDs it `placed`, ascending. `failures` lists the tags that could not be read;
+`labels` and, as `frame_labels`, each label with the index of the frame it names (from 0), and the
+IDs it `placed`, ascending. `imports` lists the assets the movie imports from other movies, each
+`url` as the movie states it with the local `id` and the exported `name`; `symbol_classes` the
+names bound to classes, `scaling_grids` the nine-slice rectangles. `unread_tags` counts like `tags`
+the known tags whose content is not read (actions, buttons, videos, debug and text-rendering
+hints). `failures` lists the tags that could not be read;
 they leave out their definition and the rest of the movie is still read, but the exit code is 1.
 A file that is no movie, or one larger than 64 MiB, prints no JSON; it fails with exit code 3.
 
@@ -794,13 +830,23 @@ with exit code 3.
               "message": "DefineButton2 definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
             {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
-             refers to ../Textures/gone.dds, which does not exist; …"}]}
+             refers to ../Textures/gone.dds, which does not exist; …"}],
+ "imports": {"movies": ["Data\\UI\\fonts\\Shared\\fonts_en.gfx"],
+             "unresolved": [{"url": "../../../fonts/Shared/fonts_en.swf", "name": "$Text1Heavy",
+                             "reason": "no_such_export",
+                             "message": "the movie does not export the name as a font"}]}}
 ```
 
-`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
-of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
-left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
-one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
+`imports` reports the fonts the movie imports with `ImportAssets` that its texts use: `movies` are
+the Entries read to resolve them (an Archive only), `unresolved` the imported names that were not
+found, each with its `url` as the movie states it, a stable `reason` (`not_found`, `unreadable`,
+`no_such_export`, `too_deep` or `over_budget`) and a `message` that says it in words; their texts
+are drawn as boxes and listed as `missing_font` in `skipped`.
+
+`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the
+size of the SVG document, written to `target`. `skipped` lists in drawing order every element the
+frame left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite
+whose timeline holds it (absent on the main timeline), `reason` is one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `too_many_glyphs`,
 `missing_font`, `missing_glyph`, `missing_glyph_index`, `unlocalised`, `text_truncated`, `filters`
@@ -869,10 +915,10 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
 An index the table does not have, or an output that is the chunk file itself, fails with exit
 code 2.
 
-## `p4kx model info <archive> <entry> --json`
+## `p4kx model info <archive> <entry> [--anim-from <entry>]… --json`
 
-Also `p4kx model info <file> --json` for a model file on disk with its geometry companion next to
-it.
+Also `p4kx model info <file> [--anim-from <file>]… --json` for a model file on disk with its geometry
+companion next to it.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
@@ -894,6 +940,11 @@ it.
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
             "relative": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]},
             "world": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]}}, …],
+ "animations": [{"name": "wave", "path": "wave.caf", "source": "Data\\Animations\\Objects\\Test\\wave.caf",
+                 "frames_per_second": 30, "end_frame": 30, "duration_seconds": 1.0,
+                 "additive": false, "tracks": 1, "bound_tracks": 1, "keys": 2}, …],
+ "unread_animations": [{"source": "Data\\Animations\\Objects\\Test\\odd.caf", "name": null,
+                        "reason": "…"}],
  "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
@@ -924,6 +975,18 @@ model with animated parts) or `null`; `relative` is the bind pose relative to th
 `world` the bind pose in the model's space, each a rotation as a quaternion `x, y, z, w` and a
 translation, in CryEngine axes (Z up) and metres. A level of detail of a skin whose own file has a
 different skeleton is weighted to that one; `model info` lists the skeleton of the model file.
+`animations` lists the animations found for the model: those of the `.caf` files and `.dba`
+databases in the model's folder, in the folder at the same place below `Data\Animations`, and in
+the Entries or files `--anim-from` names. `name` is the file name of a `.caf` without extension or
+the name a database lists, `path` the name or path the file stores, `source` the Entry or file it was
+read from, `duration_seconds` its last frame over the frame rate, `additive` whether its keys are
+offsets to a pose, `tracks` the number of bones it has keys for, `bound_tracks` how many of them are
+bones of the model's skeleton (matched by `controller_id`) and `keys` the rotation and translation
+keys together. `unread_animations` lists the files, and the animations of a database, that could
+not be read or that are additive (`reason` is "additive animation — needs a base animation";
+they are written only when named), with the reason; names in both lists have control characters
+replaced. A file `--anim-from` names that is no `.caf` or `.dba` exits with code 2, one that
+cannot be read with 3.
 `chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
@@ -933,7 +996,7 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
 `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -948,6 +1011,9 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
  "bones": 0, "skinned_meshes": 0, "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
+ "animations": [{"name": "wave", "duration_seconds": 1.0, "additive": false, "channels": 2,
+                 "keys": 4, "skipped_tracks": [3735928559]}],
+ "unread_animations": [],
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
                      "usage": "unknown"}]}
 ```
@@ -971,8 +1037,14 @@ because it is missing, cannot be decoded, has an unsafe path or would exceed the
 images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
 the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
 names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
-that the export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
-`--lod` the model lacks, exits with code 2.
+that the export skipped, as in `p4kx model info`. `animations` lists the animations asked for with `--anim`, in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
+translation of a bone each; an animation with none is not written), `keys` the keys in them and
+`skipped_tracks` the controller IDs of the tracks left out because no bone of the skeleton has
+them, ADR-0046; `unread_animations` is as in `p4kx model info`: `--anim all` leaves the additive
+animations out and lists them there, and `additive` is `true` only for one that was named. An output that is one of the
+model's files, a `--lod` the model lacks, a name `--anim` finds no animation for or an
+`--anim-from` Entry that does not exist or is no `.caf` or `.dba` exits with code 2, an animation
+file that is corrupt or not supported, an `--anim-from` one included, with 3.
 
 ## `p4kx extract … --json`
 

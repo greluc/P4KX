@@ -11,17 +11,21 @@
 //! loaded leaves the plain colour and is reported. A skinned model is written with its skeleton:
 //! the bones as nodes, one glTF skin over all of them with inverse bind matrices, and `JOINTS_n`
 //! and `WEIGHTS_n` on the skinned meshes; a model with bones and no meshes is written as its bone
-//! nodes. The binary data is streamed to the writer after the JSON.
+//! nodes. [`write_glb_animated`] adds glTF animations that move those bone nodes, or the nodes a
+//! static model's helper bones drive, with rotation and translation channels. The binary data is
+//! streamed to the writer after the JSON.
 //!
 //! [`write_scene_glb`] writes a [`Scene`]: a tree of named, placed nodes that hold models, each
 //! drawn with the material library the scene gives it, in plain colours and without skeletons.
 //! Equal materials are written once.
 
+mod animations;
 mod axes;
 mod block_data;
 mod document;
 mod error;
 mod glb;
+mod glb_plan;
 mod instance;
 mod layout;
 mod materials;
@@ -35,8 +39,12 @@ mod texture_plan;
 mod texture_report;
 mod texture_roles;
 
+pub use animations::AnimationSummary;
 pub use error::GltfError;
-pub use glb::{GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_with};
+pub use glb::{
+    GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_animated, write_glb_animated_with,
+    write_glb_with,
+};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};

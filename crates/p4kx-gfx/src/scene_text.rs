@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::font::Font;
 use crate::geometry::Rgba;
+use crate::import::Import;
 use crate::place::Placement;
 use crate::scene::{
     Affine, LayerKind, Paint, PathCommand, ScenePath, ScenePoint, SceneShape, ShapeLayer,
@@ -40,9 +41,13 @@ pub(crate) struct TextState<'b> {
 }
 
 impl<'b> TextState<'b> {
-    pub(crate) fn new(movie_fonts: &'b [Font], options: &TextOptions<'b>) -> Self {
+    pub(crate) fn new(
+        movie_fonts: &'b [Font],
+        imports: &[Import],
+        options: &TextOptions<'b>,
+    ) -> Self {
         Self {
-            fonts: Fonts::new(movie_fonts, options.fonts),
+            fonts: Fonts::new(movie_fonts, options.fonts, imports),
             localise: options.localise,
             chars: 0,
             prepared: HashMap::new(),
@@ -260,12 +265,7 @@ impl Composer<'_> {
             height = record.height.map_or(height, f32::from);
             let font = font_id
                 .and_then(|id| self.text.fonts.by_id(id))
-                .filter(|&at| {
-                    self.text
-                        .fonts
-                        .get(at)
-                        .is_some_and(|font| !font.glyphs.is_empty())
-                });
+                .filter(|&at| self.text.fonts.usable(at));
             if font.is_none() && !record.glyphs.is_empty() {
                 missing.font = Some(font_id.unwrap_or(u16::MAX));
             }

@@ -1,6 +1,8 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
+mod animation_load;
+mod animation_set;
 mod archive_cause;
 mod bank;
 mod budget;
@@ -20,6 +22,7 @@ mod loaded_dataforge;
 mod localization;
 mod localization_set;
 mod model_companions;
+mod model_observed;
 mod model_source;
 mod model_textures;
 mod options;
@@ -58,6 +61,8 @@ mod tracker;
 mod ui_disk_path;
 mod ui_external;
 mod ui_extract;
+mod ui_import_match;
+mod ui_imports;
 mod ui_jobs;
 mod ui_movie;
 mod ui_render;
@@ -67,6 +72,7 @@ mod verify;
 mod watch;
 mod write;
 
+pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -83,7 +89,7 @@ pub use loaded_dataforge::{DataForgeStopped, LoadedDataForge};
 pub use localization::{LocalizationEntry, LocalizationLoadError};
 pub use localization_set::{LocalizationNote, LocalizationSet};
 pub use model_source::ModelSource;
-pub use model_textures::MAX_MODEL_TEXTURE_PIXELS;
+pub use model_textures::{ArchiveTextures, MAX_MODEL_TEXTURE_PIXELS};
 pub use options::{
     AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
 };
@@ -105,17 +111,19 @@ pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FileGraph, FormatSurvey,
-    Guid, IndexedReference, InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_INDEXED_REFERENCES,
-    MAX_NESTING_DEPTH, MAX_RECORD_VALUES, PointerSurvey, Property, RECORD_XML_NAMESPACE, Record,
-    RecordJson, RecordTree, RecordXml, Reference, ReferenceIndex, Resolution, Struct, StructValue,
-    TextResolver, TrailingSurvey, TreeBuilder, Value, ValueError, ValueKind,
+    DataForge, DataForgeError, DataForgeIssue, DataType, Enum, Field, FieldKind, FieldStat,
+    FieldStatistics, FieldStatisticsError, FileGraph, FormatSurvey, Guid, IndexedReference,
+    InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_DISTINCT_VALUES, MAX_FIELD_PATHS,
+    MAX_INDEXED_REFERENCES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES, Number, PointerSurvey, Property,
+    RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml, Reference, ReferenceIndex,
+    Resolution, Struct, StructValue, TextResolver, TrailingSurvey, TreeBuilder, Value, ValueError,
+    ValueKind,
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS, MaterialMode,
-    TextureFallback, TextureRole,
+    AnimationSummary, GlbOptions, GlbSummary, GltfError, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS,
+    MaterialMode, TextureFallback, TextureLoader, TextureRole,
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
@@ -152,6 +160,10 @@ pub use texture_exr::ExrReport;
 pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_imports::{
+    ImportIssue, ImportReport, MAX_IMPORT_BYTES, MAX_IMPORT_DEPTH, MAX_IMPORTED_FONTS,
+    MAX_IMPORTED_MOVIES, UnresolvedImport,
+};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
 pub use ui_svg::UiSvg;

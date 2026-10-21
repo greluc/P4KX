@@ -145,7 +145,7 @@ impl Composer<'_> {
                     .as_deref()
                     .and_then(|name| fonts.by_name(name))
                     .or(default_font)
-                    .filter(|&at| fonts.get(at).is_some_and(|font| !font.glyphs.is_empty()))
+                    .filter(|&at| fonts.usable(at))
             })
             .collect()
     }

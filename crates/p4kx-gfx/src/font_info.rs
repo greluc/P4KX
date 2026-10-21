@@ -75,6 +75,7 @@ pub(crate) fn read_font4(tag: &Tag<'_>) -> Result<Font, GfxError> {
         format: FontFormat::DefineFont4,
         name: reader.c_string()?.into_owned(),
         full_name: None,
+        export_name: None,
         bold: flags & 0x01 != 0,
         italic: flags & 0x02 != 0,
         small_text: false,

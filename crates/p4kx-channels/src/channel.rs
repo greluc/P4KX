@@ -42,7 +42,8 @@ impl Channel {
         let name = channel_name(&archive).unwrap_or_else(|| UNKNOWN.to_owned());
         let build = archive
             .parent()
-            .and_then(|folder| Build::read_from(folder).ok().flatten());
+            .and_then(|folder| Build::read_from(folder).ok().flatten())
+            .map(Build::with_public_patch);
         Self {
             name,
             archive,

@@ -20,8 +20,8 @@ only text written into an SVG stays the escaped title.
   box of the text colour, a fixed shape, and listed: `missing_font`, `missing_glyph` (the code, at
   most eight per text) and `missing_glyph_index` (static text). These reasons count as drawn
   without the effect, like filters, so the exit code of `ui render` is 1 and the box is visible.
-- Fonts that a movie imports from another movie (`ImportAssets`, #275) are not followed; they are
-  missing fonts until a caller passes them in `TextOptions::fonts`.
+- Fonts that a movie imports from another movie (`ImportAssets`) are resolved by the caller that
+  has the Archive and passed in `TextOptions::fonts` (ADR-0048).
 
 ## Layout
 

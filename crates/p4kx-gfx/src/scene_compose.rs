@@ -175,7 +175,7 @@ impl<'b> Composer<'b> {
             paths: 0,
             segments: 0,
             stopped: false,
-            text: TextState::new(&assets.fonts, options),
+            text: TextState::new(&assets.fonts, &assets.imports, options),
         };
         let root = Context {
             transform: Affine::IDENTITY,
@@ -214,7 +214,7 @@ impl<'b> Composer<'b> {
                 continue;
             }
             let mask = masks.last().map(|&(mask, _)| mask).or(context.mask);
-            if placement.has_filters {
+            if !placement.filters.is_empty() {
                 self.skip(placement, context, SkipReason::Filters);
             }
             if placement.blend_mode > 1 {

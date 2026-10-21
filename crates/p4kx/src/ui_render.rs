@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped, TagFailure};
-use p4kx_extraction::{UiBitmapFailure, UiMovie};
+use p4kx_extraction::{ImportReport, UiBitmapFailure, UiMovie};
 use serde::Serialize;
 
 use crate::ui::chain;
@@ -19,6 +19,21 @@ struct RenderJson<'a> {
     height: u32,
     skipped: Vec<SkippedJson>,
     failed: Vec<FailedJson>,
+    imports: ImportsJson,
+}
+
+#[derive(Serialize)]
+struct ImportsJson {
+    movies: Vec<String>,
+    unresolved: Vec<UnresolvedJson>,
+}
+
+#[derive(Serialize)]
+struct UnresolvedJson {
+    url: String,
+    name: String,
+    reason: &'static str,
+    message: String,
 }
 
 #[derive(Serialize)]
@@ -51,6 +66,7 @@ struct Parts {
     skipped: Vec<Skipped>,
     bitmap_failures: Vec<UiBitmapFailure>,
     tag_failures: Vec<TagFailure>,
+    imports: ImportReport,
 }
 
 impl Parts {
@@ -80,6 +96,7 @@ pub(crate) fn render(
             skipped: written.skipped,
             bitmap_failures: written.bitmap_failures,
             tag_failures: written.tag_failures,
+            imports: written.imports,
         }
     } else {
         let rendered = movie.render_to_file(&options, out)?;
@@ -89,6 +106,7 @@ pub(crate) fn render(
             skipped: rendered.skipped,
             bitmap_failures: rendered.bitmap_failures,
             tag_failures: rendered.tag_failures,
+            imports: rendered.imports,
         }
     };
     let skipped: Vec<SkippedJson> = parts.skipped.iter().map(skipped_json).collect();
@@ -102,6 +120,20 @@ pub(crate) fn render(
             height: parts.height,
             skipped,
             failed,
+            imports: ImportsJson {
+                movies: parts.imports.movies.clone(),
+                unresolved: parts
+                    .imports
+                    .unresolved
+                    .iter()
+                    .map(|import| UnresolvedJson {
+                        url: import.url.clone(),
+                        name: import.name.clone(),
+                        reason: import.issue.code(),
+                        message: import.issue.to_string(),
+                    })
+                    .collect(),
+            },
         })?;
     } else {
         print_report(movie, out, &parts, &skipped, &failed)?;
@@ -135,6 +167,13 @@ fn print_report(
             stderr,
             "{action}: definition {} at {place}: {}",
             entry.id, entry.message
+        )?;
+    }
+    for import in &parts.imports.unresolved {
+        writeln!(
+            stderr,
+            "import not found: {} from {}: {}",
+            import.name, import.url, import.issue
         )?;
     }
     for failure in failed {

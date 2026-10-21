@@ -5,6 +5,9 @@
 //! This crate is a development dependency only.
 
 mod adpcm;
+mod animation;
+mod animation_dba;
+mod animation_keys;
 mod archive_builder;
 mod audio;
 mod bnk;
@@ -27,11 +30,13 @@ mod entity_schema;
 mod entity_vehicle;
 mod frames;
 mod gfx;
+mod gfx_import;
 mod gfx_place;
 mod gfx_shape;
 mod gfx_tags;
 mod gfx_text;
 mod glb;
+mod glb_animation;
 mod glb_container;
 mod glb_images;
 mod glb_skin;
@@ -58,6 +63,9 @@ mod test_key;
 mod vorbis;
 mod wem;
 
+pub use animation::{TestAnimation, TestTrack};
+pub use animation_dba::TestDba;
+pub use animation_keys::{TestPositionFormat, TestRotationFormat, TestTimes};
 pub use archive_builder::ArchiveBuilder;
 pub use audio::{TestAtl, audio_schema, wwise_short_id};
 pub use bnk::{TestBank, TestHircObject};
@@ -77,6 +85,9 @@ pub use entity_schema::entity_schema;
 pub use entity_vehicle::landing_system_record;
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
+pub use gfx_import::{
+    import_assets_body, remove_object_body, scaling_grid_body, symbol_class_body,
+};
 pub use gfx_place::{TestPlace, background_body, remove_object2_body};
 pub use gfx_shape::{TestFill, TestGradient, TestShape, TestShapeRecord, morph_shape_body};
 pub use gfx_tags::{

@@ -122,6 +122,10 @@ impl Browser {
         self.containers.index_of(self.place, &self.index)
     }
 
+    pub(crate) fn shared_pane(&self) -> Option<&Arc<EntryIndex>> {
+        self.pane()
+    }
+
     /// Returns the number of Entries `scope` covers: the checked and the shown Entries of the
     /// shown place, or every Entry of the Archive; none are shown while a search runs.
     #[must_use]

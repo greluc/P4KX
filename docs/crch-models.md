@@ -1,7 +1,7 @@
 # Older `CrCh` models
 
 Issue #108. The survey is the `#[ignore]`d test `the_crch_files_of_the_archive_are_counted_by_container_version_and_chunk`
-(`crates/p4kx-extraction/tests/real_archive_crch_survey.rs`). It reads every Entry of an Archive
+(`crates/p4kx-extraction/tests/real_archive/crch_survey.rs`). It reads every Entry of an Archive
 that is not encrypted, so it needs no Archive key, and counts the files by signature and
 container version and the `CrCh` chunks by type, chunk version and byte order. The Entries it
 leaves out are 4,157 `.xml`, 118 `.json` and one `.chf` in LIVE: none of them is a chunk file.

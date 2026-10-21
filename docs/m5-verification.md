@@ -3,7 +3,7 @@
 Measured on 2026-10-19 with the Archives of every installed Channel (LIVE, PTU, EPTU, HOTFIX,
 TECH-PREVIEW), release build. The tests are the `#[ignore]`d real-Archive tests of
 `p4kx-extraction` (`real_archive/texture_survey.rs`, `real_archive/texture_known.rs`,
-`real_archive_localization.rs`) and the ones of M5.1 to M5.12 beside them; run them as
+`real_archive/localization.rs`) and the ones of M5.1 to M5.12 beside them; run them as
 `CLAUDE.md` describes. Everything they write lands under `TMP`.
 
 ## Textures

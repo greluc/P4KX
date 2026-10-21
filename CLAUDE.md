@@ -36,7 +36,10 @@ $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PT
 cargo test --release --workspace --locked -- --ignored
 ```
 
-That runs every real-Archive test in the workspace, whatever test file it lives in. A new
+That runs every real-Archive test in the workspace, whatever test file it lives in. In the crates
+that group their tests (see "Test layout"), the real-Archive tests are the modules of the
+`real_archive` test binary, so one test runs as
+`cargo test --release -p <crate> --test real_archive -- <test_name> --ignored`. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
 (a test that reads encrypted Entries also needs the Archive key; its failure message says so,
 the reason stays as written) and takes the path from `p4kx_testkit::real_archive_path`, and from
@@ -50,6 +53,20 @@ gets its own test file.
 The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
 of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
 when the variable is unset.
+
+## Test layout
+
+Linking one binary per test file dominates the build, so a crate's integration tests are modules of
+one binary: `crates/<crate>/tests/it/main.rs` (binary `it`) only lists `mod <name>;`, every test
+file is `tests/it/<name>.rs`, and shared helpers are modules beside them (`tests/it/support/mod.rs`,
+used as `use crate::support;`). The real-Archive tests are the modules of `tests/real_archive/main.rs`
+(binary `real_archive`). A test gets its own binary under `tests/` only when it needs a process of
+its own: a timing test that must not share the cores, a stress test CI runs in `--release`
+(`lazy_indexes`), or a test CI names by binary (`report_schema`). One test runs as
+`cargo test -p <crate> --test it -- <test_name>`.
+
+Crates not yet converted still have one binary per file, and a crate that is converted stays so:
+a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## Plan and decisions
 

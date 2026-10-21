@@ -60,6 +60,10 @@ fn print_lines(info: &Summary<'_>, build: Option<&Build>) -> io::Result<()> {
         lines.extend([
             ("Branch", build.branch().to_owned()),
             ("Version", build.version().to_owned()),
+            (
+                "Public patch",
+                build.public_patch().unwrap_or(UNKNOWN).to_owned(),
+            ),
             ("Change number", build.change_number().to_owned()),
             ("BuildId", build.build_id().to_owned()),
         ]);

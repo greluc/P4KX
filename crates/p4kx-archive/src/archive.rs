@@ -38,7 +38,8 @@ impl Archive {
     ///
     /// The file is opened read-only and stays readable and writable for other processes such as
     /// the launcher and the game. The Build is read from the `build_manifest.id` next to the
-    /// file; a missing or unreadable manifest leaves it unknown.
+    /// file; a missing or unreadable manifest leaves it unknown. Its public patch comes from the
+    /// RSI Launcher log, see [`Build::with_public_patch`].
     ///
     /// # Errors
     ///
@@ -50,7 +51,8 @@ impl Archive {
             layout::read_entries(&source, None).map_err(|error| error.at(path))?;
         let build = path
             .parent()
-            .and_then(|folder| Build::read_from(folder).ok().flatten());
+            .and_then(|folder| Build::read_from(folder).ok().flatten())
+            .map(Build::with_public_patch);
         Ok(Self {
             path: path.to_path_buf(),
             location: path.to_path_buf(),

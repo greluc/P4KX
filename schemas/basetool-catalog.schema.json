@@ -91,6 +91,13 @@
           "description": "The Perforce change number the Build was made from.",
           "type": "string"
         },
+        "publicPatch": {
+          "description": "The public patch version, e.g. `4.7.2`, from the RSI Launcher log line with the same\nchange number; `null` when the log has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "version": {
           "description": "The version, e.g. `4.4.162.12345`.",
           "type": "string"
@@ -100,6 +107,7 @@
         "branch",
         "buildId",
         "changeNumber",
+        "publicPatch",
         "version"
       ],
       "type": "object"

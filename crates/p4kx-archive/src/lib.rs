@@ -27,6 +27,7 @@ mod issue;
 mod key_check;
 mod key_slot;
 mod layout;
+mod public_patch;
 mod source;
 mod stored_hash;
 mod verify;

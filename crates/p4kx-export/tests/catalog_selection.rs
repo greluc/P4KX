@@ -276,6 +276,7 @@ fn the_source_names_channel_build_archive_tool_and_export_time() -> TestResult {
             "version": "4.4.162.12345",
             "changeNumber": "10012345",
             "buildId": "0123456789abcdef",
+            "publicPatch": null,
         }),
         "build"
     );

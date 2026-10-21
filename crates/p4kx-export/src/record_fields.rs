@@ -1,4 +1,4 @@
-use p4kx_extraction::{RecordTree, StructValue, Value};
+use p4kx_extraction::{Guid, RecordTree, StructValue, Value};
 
 use crate::guid_text::CatalogGuid;
 
@@ -96,6 +96,29 @@ pub(crate) fn integer(parent: Option<&StructValue<'_>>, name: &str) -> Option<i6
 pub(crate) fn single(parent: Option<&StructValue<'_>>, name: &str) -> Option<f32> {
     match *parent?.field(name)? {
         Value::Single(value) if value.is_finite() => Some(value),
+        _ => None,
+    }
+}
+
+/// Returns the finite number the field `name` of `parent` holds, whether stored as a float or as
+/// an integer.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    reason = "a catalog number is a 32-bit float; larger integers lose their low digits"
+)]
+pub(crate) fn number(parent: Option<&StructValue<'_>>, name: &str) -> Option<f32> {
+    match *parent?.field(name)? {
+        Value::Single(value) if value.is_finite() => Some(value),
+        Value::Double(value) => Some(value as f32).filter(|narrowed| narrowed.is_finite()),
+        _ => integer(parent, name).map(|value| value as f32),
+    }
+}
+
+/// Returns the GUID value the field `name` of `parent` holds.
+pub(crate) fn guid_value(parent: Option<&StructValue<'_>>, name: &str) -> Option<Guid> {
+    match *parent?.field(name)? {
+        Value::Guid(guid) => Some(guid),
         _ => None,
     }
 }

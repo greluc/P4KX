@@ -140,6 +140,53 @@ Not represented:
   blueprints let the player choose fewer than they offer.
 - The `CraftingCostContext_QuantityMultiplier` (factor 1.15 on 3 lines of LIVE): the quantities are
   the stored ones, the multiplier is ignored.
+- All tiers, quality modifiers, quality distributions, reward pools and dismantle returns.
+
+The library reads all of this already: see "Crafting data" below. The catalog shape for it follows
+in #396.
+
+### Crafting data
+
+`p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
+`blueprints` kind does not carry. It reads the DataForge in parallel (0.6 s on LIVE, plus the
+reference index for the reward sources) and leaves out a Record it cannot read, listing it under
+`failures`. Every list is ordered by Record GUID. The values are facts and identifiers only: no
+description, no lore, no media.
+
+| Field | Source |
+|-------|--------|
+The names below are the Rust names of the library, not contract names; the catalog names follow
+in #396. A `Filter` keeps only the blueprints and pools it matches; the other lists are always
+read.
+
+| Field | Source |
+|-------|--------|
+| `blueprints` | The same set as the `blueprints` kind. Each has `produced_item` and `tiers`: per tier `craft_time_seconds`, `mandatory` and `optional` as a tree of `Cost` |
+| `Cost::Select` | `count` ("choose n") with its `options`, `slot` and `slot_key`; `chooses_fewer()` tells whether the player may choose fewer than offered |
+| `Cost::Resource`, `Cost::Item` | As an ingredient (`resource` / `item`, `quantity_scu` / `quantity`, `min_quality`), before the context |
+| `CostContext` | `quantity_multiplier` (`CraftingCostContext_QuantityMultiplier`), `composition_inclusion` (`Include` or `Exclude`) and `modifiers` (`CraftingCostContext_ResultGameplayPropertyModifiers`): per gameplay property the linear ranges `start_quality`, `end_quality`, `at_start`, `at_end` as a factor (`Multiplier`) or a summand (`Additive`) |
+| `properties` | `CraftingGameplayPropertyDef` Records under `crafting/craftedproperties`: GUID, `class_name`, `record_path` and the localisation key of the name |
+| `quality_distributions` | The Records under `crafting/qualitydistribution`: a default distribution (`min`, `max`, `mean`, `stddev` of a normal distribution) or the list of location overrides, each a location GUID with its distribution |
+| `pools` | `BlueprintPoolRecord` Records under `crafting/blueprintrewards`: entries with a blueprint GUID and a `weight`; `total_weight()` is the sum of the positive weights |
+| `reward_sources` | Every struct of any Record that holds a Reference to a pool (on LIVE the `BlueprintRewards` result of a contract): the Record, the `id` and `debugName` of the nearest enclosing contract, the pool and the `chance` |
+| `reward_chances()` | Per blueprint the chance of each source: `chance` x `weight` / `total_weight()`; a source whose chance is outside 0 to 1 and an entry with a weight of zero or less give none |
+| `dismantle` | The `GenericCraftingProcess_Dismantle` Records under `crafting/blueprints/dismantle`: `efficiency` and `dismantleTime` in seconds (LIVE: one process, 0.5 and 15 s) |
+| `global` | `CraftingGlobalParams`: the default blueprints (`defaultBlueprintSelection`), the resources dismantling never returns and the entities that cannot be dismantled |
+| `dismantle_return()` | Links a blueprint to the first dismantle process and to the item it produces, unless the item is on the item blacklist |
+
+LIVE holds exactly one tier per blueprint (also PTU, EPTU, TECH-PREVIEW and HOTFIX); the library
+reads as many as a Record holds. The dismantle Record is generic, not one per item: the link from
+an item to its returns runs through the blueprint that produces it.
+
+Assumptions of `dismantle_return()`, not verified against the game:
+
+- A dismantled item returns the share `efficiency` of the ingredients of the blueprint that
+  produces it. The library does not compute the amounts and does not say which tier applies; the
+  consumer picks one (the first tier is the only one on LIVE).
+- A `Select` ("choose n") of the ingredients is not resolved: which options a dismantle returns is
+  unknown.
+- The resource blacklist (`global.dismantle_blacklist_resources`) is not applied to any amount;
+  only the item blacklist decides whether a link exists.
 
 A blueprint's `name` is almost always a placeholder key. The Basetool names a blueprint through
 `producedItemGuid`, the item it produces, not through `name`.

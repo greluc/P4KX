@@ -24,21 +24,21 @@ never write into the game folders. Extraction output during development goes und
 `D:\Coding\claude-worktrees\p4k-extractor\`.
 
 Never read `loginData.json` or other launcher credential files in the game folders. Tests against a
-real Archive are `#[ignore]`d and need `P4KX_DATA_P4K` and `P4KX_ARCHIVE_KEY`; CI uses synthetic
+real Archive are `#[ignore]`d and need `P4KX_DATA_P4K`; CI uses synthetic
 fixtures. Run them with `TMP` and `TEMP` under `D:\Coding\claude-worktrees\p4k-extractor\` so the
-extracted subset lands there:
+extracted subset lands there; the suite also uses the stored key (`P4KX_ARCHIVE_KEY`, else the
+file named by `P4KX_KEY_FILE`, else `p4kx key set`'s file), so none is set by hand:
 
 ```powershell
 $env:TMP = 'D:\Coding\claude-worktrees\p4k-extractor\tmp'; $env:TEMP = $env:TMP
 $env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
 $env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
-$env:P4KX_ARCHIVE_KEY = '<the Archive key as 32 hexadecimal digits>'
 cargo test --release --workspace --locked -- --ignored
 ```
 
 That runs every real-Archive test in the workspace, whatever test file it lives in. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
-(a test that reads encrypted Entries also needs `P4KX_ARCHIVE_KEY`; its failure message says so,
+(a test that reads encrypted Entries also needs the Archive key; its failure message says so,
 the reason stays as written) and takes the path from `p4kx_testkit::real_archive_path`, and from
 `p4kx_testkit::real_archive_b_path` for a second Archive, read from `P4KX_DATA_P4K_B`, and the key
 from `p4kx_testkit::real_archive_key`, which opens it with `Archive::open_with_key`. A test
@@ -76,8 +76,8 @@ when the variable is unset.
   (ADR-0004).
 - The Archive key is never part of the repository (ADR-0027): no constant, fixture, document or
   commit holds it, in any spelling. Synthetic Archives use `p4kx_testkit::test_key`, real-Archive
-  tests read `P4KX_ARCHIVE_KEY`, and `cargo xtask keys` fails on a key-like literal named as a
-  key, and on the real key itself while `P4KX_ARCHIVE_KEY` is set.
+  tests read it through `p4kx_testkit::real_archive_key`, and `cargo xtask keys` fails on a
+  key-like literal named as a key, and on the real key itself while `P4KX_ARCHIVE_KEY` is set.
 - UI strings live in Fluent files for `de-DE` and `en-GB` (British spelling), never inline.
 
 ## GUI design (hard rule)

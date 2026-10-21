@@ -1,14 +1,43 @@
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
 use p4kx_foundation::ArchiveKey;
 
 /// The environment variable that holds the key of a real `Data.p4k` for the real-Archive suite.
 pub const REAL_ARCHIVE_KEY_VAR: &str = "P4KX_ARCHIVE_KEY";
 
-/// The real-Archive suite was run without a usable `P4KX_ARCHIVE_KEY`.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct MissingRealKey(bool);
+/// The environment variable that names a file holding the key, as `p4kx --key-file` does.
+pub const REAL_ARCHIVE_KEY_FILE_VAR: &str = "P4KX_KEY_FILE";
+
+const PROFILE_FOLDER: &str = "P4K-Extractor";
+const PROFILE_FILE: &str = "archive.key";
+const MAX_KEY_FILE_LEN: u64 = 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Outcome {
+    Unset,
+    NotThirtyTwoHexDigits,
+    NoFile,
+    Unreadable,
+}
+
+impl std::fmt::Display for Outcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Unset => "not set",
+            Self::NotThirtyTwoHexDigits => "not 32 hexadecimal digits",
+            Self::NoFile => "no such file",
+            Self::Unreadable => "cannot be read",
+        })
+    }
+}
+
+/// The real-Archive suite found no usable Archive key; it names the sources tried, never a key.
+#[derive(Clone, PartialEq, Eq)]
+pub struct MissingRealKey {
+    tried: [(&'static str, Outcome); 3],
+}
 
 impl std::fmt::Debug for MissingRealKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -18,35 +47,79 @@ impl std::fmt::Debug for MissingRealKey {
 
 impl std::fmt::Display for MissingRealKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 {
-            write!(
-                f,
-                "{REAL_ARCHIVE_KEY_VAR} is not 32 hexadecimal digits; the real-Archive suite needs the Archive key in it"
-            )
-        } else {
-            write!(
-                f,
-                "{REAL_ARCHIVE_KEY_VAR} is not set; the real-Archive suite needs the Archive key in it"
-            )
+        f.write_str("the real-Archive suite found no Archive key; tried ")?;
+        for (index, (source, outcome)) in self.tried.iter().enumerate() {
+            if index > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{source} ({outcome})")?;
         }
+        write!(
+            f,
+            "; set {REAL_ARCHIVE_KEY_VAR} or {REAL_ARCHIVE_KEY_FILE_VAR}, or store the key with `p4kx key set`"
+        )
     }
 }
 
 impl std::error::Error for MissingRealKey {}
 
-/// Returns the Archive key named by `P4KX_ARCHIVE_KEY`.
+/// Returns the Archive key of the real-Archive suite, as the CLI and the GUI find it.
+///
+/// The first valid key wins: `P4KX_ARCHIVE_KEY`, the file named by `P4KX_KEY_FILE`, then the key
+/// stored in the profile (`%APPDATA%\P4K-Extractor\archive.key` on Windows).
 ///
 /// # Errors
 ///
-/// Returns [`MissingRealKey`] when the variable is unset, empty or not 32 hexadecimal digits.
+/// Returns [`MissingRealKey`], naming the sources tried and never a key, when none of them
+/// yields 32 hexadecimal digits.
 pub fn real_archive_key() -> Result<ArchiveKey, MissingRealKey> {
-    let text = std::env::var(REAL_ARCHIVE_KEY_VAR)
-        .ok()
-        .filter(|text| !text.trim().is_empty())
-        .ok_or(MissingRealKey(false))?;
-    ArchiveKey::from_hex(&text).map_err(|_| MissingRealKey(true))
+    let variable = std::env::var(REAL_ARCHIVE_KEY_VAR).ok();
+    let named = std::env::var_os(REAL_ARCHIVE_KEY_FILE_VAR)
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from);
+    let profile = dirs::config_dir().map(|dir| dir.join(PROFILE_FOLDER).join(PROFILE_FILE));
+    find_key(variable.as_deref(), named.as_deref(), profile.as_deref())
 }
 
+fn find_key(
+    variable: Option<&str>,
+    named_file: Option<&Path>,
+    profile_file: Option<&Path>,
+) -> Result<ArchiveKey, MissingRealKey> {
+    let from_variable = variable
+        .filter(|text| !text.trim().is_empty())
+        .map_or(Err(Outcome::Unset), |text| {
+            ArchiveKey::from_hex(text).map_err(|_| Outcome::NotThirtyTwoHexDigits)
+        });
+    let from_named = named_file.map_or(Err(Outcome::Unset), read_key_file);
+    let from_profile = profile_file.map_or(Err(Outcome::Unset), read_key_file);
+    let mut found = None;
+    let tried = [
+        (REAL_ARCHIVE_KEY_VAR, from_variable),
+        (REAL_ARCHIVE_KEY_FILE_VAR, from_named),
+        ("the stored key", from_profile),
+    ]
+    .map(|(source, result)| match result {
+        Ok(key) => {
+            found.get_or_insert(key);
+            (source, Outcome::Unset)
+        }
+        Err(outcome) => (source, outcome),
+    });
+    found.ok_or(MissingRealKey { tried })
+}
+fn read_key_file(file: &Path) -> Result<ArchiveKey, Outcome> {
+    let opened = std::fs::File::open(file).map_err(|error| match error.kind() {
+        std::io::ErrorKind::NotFound => Outcome::NoFile,
+        _ => Outcome::Unreadable,
+    })?;
+    let mut text = String::new();
+    opened
+        .take(MAX_KEY_FILE_LEN)
+        .read_to_string(&mut text)
+        .map_err(|_| Outcome::Unreadable)?;
+    ArchiveKey::from_hex(&text).map_err(|_| Outcome::NotThirtyTwoHexDigits)
+}
 /// The environment variable that names a real `Data.p4k` for the real-Archive suite.
 pub const REAL_ARCHIVE_VAR: &str = "P4KX_DATA_P4K";
 
@@ -126,5 +199,77 @@ mod tests {
             Some(PathBuf::from("b.p4k")),
             "the path"
         );
+    }
+
+    use super::{MissingRealKey, find_key};
+
+    const FIRST: &str = "000102030405060708090a0b0c0d0e0f";
+    const SECOND: &str = "f0e0d0c0b0a090807060504030201000";
+
+    fn key_file(directory: &tempfile::TempDir, name: &str, text: &str) -> PathBuf {
+        let file = directory.path().join(name);
+        std::fs::write(&file, text).expect("write the temporary key file");
+        file
+    }
+
+    fn expected(text: &str) -> p4kx_foundation::ArchiveKey {
+        p4kx_foundation::ArchiveKey::from_hex(text).expect("a synthetic key")
+    }
+
+    #[test]
+    fn the_variable_comes_first() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let named = key_file(&directory, "named.key", SECOND);
+        let profile = key_file(&directory, "profile.key", SECOND);
+        let found = find_key(Some(FIRST), Some(&named), Some(&profile));
+        assert_eq!(found.ok(), Some(expected(FIRST)), "the variable");
+    }
+
+    #[test]
+    fn the_named_file_comes_before_the_profile() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let named = key_file(&directory, "named.key", &format!("{FIRST}\n"));
+        let profile = key_file(&directory, "profile.key", SECOND);
+        let found = find_key(Some("  "), Some(&named), Some(&profile));
+        assert_eq!(found.ok(), Some(expected(FIRST)), "the named file");
+    }
+
+    #[test]
+    fn the_profile_is_the_last_resort() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let profile = key_file(&directory, "profile.key", SECOND);
+        let missing = directory.path().join("absent.key");
+        let found = find_key(Some("not a key"), Some(&missing), Some(&profile));
+        assert_eq!(found.ok(), Some(expected(SECOND)), "the profile file");
+    }
+
+    #[test]
+    fn an_unusable_source_does_not_stop_the_search() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let named = key_file(&directory, "named.key", "short");
+        let profile = key_file(&directory, "profile.key", FIRST);
+        let found = find_key(None, Some(&named), Some(&profile));
+        assert_eq!(found.ok(), Some(expected(FIRST)), "the profile file");
+    }
+
+    #[test]
+    fn no_source_names_every_source_tried_and_no_key() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let named = key_file(&directory, "named.key", "short");
+        let error: MissingRealKey =
+            find_key(Some(SECOND.get(..31).unwrap_or("")), Some(&named), None)
+                .expect_err("no valid key");
+        let message = error.to_string();
+        assert!(
+            message.contains("P4KX_ARCHIVE_KEY (not 32 hexadecimal digits)"),
+            "{message}"
+        );
+        assert!(
+            message.contains("P4KX_KEY_FILE (not 32 hexadecimal digits)"),
+            "{message}"
+        );
+        assert!(message.contains("the stored key (not set)"), "{message}");
+        assert!(!message.contains(&SECOND[..8]), "{message}");
+        assert_eq!(format!("{error:?}"), message, "debug equals display");
     }
 }

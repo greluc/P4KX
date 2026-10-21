@@ -109,8 +109,9 @@ pub use model_skeleton::{TestBone, TestSkeleton};
 pub use mtl::{TestMtl, TestMtlMaterial};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{
-    MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR,
-    real_archive_b_path, real_archive_key, real_archive_pair, real_archive_path,
+    MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_FILE_VAR,
+    REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
+    real_archive_pair, real_archive_path,
 };
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;

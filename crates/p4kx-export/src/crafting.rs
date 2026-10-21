@@ -1,27 +1,63 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Filter, Guid, Record, ReferenceIndex, TreeBuilder,
+    CancelToken, DataForge, DataForgeError, Filter, Guid, MAX_INDEXED_REFERENCES, Record,
+    ReferenceIndex, TreeBuilder,
 };
 use rayon::prelude::*;
 
 use crate::crafting_records::{
-    BLUEPRINTS, DISMANTLES, DISTRIBUTIONS, GLOBALS, OVERRIDES, POOLS, PROPERTIES, blueprint,
-    dismantle, distribution, globals, is_crafting_path, pool, property,
+    DISMANTLES, DISTRIBUTIONS, GLOBALS, OVERRIDES, POOLS, PROPERTIES, blueprint, dismantle,
+    distribution, globals, is_crafting_path, pool, property,
 };
 use crate::crafting_sources;
 use crate::crafting_types::{
     BlueprintPool, BlueprintTiers, DismantleProcess, DismantleReturn, GameplayProperty,
     GlobalParams, QualityDistribution, RewardChance, RewardSource,
 };
-use crate::selection::{KindRule, is_leftover};
+use crate::selection::{BlueprintSelection, KindRule, selects_blueprint};
 use crate::{CatalogError, CatalogFailure};
+
+/// Something that makes the crafting data incomplete or ambiguous without failing a Record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum CraftingWarning {
+    /// The DataForge holds more References than the reference index keeps, so
+    /// [`Crafting::reward_sources`] may lack places that reward a pool.
+    RewardSourcesTruncated,
+    /// This many Records could not be read by the reference index; a reward source in one of
+    /// them is missing from [`Crafting::reward_sources`].
+    UnreadableReferenceRecords(usize),
+    /// The DataForge holds this many dismantle processes instead of one, so
+    /// [`Crafting::dismantle_return`] links no blueprint.
+    AmbiguousDismantle(usize),
+}
+
+impl fmt::Display for CraftingWarning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RewardSourcesTruncated => f.write_str(
+                "the reference index is truncated; the reward sources of the blueprint pools are incomplete",
+            ),
+            Self::UnreadableReferenceRecords(count) => write!(
+                f,
+                "{count} Records cannot be read by the reference index; their reward sources are missing"
+            ),
+            Self::AmbiguousDismantle(count) => write!(
+                f,
+                "the DataForge holds {count} dismantle processes instead of one; no dismantle return is linked"
+            ),
+        }
+    }
+}
 
 /// The crafting data of a DataForge: the blueprints with all their tiers and what surrounds them.
 ///
 /// Every list is ordered by the GUID of its Record; [`reward_sources`](Self::reward_sources) by
 /// the order of the Records that hold them. The blueprints are the same set as the `blueprints`
-/// kind of the Basetool catalog (development leftovers left out).
+/// kind of the Basetool catalog (development leftovers left out), selected by the one rule
+/// behind both.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Crafting<'f> {
     /// The blueprints under `crafting/blueprints/crafting` with every tier.
@@ -42,6 +78,8 @@ pub struct Crafting<'f> {
     pub skipped_blueprints: usize,
     /// The Records that could not be read; they are left out.
     pub failures: Vec<CatalogFailure>,
+    /// What makes the data incomplete or ambiguous although every Record was read.
+    pub warnings: Vec<CraftingWarning>,
 }
 
 enum Piece<'f> {
@@ -60,7 +98,8 @@ enum Piece<'f> {
 /// The Records are read in parallel. A `Filter` keeps only the blueprints and pools whose record
 /// path it matches (the reward sources are then those of the kept pools); the properties,
 /// quality Records, dismantle processes and global parameters are always read. A Record that
-/// cannot be read is left out and listed in [`Crafting::failures`].
+/// cannot be read is left out and listed in [`Crafting::failures`]. A reference index that is
+/// truncated or cannot read a Record leaves a [`CraftingWarning`].
 ///
 /// # Errors
 ///
@@ -69,6 +108,21 @@ pub fn read_crafting<'f>(
     forge: &'f DataForge<'_>,
     filter: Option<&Filter>,
     cancel: Option<&CancelToken>,
+) -> Result<Crafting<'f>, CatalogError> {
+    read_crafting_limited(forge, filter, cancel, MAX_INDEXED_REFERENCES)
+}
+
+/// Reads the crafting data like [`read_crafting`], with a reference index that keeps at most
+/// `reference_limit` References; more leave [`CraftingWarning::RewardSourcesTruncated`].
+///
+/// # Errors
+///
+/// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
+pub fn read_crafting_limited<'f>(
+    forge: &'f DataForge<'_>,
+    filter: Option<&Filter>,
+    cancel: Option<&CancelToken>,
+    reference_limit: usize,
 ) -> Result<Crafting<'f>, CatalogError> {
     let cancelled = || cancel.is_some_and(CancelToken::is_cancelled);
     let records: Vec<Record<'f>> = forge.records().collect();
@@ -85,9 +139,32 @@ pub fn read_crafting<'f>(
         .collect::<Result<_, _>>()?;
     let (mut crafting, pool_records) = assemble(pieces);
     if !crafting.pools.is_empty() {
-        let found = reward_sources(forge, &crafting.pools, &pool_records, cancel)?;
-        crafting.reward_sources = found.0;
-        crafting.failures.extend(found.1);
+        let found = reward_sources(
+            forge,
+            &crafting.pools,
+            &pool_records,
+            cancel,
+            reference_limit,
+        )?;
+        crafting.reward_sources = found.sources;
+        crafting.failures.extend(found.failures);
+        if found.truncated {
+            crafting
+                .warnings
+                .push(CraftingWarning::RewardSourcesTruncated);
+        }
+        if found.unreadable > 0 {
+            crafting
+                .warnings
+                .push(CraftingWarning::UnreadableReferenceRecords(
+                    found.unreadable,
+                ));
+        }
+    }
+    if crafting.dismantle.len() > 1 {
+        crafting.warnings.push(CraftingWarning::AmbiguousDismantle(
+            crafting.dismantle.len(),
+        ));
     }
     Ok(crafting)
 }
@@ -147,16 +224,16 @@ fn piece<'f>(
     if !is_crafting_path(path) {
         return Ok(None);
     }
-    let type_name = record.type_name()?;
-    let filterable = selects(&BLUEPRINTS, path, type_name) || selects(&POOLS, path, type_name);
-    if filterable && filter.is_some_and(|filter| !filter.matches(path)) {
-        return Ok(None);
-    }
-    if selects(&BLUEPRINTS, path, type_name) {
-        if is_leftover(path, record.name()?) {
-            return Ok(Some(Piece::Skipped));
+    match selects_blueprint(record, filter)? {
+        BlueprintSelection::Kept => {
+            return Ok(Some(Piece::Blueprint(blueprint(&trees.build(record)?))));
         }
-        return Ok(Some(Piece::Blueprint(blueprint(&trees.build(record)?))));
+        BlueprintSelection::Leftover => return Ok(Some(Piece::Skipped)),
+        BlueprintSelection::Outside => {}
+    }
+    let type_name = record.type_name()?;
+    if selects(&POOLS, path, type_name) && filter.is_some_and(|filter| !filter.matches(path)) {
+        return Ok(None);
     }
     let piece = if selects(&DISMANTLES, path, type_name) {
         dismantle(&trees.build(record)?).map(Piece::Dismantle)
@@ -174,16 +251,23 @@ fn piece<'f>(
     Ok(piece)
 }
 
-type Sources<'f> = (Vec<RewardSource<'f>>, Vec<CatalogFailure>);
+struct RewardSearch<'f> {
+    sources: Vec<RewardSource<'f>>,
+    failures: Vec<CatalogFailure>,
+    truncated: bool,
+    unreadable: usize,
+}
 
 fn reward_sources<'f>(
     forge: &'f DataForge<'_>,
     pools: &[BlueprintPool<'f>],
     pool_records: &[u32],
     cancel: Option<&CancelToken>,
-) -> Result<Sources<'f>, CatalogError> {
+    reference_limit: usize,
+) -> Result<RewardSearch<'f>, CatalogError> {
     let stop = || cancel.is_some_and(CancelToken::is_cancelled);
-    let index = ReferenceIndex::build_cancellable(forge, &stop).ok_or(CatalogError::Cancelled)?;
+    let index = ReferenceIndex::build_limited_cancellable(forge, reference_limit, &stop)
+        .ok_or(CatalogError::Cancelled)?;
     let mut referrers: Vec<u32> = pool_records
         .iter()
         .flat_map(|record| index.referrers(*record))
@@ -194,6 +278,9 @@ fn reward_sources<'f>(
     let results: Vec<Result<Vec<RewardSource<'f>>, CatalogFailure>> = referrers
         .par_iter()
         .map_init(TreeBuilder::new, |trees, at| {
+            if stop() {
+                return Ok(Vec::new());
+            }
             let Some(record) = forge.record(*at) else {
                 return Ok(Vec::new());
             };
@@ -205,6 +292,9 @@ fn reward_sources<'f>(
             Ok(found)
         })
         .collect();
+    if stop() {
+        return Err(CatalogError::Cancelled);
+    }
     let mut sources = Vec::new();
     let mut failures = Vec::new();
     for result in results {
@@ -213,7 +303,12 @@ fn reward_sources<'f>(
             Err(failure) => failures.push(failure),
         }
     }
-    Ok((sources, failures))
+    Ok(RewardSearch {
+        sources,
+        failures,
+        truncated: index.is_truncated(),
+        unreadable: index.unreadable_records(),
+    })
 }
 
 impl<'f> Crafting<'f> {
@@ -232,7 +327,8 @@ impl<'f> Crafting<'f> {
             .collect();
         let mut chances: HashMap<Guid, Vec<RewardChance<'f>>> = HashMap::new();
         for source in &self.reward_sources {
-            let (Some(pool_guid), Some(chance)) = (source.pool, source.chance) else {
+            let pool_guid = source.pool;
+            let Some(chance) = source.chance else {
                 continue;
             };
             if !(0.0..=1.0).contains(&chance) {
@@ -253,6 +349,7 @@ impl<'f> Crafting<'f> {
                 }
                 chances.entry(blueprint).or_default().push(RewardChance {
                     record: source.record,
+                    record_path: source.record_path,
                     contract_id: source.contract_id,
                     contract_name: source.contract_name,
                     pool: pool_guid,
@@ -263,12 +360,23 @@ impl<'f> Crafting<'f> {
         chances
     }
 
-    /// Returns the dismantle return of the item `blueprint` produces: the first generic
-    /// dismantle process, linked to the blueprint whose ingredients the item returns by the
-    /// process's efficiency.
+    /// Returns the dismantle process when the DataForge holds exactly one, `None` for none or
+    /// several (a [`CraftingWarning::AmbiguousDismantle`] then tells).
+    #[must_use]
+    pub const fn dismantle_process(&self) -> Option<&DismantleProcess<'f>> {
+        match self.dismantle.as_slice() {
+            [process] => Some(process),
+            _ => None,
+        }
+    }
+
+    /// Returns the dismantle return of the item `blueprint` produces: the only dismantle
+    /// process, linked to the blueprint whose first tier the item returns by the process's
+    /// efficiency, without the resources the global parameters exclude.
     ///
-    /// `None` for a blueprint without a produced item, for an item on the dismantle blacklist
-    /// and without a dismantle process.
+    /// `None` for a blueprint without a produced item, for an item on the dismantle blacklist,
+    /// and unless exactly one dismantle process exists. [`DismantleReturn`] states which tier
+    /// counts and how a selection and the quantity multiplier are treated.
     #[must_use]
     pub fn dismantle_return<'c>(
         &'c self,
@@ -279,9 +387,11 @@ impl<'f> Crafting<'f> {
             return None;
         }
         Some(DismantleReturn {
-            process: self.dismantle.first()?,
+            process: self.dismantle_process()?,
             blueprint: blueprint.guid,
             item,
+            tier: (!blueprint.tiers.is_empty()).then_some(0),
+            excluded_resources: &self.global.dismantle_blacklist_resources,
         })
     }
 }

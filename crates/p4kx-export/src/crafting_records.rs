@@ -7,35 +7,19 @@ use crate::crafting_types::{
     LocationOverride, PoolEntry, QualityCurve, QualityDistribution,
 };
 use crate::record_fields::{class_name, elements, locale_key, number, reference, structure};
-use crate::selection::KindRule;
+use crate::selection::{Kind, KindRule};
 
 const ROOT: &str = "libs/foundry/records/crafting/";
 const DISMANTLE_PROCESS: &str = "GenericCraftingProcess_Dismantle";
 
-pub(crate) const BLUEPRINTS: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/blueprints/crafting/"],
-    type_name: "CraftingBlueprintRecord",
-};
-pub(crate) const DISMANTLES: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
-    type_name: "CraftingBlueprintRecord",
-};
-pub(crate) const PROPERTIES: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/craftedproperties/"],
-    type_name: "CraftingGameplayPropertyDef",
-};
-pub(crate) const DISTRIBUTIONS: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/qualitydistribution/"],
-    type_name: "CraftingQualityDistributionRecord",
-};
+pub(crate) const DISMANTLES: KindRule = Kind::DismantleProcesses.rule();
+pub(crate) const PROPERTIES: KindRule = Kind::GameplayProperties.rule();
+pub(crate) const DISTRIBUTIONS: KindRule = Kind::QualityDistributions.rule();
 pub(crate) const OVERRIDES: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/qualitydistribution/"],
+    prefixes: DISTRIBUTIONS.prefixes,
     type_name: "CraftingQualityLocationOverrideRecord",
 };
-pub(crate) const POOLS: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/crafting/blueprintrewards/"],
-    type_name: "BlueprintPoolRecord",
-};
+pub(crate) const POOLS: KindRule = Kind::BlueprintPools.rule();
 pub(crate) const GLOBALS: KindRule = KindRule {
     prefixes: &["libs/foundry/records/crafting/globalparams/"],
     type_name: "CraftingGlobalParams",
@@ -56,6 +40,8 @@ pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> BlueprintTiers<'f> {
         guid: tree.guid(),
         class_name: class_name(tree),
         record_path: tree.record_path(),
+        name_key: locale_key(blueprint, "blueprintName"),
+        category: reference(blueprint, "category").map(|guid| guid.0),
         produced_item: reference(structure(blueprint, "processSpecificData"), "entityClass")
             .map(|guid| guid.0),
         tiers: tiers(blueprint),

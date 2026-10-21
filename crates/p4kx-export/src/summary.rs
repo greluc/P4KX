@@ -1,6 +1,6 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
-use crate::{CatalogFailure, ItemClassSummary, Kind};
+use crate::{CatalogFailure, CraftingWarning, ItemClassSummary, Kind};
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
 /// upload limit (`docs/basetool-catalog.md`).
@@ -70,6 +70,7 @@ pub struct CatalogSummary {
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) failures: Vec<CatalogFailure>,
+    pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
 }
 
@@ -81,10 +82,19 @@ impl CatalogSummary {
         &self.failures
     }
 
-    /// Returns whether every selected Record could be read.
+    /// Returns what makes the crafting data incomplete or ambiguous although every Record was
+    /// read: a truncated reference index (reward sources missing), Records it could not read,
+    /// several dismantle processes.
+    #[must_use]
+    pub fn warnings(&self) -> &[CraftingWarning] {
+        &self.warnings
+    }
+
+    /// Returns whether every selected Record could be read and the crafting data has no
+    /// [warning](Self::warnings).
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty()
+        self.failures.is_empty() && self.warnings.is_empty()
     }
 
     /// Returns how the item classes of the items were read.

@@ -7,8 +7,9 @@
 //!
 //! [`build_catalog`] reads the DataForge of an open Archive, selects the Records of every kind by
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
-//! descriptions in English and German from the Archive's `global.ini` files, reads the crafting
-//! ingredients of blueprints, reads each item's
+//! descriptions in English and German from the Archive's `global.ini` files, takes the blueprints
+//! with all tiers, the quality, pool, reward-source and dismantle Records from [`read_crafting`],
+//! reads each item's
 //! [`ItemClass`] from its English description and writes the
 //! catalog as deterministic UTF-8 JSON. A selected Record that cannot be read is left out and
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
@@ -30,11 +31,15 @@
 mod blueprint;
 mod blueprint_category;
 mod build;
+mod catalog_crafting;
+mod catalog_recipe;
 mod collected;
 mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod contract_recipe;
+mod contract_rewards;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;
@@ -61,7 +66,7 @@ mod texts;
 
 pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
-pub use crafting::{Crafting, read_crafting};
+pub use crafting::{Crafting, CraftingWarning, read_crafting, read_crafting_limited};
 pub use crafting_types::{
     BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
     GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,

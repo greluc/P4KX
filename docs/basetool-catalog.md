@@ -66,9 +66,14 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `items` | The items, ordered by GUID |
 | `ships` | The ships and ground vehicles, ordered by GUID |
 | `commodities` | The commodities, ordered by GUID |
-| `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
+| `blueprints` | The crafting blueprints with their ingredients, all tiers, default availability and dismantle link, ordered by GUID |
 | `resourceGroups` | The groups of resource types, the targets of `typeGuid`, ordered by GUID |
 | `blueprintCategories` | The blueprint categories, the targets of `categoryGuid`, ordered by GUID |
+| `gameplayProperties` | The gameplay properties the quality modifiers refer to, ordered by GUID |
+| `qualityDistributions` | The quality distributions and their location overrides, ordered by GUID |
+| `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
+| `dismantleProcesses` | The dismantle processes, ordered by GUID |
+| `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -159,6 +164,12 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 | `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
 | `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
 | `ingredients` | The costs of the first tier, see below |
+| `tiers` | Every tier in stored order, see "Tiers" below; the first one is the tier `craftTimeSeconds` and `ingredients` describe |
+| `defaultAvailable` | `true` when the blueprint is in `CraftingGlobalParams.defaultBlueprintSelection`, the blueprints a player has by default |
+| `dismantle` | What dismantling the produced item returns, see "Dismantle returns" below; `null` without one |
+
+`craftTimeSeconds` and `ingredients` keep their meaning; they are derived from the first tier, so
+the cost tree is read once.
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
@@ -204,30 +215,99 @@ Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves
 `ResourceType` or group, 1 on LIVE, and a blueprint without a category have `null`). With a
 `--filter`, a kind is partial and the references need not resolve.
 
-Not represented:
+### Tiers
 
-- The count of a selection ("choose n"): every option is listed, though 3 of the 1,618 LIVE
-  blueprints let the player choose fewer than they offer.
-- The `CraftingCostContext_QuantityMultiplier` (factor 1.15 on 3 lines of LIVE): the quantities are
-  the stored ones, the multiplier is ignored.
-- All tiers, quality modifiers, quality distributions, reward pools and dismantle returns.
+`tiers` lists every `CraftingBlueprintTier` in stored order. Every tier has:
 
-The library reads all of this already: see "Crafting data" below. The catalog shape for it follows
-in #396.
+| Field | Meaning |
+|-------|---------|
+| `craftTimeSeconds` | `costs.craftTime` of the tier in whole seconds, rounded; `null` without one |
+| `mandatory` | The mandatory cost as a cost line, `null` without one |
+| `optional` | The optional costs as cost lines in stored order |
+
+A cost line is a selection, a resource line or an item line. The tree keeps what `ingredients`
+flattens, so a selection stays a selection:
+
+| Field | Meaning |
+|-------|---------|
+| `kind` | `select`, `resource` or `item`. A closed set the game may extend; the schema keeps it a string and a reader maps an unknown value to nothing |
+| `count` | `select`: how many options the player chooses ("choose n"); fewer than `options` offers means the player may leave options out (3 of the 1,618 LIVE blueprints) |
+| `slot`, `slotKey` | `select`: `debugName` and `displayName` of `nameInfo`; a placeholder `slotKey` is `null` |
+| `options` | `select`: the options as cost lines in stored order, otherwise `[]` |
+| `resourceGuid`, `quantityScu` | `resource`: the `ResourceType` Record and the quantity in SCU, before the quantity multiplier |
+| `itemGuid`, `quantityUnits` | `item`: the entity and the number of units, before the quantity multiplier |
+| `minQuality` | `resource` and `item`: `minQuality` |
+| `quantityMultiplier` | The factor of `CraftingCostContext_QuantityMultiplier` (1.15 on 3 lines of LIVE), `null` without one. The quantities stay the stored ones; the consumer applies the factor |
+| `compositionInclusion` | The option of `CraftingCostContext_ResultCompositionInclusion`, e.g. `Include`; `null` without one |
+| `modifiers` | `CraftingCostContext_ResultGameplayPropertyModifiers`: per modifier `propertyGuid` (a `gameplayProperties` entry) and `ranges`, each with `kind` (`multiplier` for factors, `additive` for summands; a closed set the game may extend), `startQuality`, `endQuality`, `atStart` and `atEnd`, linear in the quality between the two ends |
+
+A selection carries the context of the selection itself in the same fields.
+
+LIVE holds exactly one tier per blueprint on all five Channels, so the real-Archive test checks
+that tiers and first-tier fields agree, and the multi-tier case is covered by a synthetic
+Archive (`catalog_crafting_tiers`), which checks a blueprint with two tiers, selections,
+multipliers and modifiers.
+
+### Quality, pools and dismantle
+
+Four kinds hold what a blueprint refers to; each entry has `guid`, `className` and `recordPath`,
+and the ordering, completeness and leftover rules of every other kind apply (a `--filter` matches
+the record path and marks the kind partial).
+
+| Kind | Fields |
+|------|--------|
+| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key leaves `en` and `de` `null`. The target of a modifier's `propertyGuid` |
+| `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
+| `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance` |
+| `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
+
+A blueprint's chance from a source is `chance` x the entry's `weight` / `totalWeight`; a source
+without a chance or with one outside 0 to 1, a pool without a positive weight and an entry with a
+weight of zero or less give none. The quality distributions carry no link to a blueprint or source:
+the Records do not hold one, so the catalog lists them as they are.
+
+Not represented: the `qualityquantization` Records (quantised quality steps per `ResourceType`)
+are not read; they are added when the Basetool needs them (#409). Everything else of the issue's
+list is in the catalog.
+
+#### Dismantle returns
+
+`dismantle` of a blueprint is `{"processGuid", "tierIndex"}`: the dismantle process that applies to
+the item the blueprint produces and the index into `tiers` of the tier whose costs the item
+returns, `null` for a blueprint without a tier. `craftingGlobal` holds
+`dismantleExcludedResourceGuids` (the `ResourceType` Records a dismantle never returns) and
+`dismantleExcludedItemGuids` (the entities that cannot be dismantled; their blueprints have no
+`dismantle`). The contract:
+
+- The Build must hold exactly one dismantle process. With several, no blueprint gets a
+  `dismantle`, the processes are still listed, and `p4kx catalog` warns and exits with code 1.
+- The item returns the share `efficiency` of the costs of the first tier (`tierIndex` 0), except
+  the resources in `dismantleExcludedResourceGuids`.
+- A `select` is not resolved: the Records do not say which options a dismantle returns, so the
+  consumer applies the `count` itself. The `quantityMultiplier` is not applied.
+
+These are assumptions of the library, not verified against the game.
 
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
-`blueprints` kind does not carry. It reads the DataForge in parallel (0.6 s on LIVE, plus the
-reference index for the reward sources) and leaves out a Record it cannot read, listing it under
-`failures`. Every list is ordered by Record GUID. The values are facts and identifiers only: no
-description, no lore, no media.
+`blueprints` kind and the crafting kinds carry; the catalog is built from it, so library and
+catalog never drift. It reads the DataForge in parallel (0.6 s on LIVE, plus the reference index for
+the reward sources) and leaves out a Record it cannot read, listing it under `failures`. Every
+list is ordered by Record GUID. The values are facts and identifiers only: no description, no
+lore, no media.
 
-| Field | Source |
-|-------|--------|
-The names below are the Rust names of the library, not contract names; the catalog names follow
-in #396. A `Filter` keeps only the blueprints and pools it matches; the other lists are always
-read.
+The blueprints are selected by the one rule behind the `blueprints` kind (`selects_blueprint`:
+prefix, type, Filter, leftover tokens). A `Filter` keeps only the blueprints and pools it matches;
+the other lists are always read, and the catalog then keeps the properties, quality distributions
+and dismantle processes whose record path matches.
+
+A reference index that holds more than 2^23 References, or cannot read a Record, loses reward
+sources, and says so: `Crafting::warnings` holds `RewardSourcesTruncated` or
+`UnreadableReferenceRecords` with the count, and `p4kx catalog` prints the warning and exits with
+code 1 (`CatalogSummary::warnings()`; `is_complete()` is then `false`).
+
+The Rust names of the library:
 
 | Field | Source |
 |-------|--------|
@@ -238,25 +318,19 @@ read.
 | `properties` | `CraftingGameplayPropertyDef` Records under `crafting/craftedproperties`: GUID, `class_name`, `record_path` and the localisation key of the name |
 | `quality_distributions` | The Records under `crafting/qualitydistribution`: a default distribution (`min`, `max`, `mean`, `stddev` of a normal distribution) or the list of location overrides, each a location GUID with its distribution |
 | `pools` | `BlueprintPoolRecord` Records under `crafting/blueprintrewards`: entries with a blueprint GUID and a `weight`; `total_weight()` is the sum of the positive weights |
-| `reward_sources` | Every struct of any Record that holds a Reference to a pool (on LIVE the `BlueprintRewards` result of a contract): the Record, the `id` and `debugName` of the nearest enclosing contract, the pool and the `chance` |
+| `reward_sources` | Every struct of any Record that holds a Reference to a pool (on LIVE the `BlueprintRewards` result of a contract): the Record, the `id` and `debugName` of the nearest enclosing struct that has an `id` (both from the same struct), the pool and the `chance` |
 | `reward_chances()` | Per blueprint the chance of each source: `chance` x `weight` / `total_weight()`; a source whose chance is outside 0 to 1 and an entry with a weight of zero or less give none |
 | `dismantle` | The `GenericCraftingProcess_Dismantle` Records under `crafting/blueprints/dismantle`: `efficiency` and `dismantleTime` in seconds (LIVE: one process, 0.5 and 15 s) |
 | `global` | `CraftingGlobalParams`: the default blueprints (`defaultBlueprintSelection`), the resources dismantling never returns and the entities that cannot be dismantled |
-| `dismantle_return()` | Links a blueprint to the first dismantle process and to the item it produces, unless the item is on the item blacklist |
+| `dismantle_return()` | Links a blueprint to the only dismantle process and to the item it produces, unless the item is on the item blacklist; `None` for none or several processes. It carries the `tier` (the first) and the `excluded_resources` |
 
 LIVE holds exactly one tier per blueprint (also PTU, EPTU, TECH-PREVIEW and HOTFIX); the library
 reads as many as a Record holds. The dismantle Record is generic, not one per item: the link from
 an item to its returns runs through the blueprint that produces it.
 
-Assumptions of `dismantle_return()`, not verified against the game:
-
-- A dismantled item returns the share `efficiency` of the ingredients of the blueprint that
-  produces it. The library does not compute the amounts and does not say which tier applies; the
-  consumer picks one (the first tier is the only one on LIVE).
-- A `Select` ("choose n") of the ingredients is not resolved: which options a dismantle returns is
-  unknown.
-- The resource blacklist (`global.dismantle_blacklist_resources`) is not applied to any amount;
-  only the item blacklist decides whether a link exists.
+The assumptions of `dismantle_return()` are those under "Dismantle returns" above: the first tier,
+no resolved `Select`, no applied quantity multiplier, the resource blacklist exposed as
+`excluded_resources` and never applied to an amount.
 
 A blueprint's `name` is almost always a placeholder key. The Basetool names a blueprint through
 `producedItemGuid`, the item it produces, not through `name`.
@@ -310,6 +384,14 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
 | `resourceGroups` | `libs/foundry/records/resourcetypedatabase/` | `ResourceTypeGroup` |
 | `blueprintCategories` | `libs/foundry/records/crafting/blueprintcategories/` | `BlueprintCategoryRecord` |
+| `gameplayProperties` | `libs/foundry/records/crafting/craftedproperties/` | `CraftingGameplayPropertyDef` |
+| `qualityDistributions` | `libs/foundry/records/crafting/qualitydistribution/` | `CraftingQualityDistributionRecord` and `CraftingQualityLocationOverrideRecord` |
+| `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
+| `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
+
+The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
+selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
+`qualityDistributions` names the first of its two types.
 
 The resource-group prefix also holds the 207 `ResourceType` Records and the `ResourceTypeDatabase`
 Record of LIVE, and the category prefix a `BlueprintCategoryDatabaseRecord`; the type selects only
@@ -351,24 +433,31 @@ seconds since 1970-01-01 UTC.
 
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
-changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
-catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
-limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
-print the size (`catalog size: … bytes`).
+changes with it. The owner kept the limit at 64 MB after the first measurement (21.1 MB). The
+crafting detail (all tiers, quality modifiers, pools and their reward sources) grew the largest
+catalog to 25.5 MB, about 40 % of the limit, so the catalog can still grow by a factor of 2.5
+before the limit is reached; the real-Archive tests assert that the limit is at least twice the
+catalog and print the size (`catalog size: … bytes`). The compressed upload (`.json.zst`, #407)
+is a fraction of that.
 
 Measured on 2026-10-21 with every installed Channel (complete catalog of every kind, English and
 German texts):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|
-| LIVE | 21,061,805 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| PTU | 20,737,101 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
-| EPTU | 20,348,542 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
-| HOTFIX | 21,061,807 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| TECH-PREVIEW | 21,121,385 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|
+| LIVE | 25,439,050 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| PTU | 25,114,346 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| EPTU | 24,697,653 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 |
+| HOTFIX | 25,439,052 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| TECH-PREVIEW | 25,518,101 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
 
-A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
-1,145 items and 57 ships (1,204 Records).
+Of the 25.4 MB of LIVE, the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
+the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
+sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
+unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
+
+A catalog builds in 4 to 7 seconds (LIVE 6.2 s, PTU 4.5 s). Left out as development leftovers on
+LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data
 
@@ -403,8 +492,15 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
   | commodities | 289 | 0 | 24 |
   | blueprints | 1 | 0 | 1 |
 
-  The `p4kx catalog` summary counts them over all texts: English 37,963 resolved, 160 unresolved,
-  German 25,497 resolved, 12,626 unresolved, 23,658 placeholders in each.
+  The `p4kx catalog` summary counts them over all texts: English 38,004 resolved, 160 unresolved,
+  German 25,510 resolved, 12,654 unresolved, 23,665 placeholders in each.
+- Crafting, LIVE (the same on every Channel but for the counts): every blueprint has exactly one
+  tier, equal to its `craftTimeSeconds`; 3 blueprints let the player choose fewer than offered
+  (`BP_CRAFT_thp_light_legs_01_01_01`, `_03` and `_12`), 3 carry the factor 1.15 (the slaver arms
+  `_01`, `_13` and `_15`), 1,555 carry quality modifiers of both range kinds; all modifier
+  `propertyGuid` resolve, all 824 pool entries point at a catalog blueprint, 49 of the 160 pools
+  have no reward source; 8 blueprints are available by default, 1,617 link to the one dismantle
+  process (the exception, `BP_CRAFT_COOL_S04_CNOU_Pioneer`, has no produced item).
 
 `p4kx catalog` warns on stderr when a catalog reaches 90 % of the limit and when it exceeds it;
 the file is written either way.

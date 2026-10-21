@@ -21,6 +21,8 @@ pub(crate) const EMPTY_POOL: u128 = 0xe200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const BAD_POOL: u128 = 0xe500_0000_0000_4000_8000_0000_0000_0005;
 pub(crate) const CONTRACTS: u128 = 0xe300_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const CONTRACT_ID: u128 = 0xe400_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const NAMELESS_CONTRACT_ID: u128 = 0xe600_0000_0000_4000_8000_0000_0000_0006;
+pub(crate) const LEFTOVER_POOL: u128 = 0xe700_0000_0000_4000_8000_0000_0000_0007;
 pub(crate) const DEFAULT_CURVE: u128 = 0xf100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const OVERRIDE_CURVE: u128 = 0xf200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const PYRO: u128 = 0xf300_0000_0000_4000_8000_0000_0000_0003;
@@ -238,6 +240,13 @@ fn blueprints(builder: DataForgeBuilder) -> DataForgeBuilder {
             BLACKLISTED,
             Vec::new(),
         ))
+}
+
+pub(crate) const SECOND_DISMANTLE: u128 = 0x1300_0000_0000_4000_8000_0000_0000_0003;
+
+/// Returns the DataForge of the fixture with a second dismantle process.
+pub(crate) fn ambiguous_database() -> DataForgeBuilder {
+    database().record(records::dismantle(SECOND_DISMANTLE, "SecondDismantle"))
 }
 
 /// Returns the DataForge of the fixture.

@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, SCHEMA_VERSION,
-    SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, CraftingWarning, Filter,
+    SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -41,6 +41,7 @@ struct SummaryJson<'a> {
     kinds: Vec<KindJson>,
     skipped: usize,
     failed: Vec<FailureJson<'a>>,
+    warnings: Vec<String>,
     item_classes: ItemClassJson,
     texts: Vec<TextJson>,
     unresolved: usize,
@@ -110,6 +111,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     let summary = built.summary();
     print_notes(summary.text_notes());
     print_failures(summary.failures())?;
+    print_warnings(summary.warnings())?;
     warn_about_size(summary)?;
     crate::guard::ensure_writable(out)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
@@ -138,6 +140,14 @@ fn print_failures(failures: &[CatalogFailure]) -> io::Result<()> {
             "failed {} ({}): {}",
             failure.record_path, failure.guid, failure.reason
         )?;
+    }
+    Ok(())
+}
+
+fn print_warnings(warnings: &[CraftingWarning]) -> io::Result<()> {
+    let mut err = io::stderr().lock();
+    for warning in warnings {
+        writeln!(err, "warning: {warning}")?;
     }
     Ok(())
 }
@@ -208,6 +218,7 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
                 error: &failure.reason,
             })
             .collect(),
+        warnings: summary.warnings().iter().map(ToString::to_string).collect(),
         item_classes: ItemClassJson {
             classified: summary.item_classes().classified,
             other: summary.item_classes().other,

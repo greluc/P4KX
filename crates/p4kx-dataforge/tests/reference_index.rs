@@ -308,6 +308,23 @@ fn the_index_stops_at_its_limit_and_says_so() -> TestResult {
     })
 }
 
+#[test]
+fn a_limited_index_can_be_cancelled() -> TestResult {
+    in_both_versions(|forge| {
+        let capped = ReferenceIndex::build_limited_cancellable(forge, 3, &|| false)
+            .ok_or("an index without a stop")?;
+        assert!(
+            capped.is_truncated() && capped.len() == 3,
+            "the limit holds"
+        );
+        assert!(
+            ReferenceIndex::build_limited_cancellable(forge, 3, &|| true).is_none(),
+            "a stop gives no index"
+        );
+        Ok(())
+    })
+}
+
 fn selected(forge: &DataForge<'_>, text: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let query = Query::parse(text)?;
     let compiled = query.compile(forge)?;

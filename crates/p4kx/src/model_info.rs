@@ -4,10 +4,11 @@ use anyhow::Result;
 use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model};
 
 use crate::json;
-use crate::model::{Opened, clean};
+use crate::model::Opened;
 use crate::model_animations::{count_line, write_table, write_unread};
 use crate::model_bones::write_bones;
 use crate::model_json::{InfoJson, file_name, node_name, usage_name};
+use crate::model_text::printable;
 
 const NONE: &str = "-";
 
@@ -19,11 +20,11 @@ pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     }
     let model = source.model();
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(out, "Model:       {}", clean(source.name()))?;
+    writeln!(out, "Model:       {}", printable(source.name()))?;
     writeln!(
         out,
         "Geometry:    {}",
-        model.geometry.as_deref().unwrap_or(NONE)
+        printable(model.geometry.as_deref().unwrap_or(NONE))
     )?;
     writeln!(out, "Nodes:       {}", model.nodes.len())?;
     writeln!(out, "LODs:        {}", model.lods.len())?;
@@ -76,7 +77,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 out,
                 "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
                 lod.level,
-                clean(node_name(model, mesh.node)),
+                printable(node_name(model, mesh.node)),
                 mesh.positions.len(),
                 mesh.indices.len() / 3,
                 yes_no(mesh.normals.is_some()),
@@ -104,7 +105,7 @@ fn write_nodes(out: &mut impl Write, model: &Model) -> io::Result<()> {
         writeln!(
             out,
             "{index:>5}  {parent:<6}  {}",
-            clean(node_name(model, index))
+            printable(node_name(model, index))
         )?;
     }
     Ok(())
@@ -139,7 +140,7 @@ fn materials(model: &Model) -> String {
     };
     model.material_library.as_ref().map_or_else(
         || format!("no material library, {ids}"),
-        |library| format!("{} ({}), {ids}", clean(library), status(model)),
+        |library| format!("{} ({}), {ids}", printable(library), status(model)),
     )
 }
 
@@ -148,7 +149,7 @@ fn status(model: &Model) -> String {
         MaterialStatus::Loaded(library) if library.single => "one material".to_owned(),
         MaterialStatus::Loaded(library) => format!("{} sub-materials", library.materials.len()),
         MaterialStatus::Missing { .. } => "missing".to_owned(),
-        MaterialStatus::Unreadable { reason, .. } => format!("unreadable: {reason}"),
+        MaterialStatus::Unreadable { reason, .. } => format!("unreadable: {}", printable(reason)),
         _ => "not read".to_owned(),
     }
 }
@@ -173,9 +174,9 @@ fn write_materials(out: &mut impl Write, model: &Model) -> io::Result<()> {
         writeln!(
             out,
             "{id:>3}  {:<24}  {:<16}  {:<18}  {:<20}  {:>7}  {}",
-            clean(or_none(&material.name)),
-            clean(or_none(&material.shader)),
-            clean(or_none(&material.surface_type)),
+            printable(or_none(&material.name)),
+            printable(or_none(&material.shader)),
+            printable(or_none(&material.surface_type)),
             format!("{red:.3} {green:.3} {blue:.3}"),
             material.opacity,
             material.textures.len()

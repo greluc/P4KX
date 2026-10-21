@@ -6,7 +6,7 @@ use json::validation::Checked::Valid;
 use json::{Index, Root};
 use p4kx_model::{Animation, Bone, Keys};
 
-use crate::block::{BlockData, seconds};
+use crate::block_data::{BlockData, seconds};
 use crate::document::push_accessor;
 use crate::layout::Layout;
 

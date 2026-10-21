@@ -9,6 +9,7 @@ use p4kx_texture::{
 };
 
 use crate::output_file::{read_error, write_replacing};
+use crate::path_index::PathIndex;
 use crate::texture_parts::{Found, PartReader, Parts, is_same_file, open_entry};
 use crate::{ConversionError, UnknownEntries};
 
@@ -35,6 +36,18 @@ impl<'a> Texture<'a> {
     pub fn from_archive(archive: &'a Archive, path: &str) -> Result<Self, ConversionError> {
         let found = Parts::in_archive(archive, path)
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
+        Self::from_found(found)
+    }
+
+    /// Opens the texture like [`Texture::from_archive`], finding the header, the parts and the
+    /// alpha tail through `index` instead of scanning the Archive.
+    ///
+    /// # Errors
+    ///
+    /// As [`Texture::from_archive`].
+    pub fn from_index(index: &PathIndex<'a>, path: &str) -> Result<Self, ConversionError> {
+        let found =
+            Parts::in_index(index, path).ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         Self::from_found(found)
     }
 

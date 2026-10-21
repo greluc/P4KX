@@ -12,7 +12,8 @@ pub(crate) enum BlockData<'m> {
     Normals(&'m [[f32; 3]]),
     /// Texture coordinates.
     Uvs(&'m [[f32; 2]]),
-    /// Vertex tangents with the handedness in `w`; the tangent converted to Y up.
+    /// Vertex tangents; the tangent converted to Y up and the handedness in `w` negated, because
+    /// the engine's bitangent runs down the image along V and glTF's up it.
     Tangents(&'m [[f32; 4]]),
     /// Vertex colours, red, green, blue and alpha as normalised bytes.
     Colours(&'m [[u8; 4]]),
@@ -116,7 +117,7 @@ impl<'m> BlockData<'m> {
             Self::Tangents(values) => {
                 for &[x, y, z, w] in *values {
                     let [x, y, z] = to_y_up([x, y, z]);
-                    for component in [x, y, z, w] {
+                    for component in [x, y, z, -w] {
                         out.extend_from_slice(&component.to_le_bytes());
                     }
                 }
@@ -172,14 +173,6 @@ impl<'m> BlockData<'m> {
             _ => {}
         }
     }
-}
-
-/// One block of the binary chunk at its offset.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Block<'m> {
-    pub(crate) offset: u64,
-    pub(crate) len: u64,
-    pub(crate) data: BlockData<'m>,
 }
 
 /// Returns the time of `frame` in seconds at `rate` frames per second.

@@ -10,7 +10,7 @@ use crate::glb_skin::check_skins;
 pub struct CheckedGlb {
     /// The glTF document.
     pub document: Document,
-    blob: Vec<u8>,
+    pub(crate) blob: Vec<u8>,
 }
 
 impl CheckedGlb {
@@ -91,6 +91,7 @@ pub fn check_glb(bytes: &[u8]) -> Result<CheckedGlb, String> {
     check_accessors(&checked)?;
     check_meshes(&checked)?;
     check_nodes(&checked)?;
+    crate::glb_images::check_textures(&checked)?;
     check_skins(&checked)?;
     check_animations(&checked)?;
     Ok(checked)

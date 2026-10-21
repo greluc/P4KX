@@ -41,11 +41,19 @@ pub(crate) enum ModelAction {
         lod: u32,
         /// How to write the materials. colours: one glTF material per sub-material of the
         /// model's .mtl file, with base colour, opacity, roughness, metalness and emissive colour
-        /// and no textures; submeshes whose material draws nothing (collision, shield and helper
-        /// geometry) are left out, and a material ID without a sub-material, or a model without
-        /// a readable .mtl file, gets a grey default material.
+        /// and no textures; textures: the same, with the materials' diffuse, normal and specular
+        /// maps embedded as PNG images, the smoothness in the normal map's alpha channel as
+        /// roughness and the specular map as metalness (the model must come from an Archive); a
+        /// texture that is missing or cannot be decoded leaves the plain colour and is listed.
+        /// Submeshes whose material draws nothing (collision, shield and helper geometry) are
+        /// left out, and a material ID without a sub-material, or a model without a readable
+        /// .mtl file, gets a grey default material.
         #[arg(long, value_enum, value_name = "MODE", default_value_t = MaterialsArg::Colours)]
         materials: MaterialsArg,
+        /// The mip level of the textures with --materials textures: 0 is the largest, each level
+        /// halves the width and height; a texture with fewer mips gives its smallest.
+        #[arg(long, value_name = "N", default_value_t = 0)]
+        texture_mip: u32,
         /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
         #[arg(long)]
         no_vertex_colours: bool,
@@ -69,6 +77,8 @@ pub(crate) enum ModelAction {
 pub(crate) enum MaterialsArg {
     /// Plain colours without textures.
     Colours,
+    /// Plain colours and the textures of the materials as embedded PNG images.
+    Textures,
 }
 
 /// Where a model is.

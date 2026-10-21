@@ -3,12 +3,21 @@ use std::io::Write;
 use p4kx_model::{Lod, Mesh};
 
 use crate::axes::to_y_up;
-use crate::block::{Block, BlockData};
+use crate::block_data::BlockData;
 use crate::materials::MaterialPlan;
 use crate::skin::SET_LEN;
+use crate::texture_plan::EncodedImage;
 
 const ALIGNMENT: u64 = 4;
 const BATCH: usize = 1 << 14;
+
+/// One block of the binary chunk at its offset.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Block<'m> {
+    pub(crate) offset: u64,
+    pub(crate) len: u64,
+    pub(crate) data: BlockData<'m>,
+}
 
 /// The primitive of one submesh: its index block and material ID.
 #[derive(Debug, Clone, Copy)]
@@ -33,11 +42,19 @@ pub(crate) struct MeshLayout {
     pub(crate) max: [f32; 3],
 }
 
+/// The place of one embedded image in the binary chunk.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ImageBlock {
+    pub(crate) offset: u64,
+    pub(crate) len: u64,
+}
+
 /// The binary chunk planned before anything is written: every block with its offset.
 #[derive(Debug, Clone)]
 pub(crate) struct Layout<'m> {
     pub(crate) blocks: Vec<Block<'m>>,
     pub(crate) meshes: Vec<MeshLayout>,
+    pub(crate) images: Vec<ImageBlock>,
     pub(crate) inverse_binds: Option<usize>,
     pub(crate) len: u64,
     pub(crate) hidden_primitives: usize,
@@ -57,6 +74,7 @@ impl<'m> Layout<'m> {
         let mut layout = Self {
             blocks: Vec::new(),
             meshes: Vec::new(),
+            images: Vec::new(),
             inverse_binds: None,
             len: 0,
             hidden_primitives: 0,
@@ -190,9 +208,37 @@ impl<'m> Layout<'m> {
         self.blocks.len() - 1
     }
 
+    /// Returns the material IDs of the primitives, sorted, each once.
+    pub(crate) fn material_ids(&self) -> Vec<u16> {
+        let mut ids: Vec<u16> = self
+            .meshes
+            .iter()
+            .flat_map(|mesh| &mesh.primitives)
+            .map(|primitive| primitive.material_id)
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
+    }
+
+    /// Plans an image block for each of the `lens` byte lengths, after every other block.
+    pub(crate) fn push_images(&mut self, lens: impl IntoIterator<Item = u64>) {
+        for len in lens {
+            self.images.push(ImageBlock {
+                offset: self.len,
+                len,
+            });
+            self.len = self.len.saturating_add(len.next_multiple_of(ALIGNMENT));
+        }
+    }
+
     /// Writes every block with its padding to `out`, a batch of elements at a time through one
-    /// reused buffer.
-    pub(crate) fn write(&self, out: &mut impl Write) -> std::io::Result<()> {
+    /// reused buffer, then the PNG bytes of `images` in the order of their blocks.
+    pub(crate) fn write(
+        &self,
+        out: &mut impl Write,
+        images: &[EncodedImage],
+    ) -> std::io::Result<()> {
         let mut buffer = Vec::new();
         for block in &self.blocks {
             let count = block.data.count();
@@ -204,6 +250,15 @@ impl<'m> Layout<'m> {
                     .encode(&mut buffer);
                 out.write_all(&buffer)?;
             }
+            let padding = block.len.next_multiple_of(ALIGNMENT) - block.len;
+            out.write_all(
+                [0; 4]
+                    .get(..usize::try_from(padding).unwrap_or(0))
+                    .unwrap_or_default(),
+            )?;
+        }
+        for (image, block) in images.iter().zip(&self.images) {
+            out.write_all(&image.png)?;
             let padding = block.len.next_multiple_of(ALIGNMENT) - block.len;
             out.write_all(
                 [0; 4]

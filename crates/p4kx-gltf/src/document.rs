@@ -10,12 +10,14 @@ use json::{Accessor, Index, Root};
 use p4kx_model::{Lod, Model};
 
 use crate::animations::{AnimationPlan, push_animations};
-use crate::block::{Block, BlockData};
-use crate::layout::{Layout, MeshLayout};
-use crate::materials::{MaterialPlan, Slot, colour_material};
+use crate::block_data::BlockData;
+use crate::layout::{Block, Layout, MeshLayout};
+use crate::materials::{MaterialPlan, MaterialTextures, Slot, build_material, display_name};
 use crate::nodes::{Skeleton, push_nodes};
+use crate::texture_plan::TextureSet;
 
 const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
+const PNG_MIME: &str = "image/png";
 
 /// Builds the glTF document of `model` over the planned binary chunk `layout`.
 ///
@@ -27,6 +29,7 @@ pub(crate) fn document(
     lod: &Lod,
     layout: &Layout<'_>,
     plan: &MaterialPlan<'_>,
+    textures: &TextureSet,
     animations: &[AnimationPlan],
 ) -> Root {
     let mut root = Root {
@@ -45,7 +48,10 @@ pub(crate) fn document(
             extras: json::extras::Void::default(),
         })
     });
-    let materials = materials(&mut root, layout, plan);
+    let image_textures = buffer
+        .map(|buffer| push_images(&mut root, buffer, layout))
+        .unwrap_or_default();
+    let materials = materials(&mut root, layout, plan, textures, &image_textures);
     let mut node_meshes = vec![None; model.nodes.len()];
     let mut skinned = vec![false; model.nodes.len()];
     for mesh in &layout.meshes {
@@ -98,29 +104,87 @@ pub(crate) fn skeleton_written(model: &Model, lod: &Lod, layout: &Layout<'_>) ->
     (skinned && layout.inverse_binds.is_some()) || lod.meshes.is_empty()
 }
 
+/// Pushes the sampler, an image of the binary chunk and a texture for each embedded image, and
+/// returns the textures in the order of the images.
+fn push_images(
+    root: &mut Root,
+    buffer: Index<json::Buffer>,
+    layout: &Layout<'_>,
+) -> Vec<Index<json::Texture>> {
+    if layout.images.is_empty() {
+        return Vec::new();
+    }
+    let sampler = root.push(json::texture::Sampler {
+        mag_filter: Some(Valid(json::texture::MagFilter::Linear)),
+        min_filter: Some(Valid(json::texture::MinFilter::LinearMipmapLinear)),
+        wrap_s: Valid(json::texture::WrappingMode::Repeat),
+        wrap_t: Valid(json::texture::WrappingMode::Repeat),
+        name: None,
+        extensions: None,
+        extras: json::extras::Void::default(),
+    });
+    layout
+        .images
+        .iter()
+        .map(|block| {
+            let view = root.push(json::buffer::View {
+                buffer,
+                byte_length: USize64(block.len),
+                byte_offset: Some(USize64(block.offset)),
+                byte_stride: None,
+                target: None,
+                name: None,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            });
+            let source = root.push(json::Image {
+                buffer_view: Some(view),
+                mime_type: Some(json::image::MimeType(PNG_MIME.to_owned())),
+                name: None,
+                uri: None,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            });
+            root.push(json::Texture {
+                name: None,
+                sampler: Some(sampler),
+                source,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            })
+        })
+        .collect()
+}
+
 fn materials(
     root: &mut Root,
     layout: &Layout<'_>,
     plan: &MaterialPlan<'_>,
+    textures: &TextureSet,
+    image_textures: &[Index<json::Texture>],
 ) -> BTreeMap<u16, Index<json::Material>> {
-    let mut ids: Vec<u16> = layout
-        .meshes
-        .iter()
-        .flat_map(|mesh| &mesh.primitives)
-        .map(|primitive| primitive.material_id)
-        .collect();
-    ids.sort_unstable();
-    ids.dedup();
+    let texture = |image: usize| image_textures.get(image).copied();
     let mut pushed: BTreeMap<Slot, Index<json::Material>> = BTreeMap::new();
     let mut by_id = BTreeMap::new();
-    for id in ids {
+    for id in layout.material_ids() {
         let Some(slot) = plan.slot(id) else { continue };
         let index = *pushed.entry(slot).or_insert_with(|| {
-            let fallback = match slot {
-                Slot::Library(position) => format!("material_{position}"),
-                Slot::Default => "default".to_owned(),
+            let material = plan.material(slot);
+            let images = textures.of(slot);
+            let drawn_with = MaterialTextures {
+                base: images
+                    .base
+                    .and_then(|base| Some((texture(base.image)?, base.tinted))),
+                normal: images.normal.and_then(texture),
+                metallic_roughness: images.metallic_roughness.and_then(|packed| {
+                    Some((texture(packed.image)?, packed.roughness, packed.metallic))
+                }),
             };
-            root.push(colour_material(plan.material(slot), &fallback))
+            root.push(build_material(
+                material,
+                &display_name(material, slot),
+                &drawn_with,
+            ))
         });
         by_id.insert(id, index);
     }

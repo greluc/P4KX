@@ -4,14 +4,12 @@
 //! The tests need a graphics adapter, a software one is enough, and return early without one.
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
-mod info_models;
-mod viewing;
-
 use std::fs::File;
 use std::io::BufWriter;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 
+use crate::viewing::{Site, TestResult, opened_at, opened_with, select, wait_until};
 use eframe::egui_wgpu::RendererOptions;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -19,7 +17,6 @@ use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_set
 use p4kx_gui::{Language, Model, Unavailable, ViewerSupport};
 use p4kx_settings::ModelMaterials;
 use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial};
-use viewing::{Site, TestResult, opened_at, opened_with, select, wait_until};
 
 #[expect(
     clippy::print_stderr,
@@ -71,9 +68,10 @@ fn the_info_tab_and_the_export_windows_render_in_both_languages() -> TestResult 
             return Ok(());
         };
         let support = ViewerSupport::Unavailable(Unavailable::NoDevice);
-        let (folder, mut harness) = opened_at(language, support, info_models::site(), |builder| {
-            builder.renderer(renderer)
-        })?;
+        let (folder, mut harness) =
+            opened_at(language, support, crate::info_models::site(), |builder| {
+                builder.renderer(renderer)
+            })?;
         select(&mut harness, "extra.cgf")?;
 
         harness.get_by_label(info).click();

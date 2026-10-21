@@ -1,18 +1,14 @@
 //! The Export as GLB windows over a synthetic Archive with a cube model, driven headless.
 
-mod glb_exporting;
-mod headless;
-mod viewing;
-
 use std::path::PathBuf;
 
+use crate::glb_exporting::{Window, finished, start};
+use crate::headless::{opened, ready, status_is_ready};
+use crate::viewing::{Site, TestResult, opened_at, select, wait_until};
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
-use glb_exporting::{Window, finished, start};
-use headless::{opened, ready, status_is_ready};
 use p4kx_gui::{KeyReason, Language, ModelExport, ModelExportFailure, ModelExportStatus};
 use p4kx_testkit::{TestEntry, TestModel, test_key};
-use viewing::{Site, TestResult, opened_at, select, wait_until};
 
 #[test]
 fn a_file_that_cannot_be_written_shows_a_message_and_the_window_keeps_working() -> TestResult {

@@ -1,19 +1,15 @@
 //! Export as GLB over a synthetic Archive with a cube model, driven headless.
 
-mod glb_exporting;
-mod headless;
-mod viewing;
-
 use std::path::Path;
 
+use crate::glb_exporting::{Window, finished, start};
+use crate::headless::{opened, ready, status_is_ready};
+use crate::viewing::{Site, TestResult, entries, opened_at, select};
 use egui_kittest::kittest::Queryable;
-use glb_exporting::{Window, finished, start};
-use headless::{opened, ready, status_is_ready};
 use p4kx_extraction::TextureRole;
 use p4kx_gui::{Language, Model, ModelExport, ModelExportStatus, ModelExportSummary};
 use p4kx_settings::ModelMaterials;
 use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial, check_glb};
-use viewing::{Site, TestResult, entries, opened_at, select};
 
 fn summary(model: &Model) -> Result<ModelExportSummary, String> {
     match model.model_export().map(ModelExport::status) {

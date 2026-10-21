@@ -26,6 +26,7 @@ mod entity_sample;
 mod entity_schema;
 mod frames;
 mod gfx;
+mod gfx_import;
 mod gfx_place;
 mod gfx_shape;
 mod gfx_tags;
@@ -75,6 +76,9 @@ pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, s
 pub use entity_schema::entity_schema;
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
+pub use gfx_import::{
+    import_assets_body, remove_object_body, scaling_grid_body, symbol_class_body,
+};
 pub use gfx_place::{TestPlace, background_body, remove_object2_body};
 pub use gfx_shape::{TestFill, TestGradient, TestShape, TestShapeRecord, morph_shape_body};
 pub use gfx_tags::{

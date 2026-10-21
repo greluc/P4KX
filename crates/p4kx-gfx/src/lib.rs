@@ -29,6 +29,7 @@ mod font_info;
 mod geometry;
 mod header;
 mod image;
+mod import;
 mod jpeg;
 mod json;
 #[cfg(test)]
@@ -79,9 +80,10 @@ pub use font::{Font, FontFormat, FontLayout, Glyph, Kerning};
 pub use geometry::{Matrix, Point, Rect, Rgba};
 pub use header::{Compression, Header, MAX_MOVIE_LEN, Signature};
 pub use image::{MAX_BITMAP_PIXELS, RgbaImage};
+pub use import::{Import, ImportedAsset, MAX_IMPORTS, ScalingGrid, SymbolClass};
 pub use morph::MorphShape;
 pub use movie::Movie;
-pub use place::{ColorTransform, Placement};
+pub use place::{ColorTransform, Filter, FilterKind, Placement};
 pub use raster::{
     Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Raster, RasterOptions,
 };
@@ -101,5 +103,7 @@ pub use tag::tag_name;
 pub use text::{EditLayout, EditText, GlyphEntry, MAX_TEXT_GLYPHS, StaticText, TextRecord};
 pub use text_fonts::{Localise, TextOptions};
 pub use text_html::MAX_TEXT_CHARS;
-pub use timeline::{Export, ExporterInfo, Sprite, Timeline};
+pub use timeline::{
+    Export, ExporterInfo, FrameLabel, MAX_FRAME_BYTES, MAX_FRAME_PLACEMENTS, Sprite, Timeline,
+};
 pub use walker::MAX_SPRITE_DEPTH;

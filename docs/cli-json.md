@@ -706,8 +706,14 @@ Also `p4kx ui assets <file> --json` for a GFx or SWF file on disk.
               "file": null, "image_id": 2, "export_name": null}],
  "fonts": [{"id": 8, "format": "DefineFont3", "name": "Electrolize", "full_name": null,
             "bold": true, "italic": false, "glyphs": 1, "outlines": true, "export_name": null}],
- "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"], "placed": [4],
+ "sprites": [{"id": 9, "frame_count": 2, "frames": 2, "labels": ["idle"],
+              "frame_labels": [{"frame": 1, "name": "idle"}], "placed": [4],
               "export_name": "PanelButton"}],
+ "imports": [{"url": "../../fonts/Shared/fonts_en.swf",
+              "assets": [{"id": 12, "name": "$OrbitronMed"}]}],
+ "symbol_classes": [{"id": 9, "name": "PanelButton"}],
+ "scaling_grids": [{"id": 9, "splitter": {"x_min": 100, "x_max": 900, "y_min": 100, "y_max": 400}}],
+ "unread_tags": [{"code": 12, "name": "DoAction", "count": 3}],
  "failures": [{"code": 2, "offset": 508, "error": "unexpected end of data at offset 510: …"}]}
 ```
 
@@ -726,7 +732,12 @@ in the uncompressed movie. Shapes, morph shapes, bitmaps, fonts and sprites are 
 embedded image and the GFx file format (`dds`, `tiff`, `tga`, …) of an external one; `width` and
 `height` are `null` where the movie does not state them. A font's `format` names its tag; `glyphs`
 is its glyph count and `outlines` whether glyph shapes are stored. A sprite lists its frame
-`labels` and the IDs it `placed`, ascending. `failures` lists the tags that could not be read;
+`labels` and, as `frame_labels`, each label with the index of the frame it names (from 0), and the
+IDs it `placed`, ascending. `imports` lists the assets the movie imports from other movies, each
+`url` as the movie states it with the local `id` and the exported `name`; `symbol_classes` the
+names bound to classes, `scaling_grids` the nine-slice rectangles. `unread_tags` counts like `tags`
+the known tags whose content is not read (actions, buttons, videos, debug and text-rendering
+hints). `failures` lists the tags that could not be read;
 they leave out their definition and the rest of the movie is still read, but the exit code is 1.
 A file that is no movie, or one larger than 64 MiB, prints no JSON; it fails with exit code 3.
 
@@ -775,13 +786,23 @@ with exit code 3.
               "message": "DefineButton2 definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
             {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
-             refers to ../Textures/gone.dds, which does not exist; …"}]}
+             refers to ../Textures/gone.dds, which does not exist; …"}],
+ "imports": {"movies": ["Data\\UI\\fonts\\Shared\\fonts_en.gfx"],
+             "unresolved": [{"url": "../../../fonts/Shared/fonts_en.swf", "name": "$Text1Heavy",
+                             "reason": "no_such_export",
+                             "message": "the movie does not export the name as a font"}]}}
 ```
 
-`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
-of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
-left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
-one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
+`imports` reports the fonts the movie imports with `ImportAssets` that its texts use: `movies` are
+the Entries read to resolve them (an Archive only), `unresolved` the imported names that were not
+found, each with its `url` as the movie states it, a stable `reason` (`not_found`, `unreadable`,
+`no_such_export`, `too_deep` or `over_budget`) and a `message` that says it in words; their texts
+are drawn as boxes and listed as `missing_font` in `skipped`.
+
+`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the
+size of the SVG document, written to `target`. `skipped` lists in drawing order every element the
+frame left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite
+whose timeline holds it (absent on the main timeline), `reason` is one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `too_many_glyphs`,
 `missing_font`, `missing_glyph`, `missing_glyph_index`, `unlocalised`, `text_truncated`, `filters`

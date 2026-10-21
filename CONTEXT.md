@@ -388,6 +388,12 @@ A bitmap of a GFx UI movie stored outside it, as a texture file named relative t
 game ships it as DDS even where the movie names a TIFF or TGA.
 _Avoid_: linked image, imported bitmap
 
+**Imported asset**:
+A definition a UI movie takes from another UI movie (`ImportAssets`) under a local ID, by the
+export name the other movie gives it; its font is found by that name, never by an ID of the other
+movie.
+_Avoid_: linked asset, shared font
+
 **Placement**:
 A definition put on a timeline of a UI movie at a depth, with a transform, a colour transform
 and, for a mask, the depths it clips; the placements of a frame form its display list.

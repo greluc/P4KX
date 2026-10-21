@@ -162,7 +162,7 @@ fn a_sprite_reads_its_timeline_and_its_nested_definitions() {
     let outer = &assets.sprites[0];
     assert_eq!(outer.frame_count, 2, "declared frames");
     assert_eq!(outer.timeline.frames, 2, "frames");
-    assert_eq!(outer.timeline.labels, ["open"], "labels");
+    assert_eq!(outer.timeline.frame_of("OPEN"), Some(0), "labels");
     assert_eq!(outer.timeline.placed, [11, 21], "placed");
     assert_eq!(outer.timeline.tag_count, 8, "tags with End");
     assert_eq!(assets.sprites[1].timeline.placed, [11], "nested");

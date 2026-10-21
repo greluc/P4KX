@@ -1,6 +1,6 @@
 //! The tag stream: counts, unknown tags, long headers, broken tags, exports and exporter info.
 
-use p4kx_gfx::{GfxError, Movie, tag_name};
+use p4kx_gfx::{FrameLabel, GfxError, Movie, tag_name};
 use p4kx_testkit::{
     TestMovie, TestSignature, exporter_info_body, exports_body, place_object2_body, sprite_body,
 };
@@ -136,7 +136,14 @@ fn exports_frame_labels_and_placements_are_read() {
     let assets = movie.assets();
     assert_eq!(assets.export_name(3), Some("Button"), "first");
     assert_eq!(assets.export_name(4), Some("Panel"), "second");
-    assert_eq!(assets.timeline.labels, ["intro"], "labels");
+    assert_eq!(
+        assets.timeline.labels,
+        [FrameLabel {
+            frame: 0,
+            name: "intro".to_owned()
+        }],
+        "labels"
+    );
     assert_eq!(assets.timeline.placed, [3, 4], "sorted, each once");
     assert_eq!(assets.timeline.frames, 1, "frames");
 }

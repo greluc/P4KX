@@ -92,6 +92,14 @@ pub(crate) fn integer(parent: Option<&StructValue<'_>>, name: &str) -> Option<i6
     }
 }
 
+/// Returns the boolean the field `name` of `parent` holds.
+pub(crate) fn boolean(parent: Option<&StructValue<'_>>, name: &str) -> Option<bool> {
+    match *parent?.field(name)? {
+        Value::Bool(value) => Some(value),
+        _ => None,
+    }
+}
+
 /// Returns the finite 32-bit float the field `name` of `parent` holds.
 pub(crate) fn single(parent: Option<&StructValue<'_>>, name: &str) -> Option<f32> {
     match *parent?.field(name)? {

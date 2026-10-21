@@ -47,8 +47,8 @@ tool version, export time). NDJSON has the ship objects only.
 | `implementation` | `file`, `modification`, `patchFile` of the vehicle implementation read; `null` when the ship names none or it cannot be read |
 | `size` | `{value, source}` from `AttachDef.Size`; `null` without one |
 | `mass` | hull mass, see below; `null` when neither parts nor physics controller state one |
-| `hull` | hull hit points, see below; `null` without a vehicle implementation |
-| `cargo` | `{scu, cells, grids}`, see below; `scu` is 0 for a ship without grids |
+| `hull` | hull hit points, see below; `null` without a vehicle implementation or when no part states a `damageMax` |
+| `cargo` | `{scu, cells, gridsWithIssue, grids}`, see below; `scu` is 0 for a ship without grids and `null` when it has grids and none is readable |
 | `loadoutSource` | the Record field the default Loadout is read from |
 | `loadout` | one entry per port that holds something |
 | `issues` | why data is missing, e.g. a vehicle implementation or patch file that cannot be read |
@@ -78,7 +78,9 @@ port flagged `uneditable` or `invisible` (thrusters, intakes), `parts` the numbe
 `destruction` lists the parts that destroy the ship at `damageRatioMin` (1 when absent) of their
 `damageMax` (their first damage behaviour in the group `Destroy`); `detach` lists the parts with a
 `detachRatio` and no destroying behaviour, which detach at that share. Each entry has `part`,
-`health`, `damage` and the `origin` of the part's `damageMax`.
+`health`, `damage` and the `origin` of the part's `damageMax`. `unreadable` lists `damageMax` and
+`detachRatio` values with text but no number, `cleaned` the `damageMax` numbers that needed their
+format characters dropped.
 
 ### Cargo
 
@@ -96,7 +98,10 @@ is read from the `InventoryContainer` Record its `SCItemInventoryContainerCompon
 
 Each grid lists `port` path, `className`, `guid`, `container`, `shape` (`open` or `closed`), `scu`,
 `cells`, `dimensions`, its `source` (the container Record and field) and an `issue` when its
-capacity cannot be read. The ship's `scu` and `cells` sum the grids, rounded to four decimals.
+capacity cannot be read. The ship's `scu` and `cells` sum the readable grids, rounded to four
+decimals; `gridsWithIssue` counts the others, and when it is not 0 the sums are a lower bound. A
+container with a side that is not a positive length up to 1000 m, or a capacity outside 0 to 10^9
+SCU, is not readable (an `issue`); sums saturate and never overflow.
 On LIVE, 76 grids carry an `issue`, in two kinds that are facts of the game data, not of the
 reading: the Javelin's and the Hornet F7C's grids refer to `InventoryContainer` Records that do not
 exist (dangling References, so no capacity), and `MISC_Hull_A_CargoPlate` is a `CargoGrid` item

@@ -591,14 +591,15 @@ unresolved texts of every language.
 ## `p4kx ships <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "format": "json", "ships": 1087, "skipped": 57, "mass": 1021,
- "hull": 1014, "cargo": 412, "issues": 3,
+{"archive": "…", "out": "…", "format": "json", "ships": 1087, "skipped": 57, "mass": 1087,
+ "hull": 1087, "cargo": 565, "issues": 3,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/spaceships/odd", "error": "…"}]}
 ```
 
 The ship data itself goes to `out` ([ship-base-data.md](ship-base-data.md)). `format` is `json` or
 `ndjson`; `ships` counts the ships written, `skipped` the development leftovers; `mass`, `hull`
-and `cargo` count the ships with a mass, with a hull and with cargo grids; `issues` the ships whose
+and `cargo` count the ships with a mass, with a hull (a part that states hit points) and with at
+least one cargo grid in their Loadout; `issues` the ships whose
 `issues` list is not empty. `failed` lists the ships that could not be read and are left out, with
 GUID, record path and reason, ordered by record path; the exit code is 1 when it is not empty.
 

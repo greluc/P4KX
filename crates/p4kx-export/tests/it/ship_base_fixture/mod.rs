@@ -13,6 +13,12 @@ pub(crate) const BETA: u128 = 0x11;
 pub(crate) const GROUND: u128 = 0x12;
 pub(crate) const BROKEN: u128 = 0x13;
 const DUMMY: u128 = 0x14;
+pub(crate) const MIXED: u128 = 0x15;
+pub(crate) const UNKNOWN: u128 = 0x16;
+const GRID_HUGE: u128 = 0x25;
+const GRID_NEGATIVE: u128 = 0x26;
+const CONTAINER_HUGE: u128 = 0x32;
+const CONTAINER_NEGATIVE: u128 = 0x33;
 const GRID_OPEN: u128 = 0x20;
 const GRID_CLOSED: u128 = 0x21;
 const GRID_TEMPLATE: u128 = 0x22;
@@ -87,6 +93,23 @@ fn entities() -> Vec<TestEntity> {
         ship(GROUND, "ACME_Ground").physics_mass(5400.0),
         ship(BROKEN, "ACME_Broken").vehicle(definition("ACME_Broken"), ""),
         ship(DUMMY, "ACME_Dummy_Ship"),
+        ship(MIXED, "ACME_Mixed").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("grid_huge", "ACME_Grid_Huge"),
+            TestLoadoutEntry::class("grid_negative", "ACME_Grid_Negative"),
+            TestLoadoutEntry::class("grid_ok", "ACME_Grid_Open"),
+        ])),
+        ship(UNKNOWN, "ACME_Unknown")
+            .vehicle(definition("ACME_Flat"), "")
+            .loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("grid_huge", "ACME_Grid_Huge"),
+                TestLoadoutEntry::class("grid_negative", "ACME_Grid_Negative"),
+            ])),
+        item(GRID_HUGE, "ACME_Grid_Huge")
+            .attach_type("CargoGrid")
+            .container(CONTAINER_HUGE),
+        item(GRID_NEGATIVE, "ACME_Grid_Negative")
+            .attach_type("CargoGrid")
+            .container(CONTAINER_NEGATIVE),
         item(GRID_OPEN, "ACME_Grid_Open")
             .attach_type("CargoGrid")
             .container(CONTAINER_OPEN),
@@ -118,6 +141,16 @@ fn database() -> DataForgeBuilder {
                 CONTAINER_CLOSED,
                 "grid_closed",
                 TestCapacity::Centi(250.0),
+            ))
+            .record(open_container_record(
+                CONTAINER_HUGE,
+                "grid_huge",
+                [1e30, 1e30, 1e30],
+            ))
+            .record(open_container_record(
+                CONTAINER_NEGATIVE,
+                "grid_negative",
+                [-2.5, 5.0, -2.5],
             )),
         |builder, entity| builder.record(entity.record()),
     )
@@ -135,6 +168,10 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::zstd(
             format!("{XML_DIR}Modifications\\ACME_Alpha_Heavy.xml"),
             HEAVY.as_bytes().to_vec(),
+        ))
+        .entry(TestEntry::zstd(
+            format!("{XML_DIR}ACME_Flat.xml"),
+            br#"<Vehicle name="ACME_Flat"><Parts><Part name="hull" class="Animated" mass="10"/></Parts></Vehicle>"#.to_vec(),
         ))
         .entry(TestEntry::zstd(
             format!("{XML_DIR}ACME_Broken.xml"),

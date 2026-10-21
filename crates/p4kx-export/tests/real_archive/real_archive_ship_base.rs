@@ -18,6 +18,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MIN_SHIPS: usize = 500;
 const HARBINGER: &str = "AEGS_Vanguard_Harbinger";
 const HARBINGER_MASS: f64 = 230_404.0;
+const HARBINGER_HULL: f64 = 48_490.0;
 const FREELANCER_MAX: &str = "MISC_Freelancer_MAX";
 const FREELANCER_MAX_MASS: f64 = 341_408.0;
 const CARRACK: &str = "ANVL_Carrack";
@@ -65,17 +66,23 @@ fn report(built: &BuiltShipBase) {
             .as_ref()
             .is_some_and(|m| m.basis == MassBasis::Physics)),
         with(|s| s.hull.is_some()),
-        with(|s| s.cargo.scu > 0.0),
+        with(|s| !s.cargo.grids.is_empty()),
         with(|s| !s.loadout.is_empty()),
         with(|s| !s.issues.is_empty()),
     );
     println!(
         "numbers cleaned of format characters {cleaned}, unreadable mass values {unreadable}, grids with an issue {grid_issues}"
     );
-    for class_name in [HARBINGER, FREELANCER_MAX, CARRACK, "AEGS_Avenger_Titan"] {
+    for class_name in [
+        HARBINGER,
+        FREELANCER_MAX,
+        CARRACK,
+        ANDROMEDA,
+        "AEGS_Avenger_Titan",
+    ] {
         if let Ok(ship) = ship(built, class_name) {
             println!(
-                "{class_name}: size {:?} mass {:?} hull {:?} cargo {} scu in {} grids, {} loadout ports",
+                "{class_name}: size {:?} mass {:?} hull {:?} cargo {:?} scu in {} grids, {} loadout ports",
                 ship.size.as_ref().map(|s| s.value),
                 ship.mass.as_ref().map(|m| m.kg),
                 ship.hull.as_ref().map(|h| h.health),
@@ -176,7 +183,14 @@ fn the_harbinger_is_lighter_after_its_modification() -> TestResult {
         mass.sources
     );
     let hull = harbinger.hull.as_ref().ok_or("the Harbinger has no hull")?;
-    assert!(hull.health > 0.0 && hull.parts > 0);
+    assert!(
+        (hull.health - HARBINGER_HULL).abs() <= 1.0,
+        "the Harbinger's hull: {}",
+        hull.health
+    );
+    assert!(hull.parts > 0);
+    assert_eq!(harbinger.cargo.scu, Some(0.0));
+    assert!(harbinger.cargo.scu.is_some_and(f64::is_sign_positive));
     Ok(())
 }
 
@@ -195,8 +209,11 @@ fn the_freelancer_max_has_its_patched_mass_and_about_120_scu() -> TestResult {
         mass.kg
     );
     assert!(
-        (100.0..=140.0).contains(&freelancer.cargo.scu),
-        "the Freelancer MAX carries 120 SCU: {}",
+        freelancer
+            .cargo
+            .scu
+            .is_some_and(|scu| (scu - 120.0).abs() <= 0.5),
+        "the Freelancer MAX carries 120 SCU: {:?}",
         freelancer.cargo.scu
     );
     assert!(freelancer.size.is_some(), "AttachDef.Size");
@@ -209,20 +226,20 @@ fn the_carrack_has_456_scu_and_the_andromeda_does_not_count_its_docked_snub() ->
     let built = built()?;
     let carrack = ship(built, CARRACK)?;
     assert!(
-        (440.0..=470.0).contains(&carrack.cargo.scu),
-        "the Carrack carries 456 SCU: {}",
+        carrack
+            .cargo
+            .scu
+            .is_some_and(|scu| (scu - 456.0).abs() <= 0.5),
+        "the Carrack carries 456 SCU: {:?}",
         carrack.cargo.scu
-    );
-    let harbinger = ship(built, HARBINGER)?;
-    assert!(
-        harbinger.cargo.scu.is_sign_positive(),
-        "no negative zero: {}",
-        harbinger.cargo.scu
     );
     let andromeda = ship(built, ANDROMEDA)?;
     assert!(
-        (80.0..=110.0).contains(&andromeda.cargo.scu),
-        "the Andromeda carries 96 SCU, without the snub's grids: {}",
+        andromeda
+            .cargo
+            .scu
+            .is_some_and(|scu| (80.0..=110.0).contains(&scu)),
+        "the Andromeda carries 96 SCU, without the snub's grids: {:?}",
         andromeda.cargo.scu
     );
     let docked: Vec<_> = andromeda

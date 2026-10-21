@@ -1,6 +1,8 @@
 //! The base data of ships through the public API.
 
-use crate::ship_base_fixture::{ALPHA, ALPHA_XML, BETA, BROKEN, GROUND, write_archive};
+use crate::ship_base_fixture::{
+    ALPHA, ALPHA_XML, BETA, BROKEN, GROUND, MIXED, UNKNOWN, write_archive,
+};
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
@@ -46,7 +48,7 @@ fn near(left: f64, right: f64) -> bool {
 #[test]
 fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
     let built = build(None)?;
-    assert_eq!(built.ships().len(), 4, "failures: {:?}", built.failures());
+    assert_eq!(built.ships().len(), 6, "failures: {:?}", built.failures());
     assert_eq!(built.skipped(), 1, "ACME_Dummy_Ship holds the token dummy");
     assert!(built.is_complete(), "failures: {:?}", built.failures());
     let order: Vec<_> = built
@@ -56,7 +58,14 @@ fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
         .collect();
     assert_eq!(
         order,
-        ["ACME_Alpha", "ACME_Beta", "ACME_Ground", "ACME_Broken"],
+        [
+            "ACME_Alpha",
+            "ACME_Beta",
+            "ACME_Ground",
+            "ACME_Broken",
+            "ACME_Mixed",
+            "ACME_Unknown"
+        ],
         "ordered by the text of the GUID"
     );
     Ok(())
@@ -164,12 +173,10 @@ fn the_modification_moves_values_and_names_the_patch_and_the_elem() -> TestResul
 fn cargo_sums_the_grids_of_the_loadout_but_not_templates_or_docked_vehicles() -> TestResult {
     let built = build(None)?;
     let cargo = &ship(&built, ALPHA)?.cargo;
-    assert!(
-        near(cargo.scu, 18.5),
-        "16 SCU open grid + 2.5 SCU closed: {}",
-        cargo.scu
-    );
-    assert_eq!(cargo.cells, 16);
+    let scu = cargo.scu.ok_or("no scu")?;
+    assert!(near(scu, 18.5), "16 SCU open grid + 2.5 SCU closed: {scu}");
+    assert_eq!(cargo.cells, Some(16));
+    assert_eq!(cargo.grids_with_issue, 0);
     let ports: Vec<_> = cargo.grids.iter().map(|grid| grid.port.as_str()).collect();
     assert_eq!(ports, ["grid_main", "grid_aux"]);
     let open = &cargo.grids[0];
@@ -193,13 +200,37 @@ fn cargo_sums_the_grids_of_the_loadout_but_not_templates_or_docked_vehicles() ->
         closed
             .source
             .as_ref()
-            .is_some_and(|s| s.field.ends_with("SCentiCargoUnit"))
+            .is_some_and(|s| s.field.ends_with("SCentiCargoUnit/centiSCU"))
     );
-    let none = ship(&built, GROUND)?.cargo.scu;
+    let none = ship(&built, GROUND)?.cargo.scu.ok_or("no grids is 0")?;
     assert!(
         near(none, 0.0) && none.is_sign_positive(),
         "no negative zero: {none}"
     );
+    Ok(())
+}
+
+#[test]
+fn absurd_or_negative_dimensions_are_unreadable_and_never_overflow() -> TestResult {
+    let built = build(None)?;
+    let mixed = &ship(&built, MIXED)?.cargo;
+    assert_eq!(mixed.grids_with_issue, 2);
+    assert!(near(mixed.scu.ok_or("one grid is readable")?, 16.0));
+    assert_eq!(mixed.cells, Some(16));
+    for grid in &mixed.grids[..2] {
+        assert!(
+            grid.scu.is_none() && grid.cells.is_none() && grid.issue.is_some(),
+            "{}: {:?}",
+            grid.port,
+            grid.issue
+        );
+    }
+    let unknown = ship(&built, UNKNOWN)?;
+    assert_eq!(unknown.cargo.scu, None, "unknown cargo is not zero cargo");
+    assert_eq!(unknown.cargo.cells, None);
+    assert_eq!(unknown.cargo.grids_with_issue, 2);
+    assert!(unknown.hull.is_none(), "no part states a damageMax");
+    assert!(unknown.mass.is_some());
     Ok(())
 }
 
@@ -287,6 +318,7 @@ fn json_and_ndjson_carry_the_same_ships_in_the_same_order() -> TestResult {
         .collect::<Result<_, _>>()?;
     assert_eq!(lines, from_json);
     assert_eq!(lines[0]["cargo"]["scu"], 18.5);
+    assert!(lines[5]["cargo"]["scu"].is_null(), "unknown cargo is null");
     assert_eq!(lines[0]["mass"]["sources"][0]["kind"], "vehicleXml");
     assert_eq!(lines[0]["loadout"][4]["dockedVehicle"], true);
     assert!(lines[0]["loadout"][0].get("dockedVehicle").is_none());

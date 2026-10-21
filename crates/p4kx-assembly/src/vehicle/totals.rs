@@ -114,7 +114,8 @@ pub struct VehicleTotals {
     destruction: Vec<PartThreshold>,
     detach: Vec<PartThreshold>,
     unreadable: Vec<UnreadableValue>,
-    cleaned: usize,
+    cleaned_mass: usize,
+    cleaned_damage: usize,
 }
 
 impl VehicleTotals {
@@ -179,7 +180,20 @@ impl VehicleTotals {
     /// Returns how many numbers read carried invisible format characters that were dropped.
     #[must_use]
     pub const fn cleaned(&self) -> usize {
-        self.cleaned
+        self.cleaned_mass.saturating_add(self.cleaned_damage)
+    }
+
+    /// Returns how many `mass` numbers needed their format characters dropped.
+    #[must_use]
+    pub const fn cleaned_mass(&self) -> usize {
+        self.cleaned_mass
+    }
+
+    /// Returns how many `damageMax` and `detachRatio` numbers needed their format characters
+    /// dropped.
+    #[must_use]
+    pub const fn cleaned_damage(&self) -> usize {
+        self.cleaned_damage
     }
 }
 
@@ -248,7 +262,12 @@ fn number_of(
     match parsed {
         Some(_) => {
             if raw.chars().any(is_format_character) {
-                totals.cleaned = totals.cleaned.saturating_add(1);
+                let counter = if name == "mass" {
+                    &mut totals.cleaned_mass
+                } else {
+                    &mut totals.cleaned_damage
+                };
+                *counter = counter.saturating_add(1);
             }
         }
         None => totals.unreadable.push(UnreadableValue {

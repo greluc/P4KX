@@ -80,7 +80,7 @@ impl<'f> ShipReader<'f> {
             implementation: vehicle.map(implementation),
             size: size(&tree),
             mass: mass(&tree, vehicle, totals.as_ref()),
-            hull: vehicle.zip(totals.as_ref()).map(|(v, t)| hull(v, t)),
+            hull: vehicle.zip(totals.as_ref()).and_then(|(v, t)| hull(v, t)),
             cargo: self.cargo.read(&entries, &mut self.trees),
             loadout_source: Source {
                 kind: SourceKind::Record,
@@ -127,8 +127,8 @@ fn mass(
             basis: MassBasis::Parts,
             parts: totals.mass_parts(),
             sources: shares(vehicle, totals.mass_origins(), PARTS_MASS),
-            unreadable: unreadable(totals, "mass"),
-            cleaned: totals.cleaned(),
+            unreadable: unreadable(totals, &["mass"]),
+            cleaned: totals.cleaned_mass(),
         });
     }
     let physics = structure(
@@ -148,20 +148,24 @@ fn mass(
             },
             values: 1,
         }],
-        unreadable: totals.map_or_else(Vec::new, |totals| unreadable(totals, "mass")),
+        unreadable: totals.map_or_else(Vec::new, |totals| unreadable(totals, &["mass"])),
         cleaned: 0,
     })
 }
 
-fn hull(vehicle: &VehicleImplementation, totals: &VehicleTotals) -> Hull {
-    Hull {
+fn hull(vehicle: &VehicleImplementation, totals: &VehicleTotals) -> Option<Hull> {
+    if totals.health_parts() == 0 {
+        return None;
+    }
+    Some(Hull {
         health: rounded(totals.health()),
         parts: totals.health_parts(),
         sources: shares(vehicle, totals.health_origins(), PARTS_DAMAGE),
         destruction: thresholds(totals.destruction()),
         detach: thresholds(totals.detach()),
-        unreadable: unreadable(totals, "damageMax"),
-    }
+        unreadable: unreadable(totals, &["damageMax", "detachRatio"]),
+        cleaned: totals.cleaned_damage(),
+    })
 }
 
 fn thresholds(found: &[PartThreshold]) -> Vec<HullThreshold> {
@@ -176,11 +180,11 @@ fn thresholds(found: &[PartThreshold]) -> Vec<HullThreshold> {
         .collect()
 }
 
-fn unreadable(totals: &VehicleTotals, attribute: &str) -> Vec<UnreadablePartValue> {
+fn unreadable(totals: &VehicleTotals, attributes: &[&str]) -> Vec<UnreadablePartValue> {
     totals
         .unreadable()
         .iter()
-        .filter(|value| value.attribute() == attribute)
+        .filter(|value| attributes.contains(&value.attribute()))
         .map(|value: &UnreadableValue| UnreadablePartValue {
             part: value.part().to_owned(),
             attribute: value.attribute(),

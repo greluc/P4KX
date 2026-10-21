@@ -120,7 +120,7 @@ fn destroy_ratio(part: &Element) -> Option<f64> {
             behavior
                 .child("Group")
                 .and_then(|group| group.attribute("name"))
-                .is_some_and(|name| name == "Destroy")
+                .is_some_and(|name| name.eq_ignore_ascii_case("Destroy"))
         })?;
     Some(number(behavior.attribute("damageRatioMin")).unwrap_or(1.0))
 }

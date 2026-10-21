@@ -125,8 +125,10 @@ pub struct Hull {
     pub destruction: Vec<HullThreshold>,
     /// Parts that detach at a share of their hit points and do not destroy the ship.
     pub detach: Vec<HullThreshold>,
-    /// Part values that hold text but no number; they are not in the sum.
+    /// Part `damageMax` and `detachRatio` values that hold text but no number; they are not used.
     pub unreadable: Vec<UnreadablePartValue>,
+    /// How many `damageMax` numbers had invisible format characters dropped before they were read.
+    pub cleaned: usize,
 }
 
 /// One cargo grid reached through the default Loadout.
@@ -161,10 +163,13 @@ pub struct CargoGrid {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cargo {
-    /// The sum of the grids' capacity in standard cargo units, rounded to four decimals.
-    pub scu: f64,
-    /// The sum of the open grids' cells.
-    pub cells: u64,
+    /// The sum of the readable grids' capacity in standard cargo units, rounded to four
+    /// decimals: 0 for a ship with no cargo grid, `null` when it has grids and none is readable.
+    pub scu: Option<f64>,
+    /// The sum of the open grids' cells, `null` like `scu`.
+    pub cells: Option<u64>,
+    /// How many grids have an `issue`; when it is not 0 the sums are a lower bound.
+    pub grids_with_issue: usize,
     /// The grids, in port order.
     pub grids: Vec<CargoGrid>,
 }

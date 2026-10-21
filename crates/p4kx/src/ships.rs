@@ -124,7 +124,10 @@ fn summary<'a>(built: &'a BuiltShipBase, args: &ShipsArgs, archive: String) -> S
         skipped: built.skipped(),
         mass: ships.iter().filter(|ship| ship.mass.is_some()).count(),
         hull: ships.iter().filter(|ship| ship.hull.is_some()).count(),
-        cargo: ships.iter().filter(|ship| ship.cargo.scu > 0.0).count(),
+        cargo: ships
+            .iter()
+            .filter(|ship| !ship.cargo.grids.is_empty())
+            .count(),
         issues: ships.iter().filter(|ship| !ship.issues.is_empty()).count(),
         failed: built
             .failures()
@@ -143,12 +146,12 @@ fn print_summary(built: &BuiltShipBase, out: &Path) -> io::Result<()> {
     let count = |test: fn(&p4kx_export::ShipBase) -> bool| ships.iter().filter(|s| test(s)).count();
     writeln!(
         io::stdout().lock(),
-        "wrote {}: {} ships ({} with mass, {} with hull, {} with cargo, {} with issues), {} Records skipped, {} failed",
+        "wrote {}: {} ships ({} with mass, {} with hull, {} with cargo grids, {} with issues), {} Records skipped, {} failed",
         out.display(),
         ships.len(),
         count(|ship| ship.mass.is_some()),
         count(|ship| ship.hull.is_some()),
-        count(|ship| ship.cargo.scu > 0.0),
+        count(|ship| !ship.cargo.grids.is_empty()),
         count(|ship| !ship.issues.is_empty()),
         built.skipped(),
         built.failures().len()

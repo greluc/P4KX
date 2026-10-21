@@ -111,8 +111,8 @@ impl BuiltShipBase {
 ///
 /// A ship is an Entity Record under `entities/spaceships` or `entities/groundvehicles`, the
 /// selection of the catalog's `ships` kind, without the development leftovers
-/// ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)). Ships are read in parallel, in chunks that each
-/// share one [`ShipReader`]. A ship that cannot be read is left out and listed in
+/// ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)). Ships are read in parallel by worker-local
+/// [`ShipReader`]s. A ship that cannot be read is left out and listed in
 /// [`BuiltShipBase::failures`].
 ///
 /// # Errors
@@ -147,29 +147,26 @@ pub fn build_ship_base_from(
     let selection = select::ships(&records, options);
     let total = selection.ships.len();
     let done = AtomicUsize::new(0);
-    let chunk = total.div_ceil(rayon::current_num_threads()).max(1);
     let read: Vec<Option<Result<ShipBase, CatalogFailure>>> = selection
         .ships
-        .par_chunks(chunk)
-        .flat_map_iter(|part| {
-            let mut reader = ShipReader::new(&forge, &files);
-            part.iter()
-                .map(|record| {
-                    if options.cancel.is_some_and(CancelToken::is_cancelled) {
-                        return None;
-                    }
-                    let result = reader.read(record);
-                    let finished = done.fetch_add(1, Ordering::Relaxed).saturating_add(1);
-                    if let Some(progress) = options.progress {
-                        progress(CatalogProgress {
-                            records_done: finished,
-                            records_total: total,
-                        });
-                    }
-                    Some(result)
-                })
-                .collect::<Vec<_>>()
-        })
+        .par_iter()
+        .map_init(
+            || ShipReader::new(&forge, &files),
+            |reader, record| {
+                if options.cancel.is_some_and(CancelToken::is_cancelled) {
+                    return None;
+                }
+                let result = reader.read(record);
+                let finished = done.fetch_add(1, Ordering::Relaxed).saturating_add(1);
+                if let Some(progress) = options.progress {
+                    progress(CatalogProgress {
+                        records_done: finished,
+                        records_total: total,
+                    });
+                }
+                Some(result)
+            },
+        )
         .collect();
     let mut ships = Vec::with_capacity(read.len());
     let mut failures = selection.failures;

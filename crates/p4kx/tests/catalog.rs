@@ -89,6 +89,35 @@ fn catalog_writes_a_catalog_that_the_schema_accepts() -> TestResult {
 }
 
 #[test]
+fn catalog_source_carries_the_public_patch_the_launcher_log_names() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let logs = dir.path().join("logs");
+    fs::create_dir_all(&logs)?;
+    fs::write(
+        logs.join("log.log"),
+        "Delta update applied (SC LIVE 4.4.1-live.10012345) in C:\\SC\\LIVE\n",
+    )?;
+    let out = dir.path().join("with-patch.json");
+    let output = p4kx(&["catalog"])?
+        .env("P4KX_LAUNCHER_LOGS", &logs)
+        .arg(&archive)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+    assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+
+    let catalog: serde_json::Value = serde_json::from_str(&fs::read_to_string(&out)?)?;
+    let schema: serde_json::Value = serde_json::from_str(&printed_schema()?)?;
+    assert!(
+        jsonschema::validator_for(&schema)?.is_valid(&catalog),
+        "valid against the schema"
+    );
+    assert_eq!(catalog["source"]["build"]["publicPatch"], "4.4.1");
+    Ok(())
+}
+
+#[test]
 fn catalog_with_a_filter_marks_the_kind_partial_and_prints_json() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;

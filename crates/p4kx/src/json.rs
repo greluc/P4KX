@@ -24,6 +24,7 @@ pub(crate) struct BuildJson<'a> {
     version: &'a str,
     change_number: &'a str,
     build_id: &'a str,
+    public_patch: Option<&'a str>,
 }
 
 impl<'a> From<&'a Build> for BuildJson<'a> {
@@ -33,6 +34,7 @@ impl<'a> From<&'a Build> for BuildJson<'a> {
             version: build.version(),
             change_number: build.change_number(),
             build_id: build.build_id(),
+            public_patch: build.public_patch(),
         }
     }
 }

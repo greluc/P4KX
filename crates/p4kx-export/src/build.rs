@@ -127,6 +127,7 @@ fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
             version: build.version(),
             change_number: build.change_number(),
             build_id: build.build_id(),
+            public_patch: build.public_patch(),
         }),
         archive_size: archive.file_len(),
         archive_modified: archive.file_modified().map(utc_rfc3339),

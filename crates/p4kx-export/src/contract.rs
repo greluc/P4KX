@@ -71,6 +71,9 @@ pub(crate) struct BuildSource<'a> {
     pub(crate) change_number: &'a str,
     /// The `BuildId` of the build manifest.
     pub(crate) build_id: &'a str,
+    /// The public patch version, e.g. `4.7.2`, from the RSI Launcher log line with the same
+    /// change number; `null` when the log has none.
+    pub(crate) public_patch: Option<&'a str>,
 }
 
 /// The completeness of every kind.

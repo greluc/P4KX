@@ -7,26 +7,26 @@ use json::mesh::{Mode, Primitive, Semantic};
 use json::validation::Checked::Valid;
 use json::validation::USize64;
 use json::{Accessor, Index, Root};
-use p4kx_model::{Lod, Model};
 
 use crate::block_data::BlockData;
+use crate::instance::{Instance, MaterialIds, Wrapper, materials};
 use crate::layout::{Block, Layout, MeshLayout};
-use crate::materials::{MaterialPlan, MaterialTextures, Slot, build_material, display_name};
-use crate::nodes::{Skeleton, push_nodes};
+use crate::nodes::{Skeleton, push_nodes, push_scene_nodes};
 use crate::texture_plan::TextureSet;
 
 const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
 const PNG_MIME: &str = "image/png";
 
-/// Builds the glTF document of `model` over the planned binary chunk `layout`.
+/// Builds the glTF document of the `wrappers` and the model `instances` over the planned binary
+/// chunk `layout`.
 ///
-/// The bones become nodes when a mesh of the level of detail is skinned and when the level has no
-/// mesh at all, as in a skeleton file; the skinned meshes then share one skin.
+/// Without wrappers and with one instance, the bones become nodes when a mesh of the level of
+/// detail is skinned and when the level has no mesh at all, as in a skeleton file; the skinned
+/// meshes then share one skin.
 pub(crate) fn document(
-    model: &Model,
-    lod: &Lod,
+    wrappers: &[Wrapper<'_>],
+    instances: &[Instance<'_>],
     layout: &Layout<'_>,
-    plan: &MaterialPlan<'_>,
     textures: &TextureSet,
 ) -> Root {
     let mut root = Root {
@@ -48,44 +48,101 @@ pub(crate) fn document(
     let image_textures = buffer
         .map(|buffer| push_images(&mut root, buffer, layout))
         .unwrap_or_default();
-    let materials = materials(&mut root, layout, plan, textures, &image_textures);
-    let mut node_meshes = vec![None; model.nodes.len()];
-    let mut skinned = vec![false; model.nodes.len()];
+    let materials = materials(&mut root, layout, instances, textures, &image_textures);
+    let (node_meshes, skinned) = buffer.map_or_else(
+        || empty_nodes(instances),
+        |buffer| push_meshes(&mut root, buffer, layout, instances, &materials),
+    );
+    match (
+        wrappers,
+        instances,
+        node_meshes.as_slice(),
+        skinned.as_slice(),
+    ) {
+        ([], [instance], [meshes], [skinned]) => {
+            push_single(&mut root, buffer, layout, instance, meshes, skinned);
+        }
+        _ => push_scene_nodes(&mut root, wrappers, instances, &node_meshes),
+    }
+    root
+}
+
+type NodeMeshes = Vec<Vec<Option<Index<json::Mesh>>>>;
+
+fn empty_nodes(instances: &[Instance<'_>]) -> (NodeMeshes, Vec<Vec<bool>>) {
+    let meshes = instances
+        .iter()
+        .map(|instance| vec![None; instance.model.nodes.len()])
+        .collect();
+    let skinned = instances
+        .iter()
+        .map(|instance| vec![false; instance.model.nodes.len()])
+        .collect();
+    (meshes, skinned)
+}
+
+/// Pushes the mesh of every mesh layout and returns, per instance and node, the mesh and whether
+/// it is skinned.
+fn push_meshes(
+    root: &mut Root,
+    buffer: Index<json::Buffer>,
+    layout: &Layout<'_>,
+    instances: &[Instance<'_>],
+    materials: &[MaterialIds],
+) -> (NodeMeshes, Vec<Vec<bool>>) {
+    let (mut node_meshes, mut skinned) = empty_nodes(instances);
     for mesh in &layout.meshes {
-        let Some(buffer) = buffer else { break };
-        let name = model.nodes.get(mesh.node).map(|node| node.name.clone());
-        let index = push_mesh(&mut root, buffer, layout, mesh, &materials, name);
-        if let Some(slot) = node_meshes.get_mut(mesh.node) {
+        let name = instances
+            .get(mesh.part)
+            .and_then(|instance| instance.model.nodes.get(mesh.node))
+            .map(|node| node.name.clone());
+        let index = push_mesh(root, buffer, layout, mesh, materials.get(mesh.part), name);
+        if let Some(slot) = node_meshes
+            .get_mut(mesh.part)
+            .and_then(|nodes| nodes.get_mut(mesh.node))
+        {
             *slot = Some(index);
         }
-        if let Some(slot) = skinned.get_mut(mesh.node) {
+        if let Some(slot) = skinned
+            .get_mut(mesh.part)
+            .and_then(|nodes| nodes.get_mut(mesh.node))
+        {
             *slot = !mesh.joints.is_empty();
         }
     }
+    (node_meshes, skinned)
+}
+
+fn push_single(
+    root: &mut Root,
+    buffer: Option<Index<json::Buffer>>,
+    layout: &Layout<'_>,
+    instance: &Instance<'_>,
+    meshes: &[Option<Index<json::Mesh>>],
+    skinned: &[bool],
+) {
     let binds = buffer
         .zip(
             layout
                 .inverse_binds
                 .and_then(|block| layout.blocks.get(block)),
         )
-        .map(|(buffer, block)| push_accessor(&mut root, buffer, block, None));
+        .map(|(buffer, block)| push_accessor(root, buffer, block, None));
     let has_skin = skinned.contains(&true) && binds.is_some();
-    let bones = if has_skin || lod.meshes.is_empty() {
-        model.bones_of(lod)
-    } else {
-        &[]
+    let bones = match instance.lod {
+        Some(lod) if has_skin || lod.meshes.is_empty() => instance.model.bones_of(lod),
+        _ => &[],
     };
     push_nodes(
-        &mut root,
-        model,
-        &node_meshes,
+        root,
+        instance.model,
+        meshes,
         &Skeleton {
             bones,
-            skinned: if has_skin { &skinned } else { &[] },
+            skinned: if has_skin { skinned } else { &[] },
             inverse_binds: binds.filter(|_| has_skin),
         },
     );
-    root
 }
 
 /// Pushes the sampler, an image of the binary chunk and a texture for each embedded image, and
@@ -140,47 +197,12 @@ fn push_images(
         .collect()
 }
 
-fn materials(
-    root: &mut Root,
-    layout: &Layout<'_>,
-    plan: &MaterialPlan<'_>,
-    textures: &TextureSet,
-    image_textures: &[Index<json::Texture>],
-) -> BTreeMap<u16, Index<json::Material>> {
-    let texture = |image: usize| image_textures.get(image).copied();
-    let mut pushed: BTreeMap<Slot, Index<json::Material>> = BTreeMap::new();
-    let mut by_id = BTreeMap::new();
-    for id in layout.material_ids() {
-        let Some(slot) = plan.slot(id) else { continue };
-        let index = *pushed.entry(slot).or_insert_with(|| {
-            let material = plan.material(slot);
-            let images = textures.of(slot);
-            let drawn_with = MaterialTextures {
-                base: images
-                    .base
-                    .and_then(|base| Some((texture(base.image)?, base.tinted))),
-                normal: images.normal.and_then(texture),
-                metallic_roughness: images.metallic_roughness.and_then(|packed| {
-                    Some((texture(packed.image)?, packed.roughness, packed.metallic))
-                }),
-            };
-            root.push(build_material(
-                material,
-                &display_name(material, slot),
-                &drawn_with,
-            ))
-        });
-        by_id.insert(id, index);
-    }
-    by_id
-}
-
 fn push_mesh(
     root: &mut Root,
     buffer: Index<json::Buffer>,
     layout: &Layout<'_>,
     mesh: &MeshLayout,
-    materials: &BTreeMap<u16, Index<json::Material>>,
+    materials: Option<&MaterialIds>,
     name: Option<String>,
 ) -> Index<json::Mesh> {
     let mut attributes = BTreeMap::new();
@@ -222,7 +244,7 @@ fn push_mesh(
             Some(Primitive {
                 attributes: attributes.clone(),
                 indices: Some(push_accessor(root, buffer, &indices, None)),
-                material: materials.get(&primitive.material_id).copied(),
+                material: materials.and_then(|ids| ids.get(&primitive.material_id).copied()),
                 mode: Valid(Mode::Triangles),
                 targets: None,
                 extensions: None,

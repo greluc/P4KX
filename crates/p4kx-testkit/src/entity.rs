@@ -16,6 +16,7 @@ pub struct TestEntity {
     loadout: Option<TestLoadout>,
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
+    geometry: Option<(String, Option<String>)>,
 }
 
 impl TestEntity {
@@ -31,7 +32,17 @@ impl TestEntity {
             loadout: None,
             triggers: Vec::new(),
             sound_effects: Vec::new(),
+            geometry: None,
         }
+    }
+
+    /// Names the model `path` as the Entity's geometry and, if given, the material library
+    /// `material` that replaces the one the model names; the database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn geometry(mut self, path: impl Into<String>, material: Option<&str>) -> Self {
+        self.geometry = Some((path.into(), material.map(str::to_owned)));
+        self
     }
 
     /// Adds a reference to the audio trigger `name` in the Entity's audio component; the
@@ -85,6 +96,9 @@ impl TestEntity {
         if !self.triggers.is_empty() || !self.sound_effects.is_empty() {
             components.push(self.audio_component());
         }
+        if let Some((path, material)) = &self.geometry {
+            components.push(geometry_component(path, material.as_deref()));
+        }
         TestRecord::new(
             self.guid,
             "EntityClassDefinition",
@@ -122,6 +136,22 @@ impl TestEntity {
                 .value("triggerEffects", TestValue::Array(effects)),
         )
     }
+}
+
+fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
+    let resource = |type_name: &str, path: &str| {
+        TestValue::Struct(TestInstance::new(type_name).value("path", TestValue::text(path)))
+    };
+    let mut data = TestInstance::new("SGeometryDataParams")
+        .value("Geometry", resource("GlobalResourceGeometry", path));
+    data = data.value(
+        "Material",
+        resource("GlobalResourceMaterial", material.unwrap_or_default()),
+    );
+    let node = TestInstance::new("SGeometryNodeParams").value("Geometry", TestValue::Struct(data));
+    TestValue::Struct(
+        TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),
+    )
 }
 
 /// A Loadout of a synthetic Entity or Loadout entry.

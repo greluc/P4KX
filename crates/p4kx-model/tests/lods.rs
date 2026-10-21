@@ -116,6 +116,24 @@ fn an_absent_level_is_named() -> TestResult {
 }
 
 #[test]
+fn at_most_reads_every_level_up_to_the_bound_that_exists() -> TestResult {
+    let cube = two_levels();
+    let levels = |model: Model| model.lods.iter().map(|lod| lod.level).collect::<Vec<_>>();
+
+    assert_eq!(
+        levels(read_with(&cube, &[1], LodSelection::AtMost(15))?),
+        [0, 1],
+        "both levels"
+    );
+    assert_eq!(
+        levels(read_with(&cube, &[1], LodSelection::AtMost(0))?),
+        [0],
+        "the bound cuts LOD1"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_model_without_levels_beyond_the_base_has_one() -> TestResult {
     let model = read_with(&TestModel::cube(), &[], LodSelection::All)?;
     assert_eq!(model.lods.len(), 1, "LOD0 only");

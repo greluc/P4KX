@@ -12,15 +12,21 @@
 //! the bones as nodes, one glTF skin over all of them with inverse bind matrices, and `JOINTS_n`
 //! and `WEIGHTS_n` on the skinned meshes; a model with bones and no meshes is written as its bone
 //! nodes. The binary data is streamed to the writer after the JSON.
+//!
+//! [`write_scene_glb`] writes a [`Scene`]: a tree of named, placed nodes that hold models, each
+//! drawn with the material library the scene gives it, in plain colours and without skeletons.
+//! Equal materials are written once.
 
 mod axes;
 mod block_data;
 mod document;
 mod error;
 mod glb;
+mod instance;
 mod layout;
 mod materials;
 mod nodes;
+mod scene;
 mod skin;
 mod texture_loader;
 mod texture_make;
@@ -31,6 +37,7 @@ mod texture_roles;
 
 pub use error::GltfError;
 pub use glb::{GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_with};
+pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 pub use texture_report::{TextureFallback, TextureRole};

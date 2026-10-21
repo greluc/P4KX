@@ -177,6 +177,36 @@ defines and no Loadout names, in definition order. An entry names its Entity by 
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
+## `p4kx entity glb <archive> <entity> --out <file> --json`
+
+```json
+{"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
+ "modelled_parts": 56, "nodes": 899, "meshes": 282, "primitives": 1123, "materials": 204,
+ "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "vertices": 931217,
+ "triangles": 1031918, "bytes": 55798740, "skipped": 0, "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
+root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
+`nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
+models that lack the requested level and are written at the nearest lower one;
+`default_material_ids` and `hidden_primitives` are summed over all models as for
+`p4kx model glb`. `skipped` counts the issues that leave a part or its model out. The file is
+written even when parts are skipped; an Archive key that is missing or wrong exits with code 7
+and writes nothing, an `--out` that is the Archive with code 2.
+
+An **Issue** has `path` (the port names from the root joined by `/`, empty for the root), `name`
+(the class name, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
+stable code, `skipped` and `reason`, text for people. The kinds are `unresolved` (the Loadout
+names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
+Record names no model; the part stays as an empty node), `geometry_missing` and
+`geometry_unreadable` (the model is not in the Archive or cannot be read, e.g. a `.cdf`; the part
+stays as an empty node), `material_library` (the library is missing or unreadable; the part is
+drawn with the default material), `helper_not_found` (the port's helper is no node of the
+parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
+and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
+was reached). New kinds may be added in later versions.
+
 ## `p4kx entity audio <archive> <entity> --json`
 
 ```json

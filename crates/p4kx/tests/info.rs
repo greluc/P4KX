@@ -54,6 +54,64 @@ fn info_prints_the_channel_the_build_and_an_archive_summary() -> TestResult {
 }
 
 #[test]
+fn info_shows_the_public_patch_the_launcher_log_names_for_the_change_number() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_channel(dir.path(), "LIVE")?;
+    write_build_manifest(
+        dir.path().join("LIVE").as_path(),
+        "sc-alpha-4.7.0",
+        "4.7.0.1",
+        "11674325",
+        "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+    )?;
+    let logs = dir.path().join("logs");
+    std::fs::create_dir_all(&logs)?;
+    std::fs::write(
+        logs.join("log.log"),
+        "[Installer] Delta update applied (SC LIVE 4.7.2-live.11674325) in C:\\SC\\LIVE\n",
+    )?;
+
+    p4kx_testkit::p4kx()?
+        .env("P4KX_LAUNCHER_LOGS", &logs)
+        .arg("info")
+        .arg(&archive)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"(?m)^Public patch: +4\.7\.2$")?);
+
+    p4kx_testkit::p4kx()?
+        .env("P4KX_LAUNCHER_LOGS", &logs)
+        .args(["--json", "info"])
+        .arg(&archive)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(r#""public_patch":"4.7.2""#));
+    Ok(())
+}
+
+#[test]
+fn info_reports_an_unknown_public_patch_when_the_log_has_no_line_for_the_build() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_channel(dir.path(), "LIVE")?;
+    write_build_manifest(
+        dir.path().join("LIVE").as_path(),
+        "sc-alpha-4.7.0",
+        "4.7.0.1",
+        "11674325",
+        "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+    )?;
+
+    p4kx_testkit::p4kx()?
+        .env("P4KX_LAUNCHER_LOGS", dir.path().join("no-logs"))
+        .arg("info")
+        .arg(&archive)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"(?m)^Public patch: +unknown$")?);
+    Ok(())
+}
+
+#[test]
 fn info_of_an_archive_without_a_build_manifest_reports_an_unknown_build() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_channel(dir.path(), "LIVE")?;

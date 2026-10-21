@@ -32,6 +32,7 @@ The shape of a Build in `info` and `channels`; `null` where the Build is unknown
 | `version` | string | e.g. `4.11.42.1234` |
 | `change_number` | string | The requested Perforce change number |
 | `build_id` | string | The BuildId |
+| `public_patch` | string or null | The public patch, e.g. `4.7.2`, from the RSI Launcher log line with the same change number; `null` when the log has none (ADR-0053) |
 
 ## `p4kx list <archive> --json`
 

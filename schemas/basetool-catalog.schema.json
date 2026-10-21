@@ -1,7 +1,6 @@
 {
   "$defs": {
     "Blueprint": {
-      "additionalProperties": false,
       "description": "A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.",
       "properties": {
         "categoryGuid": {
@@ -76,7 +75,6 @@
       "type": "object"
     },
     "BuildSource": {
-      "additionalProperties": false,
       "description": "The Build of the Archive.",
       "properties": {
         "branch": {
@@ -91,6 +89,13 @@
           "description": "The Perforce change number the Build was made from.",
           "type": "string"
         },
+        "publicPatch": {
+          "description": "The public patch version, e.g. `4.7.2`, from the RSI Launcher log line with the same\nchange number; `null` when the log has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "version": {
           "description": "The version, e.g. `4.4.162.12345`.",
           "type": "string"
@@ -100,12 +105,12 @@
         "branch",
         "buildId",
         "changeNumber",
+        "publicPatch",
         "version"
       ],
       "type": "object"
     },
     "Commodity": {
-      "additionalProperties": false,
       "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a\n`ResourceType` Record a blueprint ingredient uses that no commodity Record carries.",
       "properties": {
         "className": {
@@ -114,11 +119,13 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity."
+          "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity.",
+          "x-gameText": true
         },
         "displayType": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry."
+          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -168,7 +175,6 @@
       "type": "object"
     },
     "Completeness": {
-      "additionalProperties": false,
       "description": "The completeness of every kind.",
       "properties": {
         "blueprints": {
@@ -208,7 +214,6 @@
       "type": "string"
     },
     "Ingredient": {
-      "additionalProperties": false,
       "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
       "properties": {
         "itemGuid": {
@@ -284,7 +289,6 @@
       "type": "object"
     },
     "Item": {
-      "additionalProperties": false,
       "description": "An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.",
       "properties": {
         "className": {
@@ -293,11 +297,13 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from `AttachDef.Localization.Description`."
+          "description": "The description, from `AttachDef.Localization.Description`.",
+          "x-gameText": true
         },
         "displayType": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`."
+          "description": "The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`.",
+          "x-gameText": true
         },
         "grade": {
           "description": "The grade of `AttachDef.Grade`, `null` without one.",
@@ -312,15 +318,11 @@
           "description": "The GUID of the Record."
         },
         "itemClass": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ItemClass"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The item class from the `Class:` line of the English description, `null` for another\nvalue or without that line."
+          "description": "The item class from the `Class:` line of the English description, `null` for another\nvalue or without that line. Today one of `Civilian`, `Competition`, `Industrial`,\n`Military` and `Stealth`; the schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "manufacturerGuid": {
           "anyOf": [
@@ -397,41 +399,10 @@
       ],
       "type": "object"
     },
-    "ItemClass": {
-      "description": "The class of an item: an option of the DataForge enum `EItemClass` other than `UNDEFINED`.\n\nNo DataForge field carries it; it is read from the `Class:` line of the item's English\ndescription.",
-      "oneOf": [
-        {
-          "const": "Civilian",
-          "description": "`Civilian`.",
-          "type": "string"
-        },
-        {
-          "const": "Competition",
-          "description": "`Competition`.",
-          "type": "string"
-        },
-        {
-          "const": "Industrial",
-          "description": "`Industrial`.",
-          "type": "string"
-        },
-        {
-          "const": "Military",
-          "description": "`Military`.",
-          "type": "string"
-        },
-        {
-          "const": "Stealth",
-          "description": "`Stealth`.",
-          "type": "string"
-        }
-      ]
-    },
     "KindCompleteness": {
       "description": "Whether a kind holds every Record of the Build or only those a Filter selected.",
       "oneOf": [
         {
-          "additionalProperties": false,
           "description": "Every Record of the kind is listed; one missing from the catalog was removed from the game.",
           "properties": {
             "status": {
@@ -445,7 +416,6 @@
           "type": "object"
         },
         {
-          "additionalProperties": false,
           "description": "Only the Records the Filter selected are listed.",
           "properties": {
             "filter": {
@@ -466,7 +436,6 @@
       ]
     },
     "LocalisedText": {
-      "additionalProperties": false,
       "description": "A text the game localises: its localisation key and the resolved English and German texts,\nas the language's `global.ini` stores them with the escape `\\n` decoded to a line feed.",
       "properties": {
         "de": {
@@ -499,7 +468,6 @@
       "type": "object"
     },
     "Manufacturer": {
-      "additionalProperties": false,
       "description": "A manufacturer: an `SCItemManufacturer` Record.",
       "properties": {
         "className": {
@@ -515,7 +483,8 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description."
+          "description": "The description.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -541,7 +510,6 @@
       "type": "object"
     },
     "Ship": {
-      "additionalProperties": false,
       "description": "A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or\n`entities/groundvehicles`.",
       "properties": {
         "career": {
@@ -562,7 +530,8 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from `vehicleDescription` of the vehicle parameters."
+          "description": "The description, from `vehicleDescription` of the vehicle parameters.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -614,7 +583,6 @@
       "type": "object"
     },
     "Source": {
-      "additionalProperties": false,
       "description": "Where a catalog came from.",
       "properties": {
         "archiveModified": {
@@ -669,7 +637,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
   "description": "The Basetool catalog: the game data the basetool's P4K import reads.",
   "properties": {
     "blueprints": {

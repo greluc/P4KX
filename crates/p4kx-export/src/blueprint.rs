@@ -55,14 +55,14 @@ pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Bluepri
     }
 }
 
-const fn as_struct<'t, 'f>(value: &'t Value<'f>) -> Option<&'t StructValue<'f>> {
+pub(crate) const fn as_struct<'t, 'f>(value: &'t Value<'f>) -> Option<&'t StructValue<'f>> {
     match value {
         Value::Struct(value) => Some(value),
         _ => None,
     }
 }
 
-fn craft_time(time: Option<&StructValue<'_>>) -> Option<i64> {
+pub(crate) fn craft_time(time: Option<&StructValue<'_>>) -> Option<i64> {
     let part = |name: &str, factor: i64| whole(time, name)?.checked_mul(factor);
     let total = part("days", SECONDS_PER_DAY)?
         .checked_add(part("hours", SECONDS_PER_HOUR)?)?
@@ -77,7 +77,7 @@ fn craft_time(time: Option<&StructValue<'_>>) -> Option<i64> {
     clippy::cast_possible_truncation,
     reason = "a float within MAX_PART rounds to an i64 without loss"
 )]
-fn whole(parent: Option<&StructValue<'_>>, name: &str) -> Option<i64> {
+pub(crate) fn whole(parent: Option<&StructValue<'_>>, name: &str) -> Option<i64> {
     match parent?.field(name)? {
         Value::Single(value) if value.abs() <= MAX_PART => Some(value.round() as i64),
         Value::Double(value) if value.abs() <= f64::from(MAX_PART) => Some(value.round() as i64),

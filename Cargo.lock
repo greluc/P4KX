@@ -3509,6 +3509,7 @@ dependencies = [
  "cbc",
  "crc32c",
  "crc32fast",
+ "dirs",
  "flate2",
  "p4kx-foundation",
  "p4kx-testkit",

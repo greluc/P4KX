@@ -28,6 +28,9 @@ pub enum CatalogError {
     /// The catalog cannot be written as JSON.
     #[error("cannot write the catalog as JSON")]
     Json(#[source] serde_json::Error),
+    /// The catalog cannot be written to its output.
+    #[error("cannot write the catalog")]
+    Write(#[source] std::io::Error),
     /// The build was cancelled.
     #[error("the catalog build was cancelled")]
     Cancelled,

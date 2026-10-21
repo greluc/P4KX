@@ -58,6 +58,7 @@ impl App {
         };
         let export_filter = self.model.texts().get(export_filter);
         let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
+        let catalog_filter_compressed = self.model.texts().get(CatalogText::FileFilterCompressed);
         let model_file = ModelFileDialog::of(&self.model);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
@@ -77,6 +78,7 @@ impl App {
                         .save_file(),
                     Dialog::CatalogFile => picker
                         .add_filter(catalog_filter, &["json"])
+                        .add_filter(catalog_filter_compressed, &["zst"])
                         .set_file_name(CATALOG_FILE)
                         .save_file(),
                     Dialog::ModelFile => model_file.save(picker),

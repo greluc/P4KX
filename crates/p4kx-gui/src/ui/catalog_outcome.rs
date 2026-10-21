@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use egui::{Id, Ui};
 use fluent_bundle::FluentValue;
-use p4kx_export::{CatalogSummary, SizeWarning, UPLOAD_LIMIT};
+use p4kx_export::{CatalogSummary, DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
 
 use super::extraction::{group_label, number};
 use super::extraction_outcome::{decorate, ratio};
@@ -166,7 +166,7 @@ fn waiting(ui: &mut Ui, text: &str) {
 struct Laid {
     key: (u64, Language),
     headings: [String; 2],
-    warning: Option<(String, SizeWarning)>,
+    warnings: Vec<(String, SizeWarning)>,
     kinds: Vec<String>,
     skipped: String,
     failed_heading: String,
@@ -195,21 +195,33 @@ impl Laid {
     fn new(key: (u64, Language), texts: &Texts, outcome: &CatalogExportSummary) -> Self {
         let summary = outcome.summary();
         let limit = format::decimal_size(UPLOAD_LIMIT, texts.language());
-        let warning = summary.size_warning().map(|warning| {
-            let text = match warning {
-                SizeWarning::NearLimit => T::NearLimit,
-                SizeWarning::OverLimit => T::OverLimit,
-            };
+        let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
+        let warnings = [
+            (summary.size_warning(), [T::NearLimit, T::OverLimit], &limit),
             (
-                texts.format(text, &[("limit", limit.clone().into())]),
+                summary.decompressed_warning(),
+                [T::DecompressedNearLimit, T::DecompressedOverLimit],
+                &decompressed,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(warning, [near, over], shown)| {
+            let warning = warning?;
+            let text = match warning {
+                SizeWarning::NearLimit => near,
+                SizeWarning::OverLimit => over,
+            };
+            Some((
+                texts.format(text, &[("limit", shown.clone().into())]),
                 warning,
-            )
-        });
+            ))
+        })
+        .collect();
         let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,
             headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
-            warning,
+            warnings,
             kinds: kinds(texts, summary),
             skipped: texts.format(
                 T::SummarySkipped,
@@ -226,21 +238,35 @@ impl Laid {
                 T::SummaryMissing,
                 &[("number", number(texts, summary.unresolved()))],
             ),
-            size: texts.format(
-                T::SummarySize,
-                &[
-                    (
-                        "size",
-                        format::decimal_size(summary.size(), texts.language()).into(),
-                    ),
-                    ("limit", limit.into()),
-                ],
-            ),
+            size: sizes(texts, summary, limit),
             file: texts.format(
                 T::SummaryFile,
                 &[("path", outcome.file().display().to_string().into())],
             ),
         }
+    }
+}
+
+/// Returns the line with the size of the catalog file against the upload limit, and the
+/// uncompressed size beside it for a compressed catalog.
+fn sizes(texts: &Texts, summary: &CatalogSummary, limit: String) -> String {
+    let size = format::decimal_size(summary.size(), texts.language());
+    match summary.compressed_size() {
+        Some(compressed) => texts.format(
+            T::SummarySizeCompressed,
+            &[
+                (
+                    "compressed",
+                    format::decimal_size(compressed, texts.language()).into(),
+                ),
+                ("size", size.into()),
+                ("limit", limit.into()),
+            ],
+        ),
+        None => texts.format(
+            T::SummarySize,
+            &[("size", size.into()), ("limit", limit.into())],
+        ),
     }
 }
 
@@ -307,7 +333,7 @@ fn languages(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
 }
 
 fn finished(ui: &mut Ui, laid: &Laid) {
-    if let Some((warning, level)) = &laid.warning {
+    for (warning, level) in &laid.warnings {
         let body = |ui: &mut Ui| {
             ui.colored_label(palette::GRAY_1, warning);
         };

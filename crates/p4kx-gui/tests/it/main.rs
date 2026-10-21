@@ -10,6 +10,7 @@ mod audio_playback;
 mod audio_preview;
 mod banking;
 mod catalog_model;
+mod catalog_render;
 mod catalog_window;
 mod cataloging;
 mod channel_picker;

@@ -4,6 +4,7 @@
 use crate::cataloging;
 
 use std::fs;
+use std::io::Read;
 
 use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
 use p4kx_export::{Kind, Language as TextLanguage, SizeWarning};
@@ -242,6 +243,36 @@ fn an_archive_change_during_a_catalog_fails_it_and_writes_nothing() -> TestResul
         "failed with the reason: {status:?}"
     );
     assert!(files_in(&out)?.is_empty(), "no file and no partial file");
+    Ok(())
+}
+
+#[test]
+fn a_zst_file_name_writes_the_catalog_as_a_zstd_frame() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+    let plain = out.join("plain.json");
+    let packed = out.join("basetool-catalog.json.zst");
+
+    model.start_catalog(plain.clone(), || {});
+    ended(&mut model)?;
+    model.start_catalog(packed.clone(), || {});
+    let CatalogExportStatus::Finished(outcome) = ended(&mut model)? else {
+        return Err("no summary".into());
+    };
+
+    let frame = fs::read(&packed)?;
+    let mut decoded = Vec::new();
+    zstd::Decoder::new(frame.as_slice())?.read_to_end(&mut decoded)?;
+    assert!(decoded == fs::read(&plain)?, "byte-identical JSON");
+    assert_eq!(
+        outcome.summary().compressed_size(),
+        Some(u64::try_from(frame.len())?),
+        "the compressed size is the file size"
+    );
+    assert_eq!(
+        files_in(&out)?,
+        ["basetool-catalog.json.zst", "plain.json"],
+        "no temporary file"
+    );
     Ok(())
 }
 

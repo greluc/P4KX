@@ -28,7 +28,7 @@ The rule is ADR-0054 (amending ADR-0002):
 - **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
-  content is capped at 1 GB. On LIVE, 19.3 MB becomes 1.54 MB with zstd -19 `--long=27`.
+  content is capped at 1 GB. The compressed form is described under "Compressed form" below.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -43,8 +43,31 @@ Basetool keeps them, and `displayType`, away from third parties. Every such fiel
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
+p4kx catalog <archive> --out basetool-catalog.json.zst
 p4kx catalog schema
 ```
+
+### Compressed form
+
+An output name ending in `.zst` (any case) writes the catalog as one zstd frame; any other name
+writes plain JSON, which stays the default. The frame is written while the JSON is serialised, so
+the catalog is never held a second time, uncompressed, for the compression. It uses zstd level 19,
+a long-distance window of 2^27 bytes (`zstd -19 --long=27`) and a content checksum. The decoded
+bytes are exactly the plain catalog: `zstd -d --long=27 basetool-catalog.json.zst` and any zstd
+decoder with a window of at least 2^27 give the file `--out basetool-catalog.json` writes for the
+same Archive and export time (a test checks both with the Rust decoder).
+
+The Basetool detects `.json`, `.json.gz` and `.json.zst` by magic bytes, not by name. Its limits
+apply to two sizes, and `p4kx catalog` and the desktop window check both:
+
+| Size | Limit | Constant |
+|------|------:|----------|
+| The file as uploaded, compressed if it is | 64,000,000 bytes (64 MB) | `UPLOAD_LIMIT` |
+| The decompressed content | 1,000,000,000 bytes (1 GB) | `DECOMPRESSED_LIMIT` |
+
+Each warns from 90 % and fails above the limit. The summary (`--json`: `size`, `compressed_size`,
+`upload_limit`, `decompressed_limit`, `size_warning`, `decompressed_warning`) carries the
+uncompressed size, the compressed size (`null` for plain JSON) and the warnings of both.
 
 ## Shape
 
@@ -633,14 +656,15 @@ seconds since 1970-01-01 UTC.
 
 ### Upload limit
 
-`UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
-64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
-changes with it. The owner kept the limit at 64 MB after the first measurement (21.6 MB). The
-crafting detail (all tiers, quality modifiers, pools and their reward sources) grew the largest
-catalog to 26.6 MB, about 41 % of the limit, so the catalog can still grow by a factor of 2.5
-before the limit is reached; the real-Archive tests assert that the limit is at least twice the
-catalog and print the size (`catalog size: … bytes`). The compressed upload (`.json.zst`, #407)
-is a fraction of that.
+`UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog file the basetool
+accepts, 64,000,000 bytes (64 MB), compressed if it is; `DECOMPRESSED_LIMIT` is the cap of the
+decompressed content, 1,000,000,000 bytes (1 GB). They must match the basetool's limits: when one
+changes, the other changes with it. The owner kept the upload limit at 64 MB after the first
+measurement (21.6 MB). The crafting detail (all tiers, quality modifiers, pools and their reward
+sources) grew the largest plain catalog to 26.6 MB, 41 % of the upload limit; compressed it is a
+small fraction of it. The real-Archive tests write the catalog as `.json.zst`, assert that the
+compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame and compare
+it with the plain catalog, and print both sizes and the time per zstd level.
 
 Measured on 2026-10-21, with `playability` and `paints`, on every installed Channel (complete catalog of every kind, English and
 German texts):

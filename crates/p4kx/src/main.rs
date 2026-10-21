@@ -3,6 +3,7 @@
 mod audio;
 mod bnk;
 mod catalog;
+mod catalog_json;
 mod channels;
 mod chf;
 mod chunks;

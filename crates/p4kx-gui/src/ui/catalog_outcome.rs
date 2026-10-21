@@ -226,21 +226,35 @@ impl Laid {
                 T::SummaryMissing,
                 &[("number", number(texts, summary.unresolved()))],
             ),
-            size: texts.format(
-                T::SummarySize,
-                &[
-                    (
-                        "size",
-                        format::decimal_size(summary.size(), texts.language()).into(),
-                    ),
-                    ("limit", limit.into()),
-                ],
-            ),
+            size: sizes(texts, summary, limit),
             file: texts.format(
                 T::SummaryFile,
                 &[("path", outcome.file().display().to_string().into())],
             ),
         }
+    }
+}
+
+/// Returns the line with the size of the catalog file against the upload limit, and the
+/// uncompressed size beside it for a compressed catalog.
+fn sizes(texts: &Texts, summary: &CatalogSummary, limit: String) -> String {
+    let size = format::decimal_size(summary.size(), texts.language());
+    match summary.compressed_size() {
+        Some(compressed) => texts.format(
+            T::SummarySizeCompressed,
+            &[
+                (
+                    "compressed",
+                    format::decimal_size(compressed, texts.language()).into(),
+                ),
+                ("size", size.into()),
+                ("limit", limit.into()),
+            ],
+        ),
+        None => texts.format(
+            T::SummarySize,
+            &[("size", size.into()), ("limit", limit.into())],
+        ),
     }
 }
 

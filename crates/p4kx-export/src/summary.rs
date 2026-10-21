@@ -2,12 +2,19 @@ use p4kx_extraction::{Language, LocalizationNote};
 
 use crate::{CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary};
 
-/// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
-/// upload limit (`docs/basetool-catalog.md`).
+/// The largest catalog file the basetool accepts for upload, in bytes, compressed if it is; it
+/// must match the basetool's upload limit (`docs/basetool-catalog.md`).
 pub const UPLOAD_LIMIT: u64 = 64_000_000;
 
-/// The size from which a catalog is close to [`UPLOAD_LIMIT`], 90 % of it.
+/// The size from which a catalog file is close to [`UPLOAD_LIMIT`], 90 % of it.
 pub const UPLOAD_WARNING_SIZE: u64 = UPLOAD_LIMIT / 10 * 9;
+
+/// The largest decompressed catalog the basetool accepts, in bytes; it must match the basetool's
+/// limit (`docs/basetool-catalog.md`).
+pub const DECOMPRESSED_LIMIT: u64 = 1_000_000_000;
+
+/// The decompressed size from which a catalog is close to [`DECOMPRESSED_LIMIT`], 90 % of it.
+pub const DECOMPRESSED_WARNING_SIZE: u64 = DECOMPRESSED_LIMIT / 10 * 9;
 
 /// How a catalog's size relates to the basetool upload limit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,9 +29,20 @@ impl SizeWarning {
     /// Returns the warning for a catalog of `size` bytes, `None` below [`UPLOAD_WARNING_SIZE`].
     #[must_use]
     pub const fn for_size(size: u64) -> Option<Self> {
-        if size > UPLOAD_LIMIT {
+        Self::against(size, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE)
+    }
+
+    /// Returns the warning for a decompressed catalog of `size` bytes against
+    /// [`DECOMPRESSED_LIMIT`], `None` below [`DECOMPRESSED_WARNING_SIZE`].
+    #[must_use]
+    pub const fn for_decompressed_size(size: u64) -> Option<Self> {
+        Self::against(size, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE)
+    }
+
+    const fn against(size: u64, limit: u64, warning: u64) -> Option<Self> {
+        if size > limit {
             Some(Self::OverLimit)
-        } else if size >= UPLOAD_WARNING_SIZE {
+        } else if size >= warning {
             Some(Self::NearLimit)
         } else {
             None
@@ -90,6 +108,7 @@ pub struct CatalogSummary {
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
+    pub(crate) compressed_size: Option<u64>,
 }
 
 impl CatalogSummary {
@@ -182,16 +201,36 @@ impl CatalogSummary {
         self.kinds.iter().map(|summary| summary.skipped).sum()
     }
 
-    /// Returns the size of the catalog JSON in bytes.
+    /// Returns the size of the catalog JSON in bytes, uncompressed.
     #[must_use]
     pub const fn size(&self) -> u64 {
         self.size
     }
 
-    /// Returns whether the catalog is close to or over the basetool upload limit.
+    /// Returns the size of the compressed catalog in bytes, `None` for a plain JSON catalog.
     #[must_use]
-    pub const fn size_warning(&self) -> Option<SizeWarning> {
-        SizeWarning::for_size(self.size)
+    pub const fn compressed_size(&self) -> Option<u64> {
+        self.compressed_size
+    }
+
+    /// Returns the size of the catalog file, the compressed one if it is compressed; the size the
+    /// basetool checks against [`UPLOAD_LIMIT`].
+    #[must_use]
+    pub fn upload_size(&self) -> u64 {
+        self.compressed_size.unwrap_or(self.size)
+    }
+
+    /// Returns whether the catalog file is close to or over the basetool upload limit.
+    #[must_use]
+    pub fn size_warning(&self) -> Option<SizeWarning> {
+        SizeWarning::for_size(self.upload_size())
+    }
+
+    /// Returns whether the decompressed catalog is close to or over the basetool limit for
+    /// decompressed content.
+    #[must_use]
+    pub const fn decompressed_warning(&self) -> Option<SizeWarning> {
+        SizeWarning::for_decompressed_size(self.size)
     }
 }
 

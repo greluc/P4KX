@@ -10,7 +10,7 @@ use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, UPLOAD_LIMIT, build_catalog};
+use p4kx_export::{CatalogOptions, DECOMPRESSED_LIMIT, build_catalog};
 use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_b_path, real_archive_path};
 use serde_json::Value;
@@ -89,7 +89,7 @@ fn choose_fewer(line: &Value) -> bool {
 )]
 fn report(path: &Path, size: usize, catalog: &Value) {
     println!(
-        "{}: catalog size {size} bytes, upload limit {UPLOAD_LIMIT}",
+        "{}: catalog size {size} bytes, decompressed limit {DECOMPRESSED_LIMIT}",
         path.display()
     );
     for kind in KINDS {

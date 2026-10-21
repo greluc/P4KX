@@ -1,5 +1,5 @@
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -12,37 +12,64 @@ pub(super) enum Written {
     Cancelled,
 }
 
-/// Writes `json` to `out`, replacing it, unless `cancelled` holds before the file is replaced.
-///
-/// The bytes go to a temporary file next to `out` first, so a failed or cancelled write leaves
-/// neither a partial file nor a changed `out` behind.
-///
-/// # Errors
-///
-/// Returns the I/O error when the temporary file cannot be written or cannot replace `out`.
-pub(super) fn write_replacing(
-    out: &Path,
-    json: &[u8],
-    cancelled: impl Fn() -> bool,
-) -> io::Result<Written> {
-    crate::installation::refuse(out)?;
-    let temporary = temporary(out)?;
-    let result = write_new(&temporary, json).and_then(|()| {
+/// A catalog file being written next to its target, so that a failed or cancelled write leaves
+/// neither a partial file nor a changed target behind.
+#[derive(Debug)]
+pub(super) struct Pending {
+    temporary: PathBuf,
+    out: PathBuf,
+    done: bool,
+}
+
+impl Pending {
+    /// Creates the temporary file next to `out` and returns it, open for writing.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error when `out` lies in a game installation, names no file, or the
+    /// temporary file cannot be created.
+    pub(super) fn create(out: &Path) -> io::Result<(Self, File)> {
+        crate::installation::refuse(out)?;
+        let temporary = temporary(out)?;
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        let pending = Self {
+            temporary,
+            out: out.to_path_buf(),
+            done: false,
+        };
+        Ok((pending, file))
+    }
+
+    /// Flushes `file` to disk and replaces the target with it, unless `cancelled` holds first.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error when the file cannot be flushed or cannot replace the target.
+    pub(super) fn commit(
+        mut self,
+        file: File,
+        cancelled: impl Fn() -> bool,
+    ) -> io::Result<Written> {
+        file.sync_all()?;
+        drop(file);
         if cancelled() {
             return Ok(Written::Cancelled);
         }
-        fs::rename(&temporary, out).map(|()| Written::Done)
-    });
-    if !matches!(result, Ok(Written::Done)) {
-        let _ignored = fs::remove_file(&temporary);
+        fs::rename(&self.temporary, &self.out)?;
+        self.done = true;
+        Ok(Written::Done)
     }
-    result
 }
 
-fn write_new(path: &Path, json: &[u8]) -> io::Result<()> {
-    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-    file.write_all(json)?;
-    file.sync_all()
+impl Drop for Pending {
+    fn drop(&mut self) {
+        if !self.done {
+            let _ignored = fs::remove_file(&self.temporary);
+        }
+    }
 }
 
 fn temporary(out: &Path) -> io::Result<PathBuf> {
@@ -61,9 +88,20 @@ fn temporary(out: &Path) -> io::Result<PathBuf> {
 mod tests {
     use std::error::Error;
     use std::fs;
+    use std::io::Write;
     use std::path::Path;
 
-    use super::{Written, write_replacing};
+    use super::{Pending, Written};
+
+    fn write_replacing(
+        out: &Path,
+        bytes: &[u8],
+        cancelled: impl Fn() -> bool,
+    ) -> std::io::Result<Written> {
+        let (pending, mut file) = Pending::create(out)?;
+        file.write_all(bytes)?;
+        pending.commit(file, cancelled)
+    }
 
     #[test]
     fn the_file_is_replaced_and_no_temporary_file_is_left() -> Result<(), Box<dyn Error>> {
@@ -89,6 +127,21 @@ mod tests {
         let written = write_replacing(&out, b"new", || true)?;
 
         assert_eq!(written, Written::Cancelled, "cancelled");
+        assert_eq!(fs::read_to_string(&out)?, "old", "kept");
+        assert_eq!(fs::read_dir(dir.path())?.count(), 1, "no temporary file");
+        Ok(())
+    }
+
+    #[test]
+    fn a_dropped_write_leaves_no_temporary_file() -> Result<(), Box<dyn Error>> {
+        let dir = tempfile::tempdir()?;
+        let out = dir.path().join("catalog.json");
+        fs::write(&out, "old")?;
+
+        let (pending, file) = Pending::create(&out)?;
+        drop(file);
+        drop(pending);
+
         assert_eq!(fs::read_to_string(&out)?, "old", "kept");
         assert_eq!(fs::read_dir(dir.path())?.count(), 1, "no temporary file");
         Ok(())

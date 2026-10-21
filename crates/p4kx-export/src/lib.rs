@@ -33,6 +33,7 @@ mod blueprint;
 mod blueprint_category;
 mod build;
 mod catalog_crafting;
+mod catalog_output;
 mod catalog_recipe;
 mod collected;
 mod commodity;
@@ -65,12 +66,14 @@ mod record_export;
 mod record_fields;
 mod record_summary;
 mod resource_group;
+mod scan;
 mod selection;
 mod ship;
 mod summary;
 mod texts;
 
-pub use build::{build_catalog, build_catalog_from};
+pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
+pub use catalog_output::{Compression, ZSTD_LEVEL, ZSTD_WINDOW_LOG};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use crafting::{Crafting, read_crafting, read_crafting_limited};
 pub use crafting_types::{
@@ -96,6 +99,6 @@ pub use record_export::{RecordFilePlans, write_planned_record_export, write_reco
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use summary::{
-    BuiltCatalog, CatalogSummary, KindSummary, PaintSummary, SizeWarning, TextSummary,
-    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
+    BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
+    PaintSummary, SizeWarning, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
 };

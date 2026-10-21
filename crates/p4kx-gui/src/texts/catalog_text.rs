@@ -6,6 +6,8 @@ pub enum CatalogText {
     Action,
     /// The file type of the save dialog.
     FileFilter,
+    /// The file type of the save dialog for the zstd-compressed catalog.
+    FileFilterCompressed,
     /// The title of the progress window.
     RunningTitle,
     /// Shown while DataForge is read.
@@ -37,6 +39,8 @@ pub enum CatalogText {
     SummaryMissing,
     /// The size of the catalog; takes `size` and `limit`.
     SummarySize,
+    /// The size of a compressed catalog; takes `size`, `compressed` and `limit`.
+    SummarySizeCompressed,
     /// The catalog is close to the upload limit; takes `limit`.
     NearLimit,
     /// The catalog is over the upload limit; takes `limit`.
@@ -59,9 +63,10 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 28] = [
         Self::Action,
         Self::FileFilter,
+        Self::FileFilterCompressed,
         Self::RunningTitle,
         Self::Reading,
         Self::Progress,
@@ -77,6 +82,7 @@ impl CatalogText {
         Self::SummaryTextsUnavailable,
         Self::SummaryMissing,
         Self::SummarySize,
+        Self::SummarySizeCompressed,
         Self::NearLimit,
         Self::OverLimit,
         Self::SummaryFile,
@@ -94,6 +100,7 @@ impl CatalogText {
         match self {
             Self::Action => "catalog-action",
             Self::FileFilter => "catalog-file-filter",
+            Self::FileFilterCompressed => "catalog-file-filter-compressed",
             Self::RunningTitle => "catalog-running-title",
             Self::Reading => "catalog-reading",
             Self::Progress => "catalog-progress",
@@ -109,6 +116,7 @@ impl CatalogText {
             Self::SummaryTextsUnavailable => "catalog-summary-texts-unavailable",
             Self::SummaryMissing => "catalog-summary-missing",
             Self::SummarySize => "catalog-summary-size",
+            Self::SummarySizeCompressed => "catalog-summary-size-compressed",
             Self::NearLimit => "catalog-near-limit",
             Self::OverLimit => "catalog-over-limit",
             Self::SummaryFile => "catalog-summary-file",

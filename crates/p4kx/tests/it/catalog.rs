@@ -5,6 +5,7 @@ use crate::catalog_support;
 
 use std::error::Error;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
@@ -85,6 +86,42 @@ fn catalog_writes_a_catalog_that_the_schema_accepts() -> TestResult {
     assert!(errors.is_empty(), "valid against the schema: {errors:?}");
     insta::assert_snapshot!("catalog_file", redact_version(&text));
     insta::assert_snapshot!("catalog_summary", summary);
+    Ok(())
+}
+
+#[test]
+fn catalog_to_a_zst_name_writes_a_zstd_frame_with_the_bytes_of_the_plain_catalog() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let plain = dir.path().join("plain.json");
+    let packed = dir.path().join("basetool-catalog.json.zst");
+
+    catalog(&archive, &plain, &[])?;
+    let summary = catalog(&archive, &packed, &["--json"])?;
+
+    let frame = fs::read(&packed)?;
+    assert_eq!(frame.get(..4), Some(&[0x28, 0xb5, 0x2f, 0xfd][..]), "magic");
+    let mut decoded = Vec::new();
+    zstd::Decoder::new(frame.as_slice())?.read_to_end(&mut decoded)?;
+    assert!(decoded == fs::read(&plain)?, "byte-identical JSON");
+    let json: serde_json::Value = serde_json::from_str(&summary)?;
+    assert_eq!(json["size"], decoded.len(), "uncompressed size");
+    assert_eq!(json["compressed_size"], frame.len(), "compressed size");
+    assert_eq!(json["decompressed_limit"], 1_000_000_000, "limit");
+    Ok(())
+}
+
+#[test]
+fn catalog_to_a_json_name_stays_plain_json_without_a_compressed_size() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("plain.json");
+
+    let summary = catalog(&archive, &out, &["--json"])?;
+
+    assert_eq!(fs::read(&out)?.first(), Some(&b'{'), "plain JSON");
+    let json: serde_json::Value = serde_json::from_str(&summary)?;
+    assert_eq!(json["compressed_size"], serde_json::Value::Null, "none");
     Ok(())
 }
 

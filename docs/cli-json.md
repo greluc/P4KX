@@ -537,8 +537,9 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 21052438, "upload_limit": 64000000,
- "size_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 26505107, "compressed_size": null,
+ "upload_limit": 64000000, "decompressed_limit": 1000000000,
+ "size_warning": null, "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
@@ -562,9 +563,12 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
 
-The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)). `size` is its size
-in bytes; `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and
-`null` otherwise. `kinds` lists every kind in catalog order with the entities written, the
+The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in
+`.zst` writes a zstd frame. `size` is the size of the JSON in bytes, uncompressed;
+`compressed_size` is the size of the file written when it is compressed and `null` otherwise.
+`size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and `null`
+otherwise; it compares the file written (`compressed_size`, else `size`). `decompressed_warning`
+does the same for `size` against `decompressed_limit` (1,000,000,000). `kinds` lists every kind in catalog order with the entities written, the
 development leftovers `skipped` and whether the kind is `complete` (no `--filter`); `skipped` sums
 them. `failed` lists the selected Records that could not be read and are left out of the catalog,
 with GUID, record path (empty when it cannot be read) and the reason and its causes joined by

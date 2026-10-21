@@ -185,7 +185,10 @@ partial file.
 [basetool-catalog.md](basetool-catalog.md)), the same file as `p4kx catalog`. It is offered while
 the open Archive holds DataForge that did not fail to load, and while no other catalog is being
 created. Choose the file in the save dialog, `basetool-catalog.json` by default; an existing file
-is replaced. The open Archive itself is refused as the target.
+is replaced. The open Archive itself is refused as the target. A file name ending in `.zst`, for
+example `basetool-catalog.json.zst` (the second file type of the dialog), writes the catalog as one
+zstd frame, a fraction of the size, which the Basetool accepts as it does plain JSON. The summary
+then shows the compressed and the uncompressed size.
 
 The catalog is created in the background with a progress window; DataForge already read for the
 Record tree, a Query or a Record export is reused, and the other way round. **Cancel** stops it at once and writes no file; an

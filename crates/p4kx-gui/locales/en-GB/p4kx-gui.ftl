@@ -403,7 +403,8 @@ record-export-failed = The Record export into { $path } failed: { $reason }
 record-export-stopped = The Record export into { $path } stopped without a result.
 
 catalog-action = Basetool catalog…
-catalog-file-filter = Basetool catalog
+catalog-file-filter = Basetool catalog (JSON)
+catalog-file-filter-compressed = Basetool catalog (JSON, zstd-compressed)
 catalog-running-title = Creating the Basetool catalog
 catalog-reading = Reading DataForge…
 catalog-progress = { $done } of { $total } Records checked, { $percent } %
@@ -440,6 +441,7 @@ catalog-summary-texts-unavailable = { $language ->
 }: the Archive holds no global.ini, { $missing } missing
 catalog-summary-missing = Missing texts: { $number }
 catalog-summary-size = Size: { $size } of the upload limit of { $limit }
+catalog-summary-size-compressed = Size: { $compressed } compressed, { $size } uncompressed, of the upload limit of { $limit }
 catalog-near-limit = The catalog is close to the basetool upload limit of { $limit }.
 catalog-over-limit = The catalog is over the basetool upload limit of { $limit }; the basetool will reject the upload.
 catalog-summary-file = File: { $path }

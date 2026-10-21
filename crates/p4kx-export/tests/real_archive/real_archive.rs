@@ -4,7 +4,8 @@ use std::error::Error;
 use std::time::SystemTime;
 
 use p4kx_export::{
-    CatalogOptions, CatalogSummary, Kind, Language, UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogOptions, CatalogSummary, DECOMPRESSED_LIMIT, Kind, Language, build_catalog,
+    catalog_schema,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::real_archive_path;
@@ -41,7 +42,10 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
     );
     assert!(manufacturers.complete, "complete without a Filter");
     report_size(summary.size());
-    assert!(summary.size() < UPLOAD_LIMIT, "under the upload limit");
+    assert!(
+        summary.size() < DECOMPRESSED_LIMIT,
+        "under the decompressed limit"
+    );
 
     let list = catalog["manufacturers"]
         .as_array()
@@ -80,7 +84,7 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
     reason = "the size is the measurement the upload limit is sized from"
 )]
 fn report_size(size: u64) {
-    println!("catalog size: {size} bytes, upload limit {UPLOAD_LIMIT} bytes");
+    println!("catalog size: {size} bytes, decompressed limit {DECOMPRESSED_LIMIT} bytes");
 }
 
 fn check_texts(summary: &CatalogSummary, list: &[Value]) -> TestResult {

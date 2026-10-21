@@ -15,6 +15,7 @@ pub(crate) use crate::cli_dcb::{
 };
 pub(crate) use crate::cli_dcb_fields::DcbFieldsArgs;
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
+pub(crate) use crate::cli_grep::{GrepArgs, GrepFormat};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
@@ -81,6 +82,11 @@ pub(crate) enum Command {
     /// Reads the DataForge of an Archive.
     #[command(after_help = EXIT_CODES_HELP)]
     Dcb(DcbArgs),
+    /// Finds a text in the contents of an Archive: in the string, localisation key and enum
+    /// values of Records, in the localisation texts of each language and in the lines of text and
+    /// CryXml Entries.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Grep(GrepArgs),
     /// Writes the Basetool catalog of an Archive as JSON, or prints its JSON Schema.
     #[command(
         after_help = EXIT_CODES_HELP,

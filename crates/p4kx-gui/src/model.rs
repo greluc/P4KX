@@ -10,6 +10,7 @@ mod archive_change;
 mod archive_key;
 mod audio_control;
 mod catalog_control;
+mod content_navigation;
 mod extraction_control;
 mod game_watch;
 mod record_export_control;
@@ -21,6 +22,7 @@ mod work_tab;
 use archive_key::KeyState;
 pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use catalog_control::CatalogState;
+use content_navigation::PendingHit;
 pub use game_watch::GAME_CHECK_INTERVAL;
 use game_watch::GameWatch;
 use record_export_control::RecordExportState;
@@ -28,9 +30,9 @@ use update::UpdateState;
 pub use work_tab::WorkTab;
 
 use crate::{
-    AudioOutput, Browser, ChannelList, ComparisonTab, DeviceOutput, EntryIndex, Extraction,
-    ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice, Texts,
-    ViewerSupport,
+    AudioOutput, Browser, ChannelList, ComparisonTab, ContentSearchTab, DeviceOutput, EntryIndex,
+    Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice,
+    Texts, ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -78,6 +80,8 @@ pub struct Model {
     audio_volume: f32,
     query: QueryTab,
     localization: LocalizationTab,
+    content_search: ContentSearchTab,
+    pending_hit: Option<PendingHit>,
     record_export: RecordExportState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
@@ -109,6 +113,7 @@ impl std::fmt::Debug for Model {
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
             .field("localization", &self.localization)
+            .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
@@ -146,6 +151,8 @@ impl Model {
             audio_volume: 1.0,
             query: QueryTab::default(),
             localization: LocalizationTab::default(),
+            content_search: ContentSearchTab::default(),
+            pending_hit: None,
             record_export: RecordExportState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
@@ -248,6 +255,8 @@ impl Model {
                 self.key_archive_opened();
                 self.query.archive_opened();
                 self.localization.archive_opened();
+                self.content_search.archive_opened();
+                self.pending_hit = None;
             }
             Err(error) => self.fail(opening.path, &error),
         }

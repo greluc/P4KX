@@ -32,6 +32,16 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
+- `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…]
+  [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the contents: in the string,
+  localisation key and enum values of all Records (with the field path), in the texts of each
+  language's `global.ini` and in the lines of text and CryXml Entries (CryXml converted to XML
+  first). It matches part of a word and ignores case, so `Gladi` finds `AEGS_Gladius`. Nothing is
+  indexed or stored: each search scans in parallel and streams, in a second or two on LIVE.
+  Results are bounded (`--limit` per source, `--per-item` per Record or Entry) and say whether more
+  exist; Entries with binary data, above `--max-entry-size` or encrypted without the Archive key
+  are skipped and counted on stderr ([docs/cli-json.md](docs/cli-json.md)). The window searches
+  the same way in its *Search* tab.
 - `p4kx verify <archive> [--filter <filter>]` checks the data of every Entry (or those the Filter
   matches) against the CRC-32C the Archive directory states, in parallel and without writing
   anything, and prints every mismatch with the stored and the computed value; an Entry that

@@ -66,6 +66,16 @@ pub(super) fn eyebrow(text: &str) -> egui::RichText {
 }
 
 pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bool {
+    field_response(ui, text, hint, label).changed()
+}
+
+/// Shows the search field like [`field`] and returns its response.
+pub(super) fn field_response(
+    ui: &mut Ui,
+    text: &mut String,
+    hint: &str,
+    label: Id,
+) -> egui::Response {
     let bloom = field::bloom_slot(ui);
     let frame = field::frame_slot(ui);
     let edit = TextEdit::singleline(text)
@@ -93,5 +103,5 @@ pub(super) fn field(ui: &mut Ui, text: &mut String, hint: &str, label: Id) -> bo
         vec2(ICON, ICON),
     );
     indicator::search_icon(ui, icon, palette::GRAY_2_TEXT);
-    response.changed()
+    response
 }

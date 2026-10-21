@@ -11,6 +11,7 @@ mod channel_list;
 mod checks;
 mod comparison;
 mod containers;
+mod content_search;
 #[cfg(windows)]
 pub mod dwm;
 mod entry_groups;
@@ -63,6 +64,7 @@ pub use comparison::{
 pub use containers::{
     ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
+pub use content_search::{ContentResult, ContentSearchStatus, ContentSearchTab};
 pub use entry_index::EntryIndex;
 pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
@@ -101,9 +103,10 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
     AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
-    ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText,
-    LocalizationText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
-    RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
+    ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,
+    ImageText, IncomingText, LocalizationText, ModelText, QueryText, RecordChangeText,
+    RecordExportText, RecordLanguageText, RecordSearchText, RecordText, ScrollText, Text, Texts,
+    XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

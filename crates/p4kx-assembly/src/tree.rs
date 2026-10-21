@@ -18,20 +18,39 @@ pub struct EntityNode {
     pub(crate) geometry: Option<Geometry>,
     pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
     pub(crate) landing_gear: Arc<[LandingGear]>,
+    pub(crate) docked_vehicle: bool,
+    pub(crate) expanded: bool,
 }
 
 impl EntityNode {
     /// Returns the vehicle implementation the Entity's Record names, with the Modification it
-    /// selects applied, or `None` when the Record names none or the files were not given.
+    /// selects applied, or `None` when the Record names none, the files were not given or the
+    /// Entity is a docked vehicle the resolver stopped at.
     #[must_use]
     pub fn vehicle(&self) -> Option<&VehicleImplementation> {
         self.vehicle.as_deref()
     }
 
-    /// Returns the landing gears of the Entity's own `VehicleLandingGearSystem` component.
+    /// Returns the landing gears of the `VehicleLandingGearSystem` Record the Entity's vehicle
+    /// component names.
     #[must_use]
     pub fn landing_gear(&self) -> &[LandingGear] {
         &self.landing_gear
+    }
+
+    /// Returns whether the Entity is a docked vehicle: attached to a port and its
+    /// `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar port.
+    /// The root of the tree is never one.
+    #[must_use]
+    pub const fn is_docked_vehicle(&self) -> bool {
+        self.docked_vehicle
+    }
+
+    /// Returns whether the Entity's ports are built; `false` for a docked vehicle the resolver
+    /// stopped at, whose ports are left out.
+    #[must_use]
+    pub const fn is_expanded(&self) -> bool {
+        self.expanded
     }
 
     /// Returns the geometry the Entity's Record names, or `None` when it names none.

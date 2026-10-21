@@ -1,8 +1,8 @@
 use std::io::{self, Write};
 
-use crate::texts::{Texts, annotation};
+use crate::texts::annotation;
 use crate::xml_text::{write_escaped, write_float};
-use crate::{Field, Reference, Resolution, Value};
+use crate::{Annotations, Field, Reference, Resolution, Value};
 
 const INDENT: &[u8; 64] = b"                                                                ";
 
@@ -24,7 +24,11 @@ pub(crate) fn attribute(out: &mut impl Write, name: &str, value: &str) -> io::Re
     out.write_all(b"\"")
 }
 
-pub(crate) fn write_reference(out: &mut impl Write, reference: &Reference<'_>) -> io::Result<()> {
+pub(crate) fn write_reference(
+    out: &mut impl Write,
+    reference: &Reference<'_>,
+    annotations: Annotations<'_>,
+) -> io::Result<()> {
     out.write_all(b"<p4kx:reference guid=\"")?;
     write!(out, "{}", reference.guid())?;
     out.write_all(b"\"")?;
@@ -32,6 +36,9 @@ pub(crate) fn write_reference(out: &mut impl Write, reference: &Reference<'_>) -
     attribute(out, "type", reference.type_name())?;
     if let Some(location) = reference.location() {
         attribute(out, "at", location.as_str())?;
+    }
+    if let Some(path) = annotations.tag_path(reference) {
+        attribute(out, "tag", path)?;
     }
     out.write_all(b"/>\n")
 }
@@ -41,7 +48,7 @@ pub(crate) fn write_reference(out: &mut impl Write, reference: &Reference<'_>) -
 pub(crate) fn write_attribute_field(
     out: &mut impl Write,
     field: &Field<'_>,
-    texts: Texts<'_>,
+    annotations: Annotations<'_>,
 ) -> io::Result<()> {
     out.write_all(b" ")?;
     out.write_all(field.name().as_bytes())?;
@@ -49,7 +56,7 @@ pub(crate) fn write_attribute_field(
     write_scalar(out, field.value())?;
     out.write_all(b"\"")?;
     if let Value::Locale(key) = field.value() {
-        match annotation(texts, key) {
+        match annotation(&annotations, key) {
             Some(Resolution::Text(text)) => {
                 out.write_all(b" p4kx:text-")?;
                 out.write_all(field.name().as_bytes())?;
@@ -73,11 +80,11 @@ pub(crate) fn write_attribute_field(
 pub(crate) fn write_annotation(
     out: &mut impl Write,
     value: &Value<'_>,
-    texts: Texts<'_>,
+    annotations: Annotations<'_>,
     end: &[u8],
 ) -> io::Result<()> {
     if let Value::Locale(key) = value {
-        match annotation(texts, key) {
+        match annotation(&annotations, key) {
             Some(Resolution::Text(text)) => {
                 out.write_all(b" text=\"")?;
                 write_escaped(out, &text)?;

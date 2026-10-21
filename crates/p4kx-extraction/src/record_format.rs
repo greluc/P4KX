@@ -1,6 +1,6 @@
 use std::io;
 
-use p4kx_dataforge::{RecordJson, RecordTree, RecordXml, TextResolver};
+use p4kx_dataforge::{Annotations, RecordJson, RecordTree, RecordXml};
 
 /// The file format of a Record export with one file per Record: how a Record tree becomes the
 /// bytes of its file.
@@ -8,8 +8,7 @@ pub trait RecordFileFormat: Default + Send {
     /// The extension of every file, with its dot, e.g. `.xml`.
     const EXTENSION: &'static str;
 
-    /// Appends the content of the file of `tree` to `out`, with the resolved texts of `texts`
-    /// when given.
+    /// Appends the content of the file of `tree` to `out`, with the `annotations` it carries.
     ///
     /// # Errors
     ///
@@ -17,7 +16,7 @@ pub trait RecordFileFormat: Default + Send {
     fn write_file(
         &mut self,
         tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
+        annotations: Annotations<'_>,
         out: &mut Vec<u8>,
     ) -> io::Result<()>;
 }
@@ -29,10 +28,10 @@ impl RecordFileFormat for RecordXml {
     fn write_file(
         &mut self,
         tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
+        annotations: Annotations<'_>,
         out: &mut Vec<u8>,
     ) -> io::Result<()> {
-        self.write_with(tree, texts, out)
+        self.write_annotated(tree, annotations, out)
     }
 }
 
@@ -43,9 +42,9 @@ impl RecordFileFormat for RecordJson {
     fn write_file(
         &mut self,
         tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
+        annotations: Annotations<'_>,
         out: &mut Vec<u8>,
     ) -> io::Result<()> {
-        self.write_with(tree, texts, out)
+        self.write_annotated(tree, annotations, out)
     }
 }

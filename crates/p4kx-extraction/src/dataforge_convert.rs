@@ -2,7 +2,7 @@ use std::io::{self, Read};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_archive::Entry;
-use p4kx_dataforge::{DataForge, Record, RecordXml};
+use p4kx_dataforge::{Annotations, DataForge, Record, RecordXml};
 
 use crate::buffers::Buffers;
 use crate::record_export::{RecordRun, write_records};
@@ -73,7 +73,7 @@ impl EntryWriter<'_> {
         let share = rest.checked_div(records.len() as u64).unwrap_or_default();
         let run = RecordRun {
             policy: self.policy,
-            texts: None,
+            annotations: Annotations::none(),
             stop: &|| self.tracker.should_stop(),
             ended: &|| {
                 credited.fetch_add(share, Ordering::Relaxed);

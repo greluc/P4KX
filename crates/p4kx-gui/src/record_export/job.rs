@@ -235,6 +235,7 @@ impl Job<'_> {
             cancel: Some(self.cancel),
             progress: Some(&progress),
             texts: None,
+            tags: None,
         };
         let summary = write_planned_record_export(
             &forge,

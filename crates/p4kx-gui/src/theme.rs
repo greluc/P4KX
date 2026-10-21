@@ -9,6 +9,7 @@ pub mod palette;
 mod query_metrics;
 mod row_tints;
 pub mod sound_metrics;
+pub mod tags_metrics;
 pub mod tokens;
 mod tooltip_metrics;
 
@@ -24,6 +25,8 @@ mod localization_tests;
 mod model_tests;
 #[cfg(test)]
 mod query_tests;
+#[cfg(test)]
+mod tags_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

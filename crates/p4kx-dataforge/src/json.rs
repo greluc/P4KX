@@ -1,10 +1,10 @@
 use std::io::{self, Write};
 
 use crate::json_text::new_line;
-use crate::texts::{Texts, annotation};
+use crate::texts::annotation;
 use crate::value_json::{write_json_string as write_string, write_json_value};
 use crate::xml::classify;
-use crate::{Field, RecordTree, Reference, Resolution, TextResolver, Value};
+use crate::{Annotations, Field, RecordTree, Reference, Resolution, TextResolver, Value};
 
 /// How Record JSON is laid out; both layouts hold the same value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -36,7 +36,7 @@ pub struct RecordJson {
 struct Out<'w, W> {
     out: &'w mut W,
     pretty: bool,
-    texts: Texts<'w>,
+    annotations: Annotations<'w>,
 }
 
 impl RecordJson {
@@ -77,10 +77,30 @@ impl RecordJson {
         texts: Option<&dyn TextResolver>,
         out: &mut W,
     ) -> io::Result<()> {
+        self.write_annotated(tree, texts.into(), out)
+    }
+
+    /// Writes `tree` like [`RecordJson::write`] with the `annotations`: the texts of
+    /// localisation keys, and the tag path of every tag Reference as `tag`, see
+    /// `docs/record-json.md`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the I/O error of `out`.
+    pub fn write_annotated<W: Write>(
+        &mut self,
+        tree: &RecordTree<'_>,
+        annotations: Annotations<'_>,
+        out: &mut W,
+    ) -> io::Result<()> {
         self.attribute.clear();
         self.escaped.clear();
         let pretty = self.layout == JsonLayout::Pretty;
-        let mut out = Out { out, pretty, texts };
+        let mut out = Out {
+            out,
+            pretty,
+            annotations,
+        };
         self.write_struct(&mut out, Some(tree), tree.type_name(), tree.fields(), 0)?;
         if pretty {
             out.out.write_all(b"\n")?;
@@ -242,7 +262,7 @@ impl<W: Write> Out<'_, W> {
 }
 
 fn write_locale<W: Write>(out: &mut Out<'_, W>, key: &str, depth: usize) -> io::Result<()> {
-    let Some(resolution) = annotation(out.texts, key) else {
+    let Some(resolution) = annotation(&out.annotations, key) else {
         return write_string(out.out, key);
     };
     out.out.write_all(b"{")?;
@@ -273,6 +293,10 @@ fn write_reference<W: Write>(
     if let Some(location) = reference.location() {
         out.key(false, depth + 1, "at")?;
         write_string(out.out, location.as_str())?;
+    }
+    if let Some(path) = out.annotations.tag_path(reference) {
+        out.key(false, depth + 1, "tag")?;
+        write_string(out.out, path)?;
     }
     out.close(depth, b"}")
 }

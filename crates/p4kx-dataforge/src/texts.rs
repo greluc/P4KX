@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::Annotations;
+
 /// How a [`TextResolver`] answers for one localisation key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -19,15 +21,12 @@ pub trait TextResolver: Sync {
     fn resolve<'a>(&'a self, key: &str) -> Resolution<'a>;
 }
 
-/// The texts of the writers: none for default output.
-pub(crate) type Texts<'t> = Option<&'t dyn TextResolver>;
-
 /// Returns the annotation of the localisation key `key`; an empty key is kept alone.
-pub(crate) fn annotation<'t>(texts: Texts<'t>, key: &str) -> Option<Resolution<'t>> {
+pub(crate) fn annotation<'t>(annotations: &Annotations<'t>, key: &str) -> Option<Resolution<'t>> {
     if key.is_empty() {
         return None;
     }
-    match texts?.resolve(key) {
+    match annotations.texts()?.resolve(key) {
         Resolution::Keep => None,
         resolution => Some(resolution),
     }

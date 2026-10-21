@@ -29,6 +29,9 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
     let forge = entry.open()?;
     let files = ArchiveFiles::new(&archive);
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    if args.stop_at_docked_vehicles {
+        resolver = resolver.stopping_at_docked_vehicles();
+    }
     let entity = resolver.entities().find(&args.entity)?;
     let tree = resolver.resolve(&entity)?;
     let counts = Counts::of(&tree);
@@ -90,6 +93,14 @@ fn print_ports(out: &mut impl Write, ports: &[PortNode], depth: usize) -> io::Re
 fn port_line(port: &PortNode) -> String {
     let held = match port.attachment() {
         Attachment::Empty => "-".to_owned(),
+        Attachment::Entity(child) if child.is_docked_vehicle() => {
+            let state = if child.is_expanded() {
+                "docked vehicle"
+            } else {
+                "docked vehicle, not expanded"
+            };
+            format!("{} [{state}]", child.class_name())
+        }
         Attachment::Entity(child) => child.class_name().to_owned(),
         Attachment::Unresolved(unresolved) => format!("unresolved: {}", unresolved.error()),
     };

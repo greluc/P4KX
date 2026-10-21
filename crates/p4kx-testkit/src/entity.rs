@@ -1,3 +1,4 @@
+use crate::entity_schema::attachable_component;
 use crate::entity_vehicle::{geometry_component, vehicle_component};
 use crate::{TestInstance, TestRecord, TestValue};
 
@@ -20,6 +21,7 @@ pub struct TestEntity {
     geometry: Option<(String, Option<String>)>,
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
+    attach_type: Option<String>,
 }
 
 impl TestEntity {
@@ -38,7 +40,16 @@ impl TestEntity {
             geometry: None,
             vehicle: None,
             landing_system: None,
+            attach_type: None,
         }
+    }
+
+    /// Gives the Entity an attachable component whose `AttachDef.Type` is `attach_type`, e.g.
+    /// `NOITEM_Vehicle`; the database needs [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn attach_type(mut self, attach_type: impl Into<String>) -> Self {
+        self.attach_type = Some(attach_type.into());
+        self
     }
 
     /// Names the model `path` as the Entity's geometry and, if given, the material library
@@ -125,12 +136,11 @@ impl TestEntity {
         if let Some((path, material)) = &self.geometry {
             components.push(geometry_component(path, material.as_deref()));
         }
-        if let Some((definition, modification)) = &self.vehicle {
-            components.push(vehicle_component(
-                definition,
-                modification,
-                self.landing_system,
-            ));
+        components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
+            vehicle_component(definition, modification, self.landing_system)
+        }));
+        if let Some(attach_type) = &self.attach_type {
+            components.push(attachable_component(attach_type));
         }
         TestRecord::new(
             self.guid,

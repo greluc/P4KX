@@ -12,6 +12,7 @@ pub(crate) struct Counts {
     pub(crate) attached: usize,
     pub(crate) empty: usize,
     pub(crate) unresolved: usize,
+    pub(crate) docked_vehicles: usize,
 }
 
 impl Counts {
@@ -19,6 +20,11 @@ impl Counts {
         let mut counts = Self::default();
         for (_, port) in node.walk() {
             counts.ports = counts.ports.saturating_add(1);
+            if let Attachment::Entity(child) = port.attachment()
+                && child.is_docked_vehicle()
+            {
+                counts.docked_vehicles = counts.docked_vehicles.saturating_add(1);
+            }
             let count = match port.attachment() {
                 Attachment::Empty => &mut counts.empty,
                 Attachment::Entity(_) => &mut counts.attached,
@@ -47,6 +53,8 @@ pub(crate) struct NodeJson<'a> {
     record_path: &'a str,
     name: &'a str,
     class_name: &'a str,
+    docked_vehicle: bool,
+    expanded: bool,
     issues: Vec<ErrorJson<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vehicle: Option<VehicleJson<'a>>,
@@ -62,6 +70,8 @@ impl<'a> From<&'a EntityNode> for NodeJson<'a> {
             record_path: node.record_path(),
             name: node.name(),
             class_name: node.class_name(),
+            docked_vehicle: node.is_docked_vehicle(),
+            expanded: node.is_expanded(),
             issues: node
                 .issues()
                 .iter()

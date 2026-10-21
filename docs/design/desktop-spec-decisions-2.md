@@ -315,6 +315,27 @@ Lokalisierungstext im Tab „Lokalisierung" mit der Zelle der Sprache. Wartet da
 keine Farbe, Größe oder Form hinzu; alle Werte stammen aus `tokens.json`. Geprüft mit Renders in
 en-GB und de-DE.
 
+**D.45 Tags als Tab im Arbeitsbereich.** Hinter „Lokalisierung" steht der Tab „Tags" (Tab-Leiste wie
+D.1). Er braucht ein geöffnetes Archiv und liest den Tag-Baum (ADR-0052) im Hintergrund, sobald er
+erstmals erscheint, aus dem einen DataForge-Cache des Archivs (D.22); bis dahin steht ein Spinner
+mit „Die Tags werden gelesen …" im Körper (D.5). Die Toolbar ist die der Lokalisierung (D.28):
+Suchfeld mit Eyebrow „Suche", rechts „Tag-Pfad kopieren" und „GUID kopieren" als Ghost (D.7),
+gesperrt ohne Auswahl. Darunter der Tabellenkopf mit der orangen Linie (Tag, GUID, Legacy-ID, in
+Versalien, nicht sortierbar) und der Baum als virtuelle 36-px-Zeilen: Chevron und Ebenen-Schienen
+wie im Pfadbaum (D.2), der Name des Tags, dann GUID und Legacy-ID in `color-gray-2-text`
+(Spalten 300 und 150 px, `tagTree` im JSON), eine Haarlinie unter jeder Zeile. Der Baum startet an
+den Wurzeln zugeklappt; Chevron oder Doppelklick klappt auf und zu, ein Klick wählt (Balken links,
+Weiß, Bold wie die aktive Zeile), der Tooltip nennt den vollen Tag-Pfad. Die Suche findet den
+Tag-Pfad ohne Beachtung der Groß-/Kleinschreibung bei jedem Tastendruck auf dem UI-Thread (rund
+19 000 Pfade) und zeigt die Treffer mit den Tags darüber, egal was aufgeklappt ist; in diesem Fall
+ändert der Chevron nichts, und verschwindet die gewählte Zeile, ist nichts mehr gewählt. Der Fuß
+(`.list-panel__footer`) nennt „n Tags", bei der Suche „n von m Tags". Weicht der Baum von dem ab,
+was die `TagDatabase` auflistet (Tags ohne Eltern, doppelt aufgelistete, ins Leere zeigende), steht
+darüber ein `.alert-warning` mit der Zahl. Der Tab fügt keine Farbe, Größe oder Form hinzu, bis
+auf die drei Spaltenmaße. Die Tabelle ist eine einzige Tabelle in einer waagerechten Scrollfläche,
+Kopf und Zeilen teilen die Spalten, die Tag-Spalte füllt den Rest, ist aber nie schmaler als
+320 px, und die Legacy-ID ist eine Zahl und steht samt Kopf rechtsbündig. Geprüft mit Renders in en-GB und de-DE.
+
 **D.40 Tab „Info" listet, was eine Modelldatei enthält.** Für ein Modell (`.cgf`, `.cga`, `.skin`,
 `.chr`) steht hinter „Modell" der Tab „Info" (D.1 Tab-Leiste, 44 px). Er erfindet nichts Eigenes,
 sondern folgt der Zusammenfassung des DataForge-Tabs: unter der Pfadzeile (D.14) in einer

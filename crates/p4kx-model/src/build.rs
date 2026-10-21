@@ -1,6 +1,7 @@
 use p4kx_chunks::{ChunkFile, ChunkType, ivo};
 
 use crate::bone_map::check_joints;
+use crate::companion::lod_file_name;
 use crate::material::material_library;
 use crate::mesh::split_by_node;
 use crate::model::MESH_TYPES;
@@ -15,7 +16,7 @@ use crate::{
 
 const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
 
-const MAX_LOD: u32 = 15;
+pub(crate) const MAX_LOD: u32 = 15;
 
 type Companion = (String, ChunkFile<Vec<u8>>);
 
@@ -175,19 +176,24 @@ fn read_base_lod<B: AsRef<[u8]>>(
     read: &mut Vec<(ModelFile, usize)>,
 ) -> Result<Lod, ModelError> {
     let meshes = match (base, own_mesh) {
-        (Some((companion_name, companion)), _) => {
-            let index = first_of(companion, &MESH_TYPES).ok_or_else(|| ModelError::NoMesh {
-                file: companion_name.clone(),
-            })?;
-            read.push((ModelFile::Geometry, index));
-            read_meshes(
-                companion_name,
-                index,
-                companion.chunk_data(index),
-                rig.nodes,
-                Some(rig.bones.len()),
-            )?
-        }
+        (Some((companion_name, companion)), _) => match first_of(companion, &MESH_TYPES) {
+            Some(index) => {
+                read.push((ModelFile::Geometry, index));
+                read_meshes(
+                    companion_name,
+                    index,
+                    companion.chunk_data(index),
+                    rig.nodes,
+                    Some(rig.bones.len()),
+                )?
+            }
+            None if companion.chunks_of(ivo::VIS_AREAS).next().is_some() => Vec::new(),
+            None => {
+                return Err(ModelError::NoMesh {
+                    file: companion_name.clone(),
+                });
+            }
+        },
         (None, Some(index)) => {
             read.push((ModelFile::Model, index));
             let data = file.chunk_data(index);
@@ -200,29 +206,6 @@ fn read_base_lod<B: AsRef<[u8]>>(
         meshes,
         bones: None,
     })
-}
-
-/// Returns the names of the files next to the model file `name` that reading it can fetch: the
-/// geometry companion `<name>m`, and for every level of detail from 1 on its model file and its
-/// geometry companion.
-#[must_use]
-pub fn companion_file_names(name: &str) -> Vec<String> {
-    let mut names = vec![format!("{name}m")];
-    for level in 1..=MAX_LOD {
-        let file = lod_file_name(name, level);
-        names.push(format!("{file}m"));
-        names.push(file);
-    }
-    names
-}
-
-/// Returns the file name of the model file of level of detail `level` of the model `name`:
-/// `<stem>_lod<level>.<extension>`.
-fn lod_file_name(name: &str, level: u32) -> String {
-    match name.rsplit_once('.') {
-        Some((stem, extension)) => format!("{stem}_lod{level}.{extension}"),
-        None => format!("{name}_lod{level}"),
-    }
 }
 
 /// Reads the skeleton of the model file of `level`, which a skinned level's bone indices refer
@@ -255,9 +238,14 @@ fn read_lod_companions(
         let Some(companion) = fetch(companions, &companion_name)? else {
             continue;
         };
-        let index = first_of(&companion, &MESH_TYPES).ok_or_else(|| ModelError::NoMesh {
-            file: companion_name.clone(),
-        })?;
+        let Some(index) = first_of(&companion, &MESH_TYPES) else {
+            if companion.chunks_of(ivo::VIS_AREAS).next().is_some() {
+                continue;
+            }
+            return Err(ModelError::NoMesh {
+                file: companion_name,
+            });
+        };
         read.push((ModelFile::LodGeometry(level), index));
         let meshes = read_meshes(
             &companion_name,

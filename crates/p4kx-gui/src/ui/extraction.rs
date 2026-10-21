@@ -255,7 +255,11 @@ pub(super) fn refusal_notice(ui: &mut Ui, texts: &Texts, refusal: Option<&WriteR
 }
 
 pub(super) fn folder_field(ui: &mut Ui, texts: &Texts, folder: Option<&Path>) {
-    let none = texts.get(T::FolderNone);
+    path_field(ui, texts.get(T::FolderNone), folder);
+}
+
+/// Shows the read-only field of a chosen path, with `none` as its hint while none is chosen.
+pub(super) fn path_field(ui: &mut Ui, none: String, folder: Option<&Path>) {
     let shown = folder.map_or_else(String::new, |folder| folder.display().to_string());
     let mut text = shown.as_str();
     let bloom = field::bloom_slot(ui);

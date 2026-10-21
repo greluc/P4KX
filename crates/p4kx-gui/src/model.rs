@@ -13,6 +13,7 @@ mod catalog_control;
 mod content_navigation;
 mod extraction_control;
 mod game_watch;
+mod model_export_control;
 mod record_export_control;
 mod record_text;
 mod update;
@@ -25,6 +26,7 @@ use catalog_control::CatalogState;
 use content_navigation::PendingHit;
 pub use game_watch::GAME_CHECK_INTERVAL;
 use game_watch::GameWatch;
+use model_export_control::ModelExportState;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
@@ -83,6 +85,7 @@ pub struct Model {
     content_search: ContentSearchTab,
     pending_hit: Option<PendingHit>,
     record_export: RecordExportState,
+    glb_export: ModelExportState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
     viewer_support: ViewerSupport,
@@ -115,6 +118,7 @@ impl std::fmt::Debug for Model {
             .field("localization", &self.localization)
             .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
+            .field("glb_export", &self.glb_export)
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
             .field("key", &self.key)
@@ -154,6 +158,7 @@ impl Model {
             content_search: ContentSearchTab::default(),
             pending_hit: None,
             record_export: RecordExportState::default(),
+            glb_export: ModelExportState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
             viewer_support: ViewerSupport::default(),

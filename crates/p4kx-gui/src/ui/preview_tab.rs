@@ -3,7 +3,7 @@ use egui::Ui;
 use super::audio_preview::{self, AudioAction, Named};
 use super::record_preview::RecordStep;
 use super::soundbank_preview::{self, BankAction};
-use super::{image_preview, model_preview, xml_preview};
+use super::{image_preview, model_info, model_preview, xml_preview};
 use crate::{Camera, Preview, PreviewTab, Texts, ViewerSupport};
 
 /// What the body of a tab asks for.
@@ -55,6 +55,10 @@ pub(super) fn typed_tab(
         return Typed::Shown(
             model_preview::show(ui, texts, path, (model, support)).map(Asked::Camera),
         );
+    }
+    if let Some(model) = preview.model().filter(|_| tab == PreviewTab::ModelInfo) {
+        model_info::show(ui, texts, path, model);
+        return Typed::Shown(None);
     }
     if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
         xml_preview::show(ui, texts, (path, size), xml);

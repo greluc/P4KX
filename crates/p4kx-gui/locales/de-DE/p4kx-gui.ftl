@@ -649,6 +649,114 @@ about-no-game-data = Es liefert keine Spieldaten mit und liest nur deine eigene 
 about-responsibility = Du bist dafür verantwortlich, bei der Nutzung die Endbenutzer-Lizenzvereinbarung (EULA) und die Nutzungsbedingungen (Terms of Service) von Star Citizen einzuhalten.
 about-owners = Alle Inhalte, die nicht von den Mitwirkenden von P4K-Extractor oder seinen Nutzern stammen, sind Eigentum ihrer jeweiligen Inhaber.
 about-trademark = Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.
+preview-tab-model-info = Info
+model-info-geometry = Geometriedatei
+model-info-geometry-in-file = In der Modelldatei
+model-info-nodes = Knoten
+model-info-meshes = Meshes
+model-info-lods = Detailstufen
+model-info-materials = Materialbibliothek
+model-info-material-ids = Material-IDs
+model-info-material-ids-none = Keine
+model-info-bones = Knochen
+model-info-animations = Animationen
+model-info-animations-unread = Nicht gelesen
+model-info-chunks = Chunks
+model-info-chunks-value = { $total } ({ $read } gelesen, { $skipped } übersprungen, { $unknown } unbekannt)
+model-info-materials-unnamed = Keine genannt
+model-info-materials-loaded = { $library }, { $count ->
+    [one] ein Teilmaterial
+   *[other] { $number } Teilmaterialien
+  }
+model-info-materials-single = { $library }, ein Material für jede ID
+model-info-materials-missing = { $library } (existiert nicht)
+model-info-materials-unreadable = { $library } (nicht lesbar: { $reason })
+model-info-lods-heading = Detailstufen
+model-info-column-lod = LOD
+model-info-column-vertices = Vertices
+model-info-column-triangles = Dreiecke
+model-info-column-meshes = Meshes
+model-info-chunks-heading = Nicht gelesene Chunks ({ $number })
+model-info-column-file = Datei
+model-info-column-type = Typ
+model-info-column-type-id = Typ-ID
+model-info-column-usage = Verwendung
+model-info-usage-skipped = Bekannt, nicht gelesen
+model-info-usage-unknown = Unbekannt, übersprungen
+model-info-file-model = Modelldatei
+model-info-file-geometry = Geometriedatei
+model-info-file-lod = Geometrie von LOD { $level }
+model-info-type-unknown = Unbekannt
+model-export-action = Als GLB exportieren …
+model-export-title = Als GLB exportieren
+model-export-model = Modell: { $name }
+model-export-lod-heading = Detailstufe
+model-export-lod = LOD { $level }, { $triangles ->
+    [one] ein Dreieck
+   *[other] { $number } Dreiecke
+  }
+model-export-materials-heading = Materialien
+model-export-materials-colours = Einfache Farben, eine kleine und schnelle Datei
+model-export-materials-textures = Mit Texturen, eine größere Datei
+model-export-texture-mip-heading = Texturgröße
+model-export-texture-mip = { $level ->
+    [0] Volle Größe
+   *[other] 1/{ $divisor } der Kantenlänge, Mip-Stufe { $level }
+  }
+model-export-animations-heading = Animationen
+model-export-animations = { $count ->
+    [one] Die Animation des Modells schreiben
+   *[other] Die { $number } Animationen des Modells schreiben
+  }
+model-export-vertex-colours = Vertex-Farben schreiben
+model-export-file-heading = Datei
+model-export-choose-file = Datei wählen …
+model-export-file-none = Keine Datei gewählt
+model-export-file-filter = glTF-Binärdateien
+model-export-start = Exportieren
+model-export-running-title = Modell wird exportiert
+model-export-reading = { $name } wird gelesen …
+model-export-progress = { $done } von { $total } geschrieben, { $percent } %
+model-export-summary-title = Modell exportiert
+model-export-summary-cancelled-title = Export abgebrochen
+model-export-summary-cancelled = Der Export wurde abgebrochen. Es wurde keine Datei geschrieben.
+model-export-summary-file = Geschrieben nach { $path }
+model-export-summary-counts = Knoten { $nodes }, Meshes { $meshes }, Materialien { $materials }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
+model-export-summary-bones = Knochen { $bones }, Meshes mit Skinning { $skinned }
+model-export-summary-library-missing = Die Materialbibliothek { $library } existiert nicht; es wird das Standardmaterial verwendet.
+model-export-summary-library-unreadable = Die Materialbibliothek { $library } ist nicht lesbar ({ $reason }); es wird das Standardmaterial verwendet.
+model-export-summary-default-materials = { $count ->
+    [one] Eine Material-ID hat kein Teilmaterial in der Bibliothek; dafür wird das Standardmaterial verwendet.
+   *[other] { $number } Material-IDs haben kein Teilmaterial in der Bibliothek; dafür wird das Standardmaterial verwendet.
+  }
+model-export-summary-unnamed-materials = { $count ->
+    [one] Ein Eintrag der Materialbibliothek ist kein Material; dafür wird das Standardmaterial verwendet.
+   *[other] { $number } Einträge der Materialbibliothek sind kein Material; dafür wird das Standardmaterial verwendet.
+  }
+model-export-summary-hidden = { $count ->
+    [one] Ein Submesh wurde ausgelassen, weil sein Material nichts zeichnet.
+   *[other] { $number } Submeshes wurden ausgelassen, weil ihr Material nichts zeichnet.
+  }
+model-export-summary-chunks = Nicht exportierte Chunks ({ $number })
+model-export-summary-chunk-unknown = Unbekannter Chunk { $index } { $type_id } übersprungen ({ $file })
+model-export-summary-chunk-skipped = Chunk { $index } { $type } ({ $type_id }) wird nicht gelesen ({ $file })
+model-export-summary-textures = Fehlende Texturen ({ $number })
+model-export-summary-texture = { $material }: { $role ->
+    [diffuse] Diffuse
+    [normal] Normal
+    [specular] Specular
+   *[other] { $role }
+  } { $file } ({ $reason })
+model-export-summary-animations = Animationen { $written }, Kanäle { $channels }
+model-export-summary-animations-unread = Nicht geschriebene Animationen ({ $number })
+model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
+model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-failed-title = Export fehlgeschlagen
+model-export-failed = { $name } konnte nicht exportiert werden: { $reason }
+model-export-stopped = Der Export von { $name } wurde ohne Ergebnis beendet.
+model-export-key-required = { $name } ist verschlüsselt und das Archiv hat keinen Schlüssel. Gib den Archiv-Schlüssel ein und exportiere erneut.
+model-export-key-rejected = Der Archiv-Schlüssel entschlüsselt { $name } nicht. Gib den richtigen Schlüssel ein und exportiere erneut.
+model-export-archive-changed = Das Archiv hat sich auf dem Datenträger geändert, deshalb wurde { $name } nicht exportiert. Lade das Archiv neu und exportiere erneut.
 scroll-hits = Suchtreffer
 content-search-tab = Suche
 content-search-label = Suche

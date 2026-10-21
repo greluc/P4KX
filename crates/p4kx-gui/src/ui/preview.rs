@@ -31,13 +31,16 @@ pub(super) fn select(model: &mut Model, id: u32) {
     } else if path.is_some_and(|path| is_wem_path(path) || is_bank_path(path)) {
         model.set_preview_tab(PreviewTab::Audio);
     } else if path.is_some_and(is_model_path) {
-        model.set_preview_tab(PreviewTab::Model);
+        if model.preview_tab() != PreviewTab::ModelInfo {
+            model.set_preview_tab(PreviewTab::Model);
+        }
     } else if matches!(
         model.preview_tab(),
         PreviewTab::Xml
             | PreviewTab::Image
             | PreviewTab::Audio
             | PreviewTab::Model
+            | PreviewTab::ModelInfo
             | PreviewTab::DataForge
             | PreviewTab::Record
             | PreviewTab::Incoming
@@ -52,7 +55,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         return;
     };
     let texts = model.texts();
-    let bar = preview_bar::tab_bar(ui, texts, browser, model.preview_tab());
+    let export = model
+        .model_export_shown()
+        .then(|| model.model_export_available());
+    let bar = preview_bar::tab_bar(ui, texts, browser, (model.preview_tab(), export));
     let tab = bar.tab;
     let asked = tab_body(
         ui,
@@ -65,6 +71,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         ui.ctx().copy_text(text);
     }
     model.set_preview_tab(tab);
+    if bar.export {
+        model.begin_model_export();
+    }
     answer(ui, model, bar.step.map(Asked::Record).or(asked));
     if tab == PreviewTab::DataForge
         && let Some(browser) = model.browser_mut()

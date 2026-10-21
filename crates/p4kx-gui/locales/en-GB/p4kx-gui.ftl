@@ -649,6 +649,114 @@ about-no-game-data = It ships no game data and reads only your own Star Citizen 
 about-responsibility = You are responsible for complying with the Star Citizen End User Licence Agreement and Terms of Service when you use it.
 about-owners = All content not authored by the P4K-Extractor contributors or its users is the property of its respective owners.
 about-trademark = Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.
+preview-tab-model-info = Info
+model-info-geometry = Geometry file
+model-info-geometry-in-file = In the model file
+model-info-nodes = Nodes
+model-info-meshes = Meshes
+model-info-lods = Levels of detail
+model-info-materials = Material library
+model-info-material-ids = Material IDs
+model-info-material-ids-none = None
+model-info-bones = Bones
+model-info-animations = Animations
+model-info-animations-unread = Not read
+model-info-chunks = Chunks
+model-info-chunks-value = { $total } ({ $read } read, { $skipped } skipped, { $unknown } unknown)
+model-info-materials-unnamed = None named
+model-info-materials-loaded = { $library }, { $count ->
+    [one] one sub-material
+   *[other] { $number } sub-materials
+  }
+model-info-materials-single = { $library }, one material for every ID
+model-info-materials-missing = { $library } (does not exist)
+model-info-materials-unreadable = { $library } (cannot be read: { $reason })
+model-info-lods-heading = Levels of detail
+model-info-column-lod = LOD
+model-info-column-vertices = Vertices
+model-info-column-triangles = Triangles
+model-info-column-meshes = Meshes
+model-info-chunks-heading = Chunks not read ({ $number })
+model-info-column-file = File
+model-info-column-type = Type
+model-info-column-type-id = Type ID
+model-info-column-usage = Usage
+model-info-usage-skipped = Known, not read
+model-info-usage-unknown = Unknown, skipped
+model-info-file-model = Model file
+model-info-file-geometry = Geometry file
+model-info-file-lod = LOD { $level } geometry
+model-info-type-unknown = Unknown
+model-export-action = Export as GLB…
+model-export-title = Export as GLB
+model-export-model = Model: { $name }
+model-export-lod-heading = Level of detail
+model-export-lod = LOD { $level }, { $triangles ->
+    [one] one triangle
+   *[other] { $number } triangles
+  }
+model-export-materials-heading = Materials
+model-export-materials-colours = Plain colours, a small and quick file
+model-export-materials-textures = With textures, a larger file
+model-export-texture-mip-heading = Texture size
+model-export-texture-mip = { $level ->
+    [0] Full size
+   *[other] 1/{ $divisor } of the size per side, mip { $level }
+  }
+model-export-animations-heading = Animations
+model-export-animations = { $count ->
+    [one] Write the animation of the model
+   *[other] Write the { $number } animations of the model
+  }
+model-export-vertex-colours = Write the vertex colours
+model-export-file-heading = File
+model-export-choose-file = Choose file…
+model-export-file-none = No file chosen
+model-export-file-filter = glTF binary files
+model-export-start = Export
+model-export-running-title = Exporting model
+model-export-reading = Reading { $name }…
+model-export-progress = { $done } of { $total } written, { $percent } %
+model-export-summary-title = Model exported
+model-export-summary-cancelled-title = Export cancelled
+model-export-summary-cancelled = The export was cancelled. No file was written.
+model-export-summary-file = Written to { $path }
+model-export-summary-counts = Nodes { $nodes }, meshes { $meshes }, materials { $materials }, vertices { $vertices }, triangles { $triangles }, size { $size }
+model-export-summary-bones = Bones { $bones }, skinned meshes { $skinned }
+model-export-summary-library-missing = The material library { $library } does not exist; the default material is used.
+model-export-summary-library-unreadable = The material library { $library } cannot be read ({ $reason }); the default material is used.
+model-export-summary-default-materials = { $count ->
+    [one] One material ID has no sub-material in the library; the default material is used for it.
+   *[other] { $number } material IDs have no sub-material in the library; the default material is used for them.
+  }
+model-export-summary-unnamed-materials = { $count ->
+    [one] One entry of the material library is no material; the default material is used for it.
+   *[other] { $number } entries of the material library are no material; the default material is used for them.
+  }
+model-export-summary-hidden = { $count ->
+    [one] One submesh was left out because its material draws nothing.
+   *[other] { $number } submeshes were left out because their material draws nothing.
+  }
+model-export-summary-chunks = Chunks not exported ({ $number })
+model-export-summary-chunk-unknown = Skipped unknown chunk { $index } { $type_id } ({ $file })
+model-export-summary-chunk-skipped = Chunk { $index } { $type } ({ $type_id }) is not read ({ $file })
+model-export-summary-textures = Missing textures ({ $number })
+model-export-summary-texture = { $material }: { $role ->
+    [diffuse] diffuse
+    [normal] normal
+    [specular] specular
+   *[other] { $role }
+  } { $file } ({ $reason })
+model-export-summary-animations = Animations { $written }, channels { $channels }
+model-export-summary-animations-unread = Animations not written ({ $number })
+model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
+model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-failed-title = Export failed
+model-export-failed = { $name } could not be exported: { $reason }
+model-export-stopped = The export of { $name } stopped without a result.
+model-export-key-required = { $name } is encrypted and the Archive has no key. Enter the Archive key and export again.
+model-export-key-rejected = The Archive key does not decrypt { $name }. Enter the right key and export again.
+model-export-archive-changed = The Archive changed on disk, so { $name } was not exported. Reload the Archive and export again.
 scroll-hits = Search hits
 content-search-tab = Search
 content-search-label = Search

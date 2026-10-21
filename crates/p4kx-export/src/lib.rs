@@ -70,6 +70,7 @@ mod record_export;
 mod record_fields;
 mod record_summary;
 mod resource_group;
+mod scan;
 mod selection;
 mod ship;
 mod ship_base;
@@ -104,7 +105,8 @@ pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use ship_base::{
     BuiltShipBase, Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass,
     MassBasis, SHIP_BASE_VERSION, ShipBase, ShipBaseError, ShipBaseOptions, ShipReader, Source,
-    SourceKind, SourceShare, Sourced, UnreadablePartValue, build_ship_base, build_ship_base_from,
+    SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
+    build_ship_base_from,
 };
 pub use summary::{
     BuiltCatalog, CatalogSummary, KindSummary, PaintSummary, SizeWarning, TextSummary,

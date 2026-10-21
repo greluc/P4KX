@@ -204,6 +204,42 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 | `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+| `vehicleKind` | `spaceship` or `groundVehicle`, or `null`; see "Ship base data" below |
+| `size` | `Components/SAttachableComponentParams/AttachDef/Size`, an integer, `null` without an `AttachDef` |
+| `mass` | The hull mass in kilograms; `null` when unknown, never 0; see "Ship base data" below |
+| `massBasis` | What `mass` is the sum of: `parts` or `physics`; `null` exactly when `mass` is |
+| `hullHealth` | The hull hit points, `null` when unknown; see "Ship base data" below |
+| `cargoScu` | The cargo capacity in SCU: 0 without a cargo grid, `null` when unknown; see "Ship base data" below |
+| `cargoGridsWithIssue` | How many cargo grids have no readable capacity; above 0, `cargoScu` is a lower bound |
+
+#### Ship base data
+
+`mass`, `massBasis`, `hullHealth`, `cargoScu`, `cargoGridsWithIssue`, `size` and `vehicleKind` are
+facts only (no game text) and come from the ship base data of `p4kx ships`
+([ship-base-data.md](ship-base-data.md), ADR-0061): the catalog build reads each ship once with
+`p4kx_export::ShipReader` in the same pass that reads the other ship fields, so the ship base walk
+runs once, not twice. Every value is `null` when the Archive does not state it, and a reader never
+sees 0 for unknown. The exports agree value for value; the catalog leaves out the per-value
+sources (file and field), the thresholds, the Loadout and the cells, which stay in `p4kx ships`.
+The shapes are additive within version 1 (ADR-0054, ADR-0063); `vehicleKind` and `massBasis` are
+closed sets that the schema keeps as strings.
+
+| Field | Rule and source |
+|-------|-----------------|
+| `mass` | The sum of the `mass` of every part of the vehicle implementation (`vehicleDefinition`) after the ship's Modification is applied, rounded to four decimals. Landing gear, Loadout items and docked vehicles are not part of it (#305). Without part masses, the mass of the rigid physics controller (`Components/SEntityPhysicsControllerParams/PhysType/Mass`, `massBasis` `physics`) |
+| `hullHealth` | The sum of the positive `damageMax` of the parts, except parts holding an item port flagged `uneditable` or `invisible`; `null` without a vehicle implementation or when no part states one |
+| `cargoScu` | The sum of the capacity of the `CargoGrid` Entities of the default Loadout (docked vehicles and templates are not entered): an open container is `x * y * z / 1.953125` of its `interiorDimensions`, a closed one its `capacity` in standard cargo units. 0 for a ship with no grid, `null` when it has grids and none is readable |
+| `cargoGridsWithIssue` | The grids whose capacity cannot be read, e.g. a dangling Reference to the `InventoryContainer`. Above 0, `cargoScu` counts only the readable grids and is a lower bound |
+| `vehicleKind` | `groundVehicle` for a Record under `entities/groundvehicles`, `spaceship` for one under `entities/spaceships` whose vehicle implementation has no wheel (`SubPartWheel`) or tread (`Tread`) part. `null` when the evidence disagrees (a wheeled or tracked Record under `entities/spaceships`) or the path names neither folder |
+
+LIVE anchors, read by the real-Archive test: Harbinger 230,404 kg, 48,490 hull, 0 SCU; Freelancer
+MAX 341,408 kg, 35,650 hull, 120 SCU; Carrack 3,275,858 kg, 88,000 hull, 456 SCU; Constellation
+Andromeda 386,857 kg, 180,844 hull, 96 SCU (without the docked snub craft). The Javelin and the
+Hornet F7C have `cargoScu` `null`: their cargo grids refer to `InventoryContainer` Records that do
+not exist.
+
+A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more than the number
+says.
 
 #### Playability
 

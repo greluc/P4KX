@@ -2,6 +2,7 @@
 //! when `P4KX_DATA_P4K` names one.
 
 mod real_archive;
+mod real_archive_catalog_ships;
 mod real_archive_crafting;
 mod real_archive_crafting_catalog;
 mod real_archive_crafting_details;

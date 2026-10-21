@@ -1,5 +1,6 @@
 use p4kx_extraction::{RecordTree, StructValue, Value};
 
+use crate::ShipBase;
 use crate::contract::Ship;
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
@@ -35,11 +36,13 @@ fn takes_paints(port: &StructValue<'_>) -> bool {
 }
 
 /// Returns the ship the Record tree `tree` describes, its texts resolved by `texts` and its
-/// playability decided by `evidence`, with the vehicle facts its paints are derived from.
+/// playability decided by `evidence` and its mass, hull, cargo, size and kind taken from `base`,
+/// with the vehicle facts its paints are derived from.
 pub(crate) fn ship<'f>(
     tree: &RecordTree<'f>,
     texts: &Texts<'f>,
     evidence: &Evidence,
+    base: &ShipBase,
 ) -> (Ship<'f>, VehicleFacts<'f>) {
     let vehicle = component(tree, "VehicleComponentParams");
     let guid = CatalogGuid(tree.guid());
@@ -55,6 +58,13 @@ pub(crate) fn ship<'f>(
         manufacturer_guid: reference(vehicle, "manufacturer"),
         vehicle_definition: text(vehicle, "vehicleDefinition"),
         playability: playability_rules::ship(tree, evidence),
+        vehicle_kind: base.vehicle_kind,
+        size: base.size.as_ref().map(|size| size.value),
+        mass: base.mass.as_ref().map(|mass| mass.kg),
+        mass_basis: base.mass.as_ref().map(|mass| mass.basis),
+        hull_health: base.hull.as_ref().map(|hull| hull.health),
+        cargo_scu: base.cargo.scu,
+        cargo_grids_with_issue: base.cargo.grids_with_issue,
     };
     let facts = VehicleFacts {
         ship: guid,

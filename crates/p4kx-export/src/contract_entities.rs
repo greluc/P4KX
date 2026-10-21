@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
-use crate::{ItemClass, Playability};
+use crate::{ItemClass, MassBasis, Playability, VehicleKind};
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -91,6 +91,33 @@ pub(crate) struct Ship<'a> {
     pub(crate) manufacturer_guid: Option<CatalogGuid>,
     /// The path of the vehicle definition XML, `null` without one.
     pub(crate) vehicle_definition: Option<&'a str>,
+    /// Spaceship or ground vehicle, `null` when the record path and the vehicle implementation
+    /// do not settle it. Today one of `spaceship` and `groundVehicle`; the schema keeps a string,
+    /// as a new value is additive.
+    #[schemars(with = "Option<String>")]
+    pub(crate) vehicle_kind: Option<VehicleKind>,
+    /// The item size of `AttachDef.Size`, `null` without one.
+    pub(crate) size: Option<i64>,
+    /// The hull mass in kilograms, without the Loadout, the docked vehicles and the landing gear:
+    /// the sum of the `mass` of the parts of the vehicle implementation after the Modification
+    /// the ship selects, rounded to four decimals. `null` when neither the parts nor the physics
+    /// controller state one, never 0.
+    pub(crate) mass: Option<f64>,
+    /// What `mass` is the sum of. Today one of `parts` and `physics`; the schema keeps a string,
+    /// as a new value is additive. `null` exactly when `mass` is.
+    #[schemars(with = "Option<String>")]
+    pub(crate) mass_basis: Option<MassBasis>,
+    /// The hull hit points: the sum of the positive `damageMax` of the structural parts of the
+    /// vehicle implementation, rounded to four decimals. `null` without a vehicle implementation
+    /// or when no part states a `damageMax`.
+    pub(crate) hull_health: Option<f64>,
+    /// The cargo capacity in standard cargo units (SCU) of the cargo grids the default Loadout
+    /// reaches, rounded to four decimals: 0 for a ship without a cargo grid, `null` when it has
+    /// grids and none can be read. With `cargoGridsWithIssue` above 0 the value is a lower bound.
+    pub(crate) cargo_scu: Option<f64>,
+    /// How many cargo grids of the default Loadout have no readable capacity, e.g. because their
+    /// container Record does not exist.
+    pub(crate) cargo_grids_with_issue: usize,
     /// Who the ship is for, `null` when no rule applies. Today one of `player`, `ai`, `mission`
     /// and `special`; the schema keeps a string, as a new value is additive.
     #[schemars(with = "Option<String>")]

@@ -1,0 +1,257 @@
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use p4kx_assembly::ArchiveFiles;
+use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
+use rayon::prelude::*;
+
+use crate::collected::Picked;
+use crate::commodity::{resource_commodity, resource_type_guid};
+use crate::contract::Blueprint;
+use crate::playability_rules::Evidence;
+use crate::resource_group::{Groups, Listing, listing};
+use crate::selection::is_leftover;
+use crate::ship_base::ShipReader;
+use crate::texts::Texts;
+use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
+
+const PROGRESS_STEP: usize = 1024;
+const GROUP_TYPE: &str = "ResourceTypeGroup";
+const RESOURCE_TYPE: &str = "ResourceType";
+
+/// What one worker thread of the scan keeps between Records: the tree builder and the ship
+/// reader, which keeps the shared Entities and containers it has read.
+struct Worker<'f> {
+    trees: TreeBuilder<'f>,
+    ships: ShipReader<'f>,
+}
+
+/// The parallel check of every Record, with its progress.
+pub(crate) struct Scan<'o, 'a, 'f> {
+    forge: &'f DataForge<'f>,
+    options: &'o CatalogOptions<'a>,
+    texts: &'o Texts<'f>,
+    groups: Groups,
+    evidence: Evidence,
+    done: AtomicUsize,
+    total: usize,
+}
+
+impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
+    /// Checks every Record of `forge` in parallel and returns those a kind selected; a ship's base
+    /// data is read here, once, by the worker that checks it.
+    pub(crate) fn run(
+        forge: &'f DataForge<'f>,
+        files: &'f ArchiveFiles<'f>,
+        options: &'o CatalogOptions<'a>,
+        texts: &'o Texts<'f>,
+        blueprints: &[Blueprint<'f>],
+    ) -> Result<Vec<Picked<'f>>, CatalogError> {
+        let records: Vec<Record<'f>> = forge.records().collect();
+        let (groups, group_failures) = Self::groups(&records);
+        let (evidence, evidence_failures) = Evidence::read(&records);
+        let scan = Self {
+            forge,
+            options,
+            texts,
+            groups,
+            evidence,
+            done: AtomicUsize::new(0),
+            total: records.len(),
+        };
+        let mut picked: Vec<Picked<'f>> = records
+            .par_iter()
+            .map_init(
+                || Worker {
+                    trees: TreeBuilder::new(),
+                    ships: ShipReader::new(forge, files),
+                },
+                |worker, record| scan.check(worker, record),
+            )
+            .filter_map(Result::transpose)
+            .collect::<Result<_, _>>()?;
+        picked.extend(
+            group_failures
+                .into_iter()
+                .chain(evidence_failures)
+                .map(Picked::Failed),
+        );
+        let resources = scan.resource_commodities(&picked, blueprints);
+        picked.extend(resources);
+        Ok(picked)
+    }
+
+    /// Returns what the `ResourceTypeGroup` Records list, the first group in Record order winning a
+    /// `ResourceType` or group several list, and the groups that cannot be read.
+    fn groups(records: &[Record<'f>]) -> (Groups, Vec<CatalogFailure>) {
+        let listed: Vec<Result<Option<Listing>, CatalogFailure>> = records
+            .par_iter()
+            .map_init(TreeBuilder::new, |trees, record| {
+                if !record.type_name().is_ok_and(|name| name == GROUP_TYPE) {
+                    return Ok(None);
+                }
+                let tree = trees
+                    .build(record)
+                    .map_err(|source| CatalogFailure::of(record, &source))?;
+                Ok(Some(listing(&tree)))
+            })
+            .collect();
+        let mut groups = Groups::new();
+        let mut failures = Vec::new();
+        for result in listed {
+            match result {
+                Ok(Some(listing)) => groups.add(listing),
+                Ok(None) => {}
+                Err(failure) => failures.push(failure),
+            }
+        }
+        (groups, failures)
+    }
+
+    /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints use
+    /// that no picked commodity carries, those the Filter matches; one that cannot be read
+    /// becomes a failure.
+    fn resource_commodities(
+        &self,
+        picked: &[Picked<'f>],
+        blueprints: &[Blueprint<'f>],
+    ) -> Vec<Picked<'f>> {
+        let mut carried = HashSet::new();
+        for pick in picked {
+            if let Picked::Commodity(commodity) = pick {
+                carried.extend(commodity.subtype_guid.map(|guid| guid.0));
+            }
+        }
+        let mut used: Vec<_> = blueprints
+            .iter()
+            .flat_map(|blueprint| &blueprint.ingredients)
+            .filter_map(|ingredient| ingredient.resource_guid)
+            .map(|guid| guid.0)
+            .collect();
+        used.sort_unstable();
+        used.dedup();
+        let mut trees = TreeBuilder::new();
+        let mut found = Vec::new();
+        for guid in used.into_iter().filter(|guid| !carried.contains(guid)) {
+            let Some(record) = self.forge.record_by_guid(guid) else {
+                continue;
+            };
+            match self.resource(&mut trees, &record) {
+                Ok(Some(pick)) => found.push(pick),
+                Ok(None) => {}
+                Err(source) => found.push(Picked::Failed(CatalogFailure::of(&record, &source))),
+            }
+        }
+        found
+    }
+
+    fn resource(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+    ) -> Result<Option<Picked<'f>>, DataForgeError> {
+        if record.type_name()? != RESOURCE_TYPE {
+            return Ok(None);
+        }
+        let path = record.record_path()?;
+        if self
+            .options
+            .filter
+            .is_some_and(|filter| !filter.matches(path))
+        {
+            return Ok(None);
+        }
+        let tree = trees.build(record)?;
+        Ok(Some(Picked::Commodity(resource_commodity(
+            &tree,
+            self.texts,
+            &self.groups,
+        ))))
+    }
+
+    fn check(
+        &self,
+        worker: &mut Worker<'f>,
+        record: &Record<'f>,
+    ) -> Result<Option<Picked<'f>>, CatalogError> {
+        if self.options.cancel.is_some_and(CancelToken::is_cancelled) {
+            return Err(CatalogError::Cancelled);
+        }
+        self.tick();
+        Ok(self
+            .select(worker, record)
+            .unwrap_or_else(|source| Some(Picked::Failed(CatalogFailure::of(record, &source)))))
+    }
+
+    fn select(
+        &self,
+        worker: &mut Worker<'f>,
+        record: &Record<'f>,
+    ) -> Result<Option<Picked<'f>>, DataForgeError> {
+        let trees = &mut worker.trees;
+        let path = record.record_path()?;
+        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
+            return Ok(None);
+        };
+        if record.type_name()? != kind.rule().type_name {
+            return Ok(None);
+        }
+        if self
+            .options
+            .filter
+            .is_some_and(|filter| !filter.matches(path))
+        {
+            return Ok(None);
+        }
+        if is_leftover(path, record.name()?) {
+            return Ok(Some(Picked::Skipped(kind)));
+        }
+        let tree = trees.build(record)?;
+        let resource_type = match kind {
+            Kind::Commodities => self.resource_type(trees, &tree)?,
+            _ => None,
+        };
+        let ship_base = match kind {
+            Kind::Ships => match worker.ships.read_tree(record, &tree) {
+                Ok(base) => Some(base),
+                Err(failure) => return Ok(Some(Picked::Failed(failure))),
+            },
+            _ => None,
+        };
+        Ok(Picked::entity(
+            kind,
+            &tree,
+            self.texts,
+            resource_type.as_ref(),
+            &self.groups,
+            &self.evidence,
+            ship_base.as_ref(),
+        ))
+    }
+
+    fn resource_type(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        commodity: &RecordTree<'f>,
+    ) -> Result<Option<RecordTree<'f>>, DataForgeError> {
+        let Some(guid) = resource_type_guid(commodity) else {
+            return Ok(None);
+        };
+        self.forge
+            .record_by_guid(guid.0)
+            .map(|record| trees.build(&record))
+            .transpose()
+    }
+
+    fn tick(&self) {
+        let done = self.done.fetch_add(1, Ordering::Relaxed).saturating_add(1);
+        if let Some(progress) = self.options.progress
+            && (done.is_multiple_of(PROGRESS_STEP) || done == self.total)
+        {
+            progress(CatalogProgress {
+                records_done: done,
+                records_total: self.total,
+            });
+        }
+    }
+}

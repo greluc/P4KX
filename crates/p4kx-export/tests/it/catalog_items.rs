@@ -261,6 +261,13 @@ fn a_ship_carries_names_role_career_crew_manufacturer_and_vehicle_definition() -
             "manufacturerGuid": "10000000-0000-4000-8000-000000000001",
             "vehicleDefinition": "scripts/entities/vehicles/implementations/xml/acas_ship.xml",
             "playability": null,
+            "vehicleKind": "spaceship",
+            "size": null,
+            "mass": null,
+            "massBasis": null,
+            "hullHealth": null,
+            "cargoScu": 0.0,
+            "cargoGridsWithIssue": 0,
         }),
         "the ship fields"
     );

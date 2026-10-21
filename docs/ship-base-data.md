@@ -45,6 +45,7 @@ tool version, export time). NDJSON has the ship objects only.
 | --- | --- |
 | `guid`, `className`, `recordPath` | Identity of the ship's Record |
 | `implementation` | `file`, `modification`, `patchFile` of the vehicle implementation read; `null` when the ship names none or it cannot be read |
+| `vehicleKind` | `spaceship` or `groundVehicle`, see below; `null` when the evidence disagrees |
 | `size` | `{value, source}` from `AttachDef.Size`; `null` without one |
 | `mass` | hull mass, see below; `null` when neither parts nor physics controller state one |
 | `hull` | hull hit points, see below; `null` without a vehicle implementation or when no part states a `damageMax` |
@@ -60,6 +61,14 @@ implementation file), `patchXml` (the Modification's patch file) or `modificatio
 Modification, which sits in the vehicle implementation file; `field` names the Modification).
 Sums list the sources as `sources: [{kind, file, field, values}]`, with the number of values each
 supplied; only the origins that supplied a value appear.
+
+### Vehicle kind
+
+`groundVehicle` for a Record under `entities/groundvehicles`, `spaceship` for one under
+`entities/spaceships` whose vehicle implementation has no wheel (`class="SubPartWheel"`) or tread
+(`class="Tread"`) part. A wheeled or tracked Record under `entities/spaceships` gives `null`: the
+folder and the implementation disagree, and the kind is not guessed. The Basetool catalog carries
+the value as `vehicleKind` (`basetool-catalog.md`, "Ship base data").
 
 ### Mass
 

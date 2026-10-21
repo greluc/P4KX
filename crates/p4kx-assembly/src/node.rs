@@ -95,7 +95,7 @@ impl LoadoutResolver<'_> {
             issues,
             geometry: spec.geometry.clone(),
             vehicle,
-            landing_gear: Arc::clone(&spec.landing_gear),
+            landing_gear: self.landing_gear_of(spec),
         }
     }
 

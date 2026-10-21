@@ -7,8 +7,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::entities::is_entity;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::{
-    Entities, EntityNode, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation,
-    vehicle, xml,
+    Entities, EntityNode, LandingGear, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH,
+    VehicleImplementation, vehicle, xml,
 };
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
@@ -44,6 +44,7 @@ pub struct LoadoutResolver<'f> {
     specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
     vehicles: HashMap<String, VehicleResult>,
+    landing: HashMap<Guid, Arc<[LandingGear]>>,
     builder: TreeBuilder<'f>,
 }
 
@@ -67,6 +68,7 @@ impl<'f> LoadoutResolver<'f> {
             specs: HashMap::new(),
             xml: HashMap::new(),
             vehicles: HashMap::new(),
+            landing: HashMap::new(),
             builder: TreeBuilder::new(),
         }
     }
@@ -162,6 +164,29 @@ impl<'f> LoadoutResolver<'f> {
             .map(Arc::new)
         });
         Some(loaded.clone())
+    }
+
+    /// Returns the gears of the landing gear Record the vehicle component of spec names, read once
+    /// per resolver; empty when it names none or the Record cannot be read.
+    pub(crate) fn landing_gear_of(&mut self, spec: &EntitySpec) -> Arc<[LandingGear]> {
+        let Some(guid) = spec
+            .vehicle
+            .as_ref()
+            .and_then(|vehicle| vehicle.landing_system)
+        else {
+            return Arc::from([]);
+        };
+        if let Some(gears) = self.landing.get(&guid) {
+            return Arc::clone(gears);
+        }
+        let gears = self
+            .entities
+            .forge()
+            .record_by_guid(guid)
+            .and_then(|record| self.builder.build(&record).ok())
+            .map_or_else(|| Arc::from([]), |tree| vehicle::gears(&tree));
+        self.landing.insert(guid, Arc::clone(&gears));
+        gears
     }
 
     /// Returns the Record a target names, or `None` when there is none.

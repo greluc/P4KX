@@ -69,6 +69,7 @@ fn port_json(part: &VehiclePart) -> Option<VehiclePortJson<'_>> {
 pub(crate) struct LandingGearJson<'a> {
     bone: &'a str,
     geometry: &'a str,
+    mass: Option<f64>,
 }
 
 impl<'a> From<&'a LandingGear> for LandingGearJson<'a> {
@@ -76,6 +77,7 @@ impl<'a> From<&'a LandingGear> for LandingGearJson<'a> {
         Self {
             bone: gear.bone(),
             geometry: gear.geometry(),
+            mass: gear.mass(),
         }
     }
 }

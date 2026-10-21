@@ -1,6 +1,7 @@
 //! The vehicle implementation of a ship: the XML file its `VehicleComponentParams` name, with the
 //! Modification the Entity selects applied.
 
+mod gear;
 mod locate;
 mod patch;
 mod read;
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 use crate::merge::port_key;
 use crate::{LoadoutError, LoadoutFiles};
 
+pub(crate) use gear::gears;
 pub(crate) use locate::load;
 pub use patch::ModificationReport;
 
@@ -177,11 +179,12 @@ impl VehiclePart {
     }
 }
 
-/// One landing gear of an Entity's `VehicleLandingGearSystem` component.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One landing gear of the `VehicleLandingGearSystem` Record an Entity's vehicle component names.
+#[derive(Debug, Clone, PartialEq)]
 pub struct LandingGear {
     pub(crate) bone: String,
     pub(crate) geometry: String,
+    pub(crate) mass: Option<f64>,
 }
 
 impl LandingGear {
@@ -191,10 +194,16 @@ impl LandingGear {
         &self.bone
     }
 
-    /// Returns the path of the gear's geometry; empty when the component gives none.
+    /// Returns the path of the gear's geometry; empty when the Record gives none.
     #[must_use]
     pub fn geometry(&self) -> &str {
         &self.geometry
+    }
+
+    /// Returns the gear's mass in kilograms, or None when the Record gives none.
+    #[must_use]
+    pub const fn mass(&self) -> Option<f64> {
+        self.mass
     }
 }
 

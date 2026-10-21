@@ -83,8 +83,9 @@ pub enum LoadoutError {
         /// Why it cannot be read.
         reason: String,
     },
-    /// The vehicle implementation of an Entity, or its Modification, cannot be read in full.
-    #[error("the vehicle implementation {path} cannot be read: {reason}")]
+    /// The vehicle implementation of an Entity, or its Modification, is not read in full or not
+    /// applied as it names; what could be read is still kept.
+    #[error("the vehicle implementation {path}: {reason}")]
     VehicleImplementation {
         /// The path the Record names, or of the file that fails.
         path: String,

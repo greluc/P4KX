@@ -20,8 +20,10 @@ takes effect before anything is interpreted.
   patch root named `Vehicle`, and a child without an `id` such as `Parts`, replaces the child of
   the same name of the base wholesale (the parts-only files of the F7CM and the 350r; the full
   override of the Sentinel). A child with an `id` is merged into every base element with that
-  `id`: its attributes are set and its children replace the element's. The base's own
-  `Modifications` element is never replaced.
+  `id`: its attributes are set and its children replace the element's; a child whose `id` no base
+  element has replaces the base's child of the same name wholesale, as the wrapper
+  `<Parts id="modParts">` of the Harbinger does. The base's own `Modifications` element is never
+  replaced.
 - **Elems.** After the patch, each `Elem` of the selected Modification sets the attribute `name`
   to `value` on every element whose `id` equals `idRef`, wherever it sits (`Part` or `ItemPort`).
   Attribute names and element names match ignoring ASCII case (`minSize`/`minsize`,
@@ -35,9 +37,9 @@ takes effect before anything is interpreted.
   unspecified when the implementation has no such part. A Modification that clears the flag
   therefore shows in the tree.
 - **Treads, wheels, landing gear.** Parts of class `Tread` list the wheel part names they run on,
-  parts of class `SubPartWheel` are the wheels. Landing gear is not in the XML: the entity that
-  holds it carries a `VehicleLandingGearSystem` component whose `gears` name a bone each, and
-  that is listed on its node.
+  parts of class `SubPartWheel` are the wheels. Landing gear is not in the XML: the Entity's
+  `VehicleComponentParams.landingSystem` refers to a Record of type `VehicleLandingGearSystem`
+  whose `gears` name a bone, a geometry path and a mass each, and that is listed on its node.
 - **Failure.** A missing or corrupt implementation, patch file or Modification is a
   `vehicle_implementation` issue of the Entity; the rest of the tree still resolves, and a patch
   that cannot be read leaves the base implementation in place.
@@ -68,6 +70,19 @@ The library API is `VehicleImplementation::read` (an implementation without a Lo
 exports) and `EntityNode::vehicle`, `EntityNode::landing_gear` and `PortNode::visibility` (in the
 tree). Mass, hull points and number noise beyond the lenient reading above belong to #316 and
 #304.
+
+## Check on the live Archive
+
+LIVE (1140 vehicles, 97 with a patch file) read with no unexpected issue. Patch files of all three
+shapes occur: `Vehicle` children (Sentinel), id-less children (Harbinger's wrapper, Taurus) and
+id children (350r, F7CM, Freelancer). The only issues are the wrecked Starfarer's Modifications,
+which name patch files `MISC_Starfarer_Dead*.xml` that the Archive does not hold. 128 `Elem`s
+match no element; they are not issues, and they are CIG data, not rule gaps: the `idRef` is the
+`id` of a part that the same Modification's patch replaced wholesale (`modShield`,
+`modFlightController`, `modWeapon00x`, `modpowerplant001`, `modName`), or no element of any
+implementation has that `id` (`modMannequin`, `modCoPilotSeat`, `modHoloGeometry_*`,
+`modLeftLegPedal`, `xmlMannequin`, `modDriverMissileControl`). No case difference is
+involved.
 
 ## Considered Options
 

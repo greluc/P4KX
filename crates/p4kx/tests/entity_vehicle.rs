@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntity, TestEntry, TestPort, entity_schema,
+    landing_system_record,
 };
 use serde_json::Value;
 
@@ -30,8 +31,15 @@ fn archive(dir: &std::path::Path, modification: &str) -> Result<PathBuf, Box<dyn
         )
         .port(TestPort::new("hardpoint_gun"))
         .port(TestPort::new("hardpoint_seat"))
-        .landing_gear("landing_gear_front", "Objects/gear.cgf");
-    let database = entity_schema(DataForgeBuilder::new()).record(ship.record());
+        .landing_system(0x10);
+    let gear = landing_system_record(
+        0x10,
+        "TEST_Ship_LandingSystem",
+        &[("landing_gear_front", "Objects/gear.cgf", 10.0)],
+    );
+    let database = entity_schema(DataForgeBuilder::new())
+        .record(ship.record())
+        .record(gear);
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()))

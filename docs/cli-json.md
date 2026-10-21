@@ -128,7 +128,7 @@ A **Node** is one Entity:
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
 | `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, a vehicle implementation or Modification that cannot be read, or the port limit |
 | `vehicle` | Vehicle | Only for an Entity whose Record names a vehicle implementation that was read: the implementation with the Entity's Modification applied |
-| `landing_gear` | array | Only for an Entity with a `VehicleLandingGearSystem` component: its gears as objects with `bone` and `geometry` (the geometry path, empty when the component gives none) |
+| `landing_gear` | array | Only for an Entity whose `VehicleComponentParams.landingSystem` refers to a `VehicleLandingGearSystem` Record: its gears as objects with `bone`, `geometry` (the geometry path, empty when the Record gives none) and `mass` (kilograms or `null`) |
 | `ports` | array | One Port per port, see below for the order |
 
 A **Vehicle** is the vehicle implementation XML of

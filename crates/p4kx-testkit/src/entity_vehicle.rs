@@ -1,4 +1,4 @@
-use crate::{TestInstance, TestStruct, TestType, TestValue};
+use crate::{TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
     let resource = |type_name: &str, path: &str| {
@@ -21,12 +21,16 @@ pub(crate) fn vehicle_structs() -> Vec<TestStruct> {
         TestStruct::new("VehicleComponentParams")
             .parent("DataForgeComponentParams")
             .field("vehicleDefinition", TestType::String)
-            .field("modification", TestType::String),
+            .field("modification", TestType::String)
+            .field(
+                "landingSystem",
+                TestType::ReferenceTo("VehicleLandingGearSystem".to_owned()),
+            ),
         TestStruct::new("VehicleLandingGearSystem")
-            .parent("DataForgeComponentParams")
             .array("gears", TestType::Class("VehicleLandingGear".to_owned())),
         TestStruct::new("VehicleLandingGear")
             .field("bone", TestType::String)
+            .field("mass", TestType::Single)
             .field(
                 "geometry",
                 TestType::Class("GlobalResourceGeometry".to_owned()),
@@ -34,32 +38,46 @@ pub(crate) fn vehicle_structs() -> Vec<TestStruct> {
     ]
 }
 
-pub(crate) fn vehicle_component(definition: &str, modification: &str) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("VehicleComponentParams")
-            .value("vehicleDefinition", TestValue::text(definition))
-            .value("modification", TestValue::text(modification)),
-    )
+pub(crate) fn vehicle_component(
+    definition: &str,
+    modification: &str,
+    landing_system: Option<u128>,
+) -> TestValue {
+    let mut component = TestInstance::new("VehicleComponentParams")
+        .value("vehicleDefinition", TestValue::text(definition))
+        .value("modification", TestValue::text(modification));
+    if let Some(guid) = landing_system {
+        component = component.value("landingSystem", TestValue::Reference(guid));
+    }
+    TestValue::Struct(component)
 }
 
-pub(crate) fn landing_gear_component(gears: &[(String, String)]) -> TestValue {
+/// Returns the Record of type `VehicleLandingGearSystem` named `name` whose gears move the bone
+/// of each `(bone, geometry path, mass)`; a vehicle's `landingSystem` refers to it.
+#[must_use]
+pub fn landing_system_record(guid: u128, name: &str, gears: &[(&str, &str, f32)]) -> TestRecord {
     let gears = gears
         .iter()
-        .map(|(bone, geometry)| {
+        .map(|(bone, geometry, mass)| {
             TestValue::Struct(
                 TestInstance::new("VehicleLandingGear")
-                    .value("bone", TestValue::text(bone.clone()))
+                    .value("bone", TestValue::text(*bone))
+                    .value("mass", TestValue::Single(*mass))
                     .value(
                         "geometry",
                         TestValue::Struct(
                             TestInstance::new("GlobalResourceGeometry")
-                                .value("path", TestValue::text(geometry.clone())),
+                                .value("path", TestValue::text(*geometry)),
                         ),
                     ),
             )
         })
         .collect();
-    TestValue::Struct(
-        TestInstance::new("VehicleLandingGearSystem").value("gears", TestValue::Array(gears)),
+    TestRecord::new(
+        guid,
+        "VehicleLandingGearSystem",
+        format!("VehicleLandingGearSystem.{name}"),
+        format!("libs/foundry/records/entities/scitem/ships/landingsystem/{name}.xml"),
     )
+    .value("gears", TestValue::Array(gears))
 }

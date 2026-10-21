@@ -7,7 +7,7 @@ use p4kx_assembly::{
     EntityNode, LoadoutFileError, LoadoutFiles, LoadoutResolver, PortVisibility, VehiclePart,
 };
 use p4kx_dataforge::DataForge;
-use p4kx_testkit::{DataForgeBuilder, TestEntity, TestPort, entity_schema};
+use p4kx_testkit::{DataForgeBuilder, TestEntity, TestPort, entity_schema, landing_system_record};
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 
@@ -118,9 +118,18 @@ pub(crate) fn database(definition: &str, modification: &str) -> DataForgeBuilder
         .port(TestPort::new("hardpoint_gun"))
         .port(TestPort::new("hardpoint_seat"))
         .port(TestPort::new("hardpoint_unnamed"))
-        .landing_gear("landing_gear_front", "Objects/gear_front.cgf")
-        .landing_gear("landing_gear_back", "Objects/gear_back.cgf");
-    entity_schema(DataForgeBuilder::new()).record(ship.record())
+        .landing_system(0x10);
+    let gear = landing_system_record(
+        0x10,
+        "TEST_Ship_LandingSystem",
+        &[
+            ("landing_gear_front", "Objects/gear_front.cgf", 10.0),
+            ("landing_gear_back", "Objects/gear_back.cgf", 12.5),
+        ],
+    );
+    entity_schema(DataForgeBuilder::new())
+        .record(ship.record())
+        .record(gear)
 }
 
 pub(crate) fn resolve(

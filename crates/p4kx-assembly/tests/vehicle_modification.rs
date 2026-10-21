@@ -122,3 +122,29 @@ fn a_missing_patch_file_or_modification_is_an_issue_and_the_base_stays() -> Test
     }
     Ok(())
 }
+
+#[test]
+fn a_wrapper_with_an_id_no_element_has_replaces_the_child_of_its_name() -> TestResult {
+    use p4kx_assembly::VehicleImplementation;
+    use vehicle_support::{BASE, files};
+
+    let patch = r#"<Modifications><Parts id="modParts"><Part name="other" class="Animated"/></Parts></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Wrapped" patchFile="Modifications/Wrapped"/><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Wrapped.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Wrapped"))?;
+    assert!(vehicle.issues().is_empty(), "{:?}", vehicle.issues());
+    assert_eq!(part_names(vehicle.iter()), ["other"]);
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!((report.wholesale_children(), report.id_children()), (1, 0));
+    assert_eq!(report.unmatched_ids().len(), 0);
+    Ok(())
+}

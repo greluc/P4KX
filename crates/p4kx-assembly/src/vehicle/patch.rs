@@ -110,7 +110,9 @@ pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modific
 /// The patch root is `Modifications` (or `Vehicle`). A `Vehicle` child, and any child without an
 /// `id`, such as `Parts`, replaces the child of the same name of the base wholesale. Any other
 /// child with an `id` is merged into every element of the base with that `id`: its attributes
-/// are set and its children replace the element's.
+/// are set and its children replace the element's. A child with an `id` that no base element has
+/// replaces the base's child of the same name wholesale, as a wrapper such as
+/// `<Parts id="modParts">` does.
 ///
 /// # Errors
 ///
@@ -128,14 +130,20 @@ pub(super) fn apply_patch(
     for child in &patch.children {
         if child.name.eq_ignore_ascii_case("Vehicle") {
             replace_children(base, child, &mut report, budget)?;
-        } else if let Some(id) = child.attribute("id") {
-            report.id_children = report.id_children.saturating_add(1);
-            if merge_by_id(base, id, child, budget)? == 0 {
-                report.unmatched_ids.push(id.to_owned());
-            }
         } else {
-            report.wholesale_children = report.wholesale_children.saturating_add(1);
-            replace_child(base, child, &mut report, budget)?;
+            let id = child.attribute("id");
+            if let Some(id) = id
+                && merge_by_id(base, id, child, budget)? > 0
+            {
+                report.id_children = report.id_children.saturating_add(1);
+            } else if let Some(id) = id
+                && base.child(&child.name).is_none()
+            {
+                report.unmatched_ids.push(id.to_owned());
+            } else {
+                report.wholesale_children = report.wholesale_children.saturating_add(1);
+                replace_child(base, child, &mut report, budget)?;
+            }
         }
     }
     Ok(report)

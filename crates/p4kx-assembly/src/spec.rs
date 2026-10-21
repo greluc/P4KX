@@ -3,17 +3,16 @@ use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
+use crate::Geometry;
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text};
-use crate::{Geometry, LandingGear};
 
 const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
-const LANDING_GEAR: &str = "VehicleLandingGearSystem";
 
 /// What a Loadout entry or a port default names to attach.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +57,7 @@ pub(crate) struct PortSpec {
 pub(crate) struct VehicleSpec {
     pub(crate) definition: String,
     pub(crate) modification: String,
+    pub(crate) landing_system: Option<Guid>,
 }
 
 /// What the Loadout tree needs of one Entity Record.
@@ -71,7 +71,6 @@ pub(crate) struct EntitySpec {
     pub(crate) loadout: Option<LoadoutSpec>,
     pub(crate) geometry: Option<Geometry>,
     pub(crate) vehicle: Option<VehicleSpec>,
-    pub(crate) landing_gear: Arc<[LandingGear]>,
 }
 
 impl EntitySpec {
@@ -112,18 +111,11 @@ impl EntitySpec {
             .map(|component| VehicleSpec {
                 definition: text(component, "vehicleDefinition").trim().to_owned(),
                 modification: text(component, "modification").trim().to_owned(),
+                landing_system: match component.field("landingSystem").map(reference_target) {
+                    Some(TargetSpec::Reference(guid)) => Some(guid),
+                    _ => None,
+                },
             });
-        let landing_gear = components
-            .iter()
-            .filter(|component| component.type_name() == LANDING_GEAR)
-            .flat_map(|component| struct_items(component, "gears"))
-            .map(|gear| LandingGear {
-                bone: text(gear, "bone").to_owned(),
-                geometry: struct_field(gear, "geometry")
-                    .map_or("", |geometry| text(geometry, "path"))
-                    .to_owned(),
-            })
-            .collect();
         Self {
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
@@ -133,7 +125,6 @@ impl EntitySpec {
             loadout,
             geometry,
             vehicle,
-            landing_gear,
         }
     }
 

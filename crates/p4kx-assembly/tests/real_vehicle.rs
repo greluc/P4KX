@@ -18,8 +18,30 @@ type TestResult = Result<(), Box<dyn Error>>;
 const SPACESHIPS: &str = "libs/foundry/records/entities/spaceships/";
 const GROUND_VEHICLES: &str = "libs/foundry/records/entities/groundvehicles/";
 
-/// The issues the reader may record on the live Archive; every other issue fails the test.
-const ALLOWED_ISSUES: &[&str] = &[];
+/// A gap in the game data the reader reports and the test accepts: issues of vehicles whose class
+/// name starts with `class`, of the kind `kind`, whose message holds `text`.
+struct Allowed {
+    class: &'static str,
+    kind: &'static str,
+    text: &'static str,
+    reason: &'static str,
+}
+
+const ALLOWED_ISSUES: &[Allowed] = &[Allowed {
+    class: "MISC_Starfarer_Wreck",
+    kind: "vehicle_implementation",
+    text: "there is no such file",
+    reason: "the Modifications of the wrecked Starfarer name patch files MISC_Starfarer_Dead*.xml, which the Archive does not hold",
+}];
+
+fn allowed(class: &str, kind: &str, message: &str) -> bool {
+    ALLOWED_ISSUES.iter().any(|allowed| {
+        !allowed.reason.is_empty()
+            && class.starts_with(allowed.class)
+            && kind == allowed.kind
+            && message.contains(allowed.text)
+    })
+}
 
 /// How many children of a patch file are of each shape: `Vehicle` child, id-less, with an id.
 #[derive(Debug, Default, Clone, Copy)]
@@ -43,10 +65,12 @@ struct Tally {
     deepest: usize,
     largest_file: usize,
     issues: Vec<String>,
+    unexpected: Vec<String>,
     shapes: BTreeMap<String, Shape>,
     users: BTreeMap<String, Vec<String>>,
     differs: BTreeMap<String, bool>,
     changes: Vec<String>,
+    misses: Vec<String>,
 }
 
 fn nodes(root: &EntityNode) -> Vec<&EntityNode> {
@@ -107,6 +131,12 @@ fn note_patch(
         tally.unmatched_ids += report.unmatched_ids().len();
         tally.unmatched_children += report.unmatched_children().len();
         tally.unmatched_elems += report.unmatched_elems().len();
+        if !report.unmatched_elems().is_empty() {
+            tally.misses.push(format!(
+                "{class_name}: {}",
+                report.unmatched_elems().join(", ")
+            ));
+        }
     }
     let base = VehicleImplementation::read(files, class_name, vehicle.path(), None)?;
     tally.differs.insert(
@@ -132,12 +162,17 @@ fn collect(
     ground: bool,
 ) -> Result<(), Box<dyn Error>> {
     for node in nodes(tree) {
-        tally.issues.extend(
-            node.issues()
-                .iter()
-                .filter(|issue| issue.kind() == "vehicle_implementation")
-                .map(|issue| format!("{}: {issue}", node.class_name())),
-        );
+        for issue in node
+            .issues()
+            .iter()
+            .filter(|issue| issue.kind() == "vehicle_implementation")
+        {
+            let line = format!("{}: {issue}", node.class_name());
+            if !allowed(node.class_name(), issue.kind(), &issue.to_string()) {
+                tally.unexpected.push(line.clone());
+            }
+            tally.issues.push(line);
+        }
     }
     let Some(vehicle) = tree.vehicle() else {
         return Ok(());
@@ -196,6 +231,9 @@ fn report(tally: &Tally) {
     for change in &tally.changes {
         println!("{change}");
     }
+    for miss in &tally.misses {
+        println!("unmatched Elems {miss}");
+    }
 }
 
 fn patches<'a>(tally: &'a Tally, needle: &str) -> Vec<(&'a str, Shape)> {
@@ -242,8 +280,8 @@ fn assert_known_vehicles(tally: &Tally, jump: &EntityNode) {
     let r350 = patches(tally, "350r");
     assert!(
         r350.iter()
-            .any(|(_, shape)| shape.wholesale > 0 && shape.vehicle == 0 && shape.id == 0),
-        "the 350r is parts-only: {r350:?}"
+            .any(|(_, shape)| shape.id > 0 && shape.vehicle == 0),
+        "the 350r patches by id: {r350:?}"
     );
 }
 
@@ -274,12 +312,11 @@ fn the_vehicle_implementations_of_a_real_archive_read_and_patch_as_decided() -> 
     let jump = resolver.resolve(&jump)?;
     report(&tally);
 
-    let unexpected: Vec<_> = tally
-        .issues
-        .iter()
-        .filter(|issue| !ALLOWED_ISSUES.iter().any(|allowed| issue.contains(allowed)))
-        .collect();
-    assert!(unexpected.is_empty(), "issues: {unexpected:?}");
+    assert!(
+        tally.unexpected.is_empty(),
+        "issues: {:?}",
+        tally.unexpected
+    );
     assert!(tally.vehicles > 50, "vehicles: {}", tally.vehicles);
     assert!(tally.patched > 0, "no Modification applied a patch file");
     assert!(

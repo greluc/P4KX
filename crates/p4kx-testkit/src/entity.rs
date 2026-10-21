@@ -1,4 +1,4 @@
-use crate::entity_vehicle::{geometry_component, landing_gear_component, vehicle_component};
+use crate::entity_vehicle::{geometry_component, vehicle_component};
 use crate::{TestInstance, TestRecord, TestValue};
 
 /// The prefix of the Record name of every Entity.
@@ -19,7 +19,7 @@ pub struct TestEntity {
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
     vehicle: Option<(String, String)>,
-    landing_gear: Vec<(String, String)>,
+    landing_system: Option<u128>,
 }
 
 impl TestEntity {
@@ -37,7 +37,7 @@ impl TestEntity {
             sound_effects: Vec::new(),
             geometry: None,
             vehicle: None,
-            landing_gear: Vec::new(),
+            landing_system: None,
         }
     }
 
@@ -79,11 +79,11 @@ impl TestEntity {
         self
     }
 
-    /// Adds a landing gear to the Entity's landing gear component: the bone it moves and the
-    /// path of its geometry; the database needs [`entity_schema`](crate::entity_schema).
+    /// Makes the Entity's vehicle component refer to the landing gear Record `guid`, see
+    /// [`landing_system_record`](crate::landing_system_record).
     #[must_use]
-    pub fn landing_gear(mut self, bone: impl Into<String>, geometry: impl Into<String>) -> Self {
-        self.landing_gear.push((bone.into(), geometry.into()));
+    pub const fn landing_system(mut self, guid: u128) -> Self {
+        self.landing_system = Some(guid);
         self
     }
 
@@ -126,10 +126,11 @@ impl TestEntity {
             components.push(geometry_component(path, material.as_deref()));
         }
         if let Some((definition, modification)) = &self.vehicle {
-            components.push(vehicle_component(definition, modification));
-        }
-        if !self.landing_gear.is_empty() {
-            components.push(landing_gear_component(&self.landing_gear));
+            components.push(vehicle_component(
+                definition,
+                modification,
+                self.landing_system,
+            ));
         }
         TestRecord::new(
             self.guid,

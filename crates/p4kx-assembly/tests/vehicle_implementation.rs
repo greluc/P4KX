@@ -95,7 +95,7 @@ fn treads_list_their_wheels_and_wheels_are_listed() -> TestResult {
 }
 
 #[test]
-fn the_landing_gear_of_the_component_is_listed() -> TestResult {
+fn the_landing_gear_of_the_referenced_record_is_listed() -> TestResult {
     let tree = resolve(DEFINITION, "", Some(&standard_files()))?;
     let gear: Vec<_> = tree
         .landing_gear()
@@ -109,6 +109,12 @@ fn the_landing_gear_of_the_component_is_listed() -> TestResult {
             ("landing_gear_back", "Objects/gear_back.cgf")
         ]
     );
+    let masses: Vec<_> = tree
+        .landing_gear()
+        .iter()
+        .map(p4kx_assembly::LandingGear::mass)
+        .collect();
+    assert_eq!(masses, [Some(10.0), Some(12.5)]);
     Ok(())
 }
 

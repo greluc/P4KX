@@ -241,7 +241,7 @@ fn patch_children_and_ids_without_a_counterpart_are_issues_and_in_the_report() -
     let report = vehicle.modification_report().ok_or("no report")?;
     assert_eq!(report.wholesale_children(), 2);
     assert_eq!(report.vehicle_children(), 0);
-    assert_eq!(report.id_children(), 2);
+    assert_eq!(report.id_children(), 1);
     assert_eq!(report.unmatched_children(), ["MovementParams"]);
     assert_eq!(report.unmatched_ids(), ["nothing"]);
     assert_eq!(report.unmatched_elems(), ["gone"]);

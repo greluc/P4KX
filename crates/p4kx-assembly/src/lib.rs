@@ -19,6 +19,11 @@
 //! library the Entity chooses; [`Assembly::write_glb`] exports it as one GLB with a node per part
 //! named `<port>/<entity>`. Parts that cannot be resolved are listed as [`Issue`]s.
 //!
+//! An Entity whose Record names a vehicle implementation (`VehicleComponentParams`) gets it with
+//! the Modification it selects applied, as [`EntityNode::vehicle`]: the parts with their item
+//! ports, treads and wheels, and per port the [`PortVisibility`] that [`PortNode::visibility`]
+//! shows.
+//!
 //! [`audio`] indexes the audio of an Archive once: the ATL definitions that map audio trigger
 //! names to Wwise events and the soundbanks whose `HIRC` sections hold those events, matched by
 //! the events' Wwise short IDs ([`audio::wwise_id`]). [`audio::AudioIndex::entity_audio`] lists
@@ -35,6 +40,7 @@ mod files;
 mod flatten;
 mod geometry;
 mod issue;
+mod markup;
 mod merge;
 mod node;
 mod placement;
@@ -44,6 +50,7 @@ mod read;
 mod resolver;
 mod spec;
 mod tree;
+mod vehicle;
 mod xml;
 
 pub use assembly::{
@@ -60,7 +67,15 @@ pub use port::{PortDefinition, PortTransform, PortType};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
+pub use vehicle::{
+    LandingGear, ModificationReport, PartKind, PortVisibility, VehicleImplementation,
+    VehicleItemPort, VehiclePart,
+};
 pub use xml::MAX_XML_INCLUDE_DEPTH;
+
+/// The deepest element nesting of a vehicle implementation or patch file that is read; deeper
+/// files are refused.
+pub const MAX_XML_ELEMENT_DEPTH: usize = markup::MAX_ELEMENT_DEPTH;
 
 /// The deepest chain of attached Entities below the root that is resolved; deeper attachments
 /// are [`LoadoutError::TooDeep`].

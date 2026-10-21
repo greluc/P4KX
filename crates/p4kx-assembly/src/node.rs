@@ -10,7 +10,7 @@ use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::{
     Attachment, EntityNode, LoadoutError, MAX_LOADOUT_DEPTH, MAX_LOADOUT_PORTS, PortNode,
-    PortSource, Target, Unresolved,
+    PortSource, PortVisibility, Target, Unresolved,
 };
 
 /// The state of one resolution: the Entities on the current branch and the ports so far.
@@ -71,6 +71,26 @@ impl LoadoutResolver<'_> {
         let mut ports = Vec::new();
         let attached_vehicle = spec.docked_vehicle && !walk.is_root();
         let expanded = !(self.stop_at_docked && attached_vehicle);
+        let vehicle = if expanded {
+            match self.vehicle_of(spec) {
+                Some(Ok(vehicle)) => {
+                    issues.extend(vehicle.issues.iter().cloned());
+                    Some(vehicle)
+                }
+                Some(Err(error)) => {
+                    issues.push(error);
+                    None
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
+        let landing_gear = if expanded {
+            self.landing_gear_of(spec, &mut issues)
+        } else {
+            Arc::from([])
+        };
         let entries = if expanded {
             self.merged_entries(spec, overrides, &mut issues)
         } else {
@@ -86,7 +106,11 @@ impl LoadoutResolver<'_> {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
             }
-            ports.push(self.port_node(pending, walk, &mut issues));
+            let mut port = self.port_node(pending, walk, &mut issues);
+            if let Some(vehicle) = &vehicle {
+                port.visibility = vehicle.port_visibility(&port.name);
+            }
+            ports.push(port);
         }
         EntityNode {
             guid: spec.guid,
@@ -95,6 +119,8 @@ impl LoadoutResolver<'_> {
             ports,
             issues,
             geometry: spec.geometry.clone(),
+            vehicle,
+            landing_gear,
             docked_vehicle: attached_vehicle,
             expanded,
         }
@@ -118,6 +144,7 @@ impl LoadoutResolver<'_> {
             definition: pending.definition,
             attachment,
             nested,
+            visibility: PortVisibility::default(),
         }
     }
 
@@ -163,6 +190,7 @@ impl LoadoutResolver<'_> {
                 definition: None,
                 attachment,
                 nested,
+                visibility: PortVisibility::default(),
             });
         }
         walk.nesting = walk.nesting.saturating_sub(1);

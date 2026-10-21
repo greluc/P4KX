@@ -143,10 +143,12 @@ Early development (milestone M1). Available today:
 - `p4kx entity loadout <archive> <entity>` prints the default Loadout tree of an Entity named by
   class name (`AEGS_Avenger_Titan`), GUID or record path: every port with the Entity attached to
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
-  resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
-  the shape described in [docs/cli-json.md](docs/cli-json.md). A docked vehicle, such as the
-  Merlin in a Constellation's docking collar, is listed as `[docked vehicle]`;
-  `--stop-at-docked-vehicles` leaves out its own ports.
+  resolved, such as a dangling Reference, are listed with the reason. For a ship it also reads the
+  vehicle implementation XML with the Modification its Record selects: ports the implementation
+  hides are marked `(invisible)`, and the treads, wheels and landing gear are listed. With
+  `--json` the tree has the shape described in [docs/cli-json.md](docs/cli-json.md). A docked
+  vehicle, such as the Merlin in a Constellation's docking collar, is listed as
+  `[docked vehicle]`; `--stop-at-docked-vehicles` leaves out its own ports.
 - `p4kx entity glb <archive> <entity> --out <file>` exports an Entity as one GLB: its geometry and
   that of every Entity of its default Loadout, each placed at its port as a node named
   `<port>/<entity>` below the node of the Entity it is attached to. `--lod <n>` applies to every

@@ -3,11 +3,13 @@ use std::io::{self, BufWriter, Write};
 use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, Attachment, EntityNode, LoadoutResolver, PortDefinition, PortNode, PortSource,
+    PortVisibility,
 };
 use p4kx_extraction::DataForgeEntry;
 
 use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
+use crate::entity_vehicle;
 use crate::query_table::one_line;
 use crate::{entity_audio, entity_glb, json};
 
@@ -72,6 +74,7 @@ fn print_node(out: &mut impl Write, node: &EntityNode, depth: usize) -> io::Resu
     for issue in node.issues() {
         writeln!(out, "{indent}! {}", one_line(&issue.to_string()))?;
     }
+    entity_vehicle::print(out, node, &indent)?;
     print_ports(out, node.ports(), depth)
 }
 
@@ -110,6 +113,9 @@ fn port_line(port: &PortNode) -> String {
     }
     if let Some(definition) = port.definition() {
         line.push_str(&definition_text(definition));
+    }
+    if port.visibility() == PortVisibility::Invisible {
+        line.push_str(" (invisible)");
     }
     line
 }

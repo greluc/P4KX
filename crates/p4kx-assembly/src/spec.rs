@@ -12,6 +12,7 @@ const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
+const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
 const DOCKED_VEHICLE_TYPE: &str = "NOITEM_Vehicle";
 
@@ -53,6 +54,14 @@ pub(crate) struct PortSpec {
     pub(crate) default_item: TargetSpec,
 }
 
+/// The vehicle implementation a Record names and the Modification it selects.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct VehicleSpec {
+    pub(crate) definition: String,
+    pub(crate) modification: String,
+    pub(crate) landing_system: Option<Guid>,
+}
+
 /// What the Loadout tree needs of one Entity Record.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct EntitySpec {
@@ -63,6 +72,7 @@ pub(crate) struct EntitySpec {
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) vehicle: Option<VehicleSpec>,
     pub(crate) docked_vehicle: bool,
 }
 
@@ -98,6 +108,17 @@ impl EntitySpec {
             .iter()
             .find(|component| component.type_name() == GEOMETRY_RESOURCE)
             .and_then(|component| Geometry::read(component));
+        let vehicle = components
+            .iter()
+            .find(|component| component.type_name() == VEHICLE_PARAMS)
+            .map(|component| VehicleSpec {
+                definition: text(component, "vehicleDefinition").trim().to_owned(),
+                modification: text(component, "modification").trim().to_owned(),
+                landing_system: match component.field("landingSystem").map(reference_target) {
+                    Some(TargetSpec::Reference(guid)) => Some(guid),
+                    _ => None,
+                },
+            });
         let docked_vehicle = components
             .iter()
             .find(|component| component.type_name() == ATTACHABLE)
@@ -112,6 +133,7 @@ impl EntitySpec {
             port_index,
             loadout,
             geometry,
+            vehicle,
         }
     }
 

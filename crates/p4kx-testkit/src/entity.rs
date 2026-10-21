@@ -1,3 +1,5 @@
+use crate::entity_schema::attachable_component;
+use crate::entity_vehicle::{geometry_component, vehicle_component};
 use crate::{TestInstance, TestRecord, TestValue};
 
 /// The prefix of the Record name of every Entity.
@@ -17,6 +19,8 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    vehicle: Option<(String, String)>,
+    landing_system: Option<u128>,
     attach_type: Option<String>,
 }
 
@@ -34,6 +38,8 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            vehicle: None,
+            landing_system: None,
             attach_type: None,
         }
     }
@@ -68,6 +74,27 @@ impl TestEntity {
     #[must_use]
     pub fn sound_effect(mut self, effect: impl Into<String>, trigger: impl Into<String>) -> Self {
         self.sound_effects.push((effect.into(), trigger.into()));
+        self
+    }
+
+    /// Gives the Entity a vehicle component naming the vehicle implementation file `definition`
+    /// and the Modification `modification` (empty for none); the database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn vehicle(
+        mut self,
+        definition: impl Into<String>,
+        modification: impl Into<String>,
+    ) -> Self {
+        self.vehicle = Some((definition.into(), modification.into()));
+        self
+    }
+
+    /// Makes the Entity's vehicle component refer to the landing gear Record `guid`, see
+    /// [`landing_system_record`](crate::landing_system_record).
+    #[must_use]
+    pub const fn landing_system(mut self, guid: u128) -> Self {
+        self.landing_system = Some(guid);
         self
     }
 
@@ -109,16 +136,11 @@ impl TestEntity {
         if let Some((path, material)) = &self.geometry {
             components.push(geometry_component(path, material.as_deref()));
         }
+        components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
+            vehicle_component(definition, modification, self.landing_system)
+        }));
         if let Some(attach_type) = &self.attach_type {
-            components.push(TestValue::Struct(
-                TestInstance::new("SAttachableComponentParams").value(
-                    "AttachDef",
-                    TestValue::Struct(
-                        TestInstance::new("SItemDefinition")
-                            .value("Type", TestValue::text(attach_type.clone())),
-                    ),
-                ),
-            ));
+            components.push(attachable_component(attach_type));
         }
         TestRecord::new(
             self.guid,
@@ -157,22 +179,6 @@ impl TestEntity {
                 .value("triggerEffects", TestValue::Array(effects)),
         )
     }
-}
-
-fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
-    let resource = |type_name: &str, path: &str| {
-        TestValue::Struct(TestInstance::new(type_name).value("path", TestValue::text(path)))
-    };
-    let mut data = TestInstance::new("SGeometryDataParams")
-        .value("Geometry", resource("GlobalResourceGeometry", path));
-    data = data.value(
-        "Material",
-        resource("GlobalResourceMaterial", material.unwrap_or_default()),
-    );
-    let node = TestInstance::new("SGeometryNodeParams").value("Geometry", TestValue::Struct(data));
-    TestValue::Struct(
-        TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),
-    )
 }
 
 /// A Loadout of a synthetic Entity or Loadout entry.

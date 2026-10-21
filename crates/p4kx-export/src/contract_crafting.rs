@@ -20,6 +20,7 @@ pub(crate) struct Commodity<'a> {
     pub(crate) name: LocalisedText<'a>,
     /// The description, from the entity's display parameters or, without one, from the
     /// `ResourceType` Record of the commodity.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) description: LocalisedText<'a>,
     /// The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`
     /// without a `ResourceType` or a group.
@@ -30,6 +31,7 @@ pub(crate) struct Commodity<'a> {
     pub(crate) subtype_guid: Option<CatalogGuid>,
     /// The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;
     /// without a key for a `ResourceType` entry.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) display_type: LocalisedText<'a>,
 }
 

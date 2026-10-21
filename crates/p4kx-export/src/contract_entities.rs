@@ -19,6 +19,7 @@ pub(crate) struct Item<'a> {
     /// The name, from `AttachDef.Localization.Name`.
     pub(crate) name: LocalisedText<'a>,
     /// The description, from `AttachDef.Localization.Description`.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) description: LocalisedText<'a>,
     /// The item type of `AttachDef.Type`, e.g. `PowerPlant`, `null` without one.
     pub(crate) r#type: Option<&'a str>,
@@ -36,10 +37,13 @@ pub(crate) struct Item<'a> {
     /// The words of `AttachDef.Tags`, in stored order.
     pub(crate) tags: Vec<&'a str>,
     /// The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) display_type: LocalisedText<'a>,
     /// The item class from the `Class:` line of the English description, `null` for another
-    /// value or without that line.
+    /// value or without that line. Today one of `Civilian`, `Competition`, `Industrial`,
+    /// `Military` and `Stealth`; the schema keeps a string, as a new value is additive.
     #[serde(rename = "itemClass")]
+    #[schemars(with = "Option<String>")]
     pub(crate) class: Option<ItemClass>,
 }
 
@@ -58,6 +62,7 @@ pub(crate) struct Ship<'a> {
     /// The name, from `vehicleName` of the vehicle parameters.
     pub(crate) name: LocalisedText<'a>,
     /// The description, from `vehicleDescription` of the vehicle parameters.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) description: LocalisedText<'a>,
     /// The role, from `vehicleRole`, e.g. `@vehicle_class_lightfreight`.
     pub(crate) role: LocalisedText<'a>,

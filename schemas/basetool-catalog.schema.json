@@ -111,11 +111,13 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity."
+          "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity.",
+          "x-gameText": true
         },
         "displayType": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry."
+          "description": "The display type of the purchasable parameters, e.g. `@items_commodities_type_metal`;\nwithout a key for a `ResourceType` entry.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -287,11 +289,13 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from `AttachDef.Localization.Description`."
+          "description": "The description, from `AttachDef.Localization.Description`.",
+          "x-gameText": true
         },
         "displayType": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`."
+          "description": "The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`.",
+          "x-gameText": true
         },
         "grade": {
           "description": "The grade of `AttachDef.Grade`, `null` without one.",
@@ -306,15 +310,11 @@
           "description": "The GUID of the Record."
         },
         "itemClass": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ItemClass"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The item class from the `Class:` line of the English description, `null` for another\nvalue or without that line."
+          "description": "The item class from the `Class:` line of the English description, `null` for another\nvalue or without that line. Today one of `Civilian`, `Competition`, `Industrial`,\n`Military` and `Stealth`; the schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "manufacturerGuid": {
           "anyOf": [
@@ -390,36 +390,6 @@
         "type"
       ],
       "type": "object"
-    },
-    "ItemClass": {
-      "description": "The class of an item: an option of the DataForge enum `EItemClass` other than `UNDEFINED`.\n\nNo DataForge field carries it; it is read from the `Class:` line of the item's English\ndescription.",
-      "oneOf": [
-        {
-          "const": "Civilian",
-          "description": "`Civilian`.",
-          "type": "string"
-        },
-        {
-          "const": "Competition",
-          "description": "`Competition`.",
-          "type": "string"
-        },
-        {
-          "const": "Industrial",
-          "description": "`Industrial`.",
-          "type": "string"
-        },
-        {
-          "const": "Military",
-          "description": "`Military`.",
-          "type": "string"
-        },
-        {
-          "const": "Stealth",
-          "description": "`Stealth`.",
-          "type": "string"
-        }
-      ]
     },
     "KindCompleteness": {
       "description": "Whether a kind holds every Record of the Build or only those a Filter selected.",
@@ -505,7 +475,8 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description."
+          "description": "The description.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",
@@ -551,7 +522,8 @@
         },
         "description": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The description, from `vehicleDescription` of the vehicle parameters."
+          "description": "The description, from `vehicleDescription` of the vehicle parameters.",
+          "x-gameText": true
         },
         "guid": {
           "$ref": "#/$defs/Guid",

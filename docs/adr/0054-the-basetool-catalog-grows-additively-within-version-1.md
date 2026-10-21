@@ -22,13 +22,26 @@ release adapts it, even when the import does not use the addition.
   `deny_unknown_fields`, so the generated JSON Schema has no `additionalProperties: false`. A
   reader that validates against an older schema does not fail on an additive field. Every field of
   the schema's own shape stays required; the catalog still writes `null`, never omits.
-- **Loadouts (#393) go into a separate Export,** not into the catalog. The catalog is 21 MB of the
-  64 MB upload limit on LIVE, and ports and Default Loadouts would grow it considerably and
-  lengthen the import.
+- **Guarantees the Basetool relies on;** breaking one is a breaking change:
+  - an existing field never changes its type, its meaning or whether it can be `null`;
+  - a new kind never changes the selection or the ordering of an existing kind;
+  - the meaning of `completeness` stays as it is.
+- **A new value in an existing closed value set is additive.** Example: a new playability value
+  from #392, or a new `itemClass`. A reader maps an unknown value to `null`. The schema therefore
+  documents such a set but keeps the type a string, never a JSON Schema `enum` or `oneOf` of
+  constants, so an older schema accepts the new value; `itemClass` is such a string.
+- **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
+  handled by compression (`.json.zst`), not by a second Export. One upload, one import run, one
+  `completeness`, one Build, and GUID references stay closed within one file. The Basetool accepts
+  `.json`, `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload and the
+  decompressed content is capped at 1 GB. Measured on LIVE: 19.3 MB becomes 1.54 MB with zstd -19
+  `--long=27` (gzip -9: 4.35 MB). Writing `.json.zst` is a separate change.
 - **Game texts:** `description` (every kind) and `displayType` are game texts. Identifiers, short
   names (`name`, `role`, `career`, `code`) and fact values may reach third parties; descriptions
   and lore never. The catalog keeps its `description` fields for the Basetool's logged-in members,
-  and the Basetool keeps them from third parties.
+  and the Basetool keeps them from third parties. Each game-text field carries `"x-gameText":
+  true` in the schema, so a Basetool contract test can check its exchange guard against every
+  marked field.
 - **Channels:** a production import takes `LIVE` catalogs only. `PTU`, `EPTU`, `TECH-PREVIEW` and
   `HOTFIX` are confidential test Channels (ADR-0038).
 

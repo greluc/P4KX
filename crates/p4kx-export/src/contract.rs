@@ -119,6 +119,7 @@ pub(crate) struct Manufacturer<'a> {
     /// The name.
     pub(crate) name: LocalisedText<'a>,
     /// The description.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) description: LocalisedText<'a>,
 }
 

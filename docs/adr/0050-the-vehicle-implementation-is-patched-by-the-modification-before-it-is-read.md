@@ -20,7 +20,9 @@ takes effect before anything is interpreted.
   patch root named `Vehicle`, and a child without an `id` such as `Parts`, replaces the child of
   the same name of the base wholesale (the parts-only files of the F7CM and the 350r; the full
   override of the Sentinel). A child with an `id` is merged into every base element with that
-  `id`: its attributes are set and its children replace the element's; a child whose `id` no base
+  `id`: its attributes are set and its children replace the element's, each new child taking over the
+  attributes of the old child it pairs with (same element name and `name`) that it does not state
+  itself, so an `id` that Elems address survives; a child whose `id` no base
   element has is a wrapper (the Harbinger's `<Parts id="modParts">`): if the base has a child of
   its name, the wrapper's descendants are merged into it by their own `id`s (the topmost with an `id`, at any depth), and only when none of
   them matches does the wrapper replace that child wholesale, so a mistyped wrapper on a partial
@@ -96,7 +98,9 @@ root's. The Harbinger's own `Modification` in the base sets the hull mass with a
 root part (`modName`), to a value within a few per cent of the base's, and re-tags the flight
 controller (`modFlightController`). Replacing the tree wholesale lost both targets and took the
 patch root's mass; merging by descendant `id` keeps them and leaves the hull mass to the
-`Elem`.
+`Elem`. The patch's copy of the flight controller's item port states neither the `id` nor the
+tags of the base's, which the Elem re-tags; taking over the partner's attributes keeps the `id`, so
+the Elem finds it, instead of leaving a port with no tags at all.
 
 ## Considered Options
 

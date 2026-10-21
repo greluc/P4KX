@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::markup::{Budget, Element};
 
@@ -126,9 +126,11 @@ pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modific
 /// The patch root is `Modifications` (or `Vehicle`). A `Vehicle` child, and any child without an
 /// `id`, such as `Parts`, replaces the child of the same name of the base wholesale. Any other
 /// child with an `id` is merged into every element of the base with that `id`: its attributes
-/// are set and its children replace the element's. A child with an `id` that no base element has
-/// is merged into the base's child of its name by the `id`s of its descendants, or replaces it
-/// wholesale when none matches, as a wrapper such as `<Parts id="modParts">` does.
+/// are set and its children replace the element's, each keeping the attributes of the old child
+/// it pairs with (same element name and `name`) that it does not state itself, such as an `id`. A
+/// child with an `id` that no base element has is merged into the base's child of its name by the
+/// `id`s of its descendants, or replaces it wholesale when none matches, as a wrapper such as
+/// `<Parts id="modParts">` does.
 ///
 /// # Errors
 ///
@@ -253,6 +255,61 @@ fn replace_child(
     Ok(())
 }
 
+/// Returns the children `new` as the replacement of the children `old`: each is paired with the
+/// first unused old child of the same element name and `name` attribute, and takes over the
+/// attributes of its partner that it does not state itself, such as an `id` a Modification
+/// addresses; old children without a partner are dropped.
+fn overlay_children(
+    old: Vec<Element>,
+    new: &[Element],
+    budget: &mut Budget,
+) -> Result<Vec<Element>, String> {
+    let mut partners: HashMap<(String, String), VecDeque<Element>> = HashMap::new();
+    for element in old {
+        partners
+            .entry(pair_key(&element))
+            .or_default()
+            .push_back(element);
+    }
+    let mut children = Vec::with_capacity(new.len());
+    for source in new {
+        budget.charge_shallow(source)?;
+        let partner = partners
+            .get_mut(&pair_key(source))
+            .and_then(VecDeque::pop_front);
+        let mut element = Element {
+            name: source.name.clone(),
+            attributes: source.attributes.clone(),
+            children: Vec::new(),
+        };
+        let old_children = match partner {
+            Some(partner) => {
+                for (name, value) in &partner.attributes {
+                    if element.attribute(name).is_none() {
+                        budget.charge_set(element.attributes.len(), name, value)?;
+                        element.set_attribute(name, value);
+                    }
+                }
+                partner.children
+            }
+            None => Vec::new(),
+        };
+        element.children = overlay_children(old_children, &source.children, budget)?;
+        children.push(element);
+    }
+    Ok(children)
+}
+
+fn pair_key(element: &Element) -> (String, String) {
+    (
+        element.name.to_ascii_lowercase(),
+        element
+            .attribute("name")
+            .unwrap_or_default()
+            .to_ascii_lowercase(),
+    )
+}
+
 fn merge_by_id(
     element: &mut Element,
     id: &str,
@@ -267,10 +324,8 @@ fn merge_by_id(
                 budget.charge_set(child.attributes.len(), name, value)?;
                 child.set_attribute(name, value);
             }
-            for grandchild in &patch.children {
-                budget.charge_copy(grandchild)?;
-            }
-            child.children.clone_from(&patch.children);
+            let old = std::mem::take(&mut child.children);
+            child.children = overlay_children(old, &patch.children, budget)?;
         } else if !child.name.eq_ignore_ascii_case("Modifications") {
             matched = matched.saturating_add(merge_by_id(child, id, patch, budget)?);
         }

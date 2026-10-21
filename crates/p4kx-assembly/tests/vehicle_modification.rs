@@ -292,3 +292,36 @@ fn an_empty_id_is_no_id_and_never_an_unmatched_one() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_patched_element_keeps_the_ids_of_its_partner_so_the_elems_still_find_them() -> TestResult {
+    let patch = r#"<Modifications><Part id="partGun" name="Hardpoint_Gun" class="ItemPort"><ItemPort flags=""/></Part></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Tagged" patchFile="Modifications/Tagged"><Elems><Elem idRef="portGun" name="flags" value="invisible"/></Elems></Modification><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Tagged.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Tagged"))?;
+    assert_eq!(
+        vehicle.port_visibility("hardpoint_gun"),
+        PortVisibility::Invisible,
+        "the Elem found the item port although the patch states no id"
+    );
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!(report.unmatched_elems().len(), 0);
+    assert!(vehicle.ids().any(|id| id == "portGun"));
+    let gun = vehicle.item_ports().next().ok_or("no port")?;
+    assert_eq!(
+        gun.item_port()
+            .map(p4kx_assembly::VehicleItemPort::min_size),
+        Some(Some(1)),
+        "attributes the patch does not state carry over"
+    );
+    Ok(())
+}

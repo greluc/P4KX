@@ -172,6 +172,15 @@ impl Budget {
         )
     }
 
+    /// Charges the cost of copying `element` without its children.
+    pub(crate) fn charge_shallow(&mut self, element: &Element) -> Result<(), String> {
+        self.element(&element.name)?;
+        element
+            .attributes
+            .iter()
+            .try_for_each(|(name, value)| self.attribute(name, value))
+    }
+
     /// Charges the cost of copying `element` with everything below it.
     pub(crate) fn charge_copy(&mut self, element: &Element) -> Result<(), String> {
         self.element(&element.name)?;

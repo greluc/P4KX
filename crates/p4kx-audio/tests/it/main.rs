@@ -1,0 +1,28 @@
+//! Integration tests of `p4kx-audio`, built as one test binary.
+
+mod adpcm;
+mod adpcm_blocks;
+mod adpcm_signal;
+mod bnk;
+mod bnk_containers;
+mod bnk_corrupt;
+mod bnk_hirc;
+mod bnk_quirks;
+mod bnk_sound_layout;
+mod bnk_versions;
+mod codec_tag_2;
+mod loops;
+mod loops_ogg;
+mod ogg;
+mod opus;
+mod opus_corrupt;
+mod opus_layouts;
+mod opus_signal;
+mod pages;
+mod rfc8251_vectors;
+mod riff_padding;
+mod vorbis;
+mod vorbis_wav;
+mod wav;
+mod wem;
+mod wem_chunks;

@@ -99,7 +99,7 @@ impl<'f> CargoReader<'f> {
         self.containers.entry(guid).or_insert_with(|| {
             let record = forge
                 .record_by_guid(guid)
-                .ok_or_else(|| format!("the inventory container {guid} is not in the DataForge"))?;
+                .ok_or_else(|| format!("the inventory container {guid} does not exist: a dangling Reference in the game data"))?;
             let tree = trees
                 .build(&record)
                 .map_err(|error| format!("cannot read the inventory container {guid}: {error}"))?;
@@ -200,7 +200,12 @@ fn cells(dimensions: [f64; 3]) -> u64 {
 }
 
 fn round(value: f64) -> f64 {
-    (value * 1e4).round() / 1e4
+    let rounded = (value * 1e4).round() / 1e4;
+    if rounded.abs() < f64::EPSILON {
+        0.0
+    } else {
+        rounded
+    }
 }
 
 /// Rounds a sum to four decimals.

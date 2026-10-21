@@ -21,6 +21,7 @@ const HARBINGER_MASS: f64 = 230_404.0;
 const FREELANCER_MAX: &str = "MISC_Freelancer_MAX";
 const FREELANCER_MAX_MASS: f64 = 341_408.0;
 const CARRACK: &str = "ANVL_Carrack";
+const ANDROMEDA: &str = "RSI_Constellation_Andromeda";
 
 fn ship<'b>(built: &'b BuiltShipBase, class_name: &str) -> Result<&'b ShipBase, Box<dyn Error>> {
     built
@@ -204,23 +205,35 @@ fn the_freelancer_max_has_its_patched_mass_and_about_120_scu() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_carrack_counts_its_grids_but_not_its_docked_vehicles() -> TestResult {
+fn the_carrack_has_456_scu_and_the_andromeda_does_not_count_its_docked_snub() -> TestResult {
     let built = built()?;
     let carrack = ship(built, CARRACK)?;
     assert!(
-        (400.0..=500.0).contains(&carrack.cargo.scu),
+        (440.0..=470.0).contains(&carrack.cargo.scu),
         "the Carrack carries 456 SCU: {}",
         carrack.cargo.scu
     );
-    let docked: Vec<_> = carrack
+    let harbinger = ship(built, HARBINGER)?;
+    assert!(
+        harbinger.cargo.scu.is_sign_positive(),
+        "no negative zero: {}",
+        harbinger.cargo.scu
+    );
+    let andromeda = ship(built, ANDROMEDA)?;
+    assert!(
+        (80.0..=110.0).contains(&andromeda.cargo.scu),
+        "the Andromeda carries 96 SCU, without the snub's grids: {}",
+        andromeda.cargo.scu
+    );
+    let docked: Vec<_> = andromeda
         .loadout
         .iter()
         .filter(|port| port.docked_vehicle)
         .collect();
-    assert!(!docked.is_empty(), "the Carrack carries docked vehicles");
+    assert!(!docked.is_empty(), "the Andromeda carries a docked vehicle");
     for port in &docked {
         assert!(
-            !carrack
+            !andromeda
                 .loadout
                 .iter()
                 .any(|other| other.port.starts_with(&format!("{}/", port.port))),

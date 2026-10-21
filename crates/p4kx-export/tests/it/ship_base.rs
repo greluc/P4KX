@@ -195,7 +195,11 @@ fn cargo_sums_the_grids_of_the_loadout_but_not_templates_or_docked_vehicles() ->
             .as_ref()
             .is_some_and(|s| s.field.ends_with("SCentiCargoUnit"))
     );
-    assert!(near(ship(&built, GROUND)?.cargo.scu, 0.0));
+    let none = ship(&built, GROUND)?.cargo.scu;
+    assert!(
+        near(none, 0.0) && none.is_sign_positive(),
+        "no negative zero: {none}"
+    );
     Ok(())
 }
 

@@ -97,6 +97,12 @@ is read from the `InventoryContainer` Record its `SCItemInventoryContainerCompon
 Each grid lists `port` path, `className`, `guid`, `container`, `shape` (`open` or `closed`), `scu`,
 `cells`, `dimensions`, its `source` (the container Record and field) and an `issue` when its
 capacity cannot be read. The ship's `scu` and `cells` sum the grids, rounded to four decimals.
+On LIVE, 76 grids carry an `issue`, in two kinds that are facts of the game data, not of the
+reading: the Javelin's and the Hornet F7C's grids refer to `InventoryContainer` Records that do not
+exist (dangling References, so no capacity), and `MISC_Hull_A_CargoPlate` is a `CargoGrid` item
+without an inventory container component. Both are listed with their reason and add nothing to the
+sum. About half of the ships have no grid in their Loadout and so `scu` 0.
+
 Cargo that the Loadout does not reach (other containers, interior storage) is not counted.
 
 ### Loadout

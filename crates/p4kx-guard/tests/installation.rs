@@ -258,14 +258,30 @@ fn notices_a_running_game_from_the_process_list() -> TestResult {
     };
     let copy = dir.path().join(name);
     fs::copy(source, &copy)?;
-    let mut game = std::process::Command::new(&copy)
-        .args(args)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()?;
-    let seen = game_is_running();
-    game.kill()?;
-    game.wait()?;
+    let game = KillOnDrop(
+        std::process::Command::new(&copy)
+            .args(args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()?,
+    );
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut seen = game_is_running();
+    while !seen && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        seen = game_is_running();
+    }
+    drop(game);
     assert!(seen, "the fake game is in the process list");
     Ok(())
+}
+
+/// Kills and reaps the child when dropped, so a failing test leaves no process behind.
+struct KillOnDrop(std::process::Child);
+
+impl Drop for KillOnDrop {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }

@@ -2,7 +2,7 @@
 
 The table in `crates/p4kx-chunks/src/types.rs` is checked against the real Archives by the
 `#[ignore]`d test `every_chunk_type_of_the_archive_is_counted_and_the_unknown_ones_are_listed`
-(`crates/p4kx-extraction/tests/real_archive_chunk_types.rs`). It reads every chunk file of the
+(`crates/p4kx-extraction/tests/real_archive/chunk_types.rs`). It reads every chunk file of the
 Archive (`.cgf`, `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`, `.aim`,
 `.img`, `.soc`, and the other extensions it finds by signature) and of every socpak Container, and
 counts the chunk types with version, chunk and file counts, extensions and example paths.

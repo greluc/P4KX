@@ -468,13 +468,11 @@ accepts nothing. The paint ports of a ship are the union of:
 - the `SItemPortDef` entries of `SItemPortContainerComponentParams.Ports` of its Record, which hold
   an `SItemPortDefTypes` with `Type` `Paints`; the tags are `RequiredPortTags`; this is where the
   newer ships keep the port (e.g. the Paladin: `Paint_Paladin`);
-- the `ItemPort` elements of its vehicle implementation XML (`VehicleComponentParams.
-  vehicleDefinition`, below `Data\Scripts\Entities\Vehicles\Implementations\Xml\`, CryXml) with a
-  child `Types/Type` of `type` `Paints`; the tags are `requiredTags`. The Modification named by
-  `VehicleComponentParams.modification` is applied: the paint ports of its `patchFile`, when it
-  has any, replace those of the base file, and an `Elem` of the Modification whose `idRef` is the
-  `id` of a port sets that port's `requiredTags` or `portTags` (the Omega variant of the Mustang
-  requires `Paint_Omega` instead of `Paint_Mustang`).
+- the `ItemPort` elements of its vehicle implementation (`VehicleComponentParams.vehicleDefinition`)
+  that take `Paints` (a child `Types/Type` of `type` `Paints`), with the Modification named by
+  `VehicleComponentParams.modification` applied. The implementation is read by`n  `p4kx_assembly::VehicleImplementation` after the rules of ADR-0050 (patch file, `Elem` entries
+  by id, fallback file names); the tags are the `requiredTags` the patched port has (the Omega
+  variant of the Mustang requires `Paint_Omega` instead of `Paint_Mustang`).
 
 The `RequiredTags` of a paint and the `portTags` of a port are not compared: the Omega paint
 requires `Paint_Omega` while the port of the Omega still lists `Paint_Mustang`. A ship whose
@@ -482,11 +480,10 @@ requires `Paint_Omega` while the port of the Omega still lists `Paint_Mustang`. 
 game selects its Military paints elsewhere).
 
 `p4kx catalog` counts the paints, those that fit a ship and those that fit none, the ships that
-have at least one paint and the ships whose vehicle file exists but cannot be read (text XML is not
-read); `CatalogSummary::paints()` returns them, and an unreadable vehicle file is also a warning of
-`CatalogSummary::warnings()`. A file the Archive lacks is no error: the ship then has
-only the paint ports of its Record. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
-assigned, 1,046 ships with paints. Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
+have at least one paint and the ships whose vehicle implementation cannot be read, or whose patch file or Modification is
+not applied as it names, except that a patch file the Archive lacks is a fact of the game data; `CatalogSummary::paints()` returns them, and an unreadable vehicle file is also a warning of
+`CatalogSummary::warnings()`. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
+assigned, 1,046 ships with paints (PTU 1,010 of 1,035, EPTU 992 of 1,017, TECH-PREVIEW 1,039 of 1,063). Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
 a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballista_Base`,
 `Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
@@ -640,28 +637,28 @@ seconds since 1970-01-01 UTC.
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
 changes with it. The owner kept the limit at 64 MB after the first measurement (21.6 MB). The
 crafting detail (all tiers, quality modifiers, pools and their reward sources) grew the largest
-catalog to 26.1 MB, about 41 % of the limit, so the catalog can still grow by a factor of 2.5
+catalog to 26.6 MB, about 41 % of the limit, so the catalog can still grow by a factor of 2.5
 before the limit is reached; the real-Archive tests assert that the limit is at least twice the
 catalog and print the size (`catalog size: … bytes`). The compressed upload (`.json.zst`, #407)
 is a fraction of that.
 
-Measured on 2026-10-21, with `playability`, on every installed Channel (complete catalog of every kind, English and
+Measured on 2026-10-21, with `playability` and `paints`, on every installed Channel (complete catalog of every kind, English and
 German texts):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|
-| LIVE | 25,980,895 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
-| PTU | 25,648,171 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
-| EPTU | 25,227,760 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 |
-| HOTFIX | 25,980,897 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
-| TECH-PREVIEW | 26,067,340 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
+| LIVE | 26,505,107 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 26,132,678 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 25,702,421 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
-Of the 26.0 MB of LIVE, the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
+Of the 26.5 MB of LIVE, the paints take 0.5 MB (the ship lists), the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
 the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 6.2 s, PTU 4.5 s). Left out as development leftovers on
+A catalog builds in 4 to 7 seconds (LIVE 5.5 s). Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

@@ -71,6 +71,18 @@ fn item_port(element: &Element) -> VehicleItemPort {
         max_size: size(element.attribute("maxSize")),
         flags: element.attribute("flags").unwrap_or_default().to_owned(),
         id: element.attribute("id").map(str::to_owned),
+        port_tags: element.attribute("portTags").unwrap_or_default().to_owned(),
+        required_tags: element
+            .attribute("requiredTags")
+            .unwrap_or_default()
+            .to_owned(),
+        types: element
+            .child("Types")
+            .into_iter()
+            .flat_map(|types| types.children_named("Type"))
+            .filter_map(|kind| kind.attribute("type"))
+            .map(str::to_owned)
+            .collect(),
     }
 }
 

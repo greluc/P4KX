@@ -67,10 +67,11 @@ pub(crate) fn paints(
 }
 
 type ShipsByPorts = HashMap<Vec<PaintPort>, Vec<CatalogGuid>>;
-type Key<'s> = (&'s str, &'s str);
+type Key<'s> = (&'s str, &'s str, &'s str);
 
 fn key<'s>(vehicle: &VehicleFacts<'s>) -> Option<Key<'s>> {
     Some((
+        vehicle.class_name,
         vehicle.definition?,
         vehicle.modification.unwrap_or_default(),
     ))
@@ -127,11 +128,11 @@ fn read_files<'s>(
     let files = VehicleFiles::new(archive);
     wanted
         .into_par_iter()
-        .map(|(definition, modification)| {
-            let modification = (!modification.is_empty()).then_some(modification);
+        .map(|(class_name, definition, modification)| {
+            let named = (!modification.is_empty()).then_some(modification);
             (
-                (definition, modification.unwrap_or_default()),
-                files.paint_ports(definition, modification),
+                (class_name, definition, modification),
+                files.paint_ports(class_name, definition, named),
             )
         })
         .collect()

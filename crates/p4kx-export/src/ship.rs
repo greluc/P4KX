@@ -58,6 +58,7 @@ pub(crate) fn ship<'f>(
     };
     let facts = VehicleFacts {
         ship: guid,
+        class_name: ship.class_name,
         definition: ship.vehicle_definition,
         modification: text(vehicle, "modification"),
         paint_ports: paint_ports(tree),

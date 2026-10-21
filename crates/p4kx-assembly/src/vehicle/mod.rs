@@ -59,9 +59,31 @@ pub struct VehicleItemPort {
     pub(crate) max_size: Option<u32>,
     pub(crate) flags: String,
     pub(crate) id: Option<String>,
+    pub(crate) port_tags: String,
+    pub(crate) required_tags: String,
+    pub(crate) types: Vec<String>,
 }
 
 impl VehicleItemPort {
+    /// Returns the tags the port offers, as stored: words separated by white space.
+    #[must_use]
+    pub fn port_tags(&self) -> &str {
+        &self.port_tags
+    }
+
+    /// Returns the tags an item must carry to fit the port, as stored: words separated by white
+    /// space.
+    #[must_use]
+    pub fn required_tags(&self) -> &str {
+        &self.required_tags
+    }
+
+    /// Returns the item types the port takes, the `type` of each `Types/Type` element.
+    #[must_use]
+    pub fn types(&self) -> &[String] {
+        &self.types
+    }
+
     /// Returns the smallest item size the port takes, or `None` when the XML gives none.
     #[must_use]
     pub const fn min_size(&self) -> Option<u32> {

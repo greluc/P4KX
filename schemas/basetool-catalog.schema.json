@@ -367,6 +367,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "paints": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `paints`."
+        },
         "qualityDistributions": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `qualityDistributions`."
@@ -389,6 +393,7 @@
         "gameplayProperties",
         "items",
         "manufacturers",
+        "paints",
         "qualityDistributions",
         "resourceGroups",
         "ships"
@@ -952,6 +957,27 @@
       ],
       "type": "object"
     },
+    "Paint": {
+      "description": "A paint: an item of the type `Paints` and the ships it fits.",
+      "properties": {
+        "itemGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `guid` of the paint's entry in `items`, which holds its name and record."
+        },
+        "shipGuids": {
+          "description": "The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each\nis the `guid` of an entry of `ships`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "itemGuid",
+        "shipGuids"
+      ],
+      "type": "object"
+    },
     "PoolEntry": {
       "description": "One entry of a blueprint pool.",
       "properties": {
@@ -1439,6 +1465,13 @@
       },
       "type": "array"
     },
+    "paints": {
+      "description": "The paints with the ships they fit, ordered by the GUID of the item.",
+      "items": {
+        "$ref": "#/$defs/Paint"
+      },
+      "type": "array"
+    },
     "qualityDistributions": {
       "description": "The quality distributions and their location overrides, ordered by GUID.",
       "items": {
@@ -1483,6 +1516,7 @@
     "gameplayProperties",
     "items",
     "manufacturers",
+    "paints",
     "qualityDistributions",
     "resourceGroups",
     "schemaVersion",

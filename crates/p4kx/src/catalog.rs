@@ -44,9 +44,19 @@ struct SummaryJson<'a> {
     failed: Vec<FailureJson<'a>>,
     warnings: Vec<WarningJson>,
     item_classes: ItemClassJson,
+    paints: PaintsJson,
     playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct PaintsJson {
+    paints: usize,
+    assigned: usize,
+    unassigned: usize,
+    ships: usize,
+    unreadable_vehicles: usize,
 }
 
 #[derive(Serialize)]
@@ -55,6 +65,7 @@ enum WarningJson {
     RewardSourcesTruncated,
     UnreadableReferenceRecords { count: usize },
     AmbiguousDismantle { count: usize },
+    UnreadableVehicleFiles { count: usize },
     Other { message: String },
 }
 
@@ -66,6 +77,9 @@ impl From<&CraftingWarning> for WarningJson {
                 Self::UnreadableReferenceRecords { count }
             }
             CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
+            CraftingWarning::UnreadableVehicleFiles(count) => {
+                Self::UnreadableVehicleFiles { count }
+            }
             ref other => Self::Other {
                 message: other.to_string(),
             },
@@ -277,6 +291,13 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
             other: summary.item_classes().other,
             missing: summary.item_classes().missing,
         },
+        paints: PaintsJson {
+            paints: summary.paints().paints,
+            assigned: summary.paints().assigned,
+            unassigned: summary.paints().unassigned,
+            ships: summary.paints().ships,
+            unreadable_vehicles: summary.paints().unreadable_vehicles,
+        },
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),
@@ -313,6 +334,12 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         stdout,
         "item classes: {} read, {} other values, {} without a Class: line or English description",
         classes.classified, classes.other, classes.missing
+    )?;
+    let paints = summary.paints();
+    writeln!(
+        stdout,
+        "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
+        paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
     let playability = summary.playability();
     for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {

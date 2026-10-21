@@ -18,7 +18,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 11] = [
+const MINIMUM: [(Kind, usize); 12] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -30,6 +30,7 @@ const MINIMUM: [(Kind, usize); 11] = [
     (Kind::QualityDistributions, 2),
     (Kind::BlueprintPools, 100),
     (Kind::DismantleProcesses, 1),
+    (Kind::Paints, 900),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -100,7 +101,12 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert!(counts.complete, "{kind} complete without a Filter");
         let entities = list(&catalog, kind)?;
         assert_eq!(entities.len(), counts.count, "{kind} written");
-        let guids: Vec<&str> = entities.iter().filter_map(|e| e["guid"].as_str()).collect();
+        let own = if kind == Kind::Paints {
+            "itemGuid"
+        } else {
+            "guid"
+        };
+        let guids: Vec<&str> = entities.iter().filter_map(|e| e[own].as_str()).collect();
         assert_eq!(guids.len(), entities.len(), "{kind} all have a GUID");
         assert!(
             guids.is_sorted_by(|a, b| a < b),
@@ -117,9 +123,11 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     Ok(catalog)
 }
 
+/// Checks that no GUID occurs twice; a paint carries no GUID of its own, only the `itemGuid` of
+/// its item.
 fn check_unique_guids(catalog: &Value) -> TestResult {
     let mut seen = HashSet::new();
-    for kind in Kind::ALL {
+    for kind in Kind::ALL.into_iter().filter(|kind| *kind != Kind::Paints) {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;
             assert!(seen.insert(guid), "{guid} occurs twice, also in {kind}");

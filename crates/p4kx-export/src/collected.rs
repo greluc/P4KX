@@ -5,13 +5,14 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
-    GameplayProperty, Item, Manufacturer, QualityDistribution, ResourceGroup, Ship,
+    GameplayProperty, Item, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
+use crate::paint_port::VehicleFacts;
 use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, resource_group};
@@ -27,8 +28,8 @@ pub(crate) enum Picked<'f> {
     Manufacturer(Manufacturer<'f>),
     /// An item and the `Class:` line of its English description.
     Item(Item<'f>, ClassLine),
-    /// A ship.
-    Ship(Ship<'f>),
+    /// A ship and the vehicle facts its paints are derived from.
+    Ship(Ship<'f>, VehicleFacts<'f>),
     /// A commodity.
     Commodity(Commodity<'f>),
     /// A resource group.
@@ -60,7 +61,10 @@ impl<'f> Picked<'f> {
                 let (item, line) = item(tree, texts);
                 Self::Item(item, line)
             }
-            Kind::Ships => Self::Ship(ship(tree, texts, evidence)),
+            Kind::Ships => {
+                let (ship, vehicle) = ship(tree, texts, evidence);
+                Self::Ship(ship, vehicle)
+            }
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
@@ -68,7 +72,8 @@ impl<'f> Picked<'f> {
             | Kind::GameplayProperties
             | Kind::QualityDistributions
             | Kind::BlueprintPools
-            | Kind::DismantleProcesses => return None,
+            | Kind::DismantleProcesses
+            | Kind::Paints => return None,
         })
     }
 }
@@ -87,6 +92,8 @@ pub(crate) struct Collected<'f> {
     pub(crate) blueprint_pools: Vec<BlueprintPool<'f>>,
     pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
     pub(crate) crafting_global: CraftingGlobal,
+    pub(crate) paints: Vec<Paint>,
+    pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
     pub(crate) failures: Vec<CatalogFailure>,
@@ -117,6 +124,8 @@ impl<'f> Collected<'f> {
             blueprint_pools: crafting.pools,
             dismantle_processes: crafting.dismantle,
             crafting_global: crafting.global,
+            paints: Vec::new(),
+            vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
             failures: crafting.failures,
@@ -131,9 +140,10 @@ impl<'f> Collected<'f> {
                     collected.playability.items.count(entity.playability);
                     collected.items.push(entity);
                 }
-                Picked::Ship(entity) => {
+                Picked::Ship(entity, vehicle) => {
                     collected.playability.ships.count(entity.playability);
                     collected.ships.push(entity);
+                    collected.vehicles.push(vehicle);
                 }
                 Picked::Commodity(entity) => collected.commodities.push(entity),
                 Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
@@ -186,6 +196,7 @@ impl<'f> Collected<'f> {
                     Kind::QualityDistributions => self.quality_distributions.len(),
                     Kind::BlueprintPools => self.blueprint_pools.len(),
                     Kind::DismantleProcesses => self.dismantle_processes.len(),
+                    Kind::Paints => self.paints.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

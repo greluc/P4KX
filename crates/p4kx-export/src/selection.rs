@@ -40,11 +40,14 @@ pub enum Kind {
     /// Dismantle processes: `CraftingBlueprintRecord` Records under
     /// `crafting/blueprints/dismantle` whose process is a `GenericCraftingProcess_Dismantle`.
     DismantleProcesses,
+    /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
+    /// the items and ships, so no record-path rule of its own.
+    Paints,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -56,6 +59,7 @@ impl Kind {
         Self::QualityDistributions,
         Self::BlueprintPools,
         Self::DismantleProcesses,
+        Self::Paints,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -73,6 +77,7 @@ impl Kind {
             Self::QualityDistributions => "qualityDistributions",
             Self::BlueprintPools => "blueprintPools",
             Self::DismantleProcesses => "dismantleProcesses",
+            Self::Paints => "paints",
         }
     }
 
@@ -89,7 +94,8 @@ impl Kind {
         )
     }
 
-    /// Returns the rule that selects the kind's Records.
+    /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
+    /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
     #[must_use]
     pub const fn rule(self) -> KindRule {
         match self {
@@ -97,7 +103,7 @@ impl Kind {
                 prefixes: &["libs/foundry/records/scitemmanufacturer/"],
                 type_name: "SCItemManufacturer",
             },
-            Self::Items => KindRule {
+            Self::Items | Self::Paints => KindRule {
                 prefixes: &[
                     "libs/foundry/records/entities/scitem/",
                     "libs/foundry/records/entities/legacyitems/",
@@ -147,10 +153,11 @@ impl Kind {
     }
 
     /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap.
+    /// kinds do not overlap, except that the derived [`Kind::Paints`] is never returned.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
+            .filter(|kind| *kind != Self::Paints)
             .find(|kind| kind.rule().matches_path(record_path))
     }
 
@@ -168,6 +175,7 @@ impl Kind {
             Self::QualityDistributions => 8,
             Self::BlueprintPools => 9,
             Self::DismantleProcesses => 10,
+            Self::Paints => 11,
         }
     }
 }

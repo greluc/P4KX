@@ -418,6 +418,7 @@ catalog-summary-kind = { $kind ->
     [blueprints] Blueprints
     [resourceGroups] Resource groups
     [blueprintCategories] Blueprint categories
+    [paints] Paints
    *[other] { $kind }
 }: { $written } written, { $skipped } skipped, { $complete ->
     [yes] complete

@@ -8,7 +8,7 @@ use crate::guid_text::CatalogGuid;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
-pub(crate) use crate::contract_entities::{Item, Ship};
+pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -56,6 +56,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) dismantle_processes: Vec<DismantleProcess<'a>>,
     /// The global crafting parameters that apply to every dismantle.
     pub(crate) crafting_global: CraftingGlobal,
+    /// The paints with the ships they fit, ordered by the GUID of the item.
+    pub(crate) paints: Vec<Paint>,
 }
 
 /// Where a catalog came from.
@@ -122,6 +124,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) blueprint_pools: KindCompleteness<'a>,
     /// The completeness of `dismantleProcesses`.
     pub(crate) dismantle_processes: KindCompleteness<'a>,
+    /// The completeness of `paints`.
+    pub(crate) paints: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -139,6 +143,7 @@ impl<'a> Completeness<'a> {
             quality_distributions: completeness,
             blueprint_pools: completeness,
             dismantle_processes: completeness,
+            paints: completeness,
         }
     }
 }

@@ -284,6 +284,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "qualityDistributions": {"status": "complete"},
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
+            "paints": {"status": "complete"},
         }),
         "complete"
     );

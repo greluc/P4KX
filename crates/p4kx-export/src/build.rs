@@ -16,13 +16,15 @@ use crate::contract::{
     Blueprint, BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
 use crate::crafting::read_crafting;
+use crate::crafting_warning::CraftingWarning;
+use crate::paint::paints;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, CatalogSummary,
-    Kind,
+    Kind, PaintSummary,
 };
 
 const PROGRESS_STEP: usize = 1024;
@@ -87,15 +89,12 @@ pub fn build_catalog_from(
         options.filter,
     );
     let picked = Scan::run(&forge, options, &texts, &crafting.blueprints)?;
-    let collected = Collected::new(picked, crafting);
+    let mut collected = Collected::new(picked, crafting);
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
-    let completeness = options.filter.map_or(KindCompleteness::Complete, |filter| {
-        KindCompleteness::Partial {
-            filter: filter.as_str(),
-        }
-    });
+    let paint_summary = add_paints(archive, &forge, &mut collected);
+    let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
     let playability = collected.playability;
@@ -117,6 +116,7 @@ pub fn build_catalog_from(
         blueprint_pools: collected.blueprint_pools,
         dismantle_processes: collected.dismantle_processes,
         crafting_global: collected.crafting_global,
+        paints: collected.paints,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
     json.push(b'\n');
@@ -126,6 +126,7 @@ pub fn build_catalog_from(
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
+            paints: paint_summary,
             playability: Box::new(playability),
             failures,
             warnings,
@@ -133,6 +134,32 @@ pub fn build_catalog_from(
         },
         json,
     })
+}
+
+fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> {
+    options.filter.map_or(KindCompleteness::Complete, |filter| {
+        KindCompleteness::Partial {
+            filter: filter.as_str(),
+        }
+    })
+}
+
+/// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
+fn add_paints(
+    archive: &Archive,
+    forge: &DataForge<'_>,
+    collected: &mut Collected<'_>,
+) -> PaintSummary {
+    let derived = paints(archive, forge, &collected.items, &collected.vehicles);
+    collected.paints = derived.paints;
+    if derived.summary.unreadable_vehicles > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::UnreadableVehicleFiles(
+                derived.summary.unreadable_vehicles,
+            ));
+    }
+    derived.summary
 }
 
 fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

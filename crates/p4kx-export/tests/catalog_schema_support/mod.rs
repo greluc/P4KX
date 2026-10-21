@@ -24,7 +24,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "gameplayProperties": {"status": "complete"},
             "qualityDistributions": {"status": "complete"},
             "blueprintPools": {"status": "complete"},
-            "dismantleProcesses": {"status": "complete"}
+            "dismantleProcesses": {"status": "complete"},
+            "paints": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -153,7 +154,11 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "craftingGlobal": {
             "dismantleExcludedResourceGuids": ["b1000000-0000-4000-8000-000000000001"],
             "dismantleExcludedItemGuids": []
-        }
+        },
+        "paints": [{
+            "itemGuid": "30000000-0000-4000-8000-000000000001",
+            "shipGuids": ["90000000-0000-4000-8000-000000000001"]
+        }]
     })
 }
 

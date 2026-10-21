@@ -14,6 +14,9 @@ pub enum CraftingWarning {
     /// The DataForge holds this many dismantle processes instead of one, so
     /// [`Crafting::dismantle_return`](crate::Crafting::dismantle_return) links no blueprint.
     AmbiguousDismantle(usize),
+    /// This many ships have a vehicle implementation file or Modification patch file that exists
+    /// but cannot be read, so no paint is assigned through it.
+    UnreadableVehicleFiles(usize),
 }
 
 impl fmt::Display for CraftingWarning {
@@ -29,6 +32,10 @@ impl fmt::Display for CraftingWarning {
             Self::AmbiguousDismantle(count) => write!(
                 f,
                 "the DataForge holds {count} dismantle processes instead of one; no dismantle return is linked"
+            ),
+            Self::UnreadableVehicleFiles(count) => write!(
+                f,
+                "{count} ships have a vehicle file that cannot be read; their paints are missing"
             ),
         }
     }

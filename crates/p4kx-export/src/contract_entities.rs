@@ -51,6 +51,18 @@ pub(crate) struct Item<'a> {
     pub(crate) playability: Option<Playability>,
 }
 
+/// A paint: an item of the type `Paints` and the ships it fits.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct Paint {
+    /// The `guid` of the paint's entry in `items`, which holds its name and record.
+    pub(crate) item_guid: CatalogGuid,
+    /// The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each
+    /// is the `guid` of an entry of `ships`.
+    pub(crate) ship_guids: Vec<CatalogGuid>,
+}
+
 /// A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or
 /// `entities/groundvehicles`.
 #[derive(Debug, Serialize, JsonSchema)]

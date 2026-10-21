@@ -58,6 +58,7 @@ mod tracker;
 mod ui_disk_path;
 mod ui_external;
 mod ui_extract;
+mod ui_import_match;
 mod ui_imports;
 mod ui_jobs;
 mod ui_movie;

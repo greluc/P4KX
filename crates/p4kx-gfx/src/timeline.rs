@@ -23,6 +23,10 @@ pub struct Sprite {
 /// display lists of later frames are not kept.
 pub const MAX_FRAME_PLACEMENTS: usize = 1 << 20;
 
+/// The most bytes the display lists of all frames of a movie occupy together, names and filter
+/// data included; the display lists of later frames are not kept.
+pub const MAX_FRAME_BYTES: usize = 64 << 20;
+
 /// A frame label: a name for the frame it precedes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameLabel {
@@ -78,6 +82,13 @@ impl DisplayList {
     /// Returns the number of placements.
     pub(crate) fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns the bytes a snapshot of the list occupies.
+    pub(crate) fn cloned_bytes(&self) -> usize {
+        self.0.values().fold(0usize, |sum, placement| {
+            sum.saturating_add(placement.cloned_bytes())
+        })
     }
 
     /// Returns the placements in ascending depth order.

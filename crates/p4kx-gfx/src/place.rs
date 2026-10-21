@@ -107,6 +107,20 @@ pub struct Placement {
     pub visible: bool,
 }
 
+impl Placement {
+    /// Returns the bytes a copy of the placement occupies, heap data included.
+    pub(crate) fn cloned_bytes(&self) -> usize {
+        let name = self.name.as_ref().map_or(0, String::len);
+        let filters = self.filters.iter().fold(0usize, |sum, filter| {
+            sum.saturating_add(size_of::<Filter>())
+                .saturating_add(filter.data.len())
+        });
+        size_of::<Self>()
+            .saturating_add(name)
+            .saturating_add(filters)
+    }
+}
+
 /// What one `PlaceObject` tag states about a depth.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PlaceCommand {

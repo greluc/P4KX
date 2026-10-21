@@ -103,5 +103,7 @@ pub use tag::tag_name;
 pub use text::{EditLayout, EditText, GlyphEntry, MAX_TEXT_GLYPHS, StaticText, TextRecord};
 pub use text_fonts::{Localise, TextOptions};
 pub use text_html::MAX_TEXT_CHARS;
-pub use timeline::{Export, ExporterInfo, FrameLabel, MAX_FRAME_PLACEMENTS, Sprite, Timeline};
+pub use timeline::{
+    Export, ExporterInfo, FrameLabel, MAX_FRAME_BYTES, MAX_FRAME_PLACEMENTS, Sprite, Timeline,
+};
 pub use walker::MAX_SPRITE_DEPTH;

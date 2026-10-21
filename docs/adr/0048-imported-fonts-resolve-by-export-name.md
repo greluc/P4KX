@@ -19,8 +19,10 @@ knows the font under an export name (`ExportAssets`). This ADR fixes how the two
   Movies are read once per render, cached by Entry, at most `MAX_IMPORTED_MOVIES` (16),
   `MAX_IMPORT_BYTES` (256 MiB decompressed) and `MAX_IMPORTED_FONTS` (256 fonts); a movie that
   exports the name under a local ID it imports itself is followed up to `MAX_IMPORT_DEPTH` (4)
-  levels, and a cycle ends as `TooDeep`. Movies on disk resolve nothing; `UiMovie::import_source`
-  opens the movie of a URL for both origins.
+  levels, and a cycle ends as `TooDeep`. The Entry list is scanned once per distinct URL and
+  folder, not once per imported name. Movies on disk resolve nothing; `UiMovie::import_source`
+  opens the movie of a URL for both origins, and for a movie on disk only a path that stays inside
+  the folder of the movie (no root, drive or stream prefix, no `..` climbing out of it).
 - **URLs are matched, not looked up.** The URLs are relative to the importing movie
   (`../../../fonts/Shared/fonts_en.swf`) but not always right for the folder the movie lies in, and
   some name a movie that only exists in the localisation folders (`HUD_Font_LocFont.swf`). The
@@ -36,13 +38,16 @@ knows the font under an export name (`ExportAssets`). This ADR fixes how the two
   glyph has an outline, and otherwise the text is drawn as boxes and listed as `missing_font`.
 - **Unresolved imports are reported, not fatal.** `UiRender::imports` lists the movies read and the
   imported names that were not found with the reason (`NotFound`, `Unreadable`, `NoSuchExport`,
-  `TooDeep`, `OverBudget`); the texts keep drawing as boxes.
+  `TooDeep`, `OverBudget`; `not_found` and so on in JSON, with the message beside it); the texts keep drawing as boxes.
 
 ## Frames and labels
 
 The walker keeps the display list at the end of every frame (`Timeline::frame_lists`), capped at
-`MAX_FRAME_PLACEMENTS` (2^20, a frame counts as one more) per movie; frames beyond it are not kept
-and one failed tag reports it. A frame label carries the index of the frame it names. The filters
+`MAX_FRAME_PLACEMENTS` (2^20, a frame counts as one more) placements and `MAX_FRAME_BYTES` (64 MiB,
+placements with their names and filter data) per movie; frames beyond either are not kept and one
+failed tag reports it (`TooManyFramePlacements`, `FrameListsTooLarge`). The bytes are counted
+because a name or filter of 60 kB repeated over thousands of frames would otherwise cost gigabytes
+from a movie of a few hundred bytes. A frame label carries the index of the frame it names. The filters
 of a placement are kept by kind with their parameters as stored, not decoded; the compositor still
 skips them. Compacted GFx fonts (`DefineCompactedFont`) keep their ID and glyph count only: the
 fonts of the game are `DefineFont3`, and no LIVE movie holds one.

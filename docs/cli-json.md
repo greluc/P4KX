@@ -747,16 +747,20 @@ with exit code 3.
              refers to ../Textures/gone.dds, which does not exist; …"}],
  "imports": {"movies": ["Data\\UI\\fonts\\Shared\\fonts_en.gfx"],
              "unresolved": [{"url": "../../../fonts/Shared/fonts_en.swf", "name": "$Text1Heavy",
-                             "reason": "the movie does not export the name as a font"}]}}
+                             "reason": "no_such_export",
+                             "message": "the movie does not export the name as a font"}]}}
 ```
 
 `imports` reports the fonts the movie imports with `ImportAssets` that its texts use: `movies` are
 the Entries read to resolve them (an Archive only), `unresolved` the imported names that were not
-found, each with its `url` as the movie states it and the `reason`; their texts are drawn as boxes
-and listed as `missing_font` in `skipped`. `format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the size
-of the SVG document, written to `target`. `skipped` lists in drawing order every element the frame
-left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
-one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
+found, each with its `url` as the movie states it, a stable `reason` (`not_found`, `unreadable`,
+`no_such_export`, `too_deep` or `over_budget`) and a `message` that says it in words; their texts
+are drawn as boxes and listed as `missing_font` in `skipped`.
+
+`format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the
+size of the SVG document, written to `target`. `skipped` lists in drawing order every element the
+frame left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite
+whose timeline holds it (absent on the main timeline), `reason` is one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
 `missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `too_many_glyphs`,
 `missing_font`, `missing_glyph`, `missing_glyph_index`, `unlocalised`, `text_truncated`, `filters`

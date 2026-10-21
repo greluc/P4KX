@@ -136,6 +136,11 @@ fn unresolved_imports_are_listed_and_their_texts_drawn_as_boxes() -> TestResult 
     let other =
         UiMovie::from_archive(&archive, "Data\\UI\\Screens\\SWF\\Other.swf")?.render(&options())?;
     assert_eq!(other.imports.unresolved[0].issue, ImportIssue::NotFound);
+    assert_eq!(ImportIssue::NotFound.code(), "not_found");
+    assert_eq!(ImportIssue::Unreadable(String::new()).code(), "unreadable");
+    assert_eq!(ImportIssue::NoSuchExport.code(), "no_such_export");
+    assert_eq!(ImportIssue::TooDeep.code(), "too_deep");
+    assert_eq!(ImportIssue::OverBudget.code(), "over_budget");
     assert!(other.imports.movies.is_empty(), "no movie read");
     Ok(())
 }
@@ -217,9 +222,30 @@ fn the_movie_an_import_names_opens_from_an_archive_and_from_disk() -> TestResult
         "{}",
         imported.name()
     );
-    assert!(matches!(
-        on_disk.import_source("/etc/fonts.gfx"),
-        Err(ConversionError::UnknownEntry(_))
-    ));
+    for url in [
+        "/etc/fonts.gfx",
+        "\\etc\\passwd",
+        "C:x.swf",
+        "C:\\x.swf",
+        "../../x",
+        "..\\x.gfx",
+        "a/../../x.gfx",
+        "fonts.gfx:stream",
+        "",
+        "..",
+    ] {
+        assert!(
+            matches!(
+                on_disk.import_source(url),
+                Err(ConversionError::UnknownEntry(_))
+            ),
+            "{url}"
+        );
+    }
+    assert_eq!(
+        on_disk.import_source("sub/../fonts.gfx")?.name(),
+        imported.name(),
+        "a dot-dot that stays inside the folder resolves"
+    );
     Ok(())
 }

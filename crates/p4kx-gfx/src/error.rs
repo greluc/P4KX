@@ -83,6 +83,14 @@ pub enum GfxError {
         /// The limit.
         limit: usize,
     },
+    /// The display lists of the frames occupy more bytes than the limit.
+    #[error(
+        "the display lists of the frames occupy more than {limit} bytes; later frames are not kept"
+    )]
+    FrameListsTooLarge {
+        /// The limit in bytes.
+        limit: usize,
+    },
     /// The offset of the end edges of a morph shape lies beyond its tag.
     #[error("the end edges of the morph shape start beyond its tag, at offset {offset}")]
     MorphEndEdges {

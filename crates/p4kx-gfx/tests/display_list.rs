@@ -1,7 +1,7 @@
 //! The display list of the first frame: placements, changes and removals with matrices, colour
 //! transforms and the `PlaceObject3` extras.
 
-use p4kx_gfx::{ColorTransform, FilterKind, Matrix, Movie, OtherDefinition, Rgba};
+use p4kx_gfx::{ColorTransform, FilterKind, GfxError, Matrix, Movie, OtherDefinition, Rgba};
 use p4kx_testkit::{
     TestMovie, TestPlace, TestSignature, background_body, remove_object2_body, sprite_body,
 };
@@ -161,4 +161,30 @@ fn colour_transforms_compose_and_apply_with_clamping() {
         "(100 + 20) / 2, 400 clamped, 300 clamped, 200 / 2"
     );
     assert!(ColorTransform::IDENTITY.is_identity(), "identity");
+}
+
+#[test]
+fn long_names_over_many_frames_end_in_a_typed_error_and_a_small_result() {
+    let name = "n".repeat(60_000);
+    let mut builder =
+        TestMovie::new(TestSignature::Gfx).tag(26, &TestPlace::new(1, 5).name(&name).body2());
+    for _ in 0..5_000 {
+        builder = builder.tag(1, &[]);
+    }
+    let movie = movie(&builder.bytes());
+    let assets = movie.assets();
+    let kept: usize = assets.timeline.frame_lists.iter().map(Vec::len).sum();
+    assert!(kept < 2_000, "the byte budget stops the copies: {kept}");
+    assert!(
+        assets
+            .failures
+            .iter()
+            .any(|failure| matches!(failure.error, GfxError::FrameListsTooLarge { .. })),
+        "{:?}",
+        assets.failures
+    );
+    assert_eq!(
+        assets.timeline.frames, 5_000,
+        "all frames are still counted"
+    );
 }

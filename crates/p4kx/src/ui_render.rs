@@ -32,7 +32,8 @@ struct ImportsJson {
 struct UnresolvedJson {
     url: String,
     name: String,
-    reason: String,
+    reason: &'static str,
+    message: String,
 }
 
 #[derive(Serialize)]
@@ -128,7 +129,8 @@ pub(crate) fn render(
                     .map(|import| UnresolvedJson {
                         url: import.url.clone(),
                         name: import.name.clone(),
-                        reason: import.issue.to_string(),
+                        reason: import.issue.code(),
+                        message: import.issue.to_string(),
                     })
                     .collect(),
             },

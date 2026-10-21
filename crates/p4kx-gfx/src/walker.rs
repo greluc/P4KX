@@ -12,8 +12,8 @@ use crate::shape::{RecordBudget, read_shape};
 use crate::tag::{Tag, TagStream, tag_name};
 use crate::text::{GlyphBudget, read_edit_text, read_static_text};
 use crate::timeline::{
-    DisplayList, FrameLabel, MAX_FRAME_PLACEMENTS, Sprite, Timeline, placed_id, read_exporter_info,
-    read_exports,
+    DisplayList, FrameLabel, MAX_FRAME_BYTES, MAX_FRAME_PLACEMENTS, Sprite, Timeline, placed_id,
+    read_exporter_info, read_exports,
 };
 
 /// The definition tags that a placement may name but that are not read: buttons and video.
@@ -43,6 +43,7 @@ pub(crate) struct Walker<'a> {
     unread: BTreeMap<u16, u32>,
     imported: usize,
     frame_placements: usize,
+    frame_bytes: usize,
     frames_capped: bool,
 }
 
@@ -59,6 +60,7 @@ impl<'a> Walker<'a> {
             unread: BTreeMap::new(),
             imported: 0,
             frame_placements: 0,
+            frame_bytes: 0,
             frames_capped: false,
         };
         walker.assets.timeline = walker.walk(data, base, 0);
@@ -143,22 +145,28 @@ impl<'a> Walker<'a> {
         if timeline.frames == 1 {
             timeline.first_frame = display_list.snapshot();
         }
-        let total = self.frame_placements.saturating_add(display_list.len() + 1);
-        if total > MAX_FRAME_PLACEMENTS {
-            if !self.frames_capped {
-                self.frames_capped = true;
-                self.fail(
-                    1,
-                    offset,
-                    GfxError::TooManyFramePlacements {
-                        limit: MAX_FRAME_PLACEMENTS,
-                    },
-                );
-            }
+        if self.frames_capped {
             return;
         }
-        if !self.frames_capped {
+        let total = self.frame_placements.saturating_add(display_list.len() + 1);
+        let bytes = self.frame_bytes.saturating_add(display_list.cloned_bytes());
+        let error = if total > MAX_FRAME_PLACEMENTS {
+            Some(GfxError::TooManyFramePlacements {
+                limit: MAX_FRAME_PLACEMENTS,
+            })
+        } else if bytes > MAX_FRAME_BYTES {
+            Some(GfxError::FrameListsTooLarge {
+                limit: MAX_FRAME_BYTES,
+            })
+        } else {
+            None
+        };
+        if let Some(error) = error {
+            self.frames_capped = true;
+            self.fail(1, offset, error);
+        } else {
             self.frame_placements = total;
+            self.frame_bytes = bytes;
             timeline.frame_lists.push(display_list.snapshot());
         }
     }

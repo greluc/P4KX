@@ -69,7 +69,7 @@ impl<'f> LoadoutResolver<'f> {
 
     /// Stops at docked vehicles: an Entity whose `AttachDef.Type` starts with `NOITEM_Vehicle`
     /// stays attached to its port and is marked, but its Loadout and ports are not built unless
-    /// it is the Entity being resolved. By default docked vehicles are expanded like any Entity.
+    /// it is the Entity being resolved, which is never marked. By default docked vehicles are expanded like any Entity.
     #[must_use]
     pub const fn stopping_at_docked_vehicles(mut self) -> Self {
         self.stop_at_docked = true;

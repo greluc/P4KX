@@ -19,8 +19,9 @@ pub struct EntityNode {
 }
 
 impl EntityNode {
-    /// Returns whether the Entity is a docked vehicle: its `AttachDef.Type` starts with
-    /// `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar port.
+    /// Returns whether the Entity is a docked vehicle: attached to a port and its
+    /// `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar port.
+    /// The root of the tree is never one.
     #[must_use]
     pub const fn is_docked_vehicle(&self) -> bool {
         self.docked_vehicle

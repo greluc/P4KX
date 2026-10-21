@@ -29,6 +29,11 @@ impl Walk {
         }
     }
 
+    /// Returns whether the Entity being built is the root of the tree.
+    const fn is_root(&self) -> bool {
+        self.ancestors.len() == 1
+    }
+
     /// Returns the depth of the current branch: attached Entities plus nested Loadout levels.
     const fn depth(&self) -> usize {
         self.ancestors.len().saturating_add(self.nesting)
@@ -64,7 +69,8 @@ impl LoadoutResolver<'_> {
     ) -> EntityNode {
         let mut issues = Vec::new();
         let mut ports = Vec::new();
-        let expanded = !(self.stop_at_docked && spec.docked_vehicle && walk.ancestors.len() > 1);
+        let attached_vehicle = spec.docked_vehicle && !walk.is_root();
+        let expanded = !(self.stop_at_docked && attached_vehicle);
         let entries = if expanded {
             self.merged_entries(spec, overrides, &mut issues)
         } else {
@@ -89,7 +95,7 @@ impl LoadoutResolver<'_> {
             ports,
             issues,
             geometry: spec.geometry.clone(),
-            docked_vehicle: spec.docked_vehicle,
+            docked_vehicle: attached_vehicle,
             expanded,
         }
     }

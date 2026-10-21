@@ -40,7 +40,8 @@ pub(crate) enum EntityAction {
     /// Entity of its default Loadout, each placed at its port, as a node named after the port and
     /// the Entity below the node of the Entity it is attached to. Y up, in metres. Parts whose
     /// Entity or geometry cannot be resolved are skipped and listed. Reads every model once, in
-    /// parallel.
+    /// parallel. A docked vehicle (a Merlin in a docking collar, say) is placed as one part,
+    /// without the parts of its own Loadout.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
 }

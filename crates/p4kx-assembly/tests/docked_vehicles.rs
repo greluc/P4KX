@@ -89,7 +89,7 @@ fn stopping_keeps_the_attachment_marked_without_its_subtree() -> TestResult {
 #[test]
 fn the_resolved_entity_itself_is_expanded_even_if_it_is_a_vehicle() -> TestResult {
     let tree = resolve(true, "Snub")?;
-    assert!(tree.is_docked_vehicle(), "marked");
+    assert!(!tree.is_docked_vehicle(), "the root is never marked");
     assert!(tree.is_expanded(), "the root is expanded");
     assert_eq!(attached(&tree, "snub_gun")?.class_name(), "SnubGun");
     Ok(())

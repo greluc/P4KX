@@ -130,7 +130,7 @@ A **Node** is one Entity:
 | `record_path` | string | Record path without `.xml` |
 | `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
-| `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar |
+| `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar; the root Entity is never marked, even if it is a vehicle |
 | `expanded` | bool | The Entity's ports are built; false only for a docked vehicle the resolver stopped at (the root Entity is always expanded) |
 | `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, or the port limit |
 | `ports` | array | One Port per port, see below for the order |

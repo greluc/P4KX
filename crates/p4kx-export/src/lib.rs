@@ -14,17 +14,15 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
-<<<<<<< HEAD
 //! [`TagTree::build`] reads the tag tree of a DataForge: tag GUID to tag path, parent and children.
 //! The catalog kinds that match tags (paints, loadouts) use it, and `RecordExportOptions::tags`
 //! adds the tag path to every tag Reference of an exported Record.
-=======
+//!
 //! [`read_crafting`] reads the complete crafting data of a DataForge as [`Crafting`]: every tier
 //! of every blueprint with its selections ("choose n"), quantity multipliers and
 //! quality modifiers, the quality distributions with their location overrides, the blueprint
 //! pools with the contracts that reward them, the dismantle processes and the global
 //! parameters. It is the library API the catalog's crafting fields are built on.
->>>>>>> origin/main
 //!
 //! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
 //! the chosen languages as JSON or CSV.

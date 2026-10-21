@@ -120,3 +120,23 @@ unwrap_used = "deny"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[profile.concurrency]
+inherits = "dev"
+debug = false
+debug-assertions = false
+
+[profile.concurrency.package.p4kx-dataforge]
+opt-level = 3
+
+[profile.concurrency.package.p4kx-assembly]
+opt-level = 3
+
+[profile.concurrency.package.p4kx-extraction]
+opt-level = 3
+
+[profile.concurrency.package.rayon]
+opt-level = 3
+
+[profile.concurrency.package.rayon-core]
+opt-level = 3

@@ -372,6 +372,30 @@ holds the Reference. A DataForge that holds more than 8,388,608 References, or R
 cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
 8,388,608 References in the order of the Records.
 
+## `p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json] --json`
+
+The statistics per field path of the selected Records ([query.md](query.md#field-statistics)).
+`--json` is `--format json`; with `--format table` or `--format csv` it is invalid input (exit
+code 2).
+
+```json
+{"archive": "…", "records": 29693, "unreadable_records": 0, "unreadable_values": 0,
+ "max_distinct": 32, "field_count": 87514, "fields": [{"path":
+ "Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate",
+ "occurrences": 161, "records": 161, "empty": 0, "kinds": [{"kind": "Int32", "count": 161}],
+ "distinct": 17, "distinct_capped": false, "min": 42, "max": 1600}]}
+```
+
+`records` is the number of Records examined, `unreadable_records` those not counted and
+`unreadable_values` the values not counted. `field_count` is the length of `fields`, after
+`--path`; `fields` is in path order. In a field, `occurrences` is the number of values,
+`records` the number of Records that have the path, `empty` the number of empty values, `kinds`
+the data types of the values with their counts (`Single`, `Int32[]` for the elements of an array,
+`StrongPointer`, `Class` for a path that holds fields, …), `distinct` the number of distinct
+non-empty values, at most `max_distinct`, with `distinct_capped` true when there are more, and
+`min` and `max` the smallest and the largest number, `null` for a path without numbers (or an
+infinite float). Integers are JSON integers, floats JSON numbers; `-0.0` is `0`.
+
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json

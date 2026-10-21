@@ -5,7 +5,8 @@ use p4kx_comparison::LineDiffError;
 use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{
-    ArchiveError, DataForgeError, DataForgeLoadError, LocalizationLoadError, UnknownEntries,
+    ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
+    UnknownEntries,
 };
 
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
@@ -34,8 +35,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
-/// installation, has an invalid Query or a Query output that does not fit --json, names a Record
-/// dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
+/// installation, has an invalid Query or a Query or field-statistics output that does not fit
+/// --json, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
 /// for a language the Archive holds no global.ini for, or looks up a localisation key that has no
 /// text.
 pub(crate) const INVALID_INPUT: u8 = 2;
@@ -73,7 +74,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), --json without --out
      for cryxml or chf to-json, an invalid Query, --json with another
-     --format and without --out for dcb query, --json with --format table for dcb refs, a GUID or
+     --format and without --out for dcb query, --json with --format table for dcb refs, --json
+     with another format than json for dcb fields, a GUID or
      record path for dcb refs that no Record has, an Entity that no Record or several Records
      match, an audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
@@ -89,7 +91,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
-     is corrupt, or the Record of the Entity whose Loadout or audio is shown cannot be read
+     is corrupt, or its Records have more field paths than dcb fields counts, or the Record of the Entity whose Loadout or audio is shown cannot be read
   6  compare: the report or the output cannot be written
   7  the Archive key is missing or wrong: an Entry is encrypted and no key was given with --key,
      P4KX_ARCHIVE_KEY or `p4kx key set`, or the key does not decrypt the Archive
@@ -139,6 +141,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         ARCHIVE_ERROR
     } else if dataforge.is_some()
         || error.downcast_ref::<DataForgeError>().is_some()
+        || error.downcast_ref::<FieldStatisticsError>().is_some()
         || error.downcast_ref::<UnreadableSchema>().is_some()
         || error.downcast_ref::<LoadoutError>().is_some()
     {

@@ -1,0 +1,13 @@
+---
+source: crates/p4kx/tests/dcb_fields.rs
+expression: "stdout(&[])?"
+---
+path                              kinds            values  records  empty  distinct  min   max
+--------------------------------  ---------------  ------  -------  -----  --------  ----  ---
+Components                        StrongPointer[]  3       2        0      0
+Components/WeaponParams           Class            3       2        0      0
+Components/WeaponParams/fireRate  Single           3       2        0      3         -1.5  6.5
+crew                              Int32            2       2        0      2         0     4
+mass                              Double           2       2        0      1         0     0
+name                              String           3       3        1      2
+6 paths in 3 Records

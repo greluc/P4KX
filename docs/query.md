@@ -396,6 +396,52 @@ A Record whose layout or instance cannot be read is different: no value of it ca
 the condition cannot be decided, and the Record is reported as failed rather than silently
 dropped, as for `select`.
 
+## Field statistics
+
+`p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json]` and
+`FieldStatistics` in `p4kx-dataforge` list the **field paths** the Records have, to find the field
+a Query needs. They read every selected Record once, in parallel
+([ADR-0049](adr/0049-field-statistics-are-counted-per-path-in-one-parallel-pass.md)).
+
+A field path is the field names from the Record down, joined by `/`, with no array positions.
+The target of a strong pointer adds the name of its actual struct as a segment, so
+`Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate` is
+the `fireRate` of the rapid-fire action in a weapon component; an inline struct adds no segment.
+It is not a Query path: the same value is
+`Components[SCItemWeaponComponentParams].fireActions[SWeaponActionFireRapidParams].fireRate`. A
+path is listed for every field that holds a value, also for the ones that hold fields (kind
+`Class`) or a pointer, so a path and the paths below it can be followed.
+
+| Column | Meaning |
+| --- | --- |
+| `path` | The field path. |
+| `kinds` | The data types of the values (`Single`, `Int32`, `String`, `Reference`, `StrongPointer`, `Class`, …), `[]` after an array's elements; several when Records of different types share the path. The JSON has the count of each. |
+| `values` | How many values the path has: one per field, one per array element. An empty array has none. |
+| `records` | In how many Records the path occurs. |
+| `empty` | How many values are empty: a null pointer or Reference, an empty text or a null GUID. |
+| `distinct` | How many distinct values the path has, without the empty ones; `32+` when there are more than 32. |
+| `min`, `max` | The smallest and the largest number, for integers and floats; empty for other kinds. |
+
+An empty value is a value of its path, counted in `values` and `empty`, but it adds to no `distinct`,
+`min` or `max`, so a null never reads as a zero. A real zero is a number like any other. `-0.0`
+and `0.0` are one value: they count once in `distinct` and the number prints as `0`. NaN is no
+number. Distinct values are told apart by a 64-bit fingerprint, so the count is exact up to a
+chance of about 2^-50 per pair of values.
+
+The selection is a type name, which takes the Records of that type and of the types deriving
+from it, or a Query whose `from`, `at`, `referencing` and `where` clauses select the Records and
+whose `select` clause is ignored; without it every Record is counted. `--path` keeps only the
+paths that match, with the rules of a Filter (a glob over the whole path with `*` or `?`,
+otherwise text anywhere in it, ignoring case), e.g. `--path "*/fireRate"`. The paths are sorted
+segment by segment ignoring ASCII case, so a path is followed by the paths below it. The result
+is the same for every number of threads.
+
+A Record whose layout or instance cannot be read, or that has more than 1,048,576 values, is not
+counted and is reported on stderr with exit code 1. A value that cannot be read (a bad array
+range, a pointer to no instance, an instance owned twice, a struct nested deeper than 64) is not
+counted and is reported as a number on stderr and in the JSON. An Archive whose Records have more
+than 1,048,576 distinct paths is an error (exit code 5), which bounds the memory.
+
 ## Errors
 
 A Query that cannot be parsed or compiled is rejected before any Record is read. The error names

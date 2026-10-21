@@ -17,7 +17,7 @@ use crate::{exit, json, query_file, query_table};
 /// A Query that cannot be parsed or compiled, with its marked position.
 #[derive(Debug, Error)]
 #[error("{0}")]
-pub(crate) struct InvalidQuery(String);
+pub(crate) struct InvalidQuery(pub(crate) String);
 
 /// A Query naming a type whose layout the DataForge cannot give, with its marked position.
 #[derive(Debug, Error)]
@@ -151,7 +151,7 @@ impl Output<'_, '_, '_> {
 
 /// Returns the error for a Query that does not compile: a schema the DataForge cannot give is
 /// [`UnreadableSchema`], anything else [`InvalidQuery`].
-fn compile_error(error: &QueryError, query: &str) -> anyhow::Error {
+pub(crate) fn compile_error(error: &QueryError, query: &str) -> anyhow::Error {
     let marked = error.marked(query).to_string();
     if matches!(error.kind(), QueryErrorKind::DataForge(_)) {
         UnreadableSchema(marked).into()

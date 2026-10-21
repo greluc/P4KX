@@ -13,6 +13,7 @@ pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, DcbRefsArgs, QueryFormat,
     RecordFormat, RefsFormat,
 };
+pub(crate) use crate::cli_dcb_fields::DcbFieldsArgs;
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;

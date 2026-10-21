@@ -108,15 +108,19 @@ field is absent.
 
 ```json
 {"archive": "…", "entry": "Data\\Game2.dcb", "entity": Node, "ports": 100, "attached": 71,
- "empty": 29, "unresolved": 0}
+ "empty": 29, "unresolved": 0, "docked_vehicles": 0}
 ```
 
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
 `/` or `\`; case does not matter. An Entity that nothing or several Records match exits with code
 2, a root Record that cannot be read with code 5. `ports` counts every port in the tree, and
-`attached`, `empty` and `unresolved` count them by what they hold. Ports that cannot be resolved
-do not change the exit code.
+`attached`, `empty` and `unresolved` count them by what they hold. `docked_vehicles` counts the
+attached Entities that are docked vehicles. Ports that cannot be resolved do not change the exit
+code.
+
+`--stop-at-docked-vehicles` leaves the ports of docked vehicles out: they stay in their port,
+marked, with `expanded` false and no `ports`. Without it they are expanded like any Entity.
 
 A **Node** is one Entity:
 
@@ -126,6 +130,8 @@ A **Node** is one Entity:
 | `record_path` | string | Record path without `.xml` |
 | `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
+| `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar |
+| `expanded` | bool | The Entity's ports are built; false only for a docked vehicle the resolver stopped at (the root Entity is always expanded) |
 | `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, or the port limit |
 | `ports` | array | One Port per port, see below for the order |
 

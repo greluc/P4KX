@@ -63,9 +63,19 @@ impl LoadoutResolver<'_> {
         walk: &mut Walk,
     ) -> EntityNode {
         let mut issues = Vec::new();
-        let entries = self.merged_entries(spec, overrides, &mut issues);
         let mut ports = Vec::new();
-        for pending in pending_ports(spec, &entries) {
+        let expanded = !(self.stop_at_docked && spec.docked_vehicle && walk.ancestors.len() > 1);
+        let entries = if expanded {
+            self.merged_entries(spec, overrides, &mut issues)
+        } else {
+            Vec::new()
+        };
+        let pending: Vec<Pending<'_>> = if expanded {
+            pending_ports(spec, &entries).collect()
+        } else {
+            Vec::new()
+        };
+        for pending in pending {
             if !walk.reserve() {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
@@ -79,6 +89,8 @@ impl LoadoutResolver<'_> {
             ports,
             issues,
             geometry: spec.geometry.clone(),
+            docked_vehicle: spec.docked_vehicle,
+            expanded,
         }
     }
 

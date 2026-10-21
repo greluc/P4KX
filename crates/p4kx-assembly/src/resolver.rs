@@ -40,6 +40,7 @@ pub struct LoadoutResolver<'f> {
     specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
     builder: TreeBuilder<'f>,
+    pub(crate) stop_at_docked: bool,
 }
 
 impl std::fmt::Debug for LoadoutResolver<'_> {
@@ -62,7 +63,17 @@ impl<'f> LoadoutResolver<'f> {
             specs: HashMap::new(),
             xml: HashMap::new(),
             builder: TreeBuilder::new(),
+            stop_at_docked: false,
         }
+    }
+
+    /// Stops at docked vehicles: an Entity whose `AttachDef.Type` starts with `NOITEM_Vehicle`
+    /// stays attached to its port and is marked, but its Loadout and ports are not built unless
+    /// it is the Entity being resolved. By default docked vehicles are expanded like any Entity.
+    #[must_use]
+    pub const fn stopping_at_docked_vehicles(mut self) -> Self {
+        self.stop_at_docked = true;
+        self
     }
 
     /// Reads the XML Loadouts Records name from `files`.
@@ -143,7 +154,7 @@ impl<'f> LoadoutResolver<'f> {
     /// defaults in parallel, level by level, as deep as a tree is resolved.
     fn prefetch(&mut self, root: Record<'f>) {
         let mut frontier = vec![root];
-        for _ in 0..=MAX_LOADOUT_DEPTH {
+        for depth in 0..=MAX_LOADOUT_DEPTH {
             let (cached, missing): (Vec<_>, Vec<_>) = frontier
                 .into_iter()
                 .partition(|record| self.specs.contains_key(&record.guid()));
@@ -160,6 +171,9 @@ impl<'f> LoadoutResolver<'f> {
             for (guid, spec) in read {
                 level.push(Arc::clone(&spec));
                 self.specs.insert(guid, spec);
+            }
+            if self.stop_at_docked && depth > 0 {
+                level.retain(|spec| spec.as_ref().as_ref().is_ok_and(|s| !s.docked_vehicle));
             }
             frontier = self.unread_targets(&level);
             if frontier.is_empty() {

@@ -12,6 +12,8 @@ const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
+const ATTACHABLE: &str = "SAttachableComponentParams";
+const DOCKED_VEHICLE_TYPE: &str = "NOITEM_Vehicle";
 
 /// What a Loadout entry or a port default names to attach.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +63,7 @@ pub(crate) struct EntitySpec {
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) docked_vehicle: bool,
 }
 
 impl EntitySpec {
@@ -95,7 +98,13 @@ impl EntitySpec {
             .iter()
             .find(|component| component.type_name() == GEOMETRY_RESOURCE)
             .and_then(|component| Geometry::read(component));
+        let docked_vehicle = components
+            .iter()
+            .find(|component| component.type_name() == ATTACHABLE)
+            .and_then(|component| struct_field(component, "AttachDef"))
+            .is_some_and(|definition| text(definition, "Type").starts_with(DOCKED_VEHICLE_TYPE));
         Self {
+            docked_vehicle,
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
             name: tree.name().to_owned(),

@@ -78,6 +78,10 @@ pub(crate) struct EntityLoadoutArgs {
     /// The Entity: a class name such as `AEGS_Avenger_Titan`, a GUID, or a record path such as
     /// `libs/foundry/records/entities/spaceships/aegs_avenger_titan`; ignores case.
     pub(crate) entity: String,
+    /// Stops at docked vehicles, the attached Entities whose item type starts with
+    /// `NOITEM_Vehicle`: they stay in their port, marked, but their own ports are not listed.
+    #[arg(long)]
+    pub(crate) stop_at_docked_vehicles: bool,
 }
 
 /// Arguments of `p4kx entity audio`.

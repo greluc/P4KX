@@ -17,6 +17,7 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    attach_type: Option<String>,
 }
 
 impl TestEntity {
@@ -33,7 +34,16 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            attach_type: None,
         }
+    }
+
+    /// Gives the Entity an attachable component whose `AttachDef.Type` is `attach_type`, e.g.
+    /// `NOITEM_Vehicle`; the database needs [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn attach_type(mut self, attach_type: impl Into<String>) -> Self {
+        self.attach_type = Some(attach_type.into());
+        self
     }
 
     /// Names the model `path` as the Entity's geometry and, if given, the material library
@@ -98,6 +108,17 @@ impl TestEntity {
         }
         if let Some((path, material)) = &self.geometry {
             components.push(geometry_component(path, material.as_deref()));
+        }
+        if let Some(attach_type) = &self.attach_type {
+            components.push(TestValue::Struct(
+                TestInstance::new("SAttachableComponentParams").value(
+                    "AttachDef",
+                    TestValue::Struct(
+                        TestInstance::new("SItemDefinition")
+                            .value("Type", TestValue::text(attach_type.clone())),
+                    ),
+                ),
+            ));
         }
         TestRecord::new(
             self.guid,

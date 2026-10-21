@@ -14,6 +14,12 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
+//! [`read_crafting`] reads the complete crafting data of a DataForge as [`Crafting`]: every tier
+//! of every blueprint with its selections ("choose n"), quantity multipliers and
+//! quality modifiers, the quality distributions with their location overrides, the blueprint
+//! pools with the contracts that reward them, the dismantle processes and the global
+//! parameters. It is the library API the catalog's crafting fields are built on.
+//!
 //! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
 //! the chosen languages as JSON or CSV.
 
@@ -24,6 +30,11 @@ mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod crafting;
+mod crafting_records;
+mod crafting_sources;
+mod crafting_tier;
+mod crafting_types;
 mod error;
 mod failure;
 mod form;
@@ -44,6 +55,13 @@ mod texts;
 
 pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
+pub use crafting::{Crafting, read_crafting};
+pub use crafting_types::{
+    BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
+    GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,
+    PropertyModifier, QualityCurve, QualityDistribution, ResourceCost, RewardChance, RewardSource,
+    Selection, Tier, ValueRange,
+};
 pub use error::CatalogError;
 pub use failure::CatalogFailure;
 pub use form::{NDJSON_FILE, RecordForm};

@@ -111,7 +111,7 @@ jobs:
         with:
           name: nextest-archive-${{ matrix.os }}
       - name: Tests with nextest, one process per test
-        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --partition count:${{ matrix.partition }}/${{ matrix.count }}
+        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --partition count:${{ matrix.partition }}/${{ matrix.count }}
 
   doctests:
     name: Doctests (${{ matrix.os }})

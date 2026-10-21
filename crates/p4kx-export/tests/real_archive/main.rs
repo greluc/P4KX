@@ -8,6 +8,7 @@ mod real_archive_crafting_catalog;
 mod real_archive_crafting_details;
 mod real_archive_grade;
 mod real_archive_items;
+mod real_archive_loadouts;
 mod real_archive_paints;
 mod real_archive_playability;
 mod real_archive_records;

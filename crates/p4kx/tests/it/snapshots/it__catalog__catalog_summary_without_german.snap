@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/catalog.rs
+source: crates/p4kx/tests/it/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete
@@ -14,10 +14,12 @@ qualityDistributions: 0 written, 0 skipped, complete
 blueprintPools: 0 written, 0 skipped, complete
 dismantleProcesses: 0 written, 0 skipped, complete
 paints: 0 written, 0 skipped, complete
+loadouts: 1 written, 0 skipped, complete
 item classes: 1 read, 0 other values, 0 without a Class: line or English description
 paint assignment: 0 of 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 vehicle files unreadable
+loadouts: 1 ships and 0 items, 0 ports, 0 hold an Entity (0 docked vehicles), 0 unresolved, 0 Entities without an entry in items or ships, 1 loadouts with issues
 items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 4451 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 4618 bytes, 1 Records skipped, 0 failed

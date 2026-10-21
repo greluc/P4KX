@@ -583,7 +583,12 @@ Archive has none (the example shows one). `item_classes` counts the items whose 
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
-implementation is not read in full (`unreadable_vehicles`). `playability` counts the
+implementation is not read in full (`unreadable_vehicles`). `loadouts` counts the loadouts of
+ships (`ships`) and of items that have ports (`items`), the ports of all loadouts with the nested
+ones (`ports`), the ports that hold an Entity (`attached`), the ports that hold a docked vehicle
+(`docked_vehicles`), the attachments that cannot be resolved (`unresolved`), the distinct attached
+Entities that are no entry of `items` or `ships` (`outside`) and the loadouts that list an issue
+(`with_issues`). `playability` counts the
 items and the ships per value of their `playability`, and the ones no rule classifies
 (`unclassified`, `null` in the catalog). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for

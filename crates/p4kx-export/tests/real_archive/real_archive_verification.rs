@@ -19,7 +19,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 12] = [
+const MINIMUM: [(Kind, usize); 13] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -32,6 +32,7 @@ const MINIMUM: [(Kind, usize); 12] = [
     (Kind::BlueprintPools, 100),
     (Kind::DismantleProcesses, 1),
     (Kind::Paints, 900),
+    (Kind::Loadouts, 1_000),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -119,10 +120,10 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert!(counts.complete, "{kind} complete without a Filter");
         let entities = list(&catalog, kind)?;
         assert_eq!(entities.len(), counts.count, "{kind} written");
-        let own = if kind == Kind::Paints {
-            "itemGuid"
-        } else {
-            "guid"
+        let own = match kind {
+            Kind::Paints => "itemGuid",
+            Kind::Loadouts => "entityGuid",
+            _ => "guid",
         };
         let guids: Vec<&str> = entities.iter().filter_map(|e| e[own].as_str()).collect();
         assert_eq!(guids.len(), entities.len(), "{kind} all have a GUID");
@@ -159,7 +160,7 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
 /// its item.
 fn check_unique_guids(catalog: &Value) -> TestResult {
     let mut seen = HashSet::new();
-    for kind in Kind::ALL.into_iter().filter(|kind| *kind != Kind::Paints) {
+    for kind in Kind::ALL.into_iter().filter(|kind| !kind.is_derived()) {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;
             assert!(seen.insert(guid), "{guid} occurs twice, also in {kind}");

@@ -97,6 +97,8 @@ fn port_structs() -> Vec<TestStruct> {
             .field("Flags", TestType::String)
             .field("MinSize", TestType::UInt32)
             .field("MaxSize", TestType::UInt32)
+            .field("PortTags", TestType::String)
+            .field("RequiredPortTags", TestType::String)
             .field("defaultItem", class("SItemPortDefaultItemDef"))
             .array("Types", class("SItemPortDefTypes"))
             .field(

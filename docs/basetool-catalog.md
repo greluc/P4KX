@@ -102,6 +102,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
+| `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -517,6 +518,66 @@ a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballis
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
 both filtered, so a paint lists only ships the filter selected; both kinds are partial.
 
+### Loadouts
+
+A loadout (`loadouts`) is the Default Loadout of one ship or of one item that has ports, resolved
+into a tree (ADR-0064). The kind refers to the entity and adds no name, no description and no
+media: name and record stay on the entry in `ships` or `items`, so no GUID occurs twice among the
+`guid` fields of the catalog. Loadouts are ordered by `entityGuid`.
+
+| Field | Source |
+|-------|--------|
+| `entityGuid` | The `guid` of the entry in `ships` or `items` the ports belong to |
+| `entityKind` | `ship` or `item`; a closed set the game may extend, so the schema keeps a string |
+| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A patch file the Archive lacks is a `vehicle_implementation` issue, a fact of the game data |
+| `ports` | The ports of the entity, see below |
+
+**Selection.** Every entry of `ships` has a loadout, also one without ports. An entry of `items`
+has one when its Record defines item ports (`SItemPortContainerComponentParams`) or names a default
+Loadout (`SEntityComponentDefaultLoadoutParams`) and its tree holds at least one port: turrets,
+racks, weapons with attachment ports. With a `--filter` the ships and items are filtered first,
+so a loadout exists only for the entries the filter selected and the kind is partial.
+
+**Ports.** Each port has:
+
+| Field | Source |
+|-------|--------|
+| `name` | The port name as the Loadout or the port definition spells it; port names match ignoring ASCII case |
+| `source` | Where the attachment comes from: `loadout` (the entity's own Default Loadout), `override` (the Loadout of the entry that attached the entity, which replaces the entity's own per port), `port_default` (the default item of the port definition), `unset` (defined, holds nothing) or `vehicle` (known only from the vehicle implementation, holds nothing). Closed set, string |
+| `minSize`, `maxSize` | `MinSize` and `MaxSize` of the `SItemPortDef`, or `minSize` and `maxSize` of the `ItemPort`; `null` when the data gives none |
+| `types` | `{type, subTypes}` per entry of `Types` of the `SItemPortDef`; for an `ItemPort` the `type` of each `Types/Type` and no subtypes |
+| `flags` | The words of `Flags` as stored, without a leading `$` (`invisible`, `uneditable`) |
+| `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`, as stored. They are tag names like `tags` of an item: an item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
+| `displayNameKey` | `DisplayName` of the `SItemPortDef`, a localisation key; `null` for none and for a placeholder key. The key is exported, not its text |
+| `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
+| `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
+| `itemClassName` | The class name of the attached entity, or the class name the Loadout names; `null` for an empty port and an unresolved Reference |
+| `dockedVehicle` | `true` when the attached entity is a docked vehicle (`AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a hangar port). It is a reference to a ship and is not expanded: `ports` stays empty (#305) |
+| `unresolved` | The code of the error that kept the attachment from being resolved (`issues` lists the codes), otherwise `null` |
+| `ports` | The ports of the attached entity under the Loadout that attached it, or the ports of the nested Loadout of an empty port; empty otherwise |
+
+The ports of an entity are, in this order: those a Loadout names in Loadout order, the other
+ports the Record defines in definition order, and the `ItemPort` elements of the vehicle
+implementation (the Modification applied, ADR-0050) that no port above names, in file order, with
+the source `vehicle`. The definition of a port is the Record's `SItemPortDef`; a port the Record
+does not define takes it from the `ItemPort` of that name. The visibility always comes from the
+vehicle implementation (#289). A ship's Loadout overrides the default Loadout of the turrets and
+racks it carries per port, so the nested ports of a ship are the ones that apply to that ship;
+the entry of the turret itself shows the turret's own defaults. The walk is the one of
+`EntityNode::loadout` (#316).
+
+**References.** Every `entityGuid` is a `guid` of `ships` or `items`. An `itemGuid` is one of
+them too, except for an Entity outside both kinds: a development leftover, or an Entity of another
+folder (`p4kx catalog` counts them as the Entities without an entry in items or ships,
+`CatalogSummary::loadouts().outside`; the key `outside` of `--json`). Such a GUID stays, so the
+Basetool can tell an unknown Entity from an empty port. An `itemGuid` of an unresolved attachment
+may name no Record at all. With a `--filter` the references need not resolve.
+
+`p4kx catalog` counts the loadouts of ships and items, the ports (the nested ports of a ship are
+counted for every ship that carries them), the ports that hold an Entity, the docked vehicles, the
+unresolved attachments, the Entities outside the kinds and the loadouts with an issue; `--json`
+lists them under `loadouts`.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -618,6 +679,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
+| `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

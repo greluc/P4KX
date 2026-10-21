@@ -58,6 +58,7 @@ impl Model {
         browser.drop_records();
         browser.drop_containers();
         self.record_export.archive_changed();
+        self.glb_export.archive_changed();
         if self
             .extraction_setup
             .as_ref()

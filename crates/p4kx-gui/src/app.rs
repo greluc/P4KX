@@ -6,8 +6,8 @@ use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
 use crate::{
-    CATALOG_FILE, CatalogText, ComparisonText, Model, QueryExportFormat, QueryText, Text,
-    ViewerSupport, ui, window,
+    CATALOG_FILE, CatalogText, ComparisonText, Model, ModelExportSetup, ModelExportText,
+    QueryExportFormat, QueryText, Text, ViewerSupport, ui, window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -58,6 +58,7 @@ impl App {
         };
         let export_filter = self.model.texts().get(export_filter);
         let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
+        let model_file = ModelFileDialog::of(&self.model);
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -78,6 +79,7 @@ impl App {
                         .add_filter(catalog_filter, &["json"])
                         .set_file_name(CATALOG_FILE)
                         .save_file(),
+                    Dialog::ModelFile => model_file.save(picker),
                     Dialog::QueryExport(format) => {
                         let extension = format.extension();
                         picker
@@ -139,6 +141,38 @@ impl App {
     }
 }
 
+/// What the file dialog of the Export as GLB shows: the file type, the proposed name and the
+/// folder it starts in.
+struct ModelFileDialog {
+    filter: String,
+    name: String,
+    folder: Option<PathBuf>,
+}
+
+impl ModelFileDialog {
+    fn of(model: &Model) -> Self {
+        let setup = model.model_export_setup();
+        Self {
+            filter: model.texts().get(ModelExportText::FileFilter),
+            name: setup.map_or_else(|| "model.glb".to_owned(), ModelExportSetup::proposed_name),
+            folder: setup
+                .and_then(ModelExportSetup::folder)
+                .map(Path::to_path_buf),
+        }
+    }
+
+    fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {
+        let picker = picker
+            .add_filter(self.filter, &["glb"])
+            .set_file_name(self.name);
+        match self.folder {
+            Some(folder) => picker.set_directory(folder),
+            None => picker,
+        }
+        .save_file()
+    }
+}
+
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         if !self.model.viewer_support().is_probed() {
@@ -158,6 +192,11 @@ impl eframe::App for App {
             Some((Dialog::RecordExportFolder, path)) => {
                 if let Some(setup) = self.model.record_export_setup_mut() {
                     setup.set_folder(path);
+                }
+            }
+            Some((Dialog::ModelFile, path)) => {
+                if let Some(setup) = self.model.model_export_setup_mut() {
+                    setup.set_file(path);
                 }
             }
             Some((Dialog::CatalogFile, path)) => {
@@ -198,6 +237,7 @@ impl eframe::App for App {
     fn on_exit(&mut self) {
         self.model.stop_extraction();
         self.model.stop_record_export();
+        self.model.stop_model_export();
         self.model.stop_catalog();
         self.model.comparison_mut().cancel();
         self.model.query_mut().cancel();
@@ -222,6 +262,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_textures = model.extraction_textures();
     settings.extraction_audio = model.extraction_audio();
     settings.update_check = model.update_check();
+    settings.model_export = model.model_export_settings().clone();
     settings.channels.merge(model.channels().added());
 }
 

@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_recipe::{BlueprintDismantle, BlueprintTier};
 use crate::guid_text::CatalogGuid;
 
 /// A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a
@@ -57,8 +58,19 @@ pub(crate) struct Blueprint<'a> {
     pub(crate) produced_item_guid: Option<CatalogGuid>,
     /// The craft time of the first tier in seconds, `null` without one.
     pub(crate) craft_time_seconds: Option<i64>,
-    /// The ingredients of the first tier in stored order.
+    /// The ingredients of the first tier in stored order, derived from `tiers`: a selection is
+    /// flattened depth first, so its count, quantity multipliers and quality modifiers are not
+    /// represented here.
     pub(crate) ingredients: Vec<Ingredient<'a>>,
+    /// Every tier in stored order with its craft time and its costs, selections kept as
+    /// `select` lines. The first one is the tier `craftTimeSeconds` and `ingredients` describe.
+    pub(crate) tiers: Vec<BlueprintTier<'a>>,
+    /// Whether the blueprint is one the player has by default
+    /// (`CraftingGlobalParams.defaultBlueprintSelection`).
+    pub(crate) default_available: bool,
+    /// What dismantling the produced item returns, `null` without a produced item, for an item
+    /// that cannot be dismantled, and unless the Build holds exactly one dismantle process.
+    pub(crate) dismantle: Option<BlueprintDismantle>,
 }
 
 /// One ingredient line of a blueprint: a resource or an item with its quantity.
@@ -80,4 +92,38 @@ pub(crate) struct Ingredient<'a> {
     pub(crate) slot: Option<&'a str>,
     /// The localisation key of the slot name, `null` without one or for a placeholder.
     pub(crate) slot_key: Option<&'a str>,
+}
+
+/// A resource group: a `ResourceTypeGroup` Record under `resourcetypedatabase`, the type the
+/// `typeGuid` of a commodity points at.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ResourceGroup<'a> {
+    /// The GUID of the Record.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name without its type, e.g. `Metal`.
+    pub(crate) class_name: &'a str,
+    /// The record path, without `.xml`.
+    pub(crate) record_path: &'a str,
+    /// The name, from `displayName`; a placeholder key leaves `en` and `de` `null`.
+    pub(crate) name: LocalisedText<'a>,
+    /// The GUID of the group that lists this group in its `groups`, `null` for a top-level group.
+    pub(crate) parent_guid: Option<CatalogGuid>,
+}
+
+/// A blueprint category: a `BlueprintCategoryRecord` Record under `crafting/blueprintcategories`,
+/// the target of the `categoryGuid` of a blueprint.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct BlueprintCategory<'a> {
+    /// The GUID of the Record.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name without its type, e.g. `FPSArmours`.
+    pub(crate) class_name: &'a str,
+    /// The record path, without `.xml`.
+    pub(crate) record_path: &'a str,
+    /// The name; the Record holds no field for one, so the key is `null`.
+    pub(crate) name: LocalisedText<'a>,
 }

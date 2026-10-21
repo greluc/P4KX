@@ -7,9 +7,11 @@
 //!
 //! [`build_catalog`] reads the DataForge of an open Archive, selects the Records of every kind by
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
-//! descriptions in English and German from the Archive's `global.ini` files, reads the crafting
-//! ingredients of blueprints, reads each item's
-//! [`ItemClass`] from its English description and writes the
+//! descriptions in English and German from the Archive's `global.ini` files, takes the blueprints
+//! with all tiers, the quality, pool, reward-source and dismantle Records from [`read_crafting`],
+//! reads each item's
+//! [`ItemClass`] from its English description, classifies every ship and item as a
+//! [`Playability`] and writes the
 //! catalog as deterministic UTF-8 JSON. A selected Record that cannot be read is left out and
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
@@ -28,17 +30,23 @@
 //! the chosen languages as JSON or CSV.
 
 mod blueprint;
+mod blueprint_category;
 mod build;
+mod catalog_crafting;
+mod catalog_recipe;
 mod collected;
 mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod contract_recipe;
+mod contract_rewards;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;
 mod crafting_tier;
 mod crafting_types;
+mod crafting_warning;
 mod error;
 mod failure;
 mod form;
@@ -49,9 +57,12 @@ mod localization_table;
 mod manufacturer;
 mod ndjson;
 mod options;
+mod playability;
+mod playability_rules;
 mod record_export;
 mod record_fields;
 mod record_summary;
+mod resource_group;
 mod selection;
 mod ship;
 mod summary;
@@ -59,13 +70,14 @@ mod texts;
 
 pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
-pub use crafting::{Crafting, read_crafting};
+pub use crafting::{Crafting, read_crafting, read_crafting_limited};
 pub use crafting_types::{
     BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
     GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,
     PropertyModifier, QualityCurve, QualityDistribution, ResourceCost, RewardChance, RewardSource,
     Selection, Tier, ValueRange,
 };
+pub use crafting_warning::CraftingWarning;
 pub use error::CatalogError;
 pub use failure::CatalogFailure;
 pub use form::{NDJSON_FILE, RecordForm};
@@ -77,6 +89,7 @@ pub use p4kx_extraction::{
     PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TAG_PATH_SEPARATOR,
     Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
 };
+pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};

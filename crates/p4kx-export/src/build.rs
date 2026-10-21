@@ -4,17 +4,20 @@ use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Guid, Record, RecordTree,
+    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, RecordTree,
     TreeBuilder, utc_rfc3339,
 };
 use rayon::prelude::*;
 
+use crate::catalog_crafting::kinds;
 use crate::collected::{Collected, Picked};
-use crate::commodity::{Groups, listed_resources, resource_commodity, resource_type_guid};
+use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{
-    BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
+    Blueprint, BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
-use crate::guid_text::CatalogGuid;
+use crate::crafting::read_crafting;
+use crate::playability_rules::Evidence;
+use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
 use crate::{
@@ -35,8 +38,10 @@ const RESOURCE_TYPE: &str = "ResourceType";
 /// language the Archive lacks leaves that text `null` and is counted in the summary. An item's
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
 /// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
-/// tier. A `ResourceType` Record that an ingredient uses and no commodity Record carries
-/// becomes a commodity of its own. Entities are ordered by the
+/// tier. A ship's and an item's [`Playability`](crate::Playability) is decided by structural
+/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that an ingredient uses and no
+/// commodity Record carries becomes a commodity of its own. A resource group takes its parent from
+/// the group that lists it, a blueprint category only its Record. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON. A selected
 /// Record that cannot be read is left out and listed in
 /// [`CatalogSummary::failures`].
@@ -76,7 +81,13 @@ pub fn build_catalog_from(
     let forge = entry.open().map_err(CatalogError::DataForge)?;
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;
-    let collected = Collected::new(Scan::run(&forge, options, &texts)?);
+    let crafting = kinds(
+        read_crafting(&forge, options.filter, options.cancel)?,
+        &texts,
+        options.filter,
+    );
+    let picked = Scan::run(&forge, options, &texts, &crafting.blueprints)?;
+    let collected = Collected::new(picked, crafting);
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
@@ -87,22 +98,25 @@ pub fn build_catalog_from(
     });
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
+    let playability = collected.playability;
     let failures = collected.failures;
+    let warnings = collected.warnings;
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness {
-            manufacturers: completeness,
-            items: completeness,
-            ships: completeness,
-            commodities: completeness,
-            blueprints: completeness,
-        },
+        completeness: Completeness::of_every_kind(completeness),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
         commodities: collected.commodities,
         blueprints: collected.blueprints,
+        resource_groups: collected.resource_groups,
+        blueprint_categories: collected.blueprint_categories,
+        gameplay_properties: collected.gameplay_properties,
+        quality_distributions: collected.quality_distributions,
+        blueprint_pools: collected.blueprint_pools,
+        dismantle_processes: collected.dismantle_processes,
+        crafting_global: collected.crafting_global,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
     json.push(b'\n');
@@ -112,7 +126,9 @@ pub fn build_catalog_from(
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
+            playability: Box::new(playability),
             failures,
+            warnings,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
         json,
@@ -142,6 +158,7 @@ struct Scan<'o, 'a, 'f> {
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     groups: Groups,
+    evidence: Evidence,
     done: AtomicUsize,
     total: usize,
 }
@@ -152,14 +169,17 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         forge: &'f DataForge<'_>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
+        blueprints: &[Blueprint<'f>],
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records);
+        let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
             options,
             texts,
             groups,
+            evidence,
             done: AtomicUsize::new(0),
             total: records.len(),
         };
@@ -168,39 +188,38 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
             .filter_map(Result::transpose)
             .collect::<Result<_, _>>()?;
-        picked.extend(group_failures.into_iter().map(Picked::Failed));
-        let resources = scan.resource_commodities(&picked);
+        picked.extend(
+            group_failures
+                .into_iter()
+                .chain(evidence_failures)
+                .map(Picked::Failed),
+        );
+        let resources = scan.resource_commodities(&picked, blueprints);
         picked.extend(resources);
         Ok(picked)
     }
 
-    /// Returns the `ResourceTypeGroup` that lists each `ResourceType`, the first group in
-    /// Record order winning a `ResourceType` several list, and the groups that cannot be read.
+    /// Returns what the `ResourceTypeGroup` Records list, the first group in Record order winning a
+    /// `ResourceType` or group several list, and the groups that cannot be read.
     fn groups(records: &[Record<'f>]) -> (Groups, Vec<CatalogFailure>) {
-        let listed: Vec<Result<Vec<(Guid, Guid)>, CatalogFailure>> = records
+        let listed: Vec<Result<Option<Listing>, CatalogFailure>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
                 if !record.type_name().is_ok_and(|name| name == GROUP_TYPE) {
-                    return Ok(Vec::new());
+                    return Ok(None);
                 }
                 let tree = trees
                     .build(record)
                     .map_err(|source| CatalogFailure::of(record, &source))?;
-                Ok(listed_resources(&tree)
-                    .into_iter()
-                    .map(|resource| (resource, tree.guid()))
-                    .collect())
+                Ok(Some(listing(&tree)))
             })
             .collect();
         let mut groups = Groups::new();
         let mut failures = Vec::new();
         for result in listed {
             match result {
-                Ok(listed) => {
-                    for (resource, group) in listed {
-                        groups.entry(resource).or_insert(CatalogGuid(group));
-                    }
-                }
+                Ok(Some(listing)) => groups.add(listing),
+                Ok(None) => {}
                 Err(failure) => failures.push(failure),
             }
         }
@@ -210,24 +229,23 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints use
     /// that no picked commodity carries, those the Filter matches; one that cannot be read
     /// becomes a failure.
-    fn resource_commodities(&self, picked: &[Picked<'f>]) -> Vec<Picked<'f>> {
+    fn resource_commodities(
+        &self,
+        picked: &[Picked<'f>],
+        blueprints: &[Blueprint<'f>],
+    ) -> Vec<Picked<'f>> {
         let mut carried = HashSet::new();
-        let mut used = Vec::new();
         for pick in picked {
-            match pick {
-                Picked::Commodity(commodity) => {
-                    carried.extend(commodity.subtype_guid.map(|guid| guid.0));
-                }
-                Picked::Blueprint(blueprint) => used.extend(
-                    blueprint
-                        .ingredients
-                        .iter()
-                        .filter_map(|ingredient| ingredient.resource_guid)
-                        .map(|guid| guid.0),
-                ),
-                _ => {}
+            if let Picked::Commodity(commodity) = pick {
+                carried.extend(commodity.subtype_guid.map(|guid| guid.0));
             }
         }
+        let mut used: Vec<_> = blueprints
+            .iter()
+            .flat_map(|blueprint| &blueprint.ingredients)
+            .filter_map(|ingredient| ingredient.resource_guid)
+            .map(|guid| guid.0)
+            .collect();
         used.sort_unstable();
         used.dedup();
         let mut trees = TreeBuilder::new();
@@ -289,7 +307,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let path = record.record_path()?;
-        let Some(kind) = Kind::by_path(path) else {
+        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
             return Ok(None);
         };
         if record.type_name()? != kind.rule().type_name {
@@ -310,13 +328,14 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             Kind::Commodities => self.resource_type(trees, &tree)?,
             _ => None,
         };
-        Ok(Some(Picked::entity(
+        Ok(Picked::entity(
             kind,
             &tree,
             self.texts,
             resource_type.as_ref(),
             &self.groups,
-        )))
+            &self.evidence,
+        ))
     }
 
     fn resource_type(

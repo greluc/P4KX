@@ -2,9 +2,12 @@
 //!
 //! Run with `P4KX_BLESS=1` to regenerate `schemas/basetool-catalog.schema.json`.
 
+mod catalog_schema_support;
+
 use std::error::Error;
 use std::path::PathBuf;
 
+use catalog_schema_support::minimal_catalog;
 use serde_json::json;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -86,103 +89,6 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
     assert_eq!(marked, 6, "four descriptions and two display types");
 }
 
-fn minimal_catalog() -> serde_json::Value {
-    json!({
-        "schemaVersion": 1,
-        "source": {
-            "channel": null,
-            "build": null,
-            "archiveSize": 0,
-            "archiveModified": null,
-            "toolVersion": "0.1.0",
-            "exportedAt": "2026-10-18T00:00:00Z"
-        },
-        "completeness": {
-            "manufacturers": {"status": "complete"},
-            "items": {"status": "complete"},
-            "ships": {"status": "partial", "filter": "*/spaceships/*"},
-            "commodities": {"status": "complete"},
-            "blueprints": {"status": "complete"}
-        },
-        "manufacturers": [{
-            "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
-            "className": "ACAS",
-            "recordPath": "libs/foundry/records/scitemmanufacturer/acas",
-            "code": "ACAS",
-            "name": {"key": "@manufacturer_NameACAS", "en": "Ace Astrogation", "de": null},
-            "description": {"key": null, "en": null, "de": null}
-        }],
-        "items": [{
-            "guid": "30000000-0000-4000-8000-000000000001",
-            "className": "POWR_ACAS_S01",
-            "recordPath": "libs/foundry/records/entities/scitem/ships/powerplant/powr_acas_s01",
-            "name": {"key": "@item_NamePOWR_ACAS_S01", "en": "Lumen", "de": null},
-            "description": {"key": null, "en": null, "de": null},
-            "type": "PowerPlant",
-            "subType": "Power",
-            "size": 1,
-            "grade": 3,
-            "mass": 125.5,
-            "manufacturerGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
-            "tags": ["flightReady"],
-            "displayType": {"key": null, "en": null, "de": null},
-            "itemClass": "Military"
-        }],
-        "ships": [{
-            "guid": "90000000-0000-4000-8000-000000000001",
-            "className": "ACAS_Ship",
-            "recordPath": "libs/foundry/records/entities/spaceships/acas_ship",
-            "name": {"key": null, "en": null, "de": null},
-            "description": {"key": null, "en": null, "de": null},
-            "role": {"key": "@vehicle_class_lightfreight", "en": "Light Freight", "de": null},
-            "career": {"key": null, "en": null, "de": null},
-            "crewSize": 2,
-            "manufacturerGuid": null,
-            "vehicleDefinition": null
-        }],
-        "commodities": [{
-            "guid": "a1000000-0000-4000-8000-000000000001",
-            "className": "gold",
-            "recordPath": "libs/foundry/records/entities/commodities/metals/gold",
-            "name": {"key": "@items_commodities_gold", "en": "Gold", "de": null},
-            "description": {"key": null, "en": null, "de": null},
-            "typeGuid": "b1000000-0000-4000-8000-000000000001",
-            "subtypeGuid": null,
-            "displayType": {"key": null, "en": null, "de": null}
-        }],
-        "blueprints": [{
-            "guid": "11000000-0000-4000-8000-000000000001",
-            "className": "BP_CRAFT_core",
-            "recordPath": "libs/foundry/records/crafting/blueprints/crafting/bp_craft_core",
-            "key": "BP_CRAFT_core",
-            "name": {"key": null, "en": null, "de": null},
-            "categoryGuid": "d1000000-0000-4000-8000-000000000001",
-            "producedItemGuid": null,
-            "craftTimeSeconds": 93784,
-            "ingredients": [
-                {
-                    "resourceGuid": "b1000000-0000-4000-8000-000000000001",
-                    "itemGuid": null,
-                    "quantityScu": 0.5,
-                    "quantityUnits": null,
-                    "minQuality": 0,
-                    "slot": "CORE",
-                    "slotKey": null
-                },
-                {
-                    "resourceGuid": null,
-                    "itemGuid": "30000000-0000-4000-8000-000000000001",
-                    "quantityScu": null,
-                    "quantityUnits": 5,
-                    "minQuality": 500,
-                    "slot": null,
-                    "slotKey": "@crafting_ui_slotname_core"
-                }
-            ]
-        }]
-    })
-}
-
 #[test]
 fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
@@ -199,9 +105,23 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
         "the item class stays a string"
     );
 
-    let mut no_class = catalog;
+    let mut no_class = catalog.clone();
     no_class["items"][0]["itemClass"] = json!(null);
     assert!(validator.is_valid(&no_class), "the item class may be null");
+
+    let mut unknown_playability = catalog.clone();
+    unknown_playability["ships"][0]["playability"] = json!("event");
+    assert!(
+        validator.is_valid(&unknown_playability),
+        "a new playability is valid"
+    );
+
+    let mut no_playability = catalog;
+    no_playability["items"][0]["playability"] = json!(null);
+    assert!(
+        validator.is_valid(&no_playability),
+        "the playability may be null"
+    );
     Ok(())
 }
 
@@ -225,18 +145,17 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "ships",
         "commodities",
         "blueprints",
+        "resourceGroups",
+        "blueprintCategories",
+        "gameplayProperties",
+        "qualityDistributions",
+        "blueprintPools",
+        "dismantleProcesses",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);
         assert!(validator.is_valid(&unknown), "unknown fields in {kind}");
     }
-
-    let mut unknown_ingredient = catalog.clone();
-    unknown_ingredient["blueprints"][0]["ingredients"][0]["extra"] = json!(true);
-    assert!(
-        validator.is_valid(&unknown_ingredient),
-        "unknown fields in an ingredient"
-    );
 
     let mut unknown_kind = catalog.clone();
     unknown_kind["loadouts"] = json!([{"guid": "x"}]);
@@ -249,7 +168,36 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "unknown kinds and fields everywhere"
     );
 
-    let mut no_quantity = catalog.clone();
+    let mut unknown_ingredient = catalog;
+    unknown_ingredient["blueprints"][0]["ingredients"][0]["extra"] = json!(true);
+    assert!(
+        validator.is_valid(&unknown_ingredient),
+        "unknown fields in an ingredient"
+    );
+    Ok(())
+}
+
+#[test]
+fn every_field_the_schema_lists_is_required() -> TestResult {
+    let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
+    for (kind, field, what) in [
+        ("blueprints", "tiers", "a blueprint lists its tiers"),
+        (
+            "blueprints",
+            "dismantle",
+            "a blueprint states its dismantle",
+        ),
+        ("resourceGroups", "parentGuid", "a resource group"),
+        ("ships", "crewSize", "a ship"),
+        ("blueprintPools", "rewardSources", "a pool"),
+    ] {
+        let mut catalog = minimal_catalog();
+        if let Some(entity) = catalog[kind][0].as_object_mut() {
+            entity.remove(field);
+        }
+        assert!(!validator.is_valid(&catalog), "{what} has {field}");
+    }
+    let mut no_quantity = minimal_catalog();
     if let Some(ingredient) = no_quantity["blueprints"][0]["ingredients"][0].as_object_mut() {
         ingredient.remove("quantityScu");
     }
@@ -257,11 +205,43 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         !validator.is_valid(&no_quantity),
         "every field of an ingredient is present"
     );
-
-    let mut missing = catalog;
-    if let Some(ship) = missing["ships"][0].as_object_mut() {
-        ship.remove("crewSize");
+    let mut no_modifiers = minimal_catalog();
+    if let Some(line) = no_modifiers["blueprints"][0]["tiers"][0]["mandatory"].as_object_mut() {
+        line.remove("modifiers");
     }
-    assert!(!validator.is_valid(&missing), "every field is present");
+    assert!(
+        !validator.is_valid(&no_modifiers),
+        "every field of a cost line is present"
+    );
+    let mut no_global = minimal_catalog();
+    if let Some(catalog) = no_global.as_object_mut() {
+        catalog.remove("craftingGlobal");
+    }
+    assert!(!validator.is_valid(&no_global), "the global parameters");
+    Ok(())
+}
+
+#[test]
+fn the_crafting_fields_accept_additions_and_new_closed_values_but_stay_required() -> TestResult {
+    let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
+    let catalog = minimal_catalog();
+    let mut unknown_line = catalog.clone();
+    unknown_line["blueprints"][0]["tiers"][0]["mandatory"]["options"][0]["extra"] = json!(true);
+    unknown_line["blueprints"][0]["dismantle"]["extra"] = json!(true);
+    unknown_line["craftingGlobal"]["extra"] = json!(true);
+    assert!(
+        validator.is_valid(&unknown_line),
+        "unknown fields in a cost line, a dismantle link and the global parameters"
+    );
+
+    let mut new_kind_value = catalog;
+    new_kind_value["blueprints"][0]["tiers"][0]["mandatory"]["kind"] = json!("bundle");
+    new_kind_value["blueprints"][0]["tiers"][0]["mandatory"]["options"][0]["modifiers"][0]["ranges"]
+        [0]["kind"] = json!("curve");
+    assert!(
+        validator.is_valid(&new_kind_value),
+        "a new line or range kind is additive: the closed sets stay strings"
+    );
+
     Ok(())
 }

@@ -7,11 +7,28 @@ use crate::record_fields::{guid_value, number, text};
 
 const MAX_DEPTH: usize = 128;
 
-/// The nearest enclosing identity of a struct: the `id` and `debugName` it or an ancestor has.
+/// The nearest enclosing identity of a struct: the `id` and the `debugName` of the nearest struct
+/// with an `id`, or, above any such struct, the nearest `debugName`.
 #[derive(Clone, Copy, Default)]
 struct Scope<'f> {
     id: Option<Guid>,
     name: Option<&'f str>,
+}
+
+impl<'f> Scope<'f> {
+    /// Returns the scope inside `node`: its own `id` and `debugName` when it has an `id`, this
+    /// scope when this one already has an `id`, otherwise the nearest `debugName`.
+    fn within(self, node: &StructValue<'f>) -> Self {
+        let name = text(Some(node), "debugName");
+        match guid_value(Some(node), "id") {
+            Some(id) => Self { id: Some(id), name },
+            None if self.id.is_some() => self,
+            None => Self {
+                id: None,
+                name: name.or(self.name),
+            },
+        }
+    }
 }
 
 /// Appends to `out` every struct of `tree` with a Reference to one of the `pools`, with the
@@ -35,10 +52,7 @@ fn visit<'f>(
     if depth >= MAX_DEPTH {
         return;
     }
-    let scope = Scope {
-        id: guid_value(Some(node), "id").or(parent.id),
-        name: text(Some(node), "debugName").or(parent.name),
-    };
+    let scope = parent.within(node);
     let next = depth.saturating_add(1);
     for field in node.fields() {
         match field.value() {
@@ -50,7 +64,7 @@ fn visit<'f>(
                     record_path: tree.record_path(),
                     contract_id: scope.id,
                     contract_name: scope.name,
-                    pool: Some(reference.guid()),
+                    pool: reference.guid(),
                     chance: number(Some(node), "chance"),
                 });
             }

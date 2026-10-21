@@ -2,7 +2,7 @@
 
 What the reader of `p4kx-model` assumes about `.mtl` files, and how `p4kx-gltf` turns them into
 plain colours. Surveyed on 2026-10-20 over all 26,083 `.mtl` Entries of LIVE. The tests are
-`crates/p4kx-extraction/tests/real_archive_materials.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
+`crates/p4kx-extraction/tests/real_archive/materials.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
 both pass on LIVE and PTU) and the API tests of `p4kx-model` and `p4kx-gltf`.
 
 ## The file
@@ -85,7 +85,7 @@ and the tint palette, so their plain colour is the white `Diffuse`; tints are #1
 
 Surveyed on 2026-10-20 over LIVE: 36,786 distinct texture files in the `.mtl` files, none of them
 encrypted (like the models, the `.mtl` files and every `.dds` Entry), so no Archive key is needed
-to read them. The tests are `crates/p4kx-extraction/tests/real_archive_textured_materials.rs`
+to read them. The tests are `crates/p4kx-extraction/tests/real_archive/textured_materials.rs`
 (`#[ignore]`d) and the API tests of `p4kx-gltf` and the CLI tests `model_textures.rs`.
 
 ### Which file is which

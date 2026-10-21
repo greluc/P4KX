@@ -542,9 +542,19 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
- {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1204,
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true},
+ {"kind": "resourceGroups", "count": 19, "skipped": 0, "complete": true},
+ {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
+ {"kind": "gameplayProperties", "count": 29, "skipped": 0, "complete": true},
+ {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
+ {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
+ {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
+ "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
+ "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
+ "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
+ "unclassified": 13}},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
@@ -557,9 +567,16 @@ development leftovers `skipped` and whether the kind is `complete` (no `--filter
 them. `failed` lists the selected Records that could not be read and are left out of the catalog,
 with GUID, record path (empty when it cannot be read) and the reason and its causes joined by
 `: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
-all the same, and the exit code is 1 when `failed` is not empty. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
+all the same, and the exit code is 1 when `failed` or `warnings` is not empty. `warnings` lists what
+makes the crafting data incomplete or ambiguous although every Record was read, each as an object
+with a `kind`: `reward_sources_truncated` (the reference index is truncated),
+`unreadable_reference_records` with a `count` (Records the index could not read) and
+`ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one); a
+reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
+Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
-(`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+(`missing`). `playability` counts the items and the ships per value of their `playability`, and
+the ones no rule classifies (`unclassified`, `null` in the catalog). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands

@@ -78,6 +78,17 @@ impl ReferenceIndex {
         Self::build_until(forge, MAX_INDEXED_REFERENCES, stop)
     }
 
+    /// Indexes like [`build_limited`](Self::build_limited) but gives up with `None` once `stop`
+    /// returns `true`.
+    #[must_use]
+    pub fn build_limited_cancellable(
+        forge: &DataForge<'_>,
+        limit: usize,
+        stop: &(dyn Fn() -> bool + Sync),
+    ) -> Option<Self> {
+        Self::build_until(forge, limit, stop)
+    }
+
     fn build_until(
         forge: &DataForge<'_>,
         limit: usize,

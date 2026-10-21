@@ -1,17 +1,27 @@
 use p4kx_extraction::RecordTree;
 
-use crate::blueprint::blueprint;
-use crate::commodity::{Groups, commodity};
-use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
+use crate::blueprint_category::blueprint_category;
+use crate::catalog_crafting::CraftingKinds;
+use crate::commodity::commodity;
+use crate::contract::{
+    Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
+    GameplayProperty, Item, Manufacturer, QualityDistribution, ResourceGroup, Ship,
+};
+use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
+use crate::playability::PlayabilitySummary;
+use crate::playability_rules::Evidence;
+use crate::resource_group::{Groups, resource_group};
 use crate::ship::ship;
 use crate::texts::Texts;
 use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
 
 /// A Record a kind selected: its entity, or a development leftover of the kind.
+///
+/// The kinds that [`read_crafting`](crate::read_crafting) fills are not picked.
 pub(crate) enum Picked<'f> {
     /// A manufacturer.
     Manufacturer(Manufacturer<'f>),
@@ -21,8 +31,10 @@ pub(crate) enum Picked<'f> {
     Ship(Ship<'f>),
     /// A commodity.
     Commodity(Commodity<'f>),
-    /// A blueprint.
-    Blueprint(Blueprint<'f>),
+    /// A resource group.
+    ResourceGroup(ResourceGroup<'f>),
+    /// A blueprint category.
+    BlueprintCategory(BlueprintCategory<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
     /// A Record that could not be read.
@@ -32,54 +44,100 @@ pub(crate) enum Picked<'f> {
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
     /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
-    /// type from `groups`.
+    /// type from `groups`, a ship its playability from `evidence`. `None` for a kind that
+    /// [`read_crafting`](crate::read_crafting) fills.
     pub(crate) fn entity(
         kind: Kind,
         tree: &RecordTree<'f>,
         texts: &Texts<'f>,
         resource_type: Option<&RecordTree<'f>>,
         groups: &Groups,
-    ) -> Self {
-        match kind {
+        evidence: &Evidence,
+    ) -> Option<Self> {
+        Some(match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
             Kind::Items => {
                 let (item, line) = item(tree, texts);
                 Self::Item(item, line)
             }
-            Kind::Ships => Self::Ship(ship(tree, texts)),
+            Kind::Ships => Self::Ship(ship(tree, texts, evidence)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
-            Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
-        }
+            Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
+            Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
+            Kind::Blueprints
+            | Kind::GameplayProperties
+            | Kind::QualityDistributions
+            | Kind::BlueprintPools
+            | Kind::DismantleProcesses => return None,
+        })
     }
 }
 
 /// The entities of every kind, ordered by GUID, with the counts of the summary.
-#[derive(Default)]
 pub(crate) struct Collected<'f> {
     pub(crate) manufacturers: Vec<Manufacturer<'f>>,
     pub(crate) items: Vec<Item<'f>>,
     pub(crate) ships: Vec<Ship<'f>>,
     pub(crate) commodities: Vec<Commodity<'f>>,
     pub(crate) blueprints: Vec<Blueprint<'f>>,
+    pub(crate) resource_groups: Vec<ResourceGroup<'f>>,
+    pub(crate) blueprint_categories: Vec<BlueprintCategory<'f>>,
+    pub(crate) gameplay_properties: Vec<GameplayProperty<'f>>,
+    pub(crate) quality_distributions: Vec<QualityDistribution<'f>>,
+    pub(crate) blueprint_pools: Vec<BlueprintPool<'f>>,
+    pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
+    pub(crate) crafting_global: CraftingGlobal,
     pub(crate) item_classes: ItemClassSummary,
+    pub(crate) playability: PlayabilitySummary,
     pub(crate) failures: Vec<CatalogFailure>,
+    pub(crate) warnings: Vec<CraftingWarning>,
     skipped: [usize; Kind::ALL.len()],
 }
 
 impl<'f> Collected<'f> {
-    /// Sorts `picked` into the kinds and orders every kind by the text of the GUID.
-    pub(crate) fn new(picked: Vec<Picked<'f>>) -> Self {
-        let mut collected = Self::default();
+    /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
+    /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
+    pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
+        let mut skipped = [0; Kind::ALL.len()];
+        for (kind, count) in &crafting.skipped {
+            if let Some(slot) = skipped.get_mut(kind.index()) {
+                *slot = *count;
+            }
+        }
+        let mut collected = Self {
+            manufacturers: Vec::new(),
+            items: Vec::new(),
+            ships: Vec::new(),
+            commodities: Vec::new(),
+            blueprints: crafting.blueprints,
+            resource_groups: Vec::new(),
+            blueprint_categories: Vec::new(),
+            gameplay_properties: crafting.properties,
+            quality_distributions: crafting.distributions,
+            blueprint_pools: crafting.pools,
+            dismantle_processes: crafting.dismantle,
+            crafting_global: crafting.global,
+            item_classes: ItemClassSummary::default(),
+            playability: PlayabilitySummary::default(),
+            failures: crafting.failures,
+            warnings: crafting.warnings,
+            skipped,
+        };
         for pick in picked {
             match pick {
                 Picked::Manufacturer(entity) => collected.manufacturers.push(entity),
                 Picked::Item(entity, line) => {
                     collected.item_classes.count(line);
+                    collected.playability.items.count(entity.playability);
                     collected.items.push(entity);
                 }
-                Picked::Ship(entity) => collected.ships.push(entity),
+                Picked::Ship(entity) => {
+                    collected.playability.ships.count(entity.playability);
+                    collected.ships.push(entity);
+                }
                 Picked::Commodity(entity) => collected.commodities.push(entity),
-                Picked::Blueprint(entity) => collected.blueprints.push(entity),
+                Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
+                Picked::BlueprintCategory(entity) => collected.blueprint_categories.push(entity),
                 Picked::Skipped(kind) => {
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
@@ -88,28 +146,26 @@ impl<'f> Collected<'f> {
                 Picked::Failed(failure) => collected.failures.push(failure),
             }
         }
+        collected.order();
         collected
-            .failures
+    }
+
+    /// Orders the failures and the picked kinds by the text of the GUID.
+    fn order(&mut self) {
+        self.failures
             .sort_by_cached_key(|failure| CatalogGuid(failure.guid).text());
-        collected
-            .failures
+        self.failures
             .dedup_by(|later, earlier| later.guid == earlier.guid);
-        collected
-            .manufacturers
+        self.manufacturers
             .sort_by_cached_key(|entity| entity.guid.text());
-        collected
-            .items
+        self.items.sort_by_cached_key(|entity| entity.guid.text());
+        self.ships.sort_by_cached_key(|entity| entity.guid.text());
+        self.commodities
             .sort_by_cached_key(|entity| entity.guid.text());
-        collected
-            .ships
+        self.resource_groups
             .sort_by_cached_key(|entity| entity.guid.text());
-        collected
-            .commodities
+        self.blueprint_categories
             .sort_by_cached_key(|entity| entity.guid.text());
-        collected
-            .blueprints
-            .sort_by_cached_key(|entity| entity.guid.text());
-        collected
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -124,6 +180,12 @@ impl<'f> Collected<'f> {
                     Kind::Ships => self.ships.len(),
                     Kind::Commodities => self.commodities.len(),
                     Kind::Blueprints => self.blueprints.len(),
+                    Kind::ResourceGroups => self.resource_groups.len(),
+                    Kind::BlueprintCategories => self.blueprint_categories.len(),
+                    Kind::GameplayProperties => self.gameplay_properties.len(),
+                    Kind::QualityDistributions => self.quality_distributions.len(),
+                    Kind::BlueprintPools => self.blueprint_pools.len(),
+                    Kind::DismantleProcesses => self.dismantle_processes.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

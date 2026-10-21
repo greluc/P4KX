@@ -148,6 +148,7 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
             "tags": ["flightReady", "$Small"],
             "displayType": {"key": "@item_DisplayType_PowerPlant", "en": "Power Plant", "de": null},
             "itemClass": "Military",
+            "playability": null,
         }),
         "the item fields"
     );
@@ -259,6 +260,7 @@ fn a_ship_carries_names_role_career_crew_manufacturer_and_vehicle_definition() -
             "crewSize": 2,
             "manufacturerGuid": "10000000-0000-4000-8000-000000000001",
             "vehicleDefinition": "scripts/entities/vehicles/implementations/xml/acas_ship.xml",
+            "playability": null,
         }),
         "the ship fields"
     );
@@ -276,6 +278,12 @@ fn every_kind_states_its_completeness() -> TestResult {
             "ships": {"status": "complete"},
             "commodities": {"status": "complete"},
             "blueprints": {"status": "complete"},
+            "resourceGroups": {"status": "complete"},
+            "blueprintCategories": {"status": "complete"},
+            "gameplayProperties": {"status": "complete"},
+            "qualityDistributions": {"status": "complete"},
+            "blueprintPools": {"status": "complete"},
+            "dismantleProcesses": {"status": "complete"},
         }),
         "complete"
     );

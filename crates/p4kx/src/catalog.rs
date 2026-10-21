@@ -6,8 +6,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, SCHEMA_VERSION,
-    SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, CraftingWarning, Filter,
+    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog,
+    catalog_schema,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -41,9 +42,35 @@ struct SummaryJson<'a> {
     kinds: Vec<KindJson>,
     skipped: usize,
     failed: Vec<FailureJson<'a>>,
+    warnings: Vec<WarningJson>,
     item_classes: ItemClassJson,
+    playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum WarningJson {
+    RewardSourcesTruncated,
+    UnreadableReferenceRecords { count: usize },
+    AmbiguousDismantle { count: usize },
+    Other { message: String },
+}
+
+impl From<&CraftingWarning> for WarningJson {
+    fn from(warning: &CraftingWarning) -> Self {
+        match *warning {
+            CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
+            CraftingWarning::UnreadableReferenceRecords(count) => {
+                Self::UnreadableReferenceRecords { count }
+            }
+            CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
+            ref other => Self::Other {
+                message: other.to_string(),
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -58,6 +85,33 @@ struct ItemClassJson {
     classified: usize,
     other: usize,
     missing: usize,
+}
+
+#[derive(Serialize)]
+struct PlayabilityJson {
+    items: PlayabilityCountsJson,
+    ships: PlayabilityCountsJson,
+}
+
+#[derive(Serialize)]
+struct PlayabilityCountsJson {
+    player: usize,
+    ai: usize,
+    mission: usize,
+    special: usize,
+    unclassified: usize,
+}
+
+impl From<PlayabilityCounts> for PlayabilityCountsJson {
+    fn from(counts: PlayabilityCounts) -> Self {
+        Self {
+            player: counts.of(Playability::Player),
+            ai: counts.of(Playability::Ai),
+            mission: counts.of(Playability::Mission),
+            special: counts.of(Playability::Special),
+            unclassified: counts.unclassified(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -110,6 +164,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     let summary = built.summary();
     print_notes(summary.text_notes());
     print_failures(summary.failures())?;
+    print_warnings(summary.warnings())?;
     warn_about_size(summary)?;
     crate::guard::ensure_writable(out)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
@@ -138,6 +193,14 @@ fn print_failures(failures: &[CatalogFailure]) -> io::Result<()> {
             "failed {} ({}): {}",
             failure.record_path, failure.guid, failure.reason
         )?;
+    }
+    Ok(())
+}
+
+fn print_warnings(warnings: &[CraftingWarning]) -> io::Result<()> {
+    let mut err = io::stderr().lock();
+    for warning in warnings {
+        writeln!(err, "warning: {warning}")?;
     }
     Ok(())
 }
@@ -208,10 +271,15 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
                 error: &failure.reason,
             })
             .collect(),
+        warnings: summary.warnings().iter().map(WarningJson::from).collect(),
         item_classes: ItemClassJson {
             classified: summary.item_classes().classified,
             other: summary.item_classes().other,
             missing: summary.item_classes().missing,
+        },
+        playability: PlayabilityJson {
+            items: summary.playability().items.into(),
+            ships: summary.playability().ships.into(),
         },
         texts: summary
             .texts()
@@ -246,6 +314,18 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         "item classes: {} read, {} other values, {} without a Class: line or English description",
         classes.classified, classes.other, classes.missing
     )?;
+    let playability = summary.playability();
+    for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
+        writeln!(
+            stdout,
+            "{kind} playability: {} player, {} ai, {} mission, {} special, {} unclassified",
+            counts.of(Playability::Player),
+            counts.of(Playability::Ai),
+            counts.of(Playability::Mission),
+            counts.of(Playability::Special),
+            counts.unclassified()
+        )?;
+    }
     for text in summary.texts() {
         writeln!(
             stdout,

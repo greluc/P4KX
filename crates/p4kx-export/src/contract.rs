@@ -5,8 +5,13 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
-pub(crate) use crate::contract_crafting::{Blueprint, Commodity, Ingredient};
+pub(crate) use crate::contract_crafting::{
+    Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
+};
 pub(crate) use crate::contract_entities::{Item, Ship};
+pub(crate) use crate::contract_rewards::{
+    BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
+};
 
 /// The version of the catalog shape.
 ///
@@ -37,6 +42,20 @@ pub(crate) struct Catalog<'a> {
     pub(crate) commodities: Vec<Commodity<'a>>,
     /// The blueprints, ordered by GUID.
     pub(crate) blueprints: Vec<Blueprint<'a>>,
+    /// The resource groups, ordered by GUID.
+    pub(crate) resource_groups: Vec<ResourceGroup<'a>>,
+    /// The blueprint categories, ordered by GUID.
+    pub(crate) blueprint_categories: Vec<BlueprintCategory<'a>>,
+    /// The gameplay property definitions the quality modifiers refer to, ordered by GUID.
+    pub(crate) gameplay_properties: Vec<GameplayProperty<'a>>,
+    /// The quality distributions and their location overrides, ordered by GUID.
+    pub(crate) quality_distributions: Vec<QualityDistribution<'a>>,
+    /// The blueprint pools with the places that reward them, ordered by GUID.
+    pub(crate) blueprint_pools: Vec<BlueprintPool<'a>>,
+    /// The dismantle processes, ordered by GUID.
+    pub(crate) dismantle_processes: Vec<DismantleProcess<'a>>,
+    /// The global crafting parameters that apply to every dismantle.
+    pub(crate) crafting_global: CraftingGlobal,
 }
 
 /// Where a catalog came from.
@@ -91,6 +110,37 @@ pub(crate) struct Completeness<'a> {
     pub(crate) commodities: KindCompleteness<'a>,
     /// The completeness of `blueprints`.
     pub(crate) blueprints: KindCompleteness<'a>,
+    /// The completeness of `resourceGroups`.
+    pub(crate) resource_groups: KindCompleteness<'a>,
+    /// The completeness of `blueprintCategories`.
+    pub(crate) blueprint_categories: KindCompleteness<'a>,
+    /// The completeness of `gameplayProperties`.
+    pub(crate) gameplay_properties: KindCompleteness<'a>,
+    /// The completeness of `qualityDistributions`.
+    pub(crate) quality_distributions: KindCompleteness<'a>,
+    /// The completeness of `blueprintPools`.
+    pub(crate) blueprint_pools: KindCompleteness<'a>,
+    /// The completeness of `dismantleProcesses`.
+    pub(crate) dismantle_processes: KindCompleteness<'a>,
+}
+
+impl<'a> Completeness<'a> {
+    /// Returns the completeness that states `completeness` for every kind.
+    pub(crate) const fn of_every_kind(completeness: KindCompleteness<'a>) -> Self {
+        Self {
+            manufacturers: completeness,
+            items: completeness,
+            ships: completeness,
+            commodities: completeness,
+            blueprints: completeness,
+            resource_groups: completeness,
+            blueprint_categories: completeness,
+            gameplay_properties: completeness,
+            quality_distributions: completeness,
+            blueprint_pools: completeness,
+            dismantle_processes: completeness,
+        }
+    }
 }
 
 /// Whether a kind holds every Record of the Build or only those a Filter selected.

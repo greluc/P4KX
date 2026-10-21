@@ -66,10 +66,50 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `items` | The items, ordered by GUID |
 | `ships` | The ships and ground vehicles, ordered by GUID |
 | `commodities` | The commodities, ordered by GUID |
-| `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
+| `blueprints` | The crafting blueprints with their ingredients, all tiers, default availability and dismantle link, ordered by GUID |
+| `resourceGroups` | The groups of resource types, the targets of `typeGuid`, ordered by GUID |
+| `blueprintCategories` | The blueprint categories, the targets of `categoryGuid`, ordered by GUID |
+| `gameplayProperties` | The gameplay properties the quality modifiers refer to, ordered by GUID |
+| `qualityDistributions` | The quality distributions and their location overrides, ordered by GUID |
+| `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
+| `dismantleProcesses` | The dismantle processes, ordered by GUID |
+| `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
+
+### Ordering Builds
+
+`source.build.changeNumber` is the Perforce change number the Build was made from
+(`RequestedP4ChangeNum` of the build manifest). It is a decimal integer written as a string; a
+consumer compares it as a number, never as text.
+
+- **Within a Channel it is monotonic.** Every Build a Channel published has a higher change number
+  than the one before, so a consumer may refuse a catalog whose `changeNumber` is lower than that of
+  the last applied catalog of the same Channel. The same number means the same Build; re-applying it
+  is safe.
+- **HOTFIX** is a Channel of its own and monotonic too. A HOTFIX Build later becomes the LIVE Build
+  unchanged, so HOTFIX and LIVE then share one change number, one `buildId` and one `version`. A
+  HOTFIX Build lies between the LIVE Builds around it, and the LIVE Build that replaces it is the
+  same or higher, so ordering a HOTFIX catalog against a LIVE one by `changeNumber` is also sound
+  as long as equal numbers count as the same Build.
+- **Across Channels it orders the code, not the time of publication.** PTU, EPTU and TECH-PREVIEW
+  Builds come from other branches: a LIVE Build with a lower change number can be published after a
+  PTU Build with a higher one. A consumer keeps one last-applied `changeNumber` per
+  `source.channel` and does not compare numbers of different Channels. A Build promoted to another
+  Channel keeps its number, so it is never rejected there.
+- **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
+  only.
+- **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
+  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
+  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+
+Evidence for the rule is in the pull request that closed krt-profit/p4k-extractor#402: 65 launcher
+log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
+over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
+TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
+claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
+would show as a lower number than the last applied one.
 
 ### Entities
 
@@ -82,6 +122,8 @@ Every entity carries:
 | `recordPath` | The record path, without `.xml` |
 | `name`, `description` | `key` (the localisation key), `en` and `de` (the resolved texts), each `null` while unknown |
 
+A resource group and a blueprint category carry `name` and no `description`.
+
 A manufacturer adds `code`, e.g. `ACAS`.
 
 An item takes its fields from the components of its `EntityClassDefinition`:
@@ -90,12 +132,13 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 |-------|--------|
 | `name`, `description` | `SAttachableComponentParams.AttachDef.Localization.Name` and `.Description` |
 | `type`, `subType` | `AttachDef.Type` and `AttachDef.SubType`, e.g. `PowerPlant` and `Power` |
-| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers |
+| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers; see "Semantics of `grade`" below |
 | `mass` | `SEntityPhysicsControllerParams.PhysType.Mass`, a number |
 | `manufacturerGuid` | The GUID the Reference `AttachDef.Manufacturer` links to, `null` for a null Reference |
 | `tags` | The words of `AttachDef.Tags`, split at white space |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
+| `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -104,6 +147,51 @@ starts with `Class:`, its value trimmed of white space and matched ignoring case
 an item without an English description leave it `null`. `p4kx catalog` counts the items with a
 class, with another value, and without the line or an English description. The schema types the
 field as a string; the five options are documented, not enumerated.
+
+#### Semantics of `grade`
+
+`grade` is the integer of `AttachDef.Grade`, exported unchanged; the catalog carries no letter.
+The letter the game shows is not in the DataForge. For ship components it is the `Grade:` line of
+the English `description`, and it follows the integer: **1 = A, 2 = B, 3 = C, 4 = D**, so A is the
+lowest integer. Checked on LIVE 4.10.2 (change 12913470) against that line of every item that has
+one:
+
+| Item `type` | Integer to letter |
+|-------------|-------------------|
+| `Cooler`, `PowerPlant`, `QuantumDrive`, `Radar`, `Shield` | 1 = A, 2 = B, 3 = C, 4 = D, uniform |
+| `JumpDrive`, `LifeSupportGenerator` | only 3 = C is consistent; grade 1 items name no letter or contradict it |
+| FPS gear (`Char_Armor_*`, `Char_Clothing_*`, `WeaponPersonal`) | no `Grade:` line; grade is 1, on a few helmets and shirts 2, with no letter evidence |
+| `WeaponAttachment` (ship weapon parts) | no `Grade:` line; grade 3 to 7 follows the size of the part |
+| every other `type` | no `Grade:` line; grade is 1 almost everywhere |
+
+Of the 350 items with a `Grade:` line, 331 name A to D and agree with the integer. 19 do not, and
+all 19 have grade 1:
+
+- 10 name B or C: a `Cooler` (B, and another with C), a `Radar`, a `JumpDrive`, a
+  `QuantumInterdictionGenerator`, two `Misc` computers and three `WeaponMining` lasers. The text and
+  the integer disagree; the Archive does not say which one the game shows.
+- 9 name `Bespoke`: the ship-specific components of the Reclaimer, 890 Jump and Polaris.
+
+The Basetool can take the letter from `grade` by `1 = A` to `4 = D` for the five component types,
+and must treat grade 1 as unknown elsewhere and for those 19 items. It reads the integer, never the
+`Grade:` line, which is a game text and stays away from third parties.
+
+Distribution of `grade` over the 23280 items of LIVE 4.10.2:
+
+| `grade` | Items |
+|---------|-------|
+| 1 | 21325 |
+| 2 | 153 |
+| 3 | 170 |
+| 4 | 76 |
+| 5 | 8 |
+| 6 | 8 |
+| 7 | 4 |
+| `null` | 1536 |
+
+`null` is an item without `AttachDef`: all 1536 also have a `null` `type`. 5 to 7 occur only on
+`WeaponAttachment` parts (`Barrel`, `FiringMechanism`, `PowerArray`, `Ventilation`), 3 and 4 on
+those parts too. No value is below 1 or above 7.
 
 A ship takes its fields from `VehicleComponentParams`:
 
@@ -114,6 +202,81 @@ A ship takes its fields from `VehicleComponentParams`:
 | `crewSize` | `crewSize`, an integer |
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
+| `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+
+#### Playability
+
+The catalog lists every ship and item Record of the Build, among them AI, mission and event
+variants that no player can own, buy or fit. `playability` tells them apart. It is a closed set of
+strings; the schema keeps a string, so a new value is additive and a reader maps a value it does
+not know to `null` (ADR-0054). It is `null` where no rule below applies: the value is never
+guessed. The rules read Record data only (components, fields, References, Tags, record-path
+folders); no class name or Record name enters them.
+
+| Value | Meaning |
+|-------|---------|
+| `player` | Has the structural markers of a player entity |
+| `ai` | Part of the AI; ships only |
+| `mission` | Part of a mission: an unmanned ship or an item of a mission folder |
+| `special` | Neither: a ship with `inclusionMode` `DoNotInclude`, or an item without a player-visible name |
+
+For a ship or ground vehicle the first rule that holds decides. `inclusionMode` is
+`StaticEntityClassData[EAEntityDataParams].inclusionMode` (`EAEntityDataParams`, believed to
+govern Electronic Access / Arena Commander inclusion). It correlates on LIVE with hangar-listed
+ships; it is used as evidence, not as a definition. Any value other than `ReadyToInclude` and
+`DoNotInclude` leads to `null`, unless rule 1 or 2 holds.
+
+1. `ai` when `Components[SEntityComponentCrewManifestParams].crewManifest` links to a
+   `CrewManifest` Record whose `crew` array is not empty (the NPC crew; the empty manifest
+   `crewmanifest_null` does not count). For a Record under `entities/spaceships/` also when
+   `Components[VehicleComponentParams].criticalPartExplosionChance` is above zero, or when
+   `Components[VehicleComponentParams].aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true
+   while `inclusionMode` is not `ReadyToInclude`. Ground vehicles all carry these two hull values,
+   so they are not read there.
+2. `mission` when one of the Record's `tags` links to a `Tag` Record whose `tagName` is `Unmanned`
+   (the salvage, derelict and wreck targets of missions).
+3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
+4. `player` when `inclusionMode` is `ReadyToInclude` and, for a spaceship,
+   `powerPlantsCanExplodeOnDeath` is not true.
+5. Also `null` when the crew manifest or a tag the Record links to could not be read (the
+   catalog reports that Record as a failure), since its evidence is missing; checked before
+   rule 1.
+6. Otherwise `null`: no `EAEntityDataParams`, another `inclusionMode`, or a `ReadyToInclude` spaceship whose hull
+   explodes on death and that no crew manifest marks (LIVE: Stingray, Skylark, Railen and the
+   `ai_template` ships mix here; the data does not separate them).
+
+For an item the first rule that holds decides:
+
+1. `player` when `Components[SCItemPurchasableParams].displayName` is a localisation key that is
+   not a placeholder key: the item has a shop display.
+2. `mission` when the record path lies under `entities/scitem/mission_entities/` or
+   `entities/scitem/missionstorage/`.
+3. `special` when `AttachDef.Localization.Name` is no key or a placeholder key: the item has no
+   player-visible name (doors, props, decals, internal parts).
+4. Otherwise `null`: a named item without a shop display (loot, attachments, parts); the Records
+   do not say whether a player can obtain it.
+
+No item is `ai`: items carry no AI marker the rules can read.
+
+The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
+leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
+the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
+structural marker and read as `player`.
+
+**The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
+means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
+mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
+it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+matches every other value and `null` against what it knows and seeds none of them. A `null` ship
+(LIVE: Stingray, Skylark, Railen) is added by hand.
+
+`p4kx catalog` prints the count per value and the unclassified count for items and ships; `--json`
+lists them under `playability`. LIVE, 2026-10-21:
+
+| Kind | `player` | `ai` | `mission` | `special` | `null` |
+|------|---------:|-----:|----------:|----------:|-------:|
+| ships | 324 | 690 | 25 | 35 | 13 |
+| items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 an ingredient uses and no commodity Record carries (see below). A commodity Record takes its fields
@@ -155,6 +318,12 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 | `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
 | `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
 | `ingredients` | The costs of the first tier, see below |
+| `tiers` | Every tier in stored order, see "Tiers" below; the first one is the tier `craftTimeSeconds` and `ingredients` describe |
+| `defaultAvailable` | `true` when the blueprint is in `CraftingGlobalParams.defaultBlueprintSelection`, the blueprints a player has by default |
+| `dismantle` | What dismantling the produced item returns, see "Dismantle returns" below; `null` without one |
+
+`craftTimeSeconds` and `ingredients` keep their meaning; they are derived from the first tier, so
+the cost tree is read once.
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
@@ -168,30 +337,131 @@ An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `man
 | `minQuality` | `minQuality` |
 | `slot`, `slotKey` | `debugName` and `displayName` of the nearest enclosing selection that has a name; a placeholder `slotKey` is `null` |
 
-Not represented:
+A resource group (`ResourceTypeGroup`, 19 on LIVE: Metal, Mineral, Gas, …) is the type of a
+commodity; a commodity's `typeGuid` is the `guid` of the group that lists its `ResourceType`. It
+takes its fields from the Record:
 
-- The count of a selection ("choose n"): every option is listed, though 3 of the 1,618 LIVE
-  blueprints let the player choose fewer than they offer.
-- The `CraftingCostContext_QuantityMultiplier` (factor 1.15 on 3 lines of LIVE): the quantities are
-  the stored ones, the multiplier is ignored.
-- All tiers, quality modifiers, quality distributions, reward pools and dismantle returns.
+| Field | Source |
+|-------|--------|
+| `className` | The Record name without its type, e.g. `Metal` |
+| `name` | `displayName`, e.g. `@items_commodities_type_metal`; a placeholder key (`@LOC_PLACEHOLDER`, 7 groups on LIVE) leaves `en` and `de` `null`, and the Basetool falls back to `className` |
+| `parentGuid` | The GUID of the group that lists this group in its `groups`, `null` for a top-level group; the first group in Record order wins when several list it |
 
-The library reads all of this already: see "Crafting data" below. The catalog shape for it follows
-in #396.
+Groups nest one level on LIVE: Metal lists Alloy and UnrefinedOres, Mineral lists Raw_Minerals,
+Nonmetal lists Halogen, Organic lists Food, ProcessedGoods lists SyntheticMaterials, Vice and
+Bulk_Supplies. A commodity points at the group that lists its `ResourceType` directly, so a
+commodity of Alloy has the child as `typeGuid`, not Metal. `description`, the thumbnail paths and
+the lists `resources` and `groups` are not exported: the descriptions are game texts, the paths are
+media, and the membership is `typeGuid` of the commodities. All groups share one `recordPath`, the
+Record file `resourcetypedatabase`; `className` and `guid` tell them apart.
+
+A blueprint category (`BlueprintCategoryRecord`, 21 on LIVE) is the target of the `categoryGuid` of
+a blueprint. The Record holds no field at all, so the category has `guid`, `className` (e.g.
+`FPSArmours`, `VehicleComponentS2`), `recordPath` and a `name` without a key, which stays `null`
+until the game adds one; the game localises no category. Categories do not nest: the Record has no
+parent, and the `BlueprintCategoryDatabaseRecord` beside them only lists them. Some categories
+carry no blueprint on LIVE (`FuseBattery`, `Medical`, `Utility`, and the examples `Example1`,
+`Example2`, `DismantleExample1` and `RefiningExample1`); they stay, as the kind is complete by
+Record.
+
+Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves to a `guid` of
+`resourceGroups` or `blueprintCategories` (checked against LIVE; a commodity without a
+`ResourceType` or group, 1 on LIVE, and a blueprint without a category have `null`). With a
+`--filter`, a kind is partial and the references need not resolve.
+
+### Tiers
+
+`tiers` lists every `CraftingBlueprintTier` in stored order. Every tier has:
+
+| Field | Meaning |
+|-------|---------|
+| `craftTimeSeconds` | `costs.craftTime` of the tier in whole seconds, rounded; `null` without one |
+| `mandatory` | The mandatory cost as a cost line, `null` without one |
+| `optional` | The optional costs as cost lines in stored order |
+
+A cost line is a selection, a resource line or an item line. The tree keeps what `ingredients`
+flattens, so a selection stays a selection:
+
+| Field | Meaning |
+|-------|---------|
+| `kind` | `select`, `resource` or `item`. A closed set the game may extend; the schema keeps it a string and a reader maps an unknown value to nothing |
+| `count` | `select`: how many options the player chooses ("choose n"); fewer than `options` offers means the player may leave options out (3 of the 1,618 LIVE blueprints) |
+| `slot`, `slotKey` | `select`: `debugName` and `displayName` of `nameInfo`; a placeholder `slotKey` is `null` |
+| `options` | `select`: the options as cost lines in stored order, otherwise `[]` |
+| `resourceGuid`, `quantityScu` | `resource`: the `ResourceType` Record and the quantity in SCU, before the quantity multiplier |
+| `itemGuid`, `quantityUnits` | `item`: the entity and the number of units, before the quantity multiplier |
+| `minQuality` | `resource` and `item`: `minQuality` |
+| `quantityMultiplier` | The factor of `CraftingCostContext_QuantityMultiplier` (1.15 on 3 lines of LIVE), `null` without one. The quantities stay the stored ones; the consumer applies the factor |
+| `compositionInclusion` | The option of `CraftingCostContext_ResultCompositionInclusion`, e.g. `Include`; `null` without one |
+| `modifiers` | `CraftingCostContext_ResultGameplayPropertyModifiers`: per modifier `propertyGuid` (a `gameplayProperties` entry) and `ranges`, each with `kind` (`multiplier` for factors, `additive` for summands; a closed set the game may extend), `startQuality`, `endQuality`, `atStart` and `atEnd`, linear in the quality between the two ends |
+
+A selection carries the context of the selection itself in the same fields.
+
+LIVE holds exactly one tier per blueprint on all five Channels, so the real-Archive test checks
+that tiers and first-tier fields agree, and the multi-tier case is covered by a synthetic
+Archive (`catalog_crafting_tiers`), which checks a blueprint with two tiers, selections,
+multipliers and modifiers.
+
+### Quality, pools and dismantle
+
+Four kinds hold what a blueprint refers to; each entry has `guid`, `className` and `recordPath`,
+and the ordering, completeness and leftover rules of every other kind apply (a `--filter` matches
+the record path and marks the kind partial).
+
+| Kind | Fields |
+|------|--------|
+| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key leaves `en` and `de` `null`. The target of a modifier's `propertyGuid` |
+| `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
+| `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order |
+| `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
+
+A blueprint's chance from a source is `chance` x the entry's `weight` / `totalWeight`; a source
+without a chance or with one outside 0 to 1, a pool without a positive weight and an entry with a
+weight of zero or less give none. The quality distributions carry no link to a blueprint or source:
+the Records do not hold one, so the catalog lists them as they are.
+
+Not represented: the `qualityquantization` Records (quantised quality steps per `ResourceType`)
+are not read; they are added when the Basetool needs them (#409). Everything else of the issue's
+list is in the catalog.
+
+#### Dismantle returns
+
+`dismantle` of a blueprint is `{"processGuid", "tierIndex"}`: the dismantle process that applies to
+the item the blueprint produces and the index into `tiers` of the tier whose costs the item
+returns, `null` for a blueprint without a tier. `craftingGlobal` holds
+`dismantleExcludedResourceGuids` (the `ResourceType` Records a dismantle never returns) and
+`dismantleExcludedItemGuids` (the entities that cannot be dismantled; their blueprints have no
+`dismantle`). The contract:
+
+- The Build must hold exactly one dismantle process. With several, no blueprint gets a
+  `dismantle`, the processes are still listed, and `p4kx catalog` warns and exits with code 1.
+- The item returns the share `efficiency` of the costs of the first tier (`tierIndex` 0), except
+  the resources in `dismantleExcludedResourceGuids`.
+- A `select` is not resolved: the Records do not say which options a dismantle returns, so the
+  consumer applies the `count` itself. The `quantityMultiplier` is not applied.
+
+These are assumptions of the library, not verified against the game.
 
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
-`blueprints` kind does not carry. It reads the DataForge in parallel (0.6 s on LIVE, plus the
-reference index for the reward sources) and leaves out a Record it cannot read, listing it under
-`failures`. Every list is ordered by Record GUID. The values are facts and identifiers only: no
-description, no lore, no media.
+`blueprints` kind and the crafting kinds carry; the catalog is built from it, so library and
+catalog never drift. It reads the DataForge in parallel (0.6 s on LIVE, plus the reference index for
+the reward sources) and leaves out a Record it cannot read, listing it under `failures`. Every
+list is ordered by Record GUID. The values are facts and identifiers only: no description, no
+lore, no media.
 
-| Field | Source |
-|-------|--------|
-The names below are the Rust names of the library, not contract names; the catalog names follow
-in #396. A `Filter` keeps only the blueprints and pools it matches; the other lists are always
-read.
+The blueprints are selected by the one rule behind the `blueprints` kind (`selects_blueprint`:
+prefix, type, Filter, leftover tokens). A `Filter` keeps only the blueprints and pools it matches;
+the other lists are always read, and the catalog then keeps the properties, quality distributions
+and dismantle processes whose record path matches.
+
+A reference index that holds more than 2^23 References, or cannot read a Record, loses reward
+sources, and says so: `Crafting::warnings` holds `RewardSourcesTruncated` or
+`UnreadableReferenceRecords` with the count, and `p4kx catalog` prints the warning and exits with
+code 1 (`CatalogSummary::warnings()`; `is_complete()` is then `false`).
+
+The Rust names of the library:
 
 | Field | Source |
 |-------|--------|
@@ -202,25 +472,19 @@ read.
 | `properties` | `CraftingGameplayPropertyDef` Records under `crafting/craftedproperties`: GUID, `class_name`, `record_path` and the localisation key of the name |
 | `quality_distributions` | The Records under `crafting/qualitydistribution`: a default distribution (`min`, `max`, `mean`, `stddev` of a normal distribution) or the list of location overrides, each a location GUID with its distribution |
 | `pools` | `BlueprintPoolRecord` Records under `crafting/blueprintrewards`: entries with a blueprint GUID and a `weight`; `total_weight()` is the sum of the positive weights |
-| `reward_sources` | Every struct of any Record that holds a Reference to a pool (on LIVE the `BlueprintRewards` result of a contract): the Record, the `id` and `debugName` of the nearest enclosing contract, the pool and the `chance` |
+| `reward_sources` | Every struct of any Record that holds a Reference to a pool (on LIVE the `BlueprintRewards` result of a contract): the Record, the `id` and `debugName` of the nearest enclosing struct that has an `id` (both from the same struct), the pool and the `chance` |
 | `reward_chances()` | Per blueprint the chance of each source: `chance` x `weight` / `total_weight()`; a source whose chance is outside 0 to 1 and an entry with a weight of zero or less give none |
 | `dismantle` | The `GenericCraftingProcess_Dismantle` Records under `crafting/blueprints/dismantle`: `efficiency` and `dismantleTime` in seconds (LIVE: one process, 0.5 and 15 s) |
 | `global` | `CraftingGlobalParams`: the default blueprints (`defaultBlueprintSelection`), the resources dismantling never returns and the entities that cannot be dismantled |
-| `dismantle_return()` | Links a blueprint to the first dismantle process and to the item it produces, unless the item is on the item blacklist |
+| `dismantle_return()` | Links a blueprint to the only dismantle process and to the item it produces, unless the item is on the item blacklist; `None` for none or several processes. It carries the `tier` (the first) and the `excluded_resources` |
 
 LIVE holds exactly one tier per blueprint (also PTU, EPTU, TECH-PREVIEW and HOTFIX); the library
 reads as many as a Record holds. The dismantle Record is generic, not one per item: the link from
 an item to its returns runs through the blueprint that produces it.
 
-Assumptions of `dismantle_return()`, not verified against the game:
-
-- A dismantled item returns the share `efficiency` of the ingredients of the blueprint that
-  produces it. The library does not compute the amounts and does not say which tier applies; the
-  consumer picks one (the first tier is the only one on LIVE).
-- A `Select` ("choose n") of the ingredients is not resolved: which options a dismantle returns is
-  unknown.
-- The resource blacklist (`global.dismantle_blacklist_resources`) is not applied to any amount;
-  only the item blacklist decides whether a link exists.
+The assumptions of `dismantle_return()` are those under "Dismantle returns" above: the first tier,
+no resolved `Select`, no applied quantity multiplier, the resource blacklist exposed as
+`excluded_resources` and never applied to an amount.
 
 A blueprint's `name` is almost always a placeholder key. The Basetool names a blueprint through
 `producedItemGuid`, the item it produces, not through `name`.
@@ -272,6 +536,20 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
 | `commodities` | `libs/foundry/records/entities/commodities/` | `EntityClassDefinition` |
 | `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
+| `resourceGroups` | `libs/foundry/records/resourcetypedatabase/` | `ResourceTypeGroup` |
+| `blueprintCategories` | `libs/foundry/records/crafting/blueprintcategories/` | `BlueprintCategoryRecord` |
+| `gameplayProperties` | `libs/foundry/records/crafting/craftedproperties/` | `CraftingGameplayPropertyDef` |
+| `qualityDistributions` | `libs/foundry/records/crafting/qualitydistribution/` | `CraftingQualityDistributionRecord` and `CraftingQualityLocationOverrideRecord` |
+| `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
+| `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
+
+The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
+selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
+`qualityDistributions` names the first of its two types.
+
+The resource-group prefix also holds the 207 `ResourceType` Records and the `ResourceTypeDatabase`
+Record of LIVE, and the category prefix a `BlueprintCategoryDatabaseRecord`; the type selects only
+the groups and the categories.
 
 The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record is no recipe. The
 `$templates` folders below it hold 27 real blueprints, each the only recipe for its item, and
@@ -309,24 +587,31 @@ seconds since 1970-01-01 UTC.
 
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
-changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
-catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
-limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
-print the size (`catalog size: … bytes`).
+changes with it. The owner kept the limit at 64 MB after the first measurement (21.6 MB). The
+crafting detail (all tiers, quality modifiers, pools and their reward sources) grew the largest
+catalog to 26.1 MB, about 41 % of the limit, so the catalog can still grow by a factor of 2.5
+before the limit is reached; the real-Archive tests assert that the limit is at least twice the
+catalog and print the size (`catalog size: … bytes`). The compressed upload (`.json.zst`, #407)
+is a fraction of that.
 
-Measured on 2026-10-19 with every installed Channel (complete catalog of every kind, English and
+Measured on 2026-10-21, with `playability`, on every installed Channel (complete catalog of every kind, English and
 German texts):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|
-| LIVE | 21,052,438 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| PTU | 20,727,734 | 1,172 | 22,945 | 1,054 | 145 | 1,618 |
-| EPTU | 20,339,175 | 1,154 | 22,788 | 1,049 | 145 | 1,607 |
-| HOTFIX | 21,052,440 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| TECH-PREVIEW | 21,112,018 | 1,203 | 23,635 | 1,035 | 145 | 1,618 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|
+| LIVE | 25,980,895 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| PTU | 25,648,171 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| EPTU | 25,227,760 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 |
+| HOTFIX | 25,980,897 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
+| TECH-PREVIEW | 26,067,340 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 |
 
-A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
-1,145 items and 57 ships (1,204 Records).
+Of the 26.0 MB of LIVE, the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
+the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
+sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
+unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
+
+A catalog builds in 4 to 7 seconds (LIVE 6.2 s, PTU 4.5 s). Left out as development leftovers on
+LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data
 
@@ -346,6 +631,9 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
   decision.
 - Every `manufacturerGuid` of an item or ship, every `producedItemGuid`, every ingredient
   `resourceGuid` and `itemGuid` resolves to a catalog entry; no GUID occurs twice.
+- Every commodity `typeGuid` resolves to a `resourceGroups` entry, every `parentGuid` of a group to
+  another one, and every blueprint `categoryGuid` to a `blueprintCategories` entry. On LIVE the
+  catalog holds 19 groups (8 of them nested) and 21 categories, 14 of which carry blueprints.
 - Texts that carry a key (placeholder keys excluded), LIVE: English 27,751 of 27,889 resolve
   (99.5 %), German 15,819 (56.7 %). The German file lacks a text for about 11,250 of 23,180 item
   texts, so German `null` is common for items and the Basetool falls back to `en`; per kind:
@@ -358,8 +646,15 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
   | commodities | 289 | 0 | 24 |
   | blueprints | 1 | 0 | 1 |
 
-  The `p4kx catalog` summary counts them over all texts: English 37,963 resolved, 160 unresolved,
-  German 25,497 resolved, 12,626 unresolved, 23,658 placeholders in each.
+  The `p4kx catalog` summary counts them over all texts: English 38,004 resolved, 160 unresolved,
+  German 25,510 resolved, 12,654 unresolved, 23,665 placeholders in each.
+- Crafting, LIVE (the same on every Channel but for the counts): every blueprint has exactly one
+  tier, equal to its `craftTimeSeconds`; 3 blueprints let the player choose fewer than offered
+  (`BP_CRAFT_thp_light_legs_01_01_01`, `_03` and `_12`), 3 carry the factor 1.15 (the slaver arms
+  `_01`, `_13` and `_15`), 1,555 carry quality modifiers of both range kinds; all modifier
+  `propertyGuid` resolve, all 824 pool entries point at a catalog blueprint, 49 of the 160 pools
+  have no reward source; 8 blueprints are available by default, 1,617 link to the one dismantle
+  process (the exception, `BP_CRAFT_COOL_S04_CNOU_Pioneer`, has no produced item).
 
 `p4kx catalog` warns on stderr when a catalog reaches 90 % of the limit and when it exceeds it;
 the file is written either way.

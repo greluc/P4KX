@@ -3,6 +3,7 @@ use p4kx_extraction::RecordTree;
 use crate::contract::Item;
 use crate::guid_text::CatalogGuid;
 use crate::item_class::ClassLine;
+use crate::playability_rules;
 use crate::record_fields::{
     class_name, component, integer, locale_key, reference, single, structure, text,
 };
@@ -19,11 +20,12 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         component(tree, "SEntityPhysicsControllerParams"),
         "PhysType",
     );
+    let name_key = locale_key(localization, "Name");
     let item = Item {
         guid: CatalogGuid(tree.guid()),
         class_name: class_name(tree),
         record_path: tree.record_path(),
-        name: texts.localised(locale_key(localization, "Name")),
+        name: texts.localised(name_key),
         description,
         r#type: text(definition, "Type"),
         sub_type: text(definition, "SubType"),
@@ -39,6 +41,7 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
             "displayType",
         )),
         class: line.class(),
+        playability: playability_rules::item(tree, name_key),
     };
     (item, line)
 }

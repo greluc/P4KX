@@ -54,65 +54,21 @@ jobs:
         if: runner.os == 'Linux'
         run: df -h /
 
-  build-tests:
-    name: Build tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    steps:
-      - name: Disk space before the build
-        if: runner.os == 'Linux'
-        run: df -h /
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: test
-          nextest: "true"
-      - name: Build every test binary once and archive them
-        run: cargo nextest archive --workspace --locked --archive-file nextest-archive.tar.zst
-      - uses: actions/upload-artifact@v7
-        with:
-          name: nextest-archive-${{ matrix.os }}
-          path: nextest-archive.tar.zst
-          compression-level: 0
-          retention-days: 1
-          if-no-files-found: error
-      - name: Disk space after the build
-        if: runner.os == 'Linux'
-        run: df -h /
+  tests-windows:
+    name: Tests (windows-latest)
+    uses: ./.github/workflows/tests.yml
+    with:
+      os: windows-latest
+      partitions: "[1, 2, 3, 4]"
+      count: 4
 
-  test:
-    name: Test (${{ matrix.os }} ${{ matrix.partition }}/${{ matrix.count }})
-    needs: build-tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows-latest, partition: 1, count: 3 }
-          - { os: windows-latest, partition: 2, count: 3 }
-          - { os: windows-latest, partition: 3, count: 3 }
-          - { os: ubuntu-latest, partition: 1, count: 2 }
-          - { os: ubuntu-latest, partition: 2, count: 2 }
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-      - uses: actions/download-artifact@v8
-        with:
-          name: nextest-archive-${{ matrix.os }}
-      - name: Tests with nextest, one process per test
-        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --partition count:${{ matrix.partition }}/${{ matrix.count }}
-
+  tests-ubuntu:
+    name: Tests (ubuntu-latest)
+    uses: ./.github/workflows/tests.yml
+    with:
+      os: ubuntu-latest
+      partitions: "[1, 2]"
+      count: 2
   doctests:
     name: Doctests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -169,7 +125,7 @@ jobs:
 
   check:
     name: Check (${{ matrix.os }})
-    needs: [lint, build-tests, test, doctests, focused]
+    needs: [lint, tests-windows, tests-ubuntu, doctests, focused]
     if: always()
     runs-on: ubuntu-latest
     strategy:

@@ -1,0 +1,74 @@
+name: Tests
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        type: string
+        required: true
+      partitions:
+        type: string
+        required: true
+      count:
+        type: number
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  NEXTEST_PROFILE: ci
+
+jobs:
+  build-tests:
+    name: Build tests (${{ inputs.os }})
+    runs-on: ${{ inputs.os }}
+    steps:
+      - name: Disk space before the build
+        if: runner.os == 'Linux'
+        run: df -h /
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: test
+          nextest: "true"
+      - name: Build every test binary once and archive them
+        run: cargo nextest archive --workspace --locked --archive-file nextest-archive.tar.zst
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nextest-archive-${{ inputs.os }}
+          path: nextest-archive.tar.zst
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+      - name: Disk space after the build
+        if: runner.os == 'Linux'
+        run: df -h /
+
+  test:
+    name: Test (${{ inputs.os }} ${{ matrix.partition }}/${{ inputs.count }})
+    needs: build-tests
+    runs-on: ${{ inputs.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: ${{ fromJSON(inputs.partitions) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - uses: actions/download-artifact@v8
+        with:
+          name: nextest-archive-${{ inputs.os }}
+      - name: Tests with nextest, one process per test
+        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --partition count:${{ matrix.partition }}/${{ inputs.count }}

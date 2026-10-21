@@ -1,14 +1,18 @@
 use p4kx_extraction::RecordTree;
 
 use crate::blueprint::blueprint;
-use crate::commodity::{Groups, commodity};
-use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
+use crate::blueprint_category::blueprint_category;
+use crate::commodity::commodity;
+use crate::contract::{
+    Blueprint, BlueprintCategory, Commodity, Item, Manufacturer, ResourceGroup, Ship,
+};
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
 use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
+use crate::resource_group::{Groups, resource_group};
 use crate::ship::ship;
 use crate::texts::Texts;
 use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
@@ -25,6 +29,10 @@ pub(crate) enum Picked<'f> {
     Commodity(Commodity<'f>),
     /// A blueprint.
     Blueprint(Blueprint<'f>),
+    /// A resource group.
+    ResourceGroup(ResourceGroup<'f>),
+    /// A blueprint category.
+    BlueprintCategory(BlueprintCategory<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
     /// A Record that could not be read.
@@ -52,6 +60,8 @@ impl<'f> Picked<'f> {
             Kind::Ships => Self::Ship(ship(tree, texts, evidence)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
+            Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
+            Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
         }
     }
 }
@@ -64,6 +74,8 @@ pub(crate) struct Collected<'f> {
     pub(crate) ships: Vec<Ship<'f>>,
     pub(crate) commodities: Vec<Commodity<'f>>,
     pub(crate) blueprints: Vec<Blueprint<'f>>,
+    pub(crate) resource_groups: Vec<ResourceGroup<'f>>,
+    pub(crate) blueprint_categories: Vec<BlueprintCategory<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
     pub(crate) failures: Vec<CatalogFailure>,
@@ -88,6 +100,8 @@ impl<'f> Collected<'f> {
                 }
                 Picked::Commodity(entity) => collected.commodities.push(entity),
                 Picked::Blueprint(entity) => collected.blueprints.push(entity),
+                Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
+                Picked::BlueprintCategory(entity) => collected.blueprint_categories.push(entity),
                 Picked::Skipped(kind) => {
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
@@ -118,6 +132,12 @@ impl<'f> Collected<'f> {
             .blueprints
             .sort_by_cached_key(|entity| entity.guid.text());
         collected
+            .resource_groups
+            .sort_by_cached_key(|entity| entity.guid.text());
+        collected
+            .blueprint_categories
+            .sort_by_cached_key(|entity| entity.guid.text());
+        collected
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -132,6 +152,8 @@ impl<'f> Collected<'f> {
                     Kind::Ships => self.ships.len(),
                     Kind::Commodities => self.commodities.len(),
                     Kind::Blueprints => self.blueprints.len(),
+                    Kind::ResourceGroups => self.resource_groups.len(),
+                    Kind::BlueprintCategories => self.blueprint_categories.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

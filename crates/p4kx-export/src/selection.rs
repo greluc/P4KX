@@ -22,16 +22,23 @@ pub enum Kind {
     Commodities,
     /// Blueprints: `CraftingBlueprintRecord` Records under `crafting/blueprints/crafting`.
     Blueprints,
+    /// Resource groups: `ResourceTypeGroup` Records under `resourcetypedatabase`.
+    ResourceGroups,
+    /// Blueprint categories: `BlueprintCategoryRecord` Records under
+    /// `crafting/blueprintcategories`.
+    BlueprintCategories,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
         Self::Commodities,
         Self::Blueprints,
+        Self::ResourceGroups,
+        Self::BlueprintCategories,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -43,6 +50,8 @@ impl Kind {
             Self::Ships => "ships",
             Self::Commodities => "commodities",
             Self::Blueprints => "blueprints",
+            Self::ResourceGroups => "resourceGroups",
+            Self::BlueprintCategories => "blueprintCategories",
         }
     }
 
@@ -76,6 +85,14 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprints/crafting/"],
                 type_name: "CraftingBlueprintRecord",
             },
+            Self::ResourceGroups => KindRule {
+                prefixes: &["libs/foundry/records/resourcetypedatabase/"],
+                type_name: "ResourceTypeGroup",
+            },
+            Self::BlueprintCategories => KindRule {
+                prefixes: &["libs/foundry/records/crafting/blueprintcategories/"],
+                type_name: "BlueprintCategoryRecord",
+            },
         }
     }
 
@@ -95,6 +112,8 @@ impl Kind {
             Self::Ships => 2,
             Self::Commodities => 3,
             Self::Blueprints => 4,
+            Self::ResourceGroups => 5,
+            Self::BlueprintCategories => 6,
         }
     }
 }

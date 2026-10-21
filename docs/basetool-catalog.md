@@ -78,6 +78,39 @@ same in every kind. Every field is always present; one that has no value is `nul
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
 
+### Ordering Builds
+
+`source.build.changeNumber` is the Perforce change number the Build was made from
+(`RequestedP4ChangeNum` of the build manifest). It is a decimal integer written as a string; a
+consumer compares it as a number, never as text.
+
+- **Within a Channel it is monotonic.** Every Build a Channel published has a higher change number
+  than the one before, so a consumer may refuse a catalog whose `changeNumber` is lower than that of
+  the last applied catalog of the same Channel. The same number means the same Build; re-applying it
+  is safe.
+- **HOTFIX** is a Channel of its own and monotonic too. A HOTFIX Build later becomes the LIVE Build
+  unchanged, so HOTFIX and LIVE then share one change number, one `buildId` and one `version`. A
+  HOTFIX Build lies between the LIVE Builds around it, and the LIVE Build that replaces it is the
+  same or higher, so ordering a HOTFIX catalog against a LIVE one by `changeNumber` is also sound
+  as long as equal numbers count as the same Build.
+- **Across Channels it orders the code, not the time of publication.** PTU, EPTU and TECH-PREVIEW
+  Builds come from other branches: a LIVE Build with a lower change number can be published after a
+  PTU Build with a higher one. A consumer keeps one last-applied `changeNumber` per
+  `source.channel` and does not compare numbers of different Channels. A Build promoted to another
+  Channel keeps its number, so it is never rejected there.
+- **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
+  only.
+- **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
+  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
+  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+
+Evidence for the rule is in the pull request that closed krt-profit/p4k-extractor#402: 65 launcher
+log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
+over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
+TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
+claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
+would show as a lower number than the last applied one.
+
 ### Entities
 
 Every entity carries:
@@ -99,7 +132,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 |-------|--------|
 | `name`, `description` | `SAttachableComponentParams.AttachDef.Localization.Name` and `.Description` |
 | `type`, `subType` | `AttachDef.Type` and `AttachDef.SubType`, e.g. `PowerPlant` and `Power` |
-| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers |
+| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers; see "Semantics of `grade`" below |
 | `mass` | `SEntityPhysicsControllerParams.PhysType.Mass`, a number |
 | `manufacturerGuid` | The GUID the Reference `AttachDef.Manufacturer` links to, `null` for a null Reference |
 | `tags` | The words of `AttachDef.Tags`, split at white space |
@@ -113,6 +146,51 @@ starts with `Class:`, its value trimmed of white space and matched ignoring case
 an item without an English description leave it `null`. `p4kx catalog` counts the items with a
 class, with another value, and without the line or an English description. The schema types the
 field as a string; the five options are documented, not enumerated.
+
+#### Semantics of `grade`
+
+`grade` is the integer of `AttachDef.Grade`, exported unchanged; the catalog carries no letter.
+The letter the game shows is not in the DataForge. For ship components it is the `Grade:` line of
+the English `description`, and it follows the integer: **1 = A, 2 = B, 3 = C, 4 = D**, so A is the
+lowest integer. Checked on LIVE 4.10.2 (change 12913470) against that line of every item that has
+one:
+
+| Item `type` | Integer to letter |
+|-------------|-------------------|
+| `Cooler`, `PowerPlant`, `QuantumDrive`, `Radar`, `Shield` | 1 = A, 2 = B, 3 = C, 4 = D, uniform |
+| `JumpDrive`, `LifeSupportGenerator` | only 3 = C is consistent; grade 1 items name no letter or contradict it |
+| FPS gear (`Char_Armor_*`, `Char_Clothing_*`, `WeaponPersonal`) | no `Grade:` line; grade is 1, on a few helmets and shirts 2, with no letter evidence |
+| `WeaponAttachment` (ship weapon parts) | no `Grade:` line; grade 3 to 7 follows the size of the part |
+| every other `type` | no `Grade:` line; grade is 1 almost everywhere |
+
+Of the 350 items with a `Grade:` line, 331 name A to D and agree with the integer. 19 do not, and
+all 19 have grade 1:
+
+- 10 name B or C: a `Cooler` (B, and another with C), a `Radar`, a `JumpDrive`, a
+  `QuantumInterdictionGenerator`, two `Misc` computers and three `WeaponMining` lasers. The text and
+  the integer disagree; the Archive does not say which one the game shows.
+- 9 name `Bespoke`: the ship-specific components of the Reclaimer, 890 Jump and Polaris.
+
+The Basetool can take the letter from `grade` by `1 = A` to `4 = D` for the five component types,
+and must treat grade 1 as unknown elsewhere and for those 19 items. It reads the integer, never the
+`Grade:` line, which is a game text and stays away from third parties.
+
+Distribution of `grade` over the 23280 items of LIVE 4.10.2:
+
+| `grade` | Items |
+|---------|-------|
+| 1 | 21325 |
+| 2 | 153 |
+| 3 | 170 |
+| 4 | 76 |
+| 5 | 8 |
+| 6 | 8 |
+| 7 | 4 |
+| `null` | 1536 |
+
+`null` is an item without `AttachDef`: all 1536 also have a `null` `type`. 5 to 7 occur only on
+`WeaponAttachment` parts (`Barrel`, `FiringMechanism`, `PowerArray`, `Ventilation`), 3 and 4 on
+those parts too. No value is below 1 or above 7.
 
 A ship takes its fields from `VehicleComponentParams`:
 

@@ -3,7 +3,9 @@
 use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
-use p4kx_model::{CompanionError, CompanionPath, CorruptChunk, Model, ModelError};
+use p4kx_model::{
+    ChunkUsage, CompanionError, CompanionPath, CorruptChunk, Model, ModelError, ModelFile,
+};
 use p4kx_testkit::{TestChunkFile, TestModel, TestNode, TestSubmesh};
 use proptest::prelude::*;
 
@@ -90,6 +92,33 @@ fn a_companion_without_mesh_is_reported() -> TestResult {
         .ok_or("an error")?;
     let error = error.downcast_ref::<ModelError>().ok_or("a model error")?;
     assert!(matches!(error, ModelError::NoMesh { .. }), "{error:?}");
+    Ok(())
+}
+
+#[test]
+fn a_companion_of_visibility_areas_is_a_model_without_meshes() -> TestResult {
+    let areas = TestChunkFile::ivo()
+        .chunk(0xB324_59D2, 0x900, [0; 64])
+        .bytes();
+    let model = read_with(TestModel::cube().cgf(), Some(areas))?;
+    assert_eq!(model.nodes.len(), 2, "the nodes");
+    assert_eq!(
+        model.lods.first().map(|lod| lod.meshes.len()),
+        Some(0),
+        "no meshes"
+    );
+    assert_eq!(
+        model.geometry.as_deref(),
+        Some("cube.cgfm"),
+        "the companion"
+    );
+    assert!(
+        model
+            .chunks
+            .iter()
+            .any(|chunk| chunk.file == ModelFile::Geometry && chunk.usage == ChunkUsage::Skipped),
+        "the visibility areas are skipped, not unknown"
+    );
     Ok(())
 }
 

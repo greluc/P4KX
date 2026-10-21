@@ -1,5 +1,30 @@
 use std::error::Error;
 
+use crate::build::MAX_LOD;
+
+/// Returns the names of the files next to the model file `name` that reading it can fetch: the
+/// geometry companion `<name>m`, and for every level of detail from 1 on its model file and its
+/// geometry companion.
+#[must_use]
+pub fn companion_file_names(name: &str) -> Vec<String> {
+    let mut names = vec![format!("{name}m")];
+    for level in 1..=MAX_LOD {
+        let file = lod_file_name(name, level);
+        names.push(format!("{file}m"));
+        names.push(file);
+    }
+    names
+}
+
+/// Returns the file name of the model file of level of detail `level` of the model `name`:
+/// `<stem>_lod<level>.<extension>`.
+pub(crate) fn lod_file_name(name: &str, level: u32) -> String {
+    match name.rsplit_once('.') {
+        Some((stem, extension)) => format!("{stem}_lod{level}.{extension}"),
+        None => format!("{name}_lod{level}"),
+    }
+}
+
 /// The failure a [`CompanionResolver`] reports when a companion exists but cannot be read.
 pub type CompanionError = Box<dyn Error + Send + Sync>;
 

@@ -53,8 +53,7 @@ pub use animation_error::{AnimationError, CorruptAnimation};
 pub use animation_read::{MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS};
 pub use bone::{Bone, BoneTransform};
 pub use bone_map::{Influences, MAX_INFLUENCES};
-pub use build::companion_file_names;
-pub use companion::{CompanionError, CompanionPath, CompanionResolver};
+pub use companion::{CompanionError, CompanionPath, CompanionResolver, companion_file_names};
 pub use error::{CorruptChunk, ModelError};
 pub use model::{ChunkUsage, Lod, LodSelection, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
 pub use mtl::{

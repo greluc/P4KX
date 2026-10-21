@@ -6,7 +6,9 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, Kind, PaintSummary, build_catalog};
+use p4kx_export::{
+    BuiltCatalog, CatalogOptions, CraftingWarning, Filter, Kind, PaintSummary, build_catalog,
+};
 use p4kx_extraction::Archive;
 use paints_fixture::{
     PAINT_ALPHA_RED, PAINT_ALPHA_VARIANT, PAINT_BETA, PAINT_GAMMA, PAINT_ORPHAN, PAINT_UPPER,
@@ -47,7 +49,7 @@ fn ships_of(catalog: &Value, paint: u128) -> Result<BTreeSet<String>, Box<dyn Er
         .as_array()
         .ok_or("paints")?
         .iter()
-        .find(|entry| entry["guid"] == wanted.as_str())
+        .find(|entry| entry["itemGuid"] == wanted.as_str())
         .ok_or("the paint")?;
     Ok(entry["shipGuids"]
         .as_array()
@@ -122,6 +124,11 @@ fn the_summary_counts_the_paints_with_and_without_a_ship() -> TestResult {
         },
         "the corrupt vehicle file of one ship is counted"
     );
+    assert_eq!(
+        built.summary().warnings(),
+        [CraftingWarning::UnreadableVehicleFiles(1)],
+        "an unreadable vehicle file is a warning"
+    );
     let kind = built.summary().kind(Kind::Paints).ok_or("the kind")?;
     assert_eq!((kind.count, kind.complete), (6, true), "the kind summary");
     assert_eq!(
@@ -148,8 +155,8 @@ fn every_ship_of_an_assignment_is_a_catalog_ship() -> TestResult {
         .collect();
     for paint in catalog["paints"].as_array().ok_or("paints")? {
         assert!(
-            items.contains(paint["guid"].as_str().ok_or("guid")?),
-            "an item"
+            items.contains(paint["itemGuid"].as_str().ok_or("itemGuid")?),
+            "the item of the paint is in items"
         );
         let listed: Vec<&str> = paint["shipGuids"]
             .as_array()
@@ -164,28 +171,26 @@ fn every_ship_of_an_assignment_is_a_catalog_ship() -> TestResult {
 }
 
 #[test]
-fn paints_are_ordered_by_guid_and_carry_a_name_but_no_description() -> TestResult {
+fn paints_are_ordered_by_item_guid_and_reference_the_item_only() -> TestResult {
     let (_, catalog) = build(None)?;
     let paints = catalog["paints"].as_array().ok_or("paints")?;
     let guids: Vec<&str> = paints
         .iter()
-        .filter_map(|paint| paint["guid"].as_str())
+        .filter_map(|paint| paint["itemGuid"].as_str())
         .collect();
-    assert!(guids.is_sorted(), "ordered by GUID");
-    let red = &paints[0];
-    assert_eq!(red["className"], "paint_alpha_red", "class name");
-    assert_eq!(red["name"]["en"], "Alpha Red", "short name");
-    let mut fields: Vec<&str> = red
-        .as_object()
-        .ok_or("object")?
+    assert!(guids.is_sorted(), "ordered by the GUID of the item");
+    let mut fields: Vec<&str> = paints
+        .first()
+        .and_then(Value::as_object)
+        .ok_or("a paint")?
         .keys()
         .map(String::as_str)
         .collect();
     fields.sort_unstable();
     assert_eq!(
         fields,
-        ["className", "guid", "name", "recordPath", "shipGuids"],
-        "no description, no media"
+        ["itemGuid", "shipGuids"],
+        "name and record stay on the item; no description, no media"
     );
     Ok(())
 }
@@ -193,13 +198,15 @@ fn paints_are_ordered_by_guid_and_carry_a_name_but_no_description() -> TestResul
 #[test]
 fn a_development_leftover_is_neither_an_item_nor_a_paint() -> TestResult {
     let (_, catalog) = build(None)?;
+    let leftover = guid(paints_fixture::PAINT_TEST);
     for kind in ["items", "paints"] {
+        let own = if kind == "items" { "guid" } else { "itemGuid" };
         assert!(
             catalog[kind]
                 .as_array()
                 .ok_or("kind")?
                 .iter()
-                .all(|entry| entry["className"] != "paint_test"),
+                .all(|entry| entry[own] != leftover.as_str()),
             "{kind} leaves out paint_test"
         );
     }

@@ -9,11 +9,14 @@ use p4kx_extraction::{
 };
 use rayon::prelude::*;
 
+use crate::catalog_crafting::kinds;
 use crate::collected::{Collected, Picked};
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{
-    BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
+    Blueprint, BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
+use crate::crafting::read_crafting;
+use crate::crafting_warning::CraftingWarning;
 use crate::paint::paints;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
@@ -21,7 +24,7 @@ use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, CatalogSummary,
-    Kind,
+    Kind, PaintSummary,
 };
 
 const PROGRESS_STEP: usize = 1024;
@@ -80,28 +83,27 @@ pub fn build_catalog_from(
     let forge = entry.open().map_err(CatalogError::DataForge)?;
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;
-    let mut collected = Collected::new(Scan::run(&forge, options, &texts)?);
+    let crafting = kinds(
+        read_crafting(&forge, options.filter, options.cancel)?,
+        &texts,
+        options.filter,
+    );
+    let picked = Scan::run(&forge, options, &texts, &crafting.blueprints)?;
+    let mut collected = Collected::new(picked, crafting);
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
-    let derived = paints(archive, &forge, &collected.items, &collected.ships);
-    collected.paints = derived.paints;
-    if cancelled() {
-        return Err(CatalogError::Cancelled);
-    }
-    let completeness = options.filter.map_or(KindCompleteness::Complete, |filter| {
-        KindCompleteness::Partial {
-            filter: filter.as_str(),
-        }
-    });
+    let paint_summary = add_paints(archive, &forge, &mut collected);
+    let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
     let playability = collected.playability;
     let failures = collected.failures;
+    let warnings = collected.warnings;
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness::all(completeness),
+        completeness: Completeness::of_every_kind(completeness),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
@@ -109,6 +111,11 @@ pub fn build_catalog_from(
         blueprints: collected.blueprints,
         resource_groups: collected.resource_groups,
         blueprint_categories: collected.blueprint_categories,
+        gameplay_properties: collected.gameplay_properties,
+        quality_distributions: collected.quality_distributions,
+        blueprint_pools: collected.blueprint_pools,
+        dismantle_processes: collected.dismantle_processes,
+        crafting_global: collected.crafting_global,
         paints: collected.paints,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
@@ -119,13 +126,40 @@ pub fn build_catalog_from(
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
-            paints: Box::new(derived.summary),
+            paints: paint_summary,
             playability: Box::new(playability),
             failures,
+            warnings,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
         json,
     })
+}
+
+fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> {
+    options.filter.map_or(KindCompleteness::Complete, |filter| {
+        KindCompleteness::Partial {
+            filter: filter.as_str(),
+        }
+    })
+}
+
+/// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
+fn add_paints(
+    archive: &Archive,
+    forge: &DataForge<'_>,
+    collected: &mut Collected<'_>,
+) -> PaintSummary {
+    let derived = paints(archive, forge, &collected.items, &collected.vehicles);
+    collected.paints = derived.paints;
+    if derived.summary.unreadable_vehicles > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::UnreadableVehicleFiles(
+                derived.summary.unreadable_vehicles,
+            ));
+    }
+    derived.summary
 }
 
 fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
@@ -162,6 +196,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         forge: &'f DataForge<'_>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
+        blueprints: &[Blueprint<'f>],
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records);
@@ -186,7 +221,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                 .chain(evidence_failures)
                 .map(Picked::Failed),
         );
-        let resources = scan.resource_commodities(&picked);
+        let resources = scan.resource_commodities(&picked, blueprints);
         picked.extend(resources);
         Ok(picked)
     }
@@ -221,24 +256,23 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints use
     /// that no picked commodity carries, those the Filter matches; one that cannot be read
     /// becomes a failure.
-    fn resource_commodities(&self, picked: &[Picked<'f>]) -> Vec<Picked<'f>> {
+    fn resource_commodities(
+        &self,
+        picked: &[Picked<'f>],
+        blueprints: &[Blueprint<'f>],
+    ) -> Vec<Picked<'f>> {
         let mut carried = HashSet::new();
-        let mut used = Vec::new();
         for pick in picked {
-            match pick {
-                Picked::Commodity(commodity) => {
-                    carried.extend(commodity.subtype_guid.map(|guid| guid.0));
-                }
-                Picked::Blueprint(blueprint) => used.extend(
-                    blueprint
-                        .ingredients
-                        .iter()
-                        .filter_map(|ingredient| ingredient.resource_guid)
-                        .map(|guid| guid.0),
-                ),
-                _ => {}
+            if let Picked::Commodity(commodity) = pick {
+                carried.extend(commodity.subtype_guid.map(|guid| guid.0));
             }
         }
+        let mut used: Vec<_> = blueprints
+            .iter()
+            .flat_map(|blueprint| &blueprint.ingredients)
+            .filter_map(|ingredient| ingredient.resource_guid)
+            .map(|guid| guid.0)
+            .collect();
         used.sort_unstable();
         used.dedup();
         let mut trees = TreeBuilder::new();
@@ -300,7 +334,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let path = record.record_path()?;
-        let Some(kind) = Kind::by_path(path) else {
+        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
             return Ok(None);
         };
         if record.type_name()? != kind.rule().type_name {
@@ -321,14 +355,14 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             Kind::Commodities => self.resource_type(trees, &tree)?,
             _ => None,
         };
-        Ok(Some(Picked::entity(
+        Ok(Picked::entity(
             kind,
             &tree,
             self.texts,
             resource_type.as_ref(),
             &self.groups,
             &self.evidence,
-        )))
+        ))
     }
 
     fn resource_type(

@@ -3,7 +3,6 @@ use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
-use crate::paint_port::PaintPort;
 use crate::{ItemClass, Playability};
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
@@ -56,15 +55,9 @@ pub(crate) struct Item<'a> {
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
-pub(crate) struct Paint<'a> {
-    /// The GUID of the item Record, the `guid` of the same entry in `items`.
-    pub(crate) guid: CatalogGuid,
-    /// The Record name without its type, e.g. `paint_100i_black_orange`.
-    pub(crate) class_name: &'a str,
-    /// The record path, without `.xml`.
-    pub(crate) record_path: &'a str,
-    /// The name, from `AttachDef.Localization.Name`.
-    pub(crate) name: LocalisedText<'a>,
+pub(crate) struct Paint {
+    /// The `guid` of the paint's entry in `items`, which holds its name and record.
+    pub(crate) item_guid: CatalogGuid,
     /// The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each
     /// is the `guid` of an entry of `ships`.
     pub(crate) ship_guids: Vec<CatalogGuid>,
@@ -98,12 +91,6 @@ pub(crate) struct Ship<'a> {
     pub(crate) manufacturer_guid: Option<CatalogGuid>,
     /// The path of the vehicle definition XML, `null` without one.
     pub(crate) vehicle_definition: Option<&'a str>,
-    #[serde(skip)]
-    #[schemars(skip)]
-    pub(crate) modification: Option<&'a str>,
-    #[serde(skip)]
-    #[schemars(skip)]
-    pub(crate) paint_ports: Vec<PaintPort>,
     /// Who the ship is for, `null` when no rule applies. Today one of `player`, `ai`, `mission`
     /// and `special`; the schema keeps a string, as a new value is additive.
     #[schemars(with = "Option<String>")]

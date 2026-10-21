@@ -9,6 +9,9 @@ pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
+pub(crate) use crate::contract_rewards::{
+    BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
+};
 
 /// The version of the catalog shape.
 ///
@@ -43,8 +46,18 @@ pub(crate) struct Catalog<'a> {
     pub(crate) resource_groups: Vec<ResourceGroup<'a>>,
     /// The blueprint categories, ordered by GUID.
     pub(crate) blueprint_categories: Vec<BlueprintCategory<'a>>,
-    /// The paints with the ships they fit, ordered by GUID.
-    pub(crate) paints: Vec<Paint<'a>>,
+    /// The gameplay property definitions the quality modifiers refer to, ordered by GUID.
+    pub(crate) gameplay_properties: Vec<GameplayProperty<'a>>,
+    /// The quality distributions and their location overrides, ordered by GUID.
+    pub(crate) quality_distributions: Vec<QualityDistribution<'a>>,
+    /// The blueprint pools with the places that reward them, ordered by GUID.
+    pub(crate) blueprint_pools: Vec<BlueprintPool<'a>>,
+    /// The dismantle processes, ordered by GUID.
+    pub(crate) dismantle_processes: Vec<DismantleProcess<'a>>,
+    /// The global crafting parameters that apply to every dismantle.
+    pub(crate) crafting_global: CraftingGlobal,
+    /// The paints with the ships they fit, ordered by the GUID of the item.
+    pub(crate) paints: Vec<Paint>,
 }
 
 /// Where a catalog came from.
@@ -103,13 +116,21 @@ pub(crate) struct Completeness<'a> {
     pub(crate) resource_groups: KindCompleteness<'a>,
     /// The completeness of `blueprintCategories`.
     pub(crate) blueprint_categories: KindCompleteness<'a>,
+    /// The completeness of `gameplayProperties`.
+    pub(crate) gameplay_properties: KindCompleteness<'a>,
+    /// The completeness of `qualityDistributions`.
+    pub(crate) quality_distributions: KindCompleteness<'a>,
+    /// The completeness of `blueprintPools`.
+    pub(crate) blueprint_pools: KindCompleteness<'a>,
+    /// The completeness of `dismantleProcesses`.
+    pub(crate) dismantle_processes: KindCompleteness<'a>,
     /// The completeness of `paints`.
     pub(crate) paints: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
-    /// Returns the completeness of a catalog whose kinds are all `completeness`.
-    pub(crate) const fn all(completeness: KindCompleteness<'a>) -> Self {
+    /// Returns the completeness that states `completeness` for every kind.
+    pub(crate) const fn of_every_kind(completeness: KindCompleteness<'a>) -> Self {
         Self {
             manufacturers: completeness,
             items: completeness,
@@ -118,6 +139,10 @@ impl<'a> Completeness<'a> {
             blueprints: completeness,
             resource_groups: completeness,
             blueprint_categories: completeness,
+            gameplay_properties: completeness,
+            quality_distributions: completeness,
+            blueprint_pools: completeness,
+            dismantle_processes: completeness,
             paints: completeness,
         }
     }

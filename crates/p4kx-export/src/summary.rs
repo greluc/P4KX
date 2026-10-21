@@ -1,6 +1,6 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
-use crate::{CatalogFailure, ItemClassSummary, Kind, PlayabilitySummary};
+use crate::{CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary};
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
 /// upload limit (`docs/basetool-catalog.md`).
@@ -85,17 +85,19 @@ pub struct CatalogSummary {
     pub(crate) texts: Vec<TextSummary>,
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
-    pub(crate) paints: Box<PaintSummary>,
+    pub(crate) paints: PaintSummary,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) failures: Vec<CatalogFailure>,
+    pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
 }
 
 impl CatalogSummary {
-    /// Returns how many paints the catalog holds and how many of them fit a ship.
+    /// Returns the counts of the paints: how many the catalog holds, how many fit a ship and how
+    /// many fit none.
     #[must_use]
-    pub fn paints(&self) -> PaintSummary {
-        *self.paints
+    pub const fn paints(&self) -> PaintSummary {
+        self.paints
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,
@@ -105,10 +107,19 @@ impl CatalogSummary {
         &self.failures
     }
 
-    /// Returns whether every selected Record could be read.
+    /// Returns what makes the crafting data incomplete or ambiguous although every Record was
+    /// read: a truncated reference index (reward sources missing), Records it could not read,
+    /// several dismantle processes.
+    #[must_use]
+    pub fn warnings(&self) -> &[CraftingWarning] {
+        &self.warnings
+    }
+
+    /// Returns whether every selected Record could be read and the crafting data has no
+    /// [warning](Self::warnings).
     #[must_use]
     pub const fn is_complete(&self) -> bool {
-        self.failures.is_empty()
+        self.failures.is_empty() && self.warnings.is_empty()
     }
 
     /// Returns how the item classes of the items were read.

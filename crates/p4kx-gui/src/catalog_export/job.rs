@@ -30,7 +30,7 @@ pub enum CatalogExportStatus<'a> {
 }
 
 enum Outcome {
-    Written(CatalogExportSummary),
+    Written(Box<CatalogExportSummary>),
     Cancelled,
     IsArchive,
 }
@@ -40,7 +40,7 @@ type RunResult = Result<Outcome, String>;
 #[derive(Debug)]
 enum State {
     Running(Receiver<RunResult>),
-    Finished(CatalogExportSummary),
+    Finished(Box<CatalogExportSummary>),
     Cancelled,
     IsArchive,
     Failed(Option<String>),
@@ -246,10 +246,10 @@ impl Job {
         let written = write_replacing(&self.file, &json, || self.cancel.is_cancelled())
             .map_err(|error| describe(&error))?;
         Ok(match written {
-            Written::Done => Outcome::Written(CatalogExportSummary {
+            Written::Done => Outcome::Written(Box::new(CatalogExportSummary {
                 file: self.file.clone(),
                 summary,
-            }),
+            })),
             Written::Cancelled => Outcome::Cancelled,
         })
     }

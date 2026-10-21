@@ -1,7 +1,7 @@
 # Animations: `.caf` files and `.dba` databases
 
 What the reader of `p4kx-model` assumes about the animation files and what the real Archives say
-about it. The tests are `crates/p4kx-extraction/tests/real_archive_animations/` (`#[ignore]`d, run
+about it. The tests are `crates/p4kx-extraction/tests/real_archive/animations/` (`#[ignore]`d, run
 with `P4KX_DATA_P4K`; no entry involved is encrypted, so they need no Archive key; they pass on
 LIVE, PTU, EPTU, TECH-PREVIEW and HOTFIX). Surveyed on 2026-10-21.
 

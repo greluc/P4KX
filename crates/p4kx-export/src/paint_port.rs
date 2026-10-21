@@ -4,6 +4,8 @@ use p4kx_extraction::cryxml::{self, CryXmlError, Document, Element, Xml};
 use p4kx_extraction::{Archive, PathIndex};
 use thiserror::Error;
 
+use crate::guid_text::CatalogGuid;
+
 const MAX_VEHICLE_FILE_LEN: u64 = 16 << 20;
 const IMPLEMENTATIONS: &str = "Data/Scripts/Entities/Vehicles/Implementations/Xml/";
 const PORT: &str = "ItemPort";
@@ -27,6 +29,16 @@ impl PaintPort {
             required_tags: tags(required_tags),
         }
     }
+}
+
+/// What the paints of a ship are derived from: the paint ports of its Record and the vehicle
+/// implementation and Modification it names.
+#[derive(Debug)]
+pub(crate) struct VehicleFacts<'f> {
+    pub(crate) ship: CatalogGuid,
+    pub(crate) definition: Option<&'f str>,
+    pub(crate) modification: Option<&'f str>,
+    pub(crate) paint_ports: Vec<PaintPort>,
 }
 
 /// A vehicle implementation file cannot be used.

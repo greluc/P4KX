@@ -1,5 +1,7 @@
 use std::fmt;
 
+use p4kx_extraction::{DataForgeError, Filter, Record};
+
 /// The tokens that mark a development leftover: a Record whose record path or name holds one of
 /// them as a whole word, ignoring ASCII case, is left out and counted as skipped.
 ///
@@ -27,6 +29,17 @@ pub enum Kind {
     /// Blueprint categories: `BlueprintCategoryRecord` Records under
     /// `crafting/blueprintcategories`.
     BlueprintCategories,
+    /// Gameplay property definitions: `CraftingGameplayPropertyDef` Records under
+    /// `crafting/craftedproperties`.
+    GameplayProperties,
+    /// Quality distributions: `CraftingQualityDistributionRecord` and
+    /// `CraftingQualityLocationOverrideRecord` Records under `crafting/qualitydistribution`.
+    QualityDistributions,
+    /// Blueprint pools: `BlueprintPoolRecord` Records under `crafting/blueprintrewards`.
+    BlueprintPools,
+    /// Dismantle processes: `CraftingBlueprintRecord` Records under
+    /// `crafting/blueprints/dismantle` whose process is a `GenericCraftingProcess_Dismantle`.
+    DismantleProcesses,
     /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
     /// the items and ships, so no record-path rule of its own.
     Paints,
@@ -34,7 +47,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 12] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -42,6 +55,10 @@ impl Kind {
         Self::Blueprints,
         Self::ResourceGroups,
         Self::BlueprintCategories,
+        Self::GameplayProperties,
+        Self::QualityDistributions,
+        Self::BlueprintPools,
+        Self::DismantleProcesses,
         Self::Paints,
     ];
 
@@ -56,8 +73,25 @@ impl Kind {
             Self::Blueprints => "blueprints",
             Self::ResourceGroups => "resourceGroups",
             Self::BlueprintCategories => "blueprintCategories",
+            Self::GameplayProperties => "gameplayProperties",
+            Self::QualityDistributions => "qualityDistributions",
+            Self::BlueprintPools => "blueprintPools",
+            Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
         }
+    }
+
+    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) rather than
+    /// by the generic selection of the catalog build.
+    pub(crate) const fn is_crafting(self) -> bool {
+        matches!(
+            self,
+            Self::Blueprints
+                | Self::GameplayProperties
+                | Self::QualityDistributions
+                | Self::BlueprintPools
+                | Self::DismantleProcesses
+        )
     }
 
     /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
@@ -99,6 +133,22 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprintcategories/"],
                 type_name: "BlueprintCategoryRecord",
             },
+            Self::GameplayProperties => KindRule {
+                prefixes: &["libs/foundry/records/crafting/craftedproperties/"],
+                type_name: "CraftingGameplayPropertyDef",
+            },
+            Self::QualityDistributions => KindRule {
+                prefixes: &["libs/foundry/records/crafting/qualitydistribution/"],
+                type_name: "CraftingQualityDistributionRecord",
+            },
+            Self::BlueprintPools => KindRule {
+                prefixes: &["libs/foundry/records/crafting/blueprintrewards/"],
+                type_name: "BlueprintPoolRecord",
+            },
+            Self::DismantleProcesses => KindRule {
+                prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
+                type_name: "CraftingBlueprintRecord",
+            },
         }
     }
 
@@ -121,7 +171,11 @@ impl Kind {
             Self::Blueprints => 4,
             Self::ResourceGroups => 5,
             Self::BlueprintCategories => 6,
-            Self::Paints => 7,
+            Self::GameplayProperties => 7,
+            Self::QualityDistributions => 8,
+            Self::BlueprintPools => 9,
+            Self::DismantleProcesses => 10,
+            Self::Paints => 11,
         }
     }
 }
@@ -162,6 +216,42 @@ impl KindRule {
                     .all(|(have, want)| fold(have) == fold(want))
         })
     }
+}
+
+/// What the blueprint selection makes of one Record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlueprintSelection {
+    /// Not a blueprint of the catalog, or one the Filter does not match.
+    Outside,
+    /// A blueprint of the catalog.
+    Kept,
+    /// A blueprint left out as a development leftover.
+    Leftover,
+}
+
+/// Returns what the blueprint selection makes of `record`: the one rule behind the `blueprints`
+/// kind of the catalog and the blueprints of [`read_crafting`](crate::read_crafting).
+///
+/// # Errors
+///
+/// Returns the error of the Record's path, type or name when it cannot be read.
+pub(crate) fn selects_blueprint(
+    record: &Record<'_>,
+    filter: Option<&Filter>,
+) -> Result<BlueprintSelection, DataForgeError> {
+    let rule = Kind::Blueprints.rule();
+    let path = record.record_path()?;
+    if !rule.matches_path(path)
+        || record.type_name()? != rule.type_name
+        || filter.is_some_and(|filter| !filter.matches(path))
+    {
+        return Ok(BlueprintSelection::Outside);
+    }
+    Ok(if is_leftover(path, record.name()?) {
+        BlueprintSelection::Leftover
+    } else {
+        BlueprintSelection::Kept
+    })
 }
 
 /// Returns whether a Record with `record_path` and `name` is a development leftover.

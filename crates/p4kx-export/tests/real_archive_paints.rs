@@ -21,13 +21,6 @@ const ORIG_135C: &str = "2f231daa-95e5-4cb2-a32e-4db8f29a30d6";
 const PAINT_MUSTANG_OMEGA: &str = "de95879d-ebaf-49c6-8016-ebfbd1d8d7bb";
 const CNOU_MUSTANG_OMEGA: &str = "1164be4d-623e-4ef7-bc3d-4cdb45c22ec5";
 
-fn build() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
-    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
-    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
-    let catalog = serde_json::from_slice(built.json())?;
-    Ok((built, catalog))
-}
-
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c [Value], Box<dyn Error>> {
     Ok(catalog[kind].as_array().ok_or("the kind is a list")?)
 }
@@ -44,7 +37,7 @@ fn guids<'c>(entry: &'c Value, field: &str) -> Result<Vec<&'c str>, Box<dyn Erro
 fn ships_of<'c>(paints: &'c [Value], guid: &str) -> Result<BTreeSet<&'c str>, Box<dyn Error>> {
     let paint = paints
         .iter()
-        .find(|paint| paint["guid"] == guid)
+        .find(|paint| paint["itemGuid"] == guid)
         .ok_or("the paint")?;
     Ok(guids(paint, "shipGuids")?.into_iter().collect())
 }
@@ -61,13 +54,9 @@ fn report(built: &BuiltCatalog) {
     );
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_paints_of_a_real_archive_are_counted() -> TestResult {
-    let (built, catalog) = build()?;
-    report(&built);
+fn check_counts(built: &BuiltCatalog, catalog: &Value) -> TestResult {
     let counts = built.summary().paints();
-    let paints = list(&catalog, "paints")?;
+    let paints = list(catalog, "paints")?;
     assert!(paints.len() >= MIN_PAINTS, "{} paints", paints.len());
     assert_eq!(paints.len(), counts.paints, "the summary counts the paints");
     assert!(
@@ -94,26 +83,23 @@ fn the_paints_of_a_real_archive_are_counted() -> TestResult {
     Ok(())
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn every_ship_of_a_real_assignment_is_a_catalog_ship() -> TestResult {
-    let (built, catalog) = build()?;
-    let ships: HashSet<&str> = list(&catalog, "ships")?
+fn check_references(built: &BuiltCatalog, catalog: &Value) -> TestResult {
+    let ships: HashSet<&str> = list(catalog, "ships")?
         .iter()
         .filter_map(|ship| ship["guid"].as_str())
         .collect();
-    let items: HashSet<&str> = list(&catalog, "items")?
+    let items: HashSet<&str> = list(catalog, "items")?
         .iter()
         .filter_map(|item| item["guid"].as_str())
         .collect();
     let mut used = HashSet::new();
-    for paint in list(&catalog, "paints")? {
-        let guid = paint["guid"].as_str().ok_or("paint guid")?;
-        assert!(items.contains(guid), "paint {guid} is an item");
+    for paint in list(catalog, "paints")? {
+        let item = paint["itemGuid"].as_str().ok_or("itemGuid")?;
+        assert!(items.contains(item), "paint {item} is an item");
         let listed = guids(paint, "shipGuids")?;
-        assert!(listed.is_sorted(), "ship GUIDs of {guid} are ordered");
+        assert!(listed.is_sorted(), "ship GUIDs of {item} are ordered");
         for ship in listed {
-            assert!(ships.contains(ship), "ship {ship} of paint {guid} resolves");
+            assert!(ships.contains(ship), "ship {ship} of paint {item} resolves");
             used.insert(ship);
         }
     }
@@ -125,11 +111,8 @@ fn every_ship_of_a_real_assignment_is_a_catalog_ship() -> TestResult {
     Ok(())
 }
 
-#[test]
-#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn known_paints_fit_the_known_ships() -> TestResult {
-    let (_, catalog) = build()?;
-    let paints = list(&catalog, "paints")?;
+fn check_known_paints(catalog: &Value) -> TestResult {
+    let paints = list(catalog, "paints")?;
     let series = ships_of(paints, PAINT_100I_BLACK_ORANGE)?;
     for ship in [ORIG_100I, ORIG_125A, ORIG_135C] {
         assert!(series.contains(ship), "the 100i paint fits {ship}");
@@ -140,4 +123,16 @@ fn known_paints_fit_the_known_ships() -> TestResult {
         "the Omega paint fits the Omega alone: its Modification sets the required tag"
     );
     Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_paints_of_a_real_archive_fit_their_ships() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    report(&built);
+    check_counts(&built, &catalog)?;
+    check_references(&built, &catalog)?;
+    check_known_paints(&catalog)
 }

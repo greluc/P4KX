@@ -26,12 +26,27 @@
             "null"
           ]
         },
+        "defaultAvailable": {
+          "description": "Whether the blueprint is one the player has by default\n(`CraftingGlobalParams.defaultBlueprintSelection`).",
+          "type": "boolean"
+        },
+        "dismantle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlueprintDismantle"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What dismantling the produced item returns, `null` without a produced item, for an item\nthat cannot be dismantled, and unless the Build holds exactly one dismantle process."
+        },
         "guid": {
           "$ref": "#/$defs/Guid",
           "description": "The GUID of the Record."
         },
         "ingredients": {
-          "description": "The ingredients of the first tier in stored order.",
+          "description": "The ingredients of the first tier in stored order, derived from `tiers`: a selection is\nflattened depth first, so its count, quantity multipliers and quality modifiers are not\nrepresented here.",
           "items": {
             "$ref": "#/$defs/Ingredient"
           },
@@ -59,18 +74,28 @@
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
+        },
+        "tiers": {
+          "description": "Every tier in stored order with its craft time and its costs, selections kept as\n`select` lines. The first one is the tier `craftTimeSeconds` and `ingredients` describe.",
+          "items": {
+            "$ref": "#/$defs/BlueprintTier"
+          },
+          "type": "array"
         }
       },
       "required": [
         "categoryGuid",
         "className",
         "craftTimeSeconds",
+        "defaultAvailable",
+        "dismantle",
         "guid",
         "ingredients",
         "key",
         "name",
         "producedItemGuid",
-        "recordPath"
+        "recordPath",
+        "tiers"
       ],
       "type": "object"
     },
@@ -99,6 +124,111 @@
         "guid",
         "name",
         "recordPath"
+      ],
+      "type": "object"
+    },
+    "BlueprintDismantle": {
+      "description": "What dismantling the item of a blueprint returns: a link to the process and the tier.\n\nThe item returns the share `efficiency` of the process of the costs of the tier `tierIndex`,\nexcept the resources in `craftingGlobal.dismantleExcludedResourceGuids`. A `select` is not\nresolved and the quantity multiplier is not applied; these are assumptions, not verified\nagainst the game.",
+      "properties": {
+        "processGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the `dismantleProcesses` entry."
+        },
+        "tierIndex": {
+          "description": "The index into `tiers` of the tier whose costs are returned, `null` for a blueprint\nwithout a tier.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "processGuid",
+        "tierIndex"
+      ],
+      "type": "object"
+    },
+    "BlueprintPool": {
+      "description": "A blueprint pool: a `BlueprintPoolRecord` under `crafting/blueprintrewards` that a reward\ndraws a blueprint from.\n\nA source gives the blueprint of an entry with the chance of the source times the weight of the\nentry over `totalWeight`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries in stored order.",
+          "items": {
+            "$ref": "#/$defs/PoolEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "rewardSources": {
+          "description": "The places that reward a blueprint of the pool, found through their Reference to it.",
+          "items": {
+            "$ref": "#/$defs/RewardSource"
+          },
+          "type": "array"
+        },
+        "totalWeight": {
+          "description": "The sum of the positive weights of the entries.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath",
+        "rewardSources",
+        "totalWeight"
+      ],
+      "type": "object"
+    },
+    "BlueprintTier": {
+      "description": "One tier of a blueprint: its craft time and its costs.",
+      "properties": {
+        "craftTimeSeconds": {
+          "description": "The craft time of the tier in whole seconds, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "mandatory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CostLine"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The mandatory cost, usually a `select`; `null` without one."
+        },
+        "optional": {
+          "description": "The optional costs in stored order.",
+          "items": {
+            "$ref": "#/$defs/CostLine"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "craftTimeSeconds",
+        "mandatory",
+        "optional"
       ],
       "type": "object"
     },
@@ -209,6 +339,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `blueprintCategories`."
         },
+        "blueprintPools": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `blueprintPools`."
+        },
         "blueprints": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `blueprints`."
@@ -216,6 +350,14 @@
         "commodities": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
+        },
+        "dismantleProcesses": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `dismantleProcesses`."
+        },
+        "gameplayProperties": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `gameplayProperties`."
         },
         "items": {
           "$ref": "#/$defs/KindCompleteness",
@@ -229,6 +371,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `paints`."
         },
+        "qualityDistributions": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `qualityDistributions`."
+        },
         "resourceGroups": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `resourceGroups`."
@@ -240,13 +386,232 @@
       },
       "required": [
         "blueprintCategories",
+        "blueprintPools",
         "blueprints",
         "commodities",
+        "dismantleProcesses",
+        "gameplayProperties",
         "items",
         "manufacturers",
         "paints",
+        "qualityDistributions",
         "resourceGroups",
         "ships"
+      ],
+      "type": "object"
+    },
+    "CostLine": {
+      "description": "One cost of a tier: a selection (\"choose n\") of costs, a resource line or an item line.\n\nThe fields of the other lines are `null`, or empty for `options` and `modifiers`.",
+      "properties": {
+        "compositionInclusion": {
+          "description": "The option of `CraftingCostContext_ResultCompositionInclusion`, e.g. `Include`; `null`\nwithout one. A closed set the game may extend.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "count": {
+          "description": "A `select`: how many options the player chooses, `null` when the Record holds no count.\nFewer than `options` offers means the player may leave options out.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "itemGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "An `item`: the GUID of the entity."
+        },
+        "kind": {
+          "description": "What the line is: `select`, `resource` or `item`. A closed set; a reader maps an unknown\nvalue to nothing.",
+          "type": "string"
+        },
+        "minQuality": {
+          "description": "A `resource` or `item`: the minimum quality, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "description": "The gameplay properties the line's quality scales\n(`CraftingCostContext_ResultGameplayPropertyModifiers`).",
+          "items": {
+            "$ref": "#/$defs/PropertyModifier"
+          },
+          "type": "array"
+        },
+        "options": {
+          "description": "A `select`: the options in stored order.",
+          "items": {
+            "$ref": "#/$defs/CostLine"
+          },
+          "type": "array"
+        },
+        "quantityMultiplier": {
+          "description": "The `CraftingCostContext_QuantityMultiplier` factor of the line, `null` without one.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quantityScu": {
+          "description": "A `resource`: the quantity in standard cargo units (SCU), before the quantity multiplier.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quantityUnits": {
+          "description": "An `item`: the number of units, before the quantity multiplier.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "resourceGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A `resource`: the GUID of the `ResourceType` Record."
+        },
+        "slot": {
+          "description": "A `select`: the debug name of the slot, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slotKey": {
+          "description": "A `select`: the localisation key of the slot name, `null` without one or for a placeholder.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "compositionInclusion",
+        "count",
+        "itemGuid",
+        "kind",
+        "minQuality",
+        "modifiers",
+        "options",
+        "quantityMultiplier",
+        "quantityScu",
+        "quantityUnits",
+        "resourceGuid",
+        "slot",
+        "slotKey"
+      ],
+      "type": "object"
+    },
+    "CraftingGlobal": {
+      "description": "The `CraftingGlobalParams` Records, merged: what applies to every dismantle.",
+      "properties": {
+        "dismantleExcludedItemGuids": {
+          "description": "The entities that cannot be dismantled; their blueprints have no `dismantle`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "dismantleExcludedResourceGuids": {
+          "description": "The `ResourceType` Records dismantling never returns.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "dismantleExcludedItemGuids",
+        "dismantleExcludedResourceGuids"
+      ],
+      "type": "object"
+    },
+    "DismantleProcess": {
+      "description": "A generic dismantle process: a `CraftingBlueprintRecord` under `crafting/blueprints/dismantle`\nwhose process is a `GenericCraftingProcess_Dismantle`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "efficiency": {
+          "description": "The share of the costs a dismantled item returns, 0 to 1, `null` when the Record holds\nnone.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "timeSeconds": {
+          "description": "The dismantle time in whole seconds, `null` when the Record holds none.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "className",
+        "efficiency",
+        "guid",
+        "recordPath",
+        "timeSeconds"
+      ],
+      "type": "object"
+    },
+    "GameplayProperty": {
+      "description": "A gameplay property definition: a `CraftingGameplayPropertyDef` Record under\n`crafting/craftedproperties`, the target of the `propertyGuid` of a modifier.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name of the property; a placeholder key leaves `en` and `de` `null`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "name",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -518,6 +883,38 @@
       ],
       "type": "object"
     },
+    "LocationOverride": {
+      "description": "A distribution that replaces the default one at a location.",
+      "properties": {
+        "distribution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityCurve"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The distribution at the location, `null` when the Record holds none."
+        },
+        "locationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the location Record, `null` for a null Reference."
+        }
+      },
+      "required": [
+        "distribution",
+        "locationGuid"
+      ],
+      "type": "object"
+    },
     "Manufacturer": {
       "description": "A manufacturer: an `SCItemManufacturer` Record.",
       "properties": {
@@ -563,21 +960,9 @@
     "Paint": {
       "description": "A paint: an item of the type `Paints` and the ships it fits.",
       "properties": {
-        "className": {
-          "description": "The Record name without its type, e.g. `paint_100i_black_orange`.",
-          "type": "string"
-        },
-        "guid": {
+        "itemGuid": {
           "$ref": "#/$defs/Guid",
-          "description": "The GUID of the item Record, the `guid` of the same entry in `items`."
-        },
-        "name": {
-          "$ref": "#/$defs/LocalisedText",
-          "description": "The name, from `AttachDef.Localization.Name`."
-        },
-        "recordPath": {
-          "description": "The record path, without `.xml`.",
-          "type": "string"
+          "description": "The `guid` of the paint's entry in `items`, which holds its name and record."
         },
         "shipGuids": {
           "description": "The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each\nis the `guid` of an entry of `ships`.",
@@ -588,11 +973,157 @@
         }
       },
       "required": [
-        "className",
-        "guid",
-        "name",
-        "recordPath",
+        "itemGuid",
         "shipGuids"
+      ],
+      "type": "object"
+    },
+    "PoolEntry": {
+      "description": "One entry of a blueprint pool.",
+      "properties": {
+        "blueprintGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the blueprint, `null` for a null Reference."
+        },
+        "weight": {
+          "description": "The weight of the entry among the pool's, `null` when the Record holds none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "blueprintGuid",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "PropertyModifier": {
+      "description": "A gameplay property of the crafted item with the ranges that scale it by quality.",
+      "properties": {
+        "propertyGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `gameplayProperties` entry, `null` for a null Reference."
+        },
+        "ranges": {
+          "description": "The ranges in stored order.",
+          "items": {
+            "$ref": "#/$defs/ValueRange"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "propertyGuid",
+        "ranges"
+      ],
+      "type": "object"
+    },
+    "QualityCurve": {
+      "description": "A normal distribution of quality.",
+      "properties": {
+        "kind": {
+          "description": "The struct of the distribution, e.g. `CraftingQualityDistributionNormal`. A closed set the\ngame may extend.",
+          "type": "string"
+        },
+        "max": {
+          "description": "The highest quality.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mean": {
+          "description": "The mean.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "The lowest quality.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stddev": {
+          "description": "The standard deviation.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "max",
+        "mean",
+        "min",
+        "stddev"
+      ],
+      "type": "object"
+    },
+    "QualityDistribution": {
+      "description": "A quality distribution Record under `crafting/qualitydistribution`: the default distribution\nof a source or the list of its location overrides.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "distribution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityCurve"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The distribution of a `CraftingQualityDistributionRecord`, `null` for an override Record."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "overrides": {
+          "description": "The overrides of a `CraftingQualityLocationOverrideRecord`, empty for a default Record.",
+          "items": {
+            "$ref": "#/$defs/LocationOverride"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "distribution",
+        "guid",
+        "overrides",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -632,6 +1163,53 @@
         "guid",
         "name",
         "parentGuid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "RewardSource": {
+      "description": "A place that rewards a blueprint of a pool with a chance: a `BlueprintRewards` result of a\ncontract.",
+      "properties": {
+        "chance": {
+          "description": "The chance that the reward is given, 0 to 1, `null` when the Record holds none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "contractId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `id` of the nearest enclosing struct that has one, e.g. the contract."
+        },
+        "contractName": {
+          "description": "The `debugName` of that struct.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recordGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record that holds the reward."
+        },
+        "recordPath": {
+          "description": "The record path of that Record, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chance",
+        "contractId",
+        "contractName",
+        "recordGuid",
         "recordPath"
       ],
       "type": "object"
@@ -769,6 +1347,55 @@
         "toolVersion"
       ],
       "type": "object"
+    },
+    "ValueRange": {
+      "description": "One linear range of a modifier: the value at the quality `startQuality` and at `endQuality`.",
+      "properties": {
+        "atEnd": {
+          "description": "The modifier at the end quality, `null` when the Record holds none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "atStart": {
+          "description": "The modifier at the start quality, `null` when the Record holds none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "endQuality": {
+          "description": "The quality the range ends at, `null` when the Record holds none.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "`multiplier` when the values are factors, `additive` when they are summands. A closed set;\na reader maps an unknown value to nothing.",
+          "type": "string"
+        },
+        "startQuality": {
+          "description": "The quality the range starts at, `null` when the Record holds none.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "atEnd",
+        "atStart",
+        "endQuality",
+        "kind",
+        "startQuality"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -778,6 +1405,13 @@
       "description": "The blueprint categories, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/BlueprintCategory"
+      },
+      "type": "array"
+    },
+    "blueprintPools": {
+      "description": "The blueprint pools with the places that reward them, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/BlueprintPool"
       },
       "type": "array"
     },
@@ -799,6 +1433,24 @@
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
     },
+    "craftingGlobal": {
+      "$ref": "#/$defs/CraftingGlobal",
+      "description": "The global crafting parameters that apply to every dismantle."
+    },
+    "dismantleProcesses": {
+      "description": "The dismantle processes, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/DismantleProcess"
+      },
+      "type": "array"
+    },
+    "gameplayProperties": {
+      "description": "The gameplay property definitions the quality modifiers refer to, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/GameplayProperty"
+      },
+      "type": "array"
+    },
     "items": {
       "description": "The items, ordered by GUID.",
       "items": {
@@ -814,9 +1466,16 @@
       "type": "array"
     },
     "paints": {
-      "description": "The paints with the ships they fit, ordered by GUID.",
+      "description": "The paints with the ships they fit, ordered by the GUID of the item.",
       "items": {
         "$ref": "#/$defs/Paint"
+      },
+      "type": "array"
+    },
+    "qualityDistributions": {
+      "description": "The quality distributions and their location overrides, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/QualityDistribution"
       },
       "type": "array"
     },
@@ -848,12 +1507,17 @@
   },
   "required": [
     "blueprintCategories",
+    "blueprintPools",
     "blueprints",
     "commodities",
     "completeness",
+    "craftingGlobal",
+    "dismantleProcesses",
+    "gameplayProperties",
     "items",
     "manufacturers",
     "paints",
+    "qualityDistributions",
     "resourceGroups",
     "schemaVersion",
     "ships",

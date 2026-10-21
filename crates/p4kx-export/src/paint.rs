@@ -4,32 +4,31 @@ use p4kx_extraction::{Archive, DataForge, TagTree};
 use rayon::prelude::*;
 
 use crate::PaintSummary;
-use crate::contract::{Item, Paint, Ship};
+use crate::contract::{Item, Paint};
 use crate::guid_text::CatalogGuid;
-use crate::paint_port::{PaintPort, VehicleFiles, VehiclePorts};
+use crate::paint_port::{PaintPort, VehicleFacts, VehicleFiles, VehiclePorts};
 
 const PAINT_TYPE: &str = "Paints";
 
 /// The paints of a catalog and what was counted deriving them.
-pub(crate) struct Paints<'f> {
-    pub(crate) paints: Vec<Paint<'f>>,
+pub(crate) struct Paints {
+    pub(crate) paints: Vec<Paint>,
     pub(crate) summary: PaintSummary,
 }
 
-/// Returns the paints among `items` with the ships of `ships` they fit.
+/// Returns the paints among `items` with the ships of `vehicles` they fit.
 ///
-/// A paint is an item whose `AttachDef.Type` is `Paints`. It fits a ship when the paint port of
-/// a port of the ship that takes `Paints` accepts it: every tag in the port's required tags is
-/// among the paint's `Tags` or above one of them in the tag tree. The ports are the
-/// `SItemPortDef` entries of the ship's Record and the `ItemPort` elements of its vehicle
-/// implementation.
-pub(crate) fn paints<'f>(
+/// A paint is an item whose `AttachDef.Type` is `Paints`. It fits a ship when a paint port of the
+/// ship accepts it: every tag in the port's required tags is among the paint's `Tags` or above
+/// one of them in the tag tree. The ports are the `SItemPortDef` entries of the ship's Record and
+/// the `ItemPort` elements of its vehicle implementation.
+pub(crate) fn paints(
     archive: &Archive,
     forge: &DataForge<'_>,
-    items: &[Item<'f>],
-    ships: &[Ship<'f>],
-) -> Paints<'f> {
-    let candidates: Vec<&Item<'f>> = items
+    items: &[Item<'_>],
+    vehicles: &[VehicleFacts<'_>],
+) -> Paints {
+    let candidates: Vec<&Item<'_>> = items
         .iter()
         .filter(|item| {
             item.r#type
@@ -42,11 +41,11 @@ pub(crate) fn paints<'f>(
             summary: PaintSummary::default(),
         };
     }
-    let vehicles = vehicles(archive, ships);
-    let (by_ports, unreadable) = group_ships(&vehicles, ships);
+    let files = read_files(archive, vehicles);
+    let (by_ports, unreadable) = group_ships(&files, vehicles);
     let tags = TagTree::build(forge);
     let index = TagIndex::new(&tags);
-    let mut paints: Vec<Paint<'f>> = candidates
+    let mut paints: Vec<Paint> = candidates
         .par_iter()
         .map(|item| {
             let have = lowered(&item.tags);
@@ -55,47 +54,52 @@ pub(crate) fn paints<'f>(
                 .filter(|(ports, _)| ports.iter().any(|port| fits(port, &have, &index)))
                 .flat_map(|(_, guids)| guids.iter().copied())
                 .collect();
-            ship_guids.sort_unstable_by_key(|guid| guid.text());
+            ship_guids.sort_by_cached_key(|guid| guid.text());
             Paint {
-                guid: item.guid,
-                class_name: item.class_name,
-                record_path: item.record_path,
-                name: item.name.clone(),
+                item_guid: item.guid,
                 ship_guids,
             }
         })
         .collect();
-    paints.sort_by_cached_key(|paint| paint.guid.text());
+    paints.sort_by_cached_key(|paint| paint.item_guid.text());
     let summary = summarise(&paints, unreadable);
     Paints { paints, summary }
 }
 
 type ShipsByPorts = HashMap<Vec<PaintPort>, Vec<CatalogGuid>>;
+type Key<'s> = (&'s str, &'s str);
+
+fn key<'s>(vehicle: &VehicleFacts<'s>) -> Option<Key<'s>> {
+    Some((
+        vehicle.definition?,
+        vehicle.modification.unwrap_or_default(),
+    ))
+}
 
 /// Groups the ships by their paint ports, those of their Record and those of their vehicle
 /// implementation, and counts the ships whose files could not be used.
 fn group_ships<'v>(
-    vehicles: &'v HashMap<Key<'v>, VehiclePorts>,
-    ships: &[Ship<'v>],
+    files: &HashMap<Key<'v>, VehiclePorts>,
+    vehicles: &[VehicleFacts<'v>],
 ) -> (ShipsByPorts, usize) {
     let mut by_ports = ShipsByPorts::new();
     let mut unreadable = 0_usize;
-    for ship in ships {
-        let mut ports = ship.paint_ports.clone();
-        if let Some(found) = vehicle_of(vehicles, ship) {
+    for vehicle in vehicles {
+        let mut ports = vehicle.paint_ports.clone();
+        if let Some(found) = key(vehicle).and_then(|key| files.get(&key)) {
             unreadable = unreadable.saturating_add(usize::from(found.unreadable));
             ports.extend(found.ports.iter().cloned());
         }
         ports.sort_unstable();
         ports.dedup();
         if !ports.is_empty() {
-            by_ports.entry(ports).or_default().push(ship.guid);
+            by_ports.entry(ports).or_default().push(vehicle.ship);
         }
     }
     (by_ports, unreadable)
 }
 
-fn summarise(paints: &[Paint<'_>], unreadable_vehicles: usize) -> PaintSummary {
+fn summarise(paints: &[Paint], unreadable_vehicles: usize) -> PaintSummary {
     let with_paints: HashSet<[u8; 36]> = paints
         .iter()
         .flat_map(|paint| paint.ship_guids.iter().map(|guid| guid.text()))
@@ -113,25 +117,13 @@ fn summarise(paints: &[Paint<'_>], unreadable_vehicles: usize) -> PaintSummary {
     }
 }
 
-type Key<'s> = (&'s str, &'s str);
-
-fn key<'s>(ship: &Ship<'s>) -> Option<Key<'s>> {
-    Some((
-        ship.vehicle_definition?,
-        ship.modification.unwrap_or_default(),
-    ))
-}
-
-fn vehicle_of<'v>(
-    vehicles: &'v HashMap<Key<'v>, VehiclePorts>,
-    ship: &Ship<'v>,
-) -> Option<&'v VehiclePorts> {
-    vehicles.get(&key(ship)?)
-}
-
-/// Reads the paint ports of every distinct vehicle implementation and Modification of `ships`.
-fn vehicles<'s>(archive: &Archive, ships: &[Ship<'s>]) -> HashMap<Key<'s>, VehiclePorts> {
-    let wanted: HashSet<Key<'s>> = ships.iter().filter_map(key).collect();
+/// Reads the paint ports of every distinct vehicle implementation and Modification of
+/// `vehicles`.
+fn read_files<'s>(
+    archive: &Archive,
+    vehicles: &[VehicleFacts<'s>],
+) -> HashMap<Key<'s>, VehiclePorts> {
+    let wanted: HashSet<Key<'s>> = vehicles.iter().filter_map(key).collect();
     let files = VehicleFiles::new(archive);
     wanted
         .into_par_iter()

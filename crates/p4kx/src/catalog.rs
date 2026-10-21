@@ -6,8 +6,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, Playability,
-    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, CraftingWarning, Filter,
+    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog,
+    catalog_schema,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -41,6 +42,7 @@ struct SummaryJson<'a> {
     kinds: Vec<KindJson>,
     skipped: usize,
     failed: Vec<FailureJson<'a>>,
+    warnings: Vec<WarningJson>,
     item_classes: ItemClassJson,
     paints: PaintsJson,
     playability: PlayabilityJson,
@@ -50,10 +52,39 @@ struct SummaryJson<'a> {
 
 #[derive(Serialize)]
 struct PaintsJson {
+    paints: usize,
     assigned: usize,
     unassigned: usize,
     ships: usize,
     unreadable_vehicles: usize,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum WarningJson {
+    RewardSourcesTruncated,
+    UnreadableReferenceRecords { count: usize },
+    AmbiguousDismantle { count: usize },
+    UnreadableVehicleFiles { count: usize },
+    Other { message: String },
+}
+
+impl From<&CraftingWarning> for WarningJson {
+    fn from(warning: &CraftingWarning) -> Self {
+        match *warning {
+            CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
+            CraftingWarning::UnreadableReferenceRecords(count) => {
+                Self::UnreadableReferenceRecords { count }
+            }
+            CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
+            CraftingWarning::UnreadableVehicleFiles(count) => {
+                Self::UnreadableVehicleFiles { count }
+            }
+            ref other => Self::Other {
+                message: other.to_string(),
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -147,6 +178,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     let summary = built.summary();
     print_notes(summary.text_notes());
     print_failures(summary.failures())?;
+    print_warnings(summary.warnings())?;
     warn_about_size(summary)?;
     crate::guard::ensure_writable(out)?;
     fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
@@ -175,6 +207,14 @@ fn print_failures(failures: &[CatalogFailure]) -> io::Result<()> {
             "failed {} ({}): {}",
             failure.record_path, failure.guid, failure.reason
         )?;
+    }
+    Ok(())
+}
+
+fn print_warnings(warnings: &[CraftingWarning]) -> io::Result<()> {
+    let mut err = io::stderr().lock();
+    for warning in warnings {
+        writeln!(err, "warning: {warning}")?;
     }
     Ok(())
 }
@@ -245,12 +285,14 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
                 error: &failure.reason,
             })
             .collect(),
+        warnings: summary.warnings().iter().map(WarningJson::from).collect(),
         item_classes: ItemClassJson {
             classified: summary.item_classes().classified,
             other: summary.item_classes().other,
             missing: summary.item_classes().missing,
         },
         paints: PaintsJson {
+            paints: summary.paints().paints,
             assigned: summary.paints().assigned,
             unassigned: summary.paints().unassigned,
             ships: summary.paints().ships,
@@ -296,8 +338,8 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let paints = summary.paints();
     writeln!(
         stdout,
-        "paint assignment: {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
-        paints.assigned, paints.unassigned, paints.ships, paints.unreadable_vehicles
+        "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
+        paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
     let playability = summary.playability();
     for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {

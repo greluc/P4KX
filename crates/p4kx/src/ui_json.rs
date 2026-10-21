@@ -19,13 +19,47 @@ pub(crate) struct AssetsJson<'a> {
     pub(crate) frames: u32,
     pub(crate) exporter: Option<ExporterJson<'a>>,
     pub(crate) tags: Vec<TagJson>,
+    pub(crate) unread_tags: Vec<TagJson>,
     pub(crate) unknown_tags: Vec<UnknownTagJson>,
     pub(crate) shapes: Vec<ShapeJson<'a>>,
     pub(crate) morph_shapes: Vec<ShapeJson<'a>>,
     pub(crate) bitmaps: Vec<BitmapJson<'a>>,
     pub(crate) fonts: Vec<FontJson<'a>>,
     pub(crate) sprites: Vec<SpriteJson<'a>>,
+    pub(crate) imports: Vec<ImportJson<'a>>,
+    pub(crate) symbol_classes: Vec<SymbolClassJson<'a>>,
+    pub(crate) scaling_grids: Vec<ScalingGridJson>,
     pub(crate) failures: Vec<FailureJson>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ImportJson<'a> {
+    pub(crate) url: &'a str,
+    pub(crate) assets: Vec<ImportedAssetJson<'a>>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ImportedAssetJson<'a> {
+    pub(crate) id: u16,
+    pub(crate) name: &'a str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct SymbolClassJson<'a> {
+    pub(crate) id: u16,
+    pub(crate) name: &'a str,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ScalingGridJson {
+    pub(crate) id: u16,
+    pub(crate) splitter: Rect,
+}
+
+#[derive(Serialize)]
+pub(crate) struct FrameLabelJson<'a> {
+    pub(crate) frame: u32,
+    pub(crate) name: &'a str,
 }
 
 #[derive(Serialize)]
@@ -92,7 +126,8 @@ pub(crate) struct SpriteJson<'a> {
     pub(crate) id: u16,
     pub(crate) frame_count: u16,
     pub(crate) frames: u32,
-    pub(crate) labels: &'a [String],
+    pub(crate) labels: Vec<&'a str>,
+    pub(crate) frame_labels: Vec<FrameLabelJson<'a>>,
     pub(crate) placed: &'a [u16],
     pub(crate) export_name: Option<&'a str>,
 }
@@ -133,6 +168,11 @@ pub(crate) fn describe<'a>(movie: &'a UiMovie<'_>, assets: &'a Assets<'a>) -> As
             name: count.name(),
             count: count.count,
         }),
+        unread_tags: list(&assets.unread_tags, |count| TagJson {
+            code: count.code,
+            name: count.name(),
+            count: count.count,
+        }),
         unknown_tags: list(&assets.unknown_tags, |tag| UnknownTagJson {
             code: tag.code,
             offset: tag.offset,
@@ -143,12 +183,31 @@ pub(crate) fn describe<'a>(movie: &'a UiMovie<'_>, assets: &'a Assets<'a>) -> As
         bitmaps: list(&assets.bitmaps, |bitmap| bitmap_json(assets, bitmap)),
         fonts: list(&assets.fonts, |font| font_json(assets, font)),
         sprites: list(&assets.sprites, |sprite| sprite_json(assets, sprite)),
+        imports: imports_json(assets),
+        symbol_classes: list(&assets.symbol_classes, |symbol| SymbolClassJson {
+            id: symbol.id,
+            name: &symbol.name,
+        }),
+        scaling_grids: list(&assets.scaling_grids, |grid| ScalingGridJson {
+            id: grid.id,
+            splitter: grid.splitter,
+        }),
         failures: list(&assets.failures, |failure| FailureJson {
             code: failure.code,
             offset: failure.offset,
             error: crate::ui::chain(&failure.error),
         }),
     }
+}
+
+fn imports_json<'a>(assets: &'a Assets<'_>) -> Vec<ImportJson<'a>> {
+    list(&assets.imports, |import| ImportJson {
+        url: &import.url,
+        assets: list(&import.assets, |asset| ImportedAssetJson {
+            id: asset.id,
+            name: &asset.name,
+        }),
+    })
 }
 
 fn list<'a, T, J>(items: &'a [T], describe: impl Fn(&'a T) -> J) -> Vec<J> {
@@ -274,7 +333,16 @@ fn sprite_json<'a>(assets: &'a Assets<'_>, sprite: &'a Sprite) -> SpriteJson<'a>
         id: sprite.id,
         frame_count: sprite.frame_count,
         frames: sprite.timeline.frames,
-        labels: &sprite.timeline.labels,
+        labels: sprite
+            .timeline
+            .labels
+            .iter()
+            .map(|label| label.name.as_str())
+            .collect(),
+        frame_labels: list(&sprite.timeline.labels, |label| FrameLabelJson {
+            frame: label.frame,
+            name: &label.name,
+        }),
         placed: &sprite.timeline.placed,
         export_name: assets.export_name(sprite.id),
     }

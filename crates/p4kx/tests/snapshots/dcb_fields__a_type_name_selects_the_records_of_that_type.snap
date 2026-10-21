@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_fields.rs
+expression: "stdout(&[\"Crate\"])?"
+---
+path  kinds   values  records  empty  distinct  min  max
+----  ------  ------  -------  -----  --------  ---  ---
+name  String  1       1        0      1
+1 path in 1 Record

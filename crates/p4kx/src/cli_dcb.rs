@@ -4,6 +4,7 @@ use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 use p4kx_export::Language;
 
 use crate::cli::Conflict;
+use crate::cli_dcb_fields::DcbFieldsArgs;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx dcb`.
@@ -36,6 +37,10 @@ pub(crate) enum DcbCommand {
     /// tree order, or with --tree as the indented tree.
     #[command(after_help = EXIT_CODES_HELP)]
     Tags(DcbTagsArgs),
+    /// Lists every field path of the Records with how often it occurs, in how many Records, of
+    /// which kinds its values are, and the smallest and largest number.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Fields(DcbFieldsArgs),
 }
 
 /// Arguments of `p4kx dcb tags`.

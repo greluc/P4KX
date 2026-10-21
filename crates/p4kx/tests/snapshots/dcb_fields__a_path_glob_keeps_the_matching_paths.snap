@@ -1,0 +1,8 @@
+---
+source: crates/p4kx/tests/dcb_fields.rs
+expression: "stdout(&[\"--path\", \"Components/WeaponParams/*\"])?"
+---
+path                              kinds   values  records  empty  distinct  min   max
+--------------------------------  ------  ------  -------  -----  --------  ----  ---
+Components/WeaponParams/fireRate  Single  3       2        0      3         -1.5  6.5
+1 path in 3 Records

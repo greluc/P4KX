@@ -4,13 +4,13 @@ use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
 use p4kx_model::{LodSelection, MaterialStatus, Model};
 
-use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
 use crate::model_textures::ArchiveTextures;
 use crate::output_file::{write_error, write_replacing};
 use crate::path_index::PathIndex;
 use crate::texture_parts::is_same_file;
+use crate::{AnimationSet, ConversionError};
 
 /// A model read from a chunk file Entry of an Archive or from a file on disk, with the
 /// companions next to it.
@@ -204,7 +204,23 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(options, out, None)
+        self.export(&AnimationSet::default(), options, out, None)
+    }
+
+    /// Writes the model with the `animations` as a GLB file to `out`, replacing it; see
+    /// [`Self::write_glb`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`], and [`ConversionError::OutputIsInput`] also when `out` is a file
+    /// an animation was read from.
+    pub fn write_glb_animated(
+        &self,
+        animations: &AnimationSet,
+        options: &GlbOptions,
+        out: &Path,
+    ) -> Result<GlbSummary, ConversionError> {
+        self.export(animations, options, out, None)
     }
 
     /// Writes the model as a GLB file to `out` like [`Self::write_glb`], taking the textures of
@@ -224,24 +240,57 @@ impl ModelSource {
         options: &GlbOptions,
         out: &Path,
     ) -> Result<GlbSummary, ConversionError> {
-        self.export(options, out, Some(&ArchiveTextures { index }))
+        self.export(
+            &AnimationSet::default(),
+            options,
+            out,
+            Some(&ArchiveTextures { index }),
+        )
+    }
+
+    /// Writes the model with the `animations` and the textures of the Archive `index` is over as
+    /// a GLB file to `out`; see [`Self::write_glb_animated`] and [`Self::write_glb_textured`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb_animated`].
+    pub fn write_glb_animated_textured(
+        &self,
+        index: &PathIndex<'_>,
+        animations: &AnimationSet,
+        options: &GlbOptions,
+        out: &Path,
+    ) -> Result<GlbSummary, ConversionError> {
+        self.export(animations, options, out, Some(&ArchiveTextures { index }))
     }
 
     fn export(
         &self,
+        animations: &AnimationSet,
         options: &GlbOptions,
         out: &Path,
         textures: Option<&dyn TextureLoader>,
     ) -> Result<GlbSummary, ConversionError> {
-        if is_same_file(out, self.inputs.iter().cloned()) {
+        if is_same_file(out, self.inputs.iter().chain(&animations.inputs).cloned()) {
             return Err(ConversionError::OutputIsInput {
                 path: out.to_path_buf(),
             });
         }
         write_replacing(out, |writer| {
             let written = match textures {
-                Some(textures) => p4kx_gltf::write_glb_with(&self.model, options, textures, writer),
-                None => p4kx_gltf::write_glb(&self.model, options, writer),
+                Some(textures) => p4kx_gltf::write_glb_animated_with(
+                    &self.model,
+                    &animations.animations,
+                    options,
+                    textures,
+                    writer,
+                ),
+                None => p4kx_gltf::write_glb_animated(
+                    &self.model,
+                    &animations.animations,
+                    options,
+                    writer,
+                ),
             };
             written.map_err(|error| match error {
                 GltfError::Write(source) => write_error(out, source),

@@ -6,6 +6,9 @@ use p4kx_extraction::model::{
 };
 use serde::Serialize;
 
+use p4kx_extraction::AnimationSet;
+
+use crate::model_animations::{AnimationJson, UnreadJson};
 use crate::model_materials_json::{LibraryJson, MaterialJson};
 
 /// The JSON shape of `p4kx model info`.
@@ -20,11 +23,13 @@ pub(crate) struct InfoJson<'a> {
     nodes: Vec<NodeJson<'a>>,
     lods: Vec<LodJson>,
     bones: Vec<BoneJson<'a>>,
+    animations: Vec<AnimationJson>,
+    unread_animations: Vec<UnreadJson>,
     chunks: Vec<ChunkJson>,
 }
 
 impl<'a> InfoJson<'a> {
-    pub(crate) fn of(source: &'a ModelSource) -> Self {
+    pub(crate) fn of(source: &'a ModelSource, animations: &AnimationSet) -> Self {
         let model = source.model();
         Self {
             model: source.name(),
@@ -45,6 +50,8 @@ impl<'a> InfoJson<'a> {
                 })
                 .collect(),
             bones: model.bones.iter().enumerate().map(BoneJson::of).collect(),
+            animations: AnimationJson::of_set(model, animations),
+            unread_animations: animations.unread.iter().map(UnreadJson::of).collect(),
             chunks: model.chunks.iter().map(ChunkJson::of).collect(),
         }
     }

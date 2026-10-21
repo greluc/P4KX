@@ -3,11 +3,13 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_extraction::model::{LodSelection, Model};
-use p4kx_extraction::{GlbOptions, GlbSummary, MaterialMode, ModelSource, PathIndex};
+use p4kx_extraction::{AnimationSet, GlbOptions, GlbSummary, MaterialMode, ModelSource, PathIndex};
 use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction};
 use crate::json;
+use crate::model::{archive_animations, choice_of, disk_animations};
+use crate::model_animations::{UnreadJson, WrittenJson, write_notes as write_animation_notes};
 use crate::model_json::{ChunkJson, file_name};
 use crate::model_materials_json::LibraryJson;
 use crate::model_text::printable;
@@ -32,6 +34,8 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     library: LibraryJson<'a>,
+    animations: Vec<WrittenJson>,
+    unread_animations: Vec<UnreadJson>,
     unknown_chunks: Vec<ChunkJson>,
 }
 
@@ -52,6 +56,7 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         materials,
         texture_mip,
         no_vertex_colours,
+        animations,
     } = action
     else {
         return Ok(());
@@ -68,21 +73,25 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         options = options.without_vertex_colours();
     }
     let lods = LodSelection::Only(*lod);
+    let choice = choice_of(animations);
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);
         let model = ModelSource::from_index_with(&index, entry, lods)?;
-        let summary = model.write_glb_textured(&index, &options, out)?;
-        report(&model, &options, &summary, out, true, as_json)
+        let found = archive_animations(&index, entry, source, choice.as_ref())?;
+        let summary = model.write_glb_animated_textured(&index, &found, &options, out)?;
+        report(&model, &found, &options, &summary, out, true, as_json)
     } else {
         let model = ModelSource::from_file_with(&source.path, lods)?;
-        let summary = model.write_glb(&options, out)?;
-        report(&model, &options, &summary, out, false, as_json)
+        let found = disk_animations(source, choice.as_ref())?;
+        let summary = model.write_glb_animated(&found, &options, out)?;
+        report(&model, &found, &options, &summary, out, false, as_json)
     }
 }
 
 fn report(
     source: &ModelSource,
+    animations: &AnimationSet,
     options: &GlbOptions,
     summary: &GlbSummary,
     out: &Path,
@@ -91,7 +100,7 @@ fn report(
 ) -> Result<()> {
     let model = source.model();
     if as_json {
-        json::print(&glb_json(source, out, summary))?;
+        json::print(&glb_json(source, animations, out, summary))?;
         return Ok(());
     }
     let mut stdout = BufWriter::new(io::stdout().lock());
@@ -112,6 +121,7 @@ fn report(
         write_textures(&mut stdout, summary, from_archive)?;
     }
     write_notes(&mut stdout, model, summary)?;
+    write_animation_notes(&mut stdout, &summary.animations, animations)?;
     stdout.flush()?;
     Ok(())
 }
@@ -196,7 +206,12 @@ fn write_textures(
     Ok(())
 }
 
-fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &'a GlbSummary) -> GlbJson<'a> {
+fn glb_json<'a>(
+    source: &'a ModelSource,
+    animations: &AnimationSet,
+    out: &Path,
+    summary: &'a GlbSummary,
+) -> GlbJson<'a> {
     GlbJson {
         model: source.name(),
         out: json::path(out),
@@ -225,6 +240,8 @@ fn glb_json<'a>(source: &'a ModelSource, out: &Path, summary: &'a GlbSummary) ->
         triangles: summary.triangles,
         bytes: summary.bytes,
         library: LibraryJson::of(source.model()),
+        animations: summary.animations.iter().map(WrittenJson::of).collect(),
+        unread_animations: animations.unread.iter().map(UnreadJson::of).collect(),
         unknown_chunks: source.model().unknown_chunks().map(ChunkJson::of).collect(),
     }
 }

@@ -3,6 +3,7 @@ use crate::bitmap::{Bitmap, BitmapSource};
 use crate::font::Font;
 use crate::geometry::Rgba;
 use crate::image::RgbaImage;
+use crate::import::{Import, ScalingGrid, SymbolClass};
 use crate::jpeg::{decode_jpeg, jpeg_size};
 use crate::lossless::decode_lossless;
 use crate::morph::MorphShape;
@@ -19,6 +20,9 @@ use crate::timeline::{Export, ExporterInfo, Sprite, Timeline};
 pub struct Assets<'a> {
     /// How often each tag code occurs, sprites included, in ascending code order.
     pub tag_counts: Vec<TagCount>,
+    /// How often each tag whose code is known but whose content is not read occurs, sprites
+    /// included, in ascending code order.
+    pub unread_tags: Vec<TagCount>,
     /// The tags with a code this crate does not know, kept unread in file order.
     pub unknown_tags: Vec<UnknownTag<'a>>,
     /// The main timeline.
@@ -35,6 +39,12 @@ pub struct Assets<'a> {
     pub sprites: Vec<Sprite>,
     /// The export names in file order.
     pub exports: Vec<Export>,
+    /// The assets the movie imports from other movies, in file order.
+    pub imports: Vec<Import>,
+    /// The names bound to classes, in file order.
+    pub symbol_classes: Vec<SymbolClass>,
+    /// The nine-slice grids in file order.
+    pub scaling_grids: Vec<ScalingGrid>,
     /// What the GFx exporter states about the movie.
     pub exporter_info: Option<ExporterInfo>,
     /// The JPEG tables `DefineBits` images share.
@@ -107,6 +117,18 @@ impl Assets<'_> {
             .iter()
             .find(|export| export.id == id)
             .map(|export| export.name.as_str())
+    }
+
+    /// Returns the name and the URL of the movie the definition `id` is imported from.
+    #[must_use]
+    pub fn import_of(&self, id: u16) -> Option<(&str, &str)> {
+        self.imports.iter().find_map(|import| {
+            import
+                .assets
+                .iter()
+                .find(|asset| asset.id == id)
+                .map(|asset| (asset.name.as_str(), import.url.as_str()))
+        })
     }
 
     /// Returns the width and height of a lossless or embedded bitmap, read from its headers only.

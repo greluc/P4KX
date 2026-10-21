@@ -10,14 +10,15 @@
 //! output is made from: owned children nested, References as links (ADR-0004). [`RecordXml`]
 //! writes it as Record XML (`docs/record-xml.md`), [`RecordJson`] as Record JSON
 //! (`docs/record-json.md`). [`query`] selects Records and values inside them with Queries
-//! (`docs/query.md`). [`TagTree`] reads the `TagDatabase` into the tree of tags with their tag
-//! paths, and [`Annotations`] lets the two writers add those paths and localised texts to their
-//! output.
+//! (`docs/query.md`). [`FieldStatistics`] counts the values at every field path of some Records.
+//! [`TagTree`] reads the `TagDatabase` into the tree of tags with their tag paths, and
+//! [`Annotations`] lets the two writers add those paths and localised texts to their output.
 
 mod annotations;
 mod build;
 mod dataforge;
 mod error;
+mod fields;
 mod guid;
 mod header;
 mod instance;
@@ -56,6 +57,10 @@ pub use annotations::{Annotations, TAG_TYPE, TagResolver};
 pub use build::{MAX_NESTING_DEPTH, MAX_RECORD_VALUES, TreeBuilder};
 pub use dataforge::DataForge;
 pub use error::DataForgeError;
+pub use fields::{
+    FieldKind, FieldStat, FieldStatistics, FieldStatisticsError, MAX_DISTINCT_VALUES,
+    MAX_FIELD_PATHS, Number,
+};
 pub use guid::{Guid, InvalidGuid};
 pub use header::SUPPORTED_VERSIONS;
 pub use issues::{DataForgeIssue, MAX_DATAFORGE_ISSUES};

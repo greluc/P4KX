@@ -22,7 +22,7 @@ pub(crate) fn bone_trs(relative: &BoneTransform) -> Trs {
 
 /// Returns the unit quaternion `rotation` (`x, y, z, w`) turned into glTF axes; a rotation that
 /// is not finite or has no length becomes the identity.
-fn y_up_rotation([x, y, z, w]: [f32; 4]) -> [f32; 4] {
+pub(crate) fn y_up_rotation([x, y, z, w]: [f32; 4]) -> [f32; 4] {
     let length = z.mul_add(z, y.mul_add(y, x.mul_add(x, w * w))).sqrt();
     if length.is_finite() && length > f32::EPSILON {
         [x / length, z / length, -y / length, w / length]

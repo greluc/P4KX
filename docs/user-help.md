@@ -25,16 +25,20 @@ the window stays responsive while it loads.
   meshes and levels of detail with their vertices and triangles, the geometry file, the material
   library and the material IDs the submeshes use, the bones, and the chunks, counted as read,
   skipped and unknown, with the chunks the model did not read listed by file, type and type ID.
-  Animations show as not read until they are supported. The tab also works for a model the 3D view
-  cannot show, such as a skeleton file.
+  Animations show the number of animations in the `.caf` files and `.dba` databases next to the
+  model that an export writes by default (additive animations are not counted), or "Not read"
+  when they could not be read. The tab also works for a model the 3D view cannot show, such as a
+  skeleton file.
 - **Export as GLB…**, at the right end of the tab bar for a model file and in the Export menu,
   opens a dialog with the level of detail (each with its triangles), the material mode (plain
-  colours, or with textures at a chosen size), whether to write the vertex colours, and the file
-  to write. The file cannot be inside a Star Citizen
+  colours, or with textures at a chosen size), whether to write the vertex colours, for a model
+  with animations whether to write them (off by default), and the file to write. The file cannot
+  be inside a Star Citizen
   installation. The export runs in the background with a progress bar and **Cancel**, writes the
   file only when it is complete, and ends with a summary of what the file holds, the chunks it
-  skipped, the materials that fell back to the default material and the textures the Archive
-  lacks. A failure shows a message
+  skipped, the materials that fell back to the default material, the textures the Archive
+  lacks, the animations and channels written and the animations it left out (additive ones, and
+  files that could not be read). A failure shows a message
   and the rest of the window keeps working. A model that needs the Archive key opens the key
   dialog; export again once the key is entered. The choices are remembered.
 - **Model** appears for a model file (`.cgf`, `.cga`, `.skin`, `.chr`) and opens when you select one. The

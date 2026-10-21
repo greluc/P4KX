@@ -102,7 +102,8 @@ pub struct ModelInfo {
     pub material_ids: Vec<u16>,
     /// The number of bones of the skeleton.
     pub bones: usize,
-    /// The number of animations the model carries, or `None` while animations are not read.
+    /// The number of animations an export writes by default, additive ones left out, or `None`
+    /// while they are not read or cannot be.
     pub animations: Option<usize>,
 }
 
@@ -146,6 +147,13 @@ impl ModelInfo {
             bones: model.bones.len(),
             animations: None,
         }
+    }
+
+    /// Sets the number of animations the model carries, or `None` when they could not be read.
+    #[must_use]
+    pub const fn with_animations(mut self, animations: Option<usize>) -> Self {
+        self.animations = animations;
+        self
     }
 
     /// Returns the number that tells this info apart from every other one of the process.

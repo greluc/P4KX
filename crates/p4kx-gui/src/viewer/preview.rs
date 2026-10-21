@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_extraction::model::{LodSelection, companion_file_names};
-use p4kx_extraction::{Entry, ModelSource, PathIndex};
+use p4kx_extraction::{AnimationChoice, AnimationSet, Entry, ModelSource, PathIndex};
 
 use super::camera::Camera;
 use super::scene::{Scene, SceneError};
@@ -217,7 +217,13 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if stop() {
         return None;
     }
-    let info = ModelInfo::of(source.model());
+    let animations = AnimationSet::from_archive(&paths, entry.path(), &AnimationChoice::All, &[])
+        .ok()
+        .map(|set| set.animations.len());
+    let info = ModelInfo::of(source.model()).with_animations(animations);
+    if stop() {
+        return None;
+    }
     let scene = Scene::from_model(source.model());
     if stop() {
         return None;

@@ -5,6 +5,7 @@ use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
 use super::extraction_outcome::{decorate, ratio};
+use super::model_export_animations as animations;
 use super::model_info_rows::file_name;
 use super::record_export_outcome::{list, outcome_window};
 use crate::theme::desktop::{MODAL_WIDTH, SPINNER_INLINE};
@@ -14,8 +15,9 @@ use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::{
-    ExtractionText, Language, Model, ModelExportFailure, ModelExportProgress, ModelExportStage,
-    ModelExportStatus, ModelExportSummary, ModelExportText as T, ModelInfoText, Texts, format,
+    ExtractionText, Language, MaterialProblem, Model, ModelExportFailure, ModelExportProgress,
+    ModelExportStage, ModelExportStatus, ModelExportSummary, ModelExportText as T, ModelInfoText,
+    Texts, format,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -178,6 +180,8 @@ struct Laid {
     chunks: Vec<String>,
     textures_heading: String,
     textures: Vec<String>,
+    animations_heading: String,
+    animations: Vec<String>,
 }
 
 impl Laid {
@@ -195,6 +199,8 @@ impl Laid {
     }
 
     fn new(key: (u64, Language), texts: &Texts, summary: &ModelExportSummary) -> Self {
+        let (animations_heading, animations) = animations::unread_lines(texts, summary);
+        let (textures_heading, textures) = missing_textures(texts, summary);
         Self {
             key,
             notes: notes(texts, summary),
@@ -202,28 +208,10 @@ impl Laid {
                 T::SummaryChunks,
                 &[("number", number(texts, summary.unread_total()).into())],
             ),
-            textures_heading: texts.format(
-                T::SummaryTextures,
-                &[(
-                    "number",
-                    number(texts, summary.missing_textures().len()).into(),
-                )],
-            ),
-            textures: summary
-                .missing_textures()
-                .iter()
-                .map(|texture| {
-                    texts.format(
-                        T::SummaryTexture,
-                        &[
-                            ("material", texture.material.clone().into()),
-                            ("role", texture.role.name().into()),
-                            ("file", texture.file.clone().into()),
-                            ("reason", texture.reason.clone().into()),
-                        ],
-                    )
-                })
-                .collect(),
+            textures_heading,
+            textures,
+            animations_heading,
+            animations,
             chunks: summary
                 .unread()
                 .iter()
@@ -257,6 +245,33 @@ impl Laid {
     }
 }
 
+/// Returns the heading and the lines of the textures the file lacks.
+fn missing_textures(texts: &Texts, summary: &ModelExportSummary) -> (String, Vec<String>) {
+    let heading = texts.format(
+        T::SummaryTextures,
+        &[(
+            "number",
+            number(texts, summary.missing_textures().len()).into(),
+        )],
+    );
+    let lines = summary
+        .missing_textures()
+        .iter()
+        .map(|texture| {
+            texts.format(
+                T::SummaryTexture,
+                &[
+                    ("material", texture.material.clone().into()),
+                    ("role", texture.role.name().into()),
+                    ("file", texture.file.clone().into()),
+                    ("reason", texture.reason.clone().into()),
+                ],
+            )
+        })
+        .collect();
+    (heading, lines)
+}
+
 fn number(texts: &Texts, value: usize) -> String {
     format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language())
 }
@@ -288,19 +303,11 @@ fn notes(texts: &Texts, summary: &ModelExportSummary) -> Vec<(String, Color32)> 
         ];
         notes.push((texts.format(T::SummaryBones, &args), palette::GRAY_1));
     }
+    if let Some(line) = animations::written_line(texts, summary) {
+        notes.push((line, palette::GRAY_1));
+    }
     if let Some(problem) = summary.material_problem() {
-        let library = problem.library.clone();
-        let note = match &problem.reason {
-            Some(reason) => texts.format(
-                T::SummaryLibraryUnreadable,
-                &[
-                    ("library", library.into()),
-                    ("reason", reason.clone().into()),
-                ],
-            ),
-            None => texts.format(T::SummaryLibraryMissing, &[("library", library.into())]),
-        };
-        notes.push((note, palette::WARNING));
+        notes.push((library_note(texts, problem), palette::WARNING));
     } else {
         counted(
             texts,
@@ -322,6 +329,17 @@ fn notes(texts: &Texts, summary: &ModelExportSummary) -> Vec<(String, Color32)> 
         palette::GRAY_1,
     );
     notes
+}
+
+fn library_note(texts: &Texts, problem: &MaterialProblem) -> String {
+    let library = ("library", problem.library.clone().into());
+    match &problem.reason {
+        Some(reason) => texts.format(
+            T::SummaryLibraryUnreadable,
+            &[library, ("reason", reason.clone().into())],
+        ),
+        None => texts.format(T::SummaryLibraryMissing, &[library]),
+    }
 }
 
 /// Adds the line `text` for `value` things, unless there are none.
@@ -349,6 +367,13 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         ui,
         (&laid.textures_heading, "model-export-textures"),
         &laid.textures,
+        None,
+        true,
+    );
+    list(
+        ui,
+        (&laid.animations_heading, "model-export-animations"),
+        &laid.animations,
         None,
         true,
     );

@@ -3,12 +3,14 @@ mod summary;
 
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::WriteRefused;
+use p4kx_extraction::{AnimationChoice, WriteRefused};
 use p4kx_settings::{ModelExportSettings, ModelMaterials};
 
 pub use job::{ModelExport, ModelExportProgress, ModelExportStage, ModelExportStatus};
 pub(crate) use job::{Request, start};
-pub use summary::{MaterialProblem, MissingTexture, ModelExportFailure, ModelExportSummary};
+pub use summary::{
+    AnimationNote, MaterialProblem, MissingTexture, ModelExportFailure, ModelExportSummary,
+};
 
 use crate::installation::refusal_of;
 use crate::{LodInfo, ModelInfo};
@@ -20,8 +22,8 @@ pub const MODEL_MATERIALS: [ModelMaterials; 2] =
 /// The texture mip levels the Export as GLB dialog offers: the full size and three halvings.
 pub const MODEL_TEXTURE_MIPS: [u32; 4] = [0, 1, 2, 3];
 
-/// The choices of an Export as GLB before it starts: the level of detail, the materials and the
-/// file.
+/// The choices of an Export as GLB before it starts: the level of detail, the materials, the
+/// animations and the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelExportSetup {
     entry: u32,
@@ -31,6 +33,8 @@ pub struct ModelExportSetup {
     lod: u32,
     materials: ModelMaterials,
     texture_mip: u32,
+    animations: bool,
+    animation_count: usize,
     vertex_colours: bool,
     folder: Option<PathBuf>,
     file: Option<PathBuf>,
@@ -57,6 +61,8 @@ impl ModelExportSetup {
             lod,
             materials: settings.materials,
             texture_mip: nearest_mip(settings.texture_mip),
+            animations: settings.animations,
+            animation_count: info.animations.unwrap_or(0),
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
             file: None,
@@ -117,6 +123,23 @@ impl ModelExportSetup {
         if MODEL_TEXTURE_MIPS.contains(&mip) {
             self.texture_mip = mip;
         }
+    }
+
+    /// Returns how many animations the model has that an export writes by default.
+    #[must_use]
+    pub const fn animation_count(&self) -> usize {
+        self.animation_count
+    }
+
+    /// Returns whether the animations found for the model are written.
+    #[must_use]
+    pub const fn animations(&self) -> bool {
+        self.animations
+    }
+
+    /// Chooses whether the animations found for the model are written.
+    pub const fn set_animations(&mut self, written: bool) {
+        self.animations = written;
     }
 
     /// Returns whether the vertex colours of the meshes are written.
@@ -186,6 +209,8 @@ impl ModelExportSetup {
             lod: self.lod,
             materials: self.materials,
             texture_mip: self.texture_mip,
+            animations: (self.animations && self.animation_count > 0)
+                .then_some(AnimationChoice::All),
             vertex_colours: self.vertex_colours,
         })
     }
@@ -195,6 +220,7 @@ impl ModelExportSetup {
             lod: self.lod,
             materials: self.materials,
             texture_mip: self.texture_mip,
+            animations: self.animations,
             vertex_colours: self.vertex_colours,
             folder: self
                 .file

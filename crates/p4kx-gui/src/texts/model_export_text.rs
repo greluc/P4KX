@@ -21,6 +21,10 @@ pub enum ModelExportText {
     TextureMipHeading,
     /// One texture size; takes `level` and `divisor`.
     TextureMip,
+    /// The heading of the animation choice.
+    AnimationsHeading,
+    /// The switch of the animations; takes `count` and `number`.
+    Animations,
     /// The switch of the vertex colours.
     VertexColours,
     /// The heading of the file choice.
@@ -73,6 +77,14 @@ pub enum ModelExportText {
     /// One texture the file lacks; takes `material`, `role` (`diffuse`, `normal` or `specular`),
     /// `file` and `reason`.
     SummaryTexture,
+    /// The animations in the file; takes `written` and `channels`.
+    SummaryAnimations,
+    /// The heading of the animations that were not written; takes `number`.
+    SummaryAnimationsUnread,
+    /// One animation of a database that was not written; takes `name`, `source` and `reason`.
+    SummaryAnimationUnread,
+    /// One animation file that was not written; takes `source` and `reason`.
+    SummaryAnimationFileUnread,
     /// The title of the window shown when the export failed.
     FailedTitle,
     /// The model could not be exported; takes `name` and `reason`.
@@ -89,7 +101,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 41] = [
+    pub(crate) const ALL: [Self; 47] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -100,6 +112,8 @@ impl ModelExportText {
         Self::MaterialsTextures,
         Self::TextureMipHeading,
         Self::TextureMip,
+        Self::AnimationsHeading,
+        Self::Animations,
         Self::VertexColours,
         Self::FileHeading,
         Self::ChooseFile,
@@ -125,6 +139,10 @@ impl ModelExportText {
         Self::SummaryChunkSkipped,
         Self::SummaryTextures,
         Self::SummaryTexture,
+        Self::SummaryAnimations,
+        Self::SummaryAnimationsUnread,
+        Self::SummaryAnimationUnread,
+        Self::SummaryAnimationFileUnread,
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
@@ -147,6 +165,8 @@ impl ModelExportText {
             Self::MaterialsTextures => "model-export-materials-textures",
             Self::TextureMipHeading => "model-export-texture-mip-heading",
             Self::TextureMip => "model-export-texture-mip",
+            Self::AnimationsHeading => "model-export-animations-heading",
+            Self::Animations => "model-export-animations",
             Self::VertexColours => "model-export-vertex-colours",
             Self::FileHeading => "model-export-file-heading",
             Self::ChooseFile => "model-export-choose-file",
@@ -172,6 +192,10 @@ impl ModelExportText {
             Self::SummaryChunkSkipped => "model-export-summary-chunk-skipped",
             Self::SummaryTextures => "model-export-summary-textures",
             Self::SummaryTexture => "model-export-summary-texture",
+            Self::SummaryAnimations => "model-export-summary-animations",
+            Self::SummaryAnimationsUnread => "model-export-summary-animations-unread",
+            Self::SummaryAnimationUnread => "model-export-summary-animation-unread",
+            Self::SummaryAnimationFileUnread => "model-export-summary-animation-file-unread",
             Self::FailedTitle => "model-export-failed-title",
             Self::Failed => "model-export-failed",
             Self::Stopped => "model-export-stopped",

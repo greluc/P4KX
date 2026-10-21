@@ -34,7 +34,7 @@ fn the_info_of_a_model_counts_what_its_files_hold() -> TestResult {
     );
     assert_eq!(info.meshes(), 1, "meshes of the most detailed level");
     assert_eq!(info.bones, 0, "no skeleton");
-    assert_eq!(info.animations, None, "animations are not read yet");
+    assert_eq!(info.animations, Some(0), "the model has no animations");
     assert_eq!(
         info.materials,
         MaterialsInfo::Missing,
@@ -66,7 +66,6 @@ fn the_info_tab_lists_the_facts_in_the_interface_language() -> TestResult {
         "Material IDs",
         "Bones",
         "Animations",
-        "Not read",
         "Chunks",
         "Levels of detail",
         "Vertices",
@@ -100,7 +99,6 @@ fn the_info_tab_is_in_german_when_the_window_is() -> TestResult {
         "Materialbibliothek",
         "Knochen",
         "Animationen",
-        "Nicht gelesen",
         "Detailstufen",
         "Dreiecke",
     ] {

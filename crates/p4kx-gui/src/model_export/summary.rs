@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::model::{MaterialStatus, Model};
-use p4kx_extraction::{GlbSummary, TextureRole, WriteRefused};
+use p4kx_extraction::{AnimationSet, GlbSummary, TextureRole, WriteRefused};
 
-use crate::model_info::printable;
+use crate::model_info::{MAX_LISTED_CHUNKS, printable};
 use crate::{ChunkNote, ModelInfo};
 
 /// What a finished Export as GLB wrote and what it left out.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModelExportSummary {
     file: PathBuf,
     name: String,
@@ -18,6 +18,20 @@ pub struct ModelExportSummary {
     missing_textures: Vec<MissingTexture>,
     material_problem: Option<MaterialProblem>,
     unnamed_sub_materials: usize,
+    animations_asked: bool,
+    unread_animations: Vec<AnimationNote>,
+    unread_animations_total: usize,
+}
+
+/// An animation file or an animation of a database that was not written, with the reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnimationNote {
+    /// The Entry path of the animation file.
+    pub source: String,
+    /// The animation's name when only this animation of a database was left out.
+    pub name: Option<String>,
+    /// Why it was left out.
+    pub reason: String,
 }
 
 /// Why the material library of a model was not used.
@@ -43,7 +57,13 @@ pub struct MissingTexture {
 }
 
 impl ModelExportSummary {
-    pub(crate) fn new(file: PathBuf, lod: u32, model: &Model, written: GlbSummary) -> Self {
+    pub(crate) fn new(
+        file: PathBuf,
+        lod: u32,
+        model: &Model,
+        (written, animations): (GlbSummary, &AnimationSet),
+        animations_asked: bool,
+    ) -> Self {
         let info = ModelInfo::of(model);
         Self {
             file,
@@ -77,7 +97,49 @@ impl ModelExportSummary {
                 .materials
                 .library()
                 .map_or(0, |library| library.unknown_entries),
+            animations_asked,
+            unread_animations_total: animations.unread.len(),
+            unread_animations: animations
+                .unread
+                .iter()
+                .take(MAX_LISTED_CHUNKS)
+                .map(|unread| AnimationNote {
+                    source: printable(&unread.source),
+                    name: unread.name.as_deref().map(printable),
+                    reason: printable(&unread.reason),
+                })
+                .collect(),
         }
+    }
+
+    /// Returns whether the export was asked to write the animations.
+    #[must_use]
+    pub const fn animations_asked(&self) -> bool {
+        self.animations_asked
+    }
+
+    /// Returns how many animations the file holds.
+    #[must_use]
+    pub fn animations_written(&self) -> usize {
+        self.written
+            .animations
+            .iter()
+            .filter(|animation| animation.channels > 0)
+            .count()
+    }
+
+    /// Returns the animation files and animations that were not written because they could not
+    /// be read or are additive, at most [`MAX_LISTED_CHUNKS`].
+    #[must_use]
+    pub fn unread_animations(&self) -> &[AnimationNote] {
+        &self.unread_animations
+    }
+
+    /// Returns how many animation files and animations were not written, of which
+    /// [`Self::unread_animations`] lists the first ones.
+    #[must_use]
+    pub const fn unread_animations_total(&self) -> usize {
+        self.unread_animations_total
     }
 
     /// Returns the GLB file that was written.

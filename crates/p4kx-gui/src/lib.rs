@@ -76,9 +76,9 @@ pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use model_export::{
-    MODEL_MATERIALS, MODEL_TEXTURE_MIPS, MaterialProblem, MissingTexture, ModelExport,
-    ModelExportFailure, ModelExportProgress, ModelExportSetup, ModelExportStage, ModelExportStatus,
-    ModelExportSummary,
+    AnimationNote, MODEL_MATERIALS, MODEL_TEXTURE_MIPS, MaterialProblem, MissingTexture,
+    ModelExport, ModelExportFailure, ModelExportProgress, ModelExportSetup, ModelExportStage,
+    ModelExportStatus, ModelExportSummary,
 };
 pub use model_info::{
     ChunkCounts, ChunkFile, ChunkNote, LodInfo, MAX_LISTED_CHUNKS, MaterialsInfo, ModelInfo,

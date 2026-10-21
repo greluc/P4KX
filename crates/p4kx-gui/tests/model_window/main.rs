@@ -12,6 +12,7 @@ mod info_models;
 #[path = "../viewing/mod.rs"]
 mod viewing;
 
+mod animations;
 mod export;
 mod export_window;
 mod info;

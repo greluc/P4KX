@@ -16,6 +16,7 @@ fn the_export_choices_survive_a_round_trip() -> TestResult {
             lod: 2,
             materials: ModelMaterials::Textures,
             texture_mip: 2,
+            animations: true,
             vertex_colours: false,
             folder: Some(PathBuf::from("D:\\Models")),
         },
@@ -40,6 +41,7 @@ fn a_file_without_export_choices_gets_the_defaults() -> TestResult {
     assert!(loaded.vertex_colours, "vertex colours on");
     assert_eq!(loaded.materials, ModelMaterials::Colours, "colours");
     assert_eq!(loaded.texture_mip, 0, "largest mip");
+    assert!(!loaded.animations, "no animations");
     assert_eq!(loaded.folder, None, "no folder");
     Ok(())
 }

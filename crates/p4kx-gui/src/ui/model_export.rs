@@ -80,6 +80,7 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
         setup.set_lod(level);
     }
     materials(ui, texts, setup);
+    animations(ui, texts, setup);
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::FileHeading));
     ui.horizontal(|ui| {
@@ -105,6 +106,27 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
         Some(false) => Some(Action::Close),
         None => None,
     })
+}
+
+fn animations(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {
+    let count = setup.animation_count();
+    if count == 0 {
+        return;
+    }
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &texts.get(T::AnimationsHeading));
+    let number = u64::try_from(count).unwrap_or(u64::MAX);
+    let label = texts.format(
+        T::Animations,
+        &[
+            ("count", number.into()),
+            ("number", format::number(number, texts.language()).into()),
+        ],
+    );
+    let mut written = setup.animations();
+    if toggle::checkbox(ui, &mut written, &label).changed() {
+        setup.set_animations(written);
+    }
 }
 
 fn materials(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {

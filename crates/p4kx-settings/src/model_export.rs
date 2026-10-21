@@ -24,6 +24,8 @@ pub struct ModelExportSettings {
     pub materials: ModelMaterials,
     /// The mip level of the textures, 0 for the largest.
     pub texture_mip: u32,
+    /// Whether the animations found for the model are written.
+    pub animations: bool,
     /// Whether the vertex colours of the meshes are written.
     pub vertex_colours: bool,
     /// The folder the last model was exported to, or `None` before the first export.
@@ -37,6 +39,7 @@ impl Default for ModelExportSettings {
             lod: 0,
             materials: ModelMaterials::default(),
             texture_mip: 0,
+            animations: false,
             vertex_colours: true,
             folder: None,
         }

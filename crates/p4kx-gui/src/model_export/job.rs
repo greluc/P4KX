@@ -6,8 +6,8 @@ use std::thread;
 
 use p4kx_extraction::model::LodSelection;
 use p4kx_extraction::{
-    ArchiveTextures, CancelToken, ConversionError, GlbOptions, MaterialMode, ModelSource,
-    TextureLoader, archive_error_in,
+    AnimationChoice, AnimationSet, ArchiveTextures, CancelToken, ConversionError, GlbOptions,
+    MaterialMode, ModelSource, TextureLoader, archive_error_in,
 };
 use p4kx_settings::ModelMaterials;
 
@@ -23,6 +23,7 @@ pub(crate) struct Request {
     pub(crate) lod: u32,
     pub(crate) materials: ModelMaterials,
     pub(crate) texture_mip: u32,
+    pub(crate) animations: Option<AnimationChoice>,
     pub(crate) vertex_colours: bool,
 }
 
@@ -259,6 +260,18 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
     if cancel.is_cancelled() {
         return Ended::Cancelled;
     }
+    let animations = match &request.animations {
+        Some(choice) => {
+            match AnimationSet::from_archive(&paths, &request.entry_path, choice, &[]) {
+                Ok(set) => set,
+                Err(error) => return failed(index, &error),
+            }
+        }
+        None => AnimationSet::default(),
+    };
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
@@ -270,6 +283,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
     let textures = ArchiveTextures::new(&paths);
     let loader = (request.materials == ModelMaterials::Textures).then_some(&textures);
     let written = source.write_glb_observed(
+        &animations,
         &request.options(),
         &request.file,
         loader.map(|textures| textures as &dyn TextureLoader),
@@ -281,7 +295,8 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
             request.file.clone(),
             request.lod,
             source.model(),
-            written,
+            (written, &animations),
+            request.animations.is_some(),
         ))),
         Err(ConversionError::Cancelled) => Ended::Cancelled,
         Err(error) => failed(index, &error),

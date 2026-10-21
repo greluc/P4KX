@@ -701,6 +701,11 @@ model-export-texture-mip = { $level ->
     [0] Full size
    *[other] 1/{ $divisor } of the size per side, mip { $level }
   }
+model-export-animations-heading = Animations
+model-export-animations = { $count ->
+    [one] Write the animation of the model
+   *[other] Write the { $number } animations of the model
+  }
 model-export-vertex-colours = Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
@@ -740,6 +745,10 @@ model-export-summary-texture = { $material }: { $role ->
     [specular] specular
    *[other] { $role }
   } { $file } ({ $reason })
+model-export-summary-animations = Animations { $written }, channels { $channels }
+model-export-summary-animations-unread = Animations not written ({ $number })
+model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
+model-export-summary-animation-file-unread = { $source }: { $reason }
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
 model-export-stopped = The export of { $name } stopped without a result.

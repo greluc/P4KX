@@ -24,12 +24,23 @@ Decided for issue #109.
 - The summary of an export lists the chunks of the exported files that were skipped or unknown, the
   materials that fell back to the default material and, with textures, the textures the Archive
   lacks (#105). Names and reasons from the Archive have their control characters replaced.
-- One write path, `ModelSource::write_glb_observed`, takes an optional `TextureLoader`; the window
-  passes `ArchiveTextures` over the path index when the materials are written with textures.
-- The choices (level, materials, texture mip, vertex colours, folder) are kept in the settings
-  file as `model_export`; a level the next model lacks is replaced by its most detailed one, and a
-  material mode this version does not know reads as plain colours.
-- Animations are not read yet (#107); the Info tab says so instead of showing zero.
+- One write path, `ModelSource::write_glb_observed`, takes the `AnimationSet` and an optional
+  `TextureLoader`; the window passes `ArchiveTextures` over the path index when the materials are
+  written with textures, and the set it read for the model when the animations are chosen. The
+  other `write_glb*` methods call it.
+- The choices (level, materials, texture mip, animations, vertex colours, folder) are kept in the
+  settings file as `model_export`; a level the next model lacks is replaced by its most detailed
+  one, and a material mode this version does not know reads as plain colours.
+- The preview thread counts the animations of the model with `AnimationSet::from_archive` over
+  every `.caf` and `.dba` next to it (#107) and the Info tab shows the number an export writes by
+  default, so additive animations are not counted; a failed read shows "Not read". The read is
+  bounded per file by `MAX_ANIMATION_FILE_LEN` and runs off the UI thread; a header-only count
+  waits for #386.
+- The dialog offers one choice, all animations or none, and only for a model that has some; none
+  is the default, since reading them costs time. The export thread reads the set after the model,
+  checks the cancel token again before it writes, and fails with the typed error of the read.
+  The summary shows the animations and channels written and lists the additive animations and the
+  files that could not be read (`AnimationSet::unread`).
 
 ## Considered Options
 

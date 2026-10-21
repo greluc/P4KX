@@ -116,6 +116,53 @@ fn the_info_of_a_plain_model_renders_without_the_chunk_table() -> TestResult {
     save("model-info-helpers-en-GB.png", &mut harness)
 }
 
+#[test]
+fn the_animation_choice_and_its_summary_render_in_both_languages() -> TestResult {
+    for (language, suffix, export) in [
+        (Language::BritishEnglish, "en-GB", "Export as GLB…"),
+        (Language::German, "de-DE", "Als GLB exportieren …"),
+    ] {
+        let Some(renderer) = renderer() else {
+            return Ok(());
+        };
+        let support = ViewerSupport::Unavailable(Unavailable::NoDevice);
+        let (folder, mut harness) =
+            opened_at(language, support, crate::animations::site(), |builder| {
+                builder.renderer(renderer)
+            })?;
+        select(&mut harness, "door.cga")?;
+
+        harness.get_by_label("Info").click();
+        harness.run();
+        save(&format!("model-info-animations-{suffix}.png"), &mut harness)?;
+
+        harness.get_by_label(export).click();
+        harness.run();
+        let setup = harness
+            .state_mut()
+            .model_export_setup_mut()
+            .ok_or("no setup")?;
+        setup.set_animations(true);
+        setup.set_file(folder.path().join("door.glb"));
+        harness.run();
+        save(
+            &format!("model-export-animations-{suffix}.png"),
+            &mut harness,
+        )?;
+
+        assert!(harness.state_mut().submit_model_export(|| {}), "started");
+        wait_until(&mut harness, |model| {
+            model.model_export().is_some_and(|run| !run.is_running())
+        })?;
+        save(
+            &format!("model-export-animations-summary-{suffix}.png"),
+            &mut harness,
+        )?;
+        harness.state_mut().close_model_export();
+    }
+    Ok(())
+}
+
 const LONG_LIBRARY: &str = "objects/spaceships/ships/aegis/gladius/interior/materials/aegis_gladius_interior_cockpit_panels_and_displays_variant_a";
 
 const fn rows_label(language: Language) -> &'static str {

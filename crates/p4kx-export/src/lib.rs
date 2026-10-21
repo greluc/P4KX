@@ -24,6 +24,7 @@
 //! the chosen languages as JSON or CSV.
 
 mod blueprint;
+mod blueprint_category;
 mod build;
 mod collected;
 mod commodity;
@@ -48,6 +49,7 @@ mod options;
 mod record_export;
 mod record_fields;
 mod record_summary;
+mod resource_group;
 mod selection;
 mod ship;
 mod summary;

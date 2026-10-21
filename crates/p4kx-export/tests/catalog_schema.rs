@@ -102,7 +102,9 @@ fn minimal_catalog() -> serde_json::Value {
             "items": {"status": "complete"},
             "ships": {"status": "partial", "filter": "*/spaceships/*"},
             "commodities": {"status": "complete"},
-            "blueprints": {"status": "complete"}
+            "blueprints": {"status": "complete"},
+            "resourceGroups": {"status": "complete"},
+            "blueprintCategories": {"status": "partial", "filter": "*/blueprintcategories/*"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -179,6 +181,19 @@ fn minimal_catalog() -> serde_json::Value {
                     "slotKey": "@crafting_ui_slotname_core"
                 }
             ]
+        }],
+        "resourceGroups": [{
+            "guid": "b1000000-0000-4000-8000-000000000001",
+            "className": "Metal",
+            "recordPath": "libs/foundry/records/resourcetypedatabase/resourcetypedatabase",
+            "name": {"key": "@items_commodities_type_metal", "en": "Metal", "de": null},
+            "parentGuid": null
+        }],
+        "blueprintCategories": [{
+            "guid": "d1000000-0000-4000-8000-000000000001",
+            "className": "Ammo",
+            "recordPath": "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase",
+            "name": {"key": null, "en": null, "de": null}
         }]
     })
 }
@@ -225,6 +240,8 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "ships",
         "commodities",
         "blueprints",
+        "resourceGroups",
+        "blueprintCategories",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);
@@ -256,6 +273,15 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
     assert!(
         !validator.is_valid(&no_quantity),
         "every field of an ingredient is present"
+    );
+
+    let mut no_parent = catalog.clone();
+    if let Some(group) = no_parent["resourceGroups"][0].as_object_mut() {
+        group.remove("parentGuid");
+    }
+    assert!(
+        !validator.is_valid(&no_parent),
+        "every field of a resource group is present"
     );
 
     let mut missing = catalog;

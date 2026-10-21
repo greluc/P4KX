@@ -216,6 +216,13 @@ A Loadout stored as an XML or CryXml Entry, e.g. `Scripts/Loadouts/…`, that a 
 path instead of listing its entries; it may include further XML Loadouts.
 _Avoid_: loadout file, script loadout
 
+**Vehicle implementation**:
+The XML file a ship's `VehicleComponentParams.vehicleDefinition` names, with the parts of the
+hull, their item ports and flags such as `invisible`, treads and wheels. Its **Modification**
+(`VehicleComponentParams.modification`) selects a variant of it: a patch file and attribute
+overrides applied before the parts are read (ADR-0050).
+_Avoid_: vehicle definition (that is the Record's field), vehicle XML
+
 **Assembly**:
 An Entity combined with its Loadout, geometry, materials and textures into one exportable model.
 _Avoid_: scene, build (a Build is a game version)

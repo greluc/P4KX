@@ -6,10 +6,14 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::entities::is_entity;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
-use crate::{Entities, EntityNode, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH, xml};
+use crate::{
+    Entities, EntityNode, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation,
+    vehicle, xml,
+};
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
 pub(crate) type EntriesResult = Result<Entries, LoadoutError>;
+pub(crate) type VehicleResult = Result<Arc<VehicleImplementation>, LoadoutError>;
 
 /// The entries of a Loadout and why parts of it cannot be read.
 #[derive(Debug, Clone)]
@@ -39,6 +43,7 @@ pub struct LoadoutResolver<'f> {
     files: Option<&'f dyn LoadoutFiles>,
     specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
+    vehicles: HashMap<String, VehicleResult>,
     builder: TreeBuilder<'f>,
 }
 
@@ -61,6 +66,7 @@ impl<'f> LoadoutResolver<'f> {
             files: None,
             specs: HashMap::new(),
             xml: HashMap::new(),
+            vehicles: HashMap::new(),
             builder: TreeBuilder::new(),
         }
     }
@@ -70,6 +76,7 @@ impl<'f> LoadoutResolver<'f> {
     pub fn with_files(mut self, files: &'f dyn LoadoutFiles) -> Self {
         self.files = Some(files);
         self.xml.clear();
+        self.vehicles.clear();
         self
     }
 
@@ -128,6 +135,33 @@ impl<'f> LoadoutResolver<'f> {
                     .clone()
             }
         }
+    }
+
+    /// Returns the vehicle implementation `spec` names with its Modification, read once per
+    /// resolver, or `None` when the Entity names none or no files were given.
+    pub(crate) fn vehicle_of(&mut self, spec: &EntitySpec) -> Option<VehicleResult> {
+        let vehicle_spec = spec.vehicle.as_ref()?;
+        let files = self.files?;
+        let class_name = crate::entities::class_name_of(&spec.name).unwrap_or(&spec.name);
+        if vehicle_spec.definition.is_empty() {
+            return None;
+        }
+        let key = format!(
+            "{}\0{}\0{}",
+            vehicle_spec.definition.to_ascii_lowercase(),
+            vehicle_spec.modification.to_ascii_lowercase(),
+            class_name.to_ascii_lowercase()
+        );
+        let loaded = self.vehicles.entry(key).or_insert_with(|| {
+            vehicle::load(
+                files,
+                class_name,
+                &vehicle_spec.definition,
+                &vehicle_spec.modification,
+            )
+            .map(Arc::new)
+        });
+        Some(loaded.clone())
     }
 
     /// Returns the Record a target names, or `None` when there is none.

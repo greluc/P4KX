@@ -3,7 +3,9 @@ use std::sync::Arc;
 use p4kx_dataforge::Guid;
 
 use crate::entities::class_name_of;
-use crate::{Geometry, LoadoutError, PortDefinition};
+use crate::{
+    Geometry, LandingGear, LoadoutError, PortDefinition, PortVisibility, VehicleImplementation,
+};
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
 #[derive(Debug, Clone, PartialEq)]
@@ -14,9 +16,24 @@ pub struct EntityNode {
     pub(crate) ports: Vec<PortNode>,
     pub(crate) issues: Vec<LoadoutError>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
+    pub(crate) landing_gear: Arc<[LandingGear]>,
 }
 
 impl EntityNode {
+    /// Returns the vehicle implementation the Entity's Record names, with the Modification it
+    /// selects applied, or `None` when the Record names none or the files were not given.
+    #[must_use]
+    pub fn vehicle(&self) -> Option<&VehicleImplementation> {
+        self.vehicle.as_deref()
+    }
+
+    /// Returns the landing gears of the Entity's own `VehicleLandingGearSystem` component.
+    #[must_use]
+    pub fn landing_gear(&self) -> &[LandingGear] {
+        &self.landing_gear
+    }
+
     /// Returns the geometry the Entity's Record names, or `None` when it names none.
     #[must_use]
     pub const fn geometry(&self) -> Option<&Geometry> {
@@ -108,9 +125,19 @@ pub struct PortNode {
     pub(crate) definition: Option<Arc<PortDefinition>>,
     pub(crate) attachment: Attachment,
     pub(crate) nested: Vec<Self>,
+    pub(crate) visibility: PortVisibility,
 }
 
 impl PortNode {
+    /// Returns whether the vehicle implementation shows the port: [`PortVisibility::Invisible`]
+    /// when the part of that name carries the flag `invisible`, and
+    /// [`PortVisibility::Unspecified`] when the Entity has no vehicle implementation or it has
+    /// no part of that name.
+    #[must_use]
+    pub const fn visibility(&self) -> PortVisibility {
+        self.visibility
+    }
+
     /// Returns the ports of the nested Loadout of an empty port: a Loadout entry that names no
     /// Entity but carries entries of its own, e.g. the gear below a character's `Body_ItemPort`.
     /// Their source is [`PortSource::Override`]; empty for every other port.

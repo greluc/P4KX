@@ -3,6 +3,8 @@ use p4kx_assembly::{
 };
 use serde::Serialize;
 
+use crate::entity_vehicle::{LandingGearJson, VehicleJson, visibility_code};
+
 /// The counts of a Loadout tree's ports by what they hold.
 #[derive(Debug, Default, Clone, Copy, Serialize)]
 pub(crate) struct Counts {
@@ -46,6 +48,10 @@ pub(crate) struct NodeJson<'a> {
     name: &'a str,
     class_name: &'a str,
     issues: Vec<ErrorJson<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vehicle: Option<VehicleJson<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    landing_gear: Vec<LandingGearJson<'a>>,
     ports: Vec<PortJson<'a>>,
 }
 
@@ -61,6 +67,12 @@ impl<'a> From<&'a EntityNode> for NodeJson<'a> {
                 .iter()
                 .map(|error| ErrorJson::new(error, None))
                 .collect(),
+            vehicle: node.vehicle().map(VehicleJson::from),
+            landing_gear: node
+                .landing_gear()
+                .iter()
+                .map(LandingGearJson::from)
+                .collect(),
             ports: node.ports().iter().map(PortJson::from).collect(),
         }
     }
@@ -70,6 +82,8 @@ impl<'a> From<&'a EntityNode> for NodeJson<'a> {
 struct PortJson<'a> {
     name: &'a str,
     source: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    visibility: Option<&'static str>,
     definition: Option<DefinitionJson<'a>>,
     entity: Option<NodeJson<'a>>,
     error: Option<ErrorJson<'a>>,
@@ -92,6 +106,7 @@ impl<'a> From<&'a PortNode> for PortJson<'a> {
         Self {
             name: port.name(),
             source: port.source().code(),
+            visibility: visibility_code(port.visibility()),
             definition: port.definition().map(DefinitionJson::from),
             entity,
             error,

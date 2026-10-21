@@ -1,3 +1,4 @@
+use crate::entity_vehicle::vehicle_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
 /// Adds the structs of Entities, their default Loadouts and their item ports to `builder`.
@@ -11,6 +12,7 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .into_iter()
         .chain(port_structs())
         .chain(geometry_structs())
+        .chain(vehicle_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 

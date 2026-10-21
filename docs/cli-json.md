@@ -126,8 +126,23 @@ A **Node** is one Entity:
 | `record_path` | string | Record path without `.xml` |
 | `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
-| `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, or the port limit |
+| `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, a vehicle implementation or Modification that cannot be read, or the port limit |
+| `vehicle` | Vehicle | Only for an Entity whose Record names a vehicle implementation that was read: the implementation with the Entity's Modification applied |
+| `landing_gear` | array | Only for an Entity with a `VehicleLandingGearSystem` component: its gears as objects with `bone` and `geometry` (the geometry path, empty when the component gives none) |
 | `ports` | array | One Port per port, see below for the order |
+
+A **Vehicle** is the vehicle implementation XML of
+[ADR-0050](adr/0050-the-vehicle-implementation-is-patched-by-the-modification-before-it-is-read.md):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | The implementation file that was read, as the Archive spells it below `Data\` |
+| `patch_path` | string or `null` | The Modification's patch file that was applied |
+| `modification` | string or `null` | The Modification the Record selects (`VehicleComponentParams.modification`) |
+| `name` | string | The `name` of the `Vehicle` element |
+| `ports` | array | One object per part with an item port, depth first in file order, parts marked `skipPart` left out: `name` (the part name, which is the port name), `visibility` (`invisible` when the item port's `flags` contain `invisible`, else `visible`), `min_size` and `max_size` (numbers or `null`) and `flags` (as stored) |
+| `treads` | array | The parts of class `Tread`: `name` and `wheels`, the part names of the wheels the tread runs on |
+| `wheels` | array | The names of the parts of class `SubPartWheel` |
 
 A **Port**:
 
@@ -135,6 +150,7 @@ A **Port**:
 |-------|------|---------|
 | `name` | string | The port name as the Loadout or the port definition spells it |
 | `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition) or `unset` (a defined port that nothing names) |
+| `visibility` | string | Only when the Entity's vehicle implementation has a part of this name (ignoring ASCII case): `visible`, or `invisible` when its item port carries the flag `invisible`; absent otherwise |
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
 | `error` | Error or `null` | Why the attachment cannot be resolved |
@@ -162,7 +178,10 @@ target: `reference` (the GUID) or `class_name`, the other `null`. The kinds are:
   Entities have the class name the entry names; the first in definition order is attached and
   the reason lists every candidate), `no_loadout_files` and `xml_loadout` (an XML Loadout or one
   it includes that is missing, corrupt, includes itself or nests deeper than 8 includes; what
-  could be read is still listed).
+  could be read is still listed), and `vehicle_implementation` (the implementation file is
+  missing, corrupt or no `Vehicle` document, so `vehicle` is absent, or its Modification names a
+  patch file that is missing or corrupt, or no Modification of that name exists; the
+  implementation without the patch is still listed).
 
 New kinds may be added in later versions; a script should treat an unknown `kind` as an error it
 cannot interpret rather than fail.

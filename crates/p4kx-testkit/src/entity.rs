@@ -1,3 +1,4 @@
+use crate::entity_vehicle::{geometry_component, landing_gear_component, vehicle_component};
 use crate::{TestInstance, TestRecord, TestValue};
 
 /// The prefix of the Record name of every Entity.
@@ -17,6 +18,8 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    vehicle: Option<(String, String)>,
+    landing_gear: Vec<(String, String)>,
 }
 
 impl TestEntity {
@@ -33,6 +36,8 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            vehicle: None,
+            landing_gear: Vec::new(),
         }
     }
 
@@ -58,6 +63,27 @@ impl TestEntity {
     #[must_use]
     pub fn sound_effect(mut self, effect: impl Into<String>, trigger: impl Into<String>) -> Self {
         self.sound_effects.push((effect.into(), trigger.into()));
+        self
+    }
+
+    /// Gives the Entity a vehicle component naming the vehicle implementation file `definition`
+    /// and the Modification `modification` (empty for none); the database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn vehicle(
+        mut self,
+        definition: impl Into<String>,
+        modification: impl Into<String>,
+    ) -> Self {
+        self.vehicle = Some((definition.into(), modification.into()));
+        self
+    }
+
+    /// Adds a landing gear to the Entity's landing gear component: the bone it moves and the
+    /// path of its geometry; the database needs [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn landing_gear(mut self, bone: impl Into<String>, geometry: impl Into<String>) -> Self {
+        self.landing_gear.push((bone.into(), geometry.into()));
         self
     }
 
@@ -99,6 +125,12 @@ impl TestEntity {
         if let Some((path, material)) = &self.geometry {
             components.push(geometry_component(path, material.as_deref()));
         }
+        if let Some((definition, modification)) = &self.vehicle {
+            components.push(vehicle_component(definition, modification));
+        }
+        if !self.landing_gear.is_empty() {
+            components.push(landing_gear_component(&self.landing_gear));
+        }
         TestRecord::new(
             self.guid,
             "EntityClassDefinition",
@@ -136,22 +168,6 @@ impl TestEntity {
                 .value("triggerEffects", TestValue::Array(effects)),
         )
     }
-}
-
-fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
-    let resource = |type_name: &str, path: &str| {
-        TestValue::Struct(TestInstance::new(type_name).value("path", TestValue::text(path)))
-    };
-    let mut data = TestInstance::new("SGeometryDataParams")
-        .value("Geometry", resource("GlobalResourceGeometry", path));
-    data = data.value(
-        "Material",
-        resource("GlobalResourceMaterial", material.unwrap_or_default()),
-    );
-    let node = TestInstance::new("SGeometryNodeParams").value("Geometry", TestValue::Struct(data));
-    TestValue::Struct(
-        TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),
-    )
 }
 
 /// A Loadout of a synthetic Entity or Loadout entry.

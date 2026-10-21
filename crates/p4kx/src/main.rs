@@ -37,6 +37,7 @@ mod entity;
 mod entity_audio;
 mod entity_glb;
 mod entity_json;
+mod entity_vehicle;
 mod exit;
 mod extract;
 mod extract_report;

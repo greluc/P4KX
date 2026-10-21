@@ -83,6 +83,14 @@ pub enum LoadoutError {
         /// Why it cannot be read.
         reason: String,
     },
+    /// The vehicle implementation of an Entity, or its Modification, cannot be read in full.
+    #[error("the vehicle implementation {path} cannot be read: {reason}")]
+    VehicleImplementation {
+        /// The path the Record names, or of the file that fails.
+        path: String,
+        /// Why it cannot be read.
+        reason: String,
+    },
 }
 
 impl LoadoutError {
@@ -102,6 +110,7 @@ impl LoadoutError {
             Self::TooManyPorts => "too_many_ports",
             Self::NoLoadoutFiles { .. } => "no_loadout_files",
             Self::XmlLoadout { .. } => "xml_loadout",
+            Self::VehicleImplementation { .. } => "vehicle_implementation",
         }
     }
 }

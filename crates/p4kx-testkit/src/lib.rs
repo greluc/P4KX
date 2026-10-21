@@ -24,6 +24,7 @@ mod entity;
 mod entity_assembly;
 mod entity_sample;
 mod entity_schema;
+mod entity_vehicle;
 mod frames;
 mod gfx;
 mod gfx_place;

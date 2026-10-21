@@ -530,6 +530,9 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
+ "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
+ "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
+ "unclassified": 13}},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
@@ -546,7 +549,9 @@ all the same, and the exit code is 1 when `failed` is not empty. `item_classes` 
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
-implementation file exists but cannot be read (`unreadable_vehicles`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+implementation file exists but cannot be read (`unreadable_vehicles`). `playability` counts the
+items and the ships per value of their `playability`, and the ones no rule classifies
+(`unclassified`, `null` in the catalog). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands

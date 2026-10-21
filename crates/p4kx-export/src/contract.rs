@@ -107,6 +107,22 @@ pub(crate) struct Completeness<'a> {
     pub(crate) paints: KindCompleteness<'a>,
 }
 
+impl<'a> Completeness<'a> {
+    /// Returns the completeness of a catalog whose kinds are all `completeness`.
+    pub(crate) const fn all(completeness: KindCompleteness<'a>) -> Self {
+        Self {
+            manufacturers: completeness,
+            items: completeness,
+            ships: completeness,
+            commodities: completeness,
+            blueprints: completeness,
+            resource_groups: completeness,
+            blueprint_categories: completeness,
+            paints: completeness,
+        }
+    }
+}
+
 /// Whether a kind holds every Record of the Build or only those a Filter selected.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "camelCase")]

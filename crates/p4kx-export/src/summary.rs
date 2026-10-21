@@ -1,6 +1,6 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
-use crate::{CatalogFailure, ItemClassSummary, Kind};
+use crate::{CatalogFailure, ItemClassSummary, Kind, PlayabilitySummary};
 
 /// The largest catalog the basetool accepts for upload, in bytes; it must match the basetool's
 /// upload limit (`docs/basetool-catalog.md`).
@@ -85,7 +85,8 @@ pub struct CatalogSummary {
     pub(crate) texts: Vec<TextSummary>,
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
-    pub(crate) paints: PaintSummary,
+    pub(crate) paints: Box<PaintSummary>,
+    pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) size: u64,
 }
@@ -93,8 +94,8 @@ pub struct CatalogSummary {
 impl CatalogSummary {
     /// Returns how many paints the catalog holds and how many of them fit a ship.
     #[must_use]
-    pub const fn paints(&self) -> PaintSummary {
-        self.paints
+    pub fn paints(&self) -> PaintSummary {
+        *self.paints
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,
@@ -114,6 +115,12 @@ impl CatalogSummary {
     #[must_use]
     pub const fn item_classes(&self) -> ItemClassSummary {
         self.item_classes
+    }
+
+    /// Returns how many items and ships carry each playability value.
+    #[must_use]
+    pub fn playability(&self) -> PlayabilitySummary {
+        *self.playability
     }
 
     /// Returns how the texts resolved per language, English first.

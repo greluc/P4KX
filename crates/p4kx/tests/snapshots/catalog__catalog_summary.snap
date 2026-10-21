@@ -12,6 +12,8 @@ blueprintCategories: 0 written, 0 skipped, complete
 paints: 0 written, 0 skipped, complete
 item classes: 1 read, 0 other values, 0 without a Class: line or English description
 paint assignment: 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 vehicle files unreadable
+items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
+ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 2 texts resolved, 11 unresolved, 0 placeholders
-wrote [DIR]/basetool-catalog.json: 3712 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/basetool-catalog.json: 3750 bytes, 1 Records skipped, 0 failed

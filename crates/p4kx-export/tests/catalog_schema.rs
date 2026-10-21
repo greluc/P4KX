@@ -129,7 +129,8 @@ fn minimal_catalog() -> serde_json::Value {
             "manufacturerGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
             "tags": ["flightReady"],
             "displayType": {"key": null, "en": null, "de": null},
-            "itemClass": "Military"
+            "itemClass": "Military",
+            "playability": "player"
         }],
         "ships": [{
             "guid": "90000000-0000-4000-8000-000000000001",
@@ -141,7 +142,8 @@ fn minimal_catalog() -> serde_json::Value {
             "career": {"key": null, "en": null, "de": null},
             "crewSize": 2,
             "manufacturerGuid": null,
-            "vehicleDefinition": null
+            "vehicleDefinition": null,
+            "playability": "ai"
         }],
         "commodities": [{
             "guid": "a1000000-0000-4000-8000-000000000001",
@@ -222,9 +224,23 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
         "the item class stays a string"
     );
 
-    let mut no_class = catalog;
+    let mut no_class = catalog.clone();
     no_class["items"][0]["itemClass"] = json!(null);
     assert!(validator.is_valid(&no_class), "the item class may be null");
+
+    let mut unknown_playability = catalog.clone();
+    unknown_playability["ships"][0]["playability"] = json!("event");
+    assert!(
+        validator.is_valid(&unknown_playability),
+        "a new playability is valid"
+    );
+
+    let mut no_playability = catalog;
+    no_playability["items"][0]["playability"] = json!(null);
+    assert!(
+        validator.is_valid(&no_playability),
+        "the playability may be null"
+    );
     Ok(())
 }
 

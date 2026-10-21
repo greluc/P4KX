@@ -15,6 +15,7 @@ use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
 use crate::paint::paints;
+use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
@@ -36,9 +37,10 @@ const RESOURCE_TYPE: &str = "ResourceType";
 /// language the Archive lacks leaves that text `null` and is counted in the summary. An item's
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
 /// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
-/// tier. A `ResourceType` Record that an ingredient uses and no commodity Record carries
-/// becomes a commodity of its own. A resource group takes its parent from the group that lists it,
-/// a blueprint category only its Record. Entities are ordered by the
+/// tier. A ship's and an item's [`Playability`](crate::Playability) is decided by structural
+/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that an ingredient uses and no
+/// commodity Record carries becomes a commodity of its own. A resource group takes its parent from
+/// the group that lists it, a blueprint category only its Record. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON. A selected
 /// Record that cannot be read is left out and listed in
 /// [`CatalogSummary::failures`].
@@ -94,20 +96,12 @@ pub fn build_catalog_from(
     });
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
+    let playability = collected.playability;
     let failures = collected.failures;
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness {
-            manufacturers: completeness,
-            items: completeness,
-            ships: completeness,
-            commodities: completeness,
-            blueprints: completeness,
-            resource_groups: completeness,
-            blueprint_categories: completeness,
-            paints: completeness,
-        },
+        completeness: Completeness::all(completeness),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
@@ -125,7 +119,8 @@ pub fn build_catalog_from(
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
-            paints: derived.summary,
+            paints: Box::new(derived.summary),
+            playability: Box::new(playability),
             failures,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
@@ -156,6 +151,7 @@ struct Scan<'o, 'a, 'f> {
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     groups: Groups,
+    evidence: Evidence,
     done: AtomicUsize,
     total: usize,
 }
@@ -169,11 +165,13 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records);
+        let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
             options,
             texts,
             groups,
+            evidence,
             done: AtomicUsize::new(0),
             total: records.len(),
         };
@@ -182,7 +180,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
             .filter_map(Result::transpose)
             .collect::<Result<_, _>>()?;
-        picked.extend(group_failures.into_iter().map(Picked::Failed));
+        picked.extend(
+            group_failures
+                .into_iter()
+                .chain(evidence_failures)
+                .map(Picked::Failed),
+        );
         let resources = scan.resource_commodities(&picked);
         picked.extend(resources);
         Ok(picked)
@@ -324,6 +327,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             self.texts,
             resource_type.as_ref(),
             &self.groups,
+            &self.evidence,
         )))
     }
 

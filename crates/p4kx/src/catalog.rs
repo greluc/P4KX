@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, SCHEMA_VERSION,
-    SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
+    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Filter, Playability,
+    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog, catalog_schema,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -43,6 +43,7 @@ struct SummaryJson<'a> {
     failed: Vec<FailureJson<'a>>,
     item_classes: ItemClassJson,
     paints: PaintsJson,
+    playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
 }
@@ -67,6 +68,33 @@ struct ItemClassJson {
     classified: usize,
     other: usize,
     missing: usize,
+}
+
+#[derive(Serialize)]
+struct PlayabilityJson {
+    items: PlayabilityCountsJson,
+    ships: PlayabilityCountsJson,
+}
+
+#[derive(Serialize)]
+struct PlayabilityCountsJson {
+    player: usize,
+    ai: usize,
+    mission: usize,
+    special: usize,
+    unclassified: usize,
+}
+
+impl From<PlayabilityCounts> for PlayabilityCountsJson {
+    fn from(counts: PlayabilityCounts) -> Self {
+        Self {
+            player: counts.of(Playability::Player),
+            ai: counts.of(Playability::Ai),
+            mission: counts.of(Playability::Mission),
+            special: counts.of(Playability::Special),
+            unclassified: counts.unclassified(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -228,6 +256,10 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
             ships: summary.paints().ships,
             unreadable_vehicles: summary.paints().unreadable_vehicles,
         },
+        playability: PlayabilityJson {
+            items: summary.playability().items.into(),
+            ships: summary.playability().ships.into(),
+        },
         texts: summary
             .texts()
             .iter()
@@ -267,6 +299,18 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         "paint assignment: {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
         paints.assigned, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
+    let playability = summary.playability();
+    for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
+        writeln!(
+            stdout,
+            "{kind} playability: {} player, {} ai, {} mission, {} special, {} unclassified",
+            counts.of(Playability::Player),
+            counts.of(Playability::Ai),
+            counts.of(Playability::Mission),
+            counts.of(Playability::Special),
+            counts.unclassified()
+        )?;
+    }
     for text in summary.texts() {
         writeln!(
             stdout,

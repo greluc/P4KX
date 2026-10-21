@@ -1,10 +1,10 @@
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::ItemClass;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::PaintPort;
+use crate::{ItemClass, Playability};
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -46,6 +46,10 @@ pub(crate) struct Item<'a> {
     #[serde(rename = "itemClass")]
     #[schemars(with = "Option<String>")]
     pub(crate) class: Option<ItemClass>,
+    /// Who the item is for, `null` when no rule applies. Today one of `player`, `mission` and
+    /// `special`; the schema keeps a string, as a new value is additive.
+    #[schemars(with = "Option<String>")]
+    pub(crate) playability: Option<Playability>,
 }
 
 /// A paint: an item of the type `Paints` and the ships it fits.
@@ -100,4 +104,8 @@ pub(crate) struct Ship<'a> {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) paint_ports: Vec<PaintPort>,
+    /// Who the ship is for, `null` when no rule applies. Today one of `player`, `ai`, `mission`
+    /// and `special`; the schema keeps a string, as a new value is additive.
+    #[schemars(with = "Option<String>")]
+    pub(crate) playability: Option<Playability>,
 }

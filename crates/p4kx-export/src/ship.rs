@@ -3,6 +3,7 @@ use p4kx_extraction::{RecordTree, Value};
 use crate::contract::Ship;
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::PaintPort;
+use crate::playability_rules::{self, Evidence};
 use crate::record_fields::{class_name, component, elements, integer, locale_key, reference, text};
 use crate::texts::Texts;
 
@@ -33,8 +34,9 @@ fn takes_paints(port: &p4kx_extraction::StructValue<'_>) -> bool {
     })
 }
 
-/// Returns the ship the Record tree `tree` describes, its texts resolved by `texts`.
-pub(crate) fn ship<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Ship<'f> {
+/// Returns the ship the Record tree `tree` describes, its texts resolved by `texts` and its
+/// playability decided by `evidence`.
+pub(crate) fn ship<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>, evidence: &Evidence) -> Ship<'f> {
     let vehicle = component(tree, "VehicleComponentParams");
     Ship {
         guid: CatalogGuid(tree.guid()),
@@ -49,5 +51,6 @@ pub(crate) fn ship<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Ship<'f> {
         vehicle_definition: text(vehicle, "vehicleDefinition"),
         modification: text(vehicle, "modification"),
         paint_ports: paint_ports(tree),
+        playability: playability_rules::ship(tree, evidence),
     }
 }

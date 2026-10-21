@@ -74,6 +74,39 @@ same in every kind. Every field is always present; one that has no value is `nul
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
 
+### Ordering Builds
+
+`source.build.changeNumber` is the Perforce change number the Build was made from
+(`RequestedP4ChangeNum` of the build manifest). It is a decimal integer written as a string; a
+consumer compares it as a number, never as text.
+
+- **Within a Channel it is monotonic.** Every Build a Channel published has a higher change number
+  than the one before, so a consumer may refuse a catalog whose `changeNumber` is lower than that of
+  the last applied catalog of the same Channel. The same number means the same Build; re-applying it
+  is safe.
+- **HOTFIX** is a Channel of its own and monotonic too. A HOTFIX Build later becomes the LIVE Build
+  unchanged, so HOTFIX and LIVE then share one change number, one `buildId` and one `version`. A
+  HOTFIX Build lies between the LIVE Builds around it, and the LIVE Build that replaces it is the
+  same or higher, so ordering a HOTFIX catalog against a LIVE one by `changeNumber` is also sound
+  as long as equal numbers count as the same Build.
+- **Across Channels it orders the code, not the time of publication.** PTU, EPTU and TECH-PREVIEW
+  Builds come from other branches: a LIVE Build with a lower change number can be published after a
+  PTU Build with a higher one. A consumer keeps one last-applied `changeNumber` per
+  `source.channel` and does not compare numbers of different Channels. A Build promoted to another
+  Channel keeps its number, so it is never rejected there.
+- **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
+  only.
+- **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
+  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
+  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+
+Evidence for the rule is in the pull request that closed krt-profit/p4k-extractor#402: 65 launcher
+log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
+over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
+TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
+claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
+would show as a lower number than the last applied one.
+
 ### Entities
 
 Every entity carries:
@@ -95,12 +128,13 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 |-------|--------|
 | `name`, `description` | `SAttachableComponentParams.AttachDef.Localization.Name` and `.Description` |
 | `type`, `subType` | `AttachDef.Type` and `AttachDef.SubType`, e.g. `PowerPlant` and `Power` |
-| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers |
+| `size`, `grade` | `AttachDef.Size` and `AttachDef.Grade`, integers; see "Semantics of `grade`" below |
 | `mass` | `SEntityPhysicsControllerParams.PhysType.Mass`, a number |
 | `manufacturerGuid` | The GUID the Reference `AttachDef.Manufacturer` links to, `null` for a null Reference |
 | `tags` | The words of `AttachDef.Tags`, split at white space |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
+| `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -109,6 +143,51 @@ starts with `Class:`, its value trimmed of white space and matched ignoring case
 an item without an English description leave it `null`. `p4kx catalog` counts the items with a
 class, with another value, and without the line or an English description. The schema types the
 field as a string; the five options are documented, not enumerated.
+
+#### Semantics of `grade`
+
+`grade` is the integer of `AttachDef.Grade`, exported unchanged; the catalog carries no letter.
+The letter the game shows is not in the DataForge. For ship components it is the `Grade:` line of
+the English `description`, and it follows the integer: **1 = A, 2 = B, 3 = C, 4 = D**, so A is the
+lowest integer. Checked on LIVE 4.10.2 (change 12913470) against that line of every item that has
+one:
+
+| Item `type` | Integer to letter |
+|-------------|-------------------|
+| `Cooler`, `PowerPlant`, `QuantumDrive`, `Radar`, `Shield` | 1 = A, 2 = B, 3 = C, 4 = D, uniform |
+| `JumpDrive`, `LifeSupportGenerator` | only 3 = C is consistent; grade 1 items name no letter or contradict it |
+| FPS gear (`Char_Armor_*`, `Char_Clothing_*`, `WeaponPersonal`) | no `Grade:` line; grade is 1, on a few helmets and shirts 2, with no letter evidence |
+| `WeaponAttachment` (ship weapon parts) | no `Grade:` line; grade 3 to 7 follows the size of the part |
+| every other `type` | no `Grade:` line; grade is 1 almost everywhere |
+
+Of the 350 items with a `Grade:` line, 331 name A to D and agree with the integer. 19 do not, and
+all 19 have grade 1:
+
+- 10 name B or C: a `Cooler` (B, and another with C), a `Radar`, a `JumpDrive`, a
+  `QuantumInterdictionGenerator`, two `Misc` computers and three `WeaponMining` lasers. The text and
+  the integer disagree; the Archive does not say which one the game shows.
+- 9 name `Bespoke`: the ship-specific components of the Reclaimer, 890 Jump and Polaris.
+
+The Basetool can take the letter from `grade` by `1 = A` to `4 = D` for the five component types,
+and must treat grade 1 as unknown elsewhere and for those 19 items. It reads the integer, never the
+`Grade:` line, which is a game text and stays away from third parties.
+
+Distribution of `grade` over the 23280 items of LIVE 4.10.2:
+
+| `grade` | Items |
+|---------|-------|
+| 1 | 21325 |
+| 2 | 153 |
+| 3 | 170 |
+| 4 | 76 |
+| 5 | 8 |
+| 6 | 8 |
+| 7 | 4 |
+| `null` | 1536 |
+
+`null` is an item without `AttachDef`: all 1536 also have a `null` `type`. 5 to 7 occur only on
+`WeaponAttachment` parts (`Barrel`, `FiringMechanism`, `PowerArray`, `Ventilation`), 3 and 4 on
+those parts too. No value is below 1 or above 7.
 
 A ship takes its fields from `VehicleComponentParams`:
 
@@ -119,6 +198,81 @@ A ship takes its fields from `VehicleComponentParams`:
 | `crewSize` | `crewSize`, an integer |
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
+| `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+
+#### Playability
+
+The catalog lists every ship and item Record of the Build, among them AI, mission and event
+variants that no player can own, buy or fit. `playability` tells them apart. It is a closed set of
+strings; the schema keeps a string, so a new value is additive and a reader maps a value it does
+not know to `null` (ADR-0054). It is `null` where no rule below applies: the value is never
+guessed. The rules read Record data only (components, fields, References, Tags, record-path
+folders); no class name or Record name enters them.
+
+| Value | Meaning |
+|-------|---------|
+| `player` | Has the structural markers of a player entity |
+| `ai` | Part of the AI; ships only |
+| `mission` | Part of a mission: an unmanned ship or an item of a mission folder |
+| `special` | Neither: a ship with `inclusionMode` `DoNotInclude`, or an item without a player-visible name |
+
+For a ship or ground vehicle the first rule that holds decides. `inclusionMode` is
+`StaticEntityClassData[EAEntityDataParams].inclusionMode` (`EAEntityDataParams`, believed to
+govern Electronic Access / Arena Commander inclusion). It correlates on LIVE with hangar-listed
+ships; it is used as evidence, not as a definition. Any value other than `ReadyToInclude` and
+`DoNotInclude` leads to `null`, unless rule 1 or 2 holds.
+
+1. `ai` when `Components[SEntityComponentCrewManifestParams].crewManifest` links to a
+   `CrewManifest` Record whose `crew` array is not empty (the NPC crew; the empty manifest
+   `crewmanifest_null` does not count). For a Record under `entities/spaceships/` also when
+   `Components[VehicleComponentParams].criticalPartExplosionChance` is above zero, or when
+   `Components[VehicleComponentParams].aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true
+   while `inclusionMode` is not `ReadyToInclude`. Ground vehicles all carry these two hull values,
+   so they are not read there.
+2. `mission` when one of the Record's `tags` links to a `Tag` Record whose `tagName` is `Unmanned`
+   (the salvage, derelict and wreck targets of missions).
+3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
+4. `player` when `inclusionMode` is `ReadyToInclude` and, for a spaceship,
+   `powerPlantsCanExplodeOnDeath` is not true.
+5. Also `null` when the crew manifest or a tag the Record links to could not be read (the
+   catalog reports that Record as a failure), since its evidence is missing; checked before
+   rule 1.
+6. Otherwise `null`: no `EAEntityDataParams`, another `inclusionMode`, or a `ReadyToInclude` spaceship whose hull
+   explodes on death and that no crew manifest marks (LIVE: Stingray, Skylark, Railen and the
+   `ai_template` ships mix here; the data does not separate them).
+
+For an item the first rule that holds decides:
+
+1. `player` when `Components[SCItemPurchasableParams].displayName` is a localisation key that is
+   not a placeholder key: the item has a shop display.
+2. `mission` when the record path lies under `entities/scitem/mission_entities/` or
+   `entities/scitem/missionstorage/`.
+3. `special` when `AttachDef.Localization.Name` is no key or a placeholder key: the item has no
+   player-visible name (doors, props, decals, internal parts).
+4. Otherwise `null`: a named item without a shop display (loot, attachments, parts); the Records
+   do not say whether a player can obtain it.
+
+No item is `ai`: items carry no AI marker the rules can read.
+
+The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
+leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
+the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
+structural marker and read as `player`.
+
+**The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
+means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
+mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
+it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+matches every other value and `null` against what it knows and seeds none of them. A `null` ship
+(LIVE: Stingray, Skylark, Railen) is added by hand.
+
+`p4kx catalog` prints the count per value and the unclassified count for items and ships; `--json`
+lists them under `playability`. LIVE, 2026-10-21:
+
+| Kind | `player` | `ai` | `mission` | `special` | `null` |
+|------|---------:|-----:|----------:|----------:|-------:|
+| ships | 324 | 690 | 25 | 35 | 13 |
+| items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 an ingredient uses and no commodity Record carries (see below). A commodity Record takes its fields
@@ -402,20 +556,20 @@ seconds since 1970-01-01 UTC.
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
 changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
-catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
+catalog (21.7 MB) is about a third of it, so the catalog can grow by a factor of three before the
 limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
 print the size (`catalog size: … bytes`).
 
-Measured on 2026-10-21 with every installed Channel (complete catalog of every kind, English and
+Measured on 2026-10-21, with `playability`, on every installed Channel (complete catalog of every kind, English and
 German texts):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|
-| LIVE | 21,061,805 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| PTU | 20,737,101 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
-| EPTU | 20,348,542 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
-| HOTFIX | 21,061,807 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| TECH-PREVIEW | 21,121,385 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
+| LIVE | 21,603,650 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| PTU | 21,270,926 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
+| EPTU | 20,878,649 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
+| HOTFIX | 21,603,652 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| TECH-PREVIEW | 21,670,624 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
 
 A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
 1,145 items and 57 ships (1,204 Records).

@@ -1,4 +1,5 @@
-use crate::{DataForgeBuilder, TestStruct, TestType};
+use crate::entity_vehicle::vehicle_structs;
+use crate::{DataForgeBuilder, TestInstance, TestStruct, TestType, TestValue};
 
 /// Adds the structs of Entities, their default Loadouts and their item ports to `builder`.
 ///
@@ -11,6 +12,7 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .into_iter()
         .chain(port_structs())
         .chain(geometry_structs())
+        .chain(vehicle_structs())
         .chain(attachable_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
@@ -119,4 +121,13 @@ fn port_structs() -> Vec<TestStruct> {
         xyz("Ang3"),
         xyz("Vec3"),
     ]
+}
+
+pub(crate) fn attachable_component(attach_type: &str) -> TestValue {
+    TestValue::Struct(TestInstance::new("SAttachableComponentParams").value(
+        "AttachDef",
+        TestValue::Struct(
+            TestInstance::new("SItemDefinition").value("Type", TestValue::text(attach_type)),
+        ),
+    ))
 }

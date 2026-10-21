@@ -69,6 +69,15 @@ pub(crate) fn unsigned(structure: &StructValue<'_>, name: &str) -> Option<u32> {
     }
 }
 
+/// Returns a numeric field as `f64`, or `None` when it holds none.
+pub(crate) fn float(structure: &StructValue<'_>, name: &str) -> Option<f64> {
+    match structure.field(name)? {
+        Value::Single(value) => Some(f64::from(*value)),
+        Value::Double(value) => Some(*value),
+        _ => None,
+    }
+}
+
 /// Returns the fields `x`, `y` and `z` of a struct as floats, zero where one is missing.
 pub(crate) fn xyz(structure: Option<&StructValue<'_>>) -> [f32; 3] {
     ["x", "y", "z"].map(|name| match structure.and_then(|s| s.field(name)) {

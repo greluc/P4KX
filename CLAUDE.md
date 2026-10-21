@@ -39,7 +39,12 @@ cargo test --release --workspace --locked -- --ignored
 That runs every real-Archive test in the workspace, whatever test file it lives in. In the crates
 that group their tests (see "Test layout"), the real-Archive tests are the modules of the
 `real_archive` test binary, so one test runs as
-`cargo test --release -p <crate> --test real_archive -- <test_name> --ignored`. A new
+`cargo test --release -p <crate> --test real_archive -- <test_name> --ignored`. The CI suite
+runs faster with cargo-nextest: `cargo nextest run --workspace --locked`, then
+`cargo test --workspace --locked --doc` for the doctests nextest skips; `cargo test --workspace
+--locked` stays valid. The two concurrency stress tests need optimised code and run with
+`cargo nextest run --cargo-profile concurrency -p p4kx-dataforge --test lazy_indexes` and
+`-p p4kx-assembly --test audio_lazy_index`. A new
 real-Archive test gets `#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]`
 (a test that reads encrypted Entries also needs the Archive key; its failure message says so,
 the reason stays as written) and takes the path from `p4kx_testkit::real_archive_path`, and from

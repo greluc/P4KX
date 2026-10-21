@@ -23,14 +23,17 @@ pub(crate) struct ModelArgs {
 /// The actions of `p4kx model`.
 #[derive(Debug, Subcommand)]
 pub(crate) enum ModelAction {
-    /// Prints the nodes, LODs, meshes, materials and bones of a model and every chunk of its
-    /// files with whether the model was read from it, skipped it or does not know its type.
+    /// Prints the nodes, LODs, meshes, materials and bones of a model, the animations found for it
+    /// with their duration, and every chunk of its files with whether the model was read from it,
+    /// skipped it or does not know its type.
     #[command(after_help = EXIT_CODES_HELP)]
     Info(ModelFileSource),
     /// Writes a model as one glTF 2.0 binary file (GLB): Y up, in metres, one glTF node per node
     /// and one primitive per submesh, with the normals, tangents, texture coordinates and vertex
-    /// colours the meshes have; the materials come from the model's .mtl file; unknown chunks
-    /// and a missing or unreadable .mtl file are listed.
+    /// colours the meshes have; the materials come from the model's .mtl file; with --anim the
+    /// animations of .caf files and .dba databases move the bone nodes of a skinned model or
+    /// skeleton, or the nodes a static model's helper bones drive; unknown chunks and a missing
+    /// or unreadable .mtl file are listed.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb {
         /// The model.
@@ -62,6 +65,18 @@ pub(crate) enum ModelAction {
         /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
         #[arg(long)]
         no_vertex_colours: bool,
+        /// Includes an animation; repeat the option for more, or use `all` for every animation
+        /// found. NAME is the name of an animation (a .caf file name without extension, or a
+        /// name inside a .dba), its file name, or the end of its path, ignoring case; or the
+        /// path of a .caf or .dba Entry or file, which includes all of its animations. Animations
+        /// are looked for in the .caf and .dba files in the model's folder, in the folder at the
+        /// same place below Data\Animations, and in the files named by --anim-from. Tracks whose
+        /// controller no bone of the skeleton has are left out and listed. Additive animations,
+        /// whose keys are offsets to a base animation, are left out and listed unless named
+        /// (a .caf given with --anim-from counts as named). A NAME that no animation has is
+        /// invalid input.
+        #[arg(long = "anim", value_name = "NAME")]
+        animations: Vec<String>,
     },
 }
 
@@ -84,4 +99,9 @@ pub(crate) struct ModelFileSource {
     /// Path of the model Entry in the Archive, with `\` or `/` as separator, ignoring case; its
     /// companions are taken from the same folder of the Archive.
     pub(crate) entry: Option<String>,
+    /// A .caf or .dba Entry (or file, when the model is a file) to look for animations in, in
+    /// addition to the model's folders; repeatable. A file that is no .caf or .dba is invalid
+    /// input, and one that cannot be read is an error.
+    #[arg(long = "anim-from", value_name = "ENTRY_OR_FILE")]
+    pub(crate) animation_sources: Vec<String>,
 }

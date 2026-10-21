@@ -76,6 +76,19 @@ impl<B: AsRef<[u8]>> ChunkFile<B> {
         self.bytes.as_ref().get(start..end)
     }
 
+    /// Returns all bytes from the start of the chunk at `index` to the end of the file, or `None`
+    /// when there is no such chunk.
+    ///
+    /// Unlike [`Self::chunk_data`] this is not bounded by the chunk's [`Chunk::size`]: an `#ivo`
+    /// `.dba` animation database holds offsets that reach past its computed span into a shared
+    /// keyframe pool.
+    #[must_use]
+    pub fn chunk_data_to_end(&self, index: usize) -> Option<&[u8]> {
+        let chunk = self.chunks.get(index)?;
+        let start = usize::try_from(chunk.offset).ok()?;
+        self.bytes.as_ref().get(start..)
+    }
+
     /// Returns the chunks of `chunk_type` with their index in the table, in file order.
     pub fn chunks_of(&self, chunk_type: ChunkType) -> impl Iterator<Item = (usize, &Chunk)> {
         self.chunks

@@ -159,7 +159,15 @@ pub fn write_scene_glb(
             })
         })
         .collect();
-    write_instances(&wrappers, &instances, options, &NoTextures, fallbacks, out)
+    write_instances(
+        &wrappers,
+        &instances,
+        &[],
+        options,
+        &NoTextures,
+        fallbacks,
+        out,
+    )
 }
 
 /// Returns the level of `model` closest to `level` from below, or its lowest level when all are

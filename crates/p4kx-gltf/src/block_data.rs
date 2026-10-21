@@ -1,7 +1,7 @@
 use p4kx_model::Influences;
 
 use crate::axes::to_y_up;
-use crate::skin::{SET_LEN, joint_set, weight_set};
+use crate::skin::{SET_LEN, joint_set, weight_set, y_up_rotation};
 
 /// What one block of the binary chunk holds.
 #[derive(Debug, Clone, Copy)]
@@ -27,33 +27,45 @@ pub(crate) enum BlockData<'m> {
     Weights(&'m [Influences], usize),
     /// The inverse bind matrices of the skeleton's bones, column-major.
     InverseBinds(&'m [[f32; 16]]),
+    /// The key times of an animation channel in seconds: the frames over the frame rate `.1`.
+    Times(&'m [u16], u16),
+    /// The translations of an animation channel, converted to Y up.
+    Translations(&'m [[f32; 3]]),
+    /// The rotations of an animation channel as quaternions, converted to Y up.
+    Rotations(&'m [[f32; 4]]),
 }
 
 impl<'m> BlockData<'m> {
     pub(crate) const fn len(&self) -> u64 {
         let (count, size) = match self {
-            Self::Positions(values) | Self::Normals(values) => (values.len(), 12),
+            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
+                (values.len(), 12)
+            }
             Self::Uvs(values) => (values.len(), 8),
-            Self::Tangents(values) => (values.len(), 16),
+            Self::Tangents(values) | Self::Rotations(values) => (values.len(), 16),
             Self::Colours(values) => (values.len(), 4),
             Self::Short(values) => (values.len(), 2),
             Self::Wide(values) => (values.len(), 4),
             Self::Joints(values, _) => (values.len(), 2 * SET_LEN),
             Self::Weights(values, _) => (values.len(), SET_LEN),
             Self::InverseBinds(values) => (values.len(), 64),
+            Self::Times(values, _) => (values.len(), 4),
         };
         count as u64 * size as u64
     }
 
     pub(crate) const fn count(&self) -> usize {
         match self {
-            Self::Positions(values) | Self::Normals(values) => values.len(),
+            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
+                values.len()
+            }
             Self::Uvs(values) => values.len(),
-            Self::Tangents(values) => values.len(),
+            Self::Tangents(values) | Self::Rotations(values) => values.len(),
             Self::Colours(values) => values.len(),
             Self::Short(values) | Self::Wide(values) => values.len(),
             Self::Joints(values, _) | Self::Weights(values, _) => values.len(),
             Self::InverseBinds(values) => values.len(),
+            Self::Times(values, _) => values.len(),
         }
     }
 
@@ -77,13 +89,20 @@ impl<'m> BlockData<'m> {
             Self::InverseBinds(values) => {
                 Self::InverseBinds(values.get(start..end).unwrap_or_default())
             }
+            Self::Times(values, rate) => {
+                Self::Times(values.get(start..end).unwrap_or_default(), rate)
+            }
+            Self::Translations(values) => {
+                Self::Translations(values.get(start..end).unwrap_or_default())
+            }
+            Self::Rotations(values) => Self::Rotations(values.get(start..end).unwrap_or_default()),
         }
     }
 
     /// Appends the block's bytes, little-endian, to `out`.
     pub(crate) fn encode(&self, out: &mut Vec<u8>) {
         match self {
-            Self::Positions(values) | Self::Normals(values) => {
+            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
                 for &value in *values {
                     for component in to_y_up(value) {
                         out.extend_from_slice(&component.to_le_bytes());
@@ -132,6 +151,36 @@ impl<'m> BlockData<'m> {
                     out.extend_from_slice(&value.to_le_bytes());
                 }
             }
+            Self::Times(..) | Self::Rotations(_) => self.encode_keys(out),
         }
     }
+
+    /// Appends the bytes of the key times or rotations of an animation channel.
+    fn encode_keys(&self, out: &mut Vec<u8>) {
+        match self {
+            Self::Times(values, rate) => {
+                for &frame in *values {
+                    out.extend_from_slice(&seconds(frame, *rate).to_le_bytes());
+                }
+            }
+            Self::Rotations(values) => {
+                for &rotation in *values {
+                    for component in y_up_rotation(rotation) {
+                        out.extend_from_slice(&component.to_le_bytes());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Returns the time of `frame` in seconds at `rate` frames per second.
+pub(crate) fn seconds(frame: u16, rate: u16) -> f32 {
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "glTF stores f32; the quotient of two 16-bit numbers needs at most 24 bits"
+    )]
+    let time = (f64::from(frame) / f64::from(rate.max(1))) as f32;
+    time
 }

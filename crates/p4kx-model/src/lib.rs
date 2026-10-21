@@ -10,9 +10,18 @@
 //! convention, Z up, in metres. Chunks the model does not read are listed with their
 //! [`ChunkUsage`].
 //!
+//! [`Animation::read_caf`] and [`Dba::read`] read the animations of `.caf` files and `.dba`
+//! animation databases into [`Track`]s of rotation and translation [`Keys`] per controller;
+//! [`Animation::bind`] matches them to the [`Bone`]s of a skeleton by controller ID.
+//!
 //! Both containers are read: an `#ivo` model keeps its meshes in a geometry companion, a `CrCh`
 //! model in its own file, as the physics mesh a `Mesh` chunk refers to (docs/crch-models.md).
 
+mod animation;
+mod animation_dba;
+mod animation_error;
+mod animation_keys;
+mod animation_read;
 mod bone;
 mod bone_map;
 mod build;
@@ -38,6 +47,10 @@ mod streams;
 mod transform;
 mod vector;
 
+pub use animation::{Animation, BoundTracks, Keys, Track};
+pub use animation_dba::{Dba, SkippedAnimation};
+pub use animation_error::{AnimationError, CorruptAnimation};
+pub use animation_read::{MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS};
 pub use bone::{Bone, BoneTransform};
 pub use bone_map::{Influences, MAX_INFLUENCES};
 pub use companion::{CompanionError, CompanionPath, CompanionResolver};

@@ -349,6 +349,13 @@ each with a weight; the weights of a vertex add up to 255. Stored by the bone-ma
 geometry companion and read as `Influences`.
 _Avoid_: skin weights, skinning data, bone map (the stream, not its content)
 
+**Animation**:
+The rotation and translation keys of the bones of a skeleton over frames, read from a `.caf` file
+or from one entry of a `.dba` animation database. A track holds the keys of one controller, which
+a bone is addressed by (`controller_id`, the CRC-32 of its name); keys are absolute and relative
+to the parent bone. Exported as one glTF animation.
+_Avoid_: clip, motion, take
+
 **Material library**:
 The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
 ID, or a list of sub-materials whose position is the material ID. Each material has a shader,

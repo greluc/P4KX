@@ -871,10 +871,10 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
 An index the table does not have, or an output that is the chunk file itself, fails with exit
 code 2.
 
-## `p4kx model info <archive> <entry> --json`
+## `p4kx model info <archive> <entry> [--anim-from <entry>]… --json`
 
-Also `p4kx model info <file> --json` for a model file on disk with its geometry companion next to
-it.
+Also `p4kx model info <file> [--anim-from <file>]… --json` for a model file on disk with its geometry
+companion next to it.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "geometry": "cube.cgfm",
@@ -896,6 +896,11 @@ it.
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
             "relative": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]},
             "world": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]}}, …],
+ "animations": [{"name": "wave", "path": "wave.caf", "source": "Data\\Animations\\Objects\\Test\\wave.caf",
+                 "frames_per_second": 30, "end_frame": 30, "duration_seconds": 1.0,
+                 "additive": false, "tracks": 1, "bound_tracks": 1, "keys": 2}, …],
+ "unread_animations": [{"source": "Data\\Animations\\Objects\\Test\\odd.caf", "name": null,
+                        "reason": "…"}],
  "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
@@ -926,6 +931,18 @@ model with animated parts) or `null`; `relative` is the bind pose relative to th
 `world` the bind pose in the model's space, each a rotation as a quaternion `x, y, z, w` and a
 translation, in CryEngine axes (Z up) and metres. A level of detail of a skin whose own file has a
 different skeleton is weighted to that one; `model info` lists the skeleton of the model file.
+`animations` lists the animations found for the model: those of the `.caf` files and `.dba`
+databases in the model's folder, in the folder at the same place below `Data\Animations`, and in
+the Entries or files `--anim-from` names. `name` is the file name of a `.caf` without extension or
+the name a database lists, `path` the name or path the file stores, `source` the Entry or file it was
+read from, `duration_seconds` its last frame over the frame rate, `additive` whether its keys are
+offsets to a pose, `tracks` the number of bones it has keys for, `bound_tracks` how many of them are
+bones of the model's skeleton (matched by `controller_id`) and `keys` the rotation and translation
+keys together. `unread_animations` lists the files, and the animations of a database, that could
+not be read or that are additive (`reason` is "additive animation — needs a base animation";
+they are written only when named), with the reason; names in both lists have control characters
+replaced. A file `--anim-from` names that is no `.caf` or `.dba` exits with code 2, one that
+cannot be read with 3.
 `chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
@@ -935,7 +952,7 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
 `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -950,6 +967,9 @@ Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
  "bones": 0, "skinned_meshes": 0, "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
+ "animations": [{"name": "wave", "duration_seconds": 1.0, "additive": false, "channels": 2,
+                 "keys": 4, "skipped_tracks": [3735928559]}],
+ "unread_animations": [],
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
                      "usage": "unknown"}]}
 ```
@@ -973,8 +993,14 @@ because it is missing, cannot be decoded, has an unsafe path or would exceed the
 images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
 the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
 names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
-that the export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
-`--lod` the model lacks, exits with code 2.
+that the export skipped, as in `p4kx model info`. `animations` lists the animations asked for with `--anim`, in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
+translation of a bone each; an animation with none is not written), `keys` the keys in them and
+`skipped_tracks` the controller IDs of the tracks left out because no bone of the skeleton has
+them, ADR-0046; `unread_animations` is as in `p4kx model info`: `--anim all` leaves the additive
+animations out and lists them there, and `additive` is `true` only for one that was named. An output that is one of the
+model's files, a `--lod` the model lacks, a name `--anim` finds no animation for or an
+`--anim-from` Entry that does not exist or is no `.caf` or `.dba` exits with code 2, an animation
+file that is corrupt or not supported, an `--anim-from` one included, with 3.
 
 ## `p4kx extract … --json`
 

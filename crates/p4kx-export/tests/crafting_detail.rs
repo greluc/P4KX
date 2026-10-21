@@ -6,7 +6,8 @@ use std::error::Error;
 
 use crafting_detail_fixture as fixture;
 use p4kx_export::{
-    CancelToken, CatalogError, Cost, Crafting, Filter, ModifierKind, Selection, read_crafting,
+    CancelToken, CatalogError, Cost, Crafting, CraftingWarning, Filter, ModifierKind, Selection,
+    read_crafting, read_crafting_limited,
 };
 use p4kx_extraction::{DataForge, Guid};
 
@@ -191,17 +192,20 @@ fn reward_sources_carry_their_chance_and_the_blueprint_its_share_of_the_pool() -
             .find(|pool| pool.guid == guid(fixture::POOL))
             .ok_or("the pool")?;
         assert_eq!(pool.total_weight(), 4.0);
-        let [first, second, _, _] = crafting.reward_sources.as_slice() else {
-            return Err("four reward sources".into());
+        let [first, second, _, _, nameless] = crafting.reward_sources.as_slice() else {
+            return Err("five reward sources".into());
         };
         assert_eq!(first.record, guid(fixture::CONTRACTS));
         assert_eq!(first.contract_id, Some(guid(fixture::CONTRACT_ID)));
         assert_eq!(first.contract_name, Some("Haul_Intro"));
+        assert_eq!((first.pool, first.chance), (guid(fixture::POOL), Some(0.5)));
+        assert_eq!(second.pool, guid(fixture::EMPTY_POOL));
         assert_eq!(
-            (first.pool, first.chance),
-            (Some(guid(fixture::POOL)), Some(0.5))
+            (nameless.contract_id, nameless.contract_name),
+            (Some(guid(fixture::NAMELESS_CONTRACT_ID)), None),
+            "the id and the name come from the same struct: a contract without a name does not \
+             take the name of the generator above it"
         );
-        assert_eq!(second.pool, Some(guid(fixture::EMPTY_POOL)));
         let chances = crafting.reward_chances();
         let one = chances.get(&guid(fixture::TWO_TIERS)).ok_or("chances")?;
         let values: Vec<f64> = one.iter().map(|chance| chance.chance).collect();
@@ -216,6 +220,10 @@ fn reward_sources_carry_their_chance_and_the_blueprint_its_share_of_the_pool() -
             "the negative weight is left out of the total: 0.5 x 2 / 2"
         );
         assert_eq!(one[0].contract_name, Some("Haul_Intro"));
+        assert_eq!(
+            one[0].record_path,
+            "libs/foundry/records/contracts/contractgenerator/haul"
+        );
         let other = chances.get(&guid(fixture::CHOOSE_ONE)).ok_or("chances")?;
         assert!((other[0].chance - 0.375).abs() < 1.0e-9, "0.5 x 3 / 4");
         assert!(!chances.contains_key(&guid(fixture::BARE)), "in no pool");
@@ -238,10 +246,15 @@ fn dismantle_returns_link_the_process_to_the_item_and_blueprint() -> TestResult 
         assert_eq!(link.process.guid, process.guid);
         assert_eq!(link.blueprint, guid(fixture::TWO_TIERS));
         assert_eq!(link.item, guid(fixture::PRODUCT_A));
+        assert_eq!(link.tier, Some(0), "the first tier counts");
+        assert_eq!(link.excluded_resources, [guid(fixture::GOLD)]);
+        assert!(!link.returns_resource(&guid(fixture::GOLD)), "excluded");
+        assert!(link.returns_resource(&guid(fixture::IRON)));
         assert!(
             crafting.dismantle_return(&crafting.blueprints[2]).is_none(),
             "a blacklisted item"
         );
+        assert!(crafting.warnings.is_empty(), "one process is no warning");
         assert_eq!(
             crafting.global.default_blueprints,
             [guid(fixture::DISMANTLE), guid(fixture::CHOOSE_ONE)]
@@ -254,6 +267,60 @@ fn dismantle_returns_link_the_process_to_the_item_and_blueprint() -> TestResult 
             crafting.global.dismantle_blacklist_items,
             [guid(fixture::BLACKLISTED)]
         );
+        Ok(())
+    })
+}
+
+#[test]
+fn several_dismantle_processes_link_nothing_and_warn() -> TestResult {
+    let bytes = fixture::ambiguous_database().build();
+    let forge = DataForge::open(&bytes)?;
+    let crafting = read_crafting(&forge, None, None)?;
+    assert_eq!(crafting.dismantle.len(), 2, "both processes are read");
+    assert!(crafting.dismantle_process().is_none(), "none is chosen");
+    assert!(
+        crafting.dismantle_return(&crafting.blueprints[0]).is_none(),
+        "no link instead of the first process"
+    );
+    assert_eq!(crafting.warnings, [CraftingWarning::AmbiguousDismantle(2)]);
+    Ok(())
+}
+
+#[test]
+fn a_truncated_reference_index_is_reported_instead_of_dropping_sources_silently() -> TestResult {
+    let bytes = fixture::database().build();
+    let forge = DataForge::open(&bytes)?;
+    let complete = read_crafting(&forge, None, None)?;
+    assert!(complete.warnings.is_empty(), "{:?}", complete.warnings);
+    let capped = read_crafting_limited(&forge, None, None, 1)?;
+    assert_eq!(capped.warnings, [CraftingWarning::RewardSourcesTruncated]);
+    assert!(
+        capped.reward_sources.len() < complete.reward_sources.len(),
+        "sources are missing"
+    );
+    assert!(
+        CraftingWarning::UnreadableReferenceRecords(3)
+            .to_string()
+            .contains('3'),
+        "the unreadable count is reported"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_blueprint_without_a_tier_links_to_the_process_without_a_tier() -> TestResult {
+    read(None, |crafting| {
+        let bare = crafting
+            .blueprints
+            .iter()
+            .find(|blueprint| blueprint.guid == guid(fixture::BARE))
+            .ok_or("the bare blueprint")?;
+        let mut unblacklisted = bare.clone();
+        unblacklisted.produced_item = Some(guid(fixture::PRODUCT_A));
+        let link = crafting
+            .dismantle_return(&unblacklisted)
+            .ok_or("a return")?;
+        assert_eq!(link.tier, None, "no tier to return");
         Ok(())
     })
 }

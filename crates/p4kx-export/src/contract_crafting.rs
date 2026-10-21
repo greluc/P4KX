@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_recipe::{BlueprintDismantle, BlueprintTier};
 use crate::guid_text::CatalogGuid;
 
 /// A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a
@@ -57,8 +58,19 @@ pub(crate) struct Blueprint<'a> {
     pub(crate) produced_item_guid: Option<CatalogGuid>,
     /// The craft time of the first tier in seconds, `null` without one.
     pub(crate) craft_time_seconds: Option<i64>,
-    /// The ingredients of the first tier in stored order.
+    /// The ingredients of the first tier in stored order, derived from `tiers`: a selection is
+    /// flattened depth first, so its count, quantity multipliers and quality modifiers are not
+    /// represented here.
     pub(crate) ingredients: Vec<Ingredient<'a>>,
+    /// Every tier in stored order with its craft time and its costs, selections kept as
+    /// `select` lines. The first one is the tier `craftTimeSeconds` and `ingredients` describe.
+    pub(crate) tiers: Vec<BlueprintTier<'a>>,
+    /// Whether the blueprint is one the player has by default
+    /// (`CraftingGlobalParams.defaultBlueprintSelection`).
+    pub(crate) default_available: bool,
+    /// What dismantling the produced item returns, `null` without a produced item, for an item
+    /// that cannot be dismantled, and unless the Build holds exactly one dismantle process.
+    pub(crate) dismantle: Option<BlueprintDismantle>,
 }
 
 /// One ingredient line of a blueprint: a resource or an item with its quantity.

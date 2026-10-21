@@ -2,7 +2,8 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
     BAD_POOL, BARE, BLACKLISTED, CHOOSE_ONE, CONTRACT_ID, CONTRACTS, CRAFTING, DEFAULT_CURVE,
-    DISMANTLE, EMPTY_POOL, GLOBAL, GOLD, OVERRIDE_CURVE, POOL, PROPERTY, PYRO, TWO_TIERS, time,
+    DISMANTLE, EMPTY_POOL, GLOBAL, GOLD, LEFTOVER_POOL, NAMELESS_CONTRACT_ID, OVERRIDE_CURVE, POOL,
+    PROPERTY, PYRO, TWO_TIERS, time,
 };
 
 pub(super) fn rewards(builder: DataForgeBuilder) -> DataForgeBuilder {
@@ -22,8 +23,8 @@ fn pools(builder: DataForgeBuilder) -> DataForgeBuilder {
             TestRecord::new(
                 POOL,
                 "BlueprintPoolRecord",
-                "BlueprintPoolRecord.BP_REWARDS_Test",
-                format!("{CRAFTING}/blueprintrewards/bp_rewards_test.xml"),
+                "BlueprintPoolRecord.BP_REWARDS_Haul",
+                format!("{CRAFTING}/blueprintrewards/bp_rewards_haul.xml"),
             )
             .value(
                 "blueprintRewards",
@@ -47,6 +48,12 @@ fn pools(builder: DataForgeBuilder) -> DataForgeBuilder {
             "BlueprintPoolRecord",
             "BlueprintPoolRecord.BP_REWARDS_Empty",
             format!("{CRAFTING}/blueprintrewards/bp_rewards_empty.xml"),
+        ))
+        .record(TestRecord::new(
+            LEFTOVER_POOL,
+            "BlueprintPoolRecord",
+            "BlueprintPoolRecord.BP_REWARDS_Dev",
+            format!("{CRAFTING}/blueprintrewards/bp_rewards_dev.xml"),
         ))
 }
 
@@ -91,6 +98,7 @@ fn contracts(builder: DataForgeBuilder) -> DataForgeBuilder {
                                 "Haul_Odd",
                                 vec![reward(1.5, BAD_POOL), reward(0.5, BAD_POOL)],
                             ),
+                            contract(NAMELESS_CONTRACT_ID, "", vec![reward(0.25, EMPTY_POOL)]),
                         ]),
                     ),
             )]),
@@ -149,29 +157,34 @@ pub(super) fn quality(builder: DataForgeBuilder) -> DataForgeBuilder {
         )
 }
 
-pub(super) fn dismantle_and_global(builder: DataForgeBuilder) -> DataForgeBuilder {
-    builder
-        .record(
-            TestRecord::new(
-                DISMANTLE,
-                "CraftingBlueprintRecord",
-                "CraftingBlueprintRecord.GlobalGenericDismantle",
-                format!("{CRAFTING}/blueprints/dismantle/globalgenericdismantle.xml"),
-            )
-            .value(
-                "blueprint",
+pub(super) fn dismantle(guid: u128, name: &str) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "CraftingBlueprintRecord",
+        format!("CraftingBlueprintRecord.{name}"),
+        format!(
+            "{CRAFTING}/blueprints/dismantle/{}.xml",
+            name.to_lowercase()
+        ),
+    )
+    .value(
+        "blueprint",
+        TestValue::Struct(
+            TestInstance::new("GenericCraftingBlueprint").value(
+                "processSpecificData",
                 TestValue::Struct(
-                    TestInstance::new("GenericCraftingBlueprint").value(
-                        "processSpecificData",
-                        TestValue::Struct(
-                            TestInstance::new("GenericCraftingProcess_Dismantle")
-                                .value("efficiency", TestValue::Single(0.5))
-                                .value("dismantleTime", time(0, 15.0)),
-                        ),
-                    ),
+                    TestInstance::new("GenericCraftingProcess_Dismantle")
+                        .value("efficiency", TestValue::Single(0.5))
+                        .value("dismantleTime", time(0, 15.0)),
                 ),
             ),
-        )
+        ),
+    )
+}
+
+pub(super) fn dismantle_and_global(builder: DataForgeBuilder) -> DataForgeBuilder {
+    builder
+        .record(dismantle(DISMANTLE, "GlobalGenericDismantle"))
         .record(
             TestRecord::new(
                 GLOBAL,

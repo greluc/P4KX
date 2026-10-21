@@ -1,13 +1,13 @@
-use p4kx_extraction::{RecordTree, StructValue, Value, is_placeholder_key};
+use p4kx_extraction::{StructValue, Value};
 
+use crate::catalog_recipe::tier_of;
 use crate::contract::{Blueprint, Ingredient};
+use crate::contract_recipe::BlueprintDismantle;
+use crate::crafting_types::{BlueprintTiers, Cost, Tier};
 use crate::guid_text::CatalogGuid;
-use crate::record_fields::{
-    class_name, elements, integer, locale_key, reference, single, structure, text,
-};
+use crate::record_fields::integer;
 use crate::texts::Texts;
 
-const MAX_DEPTH: usize = 32;
 const MAX_PART: f32 = 1.0e9;
 
 const SECONDS_PER_MINUTE: i64 = 60;
@@ -21,37 +21,86 @@ struct Slot<'f> {
     key: Option<&'f str>,
 }
 
-/// Returns the blueprint the Record tree `tree` describes, its texts resolved by `texts`.
+/// What links a blueprint to the rest of the crafting data.
+pub(crate) struct Links {
+    pub(crate) default_available: bool,
+    pub(crate) dismantle: Option<BlueprintDismantle>,
+}
+
+/// Returns the blueprint `source` as the catalog lists it, its texts resolved by `texts`.
 ///
 /// The first tier gives the craft time and the ingredients; a selection of costs is flattened
-/// into one ingredient per resource or item, depth first in stored order.
-pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Blueprint<'f> {
-    let blueprint = structure(Some(tree.root()), "blueprint");
-    let creation = structure(blueprint, "processSpecificData");
-    let tier = elements(blueprint, "tiers").iter().find_map(as_struct);
-    let costs = structure(structure(tier, "recipe"), "costs");
-    let mut ingredients = Vec::new();
-    let slot = Slot::default();
-    if let Some(cost) = structure(costs, "mandatoryCost") {
-        collect(cost, slot, 0, &mut ingredients);
-    }
-    for cost in elements(costs, "optionalCosts")
-        .iter()
-        .filter_map(as_struct)
-    {
-        collect(cost, slot, 0, &mut ingredients);
-    }
-    let name = class_name(tree);
+/// into one ingredient per resource or item, depth first in stored order. `tiers` keeps every
+/// tier with its selections.
+pub(crate) fn blueprint<'f>(
+    source: &BlueprintTiers<'f>,
+    texts: &Texts<'f>,
+    links: Links,
+) -> Blueprint<'f> {
+    let first = source.tiers.first();
     Blueprint {
-        guid: CatalogGuid(tree.guid()),
-        class_name: name,
-        record_path: tree.record_path(),
-        key: name,
-        name: texts.localised(locale_key(blueprint, "blueprintName")),
-        category_guid: reference(blueprint, "category"),
-        produced_item_guid: reference(creation, "entityClass"),
-        craft_time_seconds: craft_time(structure(costs, "craftTime")),
-        ingredients,
+        guid: CatalogGuid(source.guid),
+        class_name: source.class_name,
+        record_path: source.record_path,
+        key: source.class_name,
+        name: texts.localised(source.name_key),
+        category_guid: source.category.map(CatalogGuid),
+        produced_item_guid: source.produced_item.map(CatalogGuid),
+        craft_time_seconds: first.and_then(|tier| tier.craft_time_seconds),
+        ingredients: ingredients(first),
+        tiers: source.tiers.iter().map(tier_of).collect(),
+        default_available: links.default_available,
+        dismantle: links.dismantle,
+    }
+}
+
+/// Returns the ingredients of `tier`: the mandatory cost, then the optional ones, selections
+/// flattened.
+fn ingredients<'f>(tier: Option<&Tier<'f>>) -> Vec<Ingredient<'f>> {
+    let mut out = Vec::new();
+    let Some(tier) = tier else {
+        return out;
+    };
+    for cost in tier.mandatory.iter().chain(&tier.optional) {
+        collect(cost, Slot::default(), &mut out);
+    }
+    out
+}
+
+fn collect<'f>(cost: &Cost<'f>, slot: Slot<'f>, out: &mut Vec<Ingredient<'f>>) {
+    match cost {
+        Cost::Select(selection) => {
+            let own = Slot {
+                name: selection.slot,
+                key: selection.slot_key,
+            };
+            let slot = if own.name.is_some() || own.key.is_some() {
+                own
+            } else {
+                slot
+            };
+            for option in &selection.options {
+                collect(option, slot, out);
+            }
+        }
+        Cost::Resource(line) => out.push(Ingredient {
+            resource_guid: line.resource.map(CatalogGuid),
+            item_guid: None,
+            quantity_scu: line.quantity_scu,
+            quantity_units: None,
+            min_quality: line.min_quality,
+            slot: slot.name,
+            slot_key: slot.key,
+        }),
+        Cost::Item(line) => out.push(Ingredient {
+            resource_guid: None,
+            item_guid: line.item.map(CatalogGuid),
+            quantity_scu: None,
+            quantity_units: line.quantity,
+            min_quality: line.min_quality,
+            slot: slot.name,
+            slot_key: slot.key,
+        }),
     }
 }
 
@@ -82,49 +131,5 @@ pub(crate) fn whole(parent: Option<&StructValue<'_>>, name: &str) -> Option<i64>
         Value::Single(value) if value.abs() <= MAX_PART => Some(value.round() as i64),
         Value::Double(value) if value.abs() <= f64::from(MAX_PART) => Some(value.round() as i64),
         _ => integer(parent, name),
-    }
-}
-
-fn collect<'f>(
-    cost: &StructValue<'f>,
-    slot: Slot<'f>,
-    depth: usize,
-    out: &mut Vec<Ingredient<'f>>,
-) {
-    match cost.type_name() {
-        "CraftingCost_Select" if depth < MAX_DEPTH => {
-            let info = structure(Some(cost), "nameInfo");
-            let own = Slot {
-                name: text(info, "debugName"),
-                key: locale_key(info, "displayName").filter(|key| !is_placeholder_key(key)),
-            };
-            let slot = if own.name.is_some() || own.key.is_some() {
-                own
-            } else {
-                slot
-            };
-            for option in elements(Some(cost), "options").iter().filter_map(as_struct) {
-                collect(option, slot, depth.saturating_add(1), out);
-            }
-        }
-        "CraftingCost_Resource" => out.push(Ingredient {
-            resource_guid: reference(Some(cost), "resource"),
-            item_guid: None,
-            quantity_scu: single(structure(Some(cost), "quantity"), "standardCargoUnits"),
-            quantity_units: None,
-            min_quality: integer(Some(cost), "minQuality"),
-            slot: slot.name,
-            slot_key: slot.key,
-        }),
-        "CraftingCost_Item" => out.push(Ingredient {
-            resource_guid: None,
-            item_guid: reference(Some(cost), "entityClass"),
-            quantity_scu: None,
-            quantity_units: integer(Some(cost), "quantity"),
-            min_quality: integer(Some(cost), "minQuality"),
-            slot: slot.name,
-            slot_key: slot.key,
-        }),
-        _ => {}
     }
 }

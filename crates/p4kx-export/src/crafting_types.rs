@@ -128,6 +128,10 @@ pub struct BlueprintTiers<'f> {
     pub class_name: &'f str,
     /// The record path, without `.xml`.
     pub record_path: &'f str,
+    /// The localisation key of the blueprint name, a placeholder key included, `None` without one.
+    pub name_key: Option<&'f str>,
+    /// The GUID of the `BlueprintCategoryRecord` the blueprint belongs to, `None` without one.
+    pub category: Option<Guid>,
     /// The GUID of the entity the blueprint produces, `None` without one.
     pub produced_item: Option<Guid>,
     /// The tiers in stored order, the first one being the tier the catalog's `ingredients`
@@ -234,8 +238,8 @@ pub struct RewardSource<'f> {
     pub contract_id: Option<Guid>,
     /// The `debugName` of the nearest enclosing struct that has one.
     pub contract_name: Option<&'f str>,
-    /// The GUID of the `BlueprintPoolRecord`, `None` for a null Reference.
-    pub pool: Option<Guid>,
+    /// The GUID of the `BlueprintPoolRecord` the Reference links to.
+    pub pool: Guid,
     /// The chance that the reward is given, 0 to 1, `None` when the Record holds none.
     pub chance: Option<f32>,
 }
@@ -246,6 +250,8 @@ pub struct RewardSource<'f> {
 pub struct RewardChance<'f> {
     /// The GUID of the Record that holds the reward.
     pub record: Guid,
+    /// The record path of that Record, without `.xml`.
+    pub record_path: &'f str,
     /// The `id` of the contract, if any.
     pub contract_id: Option<Guid>,
     /// The `debugName` of the contract, if any.
@@ -284,12 +290,34 @@ pub struct GlobalParams {
 }
 
 /// The dismantle return of a blueprint's item.
+///
+/// The item returns the share `process.efficiency` of the costs of the tier `tier` of the
+/// blueprint, except the resources in `excluded_resources`. These are assumptions of the
+/// library, not verified against the game:
+///
+/// - Only the first tier counts (the only one on LIVE); `tier` is `None` for a blueprint
+///   without a tier.
+/// - A [`Cost::Select`] is not resolved: the Records do not say which options a dismantle
+///   returns, so the consumer applies the count itself.
+/// - The quantity multiplier of a cost line is not applied; the quantities are the stored ones.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DismantleReturn<'c, 'f> {
-    /// The process that dismantles the item.
+    /// The only dismantle process of the DataForge.
     pub process: &'c DismantleProcess<'f>,
-    /// The GUID of the blueprint whose ingredients the item returns by `process.efficiency`.
+    /// The GUID of the blueprint whose costs the item returns by `process.efficiency`.
     pub blueprint: Guid,
     /// The GUID of the item.
     pub item: Guid,
+    /// The index of the tier whose costs are returned, `None` for a blueprint without a tier.
+    pub tier: Option<usize>,
+    /// The `ResourceType` Records a dismantle never returns.
+    pub excluded_resources: &'c [Guid],
+}
+
+impl DismantleReturn<'_, '_> {
+    /// Returns whether a dismantle may return the `ResourceType` `resource`.
+    #[must_use]
+    pub fn returns_resource(&self, resource: &Guid) -> bool {
+        !self.excluded_resources.contains(resource)
+    }
 }

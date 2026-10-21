@@ -42,11 +42,35 @@ struct SummaryJson<'a> {
     kinds: Vec<KindJson>,
     skipped: usize,
     failed: Vec<FailureJson<'a>>,
-    warnings: Vec<String>,
+    warnings: Vec<WarningJson>,
     item_classes: ItemClassJson,
     playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum WarningJson {
+    RewardSourcesTruncated,
+    UnreadableReferenceRecords { count: usize },
+    AmbiguousDismantle { count: usize },
+    Other { message: String },
+}
+
+impl From<&CraftingWarning> for WarningJson {
+    fn from(warning: &CraftingWarning) -> Self {
+        match *warning {
+            CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
+            CraftingWarning::UnreadableReferenceRecords(count) => {
+                Self::UnreadableReferenceRecords { count }
+            }
+            CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
+            ref other => Self::Other {
+                message: other.to_string(),
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -247,7 +271,7 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
                 error: &failure.reason,
             })
             .collect(),
-        warnings: summary.warnings().iter().map(ToString::to_string).collect(),
+        warnings: summary.warnings().iter().map(WarningJson::from).collect(),
         item_classes: ItemClassJson {
             classified: summary.item_classes().classified,
             other: summary.item_classes().other,

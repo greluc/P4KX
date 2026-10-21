@@ -116,6 +116,43 @@ fn verify(path: &Path) -> TestResult {
     check_dismantle(&catalog)
 }
 
+fn flatten(line: &Value, slot: (&Value, &Value), out: &mut Vec<Value>) {
+    match line["kind"].as_str() {
+        Some("select") => {
+            let own = (&line["slot"], &line["slotKey"]);
+            let slot = if own.0.is_null() && own.1.is_null() {
+                slot
+            } else {
+                own
+            };
+            for option in line["options"].as_array().into_iter().flatten() {
+                flatten(option, slot, out);
+            }
+        }
+        Some("resource" | "item") => out.push(serde_json::json!({
+            "resourceGuid": line["resourceGuid"],
+            "itemGuid": line["itemGuid"],
+            "quantityScu": line["quantityScu"],
+            "quantityUnits": line["quantityUnits"],
+            "minQuality": line["minQuality"],
+            "slot": slot.0,
+            "slotKey": slot.1,
+        })),
+        _ => {}
+    }
+}
+
+fn first_tier_ingredients(blueprint: &Value) -> Vec<Value> {
+    let mut out = Vec::new();
+    let tier = at(blueprint, "/tiers/0");
+    let costs = std::iter::once(&tier["mandatory"])
+        .chain(tier["optional"].as_array().into_iter().flatten());
+    for cost in costs.filter(|cost| cost.is_object()) {
+        flatten(cost, (&Value::Null, &Value::Null), &mut out);
+    }
+    out
+}
+
 fn check_tiers(catalog: &Value) -> TestResult {
     let blueprints = list(catalog, "blueprints")?;
     let mut several = 0_usize;
@@ -127,6 +164,12 @@ fn check_tiers(catalog: &Value) -> TestResult {
             at(blueprint, "/tiers/0/craftTimeSeconds"),
             &blueprint["craftTimeSeconds"],
             "{}: the first tier is the one craftTimeSeconds describes",
+            blueprint["className"]
+        );
+        assert_eq!(
+            blueprint["ingredients"].as_array(),
+            Some(&first_tier_ingredients(blueprint)),
+            "{}: the ingredients are the first tier flattened",
             blueprint["className"]
         );
         several += usize::from(tiers.len() > 1);

@@ -46,6 +46,7 @@ mod crafting_records;
 mod crafting_sources;
 mod crafting_tier;
 mod crafting_types;
+mod crafting_warning;
 mod error;
 mod failure;
 mod form;
@@ -69,13 +70,14 @@ mod texts;
 
 pub use build::{build_catalog, build_catalog_from};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
-pub use crafting::{Crafting, CraftingWarning, read_crafting, read_crafting_limited};
+pub use crafting::{Crafting, read_crafting, read_crafting_limited};
 pub use crafting_types::{
     BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
     GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,
     PropertyModifier, QualityCurve, QualityDistribution, ResourceCost, RewardChance, RewardSource,
     Selection, Tier, ValueRange,
 };
+pub use crafting_warning::CraftingWarning;
 pub use error::CatalogError;
 pub use failure::CatalogFailure;
 pub use form::{NDJSON_FILE, RecordForm};

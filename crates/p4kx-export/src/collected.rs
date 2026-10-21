@@ -7,7 +7,7 @@ use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
     GameplayProperty, Item, Manufacturer, QualityDistribution, ResourceGroup, Ship,
 };
-use crate::crafting::CraftingWarning;
+use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;

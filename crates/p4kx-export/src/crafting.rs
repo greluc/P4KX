@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 
 use p4kx_extraction::{
     CancelToken, DataForge, DataForgeError, Filter, Guid, MAX_INDEXED_REFERENCES, Record,
@@ -16,41 +15,9 @@ use crate::crafting_types::{
     BlueprintPool, BlueprintTiers, DismantleProcess, DismantleReturn, GameplayProperty,
     GlobalParams, QualityDistribution, RewardChance, RewardSource,
 };
-use crate::selection::{BlueprintSelection, KindRule, selects_blueprint};
+use crate::crafting_warning::CraftingWarning;
+use crate::selection::{BlueprintSelection, KindRule, is_leftover, selects_blueprint};
 use crate::{CatalogError, CatalogFailure};
-
-/// Something that makes the crafting data incomplete or ambiguous without failing a Record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum CraftingWarning {
-    /// The DataForge holds more References than the reference index keeps, so
-    /// [`Crafting::reward_sources`] may lack places that reward a pool.
-    RewardSourcesTruncated,
-    /// This many Records could not be read by the reference index; a reward source in one of
-    /// them is missing from [`Crafting::reward_sources`].
-    UnreadableReferenceRecords(usize),
-    /// The DataForge holds this many dismantle processes instead of one, so
-    /// [`Crafting::dismantle_return`] links no blueprint.
-    AmbiguousDismantle(usize),
-}
-
-impl fmt::Display for CraftingWarning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::RewardSourcesTruncated => f.write_str(
-                "the reference index is truncated; the reward sources of the blueprint pools are incomplete",
-            ),
-            Self::UnreadableReferenceRecords(count) => write!(
-                f,
-                "{count} Records cannot be read by the reference index; their reward sources are missing"
-            ),
-            Self::AmbiguousDismantle(count) => write!(
-                f,
-                "the DataForge holds {count} dismantle processes instead of one; no dismantle return is linked"
-            ),
-        }
-    }
-}
 
 /// The crafting data of a DataForge: the blueprints with all their tiers and what surrounds them.
 ///
@@ -161,10 +128,11 @@ pub fn read_crafting_limited<'f>(
                 ));
         }
     }
-    if crafting.dismantle.len() > 1 {
-        crafting.warnings.push(CraftingWarning::AmbiguousDismantle(
-            crafting.dismantle.len(),
-        ));
+    let processes = crafting.live_dismantle().count();
+    if processes > 1 {
+        crafting
+            .warnings
+            .push(CraftingWarning::AmbiguousDismantle(processes));
     }
     Ok(crafting)
 }
@@ -360,14 +328,20 @@ impl<'f> Crafting<'f> {
         chances
     }
 
-    /// Returns the dismantle process when the DataForge holds exactly one, `None` for none or
-    /// several (a [`CraftingWarning::AmbiguousDismantle`] then tells).
+    fn live_dismantle(&self) -> impl Iterator<Item = &DismantleProcess<'f>> {
+        self.dismantle
+            .iter()
+            .filter(|process| !is_leftover(process.record_path, process.class_name))
+    }
+
+    /// Returns the dismantle process when the DataForge holds exactly one that is no development
+    /// leftover, `None` for none or several (a [`CraftingWarning::AmbiguousDismantle`] then
+    /// tells).
     #[must_use]
-    pub const fn dismantle_process(&self) -> Option<&DismantleProcess<'f>> {
-        match self.dismantle.as_slice() {
-            [process] => Some(process),
-            _ => None,
-        }
+    pub fn dismantle_process(&self) -> Option<&DismantleProcess<'f>> {
+        let mut live = self.live_dismantle();
+        let first = live.next()?;
+        live.next().is_none().then_some(first)
     }
 
     /// Returns the dismantle return of the item `blueprint` produces: the only dismantle

@@ -9,8 +9,9 @@ use crate::contract::{
 };
 use crate::contract_recipe::BlueprintDismantle;
 use crate::contract_rewards::{LocationOverride, PoolEntry, QualityCurve, RewardSource};
-use crate::crafting::{Crafting, CraftingWarning};
+use crate::crafting::Crafting;
 use crate::crafting_types as library;
+use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::selection::is_leftover;
 use crate::texts::Texts;
@@ -182,6 +183,19 @@ fn pool<'f>(
     source: &library::BlueprintPool<'f>,
     sources: &HashMap<Guid, Vec<&library::RewardSource<'f>>>,
 ) -> BlueprintPool<'f> {
+    let mut reward_sources: Vec<RewardSource<'f>> = sources
+        .get(&source.guid)
+        .into_iter()
+        .flatten()
+        .map(|reward| RewardSource {
+            record_guid: CatalogGuid(reward.record),
+            record_path: reward.record_path,
+            contract_id: reward.contract_id.map(CatalogGuid),
+            contract_name: reward.contract_name,
+            chance: reward.chance,
+        })
+        .collect();
+    reward_sources.sort_by_cached_key(|reward| reward.record_guid.text());
     BlueprintPool {
         guid: CatalogGuid(source.guid),
         class_name: source.class_name,
@@ -195,18 +209,7 @@ fn pool<'f>(
                 weight: entry.weight,
             })
             .collect(),
-        reward_sources: sources
-            .get(&source.guid)
-            .into_iter()
-            .flatten()
-            .map(|reward| RewardSource {
-                record_guid: CatalogGuid(reward.record),
-                record_path: reward.record_path,
-                contract_id: reward.contract_id.map(CatalogGuid),
-                contract_name: reward.contract_name,
-                chance: reward.chance,
-            })
-            .collect(),
+        reward_sources,
     }
 }
 

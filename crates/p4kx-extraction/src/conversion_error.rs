@@ -6,6 +6,7 @@ use p4kx_audio::{AudioError, BankError};
 use p4kx_chunks::ChunkError;
 use p4kx_gfx::GfxError;
 use p4kx_gltf::GltfError;
+use p4kx_localization::LocalizationError;
 use p4kx_model::ModelError;
 use p4kx_texture::TextureError;
 use thiserror::Error;
@@ -162,6 +163,15 @@ pub enum ConversionError {
         #[source]
         source: GfxError,
     },
+    /// The `global.ini` that localises the texts of a rendered UI movie cannot be indexed.
+    #[error("cannot index the texts {path} of the UI movie")]
+    UiTexts {
+        /// The Entry path of the `global.ini`.
+        path: String,
+        /// What is wrong.
+        #[source]
+        source: LocalizationError,
+    },
     /// A bitmap fill of a rendered UI movie names a bitmap the movie does not define.
     #[error("{movie} defines no bitmap {id}")]
     UiBitmapMissing {
@@ -279,6 +289,9 @@ pub enum ConversionError {
         #[source]
         source: io::Error,
     },
+    /// The output lies inside a Star Citizen installation; nothing is written there.
+    #[error(transparent)]
+    Installation(#[from] p4kx_guard::WriteRefused),
 }
 
 impl ConversionError {

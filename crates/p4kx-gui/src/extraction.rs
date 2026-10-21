@@ -3,10 +3,11 @@ mod summary;
 
 use std::path::{Path, PathBuf};
 
-use p4kx_extraction::{AudioConversion, ConflictPolicy, TextureConversion};
+use p4kx_extraction::{AudioConversion, ConflictPolicy, TextureConversion, WriteRefused};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
 use crate::ComparisonSide;
+use crate::installation::refusal_of;
 
 pub use job::{Extraction, ExtractionStatus};
 pub(crate) use job::{Request, Source, start, target_naming};
@@ -51,6 +52,7 @@ pub struct ExtractionSetup {
     scope: ExtractionScope,
     kind: TargetKind,
     folder: Option<PathBuf>,
+    refusal: Option<WriteRefused>,
     policy: ConflictPolicy,
     convert: bool,
     textures: ExtractionTextures,
@@ -59,7 +61,7 @@ pub struct ExtractionSetup {
 }
 
 impl ExtractionSetup {
-    pub(crate) const fn new(
+    pub(crate) fn new(
         scope: ExtractionScope,
         folder: Option<PathBuf>,
         convert: bool,
@@ -69,6 +71,7 @@ impl ExtractionSetup {
         Self {
             scope,
             kind: TargetKind::NewFolder,
+            refusal: refusal_of(folder.as_deref()),
             folder,
             policy: ConflictPolicy::Skip,
             convert,
@@ -109,7 +112,15 @@ impl ExtractionSetup {
 
     /// Chooses the folder the new folder is created in, or the existing folder written into.
     pub fn set_folder(&mut self, folder: PathBuf) {
+        self.refusal = refusal_of(Some(&folder));
         self.folder = Some(folder);
+    }
+
+    /// Returns why the chosen folder cannot be written to, when it lies inside a Star Citizen
+    /// installation.
+    #[must_use]
+    pub const fn refusal(&self) -> Option<&WriteRefused> {
+        self.refusal.as_ref()
     }
 
     /// Returns the Conflict policy for files already in an existing folder.
@@ -178,6 +189,9 @@ impl ExtractionSetup {
     }
 
     pub(crate) fn request(&self, source: Source) -> Option<Request> {
+        if self.refusal.is_some() {
+            return None;
+        }
         Some(Request {
             source,
             kind: self.kind,

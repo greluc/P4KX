@@ -19,9 +19,9 @@ pub type Localise<'a> = &'a dyn Fn(&str) -> Option<String>;
 /// box and listed in the report.
 #[derive(Clone, Copy, Default)]
 pub struct TextOptions<'a> {
-    /// Fonts of other movies, searched by name only (the name, the full name and the export name)
-    /// after the fonts of the movie; the IDs they have in their own movie mean nothing here. A
-    /// font the movie imports is found by the name it imports it under.
+    /// Fonts of other movies, searched by name only after the fonts of the movie, because a font
+    /// ID means something only inside its own movie.
+    /// A font the movie imports is found by the name it imports it under.
     pub fonts: &'a [Font],
     /// Looks a localisation key up, without its `@`; `None` leaves the key as it is.
     pub localise: Option<Localise<'a>>,
@@ -80,7 +80,7 @@ impl FontIndex {
     }
 }
 
-/// The fonts a frame can draw with: those of the movie, then those of the options.
+/// The fonts a frame can draw with: those of the movie, then those of the options, which only a name finds.
 pub(crate) struct Fonts<'b> {
     list: Vec<&'b Font>,
     usable: Vec<bool>,

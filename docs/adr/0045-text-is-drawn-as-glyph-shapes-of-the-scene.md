@@ -12,10 +12,10 @@ only text written into an SVG stays the escaped title.
 
 - Glyph outlines come from the fonts of the movie (`DefineFont`, `DefineFont2`, `DefineFont3`; the
   em square is 1024 units, 20480 for `DefineFont3`). Compacted GFx fonts, `DefineFont4` and fonts
-  whose glyph shapes the exporter stripped have no outlines. A font is found by ID in the movie, and
-  a text field by the class name or the `face` of its markup, ignoring ASCII case, in the fonts of
-  the movie and then in `TextOptions::fonts`, the fonts a caller reads from other movies (by name
-  only, ADR-0048).
+  whose glyph shapes the exporter stripped have no outlines. A font of the movie is found by ID, and a
+  text field by the class name or the `face` of its markup, ignoring ASCII case, in the fonts of
+  the movie and then in `TextOptions::fonts`, the fonts a caller reads from other movies. Those are
+  searched by name only: an ID means something only inside its own movie.
 - No system font is ever loaded. A character whose font or glyph is missing is drawn as an empty
   box of the text colour, a fixed shape, and listed: `missing_font`, `missing_glyph` (the code, at
   most eight per text) and `missing_glyph_index` (static text). These reasons count as drawn

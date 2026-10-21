@@ -225,6 +225,29 @@ definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of i
 the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
+## `p4kx wwise events <archive> [--search <text>] --json`
+
+```json
+{"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
+               "matched_trigger": true,
+               "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
+                           "matched": true,
+                           "soundbanks": [{"path": "Data\\Sounds\\wwise\\SSQD_QDrive.bnk", "language": null}]}],
+               "unmatched": null,
+               "entities": {"count": 12, "listed": [{"guid": "…", "record_path": "…", "class_name": "…"}]}}],
+ "issues": [Issue, …]}
+```
+
+`search` is `null` without `--search`. `total` counts every trigger that matched; `triggers` holds
+the page from `offset` on, at most `limit` (1 to 10,000) of them, in the order of the ATL
+definitions' Entry paths, and `next_offset` is the offset of the next page or `null` after the
+last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
+and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
+`entities` counts the Entities that name the trigger through `GlobalResourceAudio.audioTrigger`
+and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
+and when the DataForge cannot be read, which is a warning on stderr.
+
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json
@@ -675,9 +698,14 @@ each a `style_change` (a `move_to` position and new style numbers), a `straight_
 `delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
 not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
-## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] --json`
+## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--lang <language>] --json`
 
 Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on disk.
+
+`--lang` (only with an Archive and an Entry) resolves the localisation keys (`@key`) of text fields
+in the `global.ini` of that language; a key it does not hold is listed as `unlocalised`, and without
+`--lang` keys are drawn as they are. A `global.ini` that cannot be indexed prints no JSON and fails
+with exit code 3.
 
 ```json
 {"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
@@ -827,15 +855,22 @@ geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `us
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
-companion with 3, and a `CrCh` model, which is not supported yet, with 1.
+companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
+geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
+`null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
- "primitives": 2, "materials": 2, "default_material_ids": 0, "hidden_primitives": 0,
+ "primitives": 2, "materials": 2, "textured_materials": 1, "textures": 3,
+ "texture_pixels": 192,
+ "texture_fallbacks": [{"material": "caps", "role": "diffuse",
+                        "file": "Objects/Test/plate_diff.tif",
+                        "reason": "the texture does not exist"}],
+ "default_material_ids": 0, "hidden_primitives": 0,
  "bones": 0, "skinned_meshes": 0, "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
@@ -854,8 +889,15 @@ and `hidden_primitives` the submeshes left out because their material draws noth
 bones written as nodes (those of a skinned model and those of a skeleton file such as a `.chr`, which
 has no mesh; a skin gets a glTF skin with a joint per bone, and its `skinned_meshes` carry
 `JOINTS_n` and `WEIGHTS_n`, ADR-0039); `library` is
-the status of the `.mtl` file as in `p4kx model info`. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+the status of the `.mtl` file as in `p4kx model info`. `textures` counts the PNG images embedded
+with `--materials textures` (an image several materials use counts once), `texture_pixels` their
+pixels and `textured_materials` the materials that use at least one; all are 0 with
+`--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
+because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
+images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
+the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
+names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
+that the export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
 `--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`
@@ -1028,6 +1070,8 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
 JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
+An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
+exit code 2; copy a CHF file into `CustomCharacters` by hand.
 
 ### The CHF JSON
 

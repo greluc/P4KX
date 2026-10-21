@@ -1,4 +1,4 @@
-use p4kx_chunks::{ChunkError, Container};
+use p4kx_chunks::ChunkError;
 use p4kx_foundation::ParseError;
 use thiserror::Error;
 
@@ -7,14 +7,6 @@ use crate::CompanionError;
 /// A failure to read a model.
 #[derive(Debug, Error)]
 pub enum ModelError {
-    /// The model is in a container whose chunk types are not interpreted yet.
-    #[error("{file}: models in the {container} container are not supported")]
-    UnsupportedContainer {
-        /// The model file.
-        file: String,
-        /// Its container form.
-        container: Container,
-    },
     /// The model holds no mesh and its geometry companion does not exist.
     #[error("the geometry companion {file} does not exist")]
     MissingGeometry {
@@ -181,4 +173,55 @@ pub enum CorruptChunk {
     /// A value is NaN or infinite.
     #[error("a {0} is not finite")]
     NonFinite(&'static str),
+    /// A `CrCh` chunk is big-endian, which no model file of the Archives is.
+    #[error("its data is big-endian, which is not supported")]
+    BigEndian,
+    /// Two `CrCh` nodes carry the same chunk ID.
+    #[error("the chunk ID {0} belongs to two nodes")]
+    RepeatedChunkId(u32),
+    /// A `CrCh` node names a parent chunk ID no node has.
+    #[error("node {node} has the parent chunk ID {parent}, which no node has")]
+    ParentId {
+        /// The node's position.
+        node: usize,
+        /// The parent chunk ID.
+        parent: u32,
+    },
+    /// A chunk refers to a chunk ID the file does not hold, or one of the wrong type.
+    #[error("it refers to the chunk ID {0}, which is missing or of another type")]
+    ReferencedChunk(u32),
+    /// A `CrCh` mesh stores vertices, indices or subsets in data streams, which no model file of
+    /// the Archives does.
+    #[error(
+        "it stores {vertices} vertices and {indices} indices in data streams, which is not supported"
+    )]
+    StreamedMesh {
+        /// The number of vertices the header declares.
+        vertices: u32,
+        /// The number of indices the header declares.
+        indices: u32,
+    },
+    /// A physics mesh chunk holds another primitive than a polyhedron, the one the Archives hold.
+    #[error("its physics data has the primitive type {0}, which is not supported")]
+    PhysicsPrimitive(u32),
+    /// A physics mesh declares more vertices or triangles than its data holds.
+    #[error(
+        "the physics mesh declares {vertices} vertices and {triangles} triangles for {len} bytes"
+    )]
+    PhysicsCounts {
+        /// The declared number of vertices.
+        vertices: u32,
+        /// The declared number of triangles.
+        triangles: u32,
+        /// The length of the physics mesh data.
+        len: usize,
+    },
+    /// A physics mesh triangle refers to a vertex the mesh does not have.
+    #[error("the physics mesh refers to vertex {index} of {vertices}")]
+    PhysicsIndex {
+        /// The vertex index.
+        index: u32,
+        /// The number of vertices.
+        vertices: u32,
+    },
 }

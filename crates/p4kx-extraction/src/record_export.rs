@@ -111,6 +111,15 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
     target: &Path,
     run: &RecordRun<'_>,
 ) -> RecordExportReport {
+    if let Err(refused) = p4kx_guard::ensure_writable(target) {
+        let outcomes = (0..records.len())
+            .map(|index| {
+                let error = ExtractionError::Installation(refused.clone());
+                (index, RecordOutcome::Failed(error.into()))
+            })
+            .collect();
+        return summarise(records, outcomes);
+    }
     let files = select_files(forge, plan, records);
     let (independent, dependent) = split_dependent(files.iter().map(|file| match file {
         Selected::File(file) => *file,

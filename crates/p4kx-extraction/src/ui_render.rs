@@ -68,7 +68,8 @@ impl UiMovie<'_> {
     /// # Errors
     ///
     /// Returns [`ConversionError::UiMovie`] when the stage has no area and
-    /// [`ConversionError::UiCanvas`] when the canvas is empty or too large.
+    /// [`ConversionError::UiCanvas`] when the canvas is empty or too large, and
+    /// [`ConversionError::UiTexts`] when the texts given to the movie cannot be indexed.
     pub fn render(&self, options: &RasterOptions) -> Result<UiRender, ConversionError> {
         let frame = self.compose_frame(options)?;
         let raster = frame
@@ -91,7 +92,15 @@ impl UiMovie<'_> {
         options: &RasterOptions,
     ) -> Result<ComposedFrame, ConversionError> {
         let mut assets = self.movie().assets();
-        let ini = self.texts().and_then(|texts| texts.parse().ok());
+        let ini = self
+            .texts()
+            .map(|texts| {
+                texts.parse().map_err(|source| ConversionError::UiTexts {
+                    path: texts.path().to_owned(),
+                    source,
+                })
+            })
+            .transpose()?;
         let lookup = |key: &str| {
             ini.as_ref()?
                 .resolve(key)

@@ -94,12 +94,19 @@ fn a_companion_without_mesh_is_reported() -> TestResult {
 }
 
 #[test]
-fn crch_models_are_not_supported_yet() -> TestResult {
+fn a_truncated_crch_node_is_a_corrupt_chunk() -> TestResult {
     let crch = TestChunkFile::crch().chunk(0x100B, 0x824, *b"node").bytes();
     let error = read_with(crch, None).err().ok_or("an error")?;
     let error = error.downcast_ref::<ModelError>().ok_or("a model error")?;
     assert!(
-        matches!(error, ModelError::UnsupportedContainer { .. }),
+        matches!(
+            error,
+            ModelError::Corrupt {
+                chunk: "Node",
+                source: CorruptChunk::Truncated(_),
+                ..
+            }
+        ),
         "{error:?}"
     );
     Ok(())

@@ -103,6 +103,7 @@ pub(crate) fn start(
 }
 
 fn open(path: &Path, key: Option<ArchiveKey>) -> Result<Arc<Archive>, String> {
+    p4kx_extraction::protect_archive_folder(path);
     Archive::open_with_key(path, key)
         .map(Arc::new)
         .map_err(|error| format!("{}: {}", path.display(), describe(&error)))

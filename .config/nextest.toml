@@ -2,7 +2,7 @@
 game-process = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'binary_id(p4kx::read_only) | binary_id(p4kx-gui::read_only) | (binary_id(p4kx-guard::installation) & test(notices_a_running_game_from_the_process_list))'
+filter = 'binary_id(p4kx::read_only) | (binary_id(p4kx-gui::it) & test(read_only::)) | (binary_id(p4kx-guard::installation) & test(notices_a_running_game_from_the_process_list))'
 test-group = 'game-process'
 
 [profile.ci]

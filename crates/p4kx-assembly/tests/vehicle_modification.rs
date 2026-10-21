@@ -252,3 +252,43 @@ fn a_wrapper_merges_descendants_at_any_depth_and_leaves_its_root_part_unapplied(
     assert_eq!(report.id_children(), 1);
     Ok(())
 }
+
+#[test]
+fn an_empty_id_is_no_id_and_never_an_unmatched_one() -> TestResult {
+    let patch = r#"<Modifications><Parts id="modParts">
+        <Part name="Other_Root" class="Animated"><Animated id=""/>
+          <Parts><Part name="body"><Parts>
+            <Part id="partGun" name="Hardpoint_Gun" class="ItemPort"><ItemPort id="portGun" flags=""/></Part>
+          </Parts></Part></Parts>
+        </Part>
+    </Parts><Part id="" name="stray"/></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Wrapped" patchFile="Modifications/Wrapped"/><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Wrapped.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Wrapped"))?;
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!(
+        report.unmatched_ids().len(),
+        0,
+        "{:?}",
+        report.unmatched_ids()
+    );
+    assert_eq!(report.id_children(), 1);
+    assert!(
+        vehicle
+            .issues()
+            .iter()
+            .all(|issue| !issue.to_string().contains("ids that no element")),
+        "{:?}",
+        vehicle.issues()
+    );
+    Ok(())
+}

@@ -77,6 +77,11 @@ impl ModificationReport {
     }
 }
 
+/// Returns the `id` of `element`, none when it has none or an empty one.
+fn id_of(element: &Element) -> Option<&str> {
+    element.attribute("id").filter(|id| !id.is_empty())
+}
+
 /// Finds the Modification `name` below the `Modifications` element of `vehicle`, preferring an
 /// exact name over one that differs in ASCII case.
 pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modification> {
@@ -104,7 +109,10 @@ pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modific
             .flat_map(|elems| elems.children_named("Elem"))
             .filter_map(|elem| {
                 Some(Elem {
-                    id_ref: elem.attribute("idRef")?.to_owned(),
+                    id_ref: elem
+                        .attribute("idRef")
+                        .filter(|id| !id.is_empty())?
+                        .to_owned(),
                     name: elem.attribute("name")?.to_owned(),
                     value: elem.attribute("value").unwrap_or_default().to_owned(),
                 })
@@ -155,7 +163,7 @@ fn apply_child(
     report: &mut ModificationReport,
     budget: &mut Budget,
 ) -> Result<(), String> {
-    let Some(id) = child.attribute("id") else {
+    let Some(id) = id_of(child) else {
         report.wholesale_children = report.wholesale_children.saturating_add(1);
         return replace_child(base, child, report, budget);
     };
@@ -177,7 +185,7 @@ fn apply_child(
         let mut addressed = Vec::new();
         top_ids(child, &mut addressed);
         for part in addressed {
-            let Some(part_id) = part.attribute("id") else {
+            let Some(part_id) = id_of(part) else {
                 continue;
             };
             if merge_by_id(target, part_id, part, budget)? > 0 {
@@ -201,7 +209,7 @@ fn apply_child(
 /// Collects the descendants of `element` that have an `id`, not looking below one that has.
 fn top_ids<'a>(element: &'a Element, found: &mut Vec<&'a Element>) {
     for child in &element.children {
-        if child.attribute("id").is_some() {
+        if id_of(child).is_some() {
             found.push(child);
         } else {
             top_ids(child, found);
@@ -253,7 +261,7 @@ fn merge_by_id(
 ) -> Result<usize, String> {
     let mut matched = 0_usize;
     for child in &mut element.children {
-        if child.attribute("id") == Some(id) {
+        if id_of(child) == Some(id) {
             matched = matched.saturating_add(1);
             for (name, value) in &patch.attributes {
                 budget.charge_set(child.attributes.len(), name, value)?;
@@ -305,7 +313,7 @@ fn set_elems<'e>(
     seen: &mut HashSet<&'e str>,
     budget: &mut Budget,
 ) -> Result<(), String> {
-    if let Some(id) = element.attribute("id")
+    if let Some(id) = id_of(element)
         && let Some((key, elems)) = by_id.get_key_value(id)
     {
         seen.insert(*key);

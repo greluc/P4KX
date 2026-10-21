@@ -21,11 +21,29 @@ pub(super) fn show(
     path: &str,
     (preview, support): (&ModelPreview, &ViewerSupport),
 ) -> Option<Camera> {
-    let path_arg = || ("path", FluentValue::from(path.to_owned()));
-    let note = |ui: &mut Ui, colour, text: String| {
-        frames::preview_body().show(ui, |ui| ui.colored_label(colour, text));
-    };
     match preview.status() {
+        ModelStatus::Unshowable(error) => {
+            let (colour, text) = unshowable(texts, path, error);
+            note(ui, colour, text);
+        }
+        ModelStatus::Ready(scene) => {
+            let camera = preview.camera()?;
+            return ready(ui, texts, path, (scene, camera), support);
+        }
+        status => unread(ui, texts, path, status),
+    }
+    None
+}
+
+fn note(ui: &mut Ui, colour: Color32, text: String) {
+    frames::preview_body().show(ui, |ui| ui.colored_label(colour, text));
+}
+
+/// Shows why the model of `path` is not there to show: it is being read, cannot be read, the
+/// Archive changed or the file is too large. A model that was read shows nothing here.
+pub(super) fn unread(ui: &mut Ui, texts: &Texts, path: &str, status: ModelStatus<'_>) {
+    let path_arg = || ("path", FluentValue::from(path.to_owned()));
+    match status {
         ModelStatus::Loading => {
             frames::preview_body().show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -60,16 +78,8 @@ pub(super) fn show(
                 texts.format(ModelText::FileTooLarge, &args),
             );
         }
-        ModelStatus::Unshowable(error) => {
-            let (colour, text) = unshowable(texts, path, error);
-            note(ui, colour, text);
-        }
-        ModelStatus::Ready(scene) => {
-            let camera = preview.camera()?;
-            return ready(ui, texts, path, (scene, camera), support);
-        }
+        ModelStatus::Unshowable(_) | ModelStatus::Ready(_) => {}
     }
-    None
 }
 
 fn unshowable(texts: &Texts, path: &str, error: SceneError) -> (Color32, String) {

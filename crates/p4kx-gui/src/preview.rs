@@ -57,6 +57,8 @@ pub enum PreviewTab {
     Record,
     /// A model shown in the 3D viewer.
     Model,
+    /// The chunks, levels of detail, materials and bones of a model file.
+    ModelInfo,
     /// The Records that refer to the Record selected in the Record tree.
     Incoming,
 }

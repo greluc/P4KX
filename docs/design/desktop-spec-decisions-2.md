@@ -332,4 +332,75 @@ Tag-Pfad ohne Beachtung der Groß-/Kleinschreibung bei jedem Tastendruck auf dem
 (`.list-panel__footer`) nennt „n Tags", bei der Suche „n von m Tags". Weicht der Baum von dem ab,
 was die `TagDatabase` auflistet (Tags ohne Eltern, doppelt aufgelistete, ins Leere zeigende), steht
 darüber ein `.alert-warning` mit der Zahl. Der Tab fügt keine Farbe, Größe oder Form hinzu, bis
-auf die zwei Spaltenbreiten. Geprüft mit Renders in en-GB und de-DE.
+auf die drei Spaltenmaße. Die Tabelle ist eine einzige Tabelle in einer waagerechten Scrollfläche,
+Kopf und Zeilen teilen die Spalten, die Tag-Spalte füllt den Rest, ist aber nie schmaler als
+320 px, und die Legacy-ID ist eine Zahl und steht samt Kopf rechtsbündig. Geprüft mit Renders in en-GB und de-DE.
+
+**D.40 Tab „Info" listet, was eine Modelldatei enthält.** Für ein Modell (`.cgf`, `.cga`, `.skin`,
+`.chr`) steht hinter „Modell" der Tab „Info" (D.1 Tab-Leiste, 44 px). Er erfindet nichts Eigenes,
+sondern folgt der Zusammenfassung des DataForge-Tabs: unter der Pfadzeile (D.14) in einer
+Rollleiste die `.kv-list` mit Knoten, Meshes (der feinsten Stufe), LODs, Geometriedatei,
+Materialbibliothek, Material-IDs, Knochen, Animationen und Chunks (Schlüssel 14,4 / 700 in
+Versalien `color-gray-2-text`, Wert `detail-value-size` / 300 `color-data-fg`, Haarlinie unter
+jeder Zeile), darunter je eine Überschrift im Stil der Panel-Titel (Versalien, 700, Haarlinie) und
+eine Tabelle: „Detailstufen" mit LOD, Vertices, Dreiecken und Meshes, und, nur wenn das Modell
+Chunks nicht gelesen hat, „Nicht gelesene Chunks (n)" mit Datei, Typ, Typ-ID und Verwendung
+(„Bekannt, nicht gelesen" oder „Unbekannt, übersprungen"). Tabellenkopf 36 px mit `surface-input`
+und 2 px `color-primary` darunter, Zeilen 36 px mit Zebra, Hover `control-bg` und Trennlinie, die
+Spalten zu gleichen Teilen. Die Tabelle der Chunks nennt höchstens 200 Zeilen; die Zahl in der
+Überschrift zählt alle. Die Materialbibliothek steht mit ihrem Zustand („objects/ship, 3
+Teilmaterialien", „… (existiert nicht)", „… (nicht lesbar: …)"); die Animationen stehen als Zahl der
+Animationen, die ein Export ohne Zusatz schreibt (additive nicht mitgezählt), und als „Nicht
+gelesen", wenn sie nicht gelesen werden konnten. Alle Texte sind einmal je Modell,
+Sprache, Breite und Skalierung gesetzt und liegen im Frame-Speicher von egui; ein Frame setzt
+nichts neu. Meldungen (liest, nicht lesbar, Archiv geändert, zu groß) stehen anstelle der Liste
+wie im Tab „Modell" (D.35); der Tab zeigt die Liste auch für ein Modell, das der Viewer nicht
+zeichnen kann (Skelett, keine Dreiecke). Wählt man ein weiteres Modell, bleibt der Tab „Info"
+gewählt.
+
+**D.41 „Als GLB exportieren …" in der Vorschau-Leiste und im Menü Export.** Für ein Modell steht
+links von „Kopieren" am rechten Ende der Leiste „Als GLB exportieren …" (`.btn-ghost.btn-xs`, eine
+Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist oder ein Export läuft;
+das Menü Export führt denselben Eintrag nach „Record-Export …". Beide öffnen das breite
+Formular-Modal des Record-Exports (`.krt-modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
+„Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
+`color-gray-2-text` und gliedert sich in Gruppen mit Gruppenüberschrift (D.17, Abstand
+`modal-group-gap`): „Detailstufe" mit einem Radio je Stufe („LOD 0, 12 Dreiecke"), „Materialien"
+mit einem Radio je Modus („Einfache Farben, eine kleine und schnelle Datei" und „Mit Texturen, eine
+größere Datei"), bei „Mit Texturen" darunter die Gruppe „Texturgröße" mit einem Radio je Mip-Stufe
+(„Volle Größe", „1/2 der Kantenlänge, Mip-Stufe 1" bis Stufe 3), und der Checkbox
+„Vertex-Farben schreiben"; für ein Modell mit Animationen folgt die Gruppe „Animationen" mit der
+Checkbox „Die n Animationen des Modells schreiben" (aus, bis man sie wählt); und „Datei" mit dem Pfadfeld (schreibgeschützt, Platzhalter „Keine Datei
+gewählt") und der Schaltfläche „Datei wählen …"; sie öffnet den Speichern-Dialog des Systems mit
+`.glb`-Filter, dem Namen des Modells und dem Ordner des letzten Exports. Liegt die Datei in einer
+Star-Citizen-Installation, steht darunter dasselbe `.alert--danger` wie bei der Extraktion (ADR-0036)
+und die CTA bleibt deaktiviert. Die CTA ist deaktiviert, bis eine Datei gewählt ist. Stufe,
+Materialmodus, Mip-Stufe, Animationen, Vertex-Farben und Ordner werden gemerkt (Einstellungsdatei; ein Modus, den
+diese Version nicht kennt, gilt als „Einfache Farben"); hat das nächste Modell die Stufe nicht,
+steht die feinste gewählt. Die Werte der Info-Zeilen stehen einzeilig in der Wertspalte (Breite des
+Fensters abzüglich Schlüsselspalte, Spaltenabstand und Rollleiste) und enden bei Überlänge mit „…";
+ein Tooltip nennt den ganzen Wert. Namen und Gründe aus dem Archiv erscheinen ohne
+Steuerzeichen.
+
+**D.42 Fortschritt, Zusammenfassung und Fehler des GLB-Exports.** Der Export läuft im
+Hintergrund; sein Fortschrittsfenster hat den Aufbau des Record-Exports (D.17): Titel „Modell wird
+exportiert", beim Lesen den Inline-Spinner (14) mit „… wird gelesen …", beim Schreiben „x von y
+geschrieben, n %" (in Byte-Größen) über dem Fortschrittsbalken, und im Fuß „Abbrechen" (während
+des Abbruchs der Spinner mit „Breche ab …"). Danach steht ein nicht modales Fenster in der breiten
+Form (`.krt-modal`) mit der CTA „Schließen": bei Erfolg „Modell exportiert" mit dem Zielpfad, den
+Zählern (Knoten, Meshes, Materialien, Vertices, Dreiecke, Größe), bei Knochen deren Zahl, in
+`color-warning` den Hinweisen, dass die Materialbibliothek fehlt oder nicht lesbar ist und das
+Standardmaterial gilt, dass Material-IDs oder Bibliothekseinträge ohne Material darauf
+zurückfallen, und in `color-gray-1`, wie viele Submeshes fehlen, weil ihr Material nichts zeichnet; wurden Animationen
+gewählt, steht in `color-gray-1` „Animationen n, Kanäle m", und die aufklappbare Liste „Nicht
+geschriebene Animationen (n)" nennt je Zeile eine additive Animation oder eine Animationsdatei, die
+nicht lesbar war, mit Grund (höchstens 200 Zeilen);
+darunter die aufklappbare Liste „Nicht exportierte Chunks (n)" mit einer Zeile je übersprungenem
+oder unbekanntem Chunk. Die Zahl in der Überschrift zählt alle übersprungenen und unbekannten Chunks, auch wenn
+die Liste nur 200 nennt. Mit Texturen steht davor die aufklappbare Liste „Fehlende Texturen (n)" mit
+Material, Rolle (Diffuse, Normal, Specular), Datei und Grund je Zeile; das Material behält dort seine
+Grundfarbe. Bei Abbruch steht „Export abgebrochen" mit einem Satz in `color-warning`, es wurde keine
+Datei geschrieben und keine Teildatei liegt da. Ein Fehler steht in `color-danger-text` im Fenster
+„Export fehlgeschlagen" und lässt das übrige Fenster bedienbar; fehlt der Archiv-Schlüssel, steht der
+Hinweis in `color-warning` und der Schlüssel-Dialog (ADR-0027) öffnet sich von selbst, ein
+geändertes Archiv ebenso in `color-warning`.

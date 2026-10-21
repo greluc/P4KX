@@ -73,6 +73,39 @@ same in every kind. Every field is always present; one that has no value is `nul
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
 
+### Ordering Builds
+
+`source.build.changeNumber` is the Perforce change number the Build was made from
+(`RequestedP4ChangeNum` of the build manifest). It is a decimal integer written as a string; a
+consumer compares it as a number, never as text.
+
+- **Within a Channel it is monotonic.** Every Build a Channel published has a higher change number
+  than the one before, so a consumer may refuse a catalog whose `changeNumber` is lower than that of
+  the last applied catalog of the same Channel. The same number means the same Build; re-applying it
+  is safe.
+- **HOTFIX** is a Channel of its own and monotonic too. A HOTFIX Build later becomes the LIVE Build
+  unchanged, so HOTFIX and LIVE then share one change number, one `buildId` and one `version`. A
+  HOTFIX Build lies between the LIVE Builds around it, and the LIVE Build that replaces it is the
+  same or higher, so ordering a HOTFIX catalog against a LIVE one by `changeNumber` is also sound
+  as long as equal numbers count as the same Build.
+- **Across Channels it orders the code, not the time of publication.** PTU, EPTU and TECH-PREVIEW
+  Builds come from other branches: a LIVE Build with a lower change number can be published after a
+  PTU Build with a higher one. A consumer keeps one last-applied `changeNumber` per
+  `source.channel` and does not compare numbers of different Channels. A Build promoted to another
+  Channel keeps its number, so it is never rejected there.
+- **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
+  only.
+- **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
+  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
+  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+
+Evidence for the rule is in the pull request that closed krt-profit/p4k-extractor#402: 65 launcher
+log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
+over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
+TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
+claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
+would show as a lower number than the last applied one.
+
 ### Entities
 
 Every entity carries:

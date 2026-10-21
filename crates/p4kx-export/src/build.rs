@@ -4,18 +4,18 @@ use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
 use p4kx_extraction::{
-    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Guid, Record, RecordTree,
+    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, RecordTree,
     TreeBuilder, utc_rfc3339,
 };
 use rayon::prelude::*;
 
 use crate::collected::{Collected, Picked};
-use crate::commodity::{Groups, listed_resources, resource_commodity, resource_type_guid};
+use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
-use crate::guid_text::CatalogGuid;
 use crate::paint::paints;
+use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
 use crate::{
@@ -37,7 +37,8 @@ const RESOURCE_TYPE: &str = "ResourceType";
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
 /// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
 /// tier. A `ResourceType` Record that an ingredient uses and no commodity Record carries
-/// becomes a commodity of its own. Entities are ordered by the
+/// becomes a commodity of its own. A resource group takes its parent from the group that lists it,
+/// a blueprint category only its Record. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON. A selected
 /// Record that cannot be read is left out and listed in
 /// [`CatalogSummary::failures`].
@@ -103,6 +104,8 @@ pub fn build_catalog_from(
             ships: completeness,
             commodities: completeness,
             blueprints: completeness,
+            resource_groups: completeness,
+            blueprint_categories: completeness,
             paints: completeness,
         },
         manufacturers: collected.manufacturers,
@@ -110,6 +113,8 @@ pub fn build_catalog_from(
         ships: collected.ships,
         commodities: collected.commodities,
         blueprints: collected.blueprints,
+        resource_groups: collected.resource_groups,
+        blueprint_categories: collected.blueprint_categories,
         paints: collected.paints,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
@@ -183,33 +188,27 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         Ok(picked)
     }
 
-    /// Returns the `ResourceTypeGroup` that lists each `ResourceType`, the first group in
-    /// Record order winning a `ResourceType` several list, and the groups that cannot be read.
+    /// Returns what the `ResourceTypeGroup` Records list, the first group in Record order winning a
+    /// `ResourceType` or group several list, and the groups that cannot be read.
     fn groups(records: &[Record<'f>]) -> (Groups, Vec<CatalogFailure>) {
-        let listed: Vec<Result<Vec<(Guid, Guid)>, CatalogFailure>> = records
+        let listed: Vec<Result<Option<Listing>, CatalogFailure>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
                 if !record.type_name().is_ok_and(|name| name == GROUP_TYPE) {
-                    return Ok(Vec::new());
+                    return Ok(None);
                 }
                 let tree = trees
                     .build(record)
                     .map_err(|source| CatalogFailure::of(record, &source))?;
-                Ok(listed_resources(&tree)
-                    .into_iter()
-                    .map(|resource| (resource, tree.guid()))
-                    .collect())
+                Ok(Some(listing(&tree)))
             })
             .collect();
         let mut groups = Groups::new();
         let mut failures = Vec::new();
         for result in listed {
             match result {
-                Ok(listed) => {
-                    for (resource, group) in listed {
-                        groups.entry(resource).or_insert(CatalogGuid(group));
-                    }
-                }
+                Ok(Some(listing)) => groups.add(listing),
+                Ok(None) => {}
                 Err(failure) => failures.push(failure),
             }
         }

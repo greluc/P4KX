@@ -22,6 +22,11 @@ pub enum Kind {
     Commodities,
     /// Blueprints: `CraftingBlueprintRecord` Records under `crafting/blueprints/crafting`.
     Blueprints,
+    /// Resource groups: `ResourceTypeGroup` Records under `resourcetypedatabase`.
+    ResourceGroups,
+    /// Blueprint categories: `BlueprintCategoryRecord` Records under
+    /// `crafting/blueprintcategories`.
+    BlueprintCategories,
     /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
     /// the items and ships, so no record-path rule of its own.
     Paints,
@@ -29,12 +34,14 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 8] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
         Self::Commodities,
         Self::Blueprints,
+        Self::ResourceGroups,
+        Self::BlueprintCategories,
         Self::Paints,
     ];
 
@@ -47,6 +54,8 @@ impl Kind {
             Self::Ships => "ships",
             Self::Commodities => "commodities",
             Self::Blueprints => "blueprints",
+            Self::ResourceGroups => "resourceGroups",
+            Self::BlueprintCategories => "blueprintCategories",
             Self::Paints => "paints",
         }
     }
@@ -82,6 +91,14 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprints/crafting/"],
                 type_name: "CraftingBlueprintRecord",
             },
+            Self::ResourceGroups => KindRule {
+                prefixes: &["libs/foundry/records/resourcetypedatabase/"],
+                type_name: "ResourceTypeGroup",
+            },
+            Self::BlueprintCategories => KindRule {
+                prefixes: &["libs/foundry/records/crafting/blueprintcategories/"],
+                type_name: "BlueprintCategoryRecord",
+            },
         }
     }
 
@@ -102,7 +119,9 @@ impl Kind {
             Self::Ships => 2,
             Self::Commodities => 3,
             Self::Blueprints => 4,
-            Self::Paints => 5,
+            Self::ResourceGroups => 5,
+            Self::BlueprintCategories => 6,
+            Self::Paints => 7,
         }
     }
 }

@@ -18,12 +18,14 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 5] = [
+const MINIMUM: [(Kind, usize); 7] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
     (Kind::Commodities, 100),
     (Kind::Blueprints, 1_000),
+    (Kind::ResourceGroups, 15),
+    (Kind::BlueprintCategories, 10),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -113,7 +115,7 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
 
 fn check_unique_guids(catalog: &Value) -> TestResult {
     let mut seen = HashSet::new();
-    for kind in Kind::ALL {
+    for kind in Kind::ALL.into_iter().filter(|kind| *kind != Kind::Paints) {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;
             assert!(seen.insert(guid), "{guid} occurs twice, also in {kind}");
@@ -204,6 +206,8 @@ fn check_links(catalog: &Value) -> TestResult {
         .copied()
         .collect();
     let items = guids(Kind::Items)?;
+    let groups = guids(Kind::ResourceGroups)?;
+    let categories = guids(Kind::BlueprintCategories)?;
     let resources: HashSet<&str> = list(catalog, Kind::Commodities)?
         .iter()
         .filter_map(|e| e["subtypeGuid"].as_str())
@@ -215,7 +219,20 @@ fn check_links(catalog: &Value) -> TestResult {
             }
         }
     }
+    for commodity in list(catalog, Kind::Commodities)? {
+        if let Some(guid) = commodity["typeGuid"].as_str() {
+            assert!(groups.contains(guid), "commodity type {guid}");
+        }
+    }
+    for group in list(catalog, Kind::ResourceGroups)? {
+        if let Some(guid) = group["parentGuid"].as_str() {
+            assert!(groups.contains(guid), "parent group {guid}");
+        }
+    }
     for blueprint in list(catalog, Kind::Blueprints)? {
+        if let Some(guid) = blueprint["categoryGuid"].as_str() {
+            assert!(categories.contains(guid), "blueprint category {guid}");
+        }
         if let Some(guid) = blueprint["producedItemGuid"].as_str() {
             assert!(producible.contains(guid), "produced entity {guid}");
         }

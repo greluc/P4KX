@@ -43,8 +43,12 @@ fn commodity_structures(builder: DataForgeBuilder) -> DataForgeBuilder {
         TestStruct::new("ResourceType")
             .field("displayName", TestType::Locale)
             .field("description", TestType::Locale),
-        TestStruct::new("ResourceTypeGroup").array("resources", TestType::Reference),
+        TestStruct::new("ResourceTypeGroup")
+            .field("displayName", TestType::Locale)
+            .array("groups", TestType::Reference)
+            .array("resources", TestType::Reference),
         TestStruct::new("BlueprintCategoryRecord"),
+        TestStruct::new("BlueprintCategoryDatabaseRecord").array("categories", TestType::Reference),
     ]
     .into_iter()
     .fold(builder, DataForgeBuilder::structure)

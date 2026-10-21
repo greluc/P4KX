@@ -7,9 +7,11 @@ items: 1 written, 0 skipped, complete
 ships: 1 written, 0 skipped, complete
 commodities: 2 written, 0 skipped, complete
 blueprints: 1 written, 0 skipped, complete
+resourceGroups: 0 written, 0 skipped, complete
+blueprintCategories: 0 written, 0 skipped, complete
 paints: 0 written, 0 skipped, complete
 item classes: 1 read, 0 other values, 0 without a Class: line or English description
 paint assignment: 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 vehicle files unreadable
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 3562 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 3690 bytes, 1 Records skipped, 0 failed

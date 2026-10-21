@@ -3,8 +3,8 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
-    DOPPLE, GOLD, GROUP_METAL, GROUP_MINERAL, RESOURCE_COPPER, RESOURCE_EMBER, RESOURCE_GOLD,
-    RESOURCE_IRON,
+    DOPPLE, GOLD, GROUP_ALLOY, GROUP_METAL, GROUP_MINERAL, RESOURCE_COPPER, RESOURCE_EMBER,
+    RESOURCE_GOLD, RESOURCE_IRON,
 };
 
 fn commodity(
@@ -73,12 +73,23 @@ fn resource_type(guid: u128, class: &str) -> TestRecord {
     )
 }
 
-fn group(guid: u128, class: &str, resources: &[u128]) -> TestRecord {
+fn group(guid: u128, class: &str, name: &str, listed: (&[u128], &[u128])) -> TestRecord {
+    let (resources, groups) = listed;
     TestRecord::new(
         guid,
         "ResourceTypeGroup",
         format!("ResourceTypeGroup.{class}"),
         "libs/foundry/records/resourcetypedatabase/resourcetypedatabase.xml",
+    )
+    .value("displayName", TestValue::text(name))
+    .value(
+        "groups",
+        TestValue::Array(
+            groups
+                .iter()
+                .map(|guid| TestValue::Reference(*guid))
+                .collect(),
+        ),
     )
     .value(
         "resources",
@@ -107,8 +118,24 @@ pub(super) fn commodity_records(builder: DataForgeBuilder) -> DataForgeBuilder {
         .record(resource_type(RESOURCE_IRON, "iron"))
         .record(resource_type(RESOURCE_EMBER, "ember"))
         .record(resource_type(RESOURCE_COPPER, "copper"))
-        .record(group(GROUP_METAL, "Metal", &[RESOURCE_GOLD, RESOURCE_IRON]))
-        .record(group(GROUP_MINERAL, "Mineral", &[RESOURCE_EMBER]))
+        .record(group(
+            GROUP_METAL,
+            "Metal",
+            "@items_commodities_type_metal",
+            (&[RESOURCE_GOLD, RESOURCE_IRON], &[GROUP_ALLOY]),
+        ))
+        .record(group(
+            GROUP_MINERAL,
+            "Mineral",
+            "@LOC_PLACEHOLDER",
+            (&[RESOURCE_EMBER], &[]),
+        ))
+        .record(group(
+            GROUP_ALLOY,
+            "Alloy",
+            "@items_commodities_type_alloy",
+            (&[RESOURCE_COPPER], &[]),
+        ))
         .record(commodity(
             GOLD,
             "gold",

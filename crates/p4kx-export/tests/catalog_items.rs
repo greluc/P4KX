@@ -276,6 +276,9 @@ fn every_kind_states_its_completeness() -> TestResult {
             "ships": {"status": "complete"},
             "commodities": {"status": "complete"},
             "blueprints": {"status": "complete"},
+            "resourceGroups": {"status": "complete"},
+            "blueprintCategories": {"status": "complete"},
+            "paints": {"status": "complete"},
         }),
         "complete"
     );

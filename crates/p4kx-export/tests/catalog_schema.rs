@@ -103,6 +103,8 @@ fn minimal_catalog() -> serde_json::Value {
             "ships": {"status": "partial", "filter": "*/spaceships/*"},
             "commodities": {"status": "complete"},
             "blueprints": {"status": "complete"},
+            "resourceGroups": {"status": "complete"},
+            "blueprintCategories": {"status": "partial", "filter": "*/blueprintcategories/*"},
             "paints": {"status": "complete"}
         },
         "manufacturers": [{
@@ -181,6 +183,19 @@ fn minimal_catalog() -> serde_json::Value {
                 }
             ]
         }],
+        "resourceGroups": [{
+            "guid": "b1000000-0000-4000-8000-000000000001",
+            "className": "Metal",
+            "recordPath": "libs/foundry/records/resourcetypedatabase/resourcetypedatabase",
+            "name": {"key": "@items_commodities_type_metal", "en": "Metal", "de": null},
+            "parentGuid": null
+        }],
+        "blueprintCategories": [{
+            "guid": "d1000000-0000-4000-8000-000000000001",
+            "className": "Ammo",
+            "recordPath": "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase",
+            "name": {"key": null, "en": null, "de": null}
+        }],
         "paints": [{
             "guid": "30000000-0000-4000-8000-000000000001",
             "className": "paint_100i_black_orange",
@@ -213,6 +228,27 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
     Ok(())
 }
 
+#[expect(
+    clippy::indexing_slicing,
+    reason = "the minimal catalog holds one entity of every kind"
+)]
+fn unknown_fields_in_every_kind(validator: &jsonschema::Validator, catalog: &serde_json::Value) {
+    for kind in [
+        "manufacturers",
+        "items",
+        "ships",
+        "commodities",
+        "blueprints",
+        "resourceGroups",
+        "blueprintCategories",
+        "paints",
+    ] {
+        let mut unknown = catalog.clone();
+        unknown[kind][0]["extra"] = json!(true);
+        assert!(validator.is_valid(&unknown), "unknown fields in {kind}");
+    }
+}
+
 #[test]
 fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
@@ -227,18 +263,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
     upper_case["manufacturers"][0]["guid"] = json!("CFC0122D-5275-415A-A656-3DCB3346FEB5");
     assert!(!validator.is_valid(&upper_case), "lower-case GUIDs only");
 
-    for kind in [
-        "manufacturers",
-        "items",
-        "ships",
-        "commodities",
-        "blueprints",
-        "paints",
-    ] {
-        let mut unknown = catalog.clone();
-        unknown[kind][0]["extra"] = json!(true);
-        assert!(validator.is_valid(&unknown), "unknown fields in {kind}");
-    }
+    unknown_fields_in_every_kind(&validator, &catalog);
 
     let mut unknown_ingredient = catalog.clone();
     unknown_ingredient["blueprints"][0]["ingredients"][0]["extra"] = json!(true);
@@ -265,6 +290,15 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
     assert!(
         !validator.is_valid(&no_quantity),
         "every field of an ingredient is present"
+    );
+
+    let mut no_parent = catalog.clone();
+    if let Some(group) = no_parent["resourceGroups"][0].as_object_mut() {
+        group.remove("parentGuid");
+    }
+    assert!(
+        !validator.is_valid(&no_parent),
+        "every field of a resource group is present"
     );
 
     let mut missing = catalog;

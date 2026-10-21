@@ -21,7 +21,11 @@ pub(crate) const RESOURCE_EMBER: u128 = 0xb300_0000_0000_4000_8000_0000_0000_000
 pub(crate) const RESOURCE_COPPER: u128 = 0xb400_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const GROUP_METAL: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const GROUP_MINERAL: u128 = 0xc200_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const GROUP_ALLOY: u128 = 0xc300_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const CATEGORY: u128 = 0xd100_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const CATEGORY_ARMOUR: u128 = 0xd200_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const CATEGORY_LEFTOVER: u128 = 0xd300_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const CATEGORY_DATABASE: u128 = 0xd400_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const PRODUCT: u128 = 0xe100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const ORE: u128 = 0xe200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const MISSING: u128 = 0xe300_0000_0000_4000_8000_0000_0000_0003;
@@ -224,14 +228,35 @@ pub(crate) fn database() -> DataForgeBuilder {
         })
 }
 
+fn category(guid: u128, class: &str) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "BlueprintCategoryRecord",
+        format!("BlueprintCategoryRecord.{class}"),
+        "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase.xml",
+    )
+}
+
 fn blueprint_records(builder: DataForgeBuilder) -> DataForgeBuilder {
     builder
-        .record(TestRecord::new(
-            CATEGORY,
-            "BlueprintCategoryRecord",
-            "BlueprintCategoryRecord.Ammo",
-            "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase.xml",
-        ))
+        .record(category(CATEGORY, "Ammo"))
+        .record(category(CATEGORY_ARMOUR, "FPSArmours"))
+        .record(category(CATEGORY_LEFTOVER, "Test_Category"))
+        .record(
+            TestRecord::new(
+                CATEGORY_DATABASE,
+                "BlueprintCategoryDatabaseRecord",
+                "BlueprintCategoryDatabaseRecord.BlueprintCategoryDatabase",
+                "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase.xml",
+            )
+            .value(
+                "categories",
+                TestValue::Array(vec![
+                    TestValue::Reference(CATEGORY),
+                    TestValue::Reference(CATEGORY_ARMOUR),
+                ]),
+            ),
+        )
         .record(prop(PRODUCT, "Magazine"))
         .record(prop(ORE, "Ore"))
         .record(

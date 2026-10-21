@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
-use p4kx_extraction::{Guid, RecordTree, Value, is_placeholder_key};
+use p4kx_extraction::{RecordTree, Value, is_placeholder_key};
 
 use crate::contract::Commodity;
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{class_name, component, element, elements, locale_key, reference};
+use crate::resource_group::Groups;
 use crate::texts::Texts;
 
 /// Returns the GUID of the `ResourceType` Record the default composition of the commodity
@@ -17,21 +16,6 @@ pub(crate) fn resource_type_guid(tree: &RecordTree<'_>) -> Option<CatalogGuid> {
             Value::Struct(entry) => reference(Some(entry), "entry"),
             _ => None,
         })
-}
-
-/// The `ResourceTypeGroup` that directly lists each `ResourceType`, by the GUID of the
-/// `ResourceType`.
-pub(crate) type Groups = HashMap<Guid, CatalogGuid>;
-
-/// Returns the `ResourceType` GUIDs the `resources` of the `ResourceTypeGroup` tree `tree` lists.
-pub(crate) fn listed_resources(tree: &RecordTree<'_>) -> Vec<Guid> {
-    elements(Some(tree.root()), "resources")
-        .iter()
-        .filter_map(|entry| match entry {
-            Value::Reference(entry) if entry.location().is_none() => Some(entry.guid()),
-            _ => None,
-        })
-        .collect()
 }
 
 /// Returns the commodity the Record tree `tree` describes, its texts resolved by `texts`.
@@ -67,7 +51,7 @@ pub(crate) fn commodity<'f>(
         record_path: tree.record_path(),
         name: texts.localised(name),
         description: texts.localised(description),
-        type_guid: subtype.and_then(|subtype| groups.get(&subtype.0).copied()),
+        type_guid: subtype.and_then(|subtype| groups.of_resource(&subtype.0)),
         subtype_guid: subtype,
         display_type: texts.localised(locale_key(purchasable, "displayType")),
     }
@@ -95,7 +79,7 @@ pub(crate) fn resource_commodity<'f>(
         record_path: tree.record_path(),
         name: texts.localised(locale_key(Some(tree.root()), "displayName")),
         description: texts.localised(locale_key(Some(tree.root()), "description")),
-        type_guid: groups.get(&guid).copied(),
+        type_guid: groups.of_resource(&guid),
         subtype_guid: Some(CatalogGuid(guid)),
         display_type: texts.localised(None),
     }

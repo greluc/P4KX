@@ -81,3 +81,37 @@ pub(crate) struct Ingredient<'a> {
     /// The localisation key of the slot name, `null` without one or for a placeholder.
     pub(crate) slot_key: Option<&'a str>,
 }
+
+/// A resource group: a `ResourceTypeGroup` Record under `resourcetypedatabase`, the type the
+/// `typeGuid` of a commodity points at.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ResourceGroup<'a> {
+    /// The GUID of the Record.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name without its type, e.g. `Metal`.
+    pub(crate) class_name: &'a str,
+    /// The record path, without `.xml`.
+    pub(crate) record_path: &'a str,
+    /// The name, from `displayName`; a placeholder key leaves `en` and `de` `null`.
+    pub(crate) name: LocalisedText<'a>,
+    /// The GUID of the group that lists this group in its `groups`, `null` for a top-level group.
+    pub(crate) parent_guid: Option<CatalogGuid>,
+}
+
+/// A blueprint category: a `BlueprintCategoryRecord` Record under `crafting/blueprintcategories`,
+/// the target of the `categoryGuid` of a blueprint.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct BlueprintCategory<'a> {
+    /// The GUID of the Record.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name without its type, e.g. `FPSArmours`.
+    pub(crate) class_name: &'a str,
+    /// The record path, without `.xml`.
+    pub(crate) record_path: &'a str,
+    /// The name; the Record holds no field for one, so the key is `null`.
+    pub(crate) name: LocalisedText<'a>,
+}

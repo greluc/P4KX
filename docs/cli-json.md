@@ -524,6 +524,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
  {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true},
+ {"kind": "resourceGroups", "count": 19, "skipped": 0, "complete": true},
+ {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 0, "complete": true}], "skipped": 1204,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},

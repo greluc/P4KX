@@ -11,7 +11,8 @@ use std::path::Path;
 
 use p4kx_extraction::model::ChunkUsage;
 use p4kx_extraction::{Archive, Entry, GlbOptions, ModelSource, PathIndex};
-use p4kx_testkit::{check_glb, real_archive_key, real_archive_path};
+use p4kx_testkit::gltf::Node;
+use p4kx_testkit::{CheckedGlb, check_glb, real_archive_key, real_archive_path};
 use rayon::prelude::*;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -32,6 +33,9 @@ const KNOWN_MODELS: [&str; 6] = [
     "anvl_carrack_no_colide.vvg",
     "anvl_carrack.cga",
 ];
+const GLADIUS_NODES: usize = 273;
+const GLADIUS_MESHES: usize = 104;
+const GLADIUS_LENGTH: (f32, f32) = (14.0, 24.0);
 const MIN_LONGEST_SIDE: f32 = 0.5;
 const MAX_LONGEST_SIDE: f32 = 1500.0;
 
@@ -87,10 +91,10 @@ fn convert(
 ) -> Result<(), String> {
     let container = container_of(archive, entry).ok_or("neither #ivo nor CrCh")?;
     let source =
-        ModelSource::from_index(index, entry.path()).map_err(|error| format!("{error}"))?;
+        ModelSource::from_index(index, entry.path()).map_err(|error| format!("{error:?}"))?;
     source
         .write_glb(&GlbOptions::default(), out)
-        .map_err(|error| format!("{error}"))?;
+        .map_err(|error| format!("{error:?}"))?;
     let bytes = std::fs::read(out).map_err(|error| error.to_string())?;
     check_glb(&bytes)?;
     let extension = extension_of(entry.path(), SAMPLES.map(|(extension, _)| extension));
@@ -144,6 +148,7 @@ fn models_of_every_extension_export_valid_glb_and_skipped_chunk_types_are_counte
             .entries()
             .iter()
             .filter(|entry| entry.path().to_ascii_lowercase().ends_with(extension))
+            .filter(|entry| extension != ".vvg" || container_of(&archive, entry).is_some())
             .collect();
         let stride = (candidates.len() / count).max(1);
         sample.extend(candidates.into_iter().step_by(stride).take(count));
@@ -190,12 +195,91 @@ fn models_of_every_extension_export_valid_glb_and_skipped_chunk_types_are_counte
     Ok(())
 }
 
+fn world_size(glb: &CheckedGlb) -> [f32; 3] {
+    let mut low = [f32::MAX; 3];
+    let mut high = [f32::MIN; 3];
+    for scene in glb.document.scenes() {
+        for node in scene.nodes() {
+            grow(&node, IDENTITY, &mut low, &mut high);
+        }
+    }
+    std::array::from_fn(|axis| {
+        high.get(axis).copied().unwrap_or(0.0) - low.get(axis).copied().unwrap_or(0.0)
+    })
+}
+
+const IDENTITY: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
+
+fn multiply(left: [[f32; 4]; 4], right: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    std::array::from_fn(|column| {
+        std::array::from_fn(|row| {
+            (0..4)
+                .map(|k| {
+                    left.get(k).and_then(|c| c.get(row)).copied().unwrap_or(0.0)
+                        * right
+                            .get(column)
+                            .and_then(|c| c.get(k))
+                            .copied()
+                            .unwrap_or(0.0)
+                })
+                .sum()
+        })
+    })
+}
+
+fn grow(node: &Node<'_>, parent: [[f32; 4]; 4], low: &mut [f32; 3], high: &mut [f32; 3]) {
+    let world = multiply(parent, node.transform().matrix());
+    if let Some(mesh) = node.mesh() {
+        for primitive in mesh.primitives() {
+            let bounds = primitive.bounding_box();
+            for corner in 0..8_usize {
+                let point: [f32; 4] = std::array::from_fn(|axis| match axis {
+                    0 => pick(corner & 1, bounds.min, bounds.max, 0),
+                    1 => pick(corner & 2, bounds.min, bounds.max, 1),
+                    2 => pick(corner & 4, bounds.min, bounds.max, 2),
+                    _ => 1.0,
+                });
+                for axis in 0..3 {
+                    let value: f32 = (0..4)
+                        .map(|k| {
+                            world
+                                .get(k)
+                                .and_then(|c| c.get(axis))
+                                .copied()
+                                .unwrap_or(0.0)
+                                * point.get(k).copied().unwrap_or(0.0)
+                        })
+                        .sum();
+                    if let (Some(low), Some(high)) = (low.get_mut(axis), high.get_mut(axis)) {
+                        *low = low.min(value);
+                        *high = high.max(value);
+                    }
+                }
+            }
+        }
+    }
+    for child in node.children() {
+        grow(&child, world, low, high);
+    }
+}
+
+fn pick(bit: usize, min: [f32; 3], max: [f32; 3], axis: usize) -> f32 {
+    let source = if bit == 0 { min } else { max };
+    source.get(axis).copied().unwrap_or(0.0)
+}
+
 #[test]
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn known_models_have_plausible_dimensions_in_metres() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let index = PathIndex::new(&archive);
+    let out = tempfile::tempdir()?;
     let mut found = 0_usize;
     for entry in archive.entries() {
         let lower = entry.path().to_ascii_lowercase();
@@ -205,18 +289,9 @@ fn known_models_have_plausible_dimensions_in_metres() -> TestResult {
         let source = ModelSource::from_index(&index, entry.path())?;
         let model = source.model();
         let lod = model.lods.first().ok_or("LOD0")?;
-        let (mut low, mut high) = ([f32::MAX; 3], [f32::MIN; 3]);
-        for position in lod.meshes.iter().flat_map(|mesh| &mesh.positions) {
-            for (axis, value) in position.iter().enumerate() {
-                if let (Some(low), Some(high)) = (low.get_mut(axis), high.get_mut(axis)) {
-                    *low = low.min(*value);
-                    *high = high.max(*value);
-                }
-            }
-        }
-        let size: [f32; 3] = std::array::from_fn(|axis| {
-            high.get(axis).copied().unwrap_or(0.0) - low.get(axis).copied().unwrap_or(0.0)
-        });
+        let glb = out.path().join("known.glb");
+        source.write_glb(&GlbOptions::default(), &glb)?;
+        let size = world_size(&check_glb(&std::fs::read(&glb)?)?);
         let longest = size.into_iter().fold(0.0_f32, f32::max);
         println!(
             "{}: {} nodes, {} meshes, {} vertices, {} triangles, size {size:.2?} m",
@@ -226,6 +301,17 @@ fn known_models_have_plausible_dimensions_in_metres() -> TestResult {
             lod.vertex_count(),
             lod.triangle_count(),
         );
+        if lower.ends_with("aegs_gladius.cga") {
+            assert_eq!(
+                (model.nodes.len(), lod.meshes.len()),
+                (GLADIUS_NODES, GLADIUS_MESHES),
+                "the Gladius hull"
+            );
+            assert!(
+                (GLADIUS_LENGTH.0..=GLADIUS_LENGTH.1).contains(&longest),
+                "the Gladius is {longest} m long"
+            );
+        }
         assert!(
             (MIN_LONGEST_SIDE..=MAX_LONGEST_SIDE).contains(&longest),
             "{}: longest side {longest} m is no plausible size",

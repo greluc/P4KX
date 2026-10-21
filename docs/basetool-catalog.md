@@ -269,6 +269,20 @@ not exist.
 A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more than the number
 says.
 
+On LIVE the 1,087 catalog ships split into 1,048 `spaceship` and 39 `groundVehicle`, none `null`:
+no Record under `entities/spaceships` has a wheel or tread.
+
+**Minimum crew.** The game has none. A survey of the field names of all 1,144 ship Records on LIVE
+finds only `crewSize` (on `VehicleComponentParams` and on `StaticEntityClassData/displayParams`) and
+`crewManifest` (the NPC crew of AI variants, used by `playability`). No field named minimum, seat
+or crew minimum exists, so `crewSize` stays the only crew value.
+
+**Outer dimensions.** No field states the outer size of a ship in metres. The survey finds the
+item-inventory fields `AttachDef/inventoryOccupancyDimensions` and
+`inventoryOccupancyLocalBoundsMin` / `Max` on every ship Record, plus `maxBoundingBoxSize` and
+`hasLocalBounds`. They describe how a ship takes up inventory space, not its hull, and their values
+for ships are not verified, so the catalog exports no dimensions.
+
 #### Playability
 
 The catalog lists every ship and item Record of the Build, among them AI, mission and event
@@ -712,21 +726,22 @@ German texts):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 26,505,107 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 26,132,678 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 25,702,421 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| LIVE | 26,648,375 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 26,271,532 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 25,840,617 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 26,648,377 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 26,695,043 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
-Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
+The ship base fields (#395) added 143,268 bytes on LIVE (0.5 %). Written as `.json.zst` (level 19,
+window log 27, `--exported-at 1`), measured on 2026-10-21 with the ship base fields:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 26,505,107 | 1,700,139 | 15.6 |
-| PTU | 26,132,678 | 1,678,351 | 15.6 |
-| EPTU | 25,702,421 | 1,653,664 | 15.5 |
-| HOTFIX | 26,505,109 | 1,699,663 | 15.6 |
-| TECH-PREVIEW | 26,558,647 | 1,718,856 | 15.5 |
+| LIVE | 26,648,375 | 1,702,931 | 15.6 |
+| PTU | 26,271,532 | 1,681,150 | 15.6 |
+| EPTU | 25,840,617 | 1,656,576 | 15.6 |
+| HOTFIX | 26,648,377 | 1,702,646 | 15.6 |
+| TECH-PREVIEW | 26,695,043 | 1,721,630 | 15.5 |
 
 The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
 1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
@@ -742,9 +757,11 @@ Level 19 stays: 12.7 s is acceptable and it saves 15 % over level 15.
 Of the 26.5 MB of LIVE, the paints take 0.5 MB (the ship lists), the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
 the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
-unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
+unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 5.5 s). Left out as development leftovers on
+A catalog builds in 4 to 7 seconds (LIVE 5.5 s) before the ship base fields; with them LIVE took
+10.5 s in a release test run (the `p4kx ships` export alone: 2.9 s). The scan shares its ship
+readers across the parallel splits to keep their Entity caches; the time is to be re-measured. Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

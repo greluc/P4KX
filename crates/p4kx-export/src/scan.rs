@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_assembly::ArchiveFiles;
@@ -11,7 +12,7 @@ use crate::contract::Blueprint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
-use crate::ship_base::ShipReader;
+use crate::ship_base::{ShipBase, ShipReader};
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
 
@@ -19,16 +20,31 @@ const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
 const RESOURCE_TYPE: &str = "ResourceType";
 
-/// What one worker thread of the scan keeps between Records: the tree builder and the ship
-/// reader, which keeps the shared Entities and containers it has read.
-struct Worker<'f> {
-    trees: TreeBuilder<'f>,
-    ships: ShipReader<'f>,
+/// The ship readers not in use. A reader keeps the shared Entities and containers it has read, so
+/// a reader taken for one ship and given back for the next keeps its caches across the splits of
+/// the parallel scan.
+struct ShipPool<'f> {
+    forge: &'f DataForge<'f>,
+    files: &'f ArchiveFiles<'f>,
+    idle: Mutex<Vec<ShipReader<'f>>>,
+}
+
+impl<'f> ShipPool<'f> {
+    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipBase, CatalogFailure> {
+        let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
+        let mut reader = taken.unwrap_or_else(|| ShipReader::new(self.forge, self.files));
+        let result = reader.read_tree(record, tree);
+        if let Ok(mut idle) = self.idle.lock() {
+            idle.push(reader);
+        }
+        result
+    }
 }
 
 /// The parallel check of every Record, with its progress.
 pub(crate) struct Scan<'o, 'a, 'f> {
     forge: &'f DataForge<'f>,
+    ships: ShipPool<'f>,
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     groups: Groups,
@@ -52,6 +68,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
+            ships: ShipPool {
+                forge,
+                files,
+                idle: Mutex::new(Vec::new()),
+            },
             options,
             texts,
             groups,
@@ -61,13 +82,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         };
         let mut picked: Vec<Picked<'f>> = records
             .par_iter()
-            .map_init(
-                || Worker {
-                    trees: TreeBuilder::new(),
-                    ships: ShipReader::new(forge, files),
-                },
-                |worker, record| scan.check(worker, record),
-            )
+            .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
             .filter_map(Result::transpose)
             .collect::<Result<_, _>>()?;
         picked.extend(
@@ -171,7 +186,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
 
     fn check(
         &self,
-        worker: &mut Worker<'f>,
+        trees: &mut TreeBuilder<'f>,
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, CatalogError> {
         if self.options.cancel.is_some_and(CancelToken::is_cancelled) {
@@ -179,16 +194,15 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         }
         self.tick();
         Ok(self
-            .select(worker, record)
+            .select(trees, record)
             .unwrap_or_else(|source| Some(Picked::Failed(CatalogFailure::of(record, &source)))))
     }
 
     fn select(
         &self,
-        worker: &mut Worker<'f>,
+        trees: &mut TreeBuilder<'f>,
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
-        let trees = &mut worker.trees;
         let path = record.record_path()?;
         let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
             return Ok(None);
@@ -212,7 +226,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             _ => None,
         };
         let ship_base = match kind {
-            Kind::Ships => match worker.ships.read_tree(record, &tree) {
+            Kind::Ships => match self.ships.read(record, &tree) {
                 Ok(base) => Some(base),
                 Err(failure) => return Ok(Some(Picked::Failed(failure))),
             },

@@ -268,3 +268,28 @@ fn survey_the_ship_records_for_minimum_crew_and_outer_dimensions() -> TestResult
     assert!(ships > 0);
     Ok(())
 }
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn list_the_records_under_the_ground_vehicle_folder() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut count = 0_usize;
+    for record in forge.records() {
+        let Ok(path) = record.record_path() else {
+            continue;
+        };
+        if path.contains("/entities/groundvehicles/") {
+            count += 1;
+            print_line(&format!(
+                "{} {}",
+                record.type_name().unwrap_or("?"),
+                record.name().unwrap_or("?")
+            ));
+        }
+    }
+    print_line(&format!("{count} Records under entities/groundvehicles"));
+    assert!(count > 0);
+    Ok(())
+}

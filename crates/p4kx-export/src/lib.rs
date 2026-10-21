@@ -9,7 +9,8 @@
 //! record-path prefix and type in parallel, leaves out development leftovers, resolves names and
 //! descriptions in English and German from the Archive's `global.ini` files, reads the crafting
 //! ingredients of blueprints, reads each item's
-//! [`ItemClass`] from its English description and writes the
+//! [`ItemClass`] from its English description, classifies every ship and item as a
+//! [`Playability`] and writes the
 //! catalog as deterministic UTF-8 JSON. A selected Record that cannot be read is left out and
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
@@ -45,6 +46,8 @@ mod localization_table;
 mod manufacturer;
 mod ndjson;
 mod options;
+mod playability;
+mod playability_rules;
 mod record_export;
 mod record_fields;
 mod record_summary;
@@ -72,6 +75,7 @@ pub use p4kx_extraction::{
     CancelToken, ConflictPolicy, ExtractionError, Filter, Language, LocalizationNote,
     PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TextSet,
 };
+pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};

@@ -7,6 +7,8 @@ use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::manufacturer::manufacturer;
+use crate::playability::PlayabilitySummary;
+use crate::playability_rules::Evidence;
 use crate::ship::ship;
 use crate::texts::Texts;
 use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
@@ -32,13 +34,14 @@ pub(crate) enum Picked<'f> {
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
     /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
-    /// type from `groups`.
+    /// type from `groups`, a ship its playability from `evidence`.
     pub(crate) fn entity(
         kind: Kind,
         tree: &RecordTree<'f>,
         texts: &Texts<'f>,
         resource_type: Option<&RecordTree<'f>>,
         groups: &Groups,
+        evidence: &Evidence,
     ) -> Self {
         match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
@@ -46,7 +49,7 @@ impl<'f> Picked<'f> {
                 let (item, line) = item(tree, texts);
                 Self::Item(item, line)
             }
-            Kind::Ships => Self::Ship(ship(tree, texts)),
+            Kind::Ships => Self::Ship(ship(tree, texts, evidence)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
         }
@@ -62,6 +65,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) commodities: Vec<Commodity<'f>>,
     pub(crate) blueprints: Vec<Blueprint<'f>>,
     pub(crate) item_classes: ItemClassSummary,
+    pub(crate) playability: PlayabilitySummary,
     pub(crate) failures: Vec<CatalogFailure>,
     skipped: [usize; Kind::ALL.len()],
 }
@@ -75,9 +79,13 @@ impl<'f> Collected<'f> {
                 Picked::Manufacturer(entity) => collected.manufacturers.push(entity),
                 Picked::Item(entity, line) => {
                     collected.item_classes.count(line);
+                    collected.playability.items.count(entity.playability);
                     collected.items.push(entity);
                 }
-                Picked::Ship(entity) => collected.ships.push(entity),
+                Picked::Ship(entity) => {
+                    collected.playability.ships.count(entity.playability);
+                    collected.ships.push(entity);
+                }
                 Picked::Commodity(entity) => collected.commodities.push(entity),
                 Picked::Blueprint(entity) => collected.blueprints.push(entity),
                 Picked::Skipped(kind) => {

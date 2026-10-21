@@ -347,6 +347,13 @@
           "$ref": "#/$defs/LocalisedText",
           "description": "The name, from `AttachDef.Localization.Name`."
         },
+        "playability": {
+          "description": "Who the item is for, `null` when no rule applies. Today one of `player`, `mission` and\n`special`; the schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
@@ -391,6 +398,7 @@
         "manufacturerGuid",
         "mass",
         "name",
+        "playability",
         "recordPath",
         "size",
         "subType",
@@ -552,6 +560,13 @@
           "$ref": "#/$defs/LocalisedText",
           "description": "The name, from `vehicleName` of the vehicle parameters."
         },
+        "playability": {
+          "description": "Who the ship is for, `null` when no rule applies. Today one of `player`, `ai`, `mission`\nand `special`; the schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
@@ -576,6 +591,7 @@
         "guid",
         "manufacturerGuid",
         "name",
+        "playability",
         "recordPath",
         "role",
         "vehicleDefinition"

@@ -155,7 +155,7 @@ fn quality_structs() -> Vec<TestStruct> {
             .field("min", TestType::Single)
             .field("max", TestType::Single)
             .field("mean", TestType::Single)
-            .field("stddev", TestType::Single),
+            .field("stddev", TestType::Double),
         TestStruct::new("CraftingQualityLocationOverrideRecord")
             .field("locationOverride", class("CraftingQualityLocationOverride")),
         TestStruct::new("CraftingQualityLocationOverride").array(

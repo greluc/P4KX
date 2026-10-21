@@ -211,10 +211,14 @@ pub struct BlueprintPool<'f> {
 }
 
 impl BlueprintPool<'_> {
-    /// Returns the sum of the weights of the entries.
+    /// Returns the sum of the positive weights of the entries.
     #[must_use]
     pub fn total_weight(&self) -> f32 {
-        self.entries.iter().filter_map(|entry| entry.weight).sum()
+        self.entries
+            .iter()
+            .filter_map(|entry| entry.weight)
+            .filter(|weight| *weight > 0.0)
+            .sum()
     }
 }
 

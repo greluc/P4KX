@@ -110,7 +110,7 @@ pub(crate) fn single(parent: Option<&StructValue<'_>>, name: &str) -> Option<f32
 pub(crate) fn number(parent: Option<&StructValue<'_>>, name: &str) -> Option<f32> {
     match *parent?.field(name)? {
         Value::Single(value) if value.is_finite() => Some(value),
-        Value::Double(value) if value.is_finite() => Some(value as f32),
+        Value::Double(value) => Some(value as f32).filter(|narrowed| narrowed.is_finite()),
         _ => integer(parent, name).map(|value| value as f32),
     }
 }

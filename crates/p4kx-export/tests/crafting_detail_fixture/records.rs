@@ -1,8 +1,8 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
-    BLACKLISTED, CHOOSE_ONE, CONTRACT_ID, CONTRACTS, CRAFTING, DEFAULT_CURVE, DISMANTLE,
-    EMPTY_POOL, GLOBAL, GOLD, OVERRIDE_CURVE, POOL, PROPERTY, PYRO, TWO_TIERS, time,
+    BAD_POOL, BARE, BLACKLISTED, CHOOSE_ONE, CONTRACT_ID, CONTRACTS, CRAFTING, DEFAULT_CURVE,
+    DISMANTLE, EMPTY_POOL, GLOBAL, GOLD, OVERRIDE_CURVE, POOL, PROPERTY, PYRO, TWO_TIERS, time,
 };
 
 pub(super) fn rewards(builder: DataForgeBuilder) -> DataForgeBuilder {
@@ -28,6 +28,18 @@ fn pools(builder: DataForgeBuilder) -> DataForgeBuilder {
             .value(
                 "blueprintRewards",
                 TestValue::Array(vec![entry(TWO_TIERS, 1.0), entry(CHOOSE_ONE, 3.0)]),
+            ),
+        )
+        .record(
+            TestRecord::new(
+                BAD_POOL,
+                "BlueprintPoolRecord",
+                "BlueprintPoolRecord.BP_REWARDS_Bad",
+                format!("{CRAFTING}/blueprintrewards/bp_rewards_bad.xml"),
+            )
+            .value(
+                "blueprintRewards",
+                TestValue::Array(vec![entry(BARE, -2.0), entry(TWO_TIERS, 2.0)]),
             ),
         )
         .record(TestRecord::new(
@@ -74,7 +86,11 @@ fn contracts(builder: DataForgeBuilder) -> DataForgeBuilder {
                                 "Haul_Intro",
                                 vec![reward(0.5, POOL), reward(1.0, EMPTY_POOL)],
                             ),
-                            contract(0, "Haul_Plain", Vec::new()),
+                            contract(
+                                0,
+                                "Haul_Odd",
+                                vec![reward(1.5, BAD_POOL), reward(0.5, BAD_POOL)],
+                            ),
                         ]),
                     ),
             )]),
@@ -82,13 +98,13 @@ fn contracts(builder: DataForgeBuilder) -> DataForgeBuilder {
     )
 }
 
-fn normal(min: f32, mean: f32, stddev: f32) -> TestValue {
+fn normal(min: f32, mean: f32, stddev: f64) -> TestValue {
     TestValue::Struct(
         TestInstance::new("CraftingQualityDistributionNormal")
             .value("min", TestValue::Single(min))
             .value("max", TestValue::Single(1000.0))
             .value("mean", TestValue::Single(mean))
-            .value("stddev", TestValue::Single(stddev)),
+            .value("stddev", TestValue::Double(stddev)),
     )
 }
 
@@ -117,7 +133,7 @@ pub(super) fn quality(builder: DataForgeBuilder) -> DataForgeBuilder {
                     TestValue::Array(vec![TestValue::Struct(
                             TestInstance::new("CraftingQualityLocationOverrideEntry")
                                 .value("location", TestValue::Reference(PYRO))
-                                .value("qualityDistribution", normal(201.0, 295.0, 254.0)),
+                                .value("qualityDistribution", normal(201.0, 295.0, 1.0e300)),
                         )]),
                 )),
             ),

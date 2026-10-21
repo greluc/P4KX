@@ -57,9 +57,10 @@ enum Piece<'f> {
 
 /// Reads the crafting data of `forge`.
 ///
-/// The Records are read in parallel. A `Filter` keeps only the Records whose record path it
-/// matches; the reward sources are then those of the kept pools. A Record that cannot be read
-/// is left out and listed in [`Crafting::failures`].
+/// The Records are read in parallel. A `Filter` keeps only the blueprints and pools whose record
+/// path it matches (the reward sources are then those of the kept pools); the properties,
+/// quality Records, dismantle processes and global parameters are always read. A Record that
+/// cannot be read is left out and listed in [`Crafting::failures`].
 ///
 /// # Errors
 ///
@@ -143,10 +144,14 @@ fn piece<'f>(
     filter: Option<&Filter>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
     let path = record.record_path()?;
-    if !is_crafting_path(path) || filter.is_some_and(|filter| !filter.matches(path)) {
+    if !is_crafting_path(path) {
         return Ok(None);
     }
     let type_name = record.type_name()?;
+    let filterable = selects(&BLUEPRINTS, path, type_name) || selects(&POOLS, path, type_name);
+    if filterable && filter.is_some_and(|filter| !filter.matches(path)) {
+        return Ok(None);
+    }
     if selects(&BLUEPRINTS, path, type_name) {
         if is_leftover(path, record.name()?) {
             return Ok(Some(Piece::Skipped));
@@ -216,8 +221,8 @@ impl<'f> Crafting<'f> {
     /// source times the weight of the blueprint over the sum of the weights of the pool, one
     /// entry per source and pool entry.
     ///
-    /// A source without a chance, a pool without weight and an entry without a blueprint or a
-    /// weight give none.
+    /// A source without a chance or with one outside 0 to 1, a pool without positive weight and
+    /// an entry without a blueprint or with a weight of zero or less give none.
     #[must_use]
     pub fn reward_chances(&self) -> HashMap<Guid, Vec<RewardChance<'f>>> {
         let pools: HashMap<Guid, (&BlueprintPool<'f>, f32)> = self
@@ -230,16 +235,22 @@ impl<'f> Crafting<'f> {
             let (Some(pool_guid), Some(chance)) = (source.pool, source.chance) else {
                 continue;
             };
+            if !(0.0..=1.0).contains(&chance) {
+                continue;
+            }
             let Some((pool, total)) = pools.get(&pool_guid) else {
                 continue;
             };
-            if *total <= 0.0 {
+            if !(*total > 0.0 && total.is_finite()) {
                 continue;
             }
             for entry in &pool.entries {
                 let (Some(blueprint), Some(weight)) = (entry.blueprint, entry.weight) else {
                     continue;
                 };
+                if weight <= 0.0 {
+                    continue;
+                }
                 chances.entry(blueprint).or_default().push(RewardChance {
                     record: source.record,
                     contract_id: source.contract_id,

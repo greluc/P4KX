@@ -170,6 +170,11 @@ fn quality_distributions_keep_their_location_overrides() -> TestResult {
         };
         assert_eq!(entry.location, Some(guid(fixture::PYRO)));
         assert_eq!(
+            entry.distribution.as_ref().map(|c| c.stddev),
+            Some(None),
+            "a double beyond f32 is no number"
+        );
+        assert_eq!(
             entry.distribution.as_ref().map(|c| c.mean),
             Some(Some(295.0))
         );
@@ -186,8 +191,8 @@ fn reward_sources_carry_their_chance_and_the_blueprint_its_share_of_the_pool() -
             .find(|pool| pool.guid == guid(fixture::POOL))
             .ok_or("the pool")?;
         assert_eq!(pool.total_weight(), 4.0);
-        let [first, second] = crafting.reward_sources.as_slice() else {
-            return Err("two reward sources".into());
+        let [first, second, _, _] = crafting.reward_sources.as_slice() else {
+            return Err("four reward sources".into());
         };
         assert_eq!(first.record, guid(fixture::CONTRACTS));
         assert_eq!(first.contract_id, Some(guid(fixture::CONTRACT_ID)));
@@ -199,8 +204,17 @@ fn reward_sources_carry_their_chance_and_the_blueprint_its_share_of_the_pool() -
         assert_eq!(second.pool, Some(guid(fixture::EMPTY_POOL)));
         let chances = crafting.reward_chances();
         let one = chances.get(&guid(fixture::TWO_TIERS)).ok_or("chances")?;
-        assert_eq!(one.len(), 1, "only the pool with entries");
-        assert!((one[0].chance - 0.125).abs() < 1.0e-9, "0.5 x 1 / 4");
+        let values: Vec<f64> = one.iter().map(|chance| chance.chance).collect();
+        assert_eq!(
+            values.len(),
+            2,
+            "the empty pool and the source with chance 1.5 give none: {values:?}"
+        );
+        assert!((values[0] - 0.125).abs() < 1.0e-9, "0.5 x 1 / 4");
+        assert!(
+            (values[1] - 0.5).abs() < 1.0e-9,
+            "the negative weight is left out of the total: 0.5 x 2 / 2"
+        );
         assert_eq!(one[0].contract_name, Some("Haul_Intro"));
         let other = chances.get(&guid(fixture::CHOOSE_ONE)).ok_or("chances")?;
         assert!((other[0].chance - 0.375).abs() < 1.0e-9, "0.5 x 3 / 4");
@@ -245,11 +259,22 @@ fn dismantle_returns_link_the_process_to_the_item_and_blueprint() -> TestResult 
 }
 
 #[test]
-fn a_filter_keeps_only_the_matching_records() -> TestResult {
+fn a_filter_keeps_only_the_matching_blueprints_and_pools_but_all_context() -> TestResult {
     let filter = Filter::new("*/bp_craft_pick");
     read(Some(&filter), |crafting| {
         assert_eq!(crafting.blueprints.len(), 1);
         assert!(crafting.pools.is_empty() && crafting.reward_sources.is_empty());
+        let link = crafting
+            .dismantle_return(&crafting.blueprints[0])
+            .ok_or("a dismantle return")?;
+        assert_eq!(link.process.guid, guid(fixture::DISMANTLE));
+        assert_eq!(crafting.global.default_blueprints.len(), 2, "the globals");
+        assert_eq!(crafting.properties.len(), 1, "the properties");
+        assert_eq!(
+            crafting.quality_distributions.len(),
+            2,
+            "the quality Records"
+        );
         Ok(())
     })
 }

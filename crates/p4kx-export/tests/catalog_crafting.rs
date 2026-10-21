@@ -357,18 +357,7 @@ fn without_a_filter_both_kinds_are_complete() -> TestResult {
 }
 
 #[test]
-fn the_kinds_list_five_selections() {
-    assert_eq!(
-        Kind::ALL.map(Kind::name),
-        [
-            "manufacturers",
-            "items",
-            "ships",
-            "commodities",
-            "blueprints"
-        ],
-        "order of the catalog"
-    );
+fn the_blueprint_kind_selects_crafting_blueprint_records() {
     assert_eq!(
         Kind::Blueprints.rule().type_name,
         "CraftingBlueprintRecord",

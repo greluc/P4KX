@@ -67,6 +67,8 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `ships` | The ships and ground vehicles, ordered by GUID |
 | `commodities` | The commodities, ordered by GUID |
 | `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
+| `resourceGroups` | The groups of resource types, the targets of `typeGuid`, ordered by GUID |
+| `blueprintCategories` | The blueprint categories, the targets of `categoryGuid`, ordered by GUID |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -81,6 +83,8 @@ Every entity carries:
 | `className` | The Record name without its type, e.g. `ACAS` for `SCItemManufacturer.ACAS` |
 | `recordPath` | The record path, without `.xml` |
 | `name`, `description` | `key` (the localisation key), `en` and `de` (the resolved texts), each `null` while unknown |
+
+A resource group and a blueprint category carry `name` and no `description`.
 
 A manufacturer adds `code`, e.g. `ACAS`.
 
@@ -167,6 +171,38 @@ An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `man
 | `quantityUnits` | `quantity` of an item line, otherwise `null` |
 | `minQuality` | `minQuality` |
 | `slot`, `slotKey` | `debugName` and `displayName` of the nearest enclosing selection that has a name; a placeholder `slotKey` is `null` |
+
+A resource group (`ResourceTypeGroup`, 19 on LIVE: Metal, Mineral, Gas, …) is the type of a
+commodity; a commodity's `typeGuid` is the `guid` of the group that lists its `ResourceType`. It
+takes its fields from the Record:
+
+| Field | Source |
+|-------|--------|
+| `className` | The Record name without its type, e.g. `Metal` |
+| `name` | `displayName`, e.g. `@items_commodities_type_metal`; a placeholder key (`@LOC_PLACEHOLDER`, 7 groups on LIVE) leaves `en` and `de` `null`, and the Basetool falls back to `className` |
+| `parentGuid` | The GUID of the group that lists this group in its `groups`, `null` for a top-level group; the first group in Record order wins when several list it |
+
+Groups nest one level on LIVE: Metal lists Alloy and UnrefinedOres, Mineral lists Raw_Minerals,
+Nonmetal lists Halogen, Organic lists Food, ProcessedGoods lists SyntheticMaterials, Vice and
+Bulk_Supplies. A commodity points at the group that lists its `ResourceType` directly, so a
+commodity of Alloy has the child as `typeGuid`, not Metal. `description`, the thumbnail paths and
+the lists `resources` and `groups` are not exported: the descriptions are game texts, the paths are
+media, and the membership is `typeGuid` of the commodities. All groups share one `recordPath`, the
+Record file `resourcetypedatabase`; `className` and `guid` tell them apart.
+
+A blueprint category (`BlueprintCategoryRecord`, 21 on LIVE) is the target of the `categoryGuid` of
+a blueprint. The Record holds no field at all, so the category has `guid`, `className` (e.g.
+`FPSArmours`, `VehicleComponentS2`), `recordPath` and a `name` without a key, which stays `null`
+until the game adds one; the game localises no category. Categories do not nest: the Record has no
+parent, and the `BlueprintCategoryDatabaseRecord` beside them only lists them. Some categories
+carry no blueprint on LIVE (`FuseBattery`, `Medical`, `Utility`, and the examples `Example1`,
+`Example2`, `DismantleExample1` and `RefiningExample1`); they stay, as the kind is complete by
+Record.
+
+Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves to a `guid` of
+`resourceGroups` or `blueprintCategories` (checked against LIVE; a commodity without a
+`ResourceType` or group, 1 on LIVE, and a blueprint without a category have `null`). With a
+`--filter`, a kind is partial and the references need not resolve.
 
 Not represented:
 
@@ -272,6 +308,12 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
 | `commodities` | `libs/foundry/records/entities/commodities/` | `EntityClassDefinition` |
 | `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
+| `resourceGroups` | `libs/foundry/records/resourcetypedatabase/` | `ResourceTypeGroup` |
+| `blueprintCategories` | `libs/foundry/records/crafting/blueprintcategories/` | `BlueprintCategoryRecord` |
+
+The resource-group prefix also holds the 207 `ResourceType` Records and the `ResourceTypeDatabase`
+Record of LIVE, and the category prefix a `BlueprintCategoryDatabaseRecord`; the type selects only
+the groups and the categories.
 
 The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record is no recipe. The
 `$templates` folders below it hold 27 real blueprints, each the only recipe for its item, and
@@ -314,16 +356,16 @@ catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of
 limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
 print the size (`catalog size: … bytes`).
 
-Measured on 2026-10-19 with every installed Channel (complete catalog of every kind, English and
+Measured on 2026-10-21 with every installed Channel (complete catalog of every kind, English and
 German texts):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|
-| LIVE | 21,052,438 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| PTU | 20,727,734 | 1,172 | 22,945 | 1,054 | 145 | 1,618 |
-| EPTU | 20,339,175 | 1,154 | 22,788 | 1,049 | 145 | 1,607 |
-| HOTFIX | 21,052,440 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| TECH-PREVIEW | 21,112,018 | 1,203 | 23,635 | 1,035 | 145 | 1,618 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|
+| LIVE | 21,061,805 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| PTU | 20,737,101 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
+| EPTU | 20,348,542 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
+| HOTFIX | 21,061,807 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| TECH-PREVIEW | 21,121,385 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
 
 A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
 1,145 items and 57 ships (1,204 Records).
@@ -346,6 +388,9 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
   decision.
 - Every `manufacturerGuid` of an item or ship, every `producedItemGuid`, every ingredient
   `resourceGuid` and `itemGuid` resolves to a catalog entry; no GUID occurs twice.
+- Every commodity `typeGuid` resolves to a `resourceGroups` entry, every `parentGuid` of a group to
+  another one, and every blueprint `categoryGuid` to a `blueprintCategories` entry. On LIVE the
+  catalog holds 19 groups (8 of them nested) and 21 categories, 14 of which carry blueprints.
 - Texts that carry a key (placeholder keys excluded), LIVE: English 27,751 of 27,889 resolve
   (99.5 %), German 15,819 (56.7 %). The German file lacks a text for about 11,250 of 23,180 item
   texts, so German `null` is common for items and the Basetool falls back to `en`; per kind:

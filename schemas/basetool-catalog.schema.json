@@ -74,6 +74,34 @@
       ],
       "type": "object"
     },
+    "BlueprintCategory": {
+      "description": "A blueprint category: a `BlueprintCategoryRecord` Record under `crafting/blueprintcategories`,\nthe target of the `categoryGuid` of a blueprint.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `FPSArmours`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name; the Record holds no field for one, so the key is `null`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "name",
+        "recordPath"
+      ],
+      "type": "object"
+    },
     "BuildSource": {
       "description": "The Build of the Archive.",
       "properties": {
@@ -177,6 +205,10 @@
     "Completeness": {
       "description": "The completeness of every kind.",
       "properties": {
+        "blueprintCategories": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `blueprintCategories`."
+        },
         "blueprints": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `blueprints`."
@@ -193,16 +225,22 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "resourceGroups": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `resourceGroups`."
+        },
         "ships": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `ships`."
         }
       },
       "required": [
+        "blueprintCategories",
         "blueprints",
         "commodities",
         "items",
         "manufacturers",
+        "resourceGroups",
         "ships"
       ],
       "type": "object"
@@ -509,6 +547,46 @@
       ],
       "type": "object"
     },
+    "ResourceGroup": {
+      "description": "A resource group: a `ResourceTypeGroup` Record under `resourcetypedatabase`, the type the\n`typeGuid` of a commodity points at.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Metal`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `displayName`; a placeholder key leaves `en` and `de` `null`."
+        },
+        "parentGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the group that lists this group in its `groups`, `null` for a top-level group."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "name",
+        "parentGuid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
     "Ship": {
       "description": "A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or\n`entities/groundvehicles`.",
       "properties": {
@@ -639,6 +717,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "The Basetool catalog: the game data the basetool's P4K import reads.",
   "properties": {
+    "blueprintCategories": {
+      "description": "The blueprint categories, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/BlueprintCategory"
+      },
+      "type": "array"
+    },
     "blueprints": {
       "description": "The blueprints, ordered by GUID.",
       "items": {
@@ -671,6 +756,13 @@
       },
       "type": "array"
     },
+    "resourceGroups": {
+      "description": "The resource groups, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ResourceGroup"
+      },
+      "type": "array"
+    },
     "schemaVersion": {
       "const": 1,
       "description": "The version of the catalog shape; an import rejects a version it does not know.",
@@ -691,11 +783,13 @@
     }
   },
   "required": [
+    "blueprintCategories",
     "blueprints",
     "commodities",
     "completeness",
     "items",
     "manufacturers",
+    "resourceGroups",
     "schemaVersion",
     "ships",
     "source"

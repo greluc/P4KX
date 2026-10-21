@@ -749,8 +749,10 @@ kind, English and German texts); the other kinds are unchanged by it:
 
 LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
 for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
-unresolved attachments; 61 attached Entities have no entry in `items` or `ships` (templates of
-doors, screens, beds and the like, and HUD projectors); 193 loadouts list an issue.
+unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
+Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and
+HUD projectors); 193 loadouts list an issue (`unknown_class` 153, `dangling_reference` 30,
+`xml_loadout` 4, `cycle` 3, `vehicle_implementation` 3; a loadout can list several).
 
 Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
 

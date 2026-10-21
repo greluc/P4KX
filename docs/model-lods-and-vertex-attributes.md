@@ -1,8 +1,8 @@
 # Levels of detail, tangents, vertex colours and the node chain
 
 What the reader of `p4kx-model` assumes about these four, and what the real Archives say about it.
-The tests are `crates/p4kx-extraction/tests/real_archive_model_lods.rs` and
-`real_archive_vertex_attributes.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`, and with
+The tests are `crates/p4kx-extraction/tests/real_archive/model_lods.rs` and
+`real_archive/vertex_attributes.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`, and with
 `P4KX_DATA_P4K_B` for a second Archive; both pass on LIVE and PTU). Surveyed on 2026-10-20.
 
 ## Levels of detail
@@ -61,7 +61,7 @@ names and counted the files that are mostly red or mostly blue under the BGRA re
 red and 20 blue, `orange` 84 and 4, `yellow` 52 and 4. The most frequent colours of the orange
 files are orange (164, 104, 70) and red (137, 0, 0). Read as RGBA, the same files would turn out
 the other way round. The test `models_named_after_a_colour_have_it_under_the_bgra_order` of
-`real_archive_vertex_colours.rs` asserts it on whole words of the file names (LIVE: `blue` 16 and
+`real_archive/vertex_colours.rs` asserts it on whole words of the file names (LIVE: `blue` 16 and
 105, `red` 120 and 38, `orange` 84 and 4, `yellow` 56 and 4). A reader that finds the order wrong swaps one
 function.
 

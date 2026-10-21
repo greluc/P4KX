@@ -2,7 +2,7 @@
 
 What the reader of `p4kx-model` assumes about the bones of a model and the weights of its
 vertices, and what the real Archives say about it. The tests are
-`crates/p4kx-extraction/tests/real_archive_skeletons.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
+`crates/p4kx-extraction/tests/real_archive/skeletons/` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
 no entry involved is encrypted, so they need no Archive key; they pass on LIVE and PTU). Surveyed on
 2026-10-20.
 

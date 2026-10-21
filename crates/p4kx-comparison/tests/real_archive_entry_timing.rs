@@ -4,13 +4,14 @@
 //! This binary holds this one test only, so that no other test of the suite competes for the
 //! cores while it measures.
 
-mod real_pair;
-
 use std::error::Error;
 use std::time::{Duration, Instant};
 
 use p4kx_comparison::{Archive, CompareOptions, Levels, compare};
 use real_pair::{open_pair, schema_violations};
+
+#[path = "real_archive/real_pair/mod.rs"]
+mod real_pair;
 
 type TestResult = Result<(), Box<dyn Error>>;
 

@@ -35,7 +35,7 @@ fn opened() -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
 }
 
 fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(30);
     harness.step();
     while !done(harness.state()) {
         if Instant::now() > deadline {

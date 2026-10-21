@@ -7,7 +7,7 @@ dequantises with the second box for `.cgf` and `.cga` and with the first for `.s
 
 ## Where the boxes differ
 
-`crates/p4kx-extraction/tests/real_archive_dequantisation_boxes.rs` reads every `.cgfm` and
+`crates/p4kx-extraction/tests/real_archive/dequantisation_boxes/` reads every `.cgfm` and
 `.cgam` companion. Only static models are quantised: all 20,131 `.skinm` meshes store float
 positions (20-byte vertices) and no `.chrm` mesh is quantised, so for skins and characters no
 position is dequantised and the box does not matter on this data; the rule of Cryengine-Converter

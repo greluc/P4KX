@@ -1,9 +1,9 @@
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::ItemClass;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
+use crate::{ItemClass, Playability};
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -45,6 +45,10 @@ pub(crate) struct Item<'a> {
     #[serde(rename = "itemClass")]
     #[schemars(with = "Option<String>")]
     pub(crate) class: Option<ItemClass>,
+    /// Who the item is for, `null` when no rule applies. Today one of `player`, `mission` and
+    /// `special`; the schema keeps a string, as a new value is additive.
+    #[schemars(with = "Option<String>")]
+    pub(crate) playability: Option<Playability>,
 }
 
 /// A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or
@@ -75,4 +79,8 @@ pub(crate) struct Ship<'a> {
     pub(crate) manufacturer_guid: Option<CatalogGuid>,
     /// The path of the vehicle definition XML, `null` without one.
     pub(crate) vehicle_definition: Option<&'a str>,
+    /// Who the ship is for, `null` when no rule applies. Today one of `player`, `ai`, `mission`
+    /// and `special`; the schema keeps a string, as a new value is additive.
+    #[schemars(with = "Option<String>")]
+    pub(crate) playability: Option<Playability>,
 }

@@ -1,14 +1,16 @@
 use p4kx_chunks::{ChunkFile, ChunkType, ivo};
 
+use crate::bone_map::check_joints;
 use crate::material::material_library;
 use crate::mesh::split_by_node;
 use crate::model::MESH_TYPES;
 use crate::mtl_load::load;
 use crate::nmc::read_nodes;
+use crate::skeleton::{read_bones, read_compact_bones};
 use crate::skin::read_skin;
 use crate::{
-    ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection, MaterialStatus,
-    Mesh, Model, ModelChunk, ModelError, ModelFile, Node, Transform,
+    Bone, ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection,
+    MaterialStatus, Mesh, Model, ModelChunk, ModelError, ModelFile, Node, Transform,
 };
 
 const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
@@ -16,6 +18,34 @@ const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
 const MAX_LOD: u32 = 15;
 
 type Companion = (String, ChunkFile<Vec<u8>>);
+
+/// What the meshes of a model are checked against: its node and bone counts.
+#[derive(Debug, Clone, Copy)]
+struct Rig<'a> {
+    nodes: Option<usize>,
+    bones: &'a [Bone],
+}
+
+fn read_skeleton<B: AsRef<[u8]>>(
+    name: &str,
+    file: &ChunkFile<B>,
+    read: &mut Vec<(ModelFile, usize)>,
+) -> Result<Vec<Bone>, ModelError> {
+    let Some((index, chunk)) = [ivo::COMPILED_BONES_2, ivo::COMPILED_BONES]
+        .into_iter()
+        .find_map(|chunk_type| file.chunks_of(chunk_type).next())
+    else {
+        return Ok(Vec::new());
+    };
+    read.push((ModelFile::Model, index));
+    let data = file.chunk_data(index).unwrap_or_default();
+    let (chunk_name, bones) = if chunk.chunk_type() == ivo::COMPILED_BONES_2 {
+        ("CompiledBones2", read_bones(data))
+    } else {
+        ("CompiledBones", read_compact_bones(data))
+    };
+    bones.map_err(corrupt(name, index, chunk_name))
+}
 
 pub(crate) fn build<B: AsRef<[u8]>>(
     name: &str,
@@ -34,7 +64,11 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         None => None,
     }
     .filter(|nodes| !nodes.is_empty());
-    let node_count = nodes.as_ref().map(Vec::len);
+    let bones = read_skeleton(name, file, &mut read)?;
+    let rig = Rig {
+        nodes: nodes.as_ref().map(Vec::len),
+        bones: &bones,
+    };
     let material = first_of(file, &MATERIAL_TYPES).map(|index| {
         read.push((ModelFile::Model, index));
         material_library(file.chunk_data(index).unwrap_or_default())
@@ -44,7 +78,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         lods,
         base_name,
         chunks: companion_chunks,
-    } = read_geometry(name, file, companions, selection, node_count, &mut read)?;
+    } = read_geometry(name, file, companions, selection, rig, &mut read)?;
 
     let mut chunks = usage(file, ModelFile::Model, &read);
     chunks.extend(companion_chunks);
@@ -61,7 +95,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         lods,
         material_library,
         materials,
-        bones: Vec::new(),
+        bones,
         chunks,
     })
 }
@@ -79,7 +113,7 @@ fn read_geometry<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
-    node_count: Option<usize>,
+    rig: Rig<'_>,
     read: &mut Vec<(ModelFile, usize)>,
 ) -> Result<Geometry, ModelError> {
     let own_mesh = first_of(file, &MESH_TYPES);
@@ -97,7 +131,7 @@ fn read_geometry<B: AsRef<[u8]>>(
             file,
             base.as_ref(),
             own_mesh,
-            node_count,
+            rig,
             read,
         )?);
     }
@@ -110,7 +144,7 @@ fn read_geometry<B: AsRef<[u8]>>(
             name,
             companions,
             selection,
-            node_count,
+            rig,
             &mut lods,
             &mut chunks,
             read,
@@ -137,7 +171,7 @@ fn read_base_lod<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     base: Option<&Companion>,
     own_mesh: Option<usize>,
-    node_count: Option<usize>,
+    rig: Rig<'_>,
     read: &mut Vec<(ModelFile, usize)>,
 ) -> Result<Lod, ModelError> {
     let meshes = match (base, own_mesh) {
@@ -150,38 +184,60 @@ fn read_base_lod<B: AsRef<[u8]>>(
                 companion_name,
                 index,
                 companion.chunk_data(index),
-                node_count,
+                rig.nodes,
+                Some(rig.bones.len()),
             )?
         }
         (None, Some(index)) => {
             read.push((ModelFile::Model, index));
-            read_meshes(name, index, file.chunk_data(index), node_count)?
+            let data = file.chunk_data(index);
+            read_meshes(name, index, data, rig.nodes, Some(rig.bones.len()))?
         }
         (None, None) => Vec::new(),
     };
-    Ok(Lod { level: 0, meshes })
+    Ok(Lod {
+        level: 0,
+        meshes,
+        bones: None,
+    })
 }
 
-/// Returns the file name of the geometry companion of level of detail `level` of the model
-/// `name`: `<stem>_lod<level>.<extension>m`.
-fn lod_companion_name(name: &str, level: u32) -> String {
+/// Returns the file name of the model file of level of detail `level` of the model `name`:
+/// `<stem>_lod<level>.<extension>`.
+fn lod_file_name(name: &str, level: u32) -> String {
     match name.rsplit_once('.') {
-        Some((stem, extension)) => format!("{stem}_lod{level}.{extension}m"),
-        None => format!("{name}_lod{level}m"),
+        Some((stem, extension)) => format!("{stem}_lod{level}.{extension}"),
+        None => format!("{name}_lod{level}"),
     }
+}
+
+/// Reads the skeleton of the model file of `level`, which a skinned level's bone indices refer
+/// to; `None` when the file is missing, holds no skeleton or the one `base` already is.
+fn level_skeleton(
+    name: &str,
+    level: u32,
+    base: &[Bone],
+    companions: &mut dyn CompanionResolver,
+) -> Result<Option<Vec<Bone>>, ModelError> {
+    let file_name = lod_file_name(name, level);
+    let Some(file) = fetch(companions, &file_name)? else {
+        return Ok(None);
+    };
+    let bones = read_skeleton(&file_name, &file, &mut Vec::new())?;
+    Ok((!bones.is_empty() && bones != base).then_some(bones))
 }
 
 fn read_lod_companions(
     name: &str,
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
-    nodes: Option<usize>,
+    rig: Rig<'_>,
     lods: &mut Vec<Lod>,
     chunks: &mut Vec<ModelChunk>,
     read: &mut Vec<(ModelFile, usize)>,
 ) -> Result<(), ModelError> {
     for level in (1..=MAX_LOD).filter(|&level| selection.wants(level)) {
-        let companion_name = lod_companion_name(name, level);
+        let companion_name = format!("{}m", lod_file_name(name, level));
         let Some(companion) = fetch(companions, &companion_name)? else {
             continue;
         };
@@ -189,8 +245,25 @@ fn read_lod_companions(
             file: companion_name.clone(),
         })?;
         read.push((ModelFile::LodGeometry(level), index));
-        let meshes = read_meshes(&companion_name, index, companion.chunk_data(index), nodes)?;
-        lods.push(Lod { level, meshes });
+        let meshes = read_meshes(
+            &companion_name,
+            index,
+            companion.chunk_data(index),
+            rig.nodes,
+            None,
+        )?;
+        let bones = if meshes.iter().any(|mesh| mesh.influences.is_some()) {
+            level_skeleton(name, level, rig.bones, companions)?
+        } else {
+            None
+        };
+        let count = bones.as_ref().map_or(rig.bones.len(), Vec::len);
+        check_joints(&meshes, count).map_err(corrupt(&companion_name, index, "Skin"))?;
+        lods.push(Lod {
+            level,
+            meshes,
+            bones,
+        });
         chunks.extend(usage(&companion, ModelFile::LodGeometry(level), read));
     }
     Ok(())
@@ -221,10 +294,15 @@ fn read_meshes(
     index: usize,
     data: Option<&[u8]>,
     nodes: Option<usize>,
+    bones: Option<usize>,
 ) -> Result<Vec<Mesh>, ModelError> {
     let corrupt = corrupt(file, index, "Skin");
     let skin = read_skin(data.unwrap_or_default()).map_err(&corrupt)?;
-    split_by_node(&skin, nodes).map_err(&corrupt)
+    let meshes = split_by_node(&skin, nodes).map_err(&corrupt)?;
+    if let Some(bones) = bones {
+        check_joints(&meshes, bones).map_err(&corrupt)?;
+    }
+    Ok(meshes)
 }
 
 fn fetch(
@@ -252,7 +330,7 @@ fn first_of<B: AsRef<[u8]>>(file: &ChunkFile<B>, types: &[ChunkType]) -> Option<
         .map(|(index, _)| index)
 }
 
-fn usage<B: AsRef<[u8]>>(
+pub(crate) fn usage<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     which: ModelFile,
     read: &[(ModelFile, usize)],
@@ -279,7 +357,7 @@ fn usage<B: AsRef<[u8]>>(
         .collect()
 }
 
-fn root_node(name: &str) -> Node {
+pub(crate) fn root_node(name: &str) -> Node {
     let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
     Node {
         name: stem.to_owned(),
@@ -288,7 +366,7 @@ fn root_node(name: &str) -> Node {
     }
 }
 
-fn corrupt(
+pub(crate) fn corrupt(
     file: &str,
     index: usize,
     chunk: &'static str,

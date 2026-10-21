@@ -4,7 +4,16 @@ Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. S
 [docs/ROADMAP.md](docs/ROADMAP.md) for the plan, [CONTEXT.md](CONTEXT.md) for the terms and
 [docs/user-help.md](docs/user-help.md) for using the window.
 
-This is an unofficial fan tool, not affiliated with Cloud Imperium Games.
+P4K-Extractor is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium
+group of companies and not endorsed by it. It ships no game data and reads only your own Star
+Citizen installation. You are responsible for complying with the Star Citizen End User Licence
+Agreement (EULA) and Terms of Service when you use it.
+
+All content not authored by the P4K-Extractor contributors or its users is the property of its
+respective owners. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered
+trademarks of Cloud Imperium Rights LLC.
+
+Copyright (c) 2026 KRT and the P4K-Extractor contributors
 
 ## Status
 
@@ -133,6 +142,12 @@ Early development (milestone M1). Available today:
   [docs/cli-json.md](docs/cli-json.md). A streamed WEM is located as its loose WEM Entry, and
   localised sounds are resolved for `--lang <language>` with `--fallback-lang` (`English(US)` by
   default), e.g. `WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem`.
+- `p4kx wwise events <archive> [--search <text>]` searches the audio triggers and the Wwise events
+  they post by name (a substring or a glob such as `Play_*_Spool`, ignoring case) and lists each
+  trigger with its events, their soundbanks and the Entities that name it, in definition order;
+  `--limit` and `--offset` page through large results, `--entities` bounds the Entities listed
+  per trigger, `--no-entities` skips the DataForge, and `--json` gives the shape in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
@@ -249,22 +264,32 @@ Early development (milestone M1). Available today:
   PNG: shapes with solid, gradient and bitmap fills (external images included) and strokes, with
   the transforms, colour transforms and masks of their placements, and morph shapes at their
   ratio. `--size` with both sides fits the stage centred into them, with one side keeps its
-  aspect ratio; the default is the stage size. Texts, buttons and videos are skipped, filters and
-  blend modes are not applied, and every element left out is listed (exit code 1). A movie is
+  aspect ratio; the default is the stage size. Static texts and text fields are drawn from the glyph
+  outlines of the fonts of the movie, with their size, colour and alignment; a character whose font
+  or glyph is missing is drawn as an empty box and listed, since no system font is used. Buttons and
+  videos are skipped, filters and blend modes are not applied, and every element left out is listed
+  (exit code 1). A movie is
   untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
   bounded, and what lies beyond a limit is listed instead of drawn.
+- `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
+  parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
+  A key the language does not hold is drawn as it is and listed.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
   same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
   same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
-  bitmap tiles it. A document is at most 1 GiB; a larger one is an error and no file is left.
+  bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
+  a larger one is an error and no file is left.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
   `p4kx chf from-json <file> --out <file>` writes the JSON back as a CHF file: unchanged, it
-  gives the original file byte for byte; edited, a new file with a correct CRC-32C. A file with
+  gives the original file byte for byte; edited, a new file with a correct CRC-32C. The tool never
+  writes into a Star Citizen installation, and that includes the `user` folder of a Channel, so
+  `--out` cannot be `LIVE\user\client\0\CustomCharacters` (exit code 2): write the file elsewhere
+  and copy it in by hand. A file with
   a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
   (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
   [docs/cli-json.md](docs/cli-json.md#the-chf-json).
@@ -282,12 +307,14 @@ Early development (milestone M1). Available today:
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
   chunk's bytes unchanged. Both also take a chunk file on disk.
-- `p4kx model info <archive> <entry>` shows a static `#ivo` model (`.cgf` with its geometry
-  companion `.cgfm`): its nodes with their hierarchy, its LODs and meshes with vertex and triangle
-  counts, the material library and material IDs, its bones and every chunk with whether it was
-  read, skipped or unknown, and the materials of its `.mtl` file;
-  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours]` writes
-  it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
+- `p4kx model info <archive> <entry>` shows an `#ivo` model (`.cgf` or `.skin` with its geometry
+  companion `.cgfm` or `.skinm`, or a skeleton file `.chr`): its nodes with their hierarchy, its
+  LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones
+  with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
+  the materials of its `.mtl` file;
+  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
+  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
@@ -295,7 +322,14 @@ Early development (milestone M1). Available today:
   material with base colour, opacity, roughness, metalness and emissive colour and no textures;
   submeshes whose material draws nothing (collision and helper geometry) are left out, and a
   missing or unreadable `.mtl` file is reported while the model exports with a grey default
-  material. Both also take a model file on disk with its companions next to it.
+  material. `--materials textures` also embeds the textures of the materials as PNG images: the
+  diffuse map as base colour, the normal map (green flipped to glTF's up, the blue channel
+  reconstructed), a metallic-roughness image from the normal map's smoothness and the specular
+  map, shared images once; `--texture-mip` picks the mip level, 0 (the largest) by default. A
+  texture that is missing or cannot be decoded leaves the plain colour and is listed. A skin
+  (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to eight bones per
+  vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes. Both also take a
+  model file on disk with its companions next to it, which has no textures to read.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails
@@ -319,7 +353,7 @@ Early development (milestone M1). Available today:
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
 | 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit); `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a target or output inside a Star Citizen installation (the tool never writes there), a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
 | 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |
@@ -332,7 +366,12 @@ Early development (milestone M1). Available today:
 `p4kx-mcp` is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server over
 stdio, so an AI client can look into the Archives. It is built with the official Rust MCP SDK
 (`rmcp`) and speaks every protocol version the SDK negotiates, up to `2026-07-28`. Its tools never
-write a file:
+write a file.
+
+What the tools return is the content of the Star Citizen Archive. The AI client may forward it to
+third parties, for example the cloud model provider behind the client. Game texts and media must
+not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
+Service.
 
 | Tool | Result |
 |------|--------|

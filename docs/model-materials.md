@@ -81,8 +81,118 @@ not load.
 `HardSurface` and `LayerBlend_V2` (23,770 and 46,806 materials) take their colour from `MatLayers`
 and the tint palette, so their plain colour is the white `Diffuse`; tints are #127.
 
-## Not examined
+## Textured materials
 
-The normal maps (`TexSlot2`, `_ddna`, with the gloss in alpha) are not read here, so whether the
-engine's tangent frame needs a green-channel flip in glTF stays open for textured materials
-(#105).
+Surveyed on 2026-10-20 over LIVE: 36,786 distinct texture files in the `.mtl` files, none of them
+encrypted (like the models, the `.mtl` files and every `.dds` Entry), so no Archive key is needed
+to read them. The tests are `crates/p4kx-extraction/tests/real_archive_textured_materials.rs`
+(`#[ignore]`d) and the API tests of `p4kx-gltf` and the CLI tests `model_textures.rs`.
+
+### Which file is which
+
+A texture's `File` is a source image (`Objects/…/plate_diff.tif`); the Archive holds the `.dds`
+of that name, split into parts and with an alpha tail. The loader is given `Objects/…/plate_diff.dds` below `Data`, found ignoring case and the kind of
+separator through the path index. A path that is empty, absolute, drive-qualified or has an empty,
+`.` or `..` component, or a control character, never reaches the loader and is listed; the engine
+placeholders (`$RenderToTexture`, `$TintPaletteDecal`) are no files and are skipped silently.
+
+The slot says little by itself (`TexSlot1` is the diffuse map of `Illum`, `HardSurface`, `Layer`,
+`MeshDecal` and `Decal`, but the blend mask of `Organic`; `TexSlot2` and `TexSlot3` hold the
+normal map of the shader families that use layers), so the role comes from the slot and the last
+`_` part of the file name together:
+
+| role | slot | name ends in | LIVE (largest classes) |
+| --- | --- | --- | --- |
+| diffuse | `TexSlot1` | anything but `ao`, `blend`, `mask`, `opac`, `id`, `scalp`, `dir`, `dirm`, `hal`, `wear`, `displ`, `disp`, `detail`, `gloss`, `ddna`, `ddn` | `_diff` 49,803 `Illum`, 4,073 `HardSurface`, 3,764 `MeshDecal` |
+| normal | `TexSlot2`, else `TexSlot3` | `_ddna` (smoothness in the alpha tail) or `_ddn` | 39,267 + 16,021 `Illum`, 17,626 + 13,907 `LayerBlend_V2` |
+| specular | `TexSlot4` | `_spec` | 18,499 `Illum`, 997 `LayerBlend_V2` |
+
+Everything else is not read: the second layer (`TexSlot9` `_diff`, `TexSlot12` `_blend`,
+`TexSlot11` `_wear`, `TexSlot13` `_hal`), detail maps (`TexSlot6`), displacement (`TexSlot8`) and
+the layers and tint palettes of `HardSurface` and `LayerBlend_V2`. They belong to layered
+materials and tints (#127); a `LayerBlend_V2` material gets only what its first slots hold. The
+UV tiling of `MatLayers` is not applied (`KHR_texture_transform` is not written).
+
+### How the textures look
+
+Of 5,255 sampled files (every seventh), 192 are not in the Archive under the `.dds` name. The
+formats: normal maps `BC5_SNORM` with a `BC4_UNORM` alpha tail (the smoothness, 1,047 of 1,066
+sampled `_ddna`; the others have no tail and give no roughness), diffuse maps `BC1_UNORM`, `BC3_UNORM` or `BC7_UNORM_SRGB`,
+specular maps `BC1_UNORM`. The `UNORM` ones are not flagged as sRGB although they are authored as
+sRGB, so every diffuse and specular byte is taken as sRGB, as glTF wants a base colour texture. A
+cubemap, array or volume is no surface texture and is listed as unreadable.
+
+### Mapping to glTF
+
+| glTF | made of |
+| --- | --- |
+| base colour texture | the diffuse map; alpha only for `MASK` and `BLEND` materials, else opaque (an opaque material ignores the alpha channel, and an opaque image compresses better) |
+| normal texture | the `_ddna`/`_ddn` map: X and the reconstructed Z (BC5 stores X and Y only, Z is `√(1−x²−y²)`) as decoded, **green inverted**, opaque |
+| metallic-roughness texture | green = roughness = 1 − smoothness (the alpha tail of a `_ddna`), blue = metalness from the specular map, red full |
+| factors | with a metallic-roughness texture that carries the channel 1, else the plain value of the table above; with a diffuse map the `Diffuse` colour is the base colour factor |
+
+*Roughness.* The smoothness is a linear 0 to 1 value, the same scale as the plain `Shininess`
+(1 − `Shininess` / 255), so the image and the factor agree. StarBreaker maps the texture with
+`√(1−s)`; no evidence in the files favours that, so the linear inverse is used for both. A
+material's own `Shininess` does not multiply the texture (it varies from 0 to 255 over materials
+with a normal map, without a pattern that would say it is a multiplier).
+
+*Metalness.* There is no metalness map in the engine. The specular map and `Specular` colour give
+it: a texel is metal in proportion to the linear luminance of its tinted specular colour, from
+0.15 (a dielectric's reflectance, at most) to 0.5 (a metal's, at least). The base colour of a
+metal is its specular colour and its diffuse colour is dark (`Diffuse` 0, `Specular` 1 is common:
+the `chipped_paint` and `Metal_*` materials of the Gladius), so with a specular map the image
+holds `Diffuse` times the diffuse map moved towards `Specular` times the specular map by the
+texel's metalness, in linear light, and the base colour factor is white. The key of that image
+holds both colours, so materials that differ only in them do not share it. A diffuse map without
+a specular map (or whose specular map failed to load) is a dielectric when the metal heuristic of
+the plain colours does not take the material for a metal: the `Diffuse` colour stays a factor and
+the image is shared. A metal keeps the plain metal instead: the `Specular` colour is the base
+colour factor, the metalness 1, and the diffuse map multiplies the factor untouched. A specular map is only used with a diffuse
+map to blend with. Different sizes are sampled to the larger (nearest texel).
+
+*Alpha.* A masked material uses the alpha channel of its diffuse map with the cutoff
+`AlphaTest`, which closes the open note of #104 that `MASK` needs the texture alpha; the factor
+stays 1. A `GlassPBR` material keeps the alpha factor of at most 0.3 and blends, times the alpha of
+its diffuse map; its glass layers and dirt maps are layered materials (#127).
+
+### Green channel of the normal map
+
+glTF's normal textures point green up the image (+Y, OpenGL), and viewers that do not take the
+`TANGENT` attribute derive a bitangent that points up the image. The engine's point down. Two
+independent measurements on LIVE:
+
+- The stored tangent frame (docs/model-lods-and-vertex-attributes.md): over 600 sampled models
+  (4.06 million triangles) `cross(normal, tangent) * w` points along +V, down the image, in
+  99.2 % of the triangles, and the tangent along +U in 99.7 %.
+- The curl of the normal maps: a normal map of a height field `h` has `(−∂h/∂x, ±∂h/∂y)`, so the
+  change of its red channel down the rows and the change of its green channel along the columns
+  are opposite when green points up and agree when it points down, whatever the height. Of
+  2,905 sampled `_ddna` and `_ddn` maps, 1,450 with a clear correlation (above 0.2 in magnitude)
+  agree in 1,337 cases (92 %): green points down. Per use in a shader family (a second sample of
+  every second map): `Illum` slot 2 `_ddna` 92 % (6,397 of 6,928), `LayerBlend_V2` slot 3 `_ddn`
+  and `_ddna` 94 % and 98 %, `MeshDecal` 99.8 %. The measurement was checked on synthetic
+  height fields of both conventions. A minority of `_ddn` maps of `Hair` (82 % up) and `GlassPBR`
+  (71 % up) and a few grilles (`rsi_bengal_grating`, `anvl_rubber_padding`) have green up; they
+  stay as the engine has them, and render inverted in the engine too if they are authored wrong.
+
+So the writer flips the green channel of every normal map (`G' = 255 − G`) and negates the
+handedness `w` of the tangents, which makes the frame `(T, cross(N, T) * w')` point up the image
+as glTF's does; a viewer that uses the `TANGENT` attribute and one that derives its own agree.
+`TANGENT.w` is written for every export, with or without textures.
+
+### Images in the file
+
+The PNGs are embedded in the binary chunk of the GLB, one buffer view per image, so the file is
+one piece; writing them next to it would break a GLB moved on its own. An image is identified by
+what it is made of (its source files, with the colours that go into it): materials that share it
+share it in the file, and the summary counts it once. The most common sharing is the normal map
+across the materials of one ship. At most 256 images and 2^29 pixels (a 4k texture is 2^24) are
+embedded; the images beyond are listed as over budget and their materials keep their colours. A
+single texture of more than 2^26 pixels is refused. They are decoded a few at a time and encoded
+in parallel. `--texture-mip n` selects mip `n`, 0 the largest; a texture with fewer mips gives its
+last. The Gladius interior (17 images) takes 6.1 s and 19.2 MB at mip 0 and 0.64 s and 4.4 MB at
+mip 2.
+
+Not examined: emissive and occlusion maps (`TexSlot9` `_diff` of `Illum` with `%BLENDLAYER` is the
+second layer, not emission), the PBR extensions for glass (#127) and `KHR_texture_transform`.

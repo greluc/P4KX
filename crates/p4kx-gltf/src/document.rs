@@ -1,44 +1,33 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::BTreeMap;
 
 use gltf_json as json;
 use json::accessor::{ComponentType, GenericComponentType, Type};
 use json::buffer::Target;
 use json::mesh::{Mode, Primitive, Semantic};
-use json::scene::UnitQuaternion;
 use json::validation::Checked::Valid;
 use json::validation::USize64;
 use json::{Accessor, Index, Root};
-use p4kx_model::{Model, Transform};
 
-use crate::axes::{Trs, decompose};
-use crate::layout::{Block, BlockData, Layout, MeshLayout};
-use crate::materials::{MaterialPlan, Slot, colour_material};
+use crate::block_data::BlockData;
+use crate::instance::{Instance, MaterialIds, Wrapper, materials};
+use crate::layout::{Block, Layout, MeshLayout};
+use crate::nodes::{Skeleton, push_nodes, push_scene_nodes};
+use crate::texture_plan::TextureSet;
 
 const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
-
-/// A glTF node of the scene that holds no model of its own.
-pub(crate) struct Wrapper<'m> {
-    pub(crate) name: &'m str,
-    pub(crate) parent: Option<usize>,
-    pub(crate) transform: &'m Transform,
-}
-
-/// One model written into the document: its nodes hang below the `wrapper` node, or are roots of
-/// the scene without one.
-pub(crate) struct Instance<'m> {
-    pub(crate) model: &'m Model,
-    pub(crate) wrapper: Option<usize>,
-    pub(crate) plan: MaterialPlan<'m>,
-}
-
-type MaterialIds = BTreeMap<u16, Index<json::Material>>;
+const PNG_MIME: &str = "image/png";
 
 /// Builds the glTF document of the `wrappers` and the model `instances` over the planned binary
 /// chunk `layout`.
+///
+/// Without wrappers and with one instance, the bones become nodes when a mesh of the level of
+/// detail is skinned and when the level has no mesh at all, as in a skeleton file; the skinned
+/// meshes then share one skin.
 pub(crate) fn document(
     wrappers: &[Wrapper<'_>],
     instances: &[Instance<'_>],
     layout: &Layout<'_>,
+    textures: &TextureSet,
 ) -> Root {
     let mut root = Root {
         asset: json::Asset {
@@ -56,64 +45,154 @@ pub(crate) fn document(
             extras: json::extras::Void::default(),
         })
     });
-    let materials = materials(&mut root, layout, instances);
-    let mut node_meshes: Vec<Vec<Option<Index<json::Mesh>>>> = instances
+    let image_textures = buffer
+        .map(|buffer| push_images(&mut root, buffer, layout))
+        .unwrap_or_default();
+    let materials = materials(&mut root, layout, instances, textures, &image_textures);
+    let (node_meshes, skinned) = buffer.map_or_else(
+        || empty_nodes(instances),
+        |buffer| push_meshes(&mut root, buffer, layout, instances, &materials),
+    );
+    match (
+        wrappers,
+        instances,
+        node_meshes.as_slice(),
+        skinned.as_slice(),
+    ) {
+        ([], [instance], [meshes], [skinned]) => {
+            push_single(&mut root, buffer, layout, instance, meshes, skinned);
+        }
+        _ => push_scene_nodes(&mut root, wrappers, instances, &node_meshes),
+    }
+    root
+}
+
+type NodeMeshes = Vec<Vec<Option<Index<json::Mesh>>>>;
+
+fn empty_nodes(instances: &[Instance<'_>]) -> (NodeMeshes, Vec<Vec<bool>>) {
+    let meshes = instances
         .iter()
         .map(|instance| vec![None; instance.model.nodes.len()])
         .collect();
+    let skinned = instances
+        .iter()
+        .map(|instance| vec![false; instance.model.nodes.len()])
+        .collect();
+    (meshes, skinned)
+}
+
+/// Pushes the mesh of every mesh layout and returns, per instance and node, the mesh and whether
+/// it is skinned.
+fn push_meshes(
+    root: &mut Root,
+    buffer: Index<json::Buffer>,
+    layout: &Layout<'_>,
+    instances: &[Instance<'_>],
+    materials: &[MaterialIds],
+) -> (NodeMeshes, Vec<Vec<bool>>) {
+    let (mut node_meshes, mut skinned) = empty_nodes(instances);
     for mesh in &layout.meshes {
-        let Some(buffer) = buffer else { break };
         let name = instances
             .get(mesh.part)
             .and_then(|instance| instance.model.nodes.get(mesh.node))
             .map(|node| node.name.clone());
-        let by_id = materials.get(mesh.part);
-        let index = push_mesh(&mut root, buffer, layout, mesh, by_id, name);
+        let index = push_mesh(root, buffer, layout, mesh, materials.get(mesh.part), name);
         if let Some(slot) = node_meshes
             .get_mut(mesh.part)
             .and_then(|nodes| nodes.get_mut(mesh.node))
         {
             *slot = Some(index);
         }
-    }
-    push_nodes(&mut root, wrappers, instances, &node_meshes);
-    root
-}
-
-/// Pushes the glTF materials of every instance, one per distinct material, and returns the glTF
-/// material of each material ID per instance.
-fn materials(root: &mut Root, layout: &Layout<'_>, instances: &[Instance<'_>]) -> Vec<MaterialIds> {
-    let mut ids: Vec<BTreeSet<u16>> = vec![BTreeSet::new(); instances.len()];
-    for mesh in &layout.meshes {
-        for primitive in &mesh.primitives {
-            if let Some(set) = ids.get_mut(mesh.part) {
-                set.insert(primitive.material_id);
-            }
+        if let Some(slot) = skinned
+            .get_mut(mesh.part)
+            .and_then(|nodes| nodes.get_mut(mesh.node))
+        {
+            *slot = !mesh.joints.is_empty();
         }
     }
-    let mut pushed: HashMap<String, Index<json::Material>> = HashMap::new();
-    ids.iter()
-        .zip(instances)
-        .map(|(ids, instance)| {
-            let mut by_id = MaterialIds::new();
-            for &id in ids {
-                let Some(slot) = instance.plan.slot(id) else {
-                    continue;
-                };
-                let fallback = match slot {
-                    Slot::Library(position) => format!("material_{position}"),
-                    Slot::Default => "default".to_owned(),
-                };
-                let material = colour_material(instance.plan.material(slot), &fallback);
-                let index = match serde_json::to_string(&material) {
-                    Ok(key) => *pushed
-                        .entry(key)
-                        .or_insert_with(|| root.push(material.clone())),
-                    Err(_) => root.push(material),
-                };
-                by_id.insert(id, index);
-            }
-            by_id
+    (node_meshes, skinned)
+}
+
+fn push_single(
+    root: &mut Root,
+    buffer: Option<Index<json::Buffer>>,
+    layout: &Layout<'_>,
+    instance: &Instance<'_>,
+    meshes: &[Option<Index<json::Mesh>>],
+    skinned: &[bool],
+) {
+    let binds = buffer
+        .zip(
+            layout
+                .inverse_binds
+                .and_then(|block| layout.blocks.get(block)),
+        )
+        .map(|(buffer, block)| push_accessor(root, buffer, block, None));
+    let has_skin = skinned.contains(&true) && binds.is_some();
+    let bones = match instance.lod {
+        Some(lod) if has_skin || lod.meshes.is_empty() => instance.model.bones_of(lod),
+        _ => &[],
+    };
+    push_nodes(
+        root,
+        instance.model,
+        meshes,
+        &Skeleton {
+            bones,
+            skinned: if has_skin { skinned } else { &[] },
+            inverse_binds: binds.filter(|_| has_skin),
+        },
+    );
+}
+
+/// Pushes the sampler, an image of the binary chunk and a texture for each embedded image, and
+/// returns the textures in the order of the images.
+fn push_images(
+    root: &mut Root,
+    buffer: Index<json::Buffer>,
+    layout: &Layout<'_>,
+) -> Vec<Index<json::Texture>> {
+    if layout.images.is_empty() {
+        return Vec::new();
+    }
+    let sampler = root.push(json::texture::Sampler {
+        mag_filter: Some(Valid(json::texture::MagFilter::Linear)),
+        min_filter: Some(Valid(json::texture::MinFilter::LinearMipmapLinear)),
+        wrap_s: Valid(json::texture::WrappingMode::Repeat),
+        wrap_t: Valid(json::texture::WrappingMode::Repeat),
+        name: None,
+        extensions: None,
+        extras: json::extras::Void::default(),
+    });
+    layout
+        .images
+        .iter()
+        .map(|block| {
+            let view = root.push(json::buffer::View {
+                buffer,
+                byte_length: USize64(block.len),
+                byte_offset: Some(USize64(block.offset)),
+                byte_stride: None,
+                target: None,
+                name: None,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            });
+            let source = root.push(json::Image {
+                buffer_view: Some(view),
+                mime_type: Some(json::image::MimeType(PNG_MIME.to_owned())),
+                name: None,
+                uri: None,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            });
+            root.push(json::Texture {
+                name: None,
+                sampler: Some(sampler),
+                source,
+                extensions: None,
+                extras: json::extras::Void::default(),
+            })
         })
         .collect()
 }
@@ -148,6 +227,15 @@ fn push_mesh(
         let accessor = push_accessor(root, buffer, &colours, None);
         attributes.insert(Valid(Semantic::Colors(0)), accessor);
     }
+    for (set, (&joints, &weights)) in mesh.joints.iter().zip(&mesh.weights).enumerate() {
+        let set = u32::try_from(set).unwrap_or(u32::MAX);
+        if let (Some(joints), Some(weights)) = (block(joints), block(weights)) {
+            let accessor = push_accessor(root, buffer, &joints, None);
+            attributes.insert(Valid(Semantic::Joints(set)), accessor);
+            let accessor = push_accessor(root, buffer, &weights, None);
+            attributes.insert(Valid(Semantic::Weights(set)), accessor);
+        }
+    }
     let primitives = mesh
         .primitives
         .iter()
@@ -181,20 +269,32 @@ fn push_accessor(
 ) -> Index<Accessor> {
     let (component, kind, target) = match block.data {
         BlockData::Positions(_) | BlockData::Normals(_) => {
-            (ComponentType::F32, Type::Vec3, Target::ArrayBuffer)
+            (ComponentType::F32, Type::Vec3, Some(Target::ArrayBuffer))
         }
-        BlockData::Uvs(_) => (ComponentType::F32, Type::Vec2, Target::ArrayBuffer),
-        BlockData::Tangents(_) => (ComponentType::F32, Type::Vec4, Target::ArrayBuffer),
-        BlockData::Colours(_) => (ComponentType::U8, Type::Vec4, Target::ArrayBuffer),
-        BlockData::Short(_) => (ComponentType::U16, Type::Scalar, Target::ElementArrayBuffer),
-        BlockData::Wide(_) => (ComponentType::U32, Type::Scalar, Target::ElementArrayBuffer),
+        BlockData::Uvs(_) => (ComponentType::F32, Type::Vec2, Some(Target::ArrayBuffer)),
+        BlockData::Tangents(_) => (ComponentType::F32, Type::Vec4, Some(Target::ArrayBuffer)),
+        BlockData::Colours(_) | BlockData::Weights(..) => {
+            (ComponentType::U8, Type::Vec4, Some(Target::ArrayBuffer))
+        }
+        BlockData::Joints(..) => (ComponentType::U16, Type::Vec4, Some(Target::ArrayBuffer)),
+        BlockData::InverseBinds(_) => (ComponentType::F32, Type::Mat4, None),
+        BlockData::Short(_) => (
+            ComponentType::U16,
+            Type::Scalar,
+            Some(Target::ElementArrayBuffer),
+        ),
+        BlockData::Wide(_) => (
+            ComponentType::U32,
+            Type::Scalar,
+            Some(Target::ElementArrayBuffer),
+        ),
     };
     let view = root.push(json::buffer::View {
         buffer,
         byte_length: USize64(block.len),
         byte_offset: Some(USize64(block.offset)),
         byte_stride: None,
-        target: Some(Valid(target)),
+        target: target.map(Valid),
         name: None,
         extensions: None,
         extras: json::extras::Void::default(),
@@ -208,89 +308,10 @@ fn push_accessor(
         type_: Valid(kind),
         min: bounds.map(|(min, _)| bound(min)),
         max: bounds.map(|(_, max)| bound(max)),
-        normalized: matches!(block.data, BlockData::Colours(_)),
+        normalized: matches!(block.data, BlockData::Colours(_) | BlockData::Weights(..)),
         sparse: None,
         name: None,
         extensions: None,
         extras: json::extras::Void::default(),
     })
-}
-
-/// One glTF node before it is pushed: where it hangs and what it holds.
-struct Planned {
-    name: String,
-    parent: Option<usize>,
-    trs: Trs,
-    mesh: Option<Index<json::Mesh>>,
-}
-
-fn push_nodes(
-    root: &mut Root,
-    wrappers: &[Wrapper<'_>],
-    instances: &[Instance<'_>],
-    meshes: &[Vec<Option<Index<json::Mesh>>>],
-) {
-    let mut planned: Vec<Planned> = wrappers
-        .iter()
-        .map(|wrapper| Planned {
-            name: wrapper.name.to_owned(),
-            parent: wrapper.parent,
-            trs: decompose(wrapper.transform),
-            mesh: None,
-        })
-        .collect();
-    for (instance, instance_meshes) in instances.iter().zip(meshes) {
-        let base = planned.len();
-        for (position, node) in instance.model.nodes.iter().enumerate() {
-            planned.push(Planned {
-                name: node.name.clone(),
-                parent: node
-                    .parent
-                    .filter(|parent| *parent < instance.model.nodes.len())
-                    .map(|parent| base.saturating_add(parent))
-                    .or(instance.wrapper),
-                trs: decompose(&node.transform),
-                mesh: instance_meshes.get(position).copied().flatten(),
-            });
-        }
-    }
-    let mut children: Vec<Vec<Index<json::Node>>> = vec![Vec::new(); planned.len()];
-    let mut roots = Vec::new();
-    for (position, node) in planned.iter().enumerate() {
-        let index = Index::new(u32::try_from(position).unwrap_or(u32::MAX));
-        match node.parent.and_then(|parent| children.get_mut(parent)) {
-            Some(siblings) => siblings.push(index),
-            None => roots.push(index),
-        }
-    }
-    for (node, children) in planned.into_iter().zip(children) {
-        let differs =
-            |value: [f32; 3], neutral: [f32; 3]| (!exactly(&value, &neutral)).then_some(value);
-        root.push(json::Node {
-            name: (!node.name.is_empty()).then_some(node.name),
-            children: (!children.is_empty()).then_some(children),
-            mesh: node.mesh,
-            translation: differs(node.trs.translation, Trs::IDENTITY.translation),
-            rotation: (!exactly(&node.trs.rotation, &Trs::IDENTITY.rotation))
-                .then_some(UnitQuaternion(node.trs.rotation)),
-            scale: differs(node.trs.scale, Trs::IDENTITY.scale),
-            camera: None,
-            matrix: None,
-            skin: None,
-            weights: None,
-            extensions: None,
-            extras: json::extras::Void::default(),
-        });
-    }
-    let scene = root.push(json::Scene {
-        name: None,
-        nodes: roots,
-        extensions: None,
-        extras: json::extras::Void::default(),
-    });
-    root.scene = Some(scene);
-}
-
-fn exactly(values: &[f32], neutral: &[f32]) -> bool {
-    values == neutral
 }

@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/wwise_events.rs
+expression: run.stdout
+---
+Play_Engine  Data\Libs\GameAudio\SC_Ship.xml
+  Play_Engine_Loop in Ship.bnk
+  Play_Engine_Tail in Ship.bnk
+  Entities (3): TEST_Avenger, TEST_Gladius, TEST_Cutlass
+1 of 7 triggers match: showing 1-1 of 1

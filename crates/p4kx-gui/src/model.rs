@@ -11,6 +11,7 @@ mod archive_key;
 mod audio_control;
 mod catalog_control;
 mod extraction_control;
+mod game_watch;
 mod record_export_control;
 mod record_text;
 mod update;
@@ -20,6 +21,8 @@ mod work_tab;
 use archive_key::KeyState;
 pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
 use catalog_control::CatalogState;
+pub use game_watch::GAME_CHECK_INTERVAL;
+use game_watch::GameWatch;
 use record_export_control::RecordExportState;
 use update::UpdateState;
 pub use work_tab::WorkTab;
@@ -45,6 +48,12 @@ struct Opening {
     result: Receiver<Result<EntryIndex, ArchiveError>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HelpWindow {
+    FontLicence,
+    About,
+}
+
 /// The whole state of the window, independent of how it is drawn.
 pub struct Model {
     texts: Texts,
@@ -53,7 +62,7 @@ pub struct Model {
     browser: Option<Browser>,
     opening: Option<Opening>,
     failure: Option<Failure>,
-    licence_shown: bool,
+    help_window: Option<HelpWindow>,
     preview_tab: PreviewTab,
     extraction_folder: Option<PathBuf>,
     extraction_conversion: bool,
@@ -74,6 +83,7 @@ pub struct Model {
     record_text_choice: Option<RecordTextChoice>,
     viewer_support: ViewerSupport,
     key: KeyState,
+    game: GameWatch,
 }
 
 impl std::fmt::Debug for Model {
@@ -85,7 +95,7 @@ impl std::fmt::Debug for Model {
             .field("browser", &self.browser)
             .field("opening", &self.opening_path())
             .field("failure", &self.failure)
-            .field("licence_shown", &self.licence_shown)
+            .field("help_window", &self.help_window)
             .field("preview_tab", &self.preview_tab)
             .field("extraction_folder", &self.extraction_folder)
             .field("extraction_conversion", &self.extraction_conversion)
@@ -103,6 +113,7 @@ impl std::fmt::Debug for Model {
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
             .field("key", &self.key)
+            .field("game", &self.game)
             .field("audio_volume", &self.audio_volume)
             .finish_non_exhaustive()
     }
@@ -119,7 +130,7 @@ impl Model {
             browser: None,
             opening: None,
             failure: None,
-            licence_shown: false,
+            help_window: None,
             preview_tab: PreviewTab::Text,
             extraction_folder: None,
             extraction_conversion: false,
@@ -140,6 +151,7 @@ impl Model {
             record_text_choice: None,
             viewer_support: ViewerSupport::default(),
             key: KeyState::default(),
+            game: GameWatch::default(),
         }
     }
 
@@ -191,12 +203,14 @@ impl Model {
         let spawned = thread::Builder::new()
             .name("open-archive".to_owned())
             .spawn(move || {
+                p4kx_extraction::protect_archive_folder(&thread_path);
                 let index = Archive::open_with_key(&thread_path, key).map(EntryIndex::build);
                 if sender.send(index).is_ok() {
                     wake();
                 }
             });
         self.opening = None;
+        self.recheck_game();
         match spawned {
             Ok(_handle) => {
                 self.failure = None;
@@ -263,15 +277,34 @@ impl Model {
         self.browser.as_mut()
     }
 
+    /// Returns whether the About window is shown.
+    #[must_use]
+    pub fn about_shown(&self) -> bool {
+        self.help_window == Some(HelpWindow::About)
+    }
+
+    /// Shows or hides the About window.
+    pub fn set_about_shown(&mut self, shown: bool) {
+        self.set_help_window(HelpWindow::About, shown);
+    }
+
     /// Returns whether the font licence is shown.
     #[must_use]
-    pub const fn licence_shown(&self) -> bool {
-        self.licence_shown
+    pub fn licence_shown(&self) -> bool {
+        self.help_window == Some(HelpWindow::FontLicence)
     }
 
     /// Shows or hides the font licence.
-    pub const fn set_licence_shown(&mut self, shown: bool) {
-        self.licence_shown = shown;
+    pub fn set_licence_shown(&mut self, shown: bool) {
+        self.set_help_window(HelpWindow::FontLicence, shown);
+    }
+
+    fn set_help_window(&mut self, window: HelpWindow, shown: bool) {
+        if shown {
+            self.help_window = Some(window);
+        } else if self.help_window == Some(window) {
+            self.help_window = None;
+        }
     }
 
     /// Returns the tab the preview is shown in.

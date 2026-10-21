@@ -13,7 +13,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli_entity::EntityGlbArgs;
-use crate::cli_model::MaterialsArg;
+use crate::cli_entity::EntityMaterialsArg;
 use crate::json;
 use crate::query_table::one_line;
 
@@ -119,7 +119,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
 
 fn write(assembly: &Assembly, args: &EntityGlbArgs) -> Result<GlbSummary> {
     let mode = match args.materials {
-        MaterialsArg::Colours => MaterialMode::Colours,
+        EntityMaterialsArg::Colours => MaterialMode::Colours,
     };
     let mut options = GlbOptions::default()
         .with_lod(args.lod)

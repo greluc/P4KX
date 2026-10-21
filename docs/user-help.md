@@ -255,6 +255,13 @@ Each Release on GitHub offers two downloads:
 Both keep their settings in `%APPDATA%\P4K-Extractor\settings.toml`, so switching between them or
 uninstalling keeps them.
 
+### About
+
+**Help › About P4K-Extractor** shows the version, the licence and the legal notices: P4K-Extractor
+is an unofficial Star Citizen fan project, not affiliated with or endorsed by the Cloud Imperium
+group of companies. It ships no game data and reads only your own installation, and you are
+responsible for complying with the Star Citizen EULA and Terms of Service.
+
 ### Checking for a new version
 
 **Help › Check for a new version at start** is off until you switch it on. While it is on, the

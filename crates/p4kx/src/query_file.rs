@@ -14,6 +14,7 @@ pub(crate) fn write_replacing<T>(
     out: &Path,
     write: impl FnOnce(&mut BufWriter<File>) -> io::Result<T>,
 ) -> io::Result<T> {
+    crate::guard::ensure_writable(out)?;
     let temporary = temporary_path(out)?;
     let file = OpenOptions::new()
         .write(true)

@@ -1,14 +1,14 @@
 use super::{
-    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText,
-    ScrollText, Text, XmlText,
+    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
+    ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText,
+    LocalizationText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
+    RecordText, ScrollText, Text, XmlText,
 };
 use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 67] = [
+    const BASE: [Self; 68] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -72,6 +72,7 @@ impl Text {
         Self::PreviewArchiveChanged,
         Self::ArchiveChanged,
         Self::ArchiveIssues,
+        Self::GameRunning,
         Self::ArchiveTestBuild,
         Self::ActionReload,
         Self::PreviewKeyRequired,
@@ -103,6 +104,7 @@ impl Text {
             .chain(LocalizationText::ALL.map(Self::Localization))
             .chain(ModelText::ALL.map(Self::Model))
             .chain(ArchiveKeyText::ALL.map(Self::Key))
+            .chain(AboutText::ALL.map(Self::About))
     }
 
     /// Returns the Fluent message id.
@@ -173,6 +175,7 @@ impl Text {
             Self::PreviewArchiveChanged => "preview-archive-changed",
             Self::ArchiveChanged => "archive-changed",
             Self::ArchiveIssues => "archive-issues",
+            Self::GameRunning => "game-running",
             Self::ArchiveTestBuild => "archive-test-build",
             Self::ActionReload => "action-reload",
             Self::PreviewKeyRequired => "preview-key-required",
@@ -198,6 +201,7 @@ impl Text {
             Self::Localization(text) => text.id(),
             Self::Model(text) => text.id(),
             Self::Key(text) => text.id(),
+            Self::About(text) => text.id(),
         }
     }
 }

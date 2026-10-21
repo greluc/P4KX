@@ -17,6 +17,11 @@ A folder holding Channel folders, e.g. `C:\Program Files\Roberts Space Industrie
 RSI Launcher installs every Channel into one.
 _Avoid_: install folder, game folder
 
+**Installation**:
+The folders of Star Citizen the tool never writes into: the Library folders and the folder of an
+opened Archive that holds the game's `Bin64` folder (ADR-0036).
+_Avoid_: game folder
+
 **Manual entry**:
 A Channel folder, Library folder or Archive the user added by hand, searched in addition to the
 detected places.
@@ -323,11 +328,31 @@ The geometry companion of a level of detail from 1 on, named `<stem>_lod<n>.<ext
 `box_lod1.cgfm`. Its meshes belong to the nodes of the base model file.
 _Avoid_: LOD file, lod mesh
 
+**Skeleton**:
+The bones of a model, read from the `CompiledBones2` chunk of a skin or a `.chr` file, or from
+the `CompiledBones` chunk of a static model with animated parts. Each bone has a parent, a bind
+pose relative to its parent and one in the model's space. A level of detail of a skin may have a
+skeleton of its own in its `<stem>_lod<n>.<extension>` file.
+_Avoid_: rig (the face rig of a head is another chunk), armature, joints (the glTF word for the
+bones a skin refers to)
+
+**Bone weights**:
+The bones one vertex of a skinned mesh is weighted to: up to four bones, or eight in the heads,
+each with a weight; the weights of a vertex add up to 255. Stored by the bone-map stream of the
+geometry companion and read as `Influences`.
+_Avoid_: skin weights, skinning data, bone map (the stream, not its content)
+
 **Material library**:
 The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
 ID, or a list of sub-materials whose position is the material ID. Each material has a shader,
 colours, an opacity and texture slots.
 _Avoid_: material file, material set
+
+**Texture slot**:
+An entry `TexSlot<n>` of a material that names a texture. The slot and the end of the file name
+(`_diff`, `_ddna`, `_spec`) say what the texture is for; a `.tif` name in a material is the `.dds`
+Entry of the Archive. The textures of a model's materials are embedded in its GLB as PNG images.
+_Avoid_: texture channel, map slot
 
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
@@ -364,8 +389,14 @@ _Avoid_: instance
 **Scene**:
 A frame of a UI movie composed into drawing instructions independent of the output: each shape
 once, its placements with transforms, colour transforms and masks, and what was skipped. It is
-rasterised to PNG.
+rasterised to PNG or written as SVG. Text is part of it as glyph shapes, one per glyph and colour.
 _Avoid_: render tree, stage (the stage is the area of the movie)
+
+**Text field**:
+A definition of a UI movie that shows a text (`DefineEditText`), with a font, size, colour,
+alignment and optionally HTML markup or a localisation key (`@key`); a static text (`DefineText`)
+places glyphs by index instead.
+_Avoid_: label, string
 
 ### Operations
 

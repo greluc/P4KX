@@ -255,6 +255,29 @@ definition posts no Wwise event) and `no_soundbank` (no soundbank holds any of i
 the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `message`; without
 `--json` each issue is a warning on stderr. New kinds may be added in later versions.
 
+## `p4kx wwise events <archive> [--search <text>] --json`
+
+```json
+{"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
+               "matched_trigger": true,
+               "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
+                           "matched": true,
+                           "soundbanks": [{"path": "Data\\Sounds\\wwise\\SSQD_QDrive.bnk", "language": null}]}],
+               "unmatched": null,
+               "entities": {"count": 12, "listed": [{"guid": "…", "record_path": "…", "class_name": "…"}]}}],
+ "issues": [Issue, …]}
+```
+
+`search` is `null` without `--search`. `total` counts every trigger that matched; `triggers` holds
+the page from `offset` on, at most `limit` (1 to 10,000) of them, in the order of the ATL
+definitions' Entry paths, and `next_offset` is the offset of the next page or `null` after the
+last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
+and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
+`entities` counts the Entities that name the trigger through `GlobalResourceAudio.audioTrigger`
+and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
+and when the DataForge cannot be read, which is a warning on stderr.
+
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json
@@ -694,15 +717,20 @@ each a `style_change` (a `move_to` position and new style numbers), a `straight_
 `delta`, or a `curved_edge` with its `control` and `anchor` deltas. With `--json` failures are
 not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
-## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] --json`
+## `p4kx ui render <archive> <entry> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--lang <language>] --json`
 
 Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on disk.
+
+`--lang` (only with an Archive and an Entry) resolves the localisation keys (`@key`) of text fields
+in the `global.ini` of that language; a key it does not hold is listed as `unlocalised`, and without
+`--lang` keys are drawn as they are. A `global.ini` that cannot be indexed prints no JSON and fails
+with exit code 3.
 
 ```json
 {"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
  "width": 64, "height": 48,
  "skipped": [{"id": 50, "depth": 7, "sprite": 9, "reason": "not_drawn", "drawn": false,
-              "message": "DefineText definitions are not drawn"}],
+              "message": "DefineButton2 definitions are not drawn"}],
  "failed": [{"kind": "tag", "code": 2, "offset": 508, "error": "unexpected end of data at …"},
             {"kind": "bitmap", "id": 5, "error": "Data\\UI\\Screens\\SWF\\Panel.gfx definition 5
              refers to ../Textures/gone.dds, which does not exist; …"}]}
@@ -713,10 +741,13 @@ of the SVG document, written to `target`. `skipped` lists in drawing order every
 left out or drew without an effect: `id` and `depth` name the placement, `sprite` the sprite whose timeline holds it (absent on the main timeline), `reason` is
 one of `unknown_definition`, `not_drawn`, `sprite_depth`, `too_many_placements`, `too_many_paths`,
 `too_many_records`, `fill_budget`, `too_many_masks`, `nested_mask`, `gradient_stops`,
-`missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `filters` and
-`blend_mode`, `drawn` is `true` for `filters` and `blend_mode`, which are drawn without the
-effect, and `message` says it in words. `fill_budget` ends the frame: this and every later element
-are not drawn. `failed` lists first the tags that could not be read (`kind` `tag`, with `code` and
+`missing_bitmap`, `invalid_geometry`, `raster`, `mask_memory`, `bitmap_memory`, `too_many_glyphs`,
+`missing_font`, `missing_glyph`, `missing_glyph_index`, `unlocalised`, `text_truncated`, `filters`
+and `blend_mode`, `drawn` is `true` for `filters`, `blend_mode` and the reasons of texts other than
+`too_many_glyphs`, which are drawn without the effect or as a fallback (an empty box for a missing
+font or glyph, the key itself for an unknown key), and `message` says it in words. `fill_budget`
+and `too_many_glyphs` end the frame: this and every later element are not drawn. `failed` lists
+first the tags that could not be read (`kind` `tag`, with `code` and
 `offset` as in `ui extract`), then the bitmaps that could not be decoded (`kind` `bitmap`, with
 `id`); a fill with such a bitmap is skipped as `missing_bitmap`. The exit code is 1 when `skipped`
 or `failed` is not empty. A canvas that is empty or larger than 16384 pixels a side or 2^25
@@ -796,10 +827,12 @@ it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false,
+                       "tangents": false, "colours": false, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
- "bones": [],
+ "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
+            "relative": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]},
+            "world": {"rotation": [0.5, 0.5, 0.5, 0.5], "translation": [0.0, 0.0, 2.0]}}, …],
  "chunks": [{"file": "model", "index": 0, "type": "ExportFlags", "type_id": 3193850174,
              "usage": "skipped"}, …,
             {"file": "geometry", "index": 0, "type": "Skin2", "type_id": 3094706039,
@@ -822,22 +855,36 @@ lists the levels of detail, LOD0 first, each with its meshes, at most one per no
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
 (`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `bones` lists `name` and `parent`
-of each bone, empty for a static model. `chunks` lists every chunk of the model file and of its
+submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+`bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
+of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
+bone by; `node` is the index of the node of the model the bone drives (the bones of a static
+model with animated parts) or `null`; `relative` is the bind pose relative to the parent and
+`world` the bind pose in the model's space, each a rotation as a quaternion `x, y, z, w` and a
+translation, in CryEngine axes (Z up) and metres. A level of detail of a skin whose own file has a
+different skeleton is weighted to that one; `model info` lists the skeleton of the model file.
+`chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
-companion with 3, and a `CrCh` model, which is not supported yet, with 1.
+companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
+geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
+`null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours] [--no-vertex-colours] --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] --json`
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
 ```json
 {"model": "Data\\Objects\\Test\\cube.cgf", "out": "…\\cube.glb", "nodes": 2, "meshes": 1,
- "primitives": 2, "materials": 2, "default_material_ids": 0, "hidden_primitives": 0,
- "vertices": 24, "triangles": 12, "bytes": 2412,
+ "primitives": 2, "materials": 2, "textured_materials": 1, "textures": 3,
+ "texture_pixels": 192,
+ "texture_fallbacks": [{"material": "caps", "role": "diffuse",
+                        "file": "Objects/Test/plate_diff.tif",
+                        "reason": "the texture does not exist"}],
+ "default_material_ids": 0, "hidden_primitives": 0,
+ "bones": 0, "skinned_meshes": 0, "vertices": 24, "triangles": 12, "bytes": 2412,
  "library": {"path": "objects/test/cube", "status": "loaded", "problem": null, "single": false,
              "default_palette": null},
  "unknown_chunks": [{"file": "model", "index": 4, "type": null, "type_id": 170165686,
@@ -851,9 +898,19 @@ default material when any ID falls back to it), of the level of detail `--lod` n
 `TANGENT`, `TEXCOORD_0` and `COLOR_0` are written;
 `bytes` is the length of the file. `default_material_ids` counts the material IDs drawn with the
 default material because the `.mtl` file is missing, unreadable or has no sub-material for them,
-and `hidden_primitives` the submeshes left out because their material draws nothing; `library` is
-the status of the `.mtl` file as in `p4kx model info`. `unknown_chunks` lists the chunks of unknown type that the
-export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
+and `hidden_primitives` the submeshes left out because their material draws nothing; `bones` the
+bones written as nodes (those of a skinned model and those of a skeleton file such as a `.chr`, which
+has no mesh; a skin gets a glTF skin with a joint per bone, and its `skinned_meshes` carry
+`JOINTS_n` and `WEIGHTS_n`, ADR-0039); `library` is
+the status of the `.mtl` file as in `p4kx model info`. `textures` counts the PNG images embedded
+with `--materials textures` (an image several materials use counts once), `texture_pixels` their
+pixels and `textured_materials` the materials that use at least one; all are 0 with
+`--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
+because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
+images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
+the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
+names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
+that the export skipped, as in `p4kx model info`. An output that is one of the model's files, or a
 `--lod` the model lacks, exits with code 2.
 
 ## `p4kx extract … --json`
@@ -1026,6 +1083,8 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
 JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
+An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
+exit code 2; copy a CHF file into `CustomCharacters` by hand.
 
 ### The CHF JSON
 

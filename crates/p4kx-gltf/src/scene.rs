@@ -1,6 +1,12 @@
-use p4kx_model::{MaterialStatus, Model, Transform};
+use std::io::Write;
+
+use p4kx_model::{Lod, MaterialStatus, Model, Transform};
 
 use crate::GltfError;
+use crate::glb::{GlbOptions, GlbSummary, write_instances};
+use crate::instance::{Instance, Wrapper};
+use crate::materials::MaterialPlan;
+use crate::texture_loader::NoTextures;
 
 /// A model placed in a [`Scene`] with the material library its material IDs index.
 ///
@@ -100,4 +106,69 @@ impl<'m> Scene<'m> {
     pub fn nodes(&self) -> &[SceneNode<'m>] {
         &self.nodes
     }
+}
+
+/// Writes the models of `scene` as one GLB file to `out`, like [`write_glb`]; `out` should be
+/// buffered.
+///
+/// Every scene node becomes a glTF node with its transform, and the nodes of its model hang below
+/// it. The materials are plain colours whatever [`GlbOptions::materials`] says, and the models are
+/// written without skeletons.
+///
+/// Each model is drawn at the level of detail `options` asks for, or, when it lacks that level,
+/// at the nearest lower one, or the lowest it has; [`GlbSummary::lod_fallbacks`] counts those.
+/// Equal materials are written once.
+///
+/// # Errors
+///
+/// Returns [`GltfError::TooLarge`] when the scene does not fit in a GLB file and
+/// [`GltfError::Write`] when `out` fails.
+pub fn write_scene_glb(
+    scene: &Scene<'_>,
+    options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let wrappers: Vec<Wrapper<'_>> = scene
+        .nodes()
+        .iter()
+        .map(|node| Wrapper {
+            name: &node.name,
+            parent: node.parent,
+            transform: &node.transform,
+        })
+        .collect();
+    let mut fallbacks = 0;
+    let instances: Vec<Instance<'_>> = scene
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter_map(|(position, node)| {
+            let part = node.part?;
+            let lod = nearest_lod(part.model, options.lod);
+            if lod.is_some_and(|lod| lod.level != options.lod) {
+                fallbacks += 1;
+            }
+            let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
+                MaterialPlan::new(part.materials.library(), lod)
+            });
+            Some(Instance {
+                model: part.model,
+                lod,
+                wrapper: Some(position),
+                plan,
+            })
+        })
+        .collect();
+    write_instances(&wrappers, &instances, options, &NoTextures, fallbacks, out)
+}
+
+/// Returns the level of `model` closest to `level` from below, or its lowest level when all are
+/// above it.
+fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
+    model
+        .lods
+        .iter()
+        .filter(|lod| lod.level <= level)
+        .max_by_key(|lod| lod.level)
+        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
 }

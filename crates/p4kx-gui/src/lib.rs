@@ -18,6 +18,7 @@ mod entry_index;
 mod extraction;
 mod forge_cache;
 mod format;
+mod installation;
 mod language;
 mod localization;
 mod model;
@@ -69,7 +70,7 @@ pub use extraction::{
 };
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
-pub use model::{Failure, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
+pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
@@ -99,10 +100,10 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use texts::{
-    ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText, ContainerText,
-    DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
-    ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
-    RecordText, ScrollText, Text, Texts, XmlText,
+    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
+    ContainerText, DataForgeText, DiffText, ExtractionText, GroupText, ImageText, IncomingText,
+    LocalizationText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
+    RecordSearchText, RecordText, ScrollText, Text, Texts, XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

@@ -3529,6 +3529,7 @@ dependencies = [
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",
+ "p4kx-foundation",
  "p4kx-gltf",
  "p4kx-model",
  "p4kx-testkit",
@@ -3660,6 +3661,7 @@ dependencies = [
  "p4kx-foundation",
  "p4kx-gfx",
  "p4kx-gltf",
+ "p4kx-guard",
  "p4kx-localization",
  "p4kx-model",
  "p4kx-testkit",
@@ -3706,8 +3708,19 @@ dependencies = [
  "p4kx-chunks",
  "p4kx-model",
  "p4kx-testkit",
+ "p4kx-texture",
  "rayon",
  "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-guard"
+version = "0.2.0"
+dependencies = [
+ "p4kx-channels",
+ "same-file",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
@@ -3813,6 +3826,7 @@ dependencies = [
  "lzma-rs",
  "opus-pure",
  "p4kx-foundation",
+ "png",
  "ruzstd",
  "sha2",
 ]

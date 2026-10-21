@@ -73,6 +73,7 @@ archive-issues =
         [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
        *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
+game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber das Archiv ändert sich, wenn das Spiel aktualisiert, und das Werkzeug schreibt nie in die Installation.
 archive-test-build = Dieses Archiv gehört zum Channel { $channel }, einem Testbuild von Star Citizen. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
@@ -87,6 +88,7 @@ extraction-target-heading = Ziel
 extraction-target-new = Neuer Ordner in
 extraction-target-existing = Vorhandener Ordner
 extraction-target-new-name = Legt { $name } an
+extraction-target-in-installation = Dieser Ordner liegt in der Star-Citizen-Installation { $installation }. Das Werkzeug schreibt dort nie; wähle einen Ordner an anderer Stelle.
 extraction-folder-none = Kein Ordner gewählt
 extraction-choose-folder = Ordner wählen …
 extraction-policy-heading = Bereits vorhandene Dateien
@@ -636,3 +638,12 @@ key-error-remove = Der gespeicherte Schlüssel konnte nicht entfernt werden: { $
 key-checking = Der Schlüssel wird am Archiv geprüft…
 key-note-variable = Die Umgebungsvariable P4KX_ARCHIVE_KEY enthält keinen gültigen Schlüssel und wird ignoriert.
 key-note-store = Der gespeicherte Schlüssel kann nicht verwendet werden. Gib den Schlüssel erneut ein, um ihn zu ersetzen. ({ $reason })
+about-title = Über P4K-Extractor
+about-version = Version { $version }
+about-copyright = Copyright (c) 2026 KRT and the P4K-Extractor contributors
+about-licence = Lizenziert unter MIT OR Apache-2.0. Quellcode: https://github.com/krt-profit/p4k-extractor
+about-fan-project = P4K-Extractor ist ein inoffizielles Star-Citizen-Fanprojekt. Es steht in keiner Verbindung zur Cloud-Imperium-Gruppe und wird nicht von ihr unterstützt oder gebilligt.
+about-no-game-data = Es liefert keine Spieldaten mit und liest nur deine eigene Star-Citizen-Installation.
+about-responsibility = Du bist dafür verantwortlich, bei der Nutzung die Endbenutzer-Lizenzvereinbarung (EULA) und die Nutzungsbedingungen (Terms of Service) von Star Citizen einzuhalten.
+about-owners = Alle Inhalte, die nicht von den Mitwirkenden von P4K-Extractor oder seinen Nutzern stammen, sind Eigentum ihrer jeweiligen Inhaber.
+about-trademark = Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.

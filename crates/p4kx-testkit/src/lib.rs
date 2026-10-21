@@ -29,16 +29,22 @@ mod gfx;
 mod gfx_place;
 mod gfx_shape;
 mod gfx_tags;
+mod gfx_text;
 mod glb;
 mod glb_container;
+mod glb_images;
+mod glb_skin;
 mod global_ini;
 mod hirc_node;
 mod layout_v1;
 mod layout_v2;
 mod mesh_streams;
 mod model;
+mod model_crch;
 mod model_cube;
 mod model_nmc;
+mod model_rig;
+mod model_skeleton;
 mod model_skin;
 mod mtl;
 mod opus;
@@ -76,7 +82,9 @@ pub use gfx_tags::{
     font_name_body, font3_body, jpeg_body, lossless_body, place_object2_body, sprite_body,
     sub_image_body,
 };
+pub use gfx_text::{TestEditText, TestTextRecord, define_text_body};
 pub use glb::{CheckedGlb, check_glb};
+pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
@@ -85,6 +93,8 @@ pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
     TestNode, TestNormals, TestPositions, TestSubmesh, TestVertex,
 };
+pub use model_crch::{CRCH_CUBE_ROOT_OFFSET, TestCrchModel};
+pub use model_skeleton::{TestBone, TestSkeleton};
 pub use mtl::{TestMtl, TestMtlMaterial};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
 pub use real_archive::{

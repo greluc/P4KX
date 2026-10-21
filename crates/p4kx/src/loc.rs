@@ -186,6 +186,7 @@ struct ExportJson<'a> {
 
 fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
     let archive = crate::key::open(&args.archive)?;
+    crate::guard::ensure_writable_if(args.out.as_deref())?;
     let wanted: &[Language] = if args.lang.is_empty() {
         &Language::ALL
     } else {

@@ -1,5 +1,6 @@
 //! The egui code that draws a [`Model`] and turns clicks into changes of it.
 
+mod about;
 mod archive_change;
 mod archive_issues;
 mod archive_key;
@@ -25,6 +26,7 @@ mod entry_status;
 mod extraction;
 mod extraction_outcome;
 mod field_rows;
+mod game_running;
 mod hex_view;
 mod image_preview;
 mod licence;
@@ -124,18 +126,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
     };
-    if let Some(browser) = model.browser_mut() {
-        browser.poll();
-    }
-    model.poll_extraction();
-    model.poll_record_export();
-    model.poll_catalog();
-    model.poll_update();
-    model.comparison_mut().poll();
-    model.poll_key_check();
-    model.poll_key_request();
-    model.query_mut().poll();
-    model.localization_mut().poll();
+    poll_background(model);
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
             requests.settings_changed |= model.add_manual(path);
@@ -151,6 +142,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .exact_size(HEADER_HEIGHT)
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
+    game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
     archive_notice::show(ui, model);
@@ -176,9 +168,25 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     licence::show(ui, model);
+    about::show(ui, model);
     archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests
+}
+
+fn poll_background(model: &mut Model) {
+    if let Some(browser) = model.browser_mut() {
+        browser.poll();
+    }
+    model.poll_extraction();
+    model.poll_record_export();
+    model.poll_catalog();
+    model.poll_update();
+    model.comparison_mut().poll();
+    model.poll_key_check();
+    model.poll_key_request();
+    model.query_mut().poll();
+    model.localization_mut().poll();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {

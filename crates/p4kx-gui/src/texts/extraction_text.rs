@@ -25,6 +25,9 @@ pub enum ExtractionText {
     TargetExisting,
     /// The name of the new folder; takes `name`.
     TargetNewName,
+    /// Shown when the chosen folder lies inside a Star Citizen installation; takes
+    /// `installation`.
+    TargetInInstallation,
     /// Shown while no folder is chosen.
     FolderNone,
     /// The action that picks the folder through a folder dialog.
@@ -119,7 +122,7 @@ pub enum ExtractionText {
 
 impl ExtractionText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 56] = [
+    pub const ALL: [Self; 57] = [
         Self::ActionSelected,
         Self::ActionShown,
         Self::ActionAll,
@@ -132,6 +135,7 @@ impl ExtractionText {
         Self::TargetNew,
         Self::TargetExisting,
         Self::TargetNewName,
+        Self::TargetInInstallation,
         Self::FolderNone,
         Self::ChooseFolder,
         Self::PolicyHeading,
@@ -194,6 +198,7 @@ impl ExtractionText {
             Self::TargetNew => "extraction-target-new",
             Self::TargetExisting => "extraction-target-existing",
             Self::TargetNewName => "extraction-target-new-name",
+            Self::TargetInInstallation => "extraction-target-in-installation",
             Self::FolderNone => "extraction-folder-none",
             Self::ChooseFolder => "extraction-choose-folder",
             Self::PolicyHeading => "extraction-policy-heading",

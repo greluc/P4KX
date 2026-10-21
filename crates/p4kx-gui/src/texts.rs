@@ -1,6 +1,7 @@
 use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
+mod about_text;
 mod archive_key_text;
 mod audio_text;
 mod catalog_text;
@@ -24,6 +25,7 @@ mod scroll_text;
 mod text_ids;
 mod xml_text;
 
+pub use about_text::AboutText;
 pub use archive_key_text::ArchiveKeyText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
@@ -178,6 +180,8 @@ pub enum Text {
     /// The notice that Entries of the open Archive have defects; takes `count`, the number of
     /// defects, and `kind`, `one` for a single defect.
     ArchiveIssues,
+    /// The notice that `StarCitizen.exe` is running and the tool is best used with the game closed.
+    GameRunning,
     /// The notice that the open Archive belongs to a test build and its material is confidential;
     /// takes `channel`, the Channel name.
     ArchiveTestBuild,
@@ -231,6 +235,8 @@ pub enum Text {
     Model(ModelText),
     /// A text of the Archive key dialog.
     Key(ArchiveKeyText),
+    /// A text of the About window.
+    About(AboutText),
 }
 
 const GERMAN: &str = include_str!("../locales/de-DE/p4kx-gui.ftl");

@@ -20,6 +20,7 @@ pub fn write_replacing<T>(
     out: &Path,
     write: impl FnOnce(&mut BufWriter<File>) -> Result<T, ConversionError>,
 ) -> Result<T, ConversionError> {
+    p4kx_guard::ensure_writable(out)?;
     let (temporary, file) = create_temporary(out)?;
     let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
     let result = write(&mut writer).and_then(|value| {

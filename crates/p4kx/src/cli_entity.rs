@@ -1,10 +1,17 @@
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
-use crate::cli_model::{MaterialsArg, lod_range};
+use crate::cli_model::lod_range;
 use crate::cli_wwise::AudioLanguageArgs;
 use crate::exit::EXIT_CODES_HELP;
+
+/// The material modes of `p4kx entity glb --materials`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum EntityMaterialsArg {
+    /// Plain colours without textures.
+    Colours,
+}
 
 /// Arguments of `p4kx entity`.
 #[derive(Debug, Args)]
@@ -56,8 +63,8 @@ pub(crate) struct EntityGlbArgs {
     /// How to write the materials. colours: one glTF material per distinct material, with base
     /// colour, opacity, roughness, metalness and emissive colour and no textures. A material
     /// library the Entity's Record names replaces the one its model names.
-    #[arg(long, value_enum, value_name = "MODE", default_value_t = MaterialsArg::Colours)]
-    pub(crate) materials: MaterialsArg,
+    #[arg(long, value_enum, value_name = "MODE", default_value_t = EntityMaterialsArg::Colours)]
+    pub(crate) materials: EntityMaterialsArg,
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,

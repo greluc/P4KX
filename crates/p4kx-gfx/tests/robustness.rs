@@ -3,11 +3,12 @@
 
 use std::collections::HashMap;
 
-use p4kx_gfx::{Background, CanvasSize, Movie, RasterOptions, RgbaImage};
+use p4kx_gfx::{Background, CanvasSize, Movie, RasterOptions, RgbaImage, TextOptions};
 use p4kx_testkit::{
-    TestFill, TestGlyph, TestMovie, TestPlace, TestShape, TestShapeRecord, TestSignature,
-    exports_body, external_image_body, font3_body, gray_jpeg, jpeg_body, lossless_body,
-    morph_shape_body, place_object2_body, progressive_gray_jpeg, sprite_body, sub_image_body,
+    TestEditText, TestFill, TestGlyph, TestMovie, TestPlace, TestShape, TestShapeRecord,
+    TestSignature, TestTextRecord, define_text_body, exports_body, external_image_body, font3_body,
+    gray_jpeg, jpeg_body, lossless_body, morph_shape_body, place_object2_body,
+    progressive_gray_jpeg, sprite_body, sub_image_body,
 };
 
 fn rich_movie(signature: TestSignature) -> Vec<u8> {
@@ -57,7 +58,39 @@ fn rich_movie(signature: TestSignature) -> Vec<u8> {
             &sprite_body(8, 1, &[(26, place_object2_body(1, 1)), (1, Vec::new())]),
         )
         .tag(56, &exports_body(&[(1, "one")]));
-    first_frame(movie).tag(1, &[]).bytes()
+    first_frame(text_tags(movie)).tag(1, &[]).bytes()
+}
+
+fn text_tags(movie: TestMovie) -> TestMovie {
+    movie
+        .tag(
+            11,
+            &define_text_body(11, [0, 400, 0, 400], false, &[text_record()]),
+        )
+        .tag(
+            33,
+            &define_text_body(13, [0, 400, 0, 400], true, &[text_record()]),
+        )
+        .tag(
+            37,
+            &TestEditText::new(12, [0, 400, 0, 400])
+                .text("A<font size='9'>@k,P=A&amp;")
+                .html()
+                .font(7, 200)
+                .word_wrap()
+                .multiline()
+                .body(),
+        )
+}
+
+fn text_record() -> TestTextRecord {
+    TestTextRecord {
+        font: Some((7, 200)),
+        color: Some([1, 2, 3, 255]),
+        x: Some(10),
+        y: Some(100),
+        glyphs: vec![(0, 50), (1, 50), (9, 50)],
+    }
 }
 
 fn first_frame(movie: TestMovie) -> TestMovie {
@@ -71,6 +104,9 @@ fn first_frame(movie: TestMovie) -> TestMovie {
         )
         .tag(26, &TestPlace::new(2, 1).clip(4).at(3, 3).body2())
         .tag(26, &TestPlace::new(3, 2).ratio(30_000).body2())
+        .tag(26, &TestPlace::new(5, 11).body2())
+        .tag(26, &TestPlace::new(6, 12).body2())
+        .tag(26, &TestPlace::new(7, 13).at(20, 20).body2())
         .tag(
             26,
             &TestPlace::new(4, 9)
@@ -102,7 +138,12 @@ fn exercise(bytes: Vec<u8>) {
     for shape in &assets.shapes {
         let _ignored = shape.write_json(Vec::new());
     }
-    let scene = movie.first_frame(&assets);
+    let lookup = |key: &str| (key == "k").then(|| "%s A".to_owned());
+    let text = TextOptions {
+        fonts: &assets.fonts,
+        localise: Some(&lookup),
+    };
+    let scene = movie.first_frame_with_text(&assets, &text);
     let bitmaps: HashMap<u16, RgbaImage> = scene
         .bitmap_ids()
         .into_iter()
@@ -153,6 +194,8 @@ fn the_rich_movie_reads_without_failures() {
     assert_eq!(assets.bitmaps.len(), 5, "bitmaps");
     assert_eq!(assets.fonts.len(), 1, "fonts");
     assert_eq!(assets.sprites.len(), 1, "sprites");
+    assert_eq!(assets.static_texts.len(), 2, "static texts");
+    assert_eq!(assets.edit_texts.len(), 1, "text fields");
     assert_eq!(assets.morph_shapes.len(), 1, "morph shapes");
     let decoded = assets.decode_bitmap(&assets.bitmaps[0]).expect("lossless");
     let cropped = decoded.crop((1, 0), (5, 5)).expect("inside");

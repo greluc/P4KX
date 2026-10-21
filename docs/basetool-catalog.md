@@ -386,20 +386,20 @@ seconds since 1970-01-01 UTC.
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
 changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
-catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
+catalog (21.7 MB) is about a third of it, so the catalog can grow by a factor of three before the
 limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
 print the size (`catalog size: … bytes`).
 
-Measured on 2026-10-19 with every installed Channel (complete catalog of every kind, English and
-German texts):
+Measured on 2026-10-21, with `playability`, on every installed Channel (complete catalog of every
+kind, English and German texts):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|
-| LIVE | 21,052,438 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| PTU | 20,727,734 | 1,172 | 22,945 | 1,054 | 145 | 1,618 |
-| EPTU | 20,339,175 | 1,154 | 22,788 | 1,049 | 145 | 1,607 |
-| HOTFIX | 21,052,440 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
-| TECH-PREVIEW | 21,112,018 | 1,203 | 23,635 | 1,035 | 145 | 1,618 |
+| LIVE | 21,594,302 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
+| PTU | 21,261,578 | 1,172 | 22,945 | 1,054 | 145 | 1,618 |
+| EPTU | 20,869,301 | 1,154 | 22,788 | 1,049 | 145 | 1,607 |
+| HOTFIX | 21,594,304 | 1,201 | 23,280 | 1,087 | 145 | 1,618 |
+| TECH-PREVIEW | 21,661,276 | 1,203 | 23,635 | 1,035 | 145 | 1,618 |
 
 A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
 1,145 items and 57 ships (1,204 Records).

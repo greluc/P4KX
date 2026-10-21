@@ -251,6 +251,13 @@ hull, their item ports and flags such as `invisible`, treads and wheels. Its **M
 overrides applied before the parts are read (ADR-0050).
 _Avoid_: vehicle definition (that is the Record's field), vehicle XML
 
+**Ship base data**:
+The facts of a ship that no catalog text holds: hull mass and hull points summed over the parts of
+its vehicle implementation, the cargo capacity of the **cargo grids** (Entities of item type
+`CargoGrid`) in its default Loadout, its `AttachDef.Size` and the default Loadout as class names
+per port path, each with the file and field it was read from (ADR-0061).
+_Avoid_: ship stats, ship specs
+
 **Assembly**:
 An Entity combined with its Loadout, geometry, materials and textures into one exportable model.
 _Avoid_: scene, build (a Build is a game version)

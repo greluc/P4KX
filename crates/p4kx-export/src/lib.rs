@@ -16,6 +16,11 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
+//! [`build_ship_base`] reads the base data of every ship: hull mass and hit points from the
+//! vehicle implementation, cargo capacity from the cargo grids of the default Loadout, size and
+//! the Loadout itself, each value with its source file and field (`docs/ship-base-data.md`);
+//! [`ShipReader`] reads one ship.
+//!
 //! [`TagTree::build`] reads the tag tree of a DataForge: tag GUID to tag path, parent and children.
 //! The catalog kinds that match tags (paints, loadouts) use it, and `RecordExportOptions::tags`
 //! adds the tag path to every tag Reference of an exported Record.
@@ -69,6 +74,7 @@ mod resource_group;
 mod scan;
 mod selection;
 mod ship;
+mod ship_base;
 mod summary;
 mod texts;
 
@@ -98,6 +104,11 @@ pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
+pub use ship_base::{
+    BuiltShipBase, Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass,
+    MassBasis, SHIP_BASE_VERSION, ShipBase, ShipBaseError, ShipBaseOptions, ShipReader, Source,
+    SourceKind, SourceShare, Sourced, UnreadablePartValue, build_ship_base, build_ship_base_from,
+};
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
     PaintSummary, SizeWarning, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,

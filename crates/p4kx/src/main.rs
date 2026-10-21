@@ -21,6 +21,7 @@ mod cli_grep;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
+mod cli_ships;
 mod cli_socpak;
 mod cli_ui;
 mod cli_verify;
@@ -72,6 +73,7 @@ mod progress;
 mod query_file;
 mod query_rows;
 mod query_table;
+mod ships;
 mod socpak;
 mod test_build;
 mod texture;
@@ -118,6 +120,7 @@ fn main() -> ExitCode {
         Command::Dcb(args) => dcb::run(&args, json),
         Command::Grep(args) => grep::run(&args, json),
         Command::Catalog(args) => catalog::run(&args, json),
+        Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {

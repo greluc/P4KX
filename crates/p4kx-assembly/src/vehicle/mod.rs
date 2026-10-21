@@ -3,8 +3,10 @@
 
 mod gear;
 mod locate;
+mod origin;
 mod patch;
 mod read;
+mod totals;
 
 use std::collections::HashMap;
 
@@ -13,7 +15,9 @@ use crate::{LoadoutError, LoadoutFiles};
 
 pub(crate) use gear::gears;
 pub(crate) use locate::load;
+pub use origin::ValueOrigin;
 pub use patch::ModificationReport;
+pub use totals::{OriginTally, PartThreshold, UnreadableValue, VehicleTotals};
 
 /// Whether a part of the vehicle implementation shows its item port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -136,7 +140,9 @@ pub struct VehiclePart {
     pub(crate) mass: Option<f64>,
     pub(crate) damage_max: Option<f64>,
     pub(crate) detach_ratio: Option<f64>,
+    pub(crate) destroy_ratio: Option<f64>,
     pub(crate) attributes: Vec<(String, String)>,
+    pub(crate) origins: Vec<(String, ValueOrigin)>,
     pub(crate) item_port: Option<VehicleItemPort>,
     pub(crate) tread_wheels: Vec<String>,
     pub(crate) children: Vec<Self>,
@@ -177,6 +183,24 @@ impl VehiclePart {
     #[must_use]
     pub const fn detach_ratio(&self) -> Option<f64> {
         self.detach_ratio
+    }
+
+    /// Returns the share of `damageMax` at which the part destroys the whole vehicle: the
+    /// `damageRatioMin` of its first damage behaviour in the group `Destroy`, 1 when that states
+    /// none, or `None` when the part has no such behaviour.
+    #[must_use]
+    pub const fn destroy_ratio(&self) -> Option<f64> {
+        self.destroy_ratio
+    }
+
+    /// Returns where the attribute `name` got its value, ignoring ASCII case:
+    /// [`ValueOrigin::Base`] unless the Modification's patch file or an `Elem` set it.
+    #[must_use]
+    pub fn origin_of(&self, name: &str) -> ValueOrigin {
+        self.origins
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map_or(ValueOrigin::Base, |(_, origin)| *origin)
     }
 
     /// Returns the raw value of the part's attribute `name`, ignoring ASCII case, or `None`

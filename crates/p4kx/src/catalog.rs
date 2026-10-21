@@ -27,6 +27,13 @@ use crate::progress::ProgressLine;
 #[error("the export time {0} lies beyond the supported range")]
 pub(crate) struct InvalidExportTime(u64);
 
+impl InvalidExportTime {
+    /// Returns the error for the export time `seconds`.
+    pub(crate) const fn of(seconds: u64) -> Self {
+        Self(seconds)
+    }
+}
+
 /// `p4kx catalog` was given no Archive or no output file.
 #[derive(Debug, Error)]
 #[error("p4kx catalog needs an Archive and --out")]

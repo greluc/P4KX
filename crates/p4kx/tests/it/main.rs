@@ -66,6 +66,7 @@ mod model_skin;
 mod model_textures;
 mod read_only;
 mod search;
+mod ships;
 mod socpak;
 mod texture;
 mod texture_cubemap;

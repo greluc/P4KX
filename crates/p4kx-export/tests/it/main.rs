@@ -23,4 +23,6 @@ mod paints_fixture;
 mod playability_fixture;
 mod record_export;
 mod record_export_plans;
+mod ship_base;
+mod ship_base_fixture;
 mod tag_annotation;

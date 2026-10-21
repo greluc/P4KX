@@ -129,6 +129,10 @@
         },
         "at": {
           "type": "string"
+        },
+        "tag": {
+          "description": "The tag path of the Tag Record the Reference points to; written only with tag paths on.",
+          "type": "string"
         }
       },
       "additionalProperties": false

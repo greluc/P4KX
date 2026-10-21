@@ -10,7 +10,7 @@ use p4kx_export::{
 };
 use p4kx_extraction::{
     Archive, DataForge, DataForgeEntry, Filter, LanguageTexts, LocalizationSet, Record,
-    RecordExportReport, TextResolver, export_combined,
+    RecordExportReport, TagResolver, TagTree, TextResolver, export_combined,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -41,6 +41,8 @@ struct ReportJson<'a> {
     file: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     language: Option<&'static str>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    tags: bool,
     exported: usize,
     skipped: &'a [String],
     failed: Vec<FailureJson<'a>>,
@@ -72,6 +74,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let records = select_records(&forge, args.filter.as_deref())?;
+    let tags = args.tags.then(|| TagTree::build(&forge));
     let job = Job {
         args,
         as_json,
@@ -80,6 +83,7 @@ pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
         entry: &entry,
         forge: &forge,
         records: &records,
+        tags: tags.as_ref(),
     };
     let Some(language) = args.lang else {
         return job.write(None);
@@ -102,6 +106,7 @@ struct Job<'a, 'f> {
     entry: &'a DataForgeEntry,
     forge: &'a DataForge<'f>,
     records: &'a [Record<'f>],
+    tags: Option<&'a TagTree>,
 }
 
 impl Job<'_, '_> {
@@ -115,6 +120,7 @@ impl Job<'_, '_> {
             entry,
             forge,
             records,
+            tags,
         } = *self;
         let target = prepare_target(args.out.as_deref(), archive)?;
         let cancel = cancel_on_interrupt()?;
@@ -123,6 +129,7 @@ impl Job<'_, '_> {
             cancel: Some(&cancel),
             progress: None,
             texts,
+            tags: tags.map(|tags| tags as &dyn TagResolver),
         };
         let combined = args.combined.then(|| combined_name(entry.path()));
         let combined_report;
@@ -142,6 +149,7 @@ impl Job<'_, '_> {
                 target: json::path(&target),
                 file: combined.as_deref(),
                 language: args.lang.map(Language::code),
+                tags: tags.is_some(),
                 exported: report.written,
                 skipped: report.skipped,
                 failed: report.failures.iter().map(failure_json).collect(),

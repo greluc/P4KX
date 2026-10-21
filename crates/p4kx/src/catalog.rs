@@ -155,6 +155,12 @@ fn warn_about_size(summary: &CatalogSummary) -> io::Result<()> {
             summary.upload_size(),
             relation(warning)
         )?;
+        if summary.compressed_size().is_none() {
+            writeln!(
+                err,
+                "note: upload the catalog as .json.zst (--out <file>.json.zst); plain .json is for inspection"
+            )?;
+        }
     }
     if let Some(warning) = summary.decompressed_warning() {
         writeln!(

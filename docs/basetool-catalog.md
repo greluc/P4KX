@@ -729,33 +729,42 @@ decompressed content, 1,000,000,000 bytes (1 GB). They must match the basetool's
 changes, the other changes with it. The owner kept the upload limit at 64 MB after the first
 measurement (21.6 MB). The crafting detail (all tiers, quality modifiers, pools and their reward
 sources) grew the largest plain catalog to 26.6 MB, 41 % of the upload limit; compressed it is a
-small fraction of it. The real-Archive tests write the catalog as `.json.zst`, assert that the
-compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame and compare
-it with the plain catalog, and print both sizes and the time per zstd level.
+small fraction of it. The `loadouts` kind (ADR-0064) then grew the plain catalog of LIVE to
+132 MB, which is **over the 64 MB upload limit: the upload must be `.json.zst`** (2.2 MB), and
+plain `.json` is for inspection only. `p4kx catalog` and the window warn about a plain file over
+the limit and advise `.json.zst`. The real-Archive tests write the catalog as `.json.zst`, assert
+that the compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame
+and compare it with the plain catalog, and print both sizes and the time per zstd level.
 
-Measured on 2026-10-21, with `playability` and `paints`, on every installed Channel (complete catalog of every kind, English and
-German texts):
+Measured on 2026-10-21, with `loadouts`, on every installed Channel (complete catalog of every
+kind, English and German texts); the other kinds are unchanged by it:
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 26,505,107 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 26,132,678 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 25,702,421 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| LIVE | 131,969,336 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 127,711,590 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 126,618,302 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 131,969,338 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 127,031,082 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+
+LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
+for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
+unresolved attachments; 61 attached Entities have no entry in `items` or `ships` (templates of
+doors, screens, beds and the like, and HUD projectors); 193 loadouts list an issue.
 
 Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 26,505,107 | 1,700,139 | 15.6 |
-| PTU | 26,132,678 | 1,678,351 | 15.6 |
-| EPTU | 25,702,421 | 1,653,664 | 15.5 |
-| HOTFIX | 26,505,109 | 1,699,663 | 15.6 |
-| TECH-PREVIEW | 26,558,647 | 1,718,856 | 15.5 |
+| LIVE | 131,969,336 | 2,239,646 | 58.9 |
+| PTU | 127,711,590 | 2,205,012 | 57.9 |
+| EPTU | 126,618,302 | 2,176,157 | 58.2 |
+| HOTFIX | 131,969,338 | 2,239,882 | 58.9 |
+| TECH-PREVIEW | 127,031,082 | 2,238,826 | 56.7 |
 
-The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
-1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
+The compressed catalog is 3.5 % of the 64 MB upload limit; the decompressed one is 13.2 % of the
+1 GB cap. The level trades time for size (measured before the loadouts, LIVE, window log 27; the
+plain build then took 2.1 s):
 
 | Level | Compressed | Ratio | Compression time |
 |------:|-----------:|------:|-----------------:|
@@ -770,7 +779,8 @@ the cost tree, every line with its null fields), the pools 0.43 MB (824 entries,
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 5.5 s). Left out as development leftovers on
+The loadouts take about 105 MB of the 132 MB of LIVE. A catalog builds on LIVE in 7.5 s (5.5 s
+before the loadouts); writing the `.json.zst` takes 19 to 22 s per Channel in all. Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

@@ -45,6 +45,10 @@ pub enum CatalogText {
     NearLimit,
     /// The catalog is over the upload limit; takes `limit`.
     OverLimit,
+    /// The plain JSON catalog is close to the upload limit; takes `limit`.
+    NearLimitPlain,
+    /// The plain JSON catalog is over the upload limit; takes `limit`.
+    OverLimitPlain,
     /// The decompressed catalog is close to the Basetool limit for decompressed content; takes `limit`.
     DecompressedNearLimit,
     /// The decompressed catalog is over that limit; takes `limit`.
@@ -67,7 +71,7 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 32] = [
         Self::Action,
         Self::FileFilter,
         Self::FileFilterCompressed,
@@ -89,6 +93,8 @@ impl CatalogText {
         Self::SummarySizeCompressed,
         Self::NearLimit,
         Self::OverLimit,
+        Self::NearLimitPlain,
+        Self::OverLimitPlain,
         Self::DecompressedNearLimit,
         Self::DecompressedOverLimit,
         Self::SummaryFile,
@@ -125,6 +131,8 @@ impl CatalogText {
             Self::SummarySizeCompressed => "catalog-summary-size-compressed",
             Self::NearLimit => "catalog-near-limit",
             Self::OverLimit => "catalog-over-limit",
+            Self::NearLimitPlain => "catalog-near-limit-plain",
+            Self::OverLimitPlain => "catalog-over-limit-plain",
             Self::DecompressedNearLimit => "catalog-decompressed-near-limit",
             Self::DecompressedOverLimit => "catalog-decompressed-over-limit",
             Self::SummaryFile => "catalog-summary-file",

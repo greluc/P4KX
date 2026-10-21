@@ -1,7 +1,7 @@
 //! Loadouts in the Basetool catalog of a real Archive; runs with `--ignored` when `P4KX_DATA_P4K`
 //! names one.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::time::{Instant, SystemTime};
 
@@ -16,6 +16,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MIN_PORTS: usize = 10_000;
 const ORIG_100I: &str = "6135a874-4cb1-4f49-9f29-5781e5991f2b";
 const VEHICLE_ONLY: &str = "vehicle";
+const PINNED_100I_TREE_PORTS: usize = 68;
 
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c [Value], Box<dyn Error>> {
     Ok(catalog[kind].as_array().ok_or("the kind is a list")?)
@@ -206,7 +207,54 @@ fn check_known_ship(archive: &Archive, catalog: &Value) -> TestResult {
         assert_eq!(extra["source"], VEHICLE_ONLY, "ports beyond the tree");
         assert!(extra["itemGuid"].is_null(), "a vehicle-only port is empty");
     }
-    assert!(!tree.ports().is_empty(), "the 100i has ports");
+    assert_eq!(tree.ports().len(), PINNED_100I_TREE_PORTS, "tree ports");
+    let top = ports(listed);
+    let by_name = |name: &str| top.iter().find(|port| port["name"] == name);
+    let power = by_name("hardpoint_power_plant").ok_or("the power plant port")?;
+    assert_eq!(
+        power["itemGuid"], "4a4a2a9c-040f-4f36-befe-7101b230fa53",
+        "power plant"
+    );
+    assert_eq!(
+        power["itemClassName"], "POWR_LPLT_S01_PowerBolt_SCItem",
+        "power plant class"
+    );
+    let gun = by_name("hardpoint_weapon_gun_left").ok_or("the gun port")?;
+    assert_eq!(gun["itemClassName"], "Mount_Gimbal_S3", "gun mount");
+    assert_eq!(ports(gun).len(), 1, "the gimbal mount carries one gun port");
+    let bay = by_name("hardpoint_weapon_missilebay_front").ok_or("the missile bay")?;
+    assert_eq!(
+        ports(bay).len(),
+        2,
+        "the missile rack carries two missile ports"
+    );
+    Ok(())
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts are the result of the verification"
+)]
+fn report_codes(catalog: &Value) -> TestResult {
+    let mut unresolved: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut issues: BTreeMap<&str, usize> = BTreeMap::new();
+    for entry in list(catalog, "loadouts")? {
+        for code in entry["issues"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            *issues.entry(code).or_default() += 1;
+        }
+        walk(ports(entry), &mut |port| {
+            if let Some(code) = port["unresolved"].as_str() {
+                *unresolved.entry(code).or_default() += 1;
+            }
+        });
+    }
+    println!("unresolved ports by code: {unresolved:?}");
+    println!("loadouts with an issue, by code: {issues:?}");
     Ok(())
 }
 
@@ -220,5 +268,6 @@ fn the_loadouts_of_a_real_archive_resolve_and_match_the_loadout_tree_of_a_ship()
     let catalog: Value = serde_json::from_slice(built.json())?;
     check_counts(&built, &catalog)?;
     check_references(&built, &catalog)?;
+    report_codes(&catalog)?;
     check_known_ship(&archive, &catalog)
 }

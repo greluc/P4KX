@@ -537,9 +537,9 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 26505107, "compressed_size": null,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 131969336, "compressed_size": null,
  "upload_limit": 64000000, "decompressed_limit": 1000000000,
- "size_warning": null, "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
+ "size_warning": "over_limit", "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
@@ -550,11 +550,14 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
- {"kind": "paints", "count": 1064, "skipped": 0, "complete": true}], "skipped": 1205,
+ {"kind": "paints", "count": 1064, "skipped": 0, "complete": true},
+ {"kind": "loadouts", "count": 10708, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
+ "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,
+ "docked_vehicles": 65, "unresolved": 505, "outside": 61, "with_issues": 193},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},

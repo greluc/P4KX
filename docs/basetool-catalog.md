@@ -23,7 +23,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `schemaVersion` | The version of the shape, now `1`; an import rejects a version it does not know |
 | `source.channel` | The Channel: the folder holding the Archive, e.g. `LIVE` |
 | `source.build` | `branch`, `version`, `changeNumber` and `buildId` from the build manifest, or `null` |
-| `source.build.publicPatch` | The public patch version, e.g. `4.7.2`, from the RSI Launcher log line `SC <CHANNEL> <x.y.z>-<tag>.<change>` whose change equals `changeNumber`; `null` when the log has no such line (never guessed from a neighbouring one) |
+| `source.build.publicPatch` | The public patch version, e.g. `4.7.2`, from the RSI Launcher log line `SC <CHANNEL> <version>-<tag>.<change>` (`<version>`: two or three dot-separated numbers, kept as logged) whose change equals `changeNumber`; `null` when the log has no such line (never guessed from a neighbouring one) |
 | `source.archiveSize` | The size of the Archive file in bytes |
 | `source.archiveModified` | The modification time of the Archive file, UTC in RFC 3339 form |
 | `source.toolVersion` | The version of P4K-Extractor that wrote the catalog |

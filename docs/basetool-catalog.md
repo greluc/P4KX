@@ -677,6 +677,27 @@ German texts):
 | HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
 | TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
+Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
+
+| Channel | Uncompressed | Compressed | Ratio |
+|---------|-------------:|-----------:|------:|
+| LIVE | 26,505,107 | 1,700,139 | 15.6 |
+| PTU | 26,132,678 | 1,678,351 | 15.6 |
+| EPTU | 25,702,421 | 1,653,664 | 15.5 |
+| HOTFIX | 26,505,109 | 1,699,663 | 15.6 |
+| TECH-PREVIEW | 26,558,647 | 1,718,856 | 15.5 |
+
+The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
+1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
+
+| Level | Compressed | Ratio | Compression time |
+|------:|-----------:|------:|-----------------:|
+| 15 | 2,005,158 | 13.2 | about 2.6 s |
+| 17 | 1,807,476 | 14.7 | about 7.0 s |
+| 19 | 1,700,181 | 15.6 | about 12.7 s |
+
+Level 19 stays: 12.7 s is acceptable and it saves 15 % over level 15.
+
 Of the 26.5 MB of LIVE, the paints take 0.5 MB (the ship lists), the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
 the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are

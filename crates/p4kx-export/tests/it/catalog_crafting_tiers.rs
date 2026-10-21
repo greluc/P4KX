@@ -2,8 +2,8 @@
 //! catalog, built from a synthetic Archive with multi-tier blueprints (no blueprint of the
 //! real Archive has more than one tier).
 
-mod catalog_crafting_support;
-mod crafting_detail_fixture;
+use crate::catalog_crafting_support;
+use crate::crafting_detail_fixture;
 
 use std::error::Error;
 

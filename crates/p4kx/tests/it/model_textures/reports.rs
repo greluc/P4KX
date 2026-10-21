@@ -6,7 +6,7 @@ use std::fs;
 use p4kx_testkit::{SplitDds, TestModel, TestMtl, TestMtlMaterial, TestTextureFormat, check_glb};
 use serde_json::Value;
 
-use crate::support::{
+use super::support::{
     DIFFUSE_ENTRY, MODEL_ENTRY, NORMAL_ENTRY, SIDE, SPECULAR_ENTRY, TestResult, all_textures,
     archive, glb, mtl, normal, specular,
 };

@@ -1,6 +1,8 @@
 //! The synthetic UI panel the `p4kx ui render` tests render: shapes with gradient, bitmap and
 //! solid fills and strokes, a rotated and tinted sprite, a mask and a button the renderer skips.
 
+pub(crate) mod reference;
+
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};

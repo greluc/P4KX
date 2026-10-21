@@ -1,6 +1,6 @@
 //! The crafting data of a synthetic DataForge through [`read_crafting`].
 
-mod crafting_detail_fixture;
+use crate::crafting_detail_fixture;
 
 use std::error::Error;
 

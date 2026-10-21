@@ -1,6 +1,6 @@
 //! Record exports that reuse the planned files of a DataForge and report their progress.
 
-mod common;
+use crate::common;
 
 use std::error::Error;
 use std::fs;

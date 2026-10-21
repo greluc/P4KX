@@ -1,5 +1,6 @@
 //! The checked-in JSON Schema of Record JSON matches what the Record export writes.
 
+#[path = "it/common/mod.rs"]
 mod common;
 
 use std::error::Error;

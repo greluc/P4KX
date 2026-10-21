@@ -1,6 +1,6 @@
 //! Commodities and blueprints of the Basetool catalog, through the public API.
 
-mod crafting_fixture;
+use crate::crafting_fixture;
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};

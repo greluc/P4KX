@@ -4,7 +4,7 @@ use std::fs;
 
 use p4kx_testkit::check_glb;
 
-use crate::support::{SIDE, TestResult, all_textures, archive, glb, images, mtl};
+use super::support::{SIDE, TestResult, all_textures, archive, glb, images, mtl};
 
 #[test]
 fn textures_mode_embeds_the_slot_textures_as_png_at_the_largest_mip_by_default() -> TestResult {

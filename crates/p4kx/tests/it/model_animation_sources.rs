@@ -9,7 +9,7 @@ use p4kx_testkit::{
     check_glb,
 };
 
-mod animation_support;
+use crate::animation_support;
 
 use animation_support::{
     DOOR, DOOR_GEOMETRY, FAR, IDENTITY, QUARTER_TURN_Z, SKIN, SKIN_GEOMETRY, animation_names,

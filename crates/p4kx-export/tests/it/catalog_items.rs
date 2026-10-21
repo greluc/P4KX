@@ -1,7 +1,7 @@
 //! Items and ships in the Basetool catalog: selection, fields and item class, through the public
 //! API.
 
-mod catalog_fixture;
+use crate::catalog_fixture;
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};

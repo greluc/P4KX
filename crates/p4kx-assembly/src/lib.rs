@@ -13,6 +13,12 @@
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
 //!
+//! [`Assembly::build`] turns the tree into a scene graph of placed models: the geometry each
+//! Entity's Record names ([`Geometry`]), read through a [`ModelProvider`] such as
+//! [`ArchiveModels`], placed at its port's helper in the parent's model, with the material
+//! library the Entity chooses; [`Assembly::write_glb`] exports it as one GLB with a node per part
+//! named `<port>/<entity>`. Parts that cannot be resolved are listed as [`Issue`]s.
+//!
 //! [`audio`] indexes the audio of an Archive once: the ATL definitions that map audio trigger
 //! names to Wwise events and the soundbanks whose `HIRC` sections hold those events, matched by
 //! the events' Wwise short IDs ([`audio::wwise_id`]). [`audio::AudioIndex::entity_audio`] lists
@@ -20,24 +26,38 @@
 //!
 //! [`character`] reads and writes the CHF files of Characters and their JSON form.
 
+mod assembly;
 pub mod audio;
+mod build;
 mod entities;
 mod error;
 mod files;
+mod flatten;
+mod geometry;
+mod issue;
 mod merge;
 mod node;
+mod placement;
 mod port;
+mod provider;
 mod read;
 mod resolver;
 mod spec;
 mod tree;
 mod xml;
 
+pub use assembly::{
+    Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
+    Placement,
+};
 pub use entities::{ENTITY_TYPE, Entities};
-pub use error::{EntityLookupError, LoadoutError};
+pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
+pub use geometry::Geometry;
+pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
 pub use port::{PortDefinition, PortTransform, PortType};
+pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
 pub use xml::MAX_XML_INCLUDE_DEPTH;

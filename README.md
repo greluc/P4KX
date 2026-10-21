@@ -32,6 +32,16 @@ Early development (milestone M1). Available today:
   anywhere in the path (`Libs\Config`). Both ignore ASCII case and treat `\` and `/` alike; every
   other character, spaces and brackets included, is literal, and an empty Filter matches every
   Entry. No match is not an error.
+- `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…]
+  [--limit <n>] [--per-item <n>] [--format table|json]` finds a text in the contents: in the string,
+  localisation key and enum values of all Records (with the field path), in the texts of each
+  language's `global.ini` and in the lines of text and CryXml Entries (CryXml converted to XML
+  first). It matches part of a word and ignores case, so `Gladi` finds `AEGS_Gladius`. Nothing is
+  indexed or stored: each search scans in parallel and streams, in a second or two on LIVE.
+  Results are bounded (`--limit` per source, `--per-item` per Record or Entry) and say whether more
+  exist; Entries with binary data, above `--max-entry-size` or encrypted without the Archive key
+  are skipped and counted on stderr ([docs/cli-json.md](docs/cli-json.md)). The window searches
+  the same way in its *Search* tab.
 - `p4kx verify <archive> [--filter <filter>]` checks the data of every Entry (or those the Filter
   matches) against the CRC-32C the Archive directory states, in parallel and without writing
   anything, and prints every mismatch with the stored and the computed value; an Entry that
@@ -128,6 +138,13 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx entity glb <archive> <entity> --out <file>` exports an Entity as one GLB: its geometry and
+  that of every Entity of its default Loadout, each placed at its port as a node named
+  `<port>/<entity>` below the node of the Entity it is attached to. `--lod <n>` applies to every
+  model and `--materials colours` writes plain colours, with the material library an Entity's
+  Record names replacing the one its model names. Parts whose Entity or geometry cannot be
+  resolved are skipped and listed; with `--json` the report has the shape described in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx wwise resolve <archive> <trigger>` lists every sound variant of an audio trigger with
   its soundbank, WEM ID, source and container path, e.g. `Play_QDrive_Spool in SSQD_QDrive.bnk:
   WEM 98393519 embedded, not located; event 2178236557 > action 98720655 > blend 228967944 > …`;

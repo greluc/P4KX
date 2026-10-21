@@ -746,3 +746,51 @@ model-export-stopped = The export of { $name } stopped without a result.
 model-export-key-required = { $name } is encrypted and the Archive has no key. Enter the Archive key and export again.
 model-export-key-rejected = The Archive key does not decrypt { $name }. Enter the right key and export again.
 model-export-archive-changed = The Archive changed on disk, so { $name } was not exported. Reload the Archive and export again.
+scroll-hits = Search hits
+content-search-tab = Search
+content-search-label = Search
+content-search-hint = Text to find, e.g. Gladi
+content-search-run = Search
+content-search-cancel = Cancel
+content-search-sources = Look in
+content-search-source-records = Records
+content-search-source-localization = Localisation
+content-search-source-entries = Entries
+content-search-empty-title = No Archive open
+content-search-empty-hint = Open an Archive to search the contents of its Records, localisation texts and Entries.
+content-search-prompt = Type a text and press Search. It is found as part of a longer text, whatever its case.
+content-search-searching = Searching…
+content-search-cancelled = The search was cancelled.
+content-search-failed = The search failed: { $reason }
+content-search-stopped = The search stopped without a result.
+content-search-archive-changed = The Archive changed on disk. Reload it to search it.
+content-search-no-match = Nothing matches “{ $text }”.
+content-search-none-here = This source has no hit.
+content-search-segment = { $number }
+content-search-segment-more = { $number }+
+content-search-hits =
+    { $count ->
+        [one] { $number } hit in { $seconds } s
+       *[other] { $number } hits in { $seconds } s
+    }
+content-search-more = More matches exist. Only the first { $number } of a source are kept; make the text longer to narrow the search.
+content-search-skipped =
+    { $count ->
+        [one] { $number } Entry was not searched: { $binary } binary, { $large } too large, { $unreadable } unreadable.
+       *[other] { $number } Entries were not searched: { $binary } binary, { $large } too large, { $unreadable } unreadable.
+    }
+content-search-key-required =
+    { $count ->
+        [one] { $number } Entry is encrypted and was not searched: the Archive has no key, or the key does not match.
+       *[other] { $number } Entries are encrypted and were not searched: the Archive has no key, or the key does not match.
+    }
+content-search-key-button = Enter the Archive key
+content-search-no-dataforge = The Archive holds no DataForge, so no Record was searched.
+content-search-column-record = Record path
+content-search-column-field = Field
+content-search-column-text = Text
+content-search-column-language = Language
+content-search-column-key = Key
+content-search-column-entry = Entry
+content-search-column-line = Line
+content-search-row = { $place }: { $text }

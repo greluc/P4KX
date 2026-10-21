@@ -4,6 +4,7 @@ use p4kx_extraction::Guid;
 
 use crate::{
     Browser, IncomingPreview, RecordId, RecordLink, RecordNodeKind, RecordPreview, TextLanguage,
+    TreeNode,
 };
 
 impl Browser {
@@ -172,5 +173,29 @@ impl Browser {
     /// Selects and reveals the Record `id` in the tree without a step on the way taken.
     fn pick_record_quietly(&mut self, id: RecordId) -> bool {
         self.records.as_mut().is_some_and(|tree| tree.reveal(id))
+    }
+
+    /// Shows the Entry at `path` of the Archive: ends a search, selects the folder that holds it
+    /// with the folders above it expanded, and selects the Entry for the preview, which is read
+    /// on a background thread calling `wake`. Returns whether the Archive holds the Entry.
+    pub fn reveal_entry(&mut self, path: &str, wake: impl Fn() + Send + Sync + 'static) -> bool {
+        let index = Arc::clone(&self.index);
+        let Some(id) = index.id_of_path(path) else {
+            return false;
+        };
+        let parent = path
+            .rsplit_once(['\\', '/'])
+            .map_or("", |(parent, _)| parent);
+        let Some(folder) = index.find_folder(parent) else {
+            return false;
+        };
+        for (at, _) in parent.match_indices(['\\', '/']) {
+            if let Some(above) = parent.get(..at).and_then(|above| index.find_folder(above)) {
+                self.expanded.insert(TreeNode::from(above));
+            }
+        }
+        self.select_folder(folder);
+        self.select_entry(id, wake);
+        true
     }
 }

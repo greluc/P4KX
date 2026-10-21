@@ -746,3 +746,51 @@ model-export-stopped = Der Export von { $name } wurde ohne Ergebnis beendet.
 model-export-key-required = { $name } ist verschlüsselt und das Archiv hat keinen Schlüssel. Gib den Archiv-Schlüssel ein und exportiere erneut.
 model-export-key-rejected = Der Archiv-Schlüssel entschlüsselt { $name } nicht. Gib den richtigen Schlüssel ein und exportiere erneut.
 model-export-archive-changed = Das Archiv hat sich auf dem Datenträger geändert, deshalb wurde { $name } nicht exportiert. Lade das Archiv neu und exportiere erneut.
+scroll-hits = Suchtreffer
+content-search-tab = Suche
+content-search-label = Suche
+content-search-hint = Gesuchter Text, z. B. Gladi
+content-search-run = Suchen
+content-search-cancel = Abbrechen
+content-search-sources = Suchen in
+content-search-source-records = Records
+content-search-source-localization = Lokalisierung
+content-search-source-entries = Einträge
+content-search-empty-title = Kein Archiv geöffnet
+content-search-empty-hint = Öffnen Sie ein Archiv, um die Inhalte seiner Records, Lokalisierungstexte und Einträge zu durchsuchen.
+content-search-prompt = Geben Sie einen Text ein und wählen Sie Suchen. Er wird auch als Teil eines längeren Textes gefunden, unabhängig von der Groß- und Kleinschreibung.
+content-search-searching = Suche läuft …
+content-search-cancelled = Die Suche wurde abgebrochen.
+content-search-failed = Die Suche ist fehlgeschlagen: { $reason }
+content-search-stopped = Die Suche wurde ohne Ergebnis beendet.
+content-search-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um es zu durchsuchen.
+content-search-no-match = Nichts passt zu „{ $text }“.
+content-search-none-here = Diese Quelle hat keinen Treffer.
+content-search-segment = { $number }
+content-search-segment-more = { $number }+
+content-search-hits =
+    { $count ->
+        [one] { $number } Treffer in { $seconds } s
+       *[other] { $number } Treffer in { $seconds } s
+    }
+content-search-more = Es gibt weitere Treffer. Pro Quelle bleiben nur die ersten { $number }; ein längerer Text grenzt die Suche ein.
+content-search-skipped =
+    { $count ->
+        [one] { $number } Eintrag wurde nicht durchsucht: { $binary } binär, { $large } zu groß, { $unreadable } nicht lesbar.
+       *[other] { $number } Einträge wurden nicht durchsucht: { $binary } binär, { $large } zu groß, { $unreadable } nicht lesbar.
+    }
+content-search-key-required =
+    { $count ->
+        [one] { $number } Eintrag ist verschlüsselt und wurde nicht durchsucht: Das Archiv hat keinen Archivschlüssel oder der Schlüssel passt nicht.
+       *[other] { $number } Einträge sind verschlüsselt und wurden nicht durchsucht: Das Archiv hat keinen Archivschlüssel oder der Schlüssel passt nicht.
+    }
+content-search-key-button = Archivschlüssel eingeben
+content-search-no-dataforge = Das Archiv enthält keine DataForge, deshalb wurde kein Record durchsucht.
+content-search-column-record = Record-Pfad
+content-search-column-field = Feld
+content-search-column-text = Text
+content-search-column-language = Sprache
+content-search-column-key = Schlüssel
+content-search-column-entry = Eintrag
+content-search-column-line = Zeile
+content-search-row = { $place }: { $text }

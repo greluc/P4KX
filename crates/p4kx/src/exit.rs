@@ -15,7 +15,9 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
+use crate::entity_glb::GlbOutputIsArchive;
 use crate::extract::NoMatch;
+use crate::grep::EmptySearchText;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
 use crate::wwise::{UnknownAudioLanguage, UnknownTrigger};
@@ -73,7 +75,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), --json without --out
      for cryxml or chf to-json, an invalid Query, --json with another
-     --format and without --out for dcb query, --json with --format table for dcb refs, a GUID or
+     --format and without --out for dcb query, --json with --format table for dcb refs or grep,
+     an empty text for grep, a GUID or
      record path for dcb refs that no Record has, an Entity that no Record or several Records
      match, an audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
@@ -173,6 +176,8 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<JsonWithTable>().is_some()
+        || error.downcast_ref::<EmptySearchText>().is_some()
         || error.downcast_ref::<UnknownRecord>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
+        || error.downcast_ref::<GlbOutputIsArchive>().is_some()
 }

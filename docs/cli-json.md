@@ -177,6 +177,36 @@ defines and no Loadout names, in definition order. An entry names its Entity by 
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
+## `p4kx entity glb <archive> <entity> --out <file> --json`
+
+```json
+{"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
+ "modelled_parts": 56, "nodes": 899, "meshes": 282, "primitives": 1123, "materials": 204,
+ "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "vertices": 931217,
+ "triangles": 1031918, "bytes": 55798740, "skipped": 0, "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
+root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
+`nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
+models that lack the requested level and are written at the nearest lower one;
+`default_material_ids` and `hidden_primitives` are summed over all models as for
+`p4kx model glb`. `skipped` counts the issues that leave a part or its model out. The file is
+written even when parts are skipped; an Archive key that is missing or wrong exits with code 7
+and writes nothing, an `--out` that is the Archive with code 2.
+
+An **Issue** has `path` (the port names from the root joined by `/`, empty for the root), `name`
+(the class name, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
+stable code, `skipped` and `reason`, text for people. The kinds are `unresolved` (the Loadout
+names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
+Record names no model; the part stays as an empty node), `geometry_missing` and
+`geometry_unreadable` (the model is not in the Archive or cannot be read, e.g. a `.cdf`; the part
+stays as an empty node), `material_library` (the library is missing or unreadable; the part is
+drawn with the default material), `helper_not_found` (the port's helper is no node of the
+parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
+and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
+was reached). New kinds may be added in later versions.
+
 ## `p4kx entity audio <archive> <entity> --json`
 
 ```json
@@ -371,6 +401,48 @@ GUIDs no Record has, with `"record": null` and the `guid` they name.
 holds the Reference. A DataForge that holds more than 8,388,608 References, or Records that
 cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
 8,388,608 References in the order of the Records.
+
+## `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>] [--lang <language>,…] [--limit <n>] [--per-item <n>] [--max-entry-size <bytes>] [--format table|json] --json`
+
+Finds `<text>` as part of a longer text, ignoring case, in the string, localisation key and enum
+values of Records, in the texts of each language's `global.ini` and in the lines of text and
+CryXml Entries ([ADR-0044](adr/0044-content-search-scans-on-demand-and-keeps-no-index.md)).
+`--json` is `--format json`; with `--format table` it is invalid input (exit code 2), as is an
+empty `<text>`. No match is not an error: the exit code is 0 with empty arrays.
+
+```json
+{"archive": "…", "text": "Gladi", "elapsed_ms": 812,
+ "records": [{"record_path": "libs/ships/aegs_gladius", "name": "Gear.AEGS_Gladius",
+  "type": "Gear", "guid": "…", "field": "Components[3].name", "text": "AEGS_Gladius Fighter",
+  "match": [5, 10]}],
+ "loc": [{"language": "en", "key": "vehicle_NameAEGS_Gladius", "text": "Aegis Gladius",
+  "match": [6, 11]}],
+ "entries": [{"path": "Data\\Scripts\\ship.xml", "line": 2, "offset": 7,
+  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [16, 21]}],
+ "more": ["records"],
+ "unavailable": [{"source": "records", "reason": "…"}],
+ "stats": {"records_scanned": 117709, "records_unreadable": 0, "texts_scanned": 90946,
+  "languages_scanned": 1, "languages_unreadable": 0, "entries_scanned": 44874,
+  "entries_binary": 0, "entries_too_large": 0, "entries_key_required": 11,
+  "entries_unreadable": 0}}
+```
+
+The hits of a source are in its order: Records in Record order, localisation by language in the
+order of `p4kx loc languages` and by line, Entries in path order; the order does not depend on
+the number of threads. `text` is a short excerpt around the first match in the value, with a
+`…` where it is cut and control characters replaced by U+FFFD, and `match` the byte range of the
+match in it. `field` is the path of the field with the index of every array element on the way,
+like the Record preview writes it. `line` counts from 1 in the text of the Entry, a CryXml Entry
+in its XML form, and `offset` is the byte offset of the start of that line in the same text.
+A localisation key with a comma suffix, `item_Gun,P`, is a line of its own. A Record reports
+at most `--per-item` hits and a source at most `--limit` (1,000 by default, at most 10,000);
+`more` names the sources that hold more matches. `--filter` narrows the record path of a Record,
+the key of a text and the path of an Entry, and for Entries replaces the list of extensions.
+`unavailable` names a source without anything to search in, e.g. the Records of an Archive
+without DataForge. `stats` counts what was read and what was left out: Entries that hold binary
+data, Entries above `--max-entry-size` (64 MiB by default), encrypted Entries the Archive key
+does not open and Entries that cannot be read are skipped and counted, and the same counts are
+printed as a note on stderr. An encrypted DataForge without the key is exit code 7.
 
 ## `p4kx catalog <archive> --out <file> --json`
 

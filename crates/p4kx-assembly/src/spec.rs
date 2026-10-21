@@ -3,10 +3,12 @@ use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
+use crate::Geometry;
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text};
 
+const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
@@ -58,6 +60,7 @@ pub(crate) struct EntitySpec {
     pub(crate) ports: Vec<PortSpec>,
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
+    pub(crate) geometry: Option<Geometry>,
 }
 
 impl EntitySpec {
@@ -88,6 +91,10 @@ impl EntitySpec {
         for (at, port) in ports.iter().enumerate() {
             port_index.entry(port_key(&port.name)).or_insert(at);
         }
+        let geometry = components
+            .iter()
+            .find(|component| component.type_name() == GEOMETRY_RESOURCE)
+            .and_then(|component| Geometry::read(component));
         Self {
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
@@ -95,6 +102,7 @@ impl EntitySpec {
             ports,
             port_index,
             loadout,
+            geometry,
         }
     }
 

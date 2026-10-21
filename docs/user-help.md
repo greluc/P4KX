@@ -178,6 +178,28 @@ rejects it. A selected Record that cannot be read does not stop the catalog: it 
 listed in the summary under "Records that could not be read and were left out", with its record
 path, GUID and reason.
 
+## Searching the contents
+
+The **Search** tab finds a text inside the Archive, not only in paths and names. Type the text,
+tick where to look (**Records**, **Localisation**, **Entries**) and press **Search** or Enter. The
+text is found as part of a longer one and whatever its case: `Gladi` finds `AEGS_Gladius`.
+
+- **Records**: the string, localisation key and enum values of every Record, with the field they
+  stand in, e.g. `Components[3].AttachDef.Tags`.
+- **Localisation**: the texts of every language's `global.ini`, with language and key.
+- **Entries**: the lines of text and CryXml Entries (CryXml is converted to XML first, so the line
+  numbers are those of the XML), by default of the extensions xml, mtl, cdf, adb, entxml,
+  chrparams, animevents, ini, cfg, json, txt, lua, csv, eco and tbl.
+
+The counts on the segments above the list say how many hits each source has; click a segment to
+list its hits. Click a hit to open it: a Record is selected in the Record tree, an Entry in its
+folder, a localisation text in the Localisation tab. Each source keeps at most 1,000 hits, a Record
+or Entry shows at most three of its own, and a note says when more exist. Entries that hold binary
+data, are above 64 MiB, cannot be read, or are encrypted and need the Archive key (see below) are
+not searched; the note names how many. Nothing is indexed: each search scans the Archive again,
+which takes about a second for all Records and two for all text Entries of LIVE. The same search
+runs on the command line as `p4kx grep`.
+
 ## Running Queries
 
 The **Query** tab runs Queries ([query.md](query.md)) over the DataForge of the open Archive, for

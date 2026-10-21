@@ -3,7 +3,7 @@ use std::sync::Arc;
 use p4kx_dataforge::Guid;
 
 use crate::entities::class_name_of;
-use crate::{LoadoutError, PortDefinition};
+use crate::{Geometry, LoadoutError, PortDefinition};
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,9 +13,16 @@ pub struct EntityNode {
     pub(crate) name: String,
     pub(crate) ports: Vec<PortNode>,
     pub(crate) issues: Vec<LoadoutError>,
+    pub(crate) geometry: Option<Geometry>,
 }
 
 impl EntityNode {
+    /// Returns the geometry the Entity's Record names, or `None` when it names none.
+    #[must_use]
+    pub const fn geometry(&self) -> Option<&Geometry> {
+        self.geometry.as_ref()
+    }
+
     /// Returns the GUID of the Entity's Record.
     #[must_use]
     pub const fn guid(&self) -> Guid {

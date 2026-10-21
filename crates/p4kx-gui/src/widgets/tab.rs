@@ -13,9 +13,12 @@ use crate::theme::desktop::{
     TAB_BAR_PADDING_LEFT, TAB_COUNT_GAP, TAB_PADDING_X, TAB_SIZE, TAB_TRACKING,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{CORNER_NONE, CORNER_SM, FS_XS, RADIUS_SM_POINTS, TOUCH_TARGET, Weight};
+use crate::theme::tokens::{
+    CORNER_NONE, CORNER_SM, FS_XS, RADIUS_SM_POINTS, SPACE_2, TOUCH_TARGET, Weight,
+};
 
 const INNER_RADIUS: u8 = RADIUS_SM_POINTS - 1;
+const SEGMENT_COUNT_GAP: f32 = SPACE_2;
 
 /// One tab of a `.tab-nav` laid out once: its label and an optional `.tab-count`.
 #[derive(Clone)]
@@ -187,6 +190,29 @@ fn scrolled(ui: &Ui, strip: Rect, labels: &[TabLabel], current: usize) -> f32 {
     ui.data_mut(|data| data.insert_temp(id, (offset, current, strip.width())));
     offset
 }
+/// One item of a `.krt-segmented` group laid out once: its name in both weights and an optional
+/// `.krt-segmented__count`.
+#[derive(Clone)]
+pub(crate) struct SegmentLabel {
+    accessible: String,
+    regular: Arc<Galley>,
+    bold: Arc<Galley>,
+    count: Option<Arc<Galley>>,
+}
+
+impl SegmentLabel {
+    /// Lays out the item `name` with `count` after it, if any.
+    pub(crate) fn new(ui: &Ui, name: &str, count: Option<&str>) -> Self {
+        let named = |weight| line(ui, plain(name, FS_XS, weight), f32::INFINITY);
+        Self {
+            accessible: count.map_or_else(|| name.to_owned(), |count| format!("{name} {count}")),
+            regular: named(Weight::Regular),
+            bold: named(Weight::Bold),
+            count: count.map(|count| line(ui, plain(count, FS_XS, Weight::Bold), f32::INFINITY)),
+        }
+    }
+}
+
 /// Shows the items of a `.krt-segmented--sm` group with their data kept as written; `active` is
 /// the pressed item. Returns the clicked index.
 pub(crate) fn segments<S: AsRef<str>>(
@@ -194,16 +220,54 @@ pub(crate) fn segments<S: AsRef<str>>(
     items: &[S],
     active: Option<usize>,
 ) -> Option<usize> {
+    group(ui, items.len(), active, |ui, index, pressed, place| {
+        let item = items.get(index).map_or("", AsRef::as_ref);
+        let weight = if pressed {
+            Weight::Bold
+        } else {
+            Weight::Regular
+        };
+        let galley = line(ui, plain(item, FS_XS, weight), f32::INFINITY);
+        segment(ui, (item, galley, None), pressed, place)
+    })
+}
+
+/// Shows the items of a `.krt-segmented--sm` group laid out already, each with its
+/// `.krt-segmented__count`; `active` is the pressed item. Returns the clicked index.
+pub(crate) fn counted_segments(
+    ui: &mut Ui,
+    items: &[SegmentLabel],
+    active: Option<usize>,
+) -> Option<usize> {
+    group(ui, items.len(), active, |ui, index, pressed, place| {
+        let Some(item) = items.get(index) else {
+            return ui.allocate_response(vec2(0.0, 0.0), Sense::hover());
+        };
+        let galley = Arc::clone(if pressed { &item.bold } else { &item.regular });
+        segment(
+            ui,
+            (&item.accessible, galley, item.count.as_ref()),
+            pressed,
+            place,
+        )
+    })
+}
+
+fn group(
+    ui: &mut Ui,
+    len: usize,
+    active: Option<usize>,
+    mut item: impl FnMut(&mut Ui, usize, bool, Place) -> Response,
+) -> Option<usize> {
     let mut clicked = None;
     let spacing = std::mem::replace(&mut ui.spacing_mut().item_spacing.x, 0.0);
     let mut group = Rect::NOTHING;
-    for (index, item) in items.iter().enumerate() {
-        let pressed = active == Some(index);
+    for index in 0..len {
         let place = Place {
             first: index == 0,
-            last: index + 1 == items.len(),
+            last: index + 1 == len,
         };
-        let response = segment(ui, item.as_ref(), pressed, place);
+        let response = item(ui, index, active == Some(index), place);
         group = group.union(response.rect);
         if response.clicked() {
             clicked = Some(index);
@@ -238,15 +302,15 @@ impl Place {
     }
 }
 
-fn segment(ui: &mut Ui, item: &str, pressed: bool, place: Place) -> Response {
-    let weight = if pressed {
-        Weight::Bold
-    } else {
-        Weight::Regular
-    };
-    let galley = line(ui, plain(item, FS_XS, weight), f32::INFINITY);
+fn segment(
+    ui: &mut Ui,
+    (item, galley, count): (&str, Arc<Galley>, Option<&Arc<Galley>>),
+    pressed: bool,
+    place: Place,
+) -> Response {
+    let counted = count.map_or(0.0, |count| SEGMENT_COUNT_GAP + count.size().x);
     let size = vec2(
-        SEGMENT_PADDING_X.mul_add(2.0, galley.size().x),
+        SEGMENT_PADDING_X.mul_add(2.0, galley.size().x + counted),
         SEGMENT_HEIGHT,
     );
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
@@ -280,7 +344,21 @@ fn segment(ui: &mut Ui, item: &str, pressed: bool, place: Place) -> Response {
         let underline = Rect::from_min_max(pos2(rect.left(), rect.bottom() - ACTIVE_BAR), rect.max);
         accent_edge(painter, (rect, place.corner()), underline, border);
     }
-    paint_left(ui, rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0)), galley, text);
+    let inner = rect.shrink2(vec2(SEGMENT_PADDING_X, 0.0));
+    let name_width = galley.size().x;
+    paint_left(ui, inner, galley, text);
+    if let Some(count) = count {
+        let colour = if pressed {
+            palette::CONTROL_SELECTED_FG
+        } else {
+            palette::GRAY_2_TEXT
+        };
+        let room = Rect::from_min_max(
+            pos2(inner.left() + name_width + SEGMENT_COUNT_GAP, inner.top()),
+            inner.max,
+        );
+        paint_left(ui, room, Arc::clone(count), colour);
+    }
     if response.has_focus() {
         focus_ring_square(ui, rect, palette::PRIMARY, SEGMENT_FOCUS_OFFSET);
     }

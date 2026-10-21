@@ -3487,6 +3487,7 @@ dependencies = [
  "p4kx-comparison",
  "p4kx-export",
  "p4kx-extraction",
+ "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
  "png",
@@ -3530,6 +3531,8 @@ dependencies = [
  "p4kx-dataforge",
  "p4kx-extraction",
  "p4kx-foundation",
+ "p4kx-gltf",
+ "p4kx-model",
  "p4kx-testkit",
  "rayon",
  "roxmltree",
@@ -3738,6 +3741,7 @@ dependencies = [
  "p4kx-comparison",
  "p4kx-export",
  "p4kx-extraction",
+ "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
  "p4kx-update",
@@ -3794,6 +3798,17 @@ dependencies = [
  "p4kx-testkit",
  "proptest",
  "roxmltree",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-search"
+version = "0.2.0"
+dependencies = [
+ "p4kx-extraction",
+ "p4kx-testkit",
+ "rayon",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

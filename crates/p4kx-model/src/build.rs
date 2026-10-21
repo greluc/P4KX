@@ -9,8 +9,8 @@ use crate::nmc::read_nodes;
 use crate::skeleton::{read_bones, read_compact_bones};
 use crate::skin::read_skin;
 use crate::{
-    Bone, ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection, Mesh,
-    Model, ModelChunk, ModelError, ModelFile, Node, Transform,
+    Bone, ChunkUsage, CompanionPath, CompanionResolver, CorruptChunk, Lod, LodSelection,
+    MaterialStatus, Mesh, Model, ModelChunk, ModelError, ModelFile, Node, Transform,
 };
 
 const MATERIAL_TYPES: [ChunkType; 2] = [ivo::MTL_NAME_320, ivo::MTL_NAME];
@@ -52,6 +52,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
+    load_materials: bool,
 ) -> Result<Model, ModelError> {
     let mut read = Vec::new();
     let nodes = match file.chunks_of(ivo::NODE_MESH_COMBO).next() {
@@ -82,7 +83,11 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     let mut chunks = usage(file, ModelFile::Model, &read);
     chunks.extend(companion_chunks);
     let material_library = material.flatten();
-    let materials = load(material_library.as_deref(), companions);
+    let materials = if load_materials {
+        load(material_library.as_deref(), companions)
+    } else {
+        MaterialStatus::Skipped
+    };
     Ok(Model {
         name: name.to_owned(),
         geometry: base_name,
@@ -145,7 +150,7 @@ fn read_geometry<B: AsRef<[u8]>>(
             read,
         )?;
     }
-    if let LodSelection::Only(level) = selection
+    if let LodSelection::Only(level) | LodSelection::AtMost(level) = selection
         && lods.is_empty()
     {
         return Err(ModelError::NoSuchLod {

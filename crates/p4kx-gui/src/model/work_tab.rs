@@ -15,6 +15,8 @@ pub enum WorkTab {
     Query,
     /// Looking up the localisation keys and texts of the open Archive.
     Localization,
+    /// Searching the contents of the open Archive.
+    Search,
 }
 
 impl Model {

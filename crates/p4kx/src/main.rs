@@ -15,6 +15,7 @@ mod cli_chf;
 mod cli_chunks;
 mod cli_dcb;
 mod cli_entity;
+mod cli_grep;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
@@ -34,11 +35,15 @@ mod dcb_refs_table;
 mod diff;
 mod entity;
 mod entity_audio;
+mod entity_glb;
 mod entity_json;
 mod exit;
 mod extract;
 mod extract_report;
 mod failure_report;
+mod grep;
+mod grep_json;
+mod grep_table;
 mod guard;
 mod info;
 mod issues;
@@ -101,6 +106,7 @@ fn main() -> ExitCode {
         Command::Channels(args) => channels::run(&args, json).map(success),
         Command::Info(args) => info::run(&args, json).map(success),
         Command::Dcb(args) => dcb::run(&args, json),
+        Command::Grep(args) => grep::run(&args, json),
         Command::Catalog(args) => catalog::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),

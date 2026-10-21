@@ -3835,6 +3835,7 @@ dependencies = [
  "cbc",
  "crc32c",
  "crc32fast",
+ "dirs",
  "flate2",
  "gltf",
  "half",
@@ -3844,6 +3845,7 @@ dependencies = [
  "png",
  "ruzstd",
  "sha2",
+ "tempfile",
 ]
 
 [[package]]

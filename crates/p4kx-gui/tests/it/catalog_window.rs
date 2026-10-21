@@ -126,6 +126,35 @@ fn an_unreadable_record_is_listed_in_the_summary_and_the_catalog_is_written() ->
 }
 
 #[test]
+fn a_compressed_catalog_shows_both_sizes() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+    model.start_catalog(out.join("catalog.json.zst"), || {});
+    let mut harness = harness(model);
+
+    wait_for_the_end(&mut harness)?;
+
+    harness.get_by_label_contains("compressed,");
+    harness.get_by_label_contains("uncompressed, of the upload limit of 64 MB");
+    Ok(())
+}
+
+#[test]
+fn a_plain_catalog_shows_one_size() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+    model.start_catalog(out.join("catalog.json"), || {});
+    let mut harness = harness(model);
+
+    wait_for_the_end(&mut harness)?;
+
+    harness.get_by_label_contains("of the upload limit of 64 MB");
+    assert!(
+        harness.query_by_label_contains("uncompressed").is_none(),
+        "no second size"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
     let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
     model.start_catalog(out.join("catalog.json"), || {});
@@ -205,7 +234,7 @@ fn the_open_archive_as_the_catalog_file_is_explained() -> TestResult {
 
 #[test]
 fn the_running_catalog_can_be_cancelled_from_its_window() -> TestResult {
-    let (_dir, mut model, out) = opened(&many(20_000))?;
+    let (_dir, mut model, out) = opened(&many(100_000))?;
     model.start_catalog(out.join("basetool-catalog.json"), || {});
     let mut harness = harness(model);
 

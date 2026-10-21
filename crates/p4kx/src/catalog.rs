@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -6,14 +5,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, CraftingWarning, Filter,
-    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, build_catalog,
-    catalog_schema,
+    CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, UPLOAD_LIMIT,
+    catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
-use serde::Serialize;
 use thiserror::Error;
 
+use super::catalog_json::summary_json;
 use crate::cli::{CatalogArgs, CatalogCommand};
 use crate::exit;
 use crate::extract::cancel_on_interrupt;
@@ -37,120 +36,6 @@ impl InvalidExportTime {
 #[derive(Debug, Error)]
 #[error("p4kx catalog needs an Archive and --out")]
 pub(crate) struct MissingCatalogArgs;
-
-#[derive(Serialize)]
-struct SummaryJson<'a> {
-    archive: String,
-    out: String,
-    schema_version: u32,
-    size: u64,
-    upload_limit: u64,
-    size_warning: Option<&'static str>,
-    kinds: Vec<KindJson>,
-    skipped: usize,
-    failed: Vec<FailureJson<'a>>,
-    warnings: Vec<WarningJson>,
-    item_classes: ItemClassJson,
-    paints: PaintsJson,
-    playability: PlayabilityJson,
-    texts: Vec<TextJson>,
-    unresolved: usize,
-}
-
-#[derive(Serialize)]
-struct PaintsJson {
-    paints: usize,
-    assigned: usize,
-    unassigned: usize,
-    ships: usize,
-    unreadable_vehicles: usize,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum WarningJson {
-    RewardSourcesTruncated,
-    UnreadableReferenceRecords { count: usize },
-    AmbiguousDismantle { count: usize },
-    UnreadableVehicleFiles { count: usize },
-    Other { message: String },
-}
-
-impl From<&CraftingWarning> for WarningJson {
-    fn from(warning: &CraftingWarning) -> Self {
-        match *warning {
-            CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
-            CraftingWarning::UnreadableReferenceRecords(count) => {
-                Self::UnreadableReferenceRecords { count }
-            }
-            CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
-            CraftingWarning::UnreadableVehicleFiles(count) => {
-                Self::UnreadableVehicleFiles { count }
-            }
-            ref other => Self::Other {
-                message: other.to_string(),
-            },
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct FailureJson<'a> {
-    guid: String,
-    path: &'a str,
-    error: &'a str,
-}
-
-#[derive(Serialize)]
-struct ItemClassJson {
-    classified: usize,
-    other: usize,
-    missing: usize,
-}
-
-#[derive(Serialize)]
-struct PlayabilityJson {
-    items: PlayabilityCountsJson,
-    ships: PlayabilityCountsJson,
-}
-
-#[derive(Serialize)]
-struct PlayabilityCountsJson {
-    player: usize,
-    ai: usize,
-    mission: usize,
-    special: usize,
-    unclassified: usize,
-}
-
-impl From<PlayabilityCounts> for PlayabilityCountsJson {
-    fn from(counts: PlayabilityCounts) -> Self {
-        Self {
-            player: counts.of(Playability::Player),
-            ai: counts.of(Playability::Ai),
-            mission: counts.of(Playability::Mission),
-            special: counts.of(Playability::Special),
-            unclassified: counts.unclassified(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct TextJson {
-    language: &'static str,
-    available: bool,
-    resolved: usize,
-    unresolved: usize,
-    placeholder: usize,
-}
-
-#[derive(Serialize)]
-struct KindJson {
-    kind: &'static str,
-    count: usize,
-    skipped: usize,
-    complete: bool,
-}
 
 /// Writes the Basetool catalog of the Archive to the output file and prints its summary, or
 /// prints the catalog's JSON Schema; the exit code is 1 when a selected Record could not be read.
@@ -179,16 +64,14 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
         cancel: Some(&cancel),
         progress: Some(&show),
     };
-    let built = build_catalog(&archive, &options);
+    crate::guard::ensure_writable(out)?;
+    let written = write_file(&archive, &options, out);
     line.finish();
-    let built = built.map_err(into_anyhow)?;
-    let summary = built.summary();
+    let summary = &written?;
     print_notes(summary.text_notes());
     print_failures(summary.failures())?;
     print_warnings(summary.warnings())?;
     warn_about_size(summary)?;
-    crate::guard::ensure_writable(out)?;
-    fs::write(out, built.json()).with_context(|| format!("cannot write {}", out.display()))?;
     let printed = if as_json {
         json::print(&summary_json(&archive, out, summary))
     } else {
@@ -204,6 +87,27 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     } else {
         exit::PARTIAL_FAILURE
     }))
+}
+
+/// Builds the catalog and streams it into a temporary file next to `out`, compressed when the name
+/// ends in `.zst`, then moves it over `out`; a failure or an interrupt leaves `out` as it was.
+fn write_file(
+    archive: &Archive,
+    options: &CatalogOptions<'_>,
+    out: &Path,
+) -> Result<CatalogSummary> {
+    let written = write_catalog(archive, options, Compression::for_path(out), || {
+        CatalogFile::create(out).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!("cannot write {}: {error}", out.display()),
+            )
+        })
+    });
+    let (summary, file) = written.map_err(into_anyhow)?;
+    file.commit()
+        .with_context(|| format!("cannot write {}", out.display()))?;
+    Ok(summary)
 }
 
 fn print_failures(failures: &[CatalogFailure]) -> io::Result<()> {
@@ -243,84 +147,30 @@ fn into_anyhow(error: CatalogError) -> anyhow::Error {
 }
 
 fn warn_about_size(summary: &CatalogSummary) -> io::Result<()> {
-    let Some(warning) = summary.size_warning() else {
-        return Ok(());
-    };
-    let relation = match warning {
+    let mut err = io::stderr().lock();
+    if let Some(warning) = summary.size_warning() {
+        writeln!(
+            err,
+            "warning: the catalog file is {} bytes, {} the basetool upload limit of {UPLOAD_LIMIT} bytes",
+            summary.upload_size(),
+            relation(warning)
+        )?;
+    }
+    if let Some(warning) = summary.decompressed_warning() {
+        writeln!(
+            err,
+            "warning: the catalog is {} bytes decompressed, {} the basetool limit of {DECOMPRESSED_LIMIT} bytes for decompressed content",
+            summary.size(),
+            relation(warning)
+        )?;
+    }
+    Ok(())
+}
+
+const fn relation(warning: SizeWarning) -> &'static str {
+    match warning {
         SizeWarning::NearLimit => "close to",
         SizeWarning::OverLimit => "over",
-    };
-    writeln!(
-        io::stderr().lock(),
-        "warning: the catalog is {} bytes, {relation} the basetool upload limit of {UPLOAD_LIMIT} bytes",
-        summary.size()
-    )
-}
-
-const fn warning_name(warning: SizeWarning) -> &'static str {
-    match warning {
-        SizeWarning::NearLimit => "near_limit",
-        SizeWarning::OverLimit => "over_limit",
-    }
-}
-
-fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) -> SummaryJson<'a> {
-    SummaryJson {
-        archive: json::path(archive.path()),
-        out: json::path(out),
-        schema_version: SCHEMA_VERSION,
-        size: summary.size(),
-        upload_limit: UPLOAD_LIMIT,
-        size_warning: summary.size_warning().map(warning_name),
-        kinds: summary
-            .kinds()
-            .iter()
-            .map(|kind| KindJson {
-                kind: kind.kind.name(),
-                count: kind.count,
-                skipped: kind.skipped,
-                complete: kind.complete,
-            })
-            .collect(),
-        skipped: summary.skipped(),
-        failed: summary
-            .failures()
-            .iter()
-            .map(|failure| FailureJson {
-                guid: failure.guid.to_string(),
-                path: &failure.record_path,
-                error: &failure.reason,
-            })
-            .collect(),
-        warnings: summary.warnings().iter().map(WarningJson::from).collect(),
-        item_classes: ItemClassJson {
-            classified: summary.item_classes().classified,
-            other: summary.item_classes().other,
-            missing: summary.item_classes().missing,
-        },
-        paints: PaintsJson {
-            paints: summary.paints().paints,
-            assigned: summary.paints().assigned,
-            unassigned: summary.paints().unassigned,
-            ships: summary.paints().ships,
-            unreadable_vehicles: summary.paints().unreadable_vehicles,
-        },
-        playability: PlayabilityJson {
-            items: summary.playability().items.into(),
-            ships: summary.playability().ships.into(),
-        },
-        texts: summary
-            .texts()
-            .iter()
-            .map(|text| TextJson {
-                language: text.language.code(),
-                available: text.available,
-                resolved: text.resolved,
-                unresolved: text.unresolved,
-                placeholder: text.placeholder,
-            })
-            .collect(),
-        unresolved: summary.unresolved(),
     }
 }
 
@@ -377,10 +227,22 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     }
     writeln!(
         stdout,
-        "wrote {}: {} bytes, {} Records skipped, {} failed",
+        "wrote {}: {}, {} Records skipped, {} failed",
         out.display(),
-        summary.size(),
+        size_text(summary),
         summary.skipped(),
         summary.failures().len()
+    )
+}
+
+fn size_text(summary: &CatalogSummary) -> String {
+    summary.compressed_size().map_or_else(
+        || format!("{} bytes", summary.size()),
+        |compressed| {
+            format!(
+                "{compressed} bytes zstd-compressed from {} bytes",
+                summary.size()
+            )
+        },
     )
 }

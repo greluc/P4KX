@@ -87,6 +87,7 @@ toml = "1.1.8"
 unic-langid = "0.9.6"
 ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
+zstd = { version = "0.14.3", default-features = false }
 zune-core = "0.5.0"
 zune-jpeg = "0.5.15"
 
@@ -120,6 +121,9 @@ unwrap_used = "deny"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[profile.dev.package.zstd-sys]
+opt-level = 3
 
 [profile.concurrency]
 inherits = "dev"

@@ -1,35 +1,23 @@
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::io::{self, Write};
 use std::time::SystemTime;
 
 use p4kx_channels::channel_name;
-use p4kx_extraction::{
-    Archive, CancelToken, DataForge, DataForgeEntry, DataForgeError, Record, RecordTree,
-    TreeBuilder, utc_rfc3339,
-};
-use rayon::prelude::*;
+use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc3339};
 
 use crate::catalog_crafting::kinds;
-use crate::collected::{Collected, Picked};
-use crate::commodity::{resource_commodity, resource_type_guid};
+use crate::catalog_output::{Compression, emit};
+use crate::collected::Collected;
 use crate::contract::{
-    Blueprint, BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
+    BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
 use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::paint::paints;
-use crate::playability_rules::Evidence;
-use crate::resource_group::{Groups, Listing, listing};
-use crate::selection::is_leftover;
+use crate::scan::Scan;
 use crate::texts::{TextSources, Texts};
 use crate::{
-    BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, CatalogSummary,
-    Kind, PaintSummary,
+    BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, PaintSummary,
 };
-
-const PROGRESS_STEP: usize = 1024;
-const GROUP_TYPE: &str = "ResourceTypeGroup";
-const RESOURCE_TYPE: &str = "ResourceType";
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
 ///
@@ -65,6 +53,24 @@ pub fn build_catalog(
     build_catalog_from(archive, &entry, options)
 }
 
+/// Builds the Basetool catalog like [`build_catalog`] and streams it like [`write_catalog_from`].
+///
+/// # Errors
+///
+/// As [`build_catalog`] and [`write_catalog_from`].
+pub fn write_catalog<W: Write>(
+    archive: &Archive,
+    options: &CatalogOptions<'_>,
+    compression: Compression,
+    create: impl FnOnce() -> io::Result<W>,
+) -> Result<(CatalogSummary, W), CatalogError> {
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
+        return Err(CatalogError::Cancelled);
+    }
+    let entry = DataForgeEntry::read(archive).map_err(CatalogError::Load)?;
+    write_catalog_from(archive, &entry, options, compression, create)
+}
+
 /// Builds the Basetool catalog like [`build_catalog`] from `entry`, the DataForge Entry already
 /// read from `archive`, so that a caller holding it does not read it again.
 ///
@@ -76,6 +82,85 @@ pub fn build_catalog_from(
     entry: &DataForgeEntry,
     options: &CatalogOptions<'_>,
 ) -> Result<BuiltCatalog, CatalogError> {
+    let (parts, written) = assemble(archive, entry, options, |catalog| {
+        emit(catalog, Vec::new(), Compression::None, options.cancel)
+    })?;
+    Ok(BuiltCatalog {
+        summary: parts.summary(written.size, written.compressed),
+        json: written.sink,
+    })
+}
+
+/// Builds the Basetool catalog like [`build_catalog_from`] and streams its JSON into the writer
+/// `create` returns, compressed as `compression` says.
+///
+/// The JSON is never held in memory; zstd serialises it twice, once to count its length for the
+/// frame header.
+///
+/// `create` is called once, after the catalog is built and before the first byte is written, so a
+/// build that fails or is cancelled has created nothing. Returns the summary, whose
+/// [`size`](CatalogSummary::size) is the JSON size and whose
+/// [`compressed_size`](CatalogSummary::compressed_size) is the size written when compressed, and
+/// the writer, flushed and with the compressed frame finished.
+///
+/// # Errors
+///
+/// As [`build_catalog`], except that the DataForge Entry is not read here, plus
+/// [`CatalogError::Write`] when `create` or the writer fails and [`CatalogError::Cancelled`] when
+/// the [`CancelToken`] of `options` is cancelled while writing.
+pub fn write_catalog_from<W: Write>(
+    archive: &Archive,
+    entry: &DataForgeEntry,
+    options: &CatalogOptions<'_>,
+    compression: Compression,
+    create: impl FnOnce() -> io::Result<W>,
+) -> Result<(CatalogSummary, W), CatalogError> {
+    let (parts, written) = assemble(archive, entry, options, |catalog| {
+        let out = create().map_err(CatalogError::Write)?;
+        emit(catalog, out, compression, options.cancel)
+    })?;
+    Ok((
+        parts.summary(written.size, written.compressed),
+        written.sink,
+    ))
+}
+
+/// What a build knows of a catalog besides its size.
+pub(crate) struct Parts {
+    kinds: Vec<crate::KindSummary>,
+    texts: Vec<crate::TextSummary>,
+    notes: Vec<p4kx_extraction::LocalizationNote>,
+    item_classes: crate::ItemClassSummary,
+    paints: PaintSummary,
+    playability: crate::PlayabilitySummary,
+    failures: Vec<CatalogFailure>,
+    warnings: Vec<CraftingWarning>,
+}
+
+impl Parts {
+    fn summary(self, size: u64, compressed_size: Option<u64>) -> CatalogSummary {
+        CatalogSummary {
+            kinds: self.kinds,
+            texts: self.texts,
+            notes: self.notes,
+            item_classes: self.item_classes,
+            paints: self.paints,
+            playability: Box::new(self.playability),
+            failures: self.failures,
+            warnings: self.warnings,
+            size,
+            compressed_size,
+        }
+    }
+}
+
+/// Builds the catalog and hands it to `emit`, which serialises it.
+fn assemble<R>(
+    archive: &Archive,
+    entry: &DataForgeEntry,
+    options: &CatalogOptions<'_>,
+    emit: impl FnOnce(&Catalog<'_>) -> Result<R, CatalogError>,
+) -> Result<(Parts, R), CatalogError> {
     let cancelled = || options.cancel.is_some_and(CancelToken::is_cancelled);
     if cancelled() {
         return Err(CatalogError::Cancelled);
@@ -118,22 +203,20 @@ pub fn build_catalog_from(
         crafting_global: collected.crafting_global,
         paints: collected.paints,
     };
-    let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
-    json.push(b'\n');
-    Ok(BuiltCatalog {
-        summary: CatalogSummary {
+    let output = emit(&catalog)?;
+    Ok((
+        Parts {
             kinds,
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
             paints: paint_summary,
-            playability: Box::new(playability),
+            playability,
             failures,
             warnings,
-            size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },
-        json,
-    })
+        output,
+    ))
 }
 
 fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> {
@@ -176,218 +259,5 @@ pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
         archive_modified: archive.file_modified().map(utc_rfc3339),
         tool_version: env!("CARGO_PKG_VERSION"),
         exported_at: utc_rfc3339(exported_at),
-    }
-}
-
-/// The parallel check of every Record, with its progress.
-struct Scan<'o, 'a, 'f> {
-    forge: &'f DataForge<'f>,
-    options: &'o CatalogOptions<'a>,
-    texts: &'o Texts<'f>,
-    groups: Groups,
-    evidence: Evidence,
-    done: AtomicUsize,
-    total: usize,
-}
-
-impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
-    /// Checks every Record of `forge` in parallel and returns those a kind selected.
-    fn run(
-        forge: &'f DataForge<'_>,
-        options: &'o CatalogOptions<'a>,
-        texts: &'o Texts<'f>,
-        blueprints: &[Blueprint<'f>],
-    ) -> Result<Vec<Picked<'f>>, CatalogError> {
-        let records: Vec<Record<'f>> = forge.records().collect();
-        let (groups, group_failures) = Self::groups(&records);
-        let (evidence, evidence_failures) = Evidence::read(&records);
-        let scan = Self {
-            forge,
-            options,
-            texts,
-            groups,
-            evidence,
-            done: AtomicUsize::new(0),
-            total: records.len(),
-        };
-        let mut picked: Vec<Picked<'f>> = records
-            .par_iter()
-            .map_init(TreeBuilder::new, |trees, record| scan.check(trees, record))
-            .filter_map(Result::transpose)
-            .collect::<Result<_, _>>()?;
-        picked.extend(
-            group_failures
-                .into_iter()
-                .chain(evidence_failures)
-                .map(Picked::Failed),
-        );
-        let resources = scan.resource_commodities(&picked, blueprints);
-        picked.extend(resources);
-        Ok(picked)
-    }
-
-    /// Returns what the `ResourceTypeGroup` Records list, the first group in Record order winning a
-    /// `ResourceType` or group several list, and the groups that cannot be read.
-    fn groups(records: &[Record<'f>]) -> (Groups, Vec<CatalogFailure>) {
-        let listed: Vec<Result<Option<Listing>, CatalogFailure>> = records
-            .par_iter()
-            .map_init(TreeBuilder::new, |trees, record| {
-                if !record.type_name().is_ok_and(|name| name == GROUP_TYPE) {
-                    return Ok(None);
-                }
-                let tree = trees
-                    .build(record)
-                    .map_err(|source| CatalogFailure::of(record, &source))?;
-                Ok(Some(listing(&tree)))
-            })
-            .collect();
-        let mut groups = Groups::new();
-        let mut failures = Vec::new();
-        for result in listed {
-            match result {
-                Ok(Some(listing)) => groups.add(listing),
-                Ok(None) => {}
-                Err(failure) => failures.push(failure),
-            }
-        }
-        (groups, failures)
-    }
-
-    /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints use
-    /// that no picked commodity carries, those the Filter matches; one that cannot be read
-    /// becomes a failure.
-    fn resource_commodities(
-        &self,
-        picked: &[Picked<'f>],
-        blueprints: &[Blueprint<'f>],
-    ) -> Vec<Picked<'f>> {
-        let mut carried = HashSet::new();
-        for pick in picked {
-            if let Picked::Commodity(commodity) = pick {
-                carried.extend(commodity.subtype_guid.map(|guid| guid.0));
-            }
-        }
-        let mut used: Vec<_> = blueprints
-            .iter()
-            .flat_map(|blueprint| &blueprint.ingredients)
-            .filter_map(|ingredient| ingredient.resource_guid)
-            .map(|guid| guid.0)
-            .collect();
-        used.sort_unstable();
-        used.dedup();
-        let mut trees = TreeBuilder::new();
-        let mut found = Vec::new();
-        for guid in used.into_iter().filter(|guid| !carried.contains(guid)) {
-            let Some(record) = self.forge.record_by_guid(guid) else {
-                continue;
-            };
-            match self.resource(&mut trees, &record) {
-                Ok(Some(pick)) => found.push(pick),
-                Ok(None) => {}
-                Err(source) => found.push(Picked::Failed(CatalogFailure::of(&record, &source))),
-            }
-        }
-        found
-    }
-
-    fn resource(
-        &self,
-        trees: &mut TreeBuilder<'f>,
-        record: &Record<'f>,
-    ) -> Result<Option<Picked<'f>>, DataForgeError> {
-        if record.type_name()? != RESOURCE_TYPE {
-            return Ok(None);
-        }
-        let path = record.record_path()?;
-        if self
-            .options
-            .filter
-            .is_some_and(|filter| !filter.matches(path))
-        {
-            return Ok(None);
-        }
-        let tree = trees.build(record)?;
-        Ok(Some(Picked::Commodity(resource_commodity(
-            &tree,
-            self.texts,
-            &self.groups,
-        ))))
-    }
-
-    fn check(
-        &self,
-        trees: &mut TreeBuilder<'f>,
-        record: &Record<'f>,
-    ) -> Result<Option<Picked<'f>>, CatalogError> {
-        if self.options.cancel.is_some_and(CancelToken::is_cancelled) {
-            return Err(CatalogError::Cancelled);
-        }
-        self.tick();
-        Ok(self
-            .select(trees, record)
-            .unwrap_or_else(|source| Some(Picked::Failed(CatalogFailure::of(record, &source)))))
-    }
-
-    fn select(
-        &self,
-        trees: &mut TreeBuilder<'f>,
-        record: &Record<'f>,
-    ) -> Result<Option<Picked<'f>>, DataForgeError> {
-        let path = record.record_path()?;
-        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
-            return Ok(None);
-        };
-        if record.type_name()? != kind.rule().type_name {
-            return Ok(None);
-        }
-        if self
-            .options
-            .filter
-            .is_some_and(|filter| !filter.matches(path))
-        {
-            return Ok(None);
-        }
-        if is_leftover(path, record.name()?) {
-            return Ok(Some(Picked::Skipped(kind)));
-        }
-        let tree = trees.build(record)?;
-        let resource_type = match kind {
-            Kind::Commodities => self.resource_type(trees, &tree)?,
-            _ => None,
-        };
-        Ok(Picked::entity(
-            kind,
-            &tree,
-            self.texts,
-            resource_type.as_ref(),
-            &self.groups,
-            &self.evidence,
-        ))
-    }
-
-    fn resource_type(
-        &self,
-        trees: &mut TreeBuilder<'f>,
-        commodity: &RecordTree<'f>,
-    ) -> Result<Option<RecordTree<'f>>, DataForgeError> {
-        let Some(guid) = resource_type_guid(commodity) else {
-            return Ok(None);
-        };
-        self.forge
-            .record_by_guid(guid.0)
-            .map(|record| trees.build(&record))
-            .transpose()
-    }
-
-    fn tick(&self) {
-        let done = self.done.fetch_add(1, Ordering::Relaxed).saturating_add(1);
-        if let Some(progress) = self.options.progress
-            && (done.is_multiple_of(PROGRESS_STEP) || done == self.total)
-        {
-            progress(CatalogProgress {
-                records_done: done,
-                records_total: self.total,
-            });
-        }
     }
 }

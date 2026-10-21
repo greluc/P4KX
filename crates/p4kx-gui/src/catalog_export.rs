@@ -1,5 +1,4 @@
 mod job;
-mod write;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};

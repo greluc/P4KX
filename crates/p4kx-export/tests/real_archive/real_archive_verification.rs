@@ -5,12 +5,13 @@
 
 use std::collections::HashSet;
 use std::error::Error;
+use std::io::Read;
 use std::path::Path;
 use std::time::SystemTime;
 
 use p4kx_export::{
-    BuiltCatalog, CatalogOptions, EXCLUDED_TOKENS, Kind, Language, PLACEHOLDER_KEYS, UPLOAD_LIMIT,
-    build_catalog, catalog_schema,
+    CatalogOptions, CatalogSummary, Compression, DECOMPRESSED_LIMIT, EXCLUDED_TOKENS, Kind,
+    Language, PLACEHOLDER_KEYS, UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_b_path, real_archive_path};
@@ -34,13 +35,29 @@ const MINIMUM: [(Kind, usize); 12] = [
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
-const MIN_HEADROOM_FACTOR: u64 = 2;
 
-fn built(path: &Path) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
+fn built(path: &Path) -> Result<(CatalogSummary, Value), Box<dyn Error>> {
     let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
-    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
-    let catalog = serde_json::from_slice(built.json())?;
-    Ok((built, catalog))
+    let (summary, frame) = write_catalog(
+        &archive,
+        &CatalogOptions::new(SystemTime::now()),
+        Compression::ZSTD,
+        || Ok(Vec::new()),
+    )?;
+    assert_eq!(
+        summary.compressed_size(),
+        Some(u64::try_from(frame.len())?),
+        "the compressed size is the frame size"
+    );
+    let mut json = Vec::new();
+    zstd::Decoder::new(frame.as_slice())?.read_to_end(&mut json)?;
+    assert_eq!(
+        summary.size(),
+        u64::try_from(json.len())?,
+        "the decompressed size"
+    );
+    let catalog = serde_json::from_slice(&json)?;
+    Ok((summary, catalog))
 }
 
 fn list(catalog: &Value, kind: Kind) -> Result<&Vec<Value>, String> {
@@ -79,21 +96,22 @@ fn has_excluded_token(text: &str) -> Option<&'static str> {
 }
 
 fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
-    let (built, catalog) = built(path)?;
+    let (summary, catalog) = built(path)?;
+    let summary = &summary;
     let validator = jsonschema::draft202012::new(&catalog_schema())?;
     assert!(
         validator.is_valid(&catalog),
         "valid against the catalog schema"
     );
-    report(path, &built);
+    report(path, summary);
     assert!(
-        built.summary().is_complete(),
+        summary.is_complete(),
         "every selected Record is readable: {:?}",
-        built.summary().failures().first()
+        summary.failures().first()
     );
 
     for (kind, minimum) in MINIMUM {
-        let counts = built.summary().kind(kind).ok_or("the kind")?;
+        let counts = summary.kind(kind).ok_or("the kind")?;
         assert!(
             counts.count >= minimum,
             "plausible {kind} count: {counts:?}"
@@ -114,12 +132,26 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         );
     }
     check_unique_guids(&catalog)?;
+    assert_eq!(
+        summary.size_warning(),
+        None,
+        "the file is below 90 % of the upload limit of {UPLOAD_LIMIT} bytes"
+    );
+    assert_eq!(
+        summary.decompressed_warning(),
+        None,
+        "the catalog is below 90 % of the decompressed limit of {DECOMPRESSED_LIMIT} bytes"
+    );
     assert!(
-        built.summary().size() < UPLOAD_LIMIT / MIN_HEADROOM_FACTOR,
-        "the limit holds at least {MIN_HEADROOM_FACTOR} times the catalog"
+        summary.upload_size() <= UPLOAD_LIMIT,
+        "within the upload limit"
+    );
+    assert!(
+        summary.size() <= DECOMPRESSED_LIMIT,
+        "within the decompressed limit"
     );
     check_leftovers(&catalog)?;
-    check_texts(&built, &catalog)?;
+    check_texts(summary, &catalog)?;
     Ok(catalog)
 }
 
@@ -152,7 +184,7 @@ fn check_leftovers(catalog: &Value) -> TestResult {
     Ok(())
 }
 
-fn check_texts(built: &BuiltCatalog, catalog: &Value) -> TestResult {
+fn check_texts(summary: &CatalogSummary, catalog: &Value) -> TestResult {
     let mut keyed = 0_usize;
     let mut english = 0_usize;
     let mut german = 0_usize;
@@ -195,7 +227,7 @@ fn check_texts(built: &BuiltCatalog, catalog: &Value) -> TestResult {
     );
     assert!(german_share >= MIN_GERMAN_SHARE, "most texts resolve in de");
     for language in [Language::English, Language::German] {
-        let texts = built.summary().text(language).ok_or("a text summary")?;
+        let texts = summary.text(language).ok_or("a text summary")?;
         assert!(texts.available, "the Archive holds {language}");
         assert!(
             texts.resolved > texts.unresolved,
@@ -268,12 +300,12 @@ fn print_line(line: &str) {
     println!("{line}");
 }
 
-fn report(path: &Path, built: &BuiltCatalog) {
-    let summary = built.summary();
+fn report(path: &Path, summary: &CatalogSummary) {
     print_line(&format!(
-        "{}: catalog size {} bytes, upload limit {UPLOAD_LIMIT} bytes",
+        "{}: catalog {} bytes decompressed (limit {DECOMPRESSED_LIMIT}), {} bytes compressed (upload limit {UPLOAD_LIMIT})",
         path.display(),
-        summary.size()
+        summary.size(),
+        summary.upload_size()
     ));
     for kind in summary.kinds() {
         print_line(&format!("{kind:?}"));

@@ -28,7 +28,7 @@ The rule is ADR-0054 (amending ADR-0002):
 - **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
-  content is capped at 1 GB. On LIVE, 19.3 MB becomes 1.54 MB with zstd -19 `--long=27`.
+  content is capped at 1 GB. The compressed form is described under "Compressed form" below.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -43,8 +43,36 @@ Basetool keeps them, and `displayType`, away from third parties. Every such fiel
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
+p4kx catalog <archive> --out basetool-catalog.json.zst
 p4kx catalog schema
 ```
+
+### Compressed form
+
+An output name ending in `.zst` (any case) writes the catalog as one zstd frame; any other name
+writes plain JSON, which stays the default. The JSON is serialised straight into the encoder and
+never held in memory; it is serialised twice, the first time only to count its length. The frame
+uses zstd level 19, long-distance matching, a content checksum, and declares the content size
+(`Frame_Content_Size`), so the window it needs is the content size, about 26.5 MB for LIVE, and not
+the 2^27 maximum the encoder is allowed. A plain `zstd -d basetool-catalog.json.zst` is enough, no
+`--long` option is needed, and a decoder's memory is about the size of the catalog. The decoded
+bytes are exactly the plain catalog for the same Archive and export time (tests check this with the
+Rust decoder and read the window and content size from the frame header). The file is written to a
+temporary file next to the target and renamed on success, so a failure or Ctrl+C leaves an
+existing catalog as it was.
+
+The Basetool detects `.json`, `.json.gz` and `.json.zst` by magic bytes, not by name. Its limits
+apply to two sizes, and `p4kx catalog` and the desktop window check both:
+
+| Size | Limit | Constant |
+|------|------:|----------|
+| The file as uploaded, compressed if it is | 64,000,000 bytes (64 MB) | `UPLOAD_LIMIT` |
+| The decompressed content | 1,000,000,000 bytes (1 GB) | `DECOMPRESSED_LIMIT` |
+
+The Basetool rejects a file above either limit; `p4kx catalog` and the desktop window only warn,
+from 90 % of a limit and again above it. The summary (`--json`: `size`, `compressed_size`,
+`upload_limit`, `decompressed_limit`, `size_warning`, `decompressed_warning`) carries the
+uncompressed size, the compressed size (`null` for plain JSON) and the warnings of both.
 
 ## Shape
 
@@ -633,14 +661,15 @@ seconds since 1970-01-01 UTC.
 
 ### Upload limit
 
-`UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
-64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
-changes with it. The owner kept the limit at 64 MB after the first measurement (21.6 MB). The
-crafting detail (all tiers, quality modifiers, pools and their reward sources) grew the largest
-catalog to 26.6 MB, about 41 % of the limit, so the catalog can still grow by a factor of 2.5
-before the limit is reached; the real-Archive tests assert that the limit is at least twice the
-catalog and print the size (`catalog size: … bytes`). The compressed upload (`.json.zst`, #407)
-is a fraction of that.
+`UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog file the basetool
+accepts, 64,000,000 bytes (64 MB), compressed if it is; `DECOMPRESSED_LIMIT` is the cap of the
+decompressed content, 1,000,000,000 bytes (1 GB). They must match the basetool's limits: when one
+changes, the other changes with it. The owner kept the upload limit at 64 MB after the first
+measurement (21.6 MB). The crafting detail (all tiers, quality modifiers, pools and their reward
+sources) grew the largest plain catalog to 26.6 MB, 41 % of the upload limit; compressed it is a
+small fraction of it. The real-Archive tests write the catalog as `.json.zst`, assert that the
+compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame and compare
+it with the plain catalog, and print both sizes and the time per zstd level.
 
 Measured on 2026-10-21, with `playability` and `paints`, on every installed Channel (complete catalog of every kind, English and
 German texts):
@@ -652,6 +681,27 @@ German texts):
 | EPTU | 25,702,421 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
 | HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
 | TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+
+Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
+
+| Channel | Uncompressed | Compressed | Ratio |
+|---------|-------------:|-----------:|------:|
+| LIVE | 26,505,107 | 1,700,139 | 15.6 |
+| PTU | 26,132,678 | 1,678,351 | 15.6 |
+| EPTU | 25,702,421 | 1,653,664 | 15.5 |
+| HOTFIX | 26,505,109 | 1,699,663 | 15.6 |
+| TECH-PREVIEW | 26,558,647 | 1,718,856 | 15.5 |
+
+The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
+1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
+
+| Level | Compressed | Ratio | Compression time |
+|------:|-----------:|------:|-----------------:|
+| 15 | 2,005,158 | 13.2 | about 2.6 s |
+| 17 | 1,807,476 | 14.7 | about 7.0 s |
+| 19 | 1,700,181 | 15.6 | about 12.7 s |
+
+Level 19 stays: 12.7 s is acceptable and it saves 15 % over level 15.
 
 Of the 26.5 MB of LIVE, the paints take 0.5 MB (the ship lists), the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
 the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward

@@ -75,7 +75,9 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let files = ArchiveFiles::new(&archive);
-    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let mut resolver = LoadoutResolver::new(&forge)
+        .with_files(&files)
+        .stopping_at_docked_vehicles();
     let record = resolver.entities().find(&args.entity)?;
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(&archive);

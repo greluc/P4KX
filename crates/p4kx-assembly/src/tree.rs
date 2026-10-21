@@ -14,9 +14,26 @@ pub struct EntityNode {
     pub(crate) ports: Vec<PortNode>,
     pub(crate) issues: Vec<LoadoutError>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) docked_vehicle: bool,
+    pub(crate) expanded: bool,
 }
 
 impl EntityNode {
+    /// Returns whether the Entity is a docked vehicle: attached to a port and its
+    /// `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar port.
+    /// The root of the tree is never one.
+    #[must_use]
+    pub const fn is_docked_vehicle(&self) -> bool {
+        self.docked_vehicle
+    }
+
+    /// Returns whether the Entity's ports are built; `false` for a docked vehicle the resolver
+    /// stopped at, whose ports are left out.
+    #[must_use]
+    pub const fn is_expanded(&self) -> bool {
+        self.expanded
+    }
+
     /// Returns the geometry the Entity's Record names, or `None` when it names none.
     #[must_use]
     pub const fn geometry(&self) -> Option<&Geometry> {

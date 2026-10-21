@@ -11,7 +11,17 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .into_iter()
         .chain(port_structs())
         .chain(geometry_structs())
+        .chain(attachable_structs())
         .fold(builder, DataForgeBuilder::structure)
+}
+
+fn attachable_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("SAttachableComponentParams")
+            .parent("DataForgeComponentParams")
+            .field("AttachDef", class("SItemDefinition")),
+        TestStruct::new("SItemDefinition").field("Type", TestType::String),
+    ]
 }
 
 fn geometry_structs() -> Vec<TestStruct> {

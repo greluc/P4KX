@@ -5,9 +5,12 @@ expression: "serde_json::to_string_pretty(&value)?"
 {
   "archive": "<archive>",
   "attached": 6,
+  "docked_vehicles": 0,
   "empty": 2,
   "entity": {
     "class_name": "TEST_Ship",
+    "docked_vehicle": false,
+    "expanded": true,
     "guid": "0079c5d5-1678-4f8c-85ba-18ca8f642af6",
     "issues": [],
     "name": "EntityClassDefinition.TEST_Ship",
@@ -24,6 +27,8 @@ expression: "serde_json::to_string_pretty(&value)?"
         "definition": null,
         "entity": {
           "class_name": "TEST_Seat",
+          "docked_vehicle": false,
+          "expanded": true,
           "guid": "95b8cab3-5230-46f9-92e6-8e021978f543",
           "issues": [],
           "name": "EntityClassDefinition.TEST_Seat",
@@ -39,6 +44,8 @@ expression: "serde_json::to_string_pretty(&value)?"
         "definition": null,
         "entity": {
           "class_name": "TEST_Dashboard",
+          "docked_vehicle": false,
+          "expanded": true,
           "guid": "5f12dd31-4ff9-41a5-b5e2-916270351ba9",
           "issues": [],
           "name": "EntityClassDefinition.TEST_Dashboard",
@@ -47,6 +54,8 @@ expression: "serde_json::to_string_pretty(&value)?"
               "definition": null,
               "entity": {
                 "class_name": "TEST_Screen",
+                "docked_vehicle": false,
+                "expanded": true,
                 "guid": "6374bb62-de4e-410a-96a3-a1156dce4802",
                 "issues": [],
                 "name": "EntityClassDefinition.TEST_Screen",
@@ -62,6 +71,8 @@ expression: "serde_json::to_string_pretty(&value)?"
               "definition": null,
               "entity": {
                 "class_name": "TEST_Radar_Screen",
+                "docked_vehicle": false,
+                "expanded": true,
                 "guid": "503443c0-b6d1-4539-b493-688117334ff1",
                 "issues": [],
                 "name": "EntityClassDefinition.TEST_Radar_Screen",
@@ -113,6 +124,8 @@ expression: "serde_json::to_string_pretty(&value)?"
         },
         "entity": {
           "class_name": "TEST_Mount_Gimbal_S3",
+          "docked_vehicle": false,
+          "expanded": true,
           "guid": "ea49d194-0c0b-43e1-82fb-d72f35c1af05",
           "issues": [],
           "name": "EntityClassDefinition.TEST_Mount_Gimbal_S3",
@@ -149,6 +162,8 @@ expression: "serde_json::to_string_pretty(&value)?"
               },
               "entity": {
                 "class_name": "TEST_Gun_S3",
+                "docked_vehicle": false,
+                "expanded": true,
                 "guid": "df89e9ca-8a11-477c-8abd-f4837a277dbe",
                 "issues": [],
                 "name": "EntityClassDefinition.TEST_Gun_S3",

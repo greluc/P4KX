@@ -203,6 +203,65 @@ fn an_entity_whose_record_cannot_be_read_exits_with_code_5() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn docked_vehicles_are_marked_and_can_be_left_unexpanded() -> TestResult {
+    let database = [
+        TestEntity::new(0x1, "Carrier", "entities/carrier.xml").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("hangar", "Snub"),
+        ])),
+        TestEntity::new(0x2, "Snub", "entities/snub.xml")
+            .attach_type("NOITEM_Vehicle_Snub")
+            .loadout(TestLoadout::Manual(vec![TestLoadoutEntry::class(
+                "snub_gun", "Gun",
+            )])),
+        TestEntity::new(0x3, "Gun", "entities/gun.xml"),
+    ]
+    .iter()
+    .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
+        builder.record(entity.record())
+    });
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database, Vec::new())?;
+    let run = |json: bool, stop: bool| -> Result<String, Box<dyn Error>> {
+        let mut command = p4kx_testkit::p4kx()?;
+        if json {
+            command.arg("--json");
+        }
+        command
+            .args(["entity", "loadout"])
+            .arg(&archive)
+            .arg("Carrier");
+        if stop {
+            command.arg("--stop-at-docked-vehicles");
+        }
+        let output = command.output()?;
+        assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+        Ok(String::from_utf8(output.stdout)?)
+    };
+
+    let expanded = run(false, false)?;
+    assert!(
+        expanded.contains("  hangar: Snub [docked vehicle]\n    snub_gun: Gun\n"),
+        "{expanded}"
+    );
+    let stopped = run(false, true)?;
+    assert!(
+        stopped.contains("  hangar: Snub [docked vehicle, not expanded]\n"),
+        "{stopped}"
+    );
+    assert!(!stopped.contains("snub_gun"), "{stopped}");
+    assert!(stopped.contains("1 ports: 1 attached"), "{stopped}");
+
+    let json: serde_json::Value = serde_json::from_str(&run(true, true)?)?;
+    assert_eq!(json["docked_vehicles"], 1, "count");
+    let snub = &json["entity"]["ports"][0]["entity"];
+    assert_eq!(snub["docked_vehicle"], true, "marker");
+    assert_eq!(snub["expanded"], false, "expanded");
+    assert_eq!(snub["ports"], serde_json::json!([]), "no ports");
+    Ok(())
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_ships_and_a_vehicle_resolve_with_few_unresolved_ports() -> TestResult {

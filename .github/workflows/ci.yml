@@ -13,6 +13,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  NEXTEST_PROFILE: ci
 
 jobs:
   check:
@@ -28,6 +29,24 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
+      - name: Put the Cargo home and the target directory on a ReFS Dev Drive
+        if: runner.os == 'Windows'
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 16GB
+          env-mapping: |
+            CARGO_HOME,{{ DEV_DRIVE }}/cargo-home
+            CARGO_TARGET_DIR,{{ DEV_DRIVE }}/target
+      - name: Link with rust-lld on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld.exe" >> "$GITHUB_ENV"
+      - name: Link with mold on Linux
+        if: runner.os == 'Linux'
+        uses: rui314/setup-mold@v1
+      - name: Select mold as the Linux linker
+        if: runner.os == 'Linux'
+        run: echo "RUSTFLAGS=-Clink-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -35,6 +54,12 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> ${{ env.CARGO_TARGET_DIR || 'target' }}"
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.149
       - name: Install the ALSA headers the audio output builds against
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
@@ -45,20 +70,23 @@ jobs:
             cargo fmt -p "$package" --check
           done
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      - name: Tests with nextest, one process per test
+        run: cargo nextest run --workspace --locked
+      - name: Doctests, which nextest does not run
+        run: cargo test --workspace --locked --doc
       - name: Comparison report schema is current
-        run: cargo test --locked -p p4kx-comparison --test report_schema
+        run: cargo nextest run --locked -p p4kx-comparison --test report_schema
       - name: Record JSON schema matches the export
-        run: cargo test --locked -p p4kx-export --test record_json_schema
+        run: cargo nextest run --locked -p p4kx-export --test record_json_schema
       - name: Basetool catalog schema is current
-        run: cargo test --locked -p p4kx-export --test catalog_schema
+        run: cargo nextest run --locked -p p4kx-export --test catalog_schema
       - name: Disk space after the debug-profile tests
         if: runner.os == 'Linux'
         run: df -h /
       - name: DataForge lazy indexes survive concurrent lookups
-        run: cargo test --release --locked -p p4kx-dataforge --test lazy_indexes
+        run: cargo nextest run --cargo-profile concurrency --locked -p p4kx-dataforge --test lazy_indexes
       - name: Audio index survives concurrent first use
-        run: cargo test --release --locked -p p4kx-assembly --test audio_lazy_index
+        run: cargo nextest run --cargo-profile concurrency --locked -p p4kx-assembly --test audio_lazy_index
       - run: cargo xtask
       - name: Install cargo-about
         if: runner.os == 'Linux'

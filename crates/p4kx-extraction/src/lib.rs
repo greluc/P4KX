@@ -1,6 +1,8 @@
 //! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
+mod animation_load;
+mod animation_set;
 mod archive_cause;
 mod bank;
 mod budget;
@@ -59,6 +61,8 @@ mod tracker;
 mod ui_disk_path;
 mod ui_external;
 mod ui_extract;
+mod ui_import_match;
+mod ui_imports;
 mod ui_jobs;
 mod ui_movie;
 mod ui_render;
@@ -68,6 +72,7 @@ mod verify;
 mod watch;
 mod write;
 
+pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -115,8 +120,8 @@ pub use p4kx_dataforge::{
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS, MaterialMode,
-    TextureFallback, TextureLoader, TextureRole,
+    AnimationSummary, GlbOptions, GlbSummary, GltfError, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS,
+    MaterialMode, TextureFallback, TextureLoader, TextureRole,
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
@@ -153,6 +158,10 @@ pub use texture_exr::ExrReport;
 pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_imports::{
+    ImportIssue, ImportReport, MAX_IMPORT_BYTES, MAX_IMPORT_DEPTH, MAX_IMPORTED_FONTS,
+    MAX_IMPORTED_MOVIES, UnresolvedImport,
+};
 pub use ui_movie::{MAX_UI_MOVIE_LEN, UiMovie};
 pub use ui_render::{MAX_UI_RENDER_BITMAP_PIXELS, UiBitmapFailure, UiRender};
 pub use ui_svg::UiSvg;

@@ -207,7 +207,7 @@ impl<'m> Layout<'m> {
             .collect()
     }
 
-    fn push(&mut self, data: BlockData<'m>) -> usize {
+    pub(crate) fn push(&mut self, data: BlockData<'m>) -> usize {
         let len = data.len();
         self.blocks.push(Block {
             offset: self.len,

@@ -79,6 +79,12 @@ impl TestSkeleton {
         &self.bones
     }
 
+    /// Returns the controller ID the skeleton gives the bone at `index`.
+    #[must_use]
+    pub fn controller_id(index: usize) -> u32 {
+        controller_id(index)
+    }
+
     /// Returns the world pose of every bone: the rotation and the translation in the model's
     /// space.
     #[must_use]

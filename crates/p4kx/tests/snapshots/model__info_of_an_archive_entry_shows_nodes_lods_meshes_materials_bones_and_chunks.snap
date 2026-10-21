@@ -8,6 +8,7 @@ Nodes:       2
 LODs:        1
 Materials:   objects/test/cube (3 sub-materials), IDs 1, 2
 Bones:       0
+Animations:  0 (from 0 files)
 Chunks:      7 (3 read, 3 skipped, 1 unknown)
 
  LOD    Vertices   Triangles  Meshes

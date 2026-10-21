@@ -86,6 +86,7 @@ expression: json
   "frame_count": 1,
   "frame_rate": 30.0,
   "frames": 1,
+  "imports": [],
   "length": 512,
   "morph_shapes": [
     {
@@ -104,6 +105,7 @@ expression: json
     }
   ],
   "movie": "Data\\UI\\Screens\\SWF\\Panel.gfx",
+  "scaling_grids": [],
   "shapes": [
     {
       "bounds": {
@@ -125,6 +127,12 @@ expression: json
     {
       "export_name": "PanelButton",
       "frame_count": 2,
+      "frame_labels": [
+        {
+          "frame": 0,
+          "name": "idle"
+        }
+      ],
       "frames": 2,
       "id": 9,
       "labels": [
@@ -141,6 +149,7 @@ expression: json
     "y_max": 15360,
     "y_min": 0
   },
+  "symbol_classes": [],
   "tags": [
     {
       "code": 0,
@@ -230,5 +239,6 @@ expression: json
       "offset": 498
     }
   ],
+  "unread_tags": [],
   "version": 10
 }

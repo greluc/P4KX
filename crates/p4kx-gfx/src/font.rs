@@ -39,6 +39,8 @@ pub struct Font {
     pub name: String,
     /// The full name of a `DefineFontName` tag.
     pub full_name: Option<String>,
+    /// The name an `ExportAssets` tag of the movie exports the font under.
+    pub export_name: Option<String>,
     /// Whether the font is bold.
     pub bold: bool,
     /// Whether the font is italic.
@@ -146,6 +148,7 @@ pub(crate) fn read_font1(tag: &Tag<'_>, budget: &mut RecordBudget) -> Result<Fon
         format: FontFormat::DefineFont,
         name: String::new(),
         full_name: None,
+        export_name: None,
         bold: false,
         italic: false,
         small_text: false,
@@ -188,6 +191,7 @@ pub(crate) fn read_font2(
         format,
         name,
         full_name: None,
+        export_name: None,
         bold: flags & BOLD != 0,
         italic: flags & ITALIC != 0,
         small_text: flags & SMALL_TEXT != 0,
@@ -310,6 +314,7 @@ pub(crate) fn read_compacted_font(tag: &Tag<'_>) -> Result<Font, GfxError> {
         format: FontFormat::Compacted,
         name,
         full_name: None,
+        export_name: None,
         bold: false,
         italic: false,
         small_text: false,

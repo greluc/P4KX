@@ -11,6 +11,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   check:
@@ -21,6 +23,11 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     steps:
+      - name: Free runner disk by removing preinstalled toolchains the build does not use
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -45,6 +52,9 @@ jobs:
         run: cargo test --locked -p p4kx-export --test record_json_schema
       - name: Basetool catalog schema is current
         run: cargo test --locked -p p4kx-export --test catalog_schema
+      - name: Disk space after the debug-profile tests
+        if: runner.os == 'Linux'
+        run: df -h /
       - name: DataForge lazy indexes survive concurrent lookups
         run: cargo test --release --locked -p p4kx-dataforge --test lazy_indexes
       - name: Audio index survives concurrent first use

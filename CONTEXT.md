@@ -349,6 +349,13 @@ each with a weight; the weights of a vertex add up to 255. Stored by the bone-ma
 geometry companion and read as `Influences`.
 _Avoid_: skin weights, skinning data, bone map (the stream, not its content)
 
+**Animation**:
+The rotation and translation keys of the bones of a skeleton over frames, read from a `.caf` file
+or from one entry of a `.dba` animation database. A track holds the keys of one controller, which
+a bone is addressed by (`controller_id`, the CRC-32 of its name); keys are absolute and relative
+to the parent bone. Exported as one glTF animation.
+_Avoid_: clip, motion, take
+
 **Material library**:
 The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
 ID, or a list of sub-materials whose position is the material ID. Each material has a shader,
@@ -387,6 +394,12 @@ _Avoid_: character (a Character is a human body), symbol
 A bitmap of a GFx UI movie stored outside it, as a texture file named relative to the movie; the
 game ships it as DDS even where the movie names a TIFF or TGA.
 _Avoid_: linked image, imported bitmap
+
+**Imported asset**:
+A definition a UI movie takes from another UI movie (`ImportAssets`) under a local ID, by the
+export name the other movie gives it; its font is found by that name, never by an ID of the other
+movie.
+_Avoid_: linked asset, shared font
 
 **Placement**:
 A definition put on a timeline of a UI movie at a depth, with a transform, a colour transform

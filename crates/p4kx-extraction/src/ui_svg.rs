@@ -3,6 +3,7 @@ use std::path::Path;
 use p4kx_gfx::{GfxError, RasterOptions, Skipped, SvgReport, TagFailure};
 
 use crate::output_file::{write_error, write_replacing};
+use crate::ui_imports::ImportReport;
 use crate::{ConversionError, UiBitmapFailure, UiMovie};
 
 /// What [`UiMovie::render_svg_to_file`] wrote: the size of the document and what it leaves out.
@@ -18,6 +19,8 @@ pub struct UiSvg {
     pub bitmap_failures: Vec<UiBitmapFailure>,
     /// The tags of the movie that could not be read, whose definitions are therefore missing.
     pub tag_failures: Vec<TagFailure>,
+    /// The movies read to resolve imported fonts and the fonts that were not found.
+    pub imports: ImportReport,
 }
 
 impl UiSvg {
@@ -63,6 +66,7 @@ impl UiMovie<'_> {
             skipped: report.skipped,
             bitmap_failures: frame.bitmaps.failures,
             tag_failures: frame.tag_failures,
+            imports: frame.imports,
         })
     }
 }

@@ -69,6 +69,28 @@ pub enum GfxError {
         /// The limit.
         limit: usize,
     },
+    /// The movie imports more assets than the limit.
+    #[error("the movie imports more than {limit} assets")]
+    TooManyImports {
+        /// The limit.
+        limit: usize,
+    },
+    /// The display lists of the frames of the movie hold more placements than the limit.
+    #[error(
+        "the display lists of the frames hold more than {limit} placements; later frames are not kept"
+    )]
+    TooManyFramePlacements {
+        /// The limit.
+        limit: usize,
+    },
+    /// The display lists of the frames occupy more bytes than the limit.
+    #[error(
+        "the display lists of the frames occupy more than {limit} bytes; later frames are not kept"
+    )]
+    FrameListsTooLarge {
+        /// The limit in bytes.
+        limit: usize,
+    },
     /// The offset of the end edges of a morph shape lies beyond its tag.
     #[error("the end edges of the morph shape start beyond its tag, at offset {offset}")]
     MorphEndEdges {

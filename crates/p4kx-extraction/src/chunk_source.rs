@@ -35,7 +35,7 @@ impl ChunkSource {
     pub fn from_archive(archive: &Archive, path: &str) -> Result<Self, ConversionError> {
         let entry =
             find_entry(archive, path).ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
-        Self::from_entry(archive, entry)
+        Self::from_entry(archive, entry, MAX_CHUNK_FILE_LEN)
     }
 
     /// Reads the chunk file Entry at `path` found through `index`; see [`Self::from_archive`].
@@ -44,22 +44,36 @@ impl ChunkSource {
     ///
     /// As [`Self::from_archive`].
     pub fn from_index(index: &PathIndex<'_>, path: &str) -> Result<Self, ConversionError> {
+        Self::from_index_limited(index, path, MAX_CHUNK_FILE_LEN)
+    }
+
+    /// Reads the chunk file Entry at `path` found through `index` like [`Self::from_index`], but
+    /// refuses one larger than `limit` bytes with [`ConversionError::ChunkFileTooLarge`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_archive`].
+    pub fn from_index_limited(
+        index: &PathIndex<'_>,
+        path: &str,
+        limit: u64,
+    ) -> Result<Self, ConversionError> {
         let entry = index
             .find(path)
             .ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
-        Self::from_entry(index.archive(), entry)
+        Self::from_entry(index.archive(), entry, limit)
     }
 
-    fn from_entry(archive: &Archive, entry: &Entry) -> Result<Self, ConversionError> {
+    fn from_entry(archive: &Archive, entry: &Entry, limit: u64) -> Result<Self, ConversionError> {
         let name = entry.path().to_owned();
         let reader = archive.open_entry(entry)?;
-        let bytes = read_capped(reader, entry.uncompressed_size(), MAX_CHUNK_FILE_LEN).map_err(
-            |source| ConversionError::ReadEntry {
+        let bytes = read_capped(reader, entry.uncompressed_size(), limit).map_err(|source| {
+            ConversionError::ReadEntry {
                 entry: name.clone(),
                 source,
-            },
-        )?;
-        Self::parse(name, None, bytes)
+            }
+        })?;
+        Self::parse(name, None, bytes, limit)
     }
 
     /// Reads the chunk file at `path`.
@@ -86,19 +100,22 @@ impl ChunkSource {
             .len();
         let bytes = read_capped(file, len, MAX_CHUNK_FILE_LEN)
             .map_err(|source| read_error(path, source))?;
-        Self::parse(path.display().to_string(), Some(path.to_path_buf()), bytes)
+        Self::parse(
+            path.display().to_string(),
+            Some(path.to_path_buf()),
+            bytes,
+            MAX_CHUNK_FILE_LEN,
+        )
     }
 
     fn parse(
         name: String,
         path: Option<PathBuf>,
         bytes: Option<Vec<u8>>,
+        limit: u64,
     ) -> Result<Self, ConversionError> {
         let Some(bytes) = bytes else {
-            return Err(ConversionError::ChunkFileTooLarge {
-                file: name,
-                limit: MAX_CHUNK_FILE_LEN,
-            });
+            return Err(ConversionError::ChunkFileTooLarge { file: name, limit });
         };
         match ChunkFile::parse(bytes) {
             Ok(file) => Ok(Self { name, path, file }),

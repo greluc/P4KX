@@ -7,7 +7,7 @@ use p4kx_chunks::ChunkError;
 use p4kx_gfx::GfxError;
 use p4kx_gltf::GltfError;
 use p4kx_localization::LocalizationError;
-use p4kx_model::ModelError;
+use p4kx_model::{AnimationError, ModelError};
 use p4kx_texture::TextureError;
 use thiserror::Error;
 
@@ -264,6 +264,27 @@ pub enum ConversionError {
         /// What is wrong.
         #[source]
         source: ModelError,
+    },
+    /// An animation file is unsupported or corrupt.
+    #[error("{file}")]
+    Animation {
+        /// The Entry path or file of the animation file.
+        file: String,
+        /// What is wrong.
+        #[source]
+        source: AnimationError,
+    },
+    /// A file named as a source of animations is no `.caf` or `.dba` file.
+    #[error("{file} is no .caf or .dba file")]
+    NotAnimationFile {
+        /// The Entry path or file.
+        file: String,
+    },
+    /// No animation has the name that was asked for.
+    #[error("no animation is named {}", names.join(", "))]
+    UnknownAnimations {
+        /// The names no animation has.
+        names: Vec<String>,
     },
     /// The model cannot be exported as GLB.
     #[error("{file}")]

@@ -5,7 +5,7 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
-use p4kx_extraction::{CancelToken, ConversionError, GlbOptions, ModelSource};
+use p4kx_extraction::{AnimationSet, CancelToken, ConversionError, GlbOptions, ModelSource};
 use p4kx_testkit::TestModel;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -25,6 +25,7 @@ fn progress_counts_the_bytes_against_the_length_of_the_file() -> TestResult {
     let seen = RefCell::new(Vec::new());
 
     let summary = source.write_glb_observed(
+        &AnimationSet::default(),
         &GlbOptions::default(),
         &out,
         None,
@@ -58,7 +59,14 @@ fn a_cancelled_export_writes_nothing() -> TestResult {
     let cancel = CancelToken::new();
     cancel.cancel();
 
-    let result = source.write_glb_observed(&GlbOptions::default(), &out, None, &cancel, &|_, _| {});
+    let result = source.write_glb_observed(
+        &AnimationSet::default(),
+        &GlbOptions::default(),
+        &out,
+        None,
+        &cancel,
+        &|_, _| {},
+    );
 
     assert!(
         matches!(result, Err(ConversionError::Cancelled)),
@@ -83,9 +91,16 @@ fn a_cancel_during_the_write_removes_the_temporary_file() -> TestResult {
     let out = folder.path().join("cube.glb");
     let cancel = CancelToken::new();
 
-    let result = source.write_glb_observed(&GlbOptions::default(), &out, None, &cancel, &|_, _| {
-        cancel.cancel();
-    });
+    let result = source.write_glb_observed(
+        &AnimationSet::default(),
+        &GlbOptions::default(),
+        &out,
+        None,
+        &cancel,
+        &|_, _| {
+            cancel.cancel();
+        },
+    );
 
     assert!(
         matches!(result, Err(ConversionError::Cancelled)),

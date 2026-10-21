@@ -19,26 +19,83 @@ pub struct Sprite {
     pub timeline: Timeline,
 }
 
+/// The most placements and frames the display lists of all frames of a movie hold together; the
+/// display lists of later frames are not kept.
+pub const MAX_FRAME_PLACEMENTS: usize = 1 << 20;
+
+/// The most bytes the display lists of all frames of a movie occupy together, names and filter
+/// data included; the display lists of later frames are not kept.
+pub const MAX_FRAME_BYTES: usize = 64 << 20;
+
+/// A frame label: a name for the frame it precedes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrameLabel {
+    /// The index of the frame it names, counted from 0.
+    pub frame: u32,
+    /// The name.
+    pub name: String,
+}
+
 /// What a timeline holds: its frames, labels and the definitions it places.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Timeline {
     /// The `ShowFrame` tags.
     pub frames: u32,
-    /// The frame labels in order.
-    pub labels: Vec<String>,
+    /// The frame labels in order, each with the frame it names.
+    pub labels: Vec<FrameLabel>,
     /// The IDs of the definitions placed on it, each once, in ascending order.
     pub placed: Vec<u16>,
     /// The display list of the first frame in ascending depth order.
     pub first_frame: Vec<Placement>,
+    /// The display list at the end of each frame, indexed by frame, each in ascending depth order.
+    ///
+    /// Shorter than [`Timeline::frames`] when the movie exceeds [`MAX_FRAME_PLACEMENTS`].
+    pub frame_lists: Vec<Vec<Placement>>,
     /// The tags, End included.
     pub tag_count: u32,
 }
 
-/// The display list a timeline builds up to the end of its first frame.
+impl Timeline {
+    /// Returns the index of the first frame labelled `name`, ignoring ASCII case.
+    #[must_use]
+    pub fn frame_of(&self, name: &str) -> Option<u32> {
+        self.labels
+            .iter()
+            .find(|label| label.name.eq_ignore_ascii_case(name))
+            .map(|label| label.frame)
+    }
+
+    /// Returns the display list at the end of `frame`.
+    #[must_use]
+    pub fn display_list(&self, frame: u32) -> Option<&[Placement]> {
+        self.frame_lists
+            .get(usize::try_from(frame).ok()?)
+            .map(Vec::as_slice)
+    }
+}
+
+/// The display list a timeline builds up while its tags are read.
 #[derive(Debug, Default)]
 pub(crate) struct DisplayList(BTreeMap<u16, Placement>);
 
 impl DisplayList {
+    /// Returns the number of placements.
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the bytes a snapshot of the list occupies.
+    pub(crate) fn cloned_bytes(&self) -> usize {
+        self.0.values().fold(0usize, |sum, placement| {
+            sum.saturating_add(placement.cloned_bytes())
+        })
+    }
+
+    /// Returns the placements in ascending depth order.
+    pub(crate) fn snapshot(&self) -> Vec<Placement> {
+        self.0.values().cloned().collect()
+    }
+
     /// Applies a `PlaceObject` tag.
     pub(crate) fn place(&mut self, command: PlaceCommand) {
         let depth = command.depth;
@@ -59,11 +116,14 @@ impl DisplayList {
 }
 
 impl Timeline {
-    /// Sorts the placed IDs, removes repeats and keeps the first frame once the timeline is read.
+    /// Sorts the placed IDs and removes repeats once the timeline is read; a timeline without a
+    /// `ShowFrame` takes its first frame from the final display list.
     pub(crate) fn finish(&mut self, display_list: DisplayList) {
         self.placed.sort_unstable();
         self.placed.dedup();
-        self.first_frame = display_list.0.into_values().collect();
+        if self.frames == 0 {
+            self.first_frame = display_list.0.into_values().collect();
+        }
     }
 }
 

@@ -5,8 +5,41 @@ is the JSON Schema (draft 2020-12) in
 [`schemas/basetool-catalog.schema.json`](../schemas/basetool-catalog.schema.json), generated from
 the Rust types in `crates/p4kx-export/src/contract.rs`. A test fails when the checked-in schema and
 the types drift apart; `P4KX_BLESS=1 cargo test -p p4kx-export --test catalog_schema` regenerates
-it. Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
-until M3 is complete; from then on every change of the shape raises `schemaVersion`.
+it.
+
+## Versioning and consumers
+
+The rule is ADR-0054 (amending ADR-0002):
+
+- **Additive changes keep `schemaVersion`:** a new kind, a new field on an entity, on `source` or
+  on an ingredient, a new kind in `completeness`. Example: a `playable` field on every ship.
+- **Breaking changes raise `schemaVersion`:** renaming, removing or retyping a field, a changed
+  meaning, restructuring a kind, or a changed selection or ordering of an existing kind. Example:
+  renaming `crewSize`.
+- **A consumer ignores kinds and fields it does not know,** and still rejects a `schemaVersion` it
+  does not know. The JSON Schema therefore allows additional properties everywhere; every field it
+  lists is required.
+- **Guarantees the Basetool relies on;** breaking one is a breaking change: an existing field never
+  changes its type, its meaning or whether it can be `null`; a new kind never changes the
+  selection or the ordering of an existing kind; the meaning of `completeness` stays.
+- **A new value in an existing closed value set is additive,** e.g. a new playability value or a
+  new `itemClass`. A reader maps an unknown value to `null`. The schema documents such a set but
+  keeps the type a string, so an older schema accepts the new value.
+- **Loadouts (#393), paints, item stats and the starmap are kinds of the one catalog;** the size is
+  handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
+  `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
+  content is capped at 1 GB. On LIVE, 19.3 MB becomes 1.54 MB with zstd -19 `--long=27`.
+- **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
+  and `HOTFIX` are confidential test Channels (ADR-0038).
+
+### Game texts
+
+Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
+The game texts of the catalog are every `description` and every `displayType`, each with its `key`,
+`en` and `de`. `name`, `role`, `career` and the other fields are identifiers, short names or fact
+values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
+Basetool keeps them, and `displayType`, away from third parties. Every such field carries
+`"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]
@@ -69,7 +102,8 @@ DataForge field carries it: it is read from the first line of the English `descr
 starts with `Class:`, its value trimmed of white space and matched ignoring case. Any other value
 (FPS weapons use the line for the damage type, e.g. `Ballistic`), an item without that line and
 an item without an English description leave it `null`. `p4kx catalog` counts the items with a
-class, with another value, and without the line or an English description.
+class, with another value, and without the line or an English description. The schema types the
+field as a string; the five options are documented, not enumerated.
 
 A ship takes its fields from `VehicleComponentParams`:
 

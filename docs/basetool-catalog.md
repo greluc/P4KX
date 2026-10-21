@@ -5,8 +5,32 @@ is the JSON Schema (draft 2020-12) in
 [`schemas/basetool-catalog.schema.json`](../schemas/basetool-catalog.schema.json), generated from
 the Rust types in `crates/p4kx-export/src/contract.rs`. A test fails when the checked-in schema and
 the types drift apart; `P4KX_BLESS=1 cargo test -p p4kx-export --test catalog_schema` regenerates
-it. Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
-until M3 is complete; from then on every change of the shape raises `schemaVersion`.
+it.
+
+## Versioning and consumers
+
+The rule is ADR-0054 (amending ADR-0002):
+
+- **Additive changes keep `schemaVersion`:** a new kind, a new field on an entity, on `source` or
+  on an ingredient, a new kind in `completeness`. Example: a `playable` field on every ship.
+- **Breaking changes raise `schemaVersion`:** renaming, removing or retyping a field, a changed
+  meaning, restructuring a kind, or a changed selection or ordering of an existing kind. Example:
+  renaming `crewSize`.
+- **A consumer ignores kinds and fields it does not know,** and still rejects a `schemaVersion` it
+  does not know. The JSON Schema therefore allows additional properties everywhere; every field it
+  lists is required.
+- **Loadouts are not part of the catalog.** They go into a separate Export (#393), so the catalog
+  stays well below the upload limit.
+- **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
+  and `HOTFIX` are confidential test Channels (ADR-0038).
+
+### Game texts
+
+Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
+The game texts of the catalog are every `description` and every `displayType`, each with its `key`,
+`en` and `de`. `name`, `role`, `career` and the other fields are identifiers, short names or fact
+values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
+Basetool keeps them, and `displayType`, away from third parties.
 
 ```powershell
 p4kx catalog <archive> --out basetool-catalog.json [--filter <filter>] [--exported-at <seconds>]

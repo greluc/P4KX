@@ -7,7 +7,7 @@ use crate::guid_text::CatalogGuid;
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Item<'a> {
     /// The GUID of the Record.
@@ -46,7 +46,7 @@ pub(crate) struct Item<'a> {
 /// A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or
 /// `entities/groundvehicles`.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Ship<'a> {
     /// The GUID of the Record.

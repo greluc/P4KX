@@ -143,7 +143,7 @@ fn minimal_catalog() -> serde_json::Value {
 }
 
 #[test]
-fn the_schema_accepts_a_catalog_and_rejects_unknown_versions_and_guids() -> TestResult {
+fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
     let catalog = minimal_catalog();
     assert!(validator.is_valid(&catalog), "a minimal catalog is valid");
@@ -176,14 +176,25 @@ fn the_schema_accepts_a_catalog_and_rejects_unknown_versions_and_guids() -> Test
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);
-        assert!(!validator.is_valid(&unknown), "no unknown fields in {kind}");
+        assert!(validator.is_valid(&unknown), "unknown fields in {kind}");
     }
 
     let mut unknown_ingredient = catalog.clone();
     unknown_ingredient["blueprints"][0]["ingredients"][0]["extra"] = json!(true);
     assert!(
-        !validator.is_valid(&unknown_ingredient),
-        "no unknown fields in an ingredient"
+        validator.is_valid(&unknown_ingredient),
+        "unknown fields in an ingredient"
+    );
+
+    let mut unknown_kind = catalog.clone();
+    unknown_kind["loadouts"] = json!([{"guid": "x"}]);
+    unknown_kind["completeness"]["loadouts"] = json!({"status": "complete"});
+    unknown_kind["source"]["extra"] = json!(true);
+    unknown_kind["completeness"]["items"]["extra"] = json!(true);
+    unknown_kind["items"][0]["name"]["extra"] = json!(true);
+    assert!(
+        validator.is_valid(&unknown_kind),
+        "unknown kinds and fields everywhere"
     );
 
     let mut no_quantity = catalog.clone();

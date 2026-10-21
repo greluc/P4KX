@@ -1,5 +1,7 @@
 # The Basetool catalog is a new, versioned contract owned by this repo
 
+Amended by ADR-0054: additive changes keep `schemaVersion`.
+
 The KRT P4K Reader's `basetool-catalog.json` had no schema version, no provenance and no notion of
 completeness, so the basetool import could neither validate it nor detect removed Records. The
 P4K-Extractor defines a new catalog format: Rust types are the source, a JSON Schema (2020-12) is

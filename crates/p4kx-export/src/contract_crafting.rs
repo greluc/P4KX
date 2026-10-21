@@ -7,7 +7,7 @@ use crate::guid_text::CatalogGuid;
 /// A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a
 /// `ResourceType` Record a blueprint ingredient uses that no commodity Record carries.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Commodity<'a> {
     /// The GUID of the Record; for a `ResourceType` entry the GUID of the `ResourceType`.
@@ -35,7 +35,7 @@ pub(crate) struct Commodity<'a> {
 
 /// A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Blueprint<'a> {
     /// The GUID of the Record.
@@ -61,7 +61,7 @@ pub(crate) struct Blueprint<'a> {
 
 /// One ingredient line of a blueprint: a resource or an item with its quantity.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Ingredient<'a> {
     /// The GUID of the `ResourceType` Record of a resource line, `null` for an item line.

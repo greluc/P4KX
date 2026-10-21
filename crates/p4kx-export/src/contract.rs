@@ -10,13 +10,13 @@ pub(crate) use crate::contract_entities::{Item, Ship};
 
 /// The version of the catalog shape.
 ///
-/// Version 1 stays open until the Basetool import reads it: kinds and fields are added to it
-/// until M3 is complete; from then on every change of the shape raises it.
+/// Added kinds and fields keep it; renaming, removing or retyping a field, or restructuring a kind,
+/// raises it (ADR-0054).
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// The Basetool catalog: the game data the basetool's P4K import reads.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 #[schemars(title = "P4K-Extractor Basetool catalog")]
 pub(crate) struct Catalog<'a> {
@@ -41,7 +41,7 @@ pub(crate) struct Catalog<'a> {
 
 /// Where a catalog came from.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Source<'a> {
     /// The Channel: the name of the folder holding the Archive, `null` when there is none.
@@ -60,7 +60,7 @@ pub(crate) struct Source<'a> {
 
 /// The Build of the Archive.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct BuildSource<'a> {
     /// The branch, e.g. `sc-alpha-4.4.0`.
@@ -75,7 +75,7 @@ pub(crate) struct BuildSource<'a> {
 
 /// The completeness of every kind.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Completeness<'a> {
     /// The completeness of `manufacturers`.
@@ -92,7 +92,7 @@ pub(crate) struct Completeness<'a> {
 
 /// Whether a kind holds every Record of the Build or only those a Filter selected.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
-#[serde(tag = "status", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(tag = "status", rename_all = "camelCase")]
 pub(crate) enum KindCompleteness<'a> {
     /// Every Record of the kind is listed; one missing from the catalog was removed from the game.
     Complete,
@@ -105,7 +105,7 @@ pub(crate) enum KindCompleteness<'a> {
 
 /// A manufacturer: an `SCItemManufacturer` Record.
 #[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct Manufacturer<'a> {
     /// The GUID of the Record.
@@ -125,7 +125,7 @@ pub(crate) struct Manufacturer<'a> {
 /// A text the game localises: its localisation key and the resolved English and German texts,
 /// as the language's `global.ini` stores them with the escape `\n` decoded to a line feed.
 #[derive(Debug, Clone, Default, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LocalisedText<'a> {
     /// The localisation key, e.g. `@manufacturer_NameACAS`, `null` when it is unknown.

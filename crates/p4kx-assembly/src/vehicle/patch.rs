@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::ValueOrigin;
 use crate::markup::{Budget, Element};
 
 /// One `Elem` of a Modification: the attribute `name` of every element with the `id` `id_ref`
@@ -248,9 +249,12 @@ fn replace_child(
         .find(|existing| existing.name.eq_ignore_ascii_case(&child.name))
     {
         slot.clone_from(child);
+        slot.mark_all(ValueOrigin::Patch);
     } else {
         report.unmatched_children.push(child.name.clone());
-        base.children.push(child.clone());
+        let mut added = child.clone();
+        added.mark_all(ValueOrigin::Patch);
+        base.children.push(added);
     }
     Ok(())
 }
@@ -277,17 +281,20 @@ fn overlay_children(
         let partner = partners
             .get_mut(&pair_key(source))
             .and_then(VecDeque::pop_front);
-        let mut element = Element {
-            name: source.name.clone(),
-            attributes: source.attributes.clone(),
-            children: Vec::new(),
-        };
+        let mut element = Element::read(source.name.clone(), source.attributes.clone(), Vec::new());
+        for (name, _) in &source.attributes {
+            element.mark(name, ValueOrigin::Patch);
+        }
         let old_children = match partner {
             Some(partner) => {
                 for (name, value) in &partner.attributes {
                     if element.attribute(name).is_none() {
                         budget.charge_set(element.attributes.len(), name, value)?;
                         element.set_attribute(name, value);
+                        match partner.origin_of(name) {
+                            ValueOrigin::Base => {}
+                            origin => element.mark(name, origin),
+                        }
                     }
                 }
                 partner.children
@@ -323,6 +330,7 @@ fn merge_by_id(
             for (name, value) in &patch.attributes {
                 budget.charge_set(child.attributes.len(), name, value)?;
                 child.set_attribute(name, value);
+                child.mark(name, ValueOrigin::Patch);
             }
             let old = std::mem::take(&mut child.children);
             child.children = overlay_children(old, &patch.children, budget)?;
@@ -375,6 +383,7 @@ fn set_elems<'e>(
         for elem in elems {
             budget.charge_set(element.attributes.len(), &elem.name, &elem.value)?;
             element.set_attribute(&elem.name, &elem.value);
+            element.mark(&elem.name, ValueOrigin::Elem);
         }
     }
     for child in &mut element.children {

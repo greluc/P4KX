@@ -19,6 +19,7 @@ pub(crate) use crate::cli_grep::{GrepArgs, GrepFormat};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
+pub(crate) use crate::cli_ships::{ShipsArgs, ShipsFormat};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs};
 pub(crate) use crate::cli_verify::VerifyArgs;
@@ -94,6 +95,12 @@ pub(crate) enum Command {
         subcommand_negates_reqs = true
     )]
     Catalog(CatalogArgs),
+    /// Writes the base data of every ship as JSON or NDJSON: hull mass and hit points from the
+    /// vehicle implementation XML, cargo capacity from the cargo grids of the default Loadout,
+    /// size and the Loadout as class names per port path, each value with the file and field it
+    /// was read from. Docked vehicles are not counted or expanded.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Ships(ShipsArgs),
     /// Shows the Loadout tree or the audio triggers of an Entity: a ship, vehicle, weapon or
     /// item.
     #[command(after_help = EXIT_CODES_HELP)]

@@ -10,5 +10,6 @@ mod real_archive_items;
 mod real_archive_paints;
 mod real_archive_playability;
 mod real_archive_records;
+mod real_archive_ship_base;
 mod real_archive_tags;
 mod real_archive_verification;

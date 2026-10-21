@@ -1,5 +1,7 @@
 use p4kx_cryxml::Xml;
 
+use crate::ValueOrigin;
+
 /// The deepest element nesting that is read.
 pub(crate) const MAX_ELEMENT_DEPTH: usize = 128;
 
@@ -11,10 +13,58 @@ pub(crate) const MAX_ELEMENTS: usize = 1 << 21;
 pub(crate) struct Element {
     pub(crate) name: String,
     pub(crate) attributes: Vec<(String, String)>,
+    pub(crate) origins: Vec<(String, ValueOrigin)>,
     pub(crate) children: Vec<Self>,
 }
 
 impl Element {
+    /// Creates an element read from the base file: every attribute is [`ValueOrigin::Base`].
+    pub(crate) const fn read(
+        name: String,
+        attributes: Vec<(String, String)>,
+        children: Vec<Self>,
+    ) -> Self {
+        Self {
+            name,
+            attributes,
+            origins: Vec::new(),
+            children,
+        }
+    }
+
+    /// Returns where the attribute `name` got its value, ignoring ASCII case.
+    pub(crate) fn origin_of(&self, name: &str) -> ValueOrigin {
+        self.origins
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map_or(ValueOrigin::Base, |(_, origin)| *origin)
+    }
+
+    /// Records that the attribute `name` got its value from `origin`.
+    pub(crate) fn mark(&mut self, name: &str, origin: ValueOrigin) {
+        if let Some((_, old)) = self
+            .origins
+            .iter_mut()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        {
+            *old = origin;
+        } else {
+            self.origins.push((name.to_owned(), origin));
+        }
+    }
+
+    /// Records `origin` for every attribute of the element and of everything below it.
+    pub(crate) fn mark_all(&mut self, origin: ValueOrigin) {
+        self.origins = self
+            .attributes
+            .iter()
+            .map(|(name, _)| (name.clone(), origin))
+            .collect();
+        for child in &mut self.children {
+            child.mark_all(origin);
+        }
+    }
+
     /// Returns the value of the attribute `name`, ignoring ASCII case.
     pub(crate) fn attribute(&self, name: &str) -> Option<&str> {
         self.attributes
@@ -257,11 +307,11 @@ fn from_cry(
         .children()
         .map(|child| from_cry(child, depth.saturating_add(1), budget))
         .collect::<Result<_, _>>()?;
-    Ok(Element {
-        name: element.name().to_owned(),
+    Ok(Element::read(
+        element.name().to_owned(),
         attributes,
         children,
-    })
+    ))
 }
 
 fn from_text(
@@ -283,9 +333,9 @@ fn from_text(
         .filter(roxmltree::Node::is_element)
         .map(|child| from_text(child, depth.saturating_add(1), budget))
         .collect::<Result<_, _>>()?;
-    Ok(Element {
-        name: element.tag_name().name().to_owned(),
+    Ok(Element::read(
+        element.tag_name().name().to_owned(),
         attributes,
         children,
-    })
+    ))
 }

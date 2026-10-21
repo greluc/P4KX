@@ -123,6 +123,8 @@ impl LoadoutResolver<'_> {
             landing_gear,
             docked_vehicle: attached_vehicle,
             expanded,
+            attach_type: spec.attach_type.clone(),
+            container: spec.container,
         }
     }
 

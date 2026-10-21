@@ -66,10 +66,11 @@ pub use p4kx_character as character;
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
-pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
+pub use tree::{Attachment, EntityNode, LoadoutEntry, PortNode, PortSource, Target, Unresolved};
 pub use vehicle::{
-    LandingGear, ModificationReport, PartKind, PortVisibility, VehicleImplementation,
-    VehicleItemPort, VehiclePart,
+    LandingGear, ModificationReport, OriginTally, PartKind, PartThreshold, PortVisibility,
+    UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort, VehiclePart,
+    VehicleTotals,
 };
 pub use xml::MAX_XML_INCLUDE_DEPTH;
 

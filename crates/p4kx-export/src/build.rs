@@ -162,7 +162,7 @@ fn add_paints(
     derived.summary
 }
 
-fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
+pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
     Source {
         channel: channel_name(archive.path()),
         build: archive.build().map(|build| BuildSource {

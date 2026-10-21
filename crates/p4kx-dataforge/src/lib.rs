@@ -10,8 +10,11 @@
 //! output is made from: owned children nested, References as links (ADR-0004). [`RecordXml`]
 //! writes it as Record XML (`docs/record-xml.md`), [`RecordJson`] as Record JSON
 //! (`docs/record-json.md`). [`query`] selects Records and values inside them with Queries
-//! (`docs/query.md`).
+//! (`docs/query.md`). [`TagTree`] reads the `TagDatabase` into the tree of tags with their tag
+//! paths, and [`Annotations`] lets the two writers add those paths and localised texts to their
+//! output.
 
+mod annotations;
 mod build;
 mod dataforge;
 mod error;
@@ -36,6 +39,8 @@ mod slot;
 mod strings;
 mod survey;
 mod table;
+mod tag_build;
+mod tags;
 mod texts;
 mod tree;
 mod value;
@@ -47,6 +52,7 @@ mod xml;
 mod xml_text;
 mod xml_write;
 
+pub use annotations::{Annotations, TAG_TYPE, TagResolver};
 pub use build::{MAX_NESTING_DEPTH, MAX_RECORD_VALUES, TreeBuilder};
 pub use dataforge::DataForge;
 pub use error::DataForgeError;
@@ -62,6 +68,7 @@ pub use record::Record;
 pub use reference_index::{FileGraph, IndexedReference, MAX_INDEXED_REFERENCES, ReferenceIndex};
 pub use schema::{Enum, Property, Struct};
 pub use survey::{FormatSurvey, PointerSurvey, TrailingSurvey};
+pub use tags::{MAX_TAG_DEPTH, TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, Tag, TagTree, TagTreeIssues};
 pub use texts::{Resolution, TextResolver};
 pub use tree::RecordTree;
 pub use value::{Field, Value};

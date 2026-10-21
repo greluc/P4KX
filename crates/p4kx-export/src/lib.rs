@@ -14,6 +14,10 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
+//! [`TagTree::build`] reads the tag tree of a DataForge: tag GUID to tag path, parent and children.
+//! The catalog kinds that match tags (paints, loadouts) use it, and `RecordExportOptions::tags`
+//! adds the tag path to every tag Reference of an exported Record.
+//!
 //! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
 //! the chosen languages as JSON or CSV.
 
@@ -51,8 +55,9 @@ pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};
 pub use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractionError, Filter, Language, LocalizationNote,
-    PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TextSet,
+    CancelToken, ConflictPolicy, ExtractionError, Filter, Guid, Language, LocalizationNote,
+    PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TAG_PATH_SEPARATOR,
+    Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
 };
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;

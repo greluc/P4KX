@@ -32,6 +32,37 @@ pub(crate) enum DcbCommand {
     /// GUID no Record has, or the record files that refer to each other.
     #[command(after_help = EXIT_CODES_HELP)]
     Refs(DcbRefsArgs),
+    /// Prints the tag tree of the `TagDatabase`: every tag with its tag path, GUID and legacy id in
+    /// tree order, or with --tree as the indented tree.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Tags(DcbTagsArgs),
+}
+
+/// Arguments of `p4kx dcb tags`.
+#[derive(Debug, Args)]
+pub(crate) struct DcbTagsArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The tag path (e.g. `Weapon.Gun`, ignoring case) or the GUID of a tag; lists that tag and
+    /// everything below it. Without it every tag is listed.
+    pub(crate) tag: Option<String>,
+    /// Shows the tree: in a table every name indented below its parent, in JSON the children nested
+    /// in their parent. Without it the tags are a flat list with full tag paths.
+    #[arg(long)]
+    pub(crate) tree: bool,
+    /// The format of the result, defined in docs/cli-json.md; defaults to table, or to json with
+    /// --json.
+    #[arg(long, value_enum)]
+    pub(crate) format: Option<TagsFormat>,
+}
+
+/// The values of `p4kx dcb tags --format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TagsFormat {
+    /// Aligned columns, for reading.
+    Table,
+    /// One line of JSON.
+    Json,
 }
 
 /// Arguments of `p4kx dcb refs`.
@@ -143,6 +174,10 @@ pub(crate) struct DcbExportArgs {
     /// carries no texts.
     #[arg(long, value_name = "LANGUAGE", value_parser = clap::value_parser!(Language))]
     pub(crate) lang: Option<Language>,
+    /// Writes the tag path of every tag Reference next to it (Record XML `tag="Weapon.Gun"`,
+    /// Record JSON `tag`). Without it a tag Reference carries only the GUID of its Tag Record.
+    #[arg(long)]
+    pub(crate) tags: bool,
     /// Target folder; created if missing, files already in it are handled by --conflict. Defaults
     /// to a new folder SC-EXPORT-<Channel>-<Build version>-<timestamp> in the current directory.
     #[arg(long, value_name = "FOLDER")]

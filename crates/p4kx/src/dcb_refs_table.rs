@@ -117,12 +117,12 @@ fn distinct(links: &[Link<'_>]) -> usize {
         .len()
 }
 
-fn count(number: usize, noun: &str) -> String {
+pub(crate) fn count(number: usize, noun: &str) -> String {
     let plural = if number == 1 { "" } else { "s" };
     format!("{number} {noun}{plural}")
 }
 
-fn table(out: &mut impl Write, header: &[&str], rows: &[Vec<String>]) -> io::Result<()> {
+pub(crate) fn table(out: &mut impl Write, header: &[&str], rows: &[Vec<String>]) -> io::Result<()> {
     let mut widths: Vec<usize> = header.iter().map(|text| text.chars().count()).collect();
     for row in rows {
         for (width, text) in widths.iter_mut().zip(row) {

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use p4kx_dataforge::{DataForgeError, Guid, TextResolver};
+use p4kx_dataforge::{Annotations, DataForgeError, Guid, TagResolver, TextResolver};
 use thiserror::Error;
 
 use crate::{CancelToken, ConflictPolicy, ExtractionError};
@@ -18,6 +18,19 @@ pub struct RecordExportOptions<'a> {
     /// Resolves the localisation keys of the Records into one language; without it the output
     /// is language-free.
     pub texts: Option<&'a dyn TextResolver>,
+    /// Resolves the tag References of the Records into their tag paths, e.g. a
+    /// [`TagTree`](p4kx_dataforge::TagTree); without it tag References carry no path.
+    pub tags: Option<&'a dyn TagResolver>,
+}
+
+impl<'a> RecordExportOptions<'a> {
+    /// Returns the annotations the texts and tags of the options add to the Records.
+    #[must_use]
+    pub const fn annotations(&self) -> Annotations<'a> {
+        Annotations::none()
+            .with_texts(self.texts)
+            .with_tags(self.tags)
+    }
 }
 
 impl fmt::Debug for RecordExportOptions<'_> {
@@ -27,6 +40,7 @@ impl fmt::Debug for RecordExportOptions<'_> {
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("texts", &self.texts.is_some())
+            .field("tags", &self.tags.is_some())
             .finish()
     }
 }

@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-use p4kx_dataforge::{DataForge, Record, RecordXml, TextResolver, TreeBuilder};
+use p4kx_dataforge::{Annotations, DataForge, Record, RecordXml, TreeBuilder};
 use rayon::prelude::*;
 
 use crate::dependent::split_dependent;
@@ -82,7 +82,7 @@ fn write_with_options<F: RecordFileFormat>(
     let (cancel, progress) = (options.cancel, options.progress);
     let run = RecordRun {
         policy: options.policy,
-        texts: options.texts,
+        annotations: options.annotations(),
         stop: &|| cancel.is_some_and(crate::CancelToken::is_cancelled),
         ended: &|| {
             if let Some(progress) = progress {
@@ -97,7 +97,7 @@ fn write_with_options<F: RecordFileFormat>(
 /// and what to call once a Record ended.
 pub(crate) struct RecordRun<'a> {
     pub(crate) policy: ConflictPolicy,
-    pub(crate) texts: Option<&'a dyn TextResolver>,
+    pub(crate) annotations: Annotations<'a>,
     pub(crate) stop: &'a (dyn Fn() -> bool + Sync),
     pub(crate) ended: &'a (dyn Fn() + Sync),
 }
@@ -128,7 +128,7 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
     let writer = Writer {
         target,
         policy: run.policy,
-        texts: run.texts,
+        annotations: run.annotations,
         stop: run.stop,
     };
     let ended = run.ended;
@@ -248,7 +248,7 @@ struct Scratch<'f, F> {
 struct Writer<'a> {
     target: &'a Path,
     policy: ConflictPolicy,
-    texts: Option<&'a dyn TextResolver>,
+    annotations: Annotations<'a>,
     stop: &'a (dyn Fn() -> bool + Sync),
 }
 
@@ -283,7 +283,7 @@ impl Writer<'_> {
         scratch.bytes.clear();
         scratch
             .format
-            .write_file(&tree, self.texts, &mut scratch.bytes)
+            .write_file(&tree, self.annotations, &mut scratch.bytes)
             .map_err(|source| write_error(destination.clone(), source))?;
         if self.keep(&destination, scratch)? {
             return Ok(RecordOutcome::Kept {

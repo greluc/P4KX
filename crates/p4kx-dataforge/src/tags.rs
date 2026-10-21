@@ -1,0 +1,276 @@
+use crate::tag_build::layout;
+use crate::{DataForge, Guid, TagResolver};
+
+/// The struct of the Record that lists the root tags.
+pub const TAG_DATABASE_TYPE: &str = "TagDatabase";
+
+/// The character that joins the names of a tag and its ancestors into the tag path.
+pub const TAG_PATH_SEPARATOR: char = '.';
+
+/// The deepest tag the tree keeps; the children of a tag that deep are left out.
+pub const MAX_TAG_DEPTH: usize = 64;
+
+/// What the tag tree could not take from the DataForge. The tree is built from whatever reads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TagTreeIssues {
+    pub(crate) unreadable: usize,
+    pub(crate) dangling: usize,
+    pub(crate) repeated: usize,
+    pub(crate) too_deep: usize,
+    pub(crate) unlisted: usize,
+}
+
+impl TagTreeIssues {
+    /// Returns the number of Tag Records whose fields cannot be read; they are left out.
+    #[must_use]
+    pub const fn unreadable(&self) -> usize {
+        self.unreadable
+    }
+
+    /// Returns the number of listed children and roots that are no Tag Record.
+    #[must_use]
+    pub const fn dangling(&self) -> usize {
+        self.dangling
+    }
+
+    /// Returns the number of times a tag was listed again, as a child of another tag or as a
+    /// root; the first listing wins, which also cuts a cycle.
+    #[must_use]
+    pub const fn repeated(&self) -> usize {
+        self.repeated
+    }
+
+    /// Returns the number of children left out because their parent is
+    /// [`MAX_TAG_DEPTH`] levels deep.
+    #[must_use]
+    pub const fn too_deep(&self) -> usize {
+        self.too_deep
+    }
+
+    /// Returns the number of tags the `TagDatabase` does not reach; they are roots of their own
+    /// or below one.
+    #[must_use]
+    pub const fn unlisted(&self) -> usize {
+        self.unlisted
+    }
+
+    /// Returns whether the tree is exactly what the DataForge lists.
+    #[must_use]
+    pub const fn is_clean(&self) -> bool {
+        self.unreadable == 0
+            && self.dangling == 0
+            && self.repeated == 0
+            && self.too_deep == 0
+            && self.unlisted == 0
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Node {
+    pub(crate) guid: Guid,
+    pub(crate) name: Box<str>,
+    pub(crate) path: Box<str>,
+    pub(crate) legacy_id: Option<u32>,
+    pub(crate) parent: Option<u32>,
+    pub(crate) children: Vec<u32>,
+    pub(crate) end: u32,
+    pub(crate) depth: u16,
+    pub(crate) listed: bool,
+}
+
+/// The tag tree of a DataForge: the `TagDatabase` with its tags and their children, each tag with
+/// its tag path.
+///
+/// Many fields (`Tags`, `RequiredTags`, `PortTags`, …) refer to a Tag Record by GUID. The tree
+/// answers which tag a GUID is, where it sits and what is below it. It borrows nothing from the
+/// DataForge it was built from. Tags are stored in pre-order, so the tags below one tag follow it
+/// directly.
+#[derive(Debug, Default)]
+pub struct TagTree {
+    nodes: Vec<Node>,
+    roots: Vec<u32>,
+    by_guid: Box<[(Guid, u32)]>,
+    issues: TagTreeIssues,
+}
+
+impl TagTree {
+    /// Builds the tag tree of `forge`: every `TagDatabase` Record lists the root tags, and every
+    /// Tag Record its children.
+    ///
+    /// A Tag Record that is not below the `TagDatabase` becomes a root of its own, unlisted, so
+    /// every tag a field refers to has a path. A tag listed twice stays where it was listed first.
+    /// The tree of a DataForge without tags is empty. What cannot be read is counted in
+    /// [`TagTree::issues`].
+    #[must_use]
+    pub fn build(forge: &DataForge<'_>) -> Self {
+        let laid = layout(forge);
+        let mut by_guid: Vec<(Guid, u32)> = (0..)
+            .zip(&laid.nodes)
+            .map(|(index, node)| (node.guid, index))
+            .collect();
+        by_guid.sort_unstable();
+        Self {
+            nodes: laid.nodes,
+            roots: laid.roots,
+            by_guid: by_guid.into_boxed_slice(),
+            issues: laid.issues,
+        }
+    }
+
+    /// Returns the number of tags in the tree.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Returns whether the tree has no tag.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    /// Returns what could not be taken from the DataForge.
+    #[must_use]
+    pub const fn issues(&self) -> TagTreeIssues {
+        self.issues
+    }
+
+    /// Returns the root tags in the order the `TagDatabase` lists them, then the unlisted ones.
+    pub fn roots(&self) -> impl ExactSizeIterator<Item = Tag<'_>> {
+        self.roots.iter().map(|&index| Tag { tree: self, index })
+    }
+
+    /// Returns every tag in pre-order: a tag, then everything below it, then its next sibling.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = Tag<'_>> {
+        (0..u32::try_from(self.nodes.len()).unwrap_or(u32::MAX))
+            .map(|index| Tag { tree: self, index })
+    }
+
+    /// Returns the tag with the Tag Record `guid`, or `None` when the tree has none.
+    #[must_use]
+    pub fn get(&self, guid: Guid) -> Option<Tag<'_>> {
+        let found = self
+            .by_guid
+            .binary_search_by(|(other, _)| other.cmp(&guid))
+            .ok()?;
+        let &(_, index) = self.by_guid.get(found)?;
+        Some(Tag { tree: self, index })
+    }
+
+    /// Returns the tag path of the Tag Record `guid`, e.g. `Weapon.Gun`, or `None` when the tree
+    /// has no such tag.
+    #[must_use]
+    pub fn path_of(&self, guid: Guid) -> Option<&str> {
+        self.get(guid).map(|tag| tag.path())
+    }
+
+    fn node(&self, index: u32) -> Option<&Node> {
+        self.nodes.get(usize::try_from(index).ok()?)
+    }
+}
+
+impl TagResolver for TagTree {
+    fn tag_path(&self, guid: Guid) -> Option<&str> {
+        self.path_of(guid)
+    }
+}
+
+/// One tag of a [`TagTree`].
+#[derive(Debug, Clone, Copy)]
+pub struct Tag<'t> {
+    tree: &'t TagTree,
+    index: u32,
+}
+
+impl<'t> Tag<'t> {
+    fn node(&self) -> Option<&'t Node> {
+        self.tree.node(self.index)
+    }
+
+    /// Returns the GUID of the Tag Record, which fields refer to.
+    #[must_use]
+    pub fn guid(&self) -> Guid {
+        self.node().map(|node| node.guid).unwrap_or_default()
+    }
+
+    /// Returns the name of the tag alone, e.g. `Gun`.
+    #[must_use]
+    pub fn name(&self) -> &'t str {
+        self.node().map_or("", |node| &node.name)
+    }
+
+    /// Returns the tag path: the names from the root down to the tag, joined by
+    /// [`TAG_PATH_SEPARATOR`], e.g. `Weapon.Gun`.
+    #[must_use]
+    pub fn path(&self) -> &'t str {
+        self.node().map_or("", |node| &node.path)
+    }
+
+    /// Returns the number stored as `legacyGUID`, or `None` when the tag has none.
+    #[must_use]
+    pub fn legacy_id(&self) -> Option<u32> {
+        self.node().and_then(|node| node.legacy_id)
+    }
+
+    /// Returns how many tags lie between the tag and its root: 0 for a root.
+    #[must_use]
+    pub fn depth(&self) -> usize {
+        self.node().map_or(0, |node| usize::from(node.depth))
+    }
+
+    /// Returns whether the `TagDatabase` lists the tag, directly or below another tag.
+    #[must_use]
+    pub fn is_listed(&self) -> bool {
+        self.node().is_some_and(|node| node.listed)
+    }
+
+    /// Returns the parent tag, or `None` for a root.
+    #[must_use]
+    pub fn parent(&self) -> Option<Self> {
+        let index = self.node()?.parent?;
+        Some(Self {
+            tree: self.tree,
+            index,
+        })
+    }
+
+    /// Returns the children in the order the Tag Record lists them.
+    pub fn children(&self) -> impl ExactSizeIterator<Item = Self> + 't {
+        let tree = self.tree;
+        self.node()
+            .map_or(&[] as &[u32], |node| node.children.as_slice())
+            .iter()
+            .map(move |&index| Self { tree, index })
+    }
+
+    /// Returns the tag, its parent, its parent's parent and so on up to the root.
+    pub fn ancestors_and_self(&self) -> impl Iterator<Item = Self> + 't {
+        std::iter::successors(Some(*self), Self::parent)
+    }
+
+    /// Returns every tag below this one, children, their children and so on, in pre-order.
+    pub fn descendants(&self) -> impl ExactSizeIterator<Item = Self> + 't {
+        let tree = self.tree;
+        let (from, to) = self
+            .node()
+            .map_or((0, 0), |node| (self.index.saturating_add(1), node.end));
+        (from..to).map(move |index| Self { tree, index })
+    }
+
+    /// Returns whether the tag is `ancestor` or lies below it, at any depth.
+    #[must_use]
+    pub fn is_within(&self, ancestor: &Self) -> bool {
+        std::ptr::eq(self.tree, ancestor.tree)
+            && ancestor
+                .node()
+                .is_some_and(|node| (ancestor.index..node.end).contains(&self.index))
+    }
+}
+
+impl PartialEq for Tag<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.tree, other.tree) && self.index == other.index
+    }
+}
+
+impl Eq for Tag<'_> {}

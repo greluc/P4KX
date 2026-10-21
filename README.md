@@ -198,6 +198,13 @@ Early development (milestone M1). Available today:
   nears or exceeds the 64 MB upload limit. A selected Record that cannot be read is left out,
   listed on stderr with its GUID and reason and counted as failed; the catalog is still written
   and the exit code is 1. `p4kx catalog schema` prints the catalog's JSON Schema.
+- `p4kx ships <archive> --out <file> [--format json|ndjson] [--filter <filter>]
+  [--exported-at <seconds>]` writes the base data of every ship
+  ([docs/ship-base-data.md](docs/ship-base-data.md)): hull mass and hit points summed from the
+  vehicle implementation XML with its Modification applied, the cargo capacity of the cargo grids
+  of the default Loadout, `AttachDef.Size` and the Loadout as class names per port path, each
+  value with the file and field it was read from. Docked vehicles are marked and not counted. A
+  ship that cannot be read is listed on stderr and the exit code is 1.
 - `p4kx channels` lists the installed Channels with Build version, source and Archive path. It
   looks below `C:\Program Files\Roberts Space Industries\StarCitizen`, below the library folders
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see

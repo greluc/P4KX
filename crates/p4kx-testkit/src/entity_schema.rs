@@ -1,3 +1,4 @@
+use crate::entity_cargo::cargo_structs;
 use crate::entity_vehicle::vehicle_structs;
 use crate::{DataForgeBuilder, TestInstance, TestStruct, TestType, TestValue};
 
@@ -14,6 +15,7 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(geometry_structs())
         .chain(vehicle_structs())
         .chain(attachable_structs())
+        .chain(cargo_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 
@@ -22,7 +24,9 @@ fn attachable_structs() -> Vec<TestStruct> {
         TestStruct::new("SAttachableComponentParams")
             .parent("DataForgeComponentParams")
             .field("AttachDef", class("SItemDefinition")),
-        TestStruct::new("SItemDefinition").field("Type", TestType::String),
+        TestStruct::new("SItemDefinition")
+            .field("Type", TestType::String)
+            .field("Size", TestType::Int32),
     ]
 }
 
@@ -123,11 +127,14 @@ fn port_structs() -> Vec<TestStruct> {
     ]
 }
 
-pub(crate) fn attachable_component(attach_type: &str) -> TestValue {
-    TestValue::Struct(TestInstance::new("SAttachableComponentParams").value(
-        "AttachDef",
-        TestValue::Struct(
-            TestInstance::new("SItemDefinition").value("Type", TestValue::text(attach_type)),
-        ),
-    ))
+pub(crate) fn attachable_component(attach_type: &str, size: Option<i32>) -> TestValue {
+    let mut definition =
+        TestInstance::new("SItemDefinition").value("Type", TestValue::text(attach_type));
+    if let Some(size) = size {
+        definition = definition.value("Size", TestValue::Int32(size));
+    }
+    TestValue::Struct(
+        TestInstance::new("SAttachableComponentParams")
+            .value("AttachDef", TestValue::Struct(definition)),
+    )
 }

@@ -42,7 +42,9 @@ fn part(element: &Element) -> Option<VehiclePart> {
         mass: number(element.attribute("mass")),
         damage_max: number(element.attribute("damageMax")),
         detach_ratio: number(element.attribute("detachRatio")),
+        destroy_ratio: destroy_ratio(element),
         attributes: element.attributes.clone(),
+        origins: element.origins.clone(),
         item_port: element.child("ItemPort").map(item_port),
         tread_wheels: if kind == PartKind::Tread {
             tread_wheels(element)
@@ -108,10 +110,58 @@ fn size(value: Option<&str>) -> Option<u32> {
     value?.trim().parse().ok()
 }
 
-/// Reads the longest numeric prefix of a value after trimming, e.g. `12.5` of `12.5kg`; a value
-/// that does not start with a number, such as `v2 1500`, has none.
-fn number(value: Option<&str>) -> Option<f64> {
-    let text = value?.trim();
+/// Returns the share of `damageMax` at which the part destroys the vehicle: the `damageRatioMin`
+/// of the first `DamageBehavior` whose `Group` is named `Destroy`, 1 when it states none.
+fn destroy_ratio(part: &Element) -> Option<f64> {
+    let behavior = part
+        .children_named("DamageBehaviors")
+        .flat_map(|behaviors| behaviors.children.iter())
+        .find(|behavior| {
+            behavior
+                .child("Group")
+                .and_then(|group| group.attribute("name"))
+                .is_some_and(|name| name.eq_ignore_ascii_case("Destroy"))
+        })?;
+    Some(number(behavior.attribute("damageRatioMin")).unwrap_or(1.0))
+}
+
+/// Returns whether `character` is an invisible Unicode format character (category Cf) that game
+/// data carries inside numbers, e.g. U+202C.
+pub(crate) const fn is_format_character(character: char) -> bool {
+    matches!(
+        character,
+        '\u{00AD}'
+            | '\u{0600}'..='\u{0605}'
+            | '\u{061C}'
+            | '\u{06DD}'
+            | '\u{070F}'
+            | '\u{180E}'
+            | '\u{200B}'..='\u{200F}'
+            | '\u{202A}'..='\u{202E}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{206F}'
+            | '\u{FEFF}'
+            | '\u{FFF9}'..='\u{FFFB}'
+    )
+}
+
+/// Reads the longest numeric prefix of a value after trimming and dropping format characters,
+/// e.g. `12.5` of `12.5kg` and `97858.0` of `97858.0d` with a U+202C inside; a value that does
+/// not start with a number, such as `v2 1500`, has none.
+pub(crate) fn number(value: Option<&str>) -> Option<f64> {
+    let value = value?;
+    if value.chars().any(is_format_character) {
+        let cleaned: String = value
+            .chars()
+            .filter(|character| !is_format_character(*character))
+            .collect();
+        return numeric_prefix(&cleaned);
+    }
+    numeric_prefix(value)
+}
+
+fn numeric_prefix(value: &str) -> Option<f64> {
+    let text = value.trim();
     let bytes = text.as_bytes();
     let digits = |from: usize| {
         bytes.get(from..).map_or(0, |rest| {

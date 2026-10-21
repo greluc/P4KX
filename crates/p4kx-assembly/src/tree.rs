@@ -20,9 +20,25 @@ pub struct EntityNode {
     pub(crate) landing_gear: Arc<[LandingGear]>,
     pub(crate) docked_vehicle: bool,
     pub(crate) expanded: bool,
+    pub(crate) attach_type: String,
+    pub(crate) container: Option<Guid>,
 }
 
 impl EntityNode {
+    /// Returns the item type of the Entity's `AttachDef.Type`, e.g. `CargoGrid`; empty when the
+    /// Record has none.
+    #[must_use]
+    pub fn attach_type(&self) -> &str {
+        &self.attach_type
+    }
+
+    /// Returns the GUID of the `InventoryContainer` Record the Entity's
+    /// `SCItemInventoryContainerComponentParams` name in `containerParams`, if it names one.
+    #[must_use]
+    pub const fn inventory_container(&self) -> Option<Guid> {
+        self.container
+    }
+
     /// Returns the vehicle implementation the Entity's Record names, with the Modification it
     /// selects applied, or `None` when the Record names none, the files were not given or the
     /// Entity is a docked vehicle the resolver stopped at.
@@ -105,6 +121,18 @@ impl EntityNode {
         ports
     }
 
+    /// Returns the default Loadout as one entry per port holding something, an Entity or an
+    /// attachment that cannot be resolved, with its path of port names joined by `/`, depth
+    /// first in port order. Ports that hold nothing are left out; [`Self::walk`] lists them.
+    #[must_use]
+    pub fn loadout(&self) -> Vec<LoadoutEntry<'_>> {
+        self.walk()
+            .into_iter()
+            .filter(|(_, port)| !matches!(port.attachment, Attachment::Empty))
+            .map(|(path, port)| LoadoutEntry { path, port })
+            .collect()
+    }
+
     /// Returns every port in the tree that cannot be resolved, with its path of port names
     /// joined by `/`, depth first in port order.
     pub fn unresolved(&self) -> impl Iterator<Item = (String, &Unresolved)> {
@@ -114,6 +142,64 @@ impl EntityNode {
                 Attachment::Unresolved(unresolved) => Some((path, unresolved)),
                 _ => None,
             })
+    }
+}
+
+/// One port of the default Loadout that holds something, at its path of port names.
+#[derive(Debug, Clone)]
+pub struct LoadoutEntry<'n> {
+    path: String,
+    port: &'n PortNode,
+}
+
+impl<'n> LoadoutEntry<'n> {
+    /// Returns the path of port names joined by `/`.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Returns the port.
+    #[must_use]
+    pub const fn port(&self) -> &'n PortNode {
+        self.port
+    }
+
+    /// Returns the Entity attached to the port, or `None` when the attachment cannot be resolved.
+    #[must_use]
+    pub fn entity(&self) -> Option<&'n EntityNode> {
+        match &self.port.attachment {
+            Attachment::Entity(node) => Some(node.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Returns the class name of the attached Entity, or the class name the Loadout names when
+    /// the attachment cannot be resolved by it.
+    #[must_use]
+    pub fn class_name(&self) -> Option<&'n str> {
+        match &self.port.attachment {
+            Attachment::Entity(node) => Some(node.class_name()),
+            Attachment::Unresolved(unresolved) => match &unresolved.target {
+                Target::ClassName(name) => Some(name),
+                _ => None,
+            },
+            Attachment::Empty => None,
+        }
+    }
+
+    /// Returns the GUID of the attached Entity's Record, or of the Record the Loadout names when
+    /// the attachment cannot be resolved.
+    #[must_use]
+    pub const fn guid(&self) -> Option<Guid> {
+        match &self.port.attachment {
+            Attachment::Entity(node) => Some(node.guid),
+            Attachment::Unresolved(unresolved) => match &unresolved.target {
+                Target::Reference(guid) => Some(*guid),
+                _ => None,
+            },
+            Attachment::Empty => None,
+        }
     }
 }
 

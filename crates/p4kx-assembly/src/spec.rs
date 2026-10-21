@@ -14,6 +14,7 @@ const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
+const INVENTORY_CONTAINER: &str = "SCItemInventoryContainerComponentParams";
 const DOCKED_VEHICLE_TYPE: &str = "NOITEM_Vehicle";
 
 /// What a Loadout entry or a port default names to attach.
@@ -74,6 +75,8 @@ pub(crate) struct EntitySpec {
     pub(crate) geometry: Option<Geometry>,
     pub(crate) vehicle: Option<VehicleSpec>,
     pub(crate) docked_vehicle: bool,
+    pub(crate) attach_type: String,
+    pub(crate) container: Option<Guid>,
 }
 
 impl EntitySpec {
@@ -119,13 +122,11 @@ impl EntitySpec {
                     _ => None,
                 },
             });
-        let docked_vehicle = components
-            .iter()
-            .find(|component| component.type_name() == ATTACHABLE)
-            .and_then(|component| struct_field(component, "AttachDef"))
-            .is_some_and(|definition| text(definition, "Type").starts_with(DOCKED_VEHICLE_TYPE));
+        let (attach_type, container) = item_facts(&components);
         Self {
-            docked_vehicle,
+            docked_vehicle: attach_type.starts_with(DOCKED_VEHICLE_TYPE),
+            attach_type: attach_type.to_owned(),
+            container,
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
             name: tree.name().to_owned(),
@@ -154,6 +155,24 @@ impl EntitySpec {
         }
         targets
     }
+}
+
+/// Returns the `AttachDef.Type` and the inventory container Record the components name.
+fn item_facts<'f>(components: &[&StructValue<'f>]) -> (&'f str, Option<Guid>) {
+    let attach_type = components
+        .iter()
+        .find(|component| component.type_name() == ATTACHABLE)
+        .and_then(|component| struct_field(component, "AttachDef"))
+        .map_or("", |definition| text(definition, "Type"));
+    let container = components
+        .iter()
+        .find(|component| component.type_name() == INVENTORY_CONTAINER)
+        .and_then(|component| component.field("containerParams"))
+        .and_then(|value| match reference_target(value) {
+            TargetSpec::Reference(guid) => Some(guid),
+            _ => None,
+        });
+    (attach_type, container)
 }
 
 fn collect_targets<'s>(entries: &'s [EntrySpec], targets: &mut Vec<&'s TargetSpec>) {

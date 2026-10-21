@@ -2,7 +2,7 @@
 
 Decided for issue #124. Evidence: `p4kx entity glb` over AEGS_Gladius, AEGS_Avenger_Titan,
 ANVL_Hornet_F7C, RSI_Constellation_Andromeda and TMBL_Cyclone of LIVE
-(`crates/p4kx-assembly/tests/real_assembly.rs`), where 96% to 99% of the parts found their
+(`crates/p4kx-assembly/tests/real_archive/real_assembly.rs`), where 96% to 99% of the parts found their
 helper or a node named like their port and 0 to 5 parts were skipped.
 
 ## Layers

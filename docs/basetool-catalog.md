@@ -663,7 +663,7 @@ LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 R
 
 ### Verification against the live data
 
-Checked on all five Channels; `crates/p4kx-export/tests/real_archive_verification.rs` repeats it
+Checked on all five Channels; `crates/p4kx-export/tests/real_archive/real_archive_verification.rs` repeats it
 on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 
 - The record-path prefixes and types match the live DataForge: of 29,693 `EntityClassDefinition`

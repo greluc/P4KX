@@ -4,8 +4,7 @@
 //!
 //! `P4KX_UPDATE_REFERENCES=1` rewrites the reference images from the current renderer.
 
-#[path = "ui_panel/reference.rs"]
-mod reference;
+use crate::ui_panel::reference;
 
 use std::error::Error;
 use std::fs;

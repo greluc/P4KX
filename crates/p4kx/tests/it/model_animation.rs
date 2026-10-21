@@ -6,7 +6,7 @@ use std::fs;
 use p4kx_testkit::check_glb;
 use serde_json::Value;
 
-mod animation_support;
+use crate::animation_support;
 
 use animation_support::{NOD, PACK, SKIN, animation_names, glb_of, p4kx, write_archive};
 

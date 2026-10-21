@@ -1,6 +1,6 @@
 //! The Record export through the public interface of `p4kx-export`.
 
-mod common;
+use crate::common;
 
 use std::error::Error;
 use std::fs;

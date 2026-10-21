@@ -1,6 +1,6 @@
 //! Paints and the ships they fit in the Basetool catalog, through the public API.
 
-mod paints_fixture;
+use crate::paints_fixture;
 
 use std::collections::BTreeSet;
 use std::error::Error;

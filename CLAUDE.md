@@ -67,8 +67,9 @@ file is `tests/it/<name>.rs`, and shared helpers are modules beside them (`tests
 used as `use crate::support;`). The real-Archive tests are the modules of `tests/real_archive/main.rs`
 (binary `real_archive`). A test gets its own binary under `tests/` only when it needs a process of
 its own: a timing test that must not share the cores, a stress test CI runs in `--release`
-(`lazy_indexes`), or a test CI names by binary (`report_schema`). One test runs as
-`cargo test -p <crate> --test it -- <test_name>`.
+(`lazy_indexes`), or a test CI names by binary (`report_schema`, `catalog_schema`, `record_json_schema`). One test runs as
+`cargo test -p <crate> --test it -- <test_name>`. Insta snapshots live in `tests/it/snapshots` and are named
+`it__<module>__<test>.snap`.
 
 Crates not yet converted still have one binary per file, and a crate that is converted stays so:
 a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.

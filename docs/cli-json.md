@@ -7,7 +7,7 @@ that end the command (an unreadable Archive, invalid input) are still printed to
 
 Paths of files on disk are strings as the operating system displays them. Entry paths are given
 as stored in the Archive, with `\` as separator. Sizes are byte counts. Snapshots of every shape
-live in [`crates/p4kx/tests/snapshots`](../crates/p4kx/tests/snapshots).
+live in [`crates/p4kx/tests/it/snapshots`](../crates/p4kx/tests/it/snapshots).
 
 ## Entry
 

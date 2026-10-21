@@ -2,7 +2,7 @@
 //! output for the same input, the size and background options, the escaped Entry name, and the
 //! report.
 
-mod ui_panel;
+use crate::ui_panel;
 
 use std::error::Error;
 use std::fs;

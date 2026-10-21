@@ -1,0 +1,25 @@
+//! Integration tests of `p4kx-export`, built as one test binary.
+
+mod catalog_crafting;
+mod catalog_crafting_support;
+mod catalog_crafting_tiers;
+mod catalog_failures;
+mod catalog_fixture;
+mod catalog_groups;
+mod catalog_items;
+mod catalog_paints;
+mod catalog_playability;
+mod catalog_selection;
+mod catalog_texts;
+mod common;
+mod crafting_detail;
+mod crafting_detail_fixture;
+mod crafting_fixture;
+mod localization_table;
+mod ndjson_guard;
+mod ndjson_order;
+mod paints_fixture;
+mod playability_fixture;
+mod record_export;
+mod record_export_plans;
+mod tag_annotation;

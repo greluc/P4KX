@@ -1,7 +1,7 @@
 //! `p4kx catalog` end to end, over a synthetic DataForge and English and German `global.ini`
 //! files.
 
-mod catalog_support;
+use crate::catalog_support;
 
 use std::error::Error;
 use std::fs;

@@ -1,6 +1,6 @@
 //! The playability of ships and items in the Basetool catalog, through the public API.
 
-mod playability_fixture;
+use crate::playability_fixture;
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};

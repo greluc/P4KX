@@ -102,7 +102,8 @@ fn minimal_catalog() -> serde_json::Value {
             "items": {"status": "complete"},
             "ships": {"status": "partial", "filter": "*/spaceships/*"},
             "commodities": {"status": "complete"},
-            "blueprints": {"status": "complete"}
+            "blueprints": {"status": "complete"},
+            "paints": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -179,6 +180,13 @@ fn minimal_catalog() -> serde_json::Value {
                     "slotKey": "@crafting_ui_slotname_core"
                 }
             ]
+        }],
+        "paints": [{
+            "guid": "30000000-0000-4000-8000-000000000001",
+            "className": "paint_100i_black_orange",
+            "recordPath": "libs/foundry/records/entities/scitem/ships/paints/paint_100i_black_orange",
+            "name": {"key": "@item_Name100i_Paint", "en": "Black/Orange", "de": null},
+            "shipGuids": ["20000000-0000-4000-8000-000000000001"]
         }]
     })
 }
@@ -225,6 +233,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "ships",
         "commodities",
         "blueprints",
+        "paints",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);

@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::ItemClass;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
+use crate::paint_port::PaintPort;
 
 /// An item: an `EntityClassDefinition` Record under `entities/scitem` or `entities/legacyitems`.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -47,6 +48,24 @@ pub(crate) struct Item<'a> {
     pub(crate) class: Option<ItemClass>,
 }
 
+/// A paint: an item of the type `Paints` and the ships it fits.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct Paint<'a> {
+    /// The GUID of the item Record, the `guid` of the same entry in `items`.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name without its type, e.g. `paint_100i_black_orange`.
+    pub(crate) class_name: &'a str,
+    /// The record path, without `.xml`.
+    pub(crate) record_path: &'a str,
+    /// The name, from `AttachDef.Localization.Name`.
+    pub(crate) name: LocalisedText<'a>,
+    /// The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each
+    /// is the `guid` of an entry of `ships`.
+    pub(crate) ship_guids: Vec<CatalogGuid>,
+}
+
 /// A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or
 /// `entities/groundvehicles`.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -75,4 +94,10 @@ pub(crate) struct Ship<'a> {
     pub(crate) manufacturer_guid: Option<CatalogGuid>,
     /// The path of the vehicle definition XML, `null` without one.
     pub(crate) vehicle_definition: Option<&'a str>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) modification: Option<&'a str>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) paint_ports: Vec<PaintPort>,
 }

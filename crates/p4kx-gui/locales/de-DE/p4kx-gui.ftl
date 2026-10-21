@@ -416,6 +416,7 @@ catalog-summary-kind = { $kind ->
     [ships] Schiffe
     [commodities] Waren
     [blueprints] Blaupausen
+    [paints] Lackierungen
    *[other] { $kind }
 }: { $written } geschrieben, { $skipped } übersprungen, { $complete ->
     [yes] vollständig

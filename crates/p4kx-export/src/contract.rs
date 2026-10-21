@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::guid_text::CatalogGuid;
 
 pub(crate) use crate::contract_crafting::{Blueprint, Commodity, Ingredient};
-pub(crate) use crate::contract_entities::{Item, Ship};
+pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 
 /// The version of the catalog shape.
 ///
@@ -37,6 +37,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) commodities: Vec<Commodity<'a>>,
     /// The blueprints, ordered by GUID.
     pub(crate) blueprints: Vec<Blueprint<'a>>,
+    /// The paints with the ships they fit, ordered by GUID.
+    pub(crate) paints: Vec<Paint<'a>>,
 }
 
 /// Where a catalog came from.
@@ -91,6 +93,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) commodities: KindCompleteness<'a>,
     /// The completeness of `blueprints`.
     pub(crate) blueprints: KindCompleteness<'a>,
+    /// The completeness of `paints`.
+    pub(crate) paints: KindCompleteness<'a>,
 }
 
 /// Whether a kind holds every Record of the Build or only those a Filter selected.

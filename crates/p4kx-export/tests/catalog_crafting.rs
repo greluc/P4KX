@@ -357,7 +357,7 @@ fn without_a_filter_both_kinds_are_complete() -> TestResult {
 }
 
 #[test]
-fn the_kinds_list_five_selections() {
+fn the_kinds_list_the_selections() {
     assert_eq!(
         Kind::ALL.map(Kind::name),
         [
@@ -365,7 +365,8 @@ fn the_kinds_list_five_selections() {
             "items",
             "ships",
             "commodities",
-            "blueprints"
+            "blueprints",
+            "paints"
         ],
         "order of the catalog"
     );

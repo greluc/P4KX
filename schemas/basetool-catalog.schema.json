@@ -193,6 +193,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "paints": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `paints`."
+        },
         "ships": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `ships`."
@@ -203,6 +207,7 @@
         "commodities",
         "items",
         "manufacturers",
+        "paints",
         "ships"
       ],
       "type": "object"
@@ -509,6 +514,42 @@
       ],
       "type": "object"
     },
+    "Paint": {
+      "description": "A paint: an item of the type `Paints` and the ships it fits.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `paint_100i_black_orange`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the item Record, the `guid` of the same entry in `items`."
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name, from `AttachDef.Localization.Name`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "shipGuids": {
+          "description": "The GUIDs of the ships the paint fits, ordered by GUID; empty when it fits none. Each\nis the `guid` of an entry of `ships`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "name",
+        "recordPath",
+        "shipGuids"
+      ],
+      "type": "object"
+    },
     "Ship": {
       "description": "A ship or ground vehicle: an `EntityClassDefinition` Record under `entities/spaceships` or\n`entities/groundvehicles`.",
       "properties": {
@@ -671,6 +712,13 @@
       },
       "type": "array"
     },
+    "paints": {
+      "description": "The paints with the ships they fit, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Paint"
+      },
+      "type": "array"
+    },
     "schemaVersion": {
       "const": 1,
       "description": "The version of the catalog shape; an import rejects a version it does not know.",
@@ -696,6 +744,7 @@
     "completeness",
     "items",
     "manufacturers",
+    "paints",
     "schemaVersion",
     "ships",
     "source"

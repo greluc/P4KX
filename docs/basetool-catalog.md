@@ -67,6 +67,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `ships` | The ships and ground vehicles, ordered by GUID |
 | `commodities` | The commodities, ordered by GUID |
 | `blueprints` | The crafting blueprints with their ingredients, ordered by GUID |
+| `paints` | The paints with the ships they fit, ordered by GUID |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -179,6 +180,54 @@ Not represented:
 The library reads all of this already: see "Crafting data" below. The catalog shape for it follows
 in #396.
 
+### Paints
+
+A paint (`paints`) is an item of the type `Paints`. The kind adds no description and no media; the
+description of the paint stays on its entry in `items`:
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | Those of the item Record; `guid` is also the `guid` of the same entry in `items` |
+| `name` | `SAttachableComponentParams.AttachDef.Localization.Name` |
+| `shipGuids` | The `guid` of every ship of `ships` the paint fits, ordered by GUID; empty when it fits none |
+
+A paint is selected like an item (the same record-path prefixes, the same development leftovers
+left out), whose `AttachDef.Type` is `Paints` ignoring case; LIVE holds 1,132 such Records, 1,064
+after the leftovers (`paint_*_template` and the like). Two of them are weapon skins
+(`Skin_Gold`, `Skin_Space_Kitty`), which no ship port takes.
+
+The rule is structural and never reads a name. A paint fits a ship when one paint port of the ship
+accepts it, i.e. when every tag in the port's required tags is a tag of the paint's `AttachDef.Tags`
+or has a tag of the paint's `Tags` below it in the tag tree (`TagTree`, ADR-0052). Tag names compare
+ignoring case; the paint's marker tag `@Name` is a tag of its own. A port without required tags
+accepts nothing. The paint ports of a ship are the union of:
+
+- the `SItemPortDef` entries of `SItemPortContainerComponentParams.Ports` of its Record, which hold
+  an `SItemPortDefTypes` with `Type` `Paints`; the tags are `RequiredPortTags`; this is where the
+  newer ships keep the port (e.g. the Paladin: `Paint_Paladin`);
+- the `ItemPort` elements of its vehicle implementation XML (`VehicleComponentParams.
+  vehicleDefinition`, below `Data\Scripts\Entities\Vehicles\Implementations\Xml\`, CryXml) with a
+  child `Types/Type` of `type` `Paints`; the tags are `requiredTags`. The Modification named by
+  `VehicleComponentParams.modification` is applied: the paint ports of its `patchFile`, when it
+  has any, replace those of the base file, and an `Elem` of the Modification whose `idRef` is the
+  `id` of a port sets that port's `requiredTags` or `portTags` (the Omega variant of the Mustang
+  requires `Paint_Omega` instead of `Paint_Mustang`).
+
+The `RequiredTags` of a paint and the `portTags` of a port are not compared: the Omega paint
+requires `Paint_Omega` while the port of the Omega still lists `Paint_Mustang`. A ship whose
+`modification` is empty keeps the base port, so the Idris-M fits the paints of the Idris-P (the
+game selects its Military paints elsewhere).
+
+`p4kx catalog` counts the paints that fit a ship, those that fit none, the ships that have at
+least one paint and the ships whose vehicle file exists but cannot be read (text XML is not read);
+`CatalogSummary::paints()` returns them. A file the Archive lacks is no error: the ship then has
+only the paint ports of its Record. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
+assigned, 1,046 ships with paints. Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
+a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballista_Base`,
+`Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
+Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
+both filtered, so a paint lists only ships the filter selected; both kinds are partial.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -272,6 +321,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `ships` | `libs/foundry/records/entities/spaceships/`, `libs/foundry/records/entities/groundvehicles/` | `EntityClassDefinition` |
 | `commodities` | `libs/foundry/records/entities/commodities/` | `EntityClassDefinition` |
 | `blueprints` | `libs/foundry/records/crafting/blueprints/crafting/` | `CraftingBlueprintRecord` |
+| `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
 
 The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record is no recipe. The
 `$templates` folders below it hold 27 real blueprints, each the only recipe for its item, and

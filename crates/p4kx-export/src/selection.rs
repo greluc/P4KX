@@ -22,16 +22,20 @@ pub enum Kind {
     Commodities,
     /// Blueprints: `CraftingBlueprintRecord` Records under `crafting/blueprints/crafting`.
     Blueprints,
+    /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
+    /// the items and ships, so no record-path rule of its own.
+    Paints,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
         Self::Commodities,
         Self::Blueprints,
+        Self::Paints,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -43,10 +47,12 @@ impl Kind {
             Self::Ships => "ships",
             Self::Commodities => "commodities",
             Self::Blueprints => "blueprints",
+            Self::Paints => "paints",
         }
     }
 
-    /// Returns the rule that selects the kind's Records.
+    /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
+    /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
     #[must_use]
     pub const fn rule(self) -> KindRule {
         match self {
@@ -54,7 +60,7 @@ impl Kind {
                 prefixes: &["libs/foundry/records/scitemmanufacturer/"],
                 type_name: "SCItemManufacturer",
             },
-            Self::Items => KindRule {
+            Self::Items | Self::Paints => KindRule {
                 prefixes: &[
                     "libs/foundry/records/entities/scitem/",
                     "libs/foundry/records/entities/legacyitems/",
@@ -80,10 +86,11 @@ impl Kind {
     }
 
     /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap.
+    /// kinds do not overlap, except that the derived [`Kind::Paints`] is never returned.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
+            .filter(|kind| *kind != Self::Paints)
             .find(|kind| kind.rule().matches_path(record_path))
     }
 
@@ -95,6 +102,7 @@ impl Kind {
             Self::Ships => 2,
             Self::Commodities => 3,
             Self::Blueprints => 4,
+            Self::Paints => 5,
         }
     }
 }

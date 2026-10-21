@@ -45,6 +45,22 @@ pub struct KindSummary {
     pub complete: bool,
 }
 
+/// What a catalog holds of paints and their ship assignment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PaintSummary {
+    /// The paints in the catalog.
+    pub paints: usize,
+    /// The paints that fit at least one ship.
+    pub assigned: usize,
+    /// The paints that fit no ship.
+    pub unassigned: usize,
+    /// The ships that at least one paint fits.
+    pub ships: usize,
+    /// The ships whose vehicle implementation or Modification patch file is present but cannot be
+    /// read; they have no paints.
+    pub unreadable_vehicles: usize,
+}
+
 /// How the localisation keys of a catalog resolved in one language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextSummary {
@@ -69,11 +85,18 @@ pub struct CatalogSummary {
     pub(crate) texts: Vec<TextSummary>,
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
+    pub(crate) paints: PaintSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) size: u64,
 }
 
 impl CatalogSummary {
+    /// Returns how many paints the catalog holds and how many of them fit a ship.
+    #[must_use]
+    pub const fn paints(&self) -> PaintSummary {
+        self.paints
+    }
+
     /// Returns the selected Records that could not be read and are left out of the catalog,
     /// ordered by GUID.
     #[must_use]

@@ -42,8 +42,17 @@ struct SummaryJson<'a> {
     skipped: usize,
     failed: Vec<FailureJson<'a>>,
     item_classes: ItemClassJson,
+    paints: PaintsJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct PaintsJson {
+    assigned: usize,
+    unassigned: usize,
+    ships: usize,
+    unreadable_vehicles: usize,
 }
 
 #[derive(Serialize)]
@@ -213,6 +222,12 @@ fn summary_json<'a>(archive: &Archive, out: &Path, summary: &'a CatalogSummary) 
             other: summary.item_classes().other,
             missing: summary.item_classes().missing,
         },
+        paints: PaintsJson {
+            assigned: summary.paints().assigned,
+            unassigned: summary.paints().unassigned,
+            ships: summary.paints().ships,
+            unreadable_vehicles: summary.paints().unreadable_vehicles,
+        },
         texts: summary
             .texts()
             .iter()
@@ -245,6 +260,12 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         stdout,
         "item classes: {} read, {} other values, {} without a Class: line or English description",
         classes.classified, classes.other, classes.missing
+    )?;
+    let paints = summary.paints();
+    writeln!(
+        stdout,
+        "paint assignment: {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
+        paints.assigned, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
     for text in summary.texts() {
         writeln!(

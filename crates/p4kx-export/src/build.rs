@@ -15,6 +15,7 @@ use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
 use crate::guid_text::CatalogGuid;
+use crate::paint::paints;
 use crate::selection::is_leftover;
 use crate::texts::{TextSources, Texts};
 use crate::{
@@ -76,7 +77,12 @@ pub fn build_catalog_from(
     let forge = entry.open().map_err(CatalogError::DataForge)?;
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;
-    let collected = Collected::new(Scan::run(&forge, options, &texts)?);
+    let mut collected = Collected::new(Scan::run(&forge, options, &texts)?);
+    if cancelled() {
+        return Err(CatalogError::Cancelled);
+    }
+    let derived = paints(archive, &forge, &collected.items, &collected.ships);
+    collected.paints = derived.paints;
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
@@ -97,12 +103,14 @@ pub fn build_catalog_from(
             ships: completeness,
             commodities: completeness,
             blueprints: completeness,
+            paints: completeness,
         },
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
         commodities: collected.commodities,
         blueprints: collected.blueprints,
+        paints: collected.paints,
     };
     let mut json = serde_json::to_vec(&catalog).map_err(CatalogError::Json)?;
     json.push(b'\n');
@@ -112,6 +120,7 @@ pub fn build_catalog_from(
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
             item_classes,
+            paints: derived.summary,
             failures,
             size: u64::try_from(json.len()).unwrap_or(u64::MAX),
         },

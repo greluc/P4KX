@@ -49,6 +49,8 @@ mod localization_table;
 mod manufacturer;
 mod ndjson;
 mod options;
+mod paint;
+mod paint_port;
 mod record_export;
 mod record_fields;
 mod record_summary;
@@ -81,6 +83,6 @@ pub use record_export::{RecordFilePlans, write_planned_record_export, write_reco
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
 pub use summary::{
-    BuiltCatalog, CatalogSummary, KindSummary, SizeWarning, TextSummary, UPLOAD_LIMIT,
-    UPLOAD_WARNING_SIZE,
+    BuiltCatalog, CatalogSummary, KindSummary, PaintSummary, SizeWarning, TextSummary,
+    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
 };

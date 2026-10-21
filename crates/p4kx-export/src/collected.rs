@@ -2,7 +2,7 @@ use p4kx_extraction::RecordTree;
 
 use crate::blueprint::blueprint;
 use crate::commodity::{Groups, commodity};
-use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Ship};
+use crate::contract::{Blueprint, Commodity, Item, Manufacturer, Paint, Ship};
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
@@ -49,6 +49,7 @@ impl<'f> Picked<'f> {
             Kind::Ships => Self::Ship(ship(tree, texts)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::Blueprints => Self::Blueprint(blueprint(tree, texts)),
+            Kind::Paints => Self::Skipped(Kind::Paints),
         }
     }
 }
@@ -61,6 +62,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) ships: Vec<Ship<'f>>,
     pub(crate) commodities: Vec<Commodity<'f>>,
     pub(crate) blueprints: Vec<Blueprint<'f>>,
+    pub(crate) paints: Vec<Paint<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     skipped: [usize; Kind::ALL.len()],
@@ -124,6 +126,7 @@ impl<'f> Collected<'f> {
                     Kind::Ships => self.ships.len(),
                     Kind::Commodities => self.commodities.len(),
                     Kind::Blueprints => self.blueprints.len(),
+                    Kind::Paints => self.paints.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

@@ -523,9 +523,11 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
- {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true}], "skipped": 1204,
+ {"kind": "blueprints", "count": 1618, "skipped": 0, "complete": true},
+ {"kind": "paints", "count": 1064, "skipped": 0, "complete": true}], "skipped": 1204,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
+ "paints": {"assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
@@ -540,7 +542,9 @@ with GUID, record path (empty when it cannot be read) and the reason and its cau
 `: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
 all the same, and the exit code is 1 when `failed` is not empty. `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
-(`missing`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+(`missing`). `paints` counts the paints that fit at least one ship (`assigned`) and those that fit
+none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
+implementation file exists but cannot be read (`unreadable_vehicles`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands

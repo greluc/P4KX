@@ -1,9 +1,37 @@
-use p4kx_extraction::RecordTree;
+use p4kx_extraction::{RecordTree, Value};
 
 use crate::contract::Ship;
 use crate::guid_text::CatalogGuid;
-use crate::record_fields::{class_name, component, integer, locale_key, reference, text};
+use crate::paint_port::PaintPort;
+use crate::record_fields::{class_name, component, elements, integer, locale_key, reference, text};
 use crate::texts::Texts;
+
+const PAINTS: &str = "Paints";
+
+/// Returns the item ports of the Record tree `tree` that take paints: the `SItemPortDef` entries
+/// of its `SItemPortContainerComponentParams` with a type `Paints`.
+fn paint_ports(tree: &RecordTree<'_>) -> Vec<PaintPort> {
+    let container = component(tree, "SItemPortContainerComponentParams");
+    elements(container, "Ports")
+        .iter()
+        .filter_map(|port| match port {
+            Value::Struct(port) if takes_paints(port) => Some(PaintPort::new(
+                text(Some(port), "PortTags"),
+                text(Some(port), "RequiredPortTags"),
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
+fn takes_paints(port: &p4kx_extraction::StructValue<'_>) -> bool {
+    elements(Some(port), "Types").iter().any(|kind| match kind {
+        Value::Struct(kind) => {
+            text(Some(kind), "Type").is_some_and(|name| name.eq_ignore_ascii_case(PAINTS))
+        }
+        _ => false,
+    })
+}
 
 /// Returns the ship the Record tree `tree` describes, its texts resolved by `texts`.
 pub(crate) fn ship<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Ship<'f> {
@@ -19,5 +47,7 @@ pub(crate) fn ship<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> Ship<'f> {
         crew_size: integer(vehicle, "crewSize"),
         manufacturer_guid: reference(vehicle, "manufacturer"),
         vehicle_definition: text(vehicle, "vehicleDefinition"),
+        modification: text(vehicle, "modification"),
+        paint_ports: paint_ports(tree),
     }
 }

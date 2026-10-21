@@ -133,6 +133,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `tags` | The words of `AttachDef.Tags`, split at white space |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
+| `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -196,6 +197,81 @@ A ship takes its fields from `VehicleComponentParams`:
 | `crewSize` | `crewSize`, an integer |
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
+| `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+
+#### Playability
+
+The catalog lists every ship and item Record of the Build, among them AI, mission and event
+variants that no player can own, buy or fit. `playability` tells them apart. It is a closed set of
+strings; the schema keeps a string, so a new value is additive and a reader maps a value it does
+not know to `null` (ADR-0054). It is `null` where no rule below applies: the value is never
+guessed. The rules read Record data only (components, fields, References, Tags, record-path
+folders); no class name or Record name enters them.
+
+| Value | Meaning |
+|-------|---------|
+| `player` | Has the structural markers of a player entity |
+| `ai` | Part of the AI; ships only |
+| `mission` | Part of a mission: an unmanned ship or an item of a mission folder |
+| `special` | Neither: a ship with `inclusionMode` `DoNotInclude`, or an item without a player-visible name |
+
+For a ship or ground vehicle the first rule that holds decides. `inclusionMode` is
+`StaticEntityClassData[EAEntityDataParams].inclusionMode` (`EAEntityDataParams`, believed to
+govern Electronic Access / Arena Commander inclusion). It correlates on LIVE with hangar-listed
+ships; it is used as evidence, not as a definition. Any value other than `ReadyToInclude` and
+`DoNotInclude` leads to `null`, unless rule 1 or 2 holds.
+
+1. `ai` when `Components[SEntityComponentCrewManifestParams].crewManifest` links to a
+   `CrewManifest` Record whose `crew` array is not empty (the NPC crew; the empty manifest
+   `crewmanifest_null` does not count). For a Record under `entities/spaceships/` also when
+   `Components[VehicleComponentParams].criticalPartExplosionChance` is above zero, or when
+   `Components[VehicleComponentParams].aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true
+   while `inclusionMode` is not `ReadyToInclude`. Ground vehicles all carry these two hull values,
+   so they are not read there.
+2. `mission` when one of the Record's `tags` links to a `Tag` Record whose `tagName` is `Unmanned`
+   (the salvage, derelict and wreck targets of missions).
+3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
+4. `player` when `inclusionMode` is `ReadyToInclude` and, for a spaceship,
+   `powerPlantsCanExplodeOnDeath` is not true.
+5. Also `null` when the crew manifest or a tag the Record links to could not be read (the
+   catalog reports that Record as a failure), since its evidence is missing; checked before
+   rule 1.
+6. Otherwise `null`: no `EAEntityDataParams`, another `inclusionMode`, or a `ReadyToInclude` spaceship whose hull
+   explodes on death and that no crew manifest marks (LIVE: Stingray, Skylark, Railen and the
+   `ai_template` ships mix here; the data does not separate them).
+
+For an item the first rule that holds decides:
+
+1. `player` when `Components[SCItemPurchasableParams].displayName` is a localisation key that is
+   not a placeholder key: the item has a shop display.
+2. `mission` when the record path lies under `entities/scitem/mission_entities/` or
+   `entities/scitem/missionstorage/`.
+3. `special` when `AttachDef.Localization.Name` is no key or a placeholder key: the item has no
+   player-visible name (doors, props, decals, internal parts).
+4. Otherwise `null`: a named item without a shop display (loot, attachments, parts); the Records
+   do not say whether a player can obtain it.
+
+No item is `ai`: items carry no AI marker the rules can read.
+
+The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
+leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
+the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
+structural marker and read as `player`.
+
+**The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
+means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
+mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
+it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+matches every other value and `null` against what it knows and seeds none of them. A `null` ship
+(LIVE: Stingray, Skylark, Railen) is added by hand.
+
+`p4kx catalog` prints the count per value and the unclassified count for items and ships; `--json`
+lists them under `playability`. LIVE, 2026-10-21:
+
+| Kind | `player` | `ai` | `mission` | `special` | `null` |
+|------|---------:|-----:|----------:|----------:|-------:|
+| ships | 324 | 690 | 25 | 35 | 13 |
+| items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 an ingredient uses and no commodity Record carries (see below). A commodity Record takes its fields
@@ -430,20 +506,20 @@ seconds since 1970-01-01 UTC.
 `UPLOAD_LIMIT` in `crates/p4kx-export/src/summary.rs` is the largest catalog the basetool accepts,
 64,000,000 bytes (64 MB). It must match the basetool's upload limit: when one changes, the other
 changes with it. The owner kept the limit at 64 MB after the measurement below: the largest
-catalog (21.1 MB) is about a third of it, so the catalog can grow by a factor of three before the
+catalog (21.7 MB) is about a third of it, so the catalog can grow by a factor of three before the
 limit is reached. The real-Archive tests assert that the limit is at least twice the catalog and
 print the size (`catalog size: … bytes`).
 
-Measured on 2026-10-21 with every installed Channel (complete catalog of every kind, English and
+Measured on 2026-10-21, with `playability`, on every installed Channel (complete catalog of every kind, English and
 German texts):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|
-| LIVE | 21,061,805 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| PTU | 20,737,101 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
-| EPTU | 20,348,542 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
-| HOTFIX | 21,061,807 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
-| TECH-PREVIEW | 21,121,385 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
+| LIVE | 21,603,650 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| PTU | 21,270,926 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 |
+| EPTU | 20,878,649 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 |
+| HOTFIX | 21,603,652 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 |
+| TECH-PREVIEW | 21,670,624 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 |
 
 A catalog builds in 2 to 7 seconds. Left out as development leftovers on LIVE: 2 manufacturers,
 1,145 items and 57 ships (1,204 Records).

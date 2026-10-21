@@ -209,3 +209,46 @@ fn a_wrapper_whose_children_match_merges_into_the_base_child_and_keeps_the_rest(
     );
     Ok(())
 }
+
+#[test]
+fn a_wrapper_merges_descendants_at_any_depth_and_leaves_its_root_part_unapplied() -> TestResult {
+    let patch = r#"<Modifications><Parts id="modParts">
+        <Part name="Other_Root" class="Animated" mass="999999">
+          <Parts><Part name="body"><Parts>
+            <Part id="partGun" name="Hardpoint_Gun" class="ItemPort"><ItemPort id="portGun" flags=""/></Part>
+          </Parts></Part></Parts>
+        </Part>
+    </Parts></Modifications>"#;
+    let base = BASE.replace(
+        r#"<Modification name="Patched""#,
+        r#"<Modification name="Wrapped" patchFile="Modifications/Wrapped"/><Modification name="Patched""#,
+    );
+    let files = files(&[
+        (DEFINITION, base.as_str()),
+        (
+            "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/Wrapped.xml",
+            patch,
+        ),
+    ]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("Wrapped"))?;
+    assert_eq!(
+        vehicle
+            .parts()
+            .first()
+            .and_then(p4kx_assembly::VehiclePart::mass),
+        Some(1500.0),
+        "the patch's root part carries no id and is not applied"
+    );
+    assert_eq!(
+        vehicle.port_visibility("hardpoint_gun"),
+        PortVisibility::Visible
+    );
+    assert_eq!(
+        part_names(vehicle.item_ports()),
+        ["Hardpoint_Gun", "hardpoint_seat"]
+    );
+    let report = vehicle.modification_report().ok_or("no report")?;
+    assert_eq!(report.replaced_ids().len(), 0);
+    assert_eq!(report.id_children(), 1);
+    Ok(())
+}

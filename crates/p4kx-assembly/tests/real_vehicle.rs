@@ -75,6 +75,7 @@ struct Tally {
     differs: BTreeMap<String, bool>,
     changes: Vec<String>,
     misses: Vec<String>,
+    harbinger: Option<(bool, f64)>,
     flips: Vec<String>,
     replaced: BTreeMap<String, Vec<String>>,
 }
@@ -149,6 +150,13 @@ fn note_patch(
         .push(class_name.to_owned());
     let base = VehicleImplementation::read(files, class_name, vehicle.path(), None)?;
     note_report(tally, class_name, &patch, &base, vehicle);
+    if class_name == "AEGS_Vanguard_Harbinger" {
+        let ids: Vec<&str> = vehicle.ids().collect();
+        tally.harbinger = Some((
+            ids.contains(&"modFlightController") && ids.contains(&"modName"),
+            mass(vehicle) / mass(&base),
+        ));
+    }
     let flips = flipped_ports(&base, vehicle);
     if !flips.is_empty() {
         tally.flips.push(format!(
@@ -265,13 +273,21 @@ fn assert_known_vehicles(tally: &Tally, jump: &EntityNode) {
         !tally.flips.is_empty(),
         "no Modification flips the visibility of a port"
     );
-    let harbinger = tally.replaced.get("AEGS_Vanguard_Harbinger");
-    let merged = patches(tally, "harbinger")
-        .iter()
-        .any(|(_, shape)| shape.id > 0);
+    let (kept, ratio) = tally.harbinger.unwrap_or((false, 0.0));
     assert!(
-        harbinger.is_some_and(|ids| ids.iter().any(|id| id == "modParts")) || merged,
-        "the Harbinger wrapper is replaced wholesale or merged by id: {harbinger:?}"
+        kept,
+        "the Harbinger keeps modFlightController and modName after the patch"
+    );
+    assert!(
+        (0.5..=2.0).contains(&ratio),
+        "the Harbinger's mass stays plausible: {ratio:.2} of the base"
+    );
+    assert!(
+        tally
+            .replaced
+            .get("AEGS_Vanguard_Harbinger")
+            .is_none_or(|ids| !ids.iter().any(|id| id == "modParts")),
+        "the Harbinger wrapper is merged by id, not replaced wholesale"
     );
     assert!(
         nodes(jump)

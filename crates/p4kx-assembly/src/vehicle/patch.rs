@@ -119,7 +119,7 @@ pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modific
 /// `id`, such as `Parts`, replaces the child of the same name of the base wholesale. Any other
 /// child with an `id` is merged into every element of the base with that `id`: its attributes
 /// are set and its children replace the element's. A child with an `id` that no base element has
-/// is merged into the base's child of its name by the `id`s of its own children, or replaces it
+/// is merged into the base's child of its name by the `id`s of its descendants, or replaces it
 /// wholesale when none matches, as a wrapper such as `<Parts id="modParts">` does.
 ///
 /// # Errors
@@ -147,7 +147,7 @@ pub(super) fn apply_patch(
 
 /// Applies one child of the patch root that is not a `Vehicle`: a child with an `id` some base
 /// element has is merged by `id`; a wrapper whose `id` no element has but whose name a base child
-/// has is merged into that child by the `id`s of its own children, or replaces it wholesale when
+/// has is merged into that child by the `id`s of its descendants, or replaces it wholesale when
 /// none of them matches; anything else replaces the base's child of its name wholesale.
 fn apply_child(
     base: &mut Element,
@@ -174,7 +174,9 @@ fn apply_child(
     let mut matched = 0_usize;
     let mut missed = Vec::new();
     if let Some(target) = base.children.get_mut(at) {
-        for part in &child.children {
+        let mut addressed = Vec::new();
+        top_ids(child, &mut addressed);
+        for part in addressed {
             let Some(part_id) = part.attribute("id") else {
                 continue;
             };
@@ -194,6 +196,17 @@ fn apply_child(
         replace_child(base, child, report, budget)?;
     }
     Ok(())
+}
+
+/// Collects the descendants of `element` that have an `id`, not looking below one that has.
+fn top_ids<'a>(element: &'a Element, found: &mut Vec<&'a Element>) {
+    for child in &element.children {
+        if child.attribute("id").is_some() {
+            found.push(child);
+        } else {
+            top_ids(child, found);
+        }
+    }
 }
 
 fn replace_children(

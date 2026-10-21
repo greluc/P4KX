@@ -22,7 +22,7 @@ takes effect before anything is interpreted.
   override of the Sentinel). A child with an `id` is merged into every base element with that
   `id`: its attributes are set and its children replace the element's; a child whose `id` no base
   element has is a wrapper (the Harbinger's `<Parts id="modParts">`): if the base has a child of
-  its name, the wrapper's children are merged into it by their own `id`s, and only when none of
+  its name, the wrapper's descendants are merged into it by their own `id`s (the topmost with an `id`, at any depth), and only when none of
   them matches does the wrapper replace that child wholesale, so a mistyped wrapper on a partial
   patch does not drop the other parts; a wrapper with no base child of its name is an unmatched
   `id`. The base's own `Modifications` element is never replaced.
@@ -78,7 +78,7 @@ tree). Mass, hull points and number noise beyond the lenient reading above belon
 ## Check on the live Archive
 
 LIVE (1140 vehicles, 97 with a patch file) read with no unexpected issue. Patch files of all three
-shapes occur: `Vehicle` children (Sentinel), id-less children (Taurus), a wrapper whose id matches no element (Harbinger) and
+shapes occur: `Vehicle` children (Sentinel), id-less children (Taurus), a wrapper whose id matches no element but whose descendants' ids do (Harbinger) and
 id children (350r, F7CM, Freelancer). The only issues are the wrecked Starfarer's Modifications,
 which name patch files `MISC_Starfarer_Dead*.xml` that the Archive does not hold. 128 `Elem`s
 match no element; they are not issues, and they are CIG data, not rule gaps: the `idRef` is the
@@ -87,6 +87,16 @@ match no element; they are not issues, and they are CIG data, not rule gaps: the
 implementation has that `id` (`modMannequin`, `modCoPilotSeat`, `modHoloGeometry_*`,
 `modLeftLegPedal`, `xmlMannequin`, `modDriverMissileControl`). No case difference is
 involved.
+
+The Harbinger shows why wrappers merge by descendant ids. Its patch holds a complete tree of 136
+parts against 149 in the base; 133 of them lie below one of nine elements whose `id` the base has
+(`modNose`, `modBody`, the wings and so on), and the other three are the root part and two
+hardpoints directly below it. The root part has no `id` and a `mass` about 18.6 times the base
+root's. The Harbinger's own `Modification` in the base sets the hull mass with an `Elem` on the
+root part (`modName`), to a value within a few per cent of the base's, and re-tags the flight
+controller (`modFlightController`). Replacing the tree wholesale lost both targets and took the
+patch root's mass; merging by descendant `id` keeps them and leaves the hull mass to the
+`Elem`.
 
 ## Considered Options
 

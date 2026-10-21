@@ -32,7 +32,7 @@ pub use work_tab::WorkTab;
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, ContentSearchTab, DeviceOutput, EntryIndex,
     Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice,
-    Texts, ViewerSupport,
+    TagsTab, Texts, ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -80,6 +80,7 @@ pub struct Model {
     audio_volume: f32,
     query: QueryTab,
     localization: LocalizationTab,
+    tags: TagsTab,
     content_search: ContentSearchTab,
     pending_hit: Option<PendingHit>,
     record_export: RecordExportState,
@@ -113,6 +114,7 @@ impl std::fmt::Debug for Model {
             .field("stopped_by_change", &self.stopped_by_change)
             .field("query", &self.query)
             .field("localization", &self.localization)
+            .field("tags", &self.tags)
             .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
             .field("catalog", &self.catalog)
@@ -151,6 +153,7 @@ impl Model {
             audio_volume: 1.0,
             query: QueryTab::default(),
             localization: LocalizationTab::default(),
+            tags: TagsTab::default(),
             content_search: ContentSearchTab::default(),
             pending_hit: None,
             record_export: RecordExportState::default(),
@@ -255,6 +258,7 @@ impl Model {
                 self.key_archive_opened();
                 self.query.archive_opened();
                 self.localization.archive_opened();
+                self.tags.archive_opened();
                 self.content_search.archive_opened();
                 self.pending_hit = None;
             }

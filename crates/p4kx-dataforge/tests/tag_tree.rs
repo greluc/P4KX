@@ -227,6 +227,23 @@ fn a_cycle_is_cut_where_it_closes() -> TestResult {
 }
 
 #[test]
+fn positions_count_the_pre_order_and_a_subtree_follows_its_tag() -> TestResult {
+    with_tree(|_, tree| {
+        let gun = tree.get(guid(A1)?).ok_or("no Gun")?;
+        assert_eq!(gun.position(), 1, "after Weapon");
+        assert_eq!(tree.at(1), Some(gun), "at() is the inverse of position()");
+        let weapon = tree.at(0).ok_or("no first tag")?;
+        assert_eq!(weapon.descendants().len(), 3, "Gun, Ballistic and Missile");
+        assert_eq!(tree.at(4).map(|tag| tag.path()), Some("Armour"));
+        assert!(tree.at(tree.len()).is_none(), "past the last tag");
+        for tag in tree.iter() {
+            assert_eq!(tree.at(tag.position()), Some(tag), "every position");
+        }
+        Ok(())
+    })
+}
+
+#[test]
 fn an_unknown_guid_has_no_tag() -> TestResult {
     with_tree(|_, tree| {
         assert!(tree.get(guid(MISSING)?).is_none(), "no such Tag Record");

@@ -146,6 +146,15 @@ impl TagTree {
             .map(|index| Tag { tree: self, index })
     }
 
+    /// Returns the tag at `position` in pre-order, as [`Tag::position`] counts, or `None` past the
+    /// last tag.
+    #[must_use]
+    pub fn at(&self, position: usize) -> Option<Tag<'_>> {
+        let index = u32::try_from(position).ok()?;
+        self.node(index)?;
+        Some(Tag { tree: self, index })
+    }
+
     /// Returns the tag with the Tag Record `guid`, or `None` when the tree has none.
     #[must_use]
     pub fn get(&self, guid: Guid) -> Option<Tag<'_>> {
@@ -185,6 +194,13 @@ pub struct Tag<'t> {
 impl<'t> Tag<'t> {
     fn node(&self) -> Option<&'t Node> {
         self.tree.node(self.index)
+    }
+
+    /// Returns the place of the tag in the pre-order of [`TagTree::iter`]; the tags below it
+    /// follow at the next places, as many as [`Tag::descendants`] has.
+    #[must_use]
+    pub const fn position(&self) -> usize {
+        self.index as usize
     }
 
     /// Returns the GUID of the Tag Record, which fields refer to.
@@ -232,6 +248,12 @@ impl<'t> Tag<'t> {
             tree: self.tree,
             index,
         })
+    }
+
+    /// Returns whether the tag has children.
+    #[must_use]
+    pub fn has_children(&self) -> bool {
+        self.node().is_some_and(|node| !node.children.is_empty())
     }
 
     /// Returns the children in the order the Tag Record lists them.

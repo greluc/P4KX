@@ -180,6 +180,23 @@ resolves to one text per language in that language's `global.ini` Entry
 spelling `Localization`.
 _Avoid_: loc string, text id
 
+**Tag**:
+A Record of the struct `Tag` that labels game content, e.g. `Ship.Series.Avenger`. Fields such as
+`Tags`, `RequiredTags` and `PortTags` refer to Tags by GUID (a Reference). Not the Record tag.
+_Avoid_: label, keyword, category
+
+**Tag tree**:
+The Tags in the tree the `TagDatabase` Record lists: its root Tags, each with its children. One
+tree per DataForge, read by `TagTree`; a Tag no `TagDatabase` reaches becomes a root of its own,
+unlisted. `p4kx dcb tags` and the Tags tab show it.
+_Avoid_: tag database (that is the Record), tag hierarchy
+
+**Tag path**:
+The names of a Tag and its ancestors from the root down, joined by `.`, e.g. `Weapon.Gun`. Several
+Tags may share one path, so only the GUID is unique. Record XML and Record JSON write it next to a
+Reference to a Tag with `--tags`, like the text of a Localisation key.
+_Avoid_: tag name (that is the last name alone), tag key
+
 ### Assets
 
 **Entity**:

@@ -567,6 +567,33 @@ localization-no-match = No key or text matches the search.
 localization-copy-key = Copy key
 localization-copy-text = Copy text
 localization-notes = Some global.ini files were not read cleanly:
+tags-tab = Tags
+tags-label = Search
+tags-hint = Tag path, e.g. Weapon.Gun
+tags-loading = Reading the tags…
+tags-no-tags = The DataForge of the Archive holds no tags.
+tags-failed = The tags cannot be read: { $reason }
+tags-stopped = Reading the tags stopped without a result.
+tags-archive-changed = The Archive changed on disk. Reload it to read the tags.
+tags-empty-title = No Archive open
+tags-empty-hint = Open an Archive to browse its tag tree.
+tags-column-tag = Tag
+tags-column-guid = GUID
+tags-column-legacy = Legacy ID
+tags-count =
+    { $count ->
+        [one] { $number } tag
+       *[other] { $number } tags
+    }
+tags-count-shown =
+    { $count ->
+        [one] { $number } of { $total } tags
+       *[other] { $number } of { $total } tags
+    }
+tags-no-match = No tag path matches the search.
+tags-copy-path = Copy tag path
+tags-copy-guid = Copy GUID
+tags-irregular = The tag tree differs from what the TagDatabase lists in { $number } places. The command p4kx dcb tags names them.
 preview-tab-model = Model
 model-reset = Reset view
 model-hint = Drag: orbit · right-drag or Shift-drag: pan · wheel: zoom · arrows: orbit, Shift and arrows: pan · + and -: zoom · Home: reset

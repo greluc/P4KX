@@ -2,8 +2,8 @@ use egui::Ui;
 
 use super::model_info::{Labelled, Table};
 use crate::theme::desktop::{
-    CELL_PADDING_X, DETAIL_KEY_TRACKING, DETAIL_VALUE_SIZE, PANEL_TITLE_SIZE, ROW_FONT,
-    TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+    CELL_PADDING_X, DETAIL_COLUMN_GAP, DETAIL_KEY_MIN_WIDTH, DETAIL_KEY_TRACKING,
+    DETAIL_VALUE_SIZE, PANEL_TITLE_SIZE, ROW_FONT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
 };
 use crate::theme::tokens::{FS_SM, TRACKING_DISPLAY, Weight};
 use crate::widgets::text::{caps, line, plain};
@@ -56,8 +56,9 @@ impl Rows<'_> {
     }
 }
 
-/// Returns the key and value of every fact of `info`.
-pub(super) fn facts(rows: &Rows<'_>, info: &ModelInfo) -> Vec<(Labelled, Labelled)> {
+/// Returns the width of the key column and the key and value of every fact of `info`, the values
+/// cut with an ellipsis at the column they are drawn in.
+pub(super) fn facts(rows: &Rows<'_>, info: &ModelInfo) -> (f32, Vec<(Labelled, Labelled)>) {
     let texts = rows.texts;
     let geometry = info
         .geometry
@@ -76,7 +77,7 @@ pub(super) fn facts(rows: &Rows<'_>, info: &ModelInfo) -> Vec<(Labelled, Labelle
             ("unknown", rows.number(info.chunks.unknown).into()),
         ],
     );
-    [
+    let facts = [
         (T::Nodes, rows.number(info.nodes)),
         (T::Meshes, rows.number(info.meshes())),
         (T::Lods, rows.number(info.lods.len())),
@@ -86,18 +87,31 @@ pub(super) fn facts(rows: &Rows<'_>, info: &ModelInfo) -> Vec<(Labelled, Labelle
         (T::Bones, rows.number(info.bones)),
         (T::Animations, animations),
         (T::Chunks, chunks),
-    ]
-    .into_iter()
-    .map(|(name, value)| {
-        let name = texts.get(name);
-        let key_text = caps(&name, FS_SM, Weight::Bold, DETAIL_KEY_TRACKING);
-        let value_text = plain(&value, DETAIL_VALUE_SIZE, Weight::Light);
-        (
-            (name, line(rows.ui, key_text, f32::INFINITY)),
-            (value, line(rows.ui, value_text, rows.width)),
-        )
-    })
-    .collect()
+    ];
+    let keys: Vec<Labelled> = facts
+        .iter()
+        .map(|&(name, _)| {
+            let name = texts.get(name);
+            let key_text = caps(&name, FS_SM, Weight::Bold, DETAIL_KEY_TRACKING);
+            let galley = line(rows.ui, key_text, f32::INFINITY);
+            (name, galley)
+        })
+        .collect();
+    let key_width = keys
+        .iter()
+        .map(|(_, galley)| galley.size().x)
+        .fold(DETAIL_KEY_MIN_WIDTH, f32::max);
+    let value_width = (rows.width - key_width - DETAIL_COLUMN_GAP).max(0.0);
+    let facts = keys
+        .into_iter()
+        .zip(facts)
+        .map(|(key, (_, value))| {
+            let value_text = plain(&value, DETAIL_VALUE_SIZE, Weight::Light);
+            let galley = line(rows.ui, value_text, value_width);
+            (key, (value, galley))
+        })
+        .collect();
+    (key_width, facts)
 }
 
 fn library(rows: &Rows<'_>, info: &ModelInfo) -> String {

@@ -27,6 +27,9 @@ fn message_ids(source: &str) -> BTreeSet<String> {
 fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
     vec![
         ("name", "Data".into()),
+        ("divisor", 2.into()),
+        ("material", "hull".into()),
+        ("role", "diffuse".into()),
         ("method", "1".into()),
         ("path", "Data.p4k".into()),
         ("reason", "no Archive".into()),

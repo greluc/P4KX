@@ -37,7 +37,7 @@ fn a_panel_becomes_a_well_formed_document_with_every_kind_of_element() -> TestRe
         .code(1)
         .stdout(predicate::str::contains("64 x 48 px; 1 elements left out"))
         .stderr(predicate::str::contains(
-            "skipped: definition 50 at depth 7: DefineText definitions are not drawn",
+            "skipped: definition 50 at depth 7: DefineButton2 definitions are not drawn",
         ));
     let text = fs::read_to_string(&out)?;
     let document = Document::parse(&text)?;

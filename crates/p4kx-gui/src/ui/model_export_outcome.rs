@@ -176,6 +176,8 @@ struct Laid {
     notes: Vec<(String, Color32)>,
     heading: String,
     chunks: Vec<String>,
+    textures_heading: String,
+    textures: Vec<String>,
 }
 
 impl Laid {
@@ -198,8 +200,30 @@ impl Laid {
             notes: notes(texts, summary),
             heading: texts.format(
                 T::SummaryChunks,
-                &[("number", number(texts, summary.unread().len()).into())],
+                &[("number", number(texts, summary.unread_total()).into())],
             ),
+            textures_heading: texts.format(
+                T::SummaryTextures,
+                &[(
+                    "number",
+                    number(texts, summary.missing_textures().len()).into(),
+                )],
+            ),
+            textures: summary
+                .missing_textures()
+                .iter()
+                .map(|texture| {
+                    texts.format(
+                        T::SummaryTexture,
+                        &[
+                            ("material", texture.material.clone().into()),
+                            ("role", texture.role.name().into()),
+                            ("file", texture.file.clone().into()),
+                            ("reason", texture.reason.clone().into()),
+                        ],
+                    )
+                })
+                .collect(),
             chunks: summary
                 .unread()
                 .iter()
@@ -321,6 +345,13 @@ fn finished(ui: &mut Ui, laid: &Laid) {
     for (note, colour) in &laid.notes {
         ui.colored_label(*colour, note);
     }
+    list(
+        ui,
+        (&laid.textures_heading, "model-export-textures"),
+        &laid.textures,
+        None,
+        true,
+    );
     list(
         ui,
         (&laid.heading, "model-export-chunks"),

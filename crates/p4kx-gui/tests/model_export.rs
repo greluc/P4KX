@@ -9,8 +9,10 @@ use std::path::Path;
 use egui_kittest::kittest::Queryable;
 use glb_exporting::{Window, finished, start};
 use headless::{opened, ready, status_is_ready};
+use p4kx_extraction::TextureRole;
 use p4kx_gui::{Language, Model, ModelExport, ModelExportStatus, ModelExportSummary};
-use p4kx_testkit::{TestEntry, TestModel, check_glb};
+use p4kx_settings::ModelMaterials;
+use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial, check_glb};
 use viewing::{Site, TestResult, entries, opened_at, select};
 
 fn summary(model: &Model) -> Result<ModelExportSummary, String> {
@@ -214,5 +216,45 @@ fn stopping_the_window_waits_for_the_export_and_removes_partial_files() -> TestR
         "ended"
     );
     assert!(leftovers(folder.path())?.is_empty(), "no temporary file");
+    Ok(())
+}
+
+#[test]
+fn exporting_with_textures_lists_the_textures_the_archive_lacks() -> TestResult {
+    let material = TestMtlMaterial::new("hull").texture("TexSlot1", "textures/missing_diff.tif");
+    let mut files = entries();
+    files.push(TestEntry::zstd(
+        "Data\\objects\\test\\cube.mtl",
+        TestMtl::single(&material).cryxml(),
+    ));
+    let site = Site {
+        entries: files,
+        installation: false,
+        key: false,
+    };
+    let (folder, mut harness): Window = opened_at(Language::BritishEnglish, ready(), site, |b| b)?;
+    select(&mut harness, "cube.cgf")?;
+    harness.state_mut().begin_model_export();
+    let setup = harness
+        .state_mut()
+        .model_export_setup_mut()
+        .ok_or("no setup")?;
+    setup.set_materials(ModelMaterials::Textures);
+    setup.set_texture_mip(2);
+    setup.set_file(folder.path().join("cube.glb"));
+    assert!(harness.state_mut().submit_model_export(|| {}), "started");
+
+    finished(&mut harness)?;
+
+    let done = summary(harness.state())?;
+    let [missing] = done.missing_textures() else {
+        return Err(format!("missing: {:?}", done.missing_textures()).into());
+    };
+    assert_eq!(missing.role, TextureRole::Diffuse, "role");
+    assert!(missing.file.contains("missing_diff"), "{missing:?}");
+    let remembered = harness.state().model_export_settings();
+    assert_eq!(remembered.materials, ModelMaterials::Textures, "mode");
+    assert_eq!(remembered.texture_mip, 2, "mip");
+    check_glb(&std::fs::read(folder.path().join("cube.glb"))?)?;
     Ok(())
 }

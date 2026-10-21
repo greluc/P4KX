@@ -8,9 +8,10 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use p4kx_gui::{
-    Browser, Language, Model, ModelExport, ModelExportFailure, ModelExportStatus, ModelPreview,
-    ModelStatus, Preview, is_model_path,
+    Browser, Language, Model, ModelExport, ModelExportFailure, ModelExportSetup, ModelExportStatus,
+    ModelPreview, ModelStatus, Preview, is_model_path,
 };
+use p4kx_settings::ModelMaterials;
 use p4kx_testkit::{check_glb, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -76,6 +77,11 @@ fn wait(model: &mut Model) -> TestResult {
     Ok(())
 }
 
+fn use_textures(setup: &mut ModelExportSetup) {
+    setup.set_materials(ModelMaterials::Textures);
+    setup.set_texture_mip(3);
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn real_models_list_their_facts_and_export_as_valid_glb_files() -> TestResult {
@@ -114,6 +120,9 @@ fn real_models_list_their_facts_and_export_as_valid_glb_files() -> TestResult {
         model.begin_model_export();
         let setup = model.model_export_setup_mut().ok_or("no setup")?;
         setup.set_file(file.clone());
+        if position % 2 == 1 {
+            use_textures(setup);
+        }
         assert!(model.submit_model_export(|| {}), "started");
         wait(&mut model)?;
         match model.model_export().map(ModelExport::status) {

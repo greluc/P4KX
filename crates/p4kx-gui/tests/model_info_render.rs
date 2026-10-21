@@ -17,7 +17,9 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
 use p4kx_gui::{Language, Model, Unavailable, ViewerSupport};
-use viewing::{TestResult, opened_at, opened_with, select, wait_until};
+use p4kx_settings::ModelMaterials;
+use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial};
+use viewing::{Site, TestResult, opened_at, opened_with, select, wait_until};
 
 #[expect(
     clippy::print_stderr,
@@ -114,4 +116,88 @@ fn the_info_of_a_plain_model_renders_without_the_chunk_table() -> TestResult {
     harness.run();
 
     save("model-info-helpers-en-GB.png", &mut harness)
+}
+
+const LONG_LIBRARY: &str = "objects/spaceships/ships/aegis/gladius/interior/materials/aegis_gladius_interior_cockpit_panels_and_displays_variant_a";
+
+const fn rows_label(language: Language) -> &'static str {
+    match language {
+        Language::German => "Knoten",
+        Language::BritishEnglish => "Nodes",
+    }
+}
+
+fn textured_site() -> Site {
+    let library = format!("Data\\{}.mtl", LONG_LIBRARY.replace('/', "\\"));
+    let model = TestModel::cube().with_material_library(LONG_LIBRARY);
+    let materials = TestMtl::multi(&[
+        TestMtlMaterial::new("hull").texture("TexSlot1", "textures/hull/hull_panel_diff.tif"),
+        TestMtlMaterial::new("glass").texture("TexSlot1", "textures/glass/glass_diff.tif"),
+    ]);
+    Site {
+        entries: vec![
+            TestEntry::zstd("Data\\Objects\\textured.cgf", model.cgf()),
+            TestEntry::zstd("Data\\Objects\\textured.cgfm", model.cgfm()),
+            TestEntry::zstd(library, materials.cryxml()),
+            TestEntry::stored("Data\\readme.txt", "plain text"),
+        ],
+        installation: false,
+        key: false,
+    }
+}
+
+#[test]
+fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> TestResult {
+    for (language, suffix, info, export) in [
+        (Language::BritishEnglish, "en-GB", "Info", "Export as GLB…"),
+        (Language::German, "de-DE", "Info", "Als GLB exportieren …"),
+    ] {
+        let Some(renderer) = renderer() else {
+            return Ok(());
+        };
+        let support = ViewerSupport::Unavailable(Unavailable::NoDevice);
+        let (folder, mut harness) = opened_at(language, support, textured_site(), |builder| {
+            builder.renderer(renderer)
+        })?;
+        harness.set_size(egui::vec2(900.0, 900.0));
+        select(&mut harness, "textured.cgf")?;
+
+        harness.get_by_label(info).click();
+        harness.run();
+        harness.get_by_label_contains(rows_label(language)).hover();
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Line,
+            delta: egui::vec2(0.0, -4.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.run();
+        save(&format!("model-info-long-{suffix}.png"), &mut harness)?;
+        harness.set_size(egui::vec2(1600.0, 900.0));
+        harness.run();
+
+        harness.get_by_label(export).click();
+        harness.run();
+        let setup = harness
+            .state_mut()
+            .model_export_setup_mut()
+            .ok_or("no setup")?;
+        setup.set_materials(ModelMaterials::Textures);
+        setup.set_texture_mip(1);
+        setup.set_file(folder.path().join("textured.glb"));
+        harness.run();
+        save(&format!("model-export-textures-{suffix}.png"), &mut harness)?;
+
+        assert!(harness.state_mut().submit_model_export(|| {}), "started");
+        wait_until(&mut harness, |model| {
+            model.model_export().is_some_and(|run| !run.is_running())
+        })?;
+        save(
+            &format!("model-export-missing-textures-{suffix}.png"),
+            &mut harness,
+        )?;
+        harness.state_mut().close_model_export();
+    }
+    Ok(())
 }

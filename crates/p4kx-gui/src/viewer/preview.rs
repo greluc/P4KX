@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::model::LodSelection;
-use p4kx_extraction::{Entry, ModelSource};
+use p4kx_extraction::model::{LodSelection, companion_file_names};
+use p4kx_extraction::{Entry, ModelSource, PathIndex};
 
 use super::camera::Camera;
 use super::scene::{Scene, SceneError};
@@ -195,12 +195,7 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
         return Some(Event::ArchiveChanged);
     }
     let paths = index.path_index();
-    let companion = format!("{}m", entry.path());
-    let oversized = [Some(entry), paths.find(&companion)]
-        .into_iter()
-        .flatten()
-        .map(Entry::uncompressed_size)
-        .find(|&size| size > MODEL_FILE_LIMIT);
+    let oversized = oversized_file(&paths, entry);
     if let Some(size) = oversized {
         return Some(Event::FileTooLarge(size));
     }
@@ -231,6 +226,16 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
         return Some(Event::ArchiveChanged);
     }
     Some(Event::Read(Box::new((info, scene))))
+}
+
+fn oversized_file(paths: &PathIndex<'_>, entry: &Entry) -> Option<u64> {
+    let path = entry.path();
+    companion_file_names(path)
+        .iter()
+        .filter_map(|companion| paths.find(companion))
+        .chain(Some(entry))
+        .map(Entry::uncompressed_size)
+        .find(|&size| size > MODEL_FILE_LIMIT)
 }
 
 fn reason(error: &dyn Error, path: &str) -> String {

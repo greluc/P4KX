@@ -695,6 +695,12 @@ model-export-lod = LOD { $level }, { $triangles ->
   }
 model-export-materials-heading = Materials
 model-export-materials-colours = Plain colours, a small and quick file
+model-export-materials-textures = With textures, a larger file
+model-export-texture-mip-heading = Texture size
+model-export-texture-mip = { $level ->
+    [0] Full size
+   *[other] 1/{ $divisor } of the size per side, mip { $level }
+  }
 model-export-vertex-colours = Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
@@ -727,6 +733,13 @@ model-export-summary-hidden = { $count ->
 model-export-summary-chunks = Chunks not exported ({ $number })
 model-export-summary-chunk-unknown = Skipped unknown chunk { $index } { $type_id } ({ $file })
 model-export-summary-chunk-skipped = Chunk { $index } { $type } ({ $type_id }) is not read ({ $file })
+model-export-summary-textures = Missing textures ({ $number })
+model-export-summary-texture = { $material }: { $role ->
+    [diffuse] diffuse
+    [normal] normal
+    [specular] specular
+   *[other] { $role }
+  } { $file } ({ $reason })
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
 model-export-stopped = The export of { $name } stopped without a result.

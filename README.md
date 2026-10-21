@@ -257,17 +257,24 @@ Early development (milestone M1). Available today:
   PNG: shapes with solid, gradient and bitmap fills (external images included) and strokes, with
   the transforms, colour transforms and masks of their placements, and morph shapes at their
   ratio. `--size` with both sides fits the stage centred into them, with one side keeps its
-  aspect ratio; the default is the stage size. Texts, buttons and videos are skipped, filters and
-  blend modes are not applied, and every element left out is listed (exit code 1). A movie is
+  aspect ratio; the default is the stage size. Static texts and text fields are drawn from the glyph
+  outlines of the fonts of the movie, with their size, colour and alignment; a character whose font
+  or glyph is missing is drawn as an empty box and listed, since no system font is used. Buttons and
+  videos are skipped, filters and blend modes are not applied, and every element left out is listed
+  (exit code 1). A movie is
   untrusted: placements, paths, conversions, masks, the canvas and the area the fills cover are
   bounded, and what lies beyond a limit is listed instead of drawn.
+- `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
+  parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
+  A key the language does not hold is drawn as it is and listed.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
   same bytes, `--size` and `--background` set the size and the backdrop of the document, and the
   same limits end the frame at the same element as for the PNG. A bitmap fill that does not repeat
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
-  bitmap tiles it. A document is at most 1 GiB; a larger one is an error and no file is left.
+  bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
+  a larger one is an error and no file is left.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -298,8 +305,9 @@ Early development (milestone M1). Available today:
   LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
-  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours]` writes
-  it as one glTF 2.0 binary file (GLB), Y up and in metres, with the normals, tangents and vertex
+  `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
+  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
   companions `<name>_lod<n>.<extension>m`, and a level the model lacks exits with code 2.
@@ -307,9 +315,14 @@ Early development (milestone M1). Available today:
   material with base colour, opacity, roughness, metalness and emissive colour and no textures;
   submeshes whose material draws nothing (collision and helper geometry) are left out, and a
   missing or unreadable `.mtl` file is reported while the model exports with a grey default
-  material. A skin (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to
-  eight bones per vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes.
-  Both also take a model file on disk with its companions next to it.
+  material. `--materials textures` also embeds the textures of the materials as PNG images: the
+  diffuse map as base colour, the normal map (green flipped to glTF's up, the blue channel
+  reconstructed), a metallic-roughness image from the normal map's smoothness and the specular
+  map, shared images once; `--texture-mip` picks the mip level, 0 (the largest) by default. A
+  texture that is missing or cannot be decoded leaves the plain colour and is listed. A skin
+  (`.skin`) is written with its skeleton and bone weights as a glTF skin (up to eight bones per
+  vertex, `JOINTS_0`/`WEIGHTS_0` and `_1`), a `.chr` skeleton file as bone nodes. Both also take a
+  model file on disk with its companions next to it, which has no textures to read.
 - Encrypted Entries need the Archive key, which you enter yourself; the tool does not contain it
   ([ADR-0027](docs/adr/0027-archive-key-comes-from-the-user.md)). Without it an Archive still
   opens, lists, searches and compares, and reads every unencrypted Entry; an encrypted Entry fails

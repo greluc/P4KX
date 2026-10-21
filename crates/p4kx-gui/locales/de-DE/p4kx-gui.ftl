@@ -695,6 +695,12 @@ model-export-lod = LOD { $level }, { $triangles ->
   }
 model-export-materials-heading = Materialien
 model-export-materials-colours = Einfache Farben, eine kleine und schnelle Datei
+model-export-materials-textures = Mit Texturen, eine größere Datei
+model-export-texture-mip-heading = Texturgröße
+model-export-texture-mip = { $level ->
+    [0] Volle Größe
+   *[other] 1/{ $divisor } der Kantenlänge, Mip-Stufe { $level }
+  }
 model-export-vertex-colours = Vertex-Farben schreiben
 model-export-file-heading = Datei
 model-export-choose-file = Datei wählen …
@@ -727,6 +733,13 @@ model-export-summary-hidden = { $count ->
 model-export-summary-chunks = Nicht exportierte Chunks ({ $number })
 model-export-summary-chunk-unknown = Unbekannter Chunk { $index } { $type_id } übersprungen ({ $file })
 model-export-summary-chunk-skipped = Chunk { $index } { $type } ({ $type_id }) wird nicht gelesen ({ $file })
+model-export-summary-textures = Fehlende Texturen ({ $number })
+model-export-summary-texture = { $material }: { $role ->
+    [diffuse] Diffuse
+    [normal] Normal
+    [specular] Specular
+   *[other] { $role }
+  } { $file } ({ $reason })
 model-export-failed-title = Export fehlgeschlagen
 model-export-failed = { $name } konnte nicht exportiert werden: { $reason }
 model-export-stopped = Der Export von { $name } wurde ohne Ergebnis beendet.

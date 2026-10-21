@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::model::{MaterialStatus, Model};
-use p4kx_extraction::{GlbSummary, WriteRefused};
+use p4kx_extraction::{GlbSummary, TextureRole, WriteRefused};
 
+use crate::model_info::printable;
 use crate::{ChunkNote, ModelInfo};
 
 /// What a finished Export as GLB wrote and what it left out.
@@ -13,6 +14,8 @@ pub struct ModelExportSummary {
     lod: u32,
     written: GlbSummary,
     unread: Vec<ChunkNote>,
+    unread_total: usize,
+    missing_textures: Vec<MissingTexture>,
     material_problem: Option<MaterialProblem>,
     unnamed_sub_materials: usize,
 }
@@ -26,23 +29,47 @@ pub struct MaterialProblem {
     pub reason: Option<String>,
 }
 
+/// A texture of a material that the file lacks, so the material keeps its plain colour.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MissingTexture {
+    /// The material the texture belongs to.
+    pub material: String,
+    /// What the texture would have been used for.
+    pub role: TextureRole,
+    /// The texture file as the material names it.
+    pub file: String,
+    /// Why it is not used.
+    pub reason: String,
+}
+
 impl ModelExportSummary {
     pub(crate) fn new(file: PathBuf, lod: u32, model: &Model, written: GlbSummary) -> Self {
         let info = ModelInfo::of(model);
         Self {
             file,
-            name: model.name.clone(),
+            name: info.name,
             lod,
+            unread_total: info.chunks.skipped + info.chunks.unknown,
+            missing_textures: written
+                .texture_fallbacks
+                .iter()
+                .map(|fallback| MissingTexture {
+                    material: printable(&fallback.material),
+                    role: fallback.role,
+                    file: printable(&fallback.file),
+                    reason: printable(&fallback.reason),
+                })
+                .collect(),
             written,
             unread: info.unread,
             material_problem: match &model.materials {
                 MaterialStatus::Missing { path } => Some(MaterialProblem {
-                    library: path.clone(),
+                    library: printable(path),
                     reason: None,
                 }),
                 MaterialStatus::Unreadable { path, reason } => Some(MaterialProblem {
-                    library: path.clone(),
-                    reason: Some(reason.clone()),
+                    library: printable(path),
+                    reason: Some(printable(reason)),
                 }),
                 _ => None,
             },
@@ -82,6 +109,20 @@ impl ModelExportSummary {
     #[must_use]
     pub fn unread(&self) -> &[ChunkNote] {
         &self.unread
+    }
+
+    /// Returns how many chunks were skipped or are of an unknown type, of which [`Self::unread`]
+    /// lists the first ones.
+    #[must_use]
+    pub const fn unread_total(&self) -> usize {
+        self.unread_total
+    }
+
+    /// Returns the textures the file lacks; empty unless the materials were written with
+    /// textures.
+    #[must_use]
+    pub fn missing_textures(&self) -> &[MissingTexture] {
+        &self.missing_textures
     }
 
     /// Returns what went wrong with the material library, when the model names one that is

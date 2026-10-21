@@ -1,4 +1,5 @@
-//! `p4kx model glb --materials colours` and the materials of `p4kx model info`, end to end.
+//! `p4kx model glb --materials colours` and the materials of `p4kx model info`, end to end; the
+//! textures are in `model_textures.rs`.
 
 use std::error::Error;
 use std::fs;
@@ -91,22 +92,22 @@ fn colours_mode_writes_one_material_per_sub_material_with_colour_and_opacity_and
 }
 
 #[test]
-fn colours_is_the_default_and_other_modes_are_refused() -> TestResult {
+fn colours_is_the_default_and_an_unknown_mode_is_refused() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(dir.path(), &TestModel::cube(), Some(mtl().cryxml()))?;
 
     let default = glb(&archive, &dir.path().join("a.glb"), &[])?;
-    let textures = glb(
-        &archive,
-        &dir.path().join("b.glb"),
-        &["--materials", "textures"],
-    )?;
+    let unknown = glb(&archive, &dir.path().join("b.glb"), &["--materials", "pbr"])?;
 
     assert_eq!(default.status.code(), Some(0), "colours by default");
+    assert!(
+        !String::from_utf8_lossy(&default.stdout).contains("embedded"),
+        "no textures"
+    );
     assert_eq!(
-        textures.status.code(),
+        unknown.status.code(),
         Some(2),
-        "textures are not written yet"
+        "an unknown mode is invalid input"
     );
     Ok(())
 }

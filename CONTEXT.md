@@ -342,6 +342,12 @@ ID, or a list of sub-materials whose position is the material ID. Each material 
 colours, an opacity and texture slots.
 _Avoid_: material file, material set
 
+**Texture slot**:
+An entry `TexSlot<n>` of a material that names a texture. The slot and the end of the file name
+(`_diff`, `_ddna`, `_spec`) say what the texture is for; a `.tif` name in a material is the `.dds`
+Entry of the Archive. The textures of a model's materials are embedded in its GLB as PNG images.
+_Avoid_: texture channel, map slot
+
 **Texture group**:
 A `.dds` header Entry with its parts `.dds.1` … `.dds.N` and its Alpha tail, listed as one item
 with the sizes of the whole texture. A part or tail without a header Entry is in no group and
@@ -377,8 +383,14 @@ _Avoid_: instance
 **Scene**:
 A frame of a UI movie composed into drawing instructions independent of the output: each shape
 once, its placements with transforms, colour transforms and masks, and what was skipped. It is
-rasterised to PNG.
+rasterised to PNG or written as SVG. Text is part of it as glyph shapes, one per glyph and colour.
 _Avoid_: render tree, stage (the stage is the area of the movie)
+
+**Text field**:
+A definition of a UI movie that shows a text (`DefineEditText`), with a font, size, colour,
+alignment and optionally HTML markup or a localisation key (`@key`); a static text (`DefineText`)
+places glyphs by index instead.
+_Avoid_: label, string
 
 ### Operations
 

@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_extraction::{Archive, ConversionError, Texture};
+use p4kx_extraction::{Archive, ConversionError, PathIndex, Texture};
 use p4kx_testkit::{ArchiveBuilder, SplitDds, TestEntry, TestTextureFormat};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -120,6 +120,54 @@ fn an_unknown_entry_is_reported() -> TestResult {
     let archive = write_archive(dir.path(), texture().entries(HEADER))?;
 
     let result = Texture::from_archive(&archive, "Data\\missing.dds");
+
+    assert!(
+        matches!(result, Err(ConversionError::UnknownEntry(_))),
+        "{result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_texture_found_through_the_path_index_is_the_one_found_by_scanning() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = texture().alpha(TestTextureFormat::R8);
+    let archive = write_archive(dir.path(), dds.entries(HEADER))?;
+    let index = PathIndex::new(&archive);
+
+    let indexed = Texture::from_index(&index, "data/textures/ROCK_DIFF.dds")?;
+    let scanned = Texture::from_archive(&archive, HEADER)?;
+    let (mut a, mut b) = (Vec::new(), Vec::new());
+    indexed.merge_into(&mut a)?;
+    scanned.merge_into(&mut b)?;
+
+    assert_eq!(indexed.name(), HEADER, "named by its Entry path");
+    assert_eq!(a, b, "the same parts");
+    assert!(indexed.has_alpha_tail(), "the alpha tail is found");
+    let tail = Texture::from_index(&index, "Data\\Textures\\rock_diff.dds.a")?;
+    let mut tail_parts = Vec::new();
+    tail.merge_into(&mut tail_parts)?;
+    let scanned_tail = Texture::from_archive(&archive, "Data\\Textures\\rock_diff.dds.a")?;
+    let mut scanned_parts = Vec::new();
+    scanned_tail.merge_into(&mut scanned_parts)?;
+    assert_eq!(
+        tail_parts, scanned_parts,
+        "a path ending in .a opens the tail"
+    );
+    assert_eq!(
+        indexed.decode_mip(1)?,
+        scanned.decode_mip(1)?,
+        "decodes alike with the tail merged"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unknown_entry_is_reported_through_the_path_index_too() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), texture().entries(HEADER))?;
+
+    let result = Texture::from_index(&PathIndex::new(&archive), "Data\\missing.dds");
 
     assert!(
         matches!(result, Err(ConversionError::UnknownEntry(_))),

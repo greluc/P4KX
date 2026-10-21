@@ -1,20 +1,21 @@
 use std::sync::Arc;
 
 use egui::{
-    Align2, Color32, CornerRadius, Galley, Id, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2,
-    vec2,
+    Align2, Color32, CornerRadius, Galley, Id, Rect, Response, Role, ScrollArea, Sense, Ui,
+    WidgetInfo, pos2, vec2,
 };
 
 use super::model_info_rows::{Rows, facts, tables};
 use super::model_preview;
 use crate::theme::desktop::{
-    DETAIL_COLUMN_GAP, DETAIL_KEY_MIN_WIDTH, DETAIL_ROW_GAP, PANEL_TITLE_MARGIN_BOTTOM,
-    PANEL_TITLE_MARGIN_TOP, PANEL_TITLE_PADDING_BOTTOM, ROW_HEIGHT, ZEBRA,
+    DETAIL_COLUMN_GAP, DETAIL_ROW_GAP, PANEL_TITLE_MARGIN_BOTTOM, PANEL_TITLE_MARGIN_TOP,
+    PANEL_TITLE_PADDING_BOTTOM, ROW_HEIGHT, ZEBRA,
 };
 use crate::theme::palette;
 use crate::widgets::frames;
 use crate::widgets::rows::paint_divider;
 use crate::widgets::text::hairline_below;
+use crate::widgets::tooltip;
 use crate::{Language, ModelInfo, ModelPreview, Texts};
 
 pub(super) type Labelled = (String, Arc<Galley>);
@@ -31,6 +32,7 @@ struct Key {
 /// change.
 pub(super) struct Laid {
     key: Key,
+    key_width: f32,
     pub(super) facts: Vec<(Labelled, Labelled)>,
     pub(super) tables: Vec<Table>,
 }
@@ -50,11 +52,10 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, path: &str, preview: &ModelPrevie
         return;
     };
     frames::preview_body().show(ui, |ui| {
-        let laid = Laid::get(ui, texts, info);
         ScrollArea::vertical()
             .id_salt("model-info")
             .auto_shrink(false)
-            .show(ui, |ui| laid.show(ui));
+            .show(ui, |ui| Laid::get(ui, texts, info).show(ui));
     });
 }
 
@@ -77,9 +78,11 @@ impl Laid {
             texts,
             width: key.width,
         };
+        let (key_width, facts) = facts(&rows, info);
         let laid = Arc::new(Self {
             key,
-            facts: facts(&rows, info),
+            key_width,
+            facts,
             tables: tables(&rows, info),
         });
         ui.data_mut(|data| data.insert_temp(id, Arc::clone(&laid)));
@@ -88,11 +91,7 @@ impl Laid {
 
     fn show(&self, ui: &mut Ui) {
         ui.spacing_mut().item_spacing.y = 0.0;
-        let key_width = self
-            .facts
-            .iter()
-            .map(|((_, galley), _)| galley.size().x)
-            .fold(DETAIL_KEY_MIN_WIDTH, f32::max);
+        let key_width = self.key_width;
         for (index, (key, value)) in self.facts.iter().enumerate() {
             if index > 0 {
                 ui.add_space(DETAIL_ROW_GAP);
@@ -136,12 +135,17 @@ fn fact(ui: &mut Ui, index: usize, (key, value): (&Labelled, &Labelled), key_wid
         key,
         (on_baseline(key_rect, &key.1), palette::GRAY_2_TEXT),
     );
-    labelled(
+    let shown = labelled(
         ui,
         (0, index, 1),
         value,
         (on_baseline(value_rect, &value.1), palette::DATA_FG),
     );
+    if value.1.elided {
+        tooltip::hover(shown, |ui| {
+            tooltip::line(ui, value.0.as_str());
+        });
+    }
     hairline_below(ui, key_rect);
     hairline_below(ui, value_rect);
 }
@@ -174,12 +178,17 @@ fn cells(ui: &Ui, (section, table, row): (u8, usize, usize), rect: Rect, cells: 
         let left = f32::from(step).mul_add(width, rect.left());
         let cell_rect = Rect::from_min_size(pos2(left, rect.top()), vec2(width, rect.height()))
             .shrink2(vec2(crate::theme::desktop::CELL_PADDING_X, 0.0));
-        labelled(
+        let shown = labelled(
             ui,
             (section, table * 1_000_000 + row, column),
             cell,
             (cell_rect, palette::GRAY_1),
         );
+        if cell.1.elided {
+            tooltip::hover(shown, |ui| {
+                tooltip::line(ui, cell.0.as_str());
+            });
+        }
     }
 }
 
@@ -188,7 +197,7 @@ fn labelled(
     salt: (u8, usize, usize),
     (name, galley): &Labelled,
     (rect, colour): (Rect, Color32),
-) {
+) -> Response {
     let at = Align2::LEFT_CENTER
         .align_size_within_rect(galley.size(), rect)
         .min;
@@ -199,6 +208,7 @@ fn labelled(
     );
     response.widget_info(|| WidgetInfo::labeled(Role::Label, true, name));
     ui.painter().galley(at, Arc::clone(galley), colour);
+    response
 }
 
 #[cfg(test)]
@@ -210,6 +220,7 @@ mod tests {
     use p4kx_testkit::TestModel;
 
     use super::Laid;
+    use crate::theme::desktop::DETAIL_COLUMN_GAP;
     use crate::{Language, ModelInfo, Texts};
 
     fn info() -> Result<ModelInfo, Box<dyn std::error::Error>> {
@@ -254,6 +265,33 @@ mod tests {
         assert!(
             Arc::ptr_eq(&german, &other),
             "a copy of the same model is the same"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_long_value_is_cut_with_an_ellipsis_inside_its_column()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let ctx = Context::default();
+        crate::theme::apply(&ctx);
+        let texts = Texts::new(Language::BritishEnglish);
+        let mut info = info()?;
+        info.library = Some("objects/".repeat(200));
+
+        let laid = laid(&ctx, &texts, &info);
+
+        let widest = laid
+            .facts
+            .iter()
+            .map(|(_, (_, galley))| galley.size().x)
+            .fold(0.0, f32::max);
+        assert!(
+            laid.facts.iter().any(|(_, (_, galley))| galley.elided),
+            "elided"
+        );
+        assert!(
+            widest + laid.key_width + DETAIL_COLUMN_GAP <= ctx.content_rect().width(),
+            "{widest} fits next to the key column"
         );
         Ok(())
     }

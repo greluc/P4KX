@@ -125,8 +125,8 @@ impl ModelInfo {
         }
         Self {
             serial: SERIAL.fetch_add(1, Ordering::Relaxed),
-            name: model.name.clone(),
-            geometry: model.geometry.clone(),
+            name: printable(&model.name),
+            geometry: model.geometry.as_deref().map(printable),
             nodes: model.nodes.len(),
             chunks,
             unread,
@@ -140,7 +140,7 @@ impl ModelInfo {
                     meshes: lod.meshes.len(),
                 })
                 .collect(),
-            library: model.material_library.clone(),
+            library: model.material_library.as_deref().map(printable),
             materials: materials(&model.materials),
             material_ids: model.material_ids(),
             bones: model.bones.len(),
@@ -159,6 +159,21 @@ impl ModelInfo {
     pub fn meshes(&self) -> usize {
         self.lods.first().map_or(0, |lod| lod.meshes)
     }
+}
+
+/// Returns `text` with every control and bidirectional override character replaced by the
+/// replacement character; names and reasons from an Archive are untrusted.
+#[must_use]
+pub(crate) fn printable(text: &str) -> String {
+    text.chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}') {
+                char::REPLACEMENT_CHARACTER
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 fn note(chunk: &ModelChunk) -> ChunkNote {
@@ -182,7 +197,22 @@ fn materials(status: &MaterialStatus) -> MaterialsInfo {
             single: library.single,
         },
         MaterialStatus::Missing { .. } => MaterialsInfo::Missing,
-        MaterialStatus::Unreadable { reason, .. } => MaterialsInfo::Unreadable(reason.clone()),
+        MaterialStatus::Unreadable { reason, .. } => MaterialsInfo::Unreadable(printable(reason)),
         _ => MaterialsInfo::Unnamed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::printable;
+
+    #[test]
+    fn control_and_bidirectional_characters_of_an_untrusted_name_are_replaced() {
+        assert_eq!(
+            printable("a\u{7}b\nc\u{202E}d"),
+            "a\u{FFFD}b\u{FFFD}c\u{FFFD}d",
+            "replaced"
+        );
+        assert_eq!(printable("objects/ship"), "objects/ship", "plain stays");
     }
 }

@@ -63,6 +63,12 @@ pub enum GfxError {
         /// The limit.
         limit: usize,
     },
+    /// The static texts of the movie hold more glyph entries than the limit.
+    #[error("the static texts of the movie hold more than {limit} glyphs")]
+    TooManyTextGlyphs {
+        /// The limit.
+        limit: usize,
+    },
     /// The offset of the end edges of a morph shape lies beyond its tag.
     #[error("the end edges of the morph shape start beyond its tag, at offset {offset}")]
     MorphEndEdges {

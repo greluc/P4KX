@@ -197,6 +197,20 @@ fn read_base_lod<B: AsRef<[u8]>>(
     })
 }
 
+/// Returns the names of the files next to the model file `name` that reading it can fetch: the
+/// geometry companion `<name>m`, and for every level of detail from 1 on its model file and its
+/// geometry companion.
+#[must_use]
+pub fn companion_file_names(name: &str) -> Vec<String> {
+    let mut names = vec![format!("{name}m")];
+    for level in 1..=MAX_LOD {
+        let file = lod_file_name(name, level);
+        names.push(format!("{file}m"));
+        names.push(file);
+    }
+    names
+}
+
 /// Returns the file name of the model file of level of detail `level` of the model `name`:
 /// `<stem>_lod<level>.<extension>`.
 fn lod_file_name(name: &str, level: u32) -> String {

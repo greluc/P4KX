@@ -18,11 +18,17 @@ Decided for issue #109.
   the GLB header states and fails with a marker once the caller's `CancelToken` is set; the
   temporary file next to the target is then removed. Cancelling before the first write returns
   `ConversionError::Cancelled` without creating anything.
-- The summary of an export lists the chunks of the exported files that were skipped or unknown and
-  the materials that fell back to the default material. Missing textures join it when textures are
-  exported (#105).
-- The choices (level, materials, vertex colours, folder) are kept in the settings file as
-  `model_export`; a level the next model lacks is replaced by its most detailed one.
+- The preview reads the model, its geometry companion and every `_lod<n>` companion of the
+  Archive, so before reading it checks the size of all of them (`companion_file_names`) against
+  `MODEL_FILE_LIMIT` and names the first one above it, as ADR-0031 caps each file.
+- The summary of an export lists the chunks of the exported files that were skipped or unknown, the
+  materials that fell back to the default material and, with textures, the textures the Archive
+  lacks (#105). Names and reasons from the Archive have their control characters replaced.
+- One write path, `ModelSource::write_glb_observed`, takes an optional `TextureLoader`; the window
+  passes `ArchiveTextures` over the path index when the materials are written with textures.
+- The choices (level, materials, texture mip, vertex colours, folder) are kept in the settings
+  file as `model_export`; a level the next model lacks is replaced by its most detailed one, and a
+  material mode this version does not know reads as plain colours.
 - Animations are not read yet (#107); the Info tab says so instead of showing zero.
 
 ## Considered Options

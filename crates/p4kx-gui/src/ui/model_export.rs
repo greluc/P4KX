@@ -10,8 +10,8 @@ use crate::widgets::frames::{self, Tone};
 use crate::widgets::text::plain;
 use crate::widgets::toggle;
 use crate::{
-    ExtractionText, MODEL_MATERIALS, Model, ModelExportSetup, ModelExportText as T, Text, Texts,
-    format,
+    ExtractionText, MODEL_MATERIALS, MODEL_TEXTURE_MIPS, Model, ModelExportSetup,
+    ModelExportText as T, Text, Texts, format,
 };
 use p4kx_settings::ModelMaterials;
 
@@ -61,7 +61,8 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::LodHeading));
     let language = texts.language();
-    for lod in setup.lods().to_vec() {
+    let mut chosen = None;
+    for lod in setup.lods() {
         let triangles = u64::try_from(lod.triangles).unwrap_or(u64::MAX);
         let label = texts.format(
             T::Lod,
@@ -72,23 +73,13 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
             ],
         );
         if toggle::radio(ui, setup.lod() == lod.level, &label, true).clicked() {
-            setup.set_lod(lod.level);
+            chosen = Some(lod.level);
         }
     }
-    ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::MaterialsHeading));
-    for materials in MODEL_MATERIALS {
-        let label = texts.get(match materials {
-            ModelMaterials::Colours => T::MaterialsColours,
-        });
-        if toggle::radio(ui, setup.materials() == materials, &label, true).clicked() {
-            setup.set_materials(materials);
-        }
+    if let Some(level) = chosen {
+        setup.set_lod(level);
     }
-    let mut colours = setup.vertex_colours();
-    if toggle::checkbox(ui, &mut colours, &texts.get(T::VertexColours)).changed() {
-        setup.set_vertex_colours(colours);
-    }
+    materials(ui, texts, setup);
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::FileHeading));
     ui.horizontal(|ui| {
@@ -114,4 +105,36 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
         Some(false) => Some(Action::Close),
         None => None,
     })
+}
+
+fn materials(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &texts.get(T::MaterialsHeading));
+    for materials in MODEL_MATERIALS {
+        let label = texts.get(match materials {
+            ModelMaterials::Colours => T::MaterialsColours,
+            ModelMaterials::Textures => T::MaterialsTextures,
+        });
+        if toggle::radio(ui, setup.materials() == materials, &label, true).clicked() {
+            setup.set_materials(materials);
+        }
+    }
+    if setup.materials() == ModelMaterials::Textures {
+        ui.add_space(MODAL_GROUP_GAP);
+        group_label(ui, &texts.get(T::TextureMipHeading));
+        for mip in MODEL_TEXTURE_MIPS {
+            let label = texts.format(
+                T::TextureMip,
+                &[("level", mip.into()), ("divisor", (1_u32 << mip).into())],
+            );
+            if toggle::radio(ui, setup.texture_mip() == mip, &label, true).clicked() {
+                setup.set_texture_mip(mip);
+            }
+        }
+        ui.add_space(MODAL_GROUP_GAP);
+    }
+    let mut colours = setup.vertex_colours();
+    if toggle::checkbox(ui, &mut colours, &texts.get(T::VertexColours)).changed() {
+        setup.set_vertex_colours(colours);
+    }
 }

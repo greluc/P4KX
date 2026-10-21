@@ -6,7 +6,8 @@ use std::thread;
 
 use p4kx_extraction::model::LodSelection;
 use p4kx_extraction::{
-    CancelToken, ConversionError, GlbOptions, MaterialMode, ModelSource, archive_error_in,
+    ArchiveTextures, CancelToken, ConversionError, GlbOptions, MaterialMode, ModelSource,
+    TextureLoader, archive_error_in,
 };
 use p4kx_settings::ModelMaterials;
 
@@ -21,6 +22,7 @@ pub(crate) struct Request {
     pub(crate) file: PathBuf,
     pub(crate) lod: u32,
     pub(crate) materials: ModelMaterials,
+    pub(crate) texture_mip: u32,
     pub(crate) vertex_colours: bool,
 }
 
@@ -28,10 +30,12 @@ impl Request {
     fn options(&self) -> GlbOptions {
         let mode = match self.materials {
             ModelMaterials::Colours => MaterialMode::Colours,
+            ModelMaterials::Textures => MaterialMode::Textures,
         };
         let options = GlbOptions::default()
             .with_lod(self.lod)
-            .with_materials(mode);
+            .with_materials(mode)
+            .with_texture_mip(self.texture_mip);
         if self.vertex_colours {
             options
         } else {
@@ -103,7 +107,7 @@ enum Ended {
 #[derive(Debug)]
 enum State {
     Running(Receiver<Ended>),
-    Finished(ModelExportSummary),
+    Finished(Box<ModelExportSummary>),
     Cancelled,
     Failed(ModelExportFailure),
 }
@@ -196,7 +200,7 @@ impl ModelExport {
 
 fn settle(ended: Option<Ended>) -> State {
     match ended {
-        Some(Ended::Written(summary)) => State::Finished(*summary),
+        Some(Ended::Written(summary)) => State::Finished(summary),
         Some(Ended::Cancelled) => State::Cancelled,
         Some(Ended::Failed(failure)) => State::Failed(failure),
         None => State::Failed(ModelExportFailure::Stopped),
@@ -263,7 +267,16 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         shared.done.store(done, Ordering::Relaxed);
         shared.total.store(total, Ordering::Relaxed);
     };
-    match source.write_glb_observed(&request.options(), &request.file, cancel, &progress) {
+    let textures = ArchiveTextures::new(&paths);
+    let loader = (request.materials == ModelMaterials::Textures).then_some(&textures);
+    let written = source.write_glb_observed(
+        &request.options(),
+        &request.file,
+        loader.map(|textures| textures as &dyn TextureLoader),
+        cancel,
+        &progress,
+    );
+    match written {
         Ok(written) => Ended::Written(Box::new(ModelExportSummary::new(
             request.file.clone(),
             request.lod,

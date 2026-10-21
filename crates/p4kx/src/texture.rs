@@ -224,6 +224,7 @@ pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
                 | ConversionError::SoundTooLarge { .. }
                 | ConversionError::UiMovie { .. }
                 | ConversionError::UiMovieTooLarge { .. }
+                | ConversionError::UiTexts { .. }
                 | ConversionError::Texture {
                     source: TextureError::ReadHeader(_),
                     ..

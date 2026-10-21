@@ -28,11 +28,13 @@ the window stays responsive while it loads.
   Animations show as not read until they are supported. The tab also works for a model the 3D view
   cannot show, such as a skeleton file.
 - **Export as GLB…**, at the right end of the tab bar for a model file and in the Export menu,
-  opens a dialog with the level of detail (each with its triangles), the material mode, whether
-  to write the vertex colours, and the file to write. The file cannot be inside a Star Citizen
+  opens a dialog with the level of detail (each with its triangles), the material mode (plain
+  colours, or with textures at a chosen size), whether to write the vertex colours, and the file
+  to write. The file cannot be inside a Star Citizen
   installation. The export runs in the background with a progress bar and **Cancel**, writes the
   file only when it is complete, and ends with a summary of what the file holds, the chunks it
-  skipped and the materials that fell back to the default material. A failure shows a message
+  skipped, the materials that fell back to the default material and the textures the Archive
+  lacks. A failure shows a message
   and the rest of the window keeps working. A model that needs the Archive key opens the key
   dialog; export again once the key is entered. The choices are remembered.
 - **Model** appears for a model file (`.cgf`, `.cga`, `.skin`, `.chr`) and opens when you select one. The

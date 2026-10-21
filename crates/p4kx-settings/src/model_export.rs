@@ -6,8 +6,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ModelMaterials {
-    /// Plain colours without textures.
+    /// The plain colours with the textures of the materials embedded.
+    Textures,
+    /// Plain colours without textures; also what a value this version does not know reads as.
     #[default]
+    #[serde(other)]
     Colours,
 }
 
@@ -19,6 +22,8 @@ pub struct ModelExportSettings {
     pub lod: u32,
     /// How the materials are written.
     pub materials: ModelMaterials,
+    /// The mip level of the textures, 0 for the largest.
+    pub texture_mip: u32,
     /// Whether the vertex colours of the meshes are written.
     pub vertex_colours: bool,
     /// The folder the last model was exported to, or `None` before the first export.
@@ -31,6 +36,7 @@ impl Default for ModelExportSettings {
         Self {
             lod: 0,
             materials: ModelMaterials::default(),
+            texture_mip: 0,
             vertex_colours: true,
             folder: None,
         }

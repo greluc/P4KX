@@ -15,6 +15,12 @@ pub enum ModelExportText {
     MaterialsHeading,
     /// Materials as plain colours.
     MaterialsColours,
+    /// Materials with their textures.
+    MaterialsTextures,
+    /// The heading of the texture size choice.
+    TextureMipHeading,
+    /// One texture size; takes `level` and `divisor`.
+    TextureMip,
     /// The switch of the vertex colours.
     VertexColours,
     /// The heading of the file choice.
@@ -62,6 +68,11 @@ pub enum ModelExportText {
     SummaryChunkUnknown,
     /// One chunk the model does not read; takes `index`, `type`, `type_id` and `file`.
     SummaryChunkSkipped,
+    /// The heading of the textures the file lacks; takes `number`.
+    SummaryTextures,
+    /// One texture the file lacks; takes `material`, `role` (`diffuse`, `normal` or `specular`),
+    /// `file` and `reason`.
+    SummaryTexture,
     /// The title of the window shown when the export failed.
     FailedTitle,
     /// The model could not be exported; takes `name` and `reason`.
@@ -78,7 +89,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 36] = [
+    pub(crate) const ALL: [Self; 41] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -86,6 +97,9 @@ impl ModelExportText {
         Self::Lod,
         Self::MaterialsHeading,
         Self::MaterialsColours,
+        Self::MaterialsTextures,
+        Self::TextureMipHeading,
+        Self::TextureMip,
         Self::VertexColours,
         Self::FileHeading,
         Self::ChooseFile,
@@ -109,6 +123,8 @@ impl ModelExportText {
         Self::SummaryChunks,
         Self::SummaryChunkUnknown,
         Self::SummaryChunkSkipped,
+        Self::SummaryTextures,
+        Self::SummaryTexture,
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
@@ -128,6 +144,9 @@ impl ModelExportText {
             Self::Lod => "model-export-lod",
             Self::MaterialsHeading => "model-export-materials-heading",
             Self::MaterialsColours => "model-export-materials-colours",
+            Self::MaterialsTextures => "model-export-materials-textures",
+            Self::TextureMipHeading => "model-export-texture-mip-heading",
+            Self::TextureMip => "model-export-texture-mip",
             Self::VertexColours => "model-export-vertex-colours",
             Self::FileHeading => "model-export-file-heading",
             Self::ChooseFile => "model-export-choose-file",
@@ -151,6 +170,8 @@ impl ModelExportText {
             Self::SummaryChunks => "model-export-summary-chunks",
             Self::SummaryChunkUnknown => "model-export-summary-chunk-unknown",
             Self::SummaryChunkSkipped => "model-export-summary-chunk-skipped",
+            Self::SummaryTextures => "model-export-summary-textures",
+            Self::SummaryTexture => "model-export-summary-texture",
             Self::FailedTitle => "model-export-failed-title",
             Self::Failed => "model-export-failed",
             Self::Stopped => "model-export-stopped",

@@ -8,13 +8,17 @@ use p4kx_settings::{ModelExportSettings, ModelMaterials};
 
 pub use job::{ModelExport, ModelExportProgress, ModelExportStage, ModelExportStatus};
 pub(crate) use job::{Request, start};
-pub use summary::{MaterialProblem, ModelExportFailure, ModelExportSummary};
+pub use summary::{MaterialProblem, MissingTexture, ModelExportFailure, ModelExportSummary};
 
 use crate::installation::refusal_of;
 use crate::{LodInfo, ModelInfo};
 
 /// The material modes the Export as GLB dialog offers.
-pub const MODEL_MATERIALS: [ModelMaterials; 1] = [ModelMaterials::Colours];
+pub const MODEL_MATERIALS: [ModelMaterials; 2] =
+    [ModelMaterials::Colours, ModelMaterials::Textures];
+
+/// The texture mip levels the Export as GLB dialog offers: the full size and three halvings.
+pub const MODEL_TEXTURE_MIPS: [u32; 4] = [0, 1, 2, 3];
 
 /// The choices of an Export as GLB before it starts: the level of detail, the materials and the
 /// file.
@@ -26,6 +30,7 @@ pub struct ModelExportSetup {
     lods: Vec<LodInfo>,
     lod: u32,
     materials: ModelMaterials,
+    texture_mip: u32,
     vertex_colours: bool,
     folder: Option<PathBuf>,
     file: Option<PathBuf>,
@@ -51,6 +56,7 @@ impl ModelExportSetup {
             lods,
             lod,
             materials: settings.materials,
+            texture_mip: nearest_mip(settings.texture_mip),
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
             file: None,
@@ -98,6 +104,19 @@ impl ModelExportSetup {
     /// Chooses how the materials are written.
     pub const fn set_materials(&mut self, materials: ModelMaterials) {
         self.materials = materials;
+    }
+
+    /// Returns the mip level of the textures, 0 for the largest.
+    #[must_use]
+    pub const fn texture_mip(&self) -> u32 {
+        self.texture_mip
+    }
+
+    /// Chooses the mip level of the textures; a level the dialog does not offer is ignored.
+    pub fn set_texture_mip(&mut self, mip: u32) {
+        if MODEL_TEXTURE_MIPS.contains(&mip) {
+            self.texture_mip = mip;
+        }
     }
 
     /// Returns whether the vertex colours of the meshes are written.
@@ -166,6 +185,7 @@ impl ModelExportSetup {
             file: self.file.clone()?,
             lod: self.lod,
             materials: self.materials,
+            texture_mip: self.texture_mip,
             vertex_colours: self.vertex_colours,
         })
     }
@@ -174,6 +194,7 @@ impl ModelExportSetup {
         ModelExportSettings {
             lod: self.lod,
             materials: self.materials,
+            texture_mip: self.texture_mip,
             vertex_colours: self.vertex_colours,
             folder: self
                 .file
@@ -183,4 +204,8 @@ impl ModelExportSetup {
                 .or_else(|| self.folder.clone()),
         }
     }
+}
+
+fn nearest_mip(mip: u32) -> u32 {
+    MODEL_TEXTURE_MIPS.last().map_or(0, |&last| mip.min(last))
 }

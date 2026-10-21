@@ -40,6 +40,7 @@ mod vector;
 
 pub use bone::{Bone, BoneTransform};
 pub use bone_map::{Influences, MAX_INFLUENCES};
+pub use build::companion_file_names;
 pub use companion::{CompanionError, CompanionPath, CompanionResolver};
 pub use error::{CorruptChunk, ModelError};
 pub use model::{ChunkUsage, Lod, LodSelection, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};

@@ -27,6 +27,7 @@ fn progress_counts_the_bytes_against_the_length_of_the_file() -> TestResult {
     let summary = source.write_glb_observed(
         &GlbOptions::default(),
         &out,
+        None,
         &CancelToken::new(),
         &|done, total| seen.borrow_mut().push((done, total)),
     )?;
@@ -57,7 +58,7 @@ fn a_cancelled_export_writes_nothing() -> TestResult {
     let cancel = CancelToken::new();
     cancel.cancel();
 
-    let result = source.write_glb_observed(&GlbOptions::default(), &out, &cancel, &|_, _| {});
+    let result = source.write_glb_observed(&GlbOptions::default(), &out, None, &cancel, &|_, _| {});
 
     assert!(
         matches!(result, Err(ConversionError::Cancelled)),
@@ -82,15 +83,15 @@ fn a_cancel_during_the_write_removes_the_temporary_file() -> TestResult {
     let out = folder.path().join("cube.glb");
     let cancel = CancelToken::new();
 
-    let result = source.write_glb_observed(&GlbOptions::default(), &out, &cancel, &|_, _| {
+    let result = source.write_glb_observed(&GlbOptions::default(), &out, None, &cancel, &|_, _| {
         cancel.cancel();
     });
 
     assert!(
-        matches!(result, Ok(_) | Err(ConversionError::Cancelled)),
-        "ends one way or the other: {result:?}"
+        matches!(result, Err(ConversionError::Cancelled)),
+        "the write stops: {result:?}"
     );
-    assert_eq!(out.exists(), result.is_ok(), "a file only when it finished");
+    assert!(!out.exists(), "no file");
     assert_eq!(parts(folder.path())?, 0, "no temporary file");
     Ok(())
 }

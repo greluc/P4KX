@@ -238,7 +238,7 @@ fn the_carrack_has_456_scu_and_the_andromeda_does_not_count_its_docked_snub() ->
         andromeda
             .cargo
             .scu
-            .is_some_and(|scu| (80.0..=110.0).contains(&scu)),
+            .is_some_and(|scu| (scu - 96.0).abs() <= 0.5),
         "the Andromeda carries 96 SCU, without the snub's grids: {:?}",
         andromeda.cargo.scu
     );

@@ -112,7 +112,7 @@ Early development (milestone M1). Available today:
   structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
   supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
-  `[--lang <language>] [--out <folder>] [--conflict …]` writes Records as Record XML
+  `[--lang <language>] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
   ([docs/record-json.md](docs/record-json.md)), one file per Record: `<record path>.xml`, or
   `<record path>/<Record name>.xml` for Records that share a record path (`.json` for JSON).
@@ -123,7 +123,14 @@ Early development (milestone M1). Available today:
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
   `--lang` writes the text of every localisation key next to the key, or marks the key missing,
-  in the chosen language; without it the output carries no texts.
+  in the chosen language; without it the output carries no texts. `--tags` writes the tag path
+  (`Ship.Series.Avenger`) of the Tag next to every Reference to a Tag; without it the output carries
+  only GUIDs.
+- `p4kx dcb tags <archive> [<tag>] [--tree] [--format table|json]` prints the tag tree of the
+  `TagDatabase`: every Tag with its tag path, GUID and legacy ID in tree order, or with `--tree` the
+  names indented below their parent. `<tag>` is a tag path or GUID and limits the listing to that Tag
+  and everything below it; with `--json` the document has the shape described in
+  [docs/cli-json.md](docs/cli-json.md). The Tags tab of the window shows the same tree.
 - `p4kx dcb query <archive> "<query>"` runs a Query ([docs/query.md](docs/query.md)) over the
   Records and prints a table: the record path first, then one column per path of `select`, one
   row per Record in record-path order, e.g.

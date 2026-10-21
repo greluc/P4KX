@@ -129,6 +129,23 @@ any attribute value. A placeholder or empty key stays alone: it stands for no te
 missing translation. Only localisation keys are annotated, never strings that look like keys. The
 same Records and the same language always give the same bytes.
 
+## Tag paths
+
+Many fields (`Tags`, `RequiredTags`, `PortTags`, …) refer to a Tag Record, whose record path is the
+same for every Tag. `p4kx dcb export --tags` writes the tag path of the Tag (`Weapon.Gun`, the names
+from the root of the tag tree down, joined by `.`) next to such a Reference in the `tag` attribute:
+
+```xml
+<p4kx:reference guid="aa687902-f049-47c0-9045-8725ecf395cf" path="libs/foundry/records/tagdatabase/tagdatabase.tagdatabase" type="Tag" tag="Ship.Series.Avenger"/>
+```
+
+The attribute follows `type` and `at`. Only a Reference of type `Tag` gets it, and every Tag Record
+has a tag path: a Tag that no `TagDatabase` reaches is a root of its own and its path is its name.
+A Reference to a Record that does not exist is an error value and has none. Without `--tags` no
+`tag` attribute is written and the output is byte for byte the output described above. A tag path is not unique (sibling Tags may share a name), so the `guid`
+stays the identity. The same Records and the same tag tree always give the same bytes; `--lang` and
+`--tags` combine.
+
 ## Errors
 
 A value that cannot be read becomes an error at its place and the rest of the Record is still

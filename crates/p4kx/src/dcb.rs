@@ -6,7 +6,7 @@ use p4kx_extraction::DataForgeEntry;
 use serde::Serialize;
 
 use crate::cli::{DcbArgs, DcbCommand, DcbInfoArgs};
-use crate::{dcb_export, dcb_fields, dcb_query, dcb_refs, exit, json};
+use crate::{dcb_export, dcb_fields, dcb_query, dcb_refs, dcb_tags, exit, json};
 
 #[derive(Serialize)]
 struct Summary<'a> {
@@ -25,6 +25,7 @@ pub(crate) fn run(args: &DcbArgs, as_json: bool) -> Result<ExitCode> {
         DcbCommand::Export(args) => dcb_export::run(args, as_json),
         DcbCommand::Query(args) => dcb_query::run(args, as_json),
         DcbCommand::Refs(args) => dcb_refs::run(args, as_json),
+        DcbCommand::Tags(args) => dcb_tags::run(args, as_json),
         DcbCommand::Fields(args) => dcb_fields::run(args, as_json),
     }
 }

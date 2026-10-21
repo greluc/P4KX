@@ -159,6 +159,29 @@ fn records_with_resolved_texts_are_valid_and_a_text_cannot_also_be_missing() -> 
 }
 
 #[test]
+fn a_tag_reference_may_carry_its_tag_path_as_text() -> TestResult {
+    let validator = jsonschema::draft202012::new(&schema()?)?;
+    let record = |tag: Value| {
+        json!({
+            "$type": "Item",
+            "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f",
+            "$path": "p",
+            "tags": [{
+                "guid": "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d",
+                "path": "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase",
+                "type": "Tag",
+                "tag": tag
+            }]
+        })
+    };
+
+    assert!(validator.is_valid(&record(json!("Weapon.Gun"))), "a path");
+    assert!(!validator.is_valid(&record(json!(1))), "not a number");
+    assert!(!validator.is_valid(&record(json!(null))), "not null");
+    Ok(())
+}
+
+#[test]
 fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
     let validator = jsonschema::draft202012::new(&schema()?)?;
     let valid = json!({

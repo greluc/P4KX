@@ -1,7 +1,7 @@
 use super::Model;
 use crate::forge_cache::ForgeCache;
 use crate::query::Trigger;
-use crate::{ComparisonTab, LocalizationTab, QueryTab};
+use crate::{ComparisonTab, LocalizationTab, QueryTab, TagsTab};
 
 /// A tab of the work surface.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -15,6 +15,8 @@ pub enum WorkTab {
     Query,
     /// Looking up the localisation keys and texts of the open Archive.
     Localization,
+    /// Browsing the tag tree of the DataForge of the open Archive.
+    Tags,
     /// Searching the contents of the open Archive.
     Search,
 }
@@ -121,5 +123,26 @@ impl Model {
             return false;
         };
         self.localization.load(browser.shared_index(), wake)
+    }
+
+    /// Returns the Tags tab.
+    #[must_use]
+    pub const fn tags(&self) -> &TagsTab {
+        &self.tags
+    }
+
+    /// Returns the Tags tab for changes.
+    pub const fn tags_mut(&mut self) -> &mut TagsTab {
+        &mut self.tags
+    }
+
+    /// Starts reading the tag tree of the open Archive off the UI thread, calling `wake` from it
+    /// once it ended; returns whether it started. Nothing starts without an open Archive or when
+    /// the tags are read or being read.
+    pub fn load_tags(&mut self, wake: impl Fn() + Send + 'static) -> bool {
+        let Some(browser) = &self.browser else {
+            return false;
+        };
+        self.tags.load(browser.shared_index(), wake)
     }
 }

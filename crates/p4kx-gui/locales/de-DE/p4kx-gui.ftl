@@ -567,6 +567,37 @@ localization-no-match = Kein Schlüssel und kein Text passt zur Suche.
 localization-copy-key = Schlüssel kopieren
 localization-copy-text = Text kopieren
 localization-notes = Einige global.ini-Dateien wurden nicht sauber gelesen:
+tags-tab = Tags
+tags-label = Suche
+tags-hint = Tag-Pfad, z. B. Weapon.Gun
+tags-loading = Die Tags werden gelesen …
+tags-no-tags = Das DataForge des Archivs enthält keine Tags.
+tags-failed = Die Tags können nicht gelesen werden: { $reason }
+tags-stopped = Das Lesen der Tags wurde ohne Ergebnis beendet.
+tags-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Tags zu lesen.
+tags-empty-title = Kein Archiv geöffnet
+tags-empty-hint = Öffnen Sie ein Archiv, um seinen Tag-Baum zu durchsuchen.
+tags-column-tag = Tag
+tags-column-guid = GUID
+tags-column-legacy = Legacy-ID
+tags-count =
+    { $count ->
+        [one] { $number } Tag
+       *[other] { $number } Tags
+    }
+tags-count-shown =
+    { $count ->
+        [one] { $number } von { $total } Tags
+       *[other] { $number } von { $total } Tags
+    }
+tags-no-match = Kein Tag-Pfad passt zur Suche.
+tags-copy-path = Tag-Pfad kopieren
+tags-copy-guid = GUID kopieren
+tags-irregular =
+    { $count ->
+        [one] Der Tag-Baum weicht an { $number } Stelle von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags zählt sie.
+       *[other] Der Tag-Baum weicht an { $number } Stellen von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags zählt sie.
+    }
 preview-tab-model = Modell
 model-reset = Ansicht zurücksetzen
 model-hint = Ziehen: drehen · Rechtsklick-Ziehen oder Umschalt-Ziehen: verschieben · Mausrad: zoomen · Pfeile: drehen, Umschalt und Pfeile: verschieben · + und -: zoomen · Pos1: zurücksetzen

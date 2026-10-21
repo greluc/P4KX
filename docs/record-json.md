@@ -135,6 +135,20 @@ stands for no text and is not a missing translation. The
 [JSON Schema](../schemas/record-json.schema.json) allows both forms. The same Records and the same
 language always give the same bytes.
 
+## Tag paths
+
+`p4kx dcb export --tags` adds the tag path of the Tag a Reference points to, as `tag` after `type`
+and `at`:
+
+```json
+{"guid": "aa687902-f049-47c0-9045-8725ecf395cf", "path": "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase", "type": "Tag", "tag": "Ship.Series.Avenger"}
+```
+
+The tag path is the names of the Tag and its ancestors in the tag tree from the root down, joined by
+`.`; see [Record XML](record-xml.md#tag-paths) for which References get it. Without `--tags` there
+is no `tag` key and the output is byte for byte the output described above. The
+[JSON Schema](../schemas/record-json.schema.json) allows `tag` as a string on a Reference.
+
 ## Files
 
 `--format json` writes one file per Record below the target folder under the rules of

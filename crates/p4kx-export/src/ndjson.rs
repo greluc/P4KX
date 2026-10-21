@@ -3,8 +3,8 @@ use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::{
-    CancelToken, ConflictPolicy, DataForge, ExtractionError, JsonLayout, Record, RecordExportError,
-    RecordExportOptions, RecordFailure, RecordJson, TextResolver, TreeBuilder,
+    Annotations, CancelToken, ConflictPolicy, DataForge, ExtractionError, JsonLayout, Record,
+    RecordExportError, RecordExportOptions, RecordFailure, RecordJson, TreeBuilder,
 };
 use rayon::prelude::*;
 use tempfile::NamedTempFile;
@@ -123,7 +123,9 @@ fn stream(
                     trees: TreeBuilder::new(),
                     json: RecordJson::new(JsonLayout::Compact),
                 },
-                |scratch, lines| write_part(scratch, lines, options.progress, options.texts),
+                |scratch, lines| {
+                    write_part(scratch, lines, options.progress, options.annotations())
+                },
             )
             .collect();
         batch_len = next_batch_len(batch.len(), parts.iter().map(|part| part.bytes.len()).sum());
@@ -194,7 +196,7 @@ fn write_part<'r, 'f>(
     scratch: &mut Scratch<'f>,
     lines: &[Line<'r, 'f>],
     progress: Option<&(dyn Fn() + Sync)>,
-    texts: Option<&dyn TextResolver>,
+    annotations: Annotations<'_>,
 ) -> Part<'r, 'f> {
     let mut part = Part {
         bytes: Vec::new(),
@@ -205,7 +207,10 @@ fn write_part<'r, 'f>(
         match scratch.trees.build(line.record) {
             Ok(tree) => {
                 let start = part.bytes.len();
-                match scratch.json.write_with(&tree, texts, &mut part.bytes) {
+                match scratch
+                    .json
+                    .write_annotated(&tree, annotations, &mut part.bytes)
+                {
                     Ok(()) => {
                         part.bytes.push(b'\n');
                         part.error_counts.push(tree.error_count());

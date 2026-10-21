@@ -98,6 +98,9 @@ empty or `error` is set.
 With `--lang <language>` the report also holds `"language": "de"`, the code of the language the
 texts were resolved in; without it the field is absent.
 
+With `--tags` the report also holds `"tags": true`: the Records carry the tag path of every tag
+Reference ([record-xml.md](record-xml.md#tag-paths)); without it the field is absent.
+
 With `--combined` the report also holds `"file": "Game2.xml"`, the combined file relative to
 `target`, and `exported` counts the Records written into it. When an existing file is kept under
 `--conflict`, `skipped` holds its name and `exported` is 0; under `if-changed` the document was
@@ -402,6 +405,43 @@ GUIDs no Record has, with `"record": null` and the `guid` they name.
 holds the Reference. A DataForge that holds more than 8,388,608 References, or Records that
 cannot be read, give a warning on stderr; the index is then incomplete. It keeps the first
 8,388,608 References in the order of the Records.
+
+## `p4kx dcb tags <archive> [<tag>] [--tree] [--format table|json] --json`
+
+Lists the tag tree: the Tags of the `TagDatabase` with their tag paths. `<tag>` is a GUID or a tag
+path (ignoring case; sibling Tags may share one, so it can name several); with it only that Tag and
+everything below it is listed, without it every Tag. `--json` is `--format json`; with
+`--format table` it is invalid input (exit code 2), as is a `<tag>` no Tag has.
+
+```json
+{"archive": "…", "tag_count": 18891, "shown_count": 3, "issues": {"unreadable": 0, "dangling": 0,
+ "repeated": 0, "too_deep": 0, "too_long": 0, "duplicate": 0, "unlisted": 0}, "tree": false, "tags": [{"guid": "…", "name": "Gun",
+ "path": "Weapon.Gun", "legacy_id": null, "parent": "…", "depth": 1, "children": ["…"]}]}
+```
+
+`tags` is flat in pre-order: a Tag, then everything below it, then its next sibling; the roots are
+in the order the `TagDatabase` lists them, then the Tags it does not list. `name` is the Tag alone,
+`path` the names from the root down joined by `.`, `legacy_id` the number stored as `legacyGUID` or
+`null` for none (4294967295), `parent` the GUID of the parent or `null` for a root, `depth` the number
+of Tags above it and `children` their GUIDs in the order the Tag lists them. `tag_count` is every Tag
+of the DataForge and `shown_count` the Tags listed, which differs with `<tag>`. `issues` counts what
+the tree could not take as the DataForge lists it, and each non-zero count is also a warning on
+stderr: `unreadable` Tag Records left out, `dangling` listed Tags that are no Tag Record,
+`repeated` Tags listed more than once (the first listing counts, which also cuts a cycle),
+`too_deep` Tags left out, with everything below each, below 64 levels, `too_long` Tags left out, with
+everything below each, whose name is over 256 bytes, whose path is over 1,024 bytes or that would
+take the paths of the tree over 64 MiB, `duplicate` Tag Records left out because an earlier one has
+their GUID, and `unlisted` Tags no `TagDatabase` reaches, which stand as roots of their own.
+
+With `--tree` the document holds `"tree": true` and `tags` holds only the top of the listing, the
+roots or the Tags `<tag>` names, each with its `children` nested as objects of the same shape; they
+have no `parent` and `depth`, and `children` is no list of GUIDs:
+
+```json
+{"tree": true, "tags": [{"guid": "…", "name": "Weapon", "path": "Weapon", "legacy_id": 7,
+ "children": [{"guid": "…", "name": "Gun", "path": "Weapon.Gun", "legacy_id": null,
+ "children": []}]}]}
+```
 
 ## `p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json] --json`
 

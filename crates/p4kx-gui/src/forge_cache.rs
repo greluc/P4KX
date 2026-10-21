@@ -7,6 +7,7 @@ use std::time::Duration;
 use p4kx_export::RecordFilePlans;
 use p4kx_extraction::DataForgeEntry;
 use p4kx_extraction::ReferenceIndex;
+use p4kx_extraction::TagTree;
 use p4kx_extraction::query::QuerySchema;
 
 use crate::EntryIndex;
@@ -26,6 +27,8 @@ pub(crate) struct ForgeSource {
     references: OnceLock<Arc<ReferenceIndex>>,
     references_turn: Mutex<()>,
     references_builds: AtomicUsize,
+    tags: OnceLock<Arc<TagTree>>,
+    tags_turn: Mutex<()>,
 }
 
 impl ForgeSource {
@@ -39,6 +42,8 @@ impl ForgeSource {
             references: OnceLock::new(),
             references_turn: Mutex::new(()),
             references_builds: AtomicUsize::new(0),
+            tags: OnceLock::new(),
+            tags_turn: Mutex::new(()),
         }
     }
 
@@ -72,6 +77,28 @@ impl ForgeSource {
 }
 
 impl ForgeSource {
+    /// Returns the tag tree of the DataForge already read, building it unless it was built before.
+    /// The build runs outside the [`OnceLock`], and one at a time, so that it happens once per read.
+    ///
+    /// # Errors
+    ///
+    /// Returns why the DataForge cannot be opened.
+    pub(crate) fn tags(&self) -> Result<Arc<TagTree>, ReadFailure> {
+        let _turn = self
+            .tags_turn
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(tags) = self.tags.get() {
+            return Ok(Arc::clone(tags));
+        }
+        let forge = self
+            .entry
+            .open()
+            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        let built = Arc::new(TagTree::build(&forge));
+        Ok(Arc::clone(self.tags.get_or_init(|| built)))
+    }
+
     /// Returns the index of the References between the Records, building it from the DataForge
     /// already read unless it was built before, or `None` once `stop` returns `true`, while
     /// building or while waiting for the build of another consumer. The build runs outside the
@@ -124,6 +151,7 @@ impl fmt::Debug for ForgeSource {
             .field("schema_builds", &self.schema_builds)
             .field("references", &self.references.get().is_some())
             .field("references_builds", &self.references_builds)
+            .field("tags", &self.tags.get().is_some())
             .finish_non_exhaustive()
     }
 }

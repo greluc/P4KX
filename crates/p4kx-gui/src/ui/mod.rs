@@ -72,6 +72,8 @@ mod soundbank_table;
 mod status;
 mod table;
 mod table_name;
+mod tags;
+mod tags_table;
 mod tree;
 mod viewer_input;
 mod xml_preview;
@@ -91,7 +93,7 @@ use crate::widgets::{frames, tab};
 const RESIZE_GAP: i8 = 6;
 use crate::{
     ComparisonSide, ComparisonText, ContentSearchText, LocalizationText, Model, PreviewTab,
-    QueryExportFormat, QueryText, Text, WorkTab,
+    QueryExportFormat, QueryText, TagsText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -208,6 +210,7 @@ fn poll_background(model: &mut Model) {
     model.poll_key_request();
     model.query_mut().poll();
     model.localization_mut().poll();
+    model.tags_mut().poll();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -220,6 +223,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Comparison => return comparison::show(ui, model, requests),
         WorkTab::Query => return query::show(ui, model, requests),
         WorkTab::Localization => return localization::show(ui, model),
+        WorkTab::Tags => return tags::show(ui, model),
         WorkTab::Search => return content_search::show(ui, model),
         WorkTab::Archive => {}
     }
@@ -256,7 +260,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 5] = [
+const WORK_TABS: [(WorkTab, Text); 6] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -270,6 +274,7 @@ const WORK_TABS: [(WorkTab, Text); 5] = [
         WorkTab::Localization,
         Text::Localization(LocalizationText::Tab),
     ),
+    (WorkTab::Tags, Text::Tags(TagsText::Tab)),
     (WorkTab::Search, Text::ContentSearch(ContentSearchText::Tab)),
 ];
 

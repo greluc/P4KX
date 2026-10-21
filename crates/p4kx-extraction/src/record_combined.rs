@@ -3,7 +3,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use p4kx_dataforge::{
-    DataForge, RECORD_XML_NAMESPACE, Record, RecordXml, TextResolver, TreeBuilder,
+    Annotations, DataForge, RECORD_XML_NAMESPACE, Record, RecordXml, TreeBuilder,
 };
 use rayon::prelude::*;
 
@@ -165,7 +165,7 @@ fn build<'f>(
     record: &Record<'f>,
     scratch: &mut Scratch<'f>,
     cancel: Option<&CancelToken>,
-    texts: Option<&dyn TextResolver>,
+    annotations: Annotations<'_>,
     file: &Path,
 ) -> Built {
     if cancel.is_some_and(CancelToken::is_cancelled) {
@@ -178,7 +178,7 @@ fn build<'f>(
     let mut bytes = Vec::new();
     match scratch
         .xml
-        .write_wrapped_element_with(&tree, texts, 1, &mut bytes)
+        .write_wrapped_element_annotated(&tree, annotations, 1, &mut bytes)
     {
         Ok(()) => Built::Xml {
             bytes,
@@ -226,7 +226,8 @@ impl<'p> Document<'p> {
         report: &mut RecordExportReport,
     ) -> Result<Option<(u64, u32)>, ExtractionError> {
         let file = self.file;
-        let (cancel, progress, texts) = (options.cancel, options.progress, options.texts);
+        let (cancel, progress, annotations) =
+            (options.cancel, options.progress, options.annotations());
         let mut pending = Vec::new();
         for batch in order.chunks(BATCH_LEN) {
             let (written, next) = rayon::join(
@@ -236,7 +237,7 @@ impl<'p> Document<'p> {
                         .par_iter()
                         .filter_map(|position| records.get(*position))
                         .map_init(Scratch::default, |scratch, record| {
-                            let built = build(record, scratch, cancel, texts, file);
+                            let built = build(record, scratch, cancel, annotations, file);
                             if let Some(progress) = progress {
                                 progress();
                             }

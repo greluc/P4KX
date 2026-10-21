@@ -1,0 +1,49 @@
+name: Set up Rust
+description: Shared build setup of the CI jobs, run after checkout
+
+inputs:
+  cache-key:
+    description: Distinct rust-cache key per job type
+    required: true
+  components:
+    description: Extra toolchain components
+    default: ""
+  nextest:
+    description: Install cargo-nextest
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Link with rust-lld on Windows
+      if: runner.os == 'Windows'
+      shell: bash
+      run: echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld.exe" >> "$GITHUB_ENV"
+    - name: Link with mold on Linux
+      if: runner.os == 'Linux'
+      uses: rui314/setup-mold@v1
+    - name: Select mold as the Linux linker
+      if: runner.os == 'Linux'
+      shell: bash
+      run: echo "RUSTFLAGS=-Clink-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
+    - name: Mount a ReFS Dev Drive as the target directory
+      if: runner.os == 'Windows'
+      uses: samypr100/setup-dev-drive@v4
+      with:
+        drive-size: 60GB
+        mount-path: target
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: ${{ inputs.components }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ inputs.cache-key }}
+    - name: Install cargo-nextest
+      if: inputs.nextest == 'true'
+      uses: taiki-e/install-action@v2
+      with:
+        tool: nextest
+    - name: Install the ALSA headers the audio output builds against
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev

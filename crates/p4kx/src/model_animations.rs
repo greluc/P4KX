@@ -122,7 +122,7 @@ pub(crate) fn count_line(set: &AnimationSet) -> String {
     let unread = if set.unread.is_empty() {
         String::new()
     } else {
-        format!(", {} unreadable", set.unread.len())
+        format!(", {} skipped", set.unread.len())
     };
     format!(
         "{} (from {} files{unread})",
@@ -178,7 +178,7 @@ pub(crate) fn write_notes(
         if summary.additive {
             writeln!(
                 out,
-                "animation {name} is additive: its keys are offsets to a pose, which glTF cannot say"
+                "animation {name} is additive: its keys are offsets to a pose, which glTF cannot say, so it needs a base animation"
             )?;
         }
     }

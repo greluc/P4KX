@@ -1,13 +1,17 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use p4kx_model::{Animation, Dba};
+use p4kx_model::Animation;
 use rayon::prelude::*;
 
+use crate::animation_load::{Kind, kind, load};
 use crate::{ChunkSource, ConversionError, Entry, PathIndex};
 
 /// The largest `.caf` or `.dba` file read into memory, far above the largest of a real Archive.
 pub const MAX_ANIMATION_FILE_LEN: u64 = 256 << 20;
+
+/// Why an additive animation is not written unless it is named.
+const ADDITIVE_REASON: &str = "additive animation — needs a base animation";
 
 /// Which animations of the sources to read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,27 +54,11 @@ pub struct AnimationSet {
     pub files: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Kind {
-    Caf,
-    Dba,
-}
-
 #[derive(Debug, Clone)]
 struct Source {
     label: String,
     explicit: bool,
-}
-
-fn kind(path: &str) -> Option<Kind> {
-    let extension = Path::new(path).extension()?;
-    if extension.eq_ignore_ascii_case("caf") {
-        Some(Kind::Caf)
-    } else if extension.eq_ignore_ascii_case("dba") {
-        Some(Kind::Dba)
-    } else {
-        None
-    }
+    whole: bool,
 }
 
 fn normalised(path: &str) -> String {
@@ -106,52 +94,19 @@ fn folders(entry: &str) -> Vec<String> {
     folders
 }
 
-struct Loaded {
-    animations: Vec<Animation>,
-    unread: Vec<UnreadAnimation>,
-}
-
-fn load(source: &ChunkSource, label: &str, kind: Kind) -> Result<Loaded, ConversionError> {
-    let name = label.rsplit(['/', '\\']).next().unwrap_or(label);
-    let failed = |source| ConversionError::Animation {
-        file: label.to_owned(),
-        source,
-    };
-    match kind {
-        Kind::Caf => Ok(Loaded {
-            animations: vec![Animation::read_caf(name, source.file()).map_err(failed)?],
-            unread: Vec::new(),
-        }),
-        Kind::Dba => {
-            let dba = Dba::read(name, source.file()).map_err(failed)?;
-            let unread = dba
-                .skipped
-                .into_iter()
-                .map(|skipped| UnreadAnimation {
-                    source: label.to_owned(),
-                    name: Some(skipped.name),
-                    reason: skipped.reason.to_string(),
-                })
-                .collect();
-            Ok(Loaded {
-                animations: dba.animations,
-                unread,
-            })
-        }
-    }
-}
-
 impl AnimationSet {
     /// Reads the animations `choice` selects from the `.caf` and `.dba` Entries in the folder of
     /// the model Entry `model_entry`, in the folder at the same place below `Data\Animations`
     /// and the Entries `extra`, all looked up through `index`.
     ///
     /// A `.caf` file whose stem no name matches is not read, so a folder of thousands of
-    /// animations costs little when a few are asked for.
+    /// animations costs little when a few are asked for. An additive animation is left out and
+    /// listed in `unread` unless `choice` names it, or it is a `.caf` Entry of `extra`.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::UnknownEntry`] when an Entry of `extra` does not exist,
+    /// [`ConversionError::NotAnimationFile`] when it is no `.caf` or `.dba` Entry,
     /// [`ConversionError::Animation`] when an Entry of `extra` or one `choice` names by path is no
     /// readable animation file, [`ConversionError::UnknownAnimations`] when a name of `choice`
     /// matches no animation, and another [`ConversionError`] when an Entry cannot be read.
@@ -176,15 +131,22 @@ impl AnimationSet {
             .map(|path| Source {
                 label: path.to_owned(),
                 explicit: false,
+                whole: false,
             })
             .collect();
         for path in extra {
             let entry = index
                 .find(path)
                 .ok_or_else(|| crate::UnknownEntries(vec![path.clone()]))?;
+            if kind(entry.path()).is_none() {
+                return Err(ConversionError::NotAnimationFile {
+                    file: entry.path().to_owned(),
+                });
+            }
             sources.push(Source {
                 label: entry.path().to_owned(),
-                explicit: false,
+                explicit: true,
+                whole: false,
             });
         }
         let named = match choice {
@@ -198,6 +160,7 @@ impl AnimationSet {
                 sources.push(Source {
                     label: entry.path().to_owned(),
                     explicit: true,
+                    whole: true,
                 });
             }
         }
@@ -231,12 +194,20 @@ impl AnimationSet {
             .map(|path| Source {
                 label: path.display().to_string(),
                 explicit: false,
+                whole: false,
             })
             .collect();
-        sources.extend(extra.iter().map(|path| Source {
-            label: path.display().to_string(),
-            explicit: false,
-        }));
+        for path in extra {
+            let label = path.display().to_string();
+            if kind(&label).is_none() {
+                return Err(ConversionError::NotAnimationFile { file: label });
+            }
+            sources.push(Source {
+                label,
+                explicit: true,
+                whole: false,
+            });
+        }
         if let AnimationChoice::Named(specs) = choice {
             sources.extend(
                 specs
@@ -245,6 +216,7 @@ impl AnimationSet {
                     .map(|spec| Source {
                         label: spec.clone(),
                         explicit: true,
+                        whole: true,
                     }),
             );
         }
@@ -300,10 +272,11 @@ fn read(
     choice: &AnimationChoice,
     open: impl Fn(&str) -> Result<ChunkSource, ConversionError> + Sync,
 ) -> Result<AnimationSet, ConversionError> {
-    sources.sort_by_cached_key(|source| (normalised(&source.label), !source.explicit));
+    sources.sort_by_cached_key(|source| (normalised(&source.label), !source.whole));
     sources.dedup_by(|later, earlier| {
         let same = normalised(&later.label) == normalised(&earlier.label);
         earlier.explicit |= same && later.explicit;
+        earlier.whole |= same && later.whole;
         same
     });
     let wanted = Wanted::of(choice);
@@ -334,14 +307,7 @@ fn read(
         };
         set.files += 1;
         set.unread.extend(loaded.unread);
-        for animation in loaded.animations {
-            let hits = wanted.hits(&animation.name, &animation.path);
-            if source.explicit || !wanted.by_name || !hits.is_empty() {
-                matched.extend(hits);
-                set.origins.push(source.label.clone());
-                set.animations.push(animation);
-            }
-        }
+        keep(&mut set, &mut matched, &wanted, source, loaded.animations);
     }
     let missing: Vec<String> = wanted
         .specs
@@ -350,7 +316,7 @@ fn read(
             !matched.contains(**spec)
                 && !sources
                     .iter()
-                    .any(|source| source.explicit && names(spec, "", &source.label))
+                    .any(|source| source.whole && names(spec, "", &source.label))
         })
         .map(|spec| (*spec).to_owned())
         .collect();
@@ -358,6 +324,32 @@ fn read(
         Ok(set)
     } else {
         Err(ConversionError::UnknownAnimations { names: missing })
+    }
+}
+
+/// Adds the animations of `source` that the choice wants to `set`, and lists the additive ones
+/// nothing names as unread.
+fn keep<'a>(
+    set: &mut AnimationSet,
+    matched: &mut HashSet<&'a str>,
+    wanted: &Wanted<'a>,
+    source: &Source,
+    animations: Vec<Animation>,
+) {
+    let caf_by_caller = source.explicit && kind(&source.label) == Some(Kind::Caf);
+    for animation in animations {
+        let hits = wanted.hits(&animation.name, &animation.path);
+        if animation.additive && hits.is_empty() && !caf_by_caller {
+            set.unread.push(UnreadAnimation {
+                source: source.label.clone(),
+                name: Some(animation.name),
+                reason: ADDITIVE_REASON.to_owned(),
+            });
+        } else if source.whole || !wanted.by_name || !hits.is_empty() {
+            matched.extend(hits);
+            set.origins.push(source.label.clone());
+            set.animations.push(animation);
+        }
     }
 }
 

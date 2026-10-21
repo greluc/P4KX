@@ -274,6 +274,12 @@ pub enum ConversionError {
         #[source]
         source: AnimationError,
     },
+    /// A file named as a source of animations is no `.caf` or `.dba` file.
+    #[error("{file} is no .caf or .dba file")]
+    NotAnimationFile {
+        /// The Entry path or file.
+        file: String,
+    },
     /// No animation has the name that was asked for.
     #[error("no animation is named {}", names.join(", "))]
     UnknownAnimations {

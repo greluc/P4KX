@@ -846,7 +846,10 @@ read from, `duration_seconds` its last frame over the frame rate, `additive` whe
 offsets to a pose, `tracks` the number of bones it has keys for, `bound_tracks` how many of them are
 bones of the model's skeleton (matched by `controller_id`) and `keys` the rotation and translation
 keys together. `unread_animations` lists the files, and the animations of a database, that could
-not be read, with the reason; names in both lists have control characters replaced.
+not be read or that are additive (`reason` is "additive animation — needs a base animation";
+they are written only when named), with the reason; names in both lists have control characters
+replaced. A file `--anim-from` names that is no `.caf` or `.dba` exits with code 2, one that
+cannot be read with 3.
 `chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
@@ -889,10 +892,11 @@ export skipped, as in `p4kx model info`. `animations` lists the animations asked
 in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
 translation of a bone each; an animation with none is not written), `keys` the keys in them and
 `skipped_tracks` the controller IDs of the tracks left out because no bone of the skeleton has
-them, ADR-0046; `unread_animations` is as in `p4kx model info`. An output that is one of the
+them, ADR-0046; `unread_animations` is as in `p4kx model info`: `--anim all` leaves the additive
+animations out and lists them there, and `additive` is `true` only for one that was named. An output that is one of the
 model's files, a `--lod` the model lacks, a name `--anim` finds no animation for or an
-`--anim-from` Entry that does not exist exits with code 2, an animation file that is corrupt or not
-supported with 3.
+`--anim-from` Entry that does not exist or is no `.caf` or `.dba` exits with code 2, an animation
+file that is corrupt or not supported, an `--anim-from` one included, with 3.
 
 ## `p4kx extract … --json`
 

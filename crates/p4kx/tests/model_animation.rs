@@ -25,7 +25,7 @@ fn info_lists_the_animations_with_their_duration() -> TestResult {
     assert_eq!(output.status.code(), Some(0), "success: {output:?}");
     let text = String::from_utf8(output.stdout)?;
     assert!(
-        text.contains("Animations:  4 (from 3 files)"),
+        text.contains("Animations:  3 (from 3 files, 1 skipped)"),
         "count: {text}"
     );
     let wave = text
@@ -42,14 +42,11 @@ fn info_lists_the_animations_with_their_duration() -> TestResult {
         .find(|line| line.starts_with("slide "))
         .ok_or("the slide row")?;
     assert!(slide.contains("2.000"), "60 frames at 30 fps: {slide}");
-    let back = text
-        .lines()
-        .find(|line| line.starts_with("slide_back "))
-        .ok_or("the slide_back row")?;
-    assert!(back.contains("yes"), "additive: {back}");
     assert!(
-        back.split_whitespace().nth(4) == Some("2") && back.split_whitespace().nth(5) == Some("1"),
-        "two tracks, one bound: {back}"
+        text.contains(
+            "skipped animation slide_back of Data\\Animations\\Objects\\Test\\pack.dba: additive animation \u{2014} needs a base animation"
+        ),
+        "additive skipped: {text}"
     );
     Ok(())
 }
@@ -68,7 +65,16 @@ fn info_json_gives_every_animation() -> TestResult {
     assert_eq!(output.status.code(), Some(0), "success: {output:?}");
     let info: Value = serde_json::from_slice(&output.stdout)?;
     let animations = info["animations"].as_array().ok_or("animations")?;
-    assert_eq!(animations.len(), 4, "nod, wave and the two of the database");
+    assert_eq!(animations.len(), 3, "nod, wave and the database's slide");
+    assert_eq!(
+        info["unread_animations"],
+        serde_json::json!([{
+            "source": PACK,
+            "name": "slide_back",
+            "reason": "additive animation \u{2014} needs a base animation"
+        }]),
+        "the additive one is skipped"
+    );
     let nod = animations
         .iter()
         .find(|animation| animation["name"] == "nod")
@@ -84,8 +90,8 @@ fn info_json_gives_every_animation() -> TestResult {
             .iter()
             .filter(|animation| animation["source"] == PACK)
             .count(),
-        2,
-        "two from the database"
+        1,
+        "one from the database"
     );
     Ok(())
 }
@@ -156,7 +162,27 @@ fn anim_all_includes_every_animation_found() -> TestResult {
     assert_eq!(output.status.code(), Some(0), "success: {output:?}");
     let mut names = animation_names(&check_glb(&fs::read(&out)?)?);
     names.sort();
-    assert_eq!(names, ["nod", "slide", "slide_back", "wave"], "all four");
+    assert_eq!(names, ["nod", "slide", "wave"], "all but the additive one");
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(
+        stdout.contains("skipped animation slide_back of")
+            && stdout.contains("additive animation \u{2014} needs a base animation"),
+        "additive skipped: {stdout}"
+    );
+
+    let json = p4kx()?
+        .args(["--json", "model", "glb"])
+        .arg(&archive)
+        .arg(SKIN)
+        .arg("--out")
+        .arg(&out)
+        .args(["--anim", "all"])
+        .output()?;
+    let summary: Value = serde_json::from_slice(&json.stdout)?;
+    assert_eq!(
+        summary["unread_animations"][0]["name"], "slide_back",
+        "listed as skipped"
+    );
     Ok(())
 }
 
@@ -171,7 +197,7 @@ fn anim_with_the_path_of_a_database_includes_all_of_its_animations() -> TestResu
     assert_eq!(output.status.code(), Some(0), "success: {output:?}");
     let mut names = animation_names(&check_glb(&fs::read(&out)?)?);
     names.sort();
-    assert_eq!(names, ["slide", "slide_back"], "the database's two");
+    assert_eq!(names, ["slide"], "the database's one that is not additive");
     Ok(())
 }
 
@@ -191,7 +217,10 @@ fn tracks_for_bones_the_skeleton_lacks_are_skipped_and_reported() -> TestResult 
         ),
         "report: {stdout}"
     );
-    assert!(stdout.contains("is additive"), "additive note: {stdout}");
+    assert!(
+        stdout.contains("is additive") && stdout.contains("needs a base animation"),
+        "additive note: {stdout}"
+    );
 
     let json = p4kx()?
         .args(["--json", "model", "glb"])

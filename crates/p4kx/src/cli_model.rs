@@ -55,8 +55,10 @@ pub(crate) enum ModelAction {
         /// path of a .caf or .dba Entry or file, which includes all of its animations. Animations
         /// are looked for in the .caf and .dba files in the model's folder, in the folder at the
         /// same place below Data\Animations, and in the files named by --anim-from. Tracks whose
-        /// controller no bone of the skeleton has are left out and listed. A NAME that no
-        /// animation has is invalid input.
+        /// controller no bone of the skeleton has are left out and listed. Additive animations,
+        /// whose keys are offsets to a base animation, are left out and listed unless named
+        /// (a .caf given with --anim-from counts as named). A NAME that no animation has is
+        /// invalid input.
         #[arg(long = "anim", value_name = "NAME")]
         animations: Vec<String>,
     },
@@ -80,7 +82,8 @@ pub(crate) struct ModelFileSource {
     /// companions are taken from the same folder of the Archive.
     pub(crate) entry: Option<String>,
     /// A .caf or .dba Entry (or file, when the model is a file) to look for animations in, in
-    /// addition to the model's folders; repeatable.
+    /// addition to the model's folders; repeatable. A file that is no .caf or .dba is invalid
+    /// input, and one that cannot be read is an error.
     #[arg(long = "anim-from", value_name = "ENTRY_OR_FILE")]
     pub(crate) animation_sources: Vec<String>,
 }

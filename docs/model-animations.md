@@ -59,8 +59,9 @@ path (or of the `.caf` file).
 The flag bit 0 marks the additive animations: the 18 of the 11 databases of `male_v7\weapons\no_weapon` in the first sample
 (`..._add.caf`, `..._additive.caf`) have first rotations that lie a median 0.00 to 0.21 rad from the identity and 0.4 to 3.1 rad
 from the bind pose, while the 489 others lie 0.2 to 0.3 rad from the bind pose and 0.4 to 1.2 rad from the identity. The keys are
-offsets to be added to another animation; glTF cannot say that, so the export writes them as they are and tells
-(ADR-0046).
+offsets to be added to another animation; glTF cannot say that, and written as local poses they collapse the skeleton in a
+viewer. The export therefore skips them unless they are named and lists them as skipped with the reason "additive animation
+— needs a base animation"; a named one is written as it is with a note that its pose needs a base (ADR-0046).
 
 ### Blocks and controllers
 

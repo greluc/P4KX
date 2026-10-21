@@ -44,8 +44,16 @@ Decided for issue #107. Evidence: docs/model-animations.md.
   two keys or more and `STEP` for a channel with one key (a held pose). The files carry no interpolation
   flag; every format stores keys over frames.
 - An animation with no channel (no track found its bone) is not written. An additive animation
-  is written as it is and noted, since glTF cannot say that keys are offsets: 1,475 of the 54,148
-  `.caf` files and 1,905 of the 15,910 database animations are additive.
+  (flag bit 0) is skipped by default and listed as skipped with the reason "additive animation
+  — needs a base animation": its keys are offsets, glTF cannot say that, and written as absolute
+  local poses they collapse the skeleton in a viewer (0.4 to 3.1 rad from the bind pose). It is
+  written only when the user names it (a name of `--anim`, or a `.caf` Entry or file of
+  `--anim-from`), with a note that the pose needs a base animation. The keys are not composed onto
+  the bind pose. 1,475 of the 54,148 `.caf` files and 1,905 of the 15,910 database animations are
+  additive.
+- The sources `--anim-from` names are explicit: one that is no `.caf` or `.dba` file exits with
+  2, one that cannot be read with 3. The animations found in the model's folders that cannot be
+  read are listed as unread.
 - Animation accessors have no `target` on their buffer views, and times and values of all
   animations are written after the meshes in the one binary chunk. The testkit's checker
   validates animations: distinct channel targets, strictly increasing times with exact `min` and
@@ -60,6 +68,7 @@ Decided for issue #107. Evidence: docs/model-animations.md.
   `--anim-from` names. A name is the stem of a `.caf` file or an animation of a database, its file name
   or the end of its path, ignoring case; the path of a `.caf` or `.dba` entry takes all of its animations.
   A `.caf` file is only read when its stem matches a name. A name nothing matches exits with 2.
+  `all` leaves out the additive animations and lists them as skipped.
 - `p4kx model info` lists the animations found with name, duration, frames, frame rate, tracks,
   tracks that find a bone of the model's skeleton, keys, the additive flag and source, and
   `--json` gives the same (`animations`, `unread_animations`). Names are untrusted file content

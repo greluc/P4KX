@@ -238,6 +238,7 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
                 source: ModelError::MissingGeometry { .. } | ModelError::NoSuchLod { .. },
                 ..
             } | ConversionError::UnknownAnimations { .. }
+                | ConversionError::NotAnimationFile { .. }
                 | ConversionError::Glb {
                     source: GltfError::NoSuchLod { .. },
                     ..

@@ -53,6 +53,107 @@ fn anim_from_an_entry_that_does_not_exist_is_invalid_input() -> TestResult {
 }
 
 #[test]
+fn an_additive_caf_of_anim_from_is_written() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let skin = TestModel::two_bone_skin();
+    let layered = "Data\\Animations\\Elsewhere\\layered.caf";
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(SKIN, skin.cgf()))
+        .entry(TestEntry::zstd(SKIN_GEOMETRY, skin.cgfm()))
+        .entry(TestEntry::zstd(
+            layered,
+            rotating("layered.caf", tip(), 30).additive().caf(),
+        ))
+        .write_to(&path)?;
+    let out = dir.path().join("skin.glb");
+
+    let skipped = glb_of(&path, &out, &["--anim", "all"])?;
+    assert_eq!(skipped.status.code(), Some(0), "all: {skipped:?}");
+    assert!(
+        animation_names(&check_glb(&fs::read(&out)?)?).is_empty(),
+        "no animation"
+    );
+
+    let named = glb_of(&path, &out, &["--anim", "layered", "--anim-from", layered])?;
+    assert_eq!(named.status.code(), Some(0), "named: {named:?}");
+    assert_eq!(
+        animation_names(&check_glb(&fs::read(&out)?)?),
+        ["layered"],
+        "written when named"
+    );
+    let stdout = String::from_utf8(named.stdout)?;
+    assert!(stdout.contains("needs a base animation"), "note: {stdout}");
+    Ok(())
+}
+
+#[test]
+fn a_corrupt_anim_from_entry_is_an_archive_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let skin = TestModel::two_bone_skin();
+    let broken = "Data\\Animations\\Elsewhere\\broken.caf";
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(SKIN, skin.cgf()))
+        .entry(TestEntry::zstd(SKIN_GEOMETRY, skin.cgfm()))
+        .entry(TestEntry::zstd(broken, vec![0x42; 64]))
+        .write_to(&path)?;
+    let out = dir.path().join("skin.glb");
+
+    let output = glb_of(&path, &out, &["--anim", "all", "--anim-from", broken])?;
+
+    assert_eq!(output.status.code(), Some(3), "archive error: {output:?}");
+    assert!(!out.exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
+fn an_anim_from_entry_of_another_kind_is_invalid_input() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("skin.glb");
+
+    let output = glb_of(&archive, &out, &["--anim", "all", "--anim-from", SKIN])?;
+
+    assert_eq!(output.status.code(), Some(2), "invalid input: {output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("is no .caf or .dba file"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_corrupt_or_wrong_anim_from_file_on_disk_is_refused() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let skin = TestModel::two_bone_skin();
+    fs::write(dir.path().join("skin.skin"), skin.cgf())?;
+    fs::write(dir.path().join("skin.skinm"), skin.cgfm())?;
+    let broken = dir.path().join("elsewhere");
+    fs::create_dir(&broken)?;
+    let broken_caf = broken.join("broken.caf");
+    fs::write(&broken_caf, [0x42; 64])?;
+    let notes = broken.join("notes.txt");
+    fs::write(&notes, "text")?;
+    let out = dir.path().join("out.glb");
+
+    let run = |from: &std::path::Path| -> Result<std::process::Output, Box<dyn Error>> {
+        Ok(p4kx()?
+            .args(["model", "glb"])
+            .arg(dir.path().join("skin.skin"))
+            .arg("--out")
+            .arg(&out)
+            .args(["--anim", "all", "--anim-from"])
+            .arg(from)
+            .output()?)
+    };
+
+    let corrupt = run(&broken_caf)?;
+    assert_eq!(corrupt.status.code(), Some(3), "corrupt: {corrupt:?}");
+    let wrong = run(&notes)?;
+    assert_eq!(wrong.status.code(), Some(2), "wrong kind: {wrong:?}");
+    Ok(())
+}
+
+#[test]
 fn a_static_model_moves_the_nodes_its_helper_bones_drive() -> TestResult {
     let dir = tempfile::tempdir()?;
     let door_animation = TestAnimation::new("open.caf", 30).track(

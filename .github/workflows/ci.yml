@@ -29,9 +29,6 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
-      - name: Disk space before the Dev Drive
-        if: runner.os == 'Windows'
-        run: Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
       - name: Put the Cargo home and the target directory on a ReFS Dev Drive
         if: runner.os == 'Windows'
         uses: samypr100/setup-dev-drive@v4

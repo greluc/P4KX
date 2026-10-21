@@ -128,6 +128,13 @@ Early development (milestone M1). Available today:
   it, its size and helper, and recursively the ports of each attached Entity. Ports that cannot be
   resolved, such as a dangling Reference, are listed with the reason; with `--json` the tree has
   the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx entity glb <archive> <entity> --out <file>` exports an Entity as one GLB: its geometry and
+  that of every Entity of its default Loadout, each placed at its port as a node named
+  `<port>/<entity>` below the node of the Entity it is attached to. `--lod <n>` applies to every
+  model and `--materials colours` writes plain colours, with the material library an Entity's
+  Record names replacing the one its model names. Parts whose Entity or geometry cannot be
+  resolved are skipped and listed; with `--json` the report has the shape described in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx wwise resolve <archive> <trigger>` lists every sound variant of an audio trigger with
   its soundbank, WEM ID, source and container path, e.g. `Play_QDrive_Spool in SSQD_QDrive.bnk:
   WEM 98393519 embedded, not located; event 2178236557 > action 98720655 > blend 228967944 > …`;

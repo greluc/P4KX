@@ -5,6 +5,7 @@ use p4kx_model::{Lod, Model};
 
 use crate::GltfError;
 use crate::document::document;
+use crate::instance::{Instance, Wrapper};
 use crate::layout::Layout;
 use crate::materials::{MaterialPlan, Slot};
 use crate::skin::inverse_binds;
@@ -129,6 +130,11 @@ pub struct GlbSummary {
     pub triangles: usize,
     /// The length of the file in bytes.
     pub bytes: u64,
+    /// The number of models written: 1 for a single model, one per scene node with a model.
+    pub parts: usize,
+    /// The number of scene models drawn at another level of detail than the one asked for,
+    /// because they lack it.
+    pub lod_fallbacks: usize,
 }
 
 /// Writes `model` as a GLB file to `out`: the JSON chunk first, then the binary data, streamed
@@ -165,29 +171,42 @@ pub fn write_glb_with(
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
     let lod = find_lod(model, options.lod)?;
-    let plan = MaterialPlan::new(model, lod);
-    let bones = model.bones_of(lod);
-    let binds = (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
-        .then(|| inverse_binds(bones));
-    let mut layout = Layout::plan(lod, options.vertex_colours, &plan, binds.as_deref());
-    let images = match options.materials {
-        MaterialMode::Colours => TextureSet::default(),
-        MaterialMode::Textures => {
-            let mut slots: Vec<Slot> = Vec::new();
-            for slot in layout
-                .material_ids()
-                .into_iter()
-                .filter_map(|id| plan.slot(id))
-            {
-                if !slots.contains(&slot) {
-                    slots.push(slot);
-                }
-            }
-            TextureSet::build(&plan, &slots, options.texture_mip, textures)
+    let instance = Instance {
+        model,
+        lod: Some(lod),
+        wrapper: None,
+        plan: MaterialPlan::new(model.materials.library(), lod),
+    };
+    write_instances(&[], &[instance], options, textures, 0, out)
+}
+
+pub(crate) fn write_instances(
+    wrappers: &[Wrapper<'_>],
+    instances: &[Instance<'_>],
+    options: &GlbOptions,
+    textures: &dyn TextureLoader,
+    lod_fallbacks: usize,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let single = match (wrappers, instances) {
+        ([], [instance]) => Some(instance),
+        _ => None,
+    };
+    let binds = single.and_then(|instance| {
+        let lod = instance.lod?;
+        let bones = instance.model.bones_of(lod);
+        (!bones.is_empty() && lod.meshes.iter().any(|mesh| mesh.influences.is_some()))
+            .then(|| inverse_binds(bones))
+    });
+    let mut layout = plan_layout(instances, options, binds.as_deref());
+    let images = match (options.materials, single) {
+        (MaterialMode::Textures, Some(instance)) => {
+            texture_set(&layout, instance, options.texture_mip, textures)
         }
+        _ => TextureSet::default(),
     };
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let root = document(model, lod, &layout, &plan, &images);
+    let root = document(wrappers, instances, &layout, &images);
     let mut json = root.to_vec()?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
@@ -213,7 +232,52 @@ pub fn write_glb_with(
         layout.write(out, &images.images)?;
     }
     out.flush()?;
-    Ok(summarise(model, &root, &layout, &plan, images, total))
+    let defaulted = instances
+        .iter()
+        .map(|instance| instance.plan.defaulted())
+        .sum();
+    let drawn_nodes = wrappers.len()
+        + instances
+            .iter()
+            .map(|instance| instance.model.nodes.len())
+            .sum::<usize>();
+    let mut summary = summarise(&root, &layout, defaulted, drawn_nodes, images, total);
+    summary.parts = instances.len();
+    summary.lod_fallbacks = lod_fallbacks;
+    Ok(summary)
+}
+
+fn plan_layout<'m>(
+    instances: &[Instance<'m>],
+    options: &GlbOptions,
+    binds: Option<&'m [[f32; 16]]>,
+) -> Layout<'m> {
+    let mut layout = Layout::new();
+    for (part, instance) in instances.iter().enumerate() {
+        if let Some(lod) = instance.lod {
+            layout.add_part(part, lod, options.vertex_colours, &instance.plan, binds);
+        }
+    }
+    layout
+}
+
+fn texture_set(
+    layout: &Layout<'_>,
+    instance: &Instance<'_>,
+    mip: u32,
+    textures: &dyn TextureLoader,
+) -> TextureSet {
+    let mut slots: Vec<Slot> = Vec::new();
+    for slot in layout
+        .material_ids()
+        .into_iter()
+        .filter_map(|id| instance.plan.slot(id))
+    {
+        if !slots.contains(&slot) {
+            slots.push(slot);
+        }
+    }
+    TextureSet::build(&instance.plan, &slots, mip, textures)
 }
 
 fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
@@ -233,10 +297,10 @@ fn find_lod(model: &Model, level: u32) -> Result<&Lod, GltfError> {
 }
 
 fn summarise(
-    model: &Model,
     root: &json::Root,
     layout: &Layout<'_>,
-    plan: &MaterialPlan<'_>,
+    defaulted: usize,
+    drawn_nodes: usize,
     images: TextureSet,
     bytes: u64,
 ) -> GlbSummary {
@@ -272,12 +336,14 @@ fn summarise(
         textures: images.images.len(),
         texture_pixels: images.pixels(),
         texture_fallbacks: images.fallbacks,
-        default_material_ids: plan.defaulted(),
+        default_material_ids: defaulted,
         hidden_primitives: layout.hidden_primitives,
-        bones: root.nodes.len().saturating_sub(model.nodes.len()),
+        bones: root.nodes.len().saturating_sub(drawn_nodes),
         skinned_meshes: meshes.iter().filter(|mesh| !mesh.joints.is_empty()).count(),
         vertices,
         triangles,
         bytes,
+        parts: 0,
+        lod_fallbacks: 0,
     }
 }

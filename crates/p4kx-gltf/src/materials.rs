@@ -7,7 +7,7 @@ use json::material::{
     StrengthFactor,
 };
 use json::validation::Checked::Valid;
-use p4kx_model::{Lod, Material, Model};
+use p4kx_model::{Lod, Material, MaterialLibrary};
 
 const GLASS_ALPHA: f32 = 0.3;
 const METAL_SPECULAR: f32 = 0.5;
@@ -30,21 +30,20 @@ pub(crate) enum Slot {
 
 /// How the material IDs of one level of detail map to materials, and which are not drawn.
 pub(crate) struct MaterialPlan<'m> {
-    model: &'m Model,
+    library: Option<&'m MaterialLibrary>,
     slots: BTreeMap<u16, Option<Slot>>,
     default: Material,
 }
 
 impl<'m> MaterialPlan<'m> {
-    /// Resolves every material ID `lod` uses.
-    pub(crate) fn new(model: &'m Model, lod: &Lod) -> Self {
+    /// Resolves every material ID `lod` uses against `library`, `None` when there is none.
+    pub(crate) fn new(library: Option<&'m MaterialLibrary>, lod: &Lod) -> Self {
         let ids: BTreeSet<u16> = lod
             .meshes
             .iter()
             .flat_map(|mesh| &mesh.submeshes)
             .map(|submesh| submesh.material_id)
             .collect();
-        let library = model.materials.library();
         let slots = ids
             .into_iter()
             .map(|id| {
@@ -55,8 +54,17 @@ impl<'m> MaterialPlan<'m> {
             })
             .collect();
         Self {
-            model,
+            library,
             slots,
+            default: Material::engine_default(),
+        }
+    }
+
+    /// Returns a plan for a model that has no level of detail to draw.
+    pub(crate) fn empty() -> Self {
+        Self {
+            library: None,
+            slots: BTreeMap::new(),
             default: Material::engine_default(),
         }
     }
@@ -83,9 +91,7 @@ impl<'m> MaterialPlan<'m> {
     pub(crate) fn material(&self, slot: Slot) -> &Material {
         match slot {
             Slot::Library(position) => self
-                .model
-                .materials
-                .library()
+                .library
                 .and_then(|library| library.materials.get(position))
                 .unwrap_or(&self.default),
             Slot::Default => &self.default,
@@ -93,7 +99,7 @@ impl<'m> MaterialPlan<'m> {
     }
 }
 
-fn resolve(library: &p4kx_model::MaterialLibrary, id: u16) -> Option<Slot> {
+fn resolve(library: &MaterialLibrary, id: u16) -> Option<Slot> {
     let position = if library.single { 0 } else { usize::from(id) };
     match library.materials.get(position) {
         Some(material) if material.hidden() => None,

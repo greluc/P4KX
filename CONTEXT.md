@@ -213,6 +213,12 @@ _Avoid_: loadout file, script loadout
 An Entity combined with its Loadout, geometry, materials and textures into one exportable model.
 _Avoid_: scene, build (a Build is a game version)
 
+**Part**:
+An Entity placed in an Assembly: the root Entity or one attached to a port, named
+`<port>/<entity>`, with the model its Record names, a transform relative to its parent part and
+the material library its Entity chooses (ADR-0040).
+_Avoid_: component, child
+
 **Interior**:
 The rooms and props of an Entity, stored in socpak containers inside the Archive.
 _Avoid_: room, level

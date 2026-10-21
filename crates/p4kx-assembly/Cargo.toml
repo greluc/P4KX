@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-assembly"
-description = "Assembly service of P4K-Extractor: the Loadout tree and audio triggers of an Entity and the CHF files of Characters."
+description = "Assembly service of P4K-Extractor: the Loadout tree, the Assembly of placed models and the audio triggers of an Entity and the CHF files of Characters."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,13 +17,15 @@ p4kx-audio.workspace = true
 p4kx-character.workspace = true
 p4kx-cryxml.workspace = true
 p4kx-dataforge.workspace = true
+p4kx-extraction.workspace = true
 p4kx-foundation.workspace = true
+p4kx-gltf.workspace = true
+p4kx-model.workspace = true
 rayon.workspace = true
 roxmltree.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-p4kx-extraction.workspace = true
 p4kx-testkit.workspace = true
 tempfile.workspace = true
 

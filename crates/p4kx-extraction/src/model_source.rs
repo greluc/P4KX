@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
-use p4kx_model::{LodSelection, Model};
+use p4kx_model::{LodSelection, MaterialStatus, Model};
 
 use crate::ConversionError;
 use crate::chunk_source::ChunkSource;
@@ -47,21 +47,68 @@ impl ModelSource {
         path: &str,
         lods: LodSelection,
     ) -> Result<Self, ConversionError> {
+        Self::from_index_selecting(index, path, lods, true)
+    }
+
+    /// Reads only the levels of detail `lods` of the model Entry at `path` without its material
+    /// library, see [`Model::read_without_materials`]; for a caller that chooses and caches the
+    /// libraries itself, see [`Self::material_library`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_index_with`].
+    pub fn from_index_without_materials(
+        index: &PathIndex<'_>,
+        path: &str,
+        lods: LodSelection,
+    ) -> Result<Self, ConversionError> {
+        Self::from_index_selecting(index, path, lods, false)
+    }
+
+    fn from_index_selecting(
+        index: &PathIndex<'_>,
+        path: &str,
+        lods: LodSelection,
+        load_materials: bool,
+    ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_index(index, path)?;
         let name = source.name().to_owned();
         let (folder, file_name) = split_entry_path(&name);
         let mut companions = ArchiveCompanions { index, folder };
-        let model = Model::read_with(file_name, source.file(), &mut companions, lods).map_err(
-            |source| ConversionError::Model {
-                file: name.clone(),
-                source,
-            },
-        )?;
+        let read = if load_materials {
+            Model::read_with(file_name, source.file(), &mut companions, lods)
+        } else {
+            Model::read_without_materials(file_name, source.file(), &mut companions, lods)
+        };
+        let model = read.map_err(|source| ConversionError::Model {
+            file: name.clone(),
+            source,
+        })?;
         Ok(Self {
             name,
             inputs: vec![index.archive().path().to_path_buf()],
             model,
         })
+    }
+
+    /// Reads the material library `library` as a model Entry at `model_path` names it: a bare
+    /// name is looked for beside the model first, then below `Data`. A library that does not
+    /// exist or cannot be read is a status, not a failure.
+    #[must_use]
+    pub fn material_library(
+        index: &PathIndex<'_>,
+        model_path: &str,
+        library: &str,
+    ) -> MaterialStatus {
+        let (folder, _) = split_entry_path(model_path);
+        let mut companions = ArchiveCompanions { index, folder };
+        MaterialStatus::load(Some(library), &mut companions)
+    }
+
+    /// Returns the model, giving up the source.
+    #[must_use]
+    pub fn into_model(self) -> Model {
+        self.model
     }
 
     /// Reads the model Entry at `path` of `archive`; see [`Self::from_index`].

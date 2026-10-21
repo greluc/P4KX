@@ -1,6 +1,7 @@
 //! The Basetool catalog written as plain JSON or as a zstd frame, through the public API.
 
 use std::error::Error;
+use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
@@ -59,7 +60,7 @@ fn database() -> Vec<u8> {
     builder.build()
 }
 
-fn archive(dir: &Path) -> Result<Archive, Box<dyn Error>> {
+pub(crate) fn archive(dir: &Path) -> Result<Archive, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database()))
@@ -70,7 +71,7 @@ fn archive(dir: &Path) -> Result<Archive, Box<dyn Error>> {
     )?)
 }
 
-fn options() -> CatalogOptions<'static> {
+pub(crate) fn options() -> CatalogOptions<'static> {
     CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT)
 }
 
@@ -128,23 +129,80 @@ fn a_zstd_catalog_decodes_to_the_bytes_of_the_plain_catalog() -> TestResult {
     Ok(())
 }
 
+struct FrameHeader {
+    checksum: bool,
+    content_size: Option<u64>,
+    window: u64,
+}
+
+fn header(frame: &[u8]) -> Result<FrameHeader, Box<dyn Error>> {
+    assert_eq!(
+        frame.get(..4),
+        Some(&[0x28, 0xb5, 0x2f, 0xfd][..]),
+        "zstd magic"
+    );
+    let descriptor = *frame.get(4).ok_or("no frame header")?;
+    let size_flag = descriptor >> 6;
+    let single = descriptor & 0b10_0000 != 0;
+    let mut at = 5;
+    let mut window = None;
+    if !single {
+        let byte = *frame.get(at).ok_or("no window descriptor")?;
+        let base = 1_u64 << (10 + u32::from(byte >> 3));
+        window = Some(base + base / 8 * u64::from(byte & 7));
+        at += 1;
+    }
+    let width = match (size_flag, single) {
+        (0, false) => 0,
+        (0, true) => 1,
+        (1, _) => 2,
+        (2, _) => 4,
+        _ => 8,
+    };
+    let mut content = 0_u64;
+    for (shift, byte) in frame
+        .get(at..at + width)
+        .ok_or("no content size")?
+        .iter()
+        .enumerate()
+    {
+        content |= u64::from(*byte) << (8 * shift);
+    }
+    if width == 2 {
+        content += 256;
+    }
+    let content_size = (width > 0).then_some(content);
+    Ok(FrameHeader {
+        checksum: descriptor & 0b100 != 0,
+        content_size,
+        window: window.or(content_size).ok_or("no window")?,
+    })
+}
+
 #[test]
-fn the_frame_declares_the_long_window_and_a_checksum() -> TestResult {
+fn the_frame_declares_its_content_size_a_matching_window_and_a_checksum() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(dir.path())?;
     let entry = DataForgeEntry::read(&archive)?;
 
-    let (_, packed) = write_catalog_from(&archive, &entry, &options(), Compression::ZSTD, || {
-        Ok(Vec::new())
-    })?;
+    let (summary, packed) =
+        write_catalog_from(&archive, &entry, &options(), Compression::ZSTD, || {
+            Ok(Vec::new())
+        })?;
 
+    let header = header(&packed)?;
+    assert!(header.checksum, "content checksum flag");
     assert_eq!(
-        packed.get(..4),
-        Some(&[0x28, 0xb5, 0x2f, 0xfd][..]),
-        "zstd magic"
+        header.content_size,
+        Some(summary.size()),
+        "the frame declares the JSON length"
     );
-    let descriptor = *packed.get(4).ok_or("no frame header")?;
-    assert_eq!(descriptor & 0b100, 0b100, "content checksum flag");
+    assert!(
+        header.window <= summary.size().next_power_of_two(),
+        "the window {} follows the content size {}, not the 2^{ZSTD_WINDOW_LOG} maximum",
+        header.window,
+        summary.size()
+    );
     let mut reader = zstd::Decoder::new(packed.as_slice())?;
     reader.window_log_max(ZSTD_WINDOW_LOG)?;
     let mut decoded = Vec::new();
@@ -266,7 +324,7 @@ fn the_decompressed_size_is_checked_against_1_gb_and_the_file_against_64_mb() {
         Some(SizeWarning::OverLimit),
         "over 1 GB"
     );
-    assert_eq!(SizeWarning::for_size(1_540_000), None, "compressed LIVE");
+    assert_eq!(SizeWarning::for_size(1_700_000), None, "compressed LIVE");
 }
 
 #[test]
@@ -277,12 +335,12 @@ fn a_file_is_written_to_a_path() -> TestResult {
     let out: PathBuf = dir.path().join("catalog.json.zst");
 
     let (_, file) = write_catalog_from(&archive, &entry, &options(), Compression::ZSTD, || {
-        std::fs::File::create(&out)
+        fs::File::create(&out)
     })?;
     file.sync_all()?;
 
     let mut decoded = Vec::new();
-    zstd::Decoder::new(std::fs::File::open(&out)?)?.read_to_end(&mut decoded)?;
+    zstd::Decoder::new(fs::File::open(&out)?)?.read_to_end(&mut decoded)?;
     assert!(decoded.starts_with(b"{\"schemaVersion\":1"), "JSON");
     Ok(())
 }

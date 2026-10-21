@@ -38,6 +38,7 @@ mod blueprint;
 mod blueprint_category;
 mod build;
 mod catalog_crafting;
+mod catalog_file;
 mod catalog_output;
 mod catalog_recipe;
 mod collected;
@@ -79,6 +80,7 @@ mod summary;
 mod texts;
 
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
+pub use catalog_file::CatalogFile;
 pub use catalog_output::{Compression, ZSTD_LEVEL, ZSTD_WINDOW_LOG};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
 pub use crafting::{Crafting, read_crafting, read_crafting_limited};

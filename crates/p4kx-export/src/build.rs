@@ -91,8 +91,11 @@ pub fn build_catalog_from(
     })
 }
 
-/// Builds the Basetool catalog like [`build_catalog_from`] and streams its JSON, compressed as
-/// `compression` says, into the writer `create` returns, without holding the JSON in memory.
+/// Builds the Basetool catalog like [`build_catalog_from`] and streams its JSON into the writer
+/// `create` returns, compressed as `compression` says.
+///
+/// The JSON is never held in memory; zstd serialises it twice, once to count its length for the
+/// frame header.
 ///
 /// `create` is called once, after the catalog is built and before the first byte is written, so a
 /// build that fails or is cancelled has created nothing. Returns the summary, whose

@@ -10,8 +10,8 @@ use crate::contract::Catalog;
 /// The zstd level a compressed catalog is written at.
 pub const ZSTD_LEVEL: i32 = 19;
 
-/// The base-2 logarithm of the long-distance window of a compressed catalog, as for
-/// `zstd --long=27`.
+/// The base-2 logarithm of the largest window a compressed catalog may use; the frame declares
+/// its content size, so the window is no larger than the catalog.
 pub const ZSTD_WINDOW_LOG: u32 = 27;
 
 const BUFFER: usize = 64 * 1024;
@@ -22,8 +22,8 @@ pub enum Compression {
     /// Plain UTF-8 JSON.
     #[default]
     None,
-    /// One zstd frame with a content checksum and a long-distance window of
-    /// [`ZSTD_WINDOW_LOG`].
+    /// One zstd frame with a content checksum, the content size and a window of at most
+    /// 2^[`ZSTD_WINDOW_LOG`].
     Zstd {
         /// The compression level, 1 to 22.
         level: i32,
@@ -74,7 +74,9 @@ pub(crate) fn emit<W: Write>(
             })
         }
         Compression::Zstd { level } => {
-            let encoder = encoder(Counting::new(out, None), level).map_err(CatalogError::Write)?;
+            let length = measure(catalog, cancel)?;
+            let encoder =
+                encoder(Counting::new(out, None), level, length).map_err(CatalogError::Write)?;
             let mut counted = Counting::new(encoder, cancel);
             write_json(catalog, &mut counted, cancel)?;
             let size = counted.count;
@@ -88,8 +90,10 @@ pub(crate) fn emit<W: Write>(
     }
 }
 
-fn encoder<'a, W: Write>(sink: W, level: i32) -> io::Result<Encoder<'a, W>> {
+fn encoder<'a, W: Write>(sink: W, level: i32, length: u64) -> io::Result<Encoder<'a, W>> {
     let mut encoder = Encoder::new(sink, level)?;
+    encoder.set_pledged_src_size(Some(length))?;
+    encoder.include_contentsize(true)?;
     encoder.include_checksum(true)?;
     encoder.long_distance_matching(true)?;
     encoder.window_log(ZSTD_WINDOW_LOG)?;
@@ -152,4 +156,11 @@ impl<W: Write> Write for Counting<'_, W> {
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
     }
+}
+
+/// Serialises `catalog` into a sink and returns the length of its JSON, newline included.
+fn measure(catalog: &Catalog<'_>, cancel: Option<&CancelToken>) -> Result<u64, CatalogError> {
+    let mut counted = Counting::new(io::sink(), cancel);
+    write_json(catalog, &mut counted, cancel)?;
+    Ok(counted.count)
 }

@@ -132,15 +132,23 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         );
     }
     check_unique_guids(&catalog)?;
+    assert_eq!(
+        summary.size_warning(),
+        None,
+        "the file is below 90 % of the upload limit of {UPLOAD_LIMIT} bytes"
+    );
+    assert_eq!(
+        summary.decompressed_warning(),
+        None,
+        "the catalog is below 90 % of the decompressed limit of {DECOMPRESSED_LIMIT} bytes"
+    );
     assert!(
         summary.upload_size() <= UPLOAD_LIMIT,
-        "the compressed catalog of {} bytes is within the upload limit of {UPLOAD_LIMIT} bytes",
-        summary.upload_size()
+        "within the upload limit"
     );
     assert!(
         summary.size() <= DECOMPRESSED_LIMIT,
-        "the decompressed catalog of {} bytes is within the limit of {DECOMPRESSED_LIMIT} bytes",
-        summary.size()
+        "within the decompressed limit"
     );
     check_leftovers(&catalog)?;
     check_texts(summary, &catalog)?;

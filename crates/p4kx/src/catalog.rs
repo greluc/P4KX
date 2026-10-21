@@ -1,5 +1,3 @@
-use std::cell::Cell;
-use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -7,9 +5,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use p4kx_export::{
-    CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, Compression, CraftingWarning,
-    DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, UPLOAD_LIMIT, catalog_schema,
-    write_catalog,
+    CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, UPLOAD_LIMIT,
+    catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -91,28 +89,23 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     }))
 }
 
-/// Builds the catalog and streams it into `out`, compressed when the name ends in `.zst`; a file
-/// the write started is removed when it fails.
+/// Builds the catalog and streams it into a temporary file next to `out`, compressed when the name
+/// ends in `.zst`, then moves it over `out`; a failure or an interrupt leaves `out` as it was.
 fn write_file(
     archive: &Archive,
     options: &CatalogOptions<'_>,
     out: &Path,
 ) -> Result<CatalogSummary> {
-    let created = Cell::new(false);
     let written = write_catalog(archive, options, Compression::for_path(out), || {
-        let file = File::create(out).map_err(|error| {
+        CatalogFile::create(out).map_err(|error| {
             io::Error::new(
                 error.kind(),
                 format!("cannot write {}: {error}", out.display()),
             )
-        })?;
-        created.set(true);
-        Ok(file)
+        })
     });
-    let (summary, file) = written
-        .map_err(into_anyhow)
-        .inspect_err(|_| discard(out, created.get()))?;
-    file.sync_all()
+    let (summary, file) = written.map_err(into_anyhow)?;
+    file.commit()
         .with_context(|| format!("cannot write {}", out.display()))?;
     Ok(summary)
 }
@@ -178,12 +171,6 @@ const fn relation(warning: SizeWarning) -> &'static str {
     match warning {
         SizeWarning::NearLimit => "close to",
         SizeWarning::OverLimit => "over",
-    }
-}
-
-fn discard(out: &Path, created: bool) {
-    if created {
-        let _ignored = fs::remove_file(out);
     }
 }
 

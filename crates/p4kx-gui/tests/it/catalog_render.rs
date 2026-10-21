@@ -80,3 +80,36 @@ fn the_summary_of_a_compressed_catalog_is_drawn() -> TestResult {
     )?;
     Ok(())
 }
+
+#[test]
+fn the_warning_alert_of_a_catalog_near_the_limit_is_drawn() -> TestResult {
+    let Some(renderer) = renderer() else {
+        return Ok(());
+    };
+    let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
+    model.start_catalog(out.join("basetool-catalog.json"), || {});
+    wait_until(&mut model, |model| {
+        model.catalog().is_some_and(|run| !run.is_running())
+    })?;
+    let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([1000.0, 700.0])
+        .renderer(renderer)
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            model,
+        );
+    harness.run_steps(3);
+
+    harness.get_by_label_contains("close to the basetool upload limit");
+    let image = harness.render()?;
+    save(
+        "catalog-near-limit-summary.png",
+        image.width(),
+        image.height(),
+        image.as_raw(),
+    )?;
+    Ok(())
+}

@@ -1,4 +1,3 @@
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,11 +6,11 @@ use std::thread;
 use std::time::SystemTime;
 
 use p4kx_export::{
-    CancelToken, CatalogError, CatalogOptions, CatalogProgress, Compression, write_catalog_from,
+    CancelToken, CatalogError, CatalogFile, CatalogOptions, CatalogProgress, Compression,
+    write_catalog_from,
 };
 use p4kx_extraction::is_same_file;
 
-use super::write::{Pending, Written};
 use super::{CatalogExportProgress, CatalogExportStage, CatalogExportSummary, Shared};
 use crate::EntryIndex;
 use crate::forge_cache::ReadFailure;
@@ -238,7 +237,6 @@ impl Job {
             cancel: Some(&self.cancel),
             progress: Some(&progress),
         };
-        let mut pending = None;
         let created = write_catalog_from(
             self.index.archive(),
             &source.entry,
@@ -246,9 +244,8 @@ impl Job {
             Compression::for_path(&self.file),
             || {
                 self.shared.enter(CatalogExportStage::Writing);
-                let (started, file) = Pending::create(&self.file)?;
-                pending = Some(started);
-                Ok(file)
+                crate::installation::refuse(&self.file)?;
+                CatalogFile::create(&self.file)
             },
         );
         let (summary, file) = match created {
@@ -256,20 +253,15 @@ impl Job {
             Err(CatalogError::Cancelled) => return Ok(Outcome::Cancelled),
             Err(error) => return Err(describe(&error)),
         };
-        let Some(pending) = pending else {
-            return Err(describe(&io::Error::other("no catalog file was created")));
-        };
         self.check_archive()?;
-        let written = pending
-            .commit(file, || self.cancel.is_cancelled())
-            .map_err(|error| describe(&error))?;
-        Ok(match written {
-            Written::Done => Outcome::Written(Box::new(CatalogExportSummary {
-                file: self.file.clone(),
-                summary,
-            })),
-            Written::Cancelled => Outcome::Cancelled,
-        })
+        if self.cancel.is_cancelled() {
+            return Ok(Outcome::Cancelled);
+        }
+        file.commit().map_err(|error| describe(&error))?;
+        Ok(Outcome::Written(Box::new(CatalogExportSummary {
+            file: self.file.clone(),
+            summary,
+        })))
     }
 
     fn check_archive(&self) -> Result<(), String> {

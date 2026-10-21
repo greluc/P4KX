@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, DECOMPRESSED_LIMIT, Kind, build_catalog, catalog_schema};
+use p4kx_export::{CatalogOptions, Kind, UPLOAD_LIMIT, build_catalog, catalog_schema};
 use p4kx_extraction::Archive;
 use p4kx_testkit::real_archive_path;
 use serde_json::Value;
@@ -52,8 +52,8 @@ fn builds_commodities_and_blueprints_of_a_real_archive() -> TestResult {
     assert!(errors.is_empty(), "valid against the schema: {errors:?}");
     report(&built);
     assert!(
-        built.summary().size() < DECOMPRESSED_LIMIT,
-        "under the decompressed limit"
+        built.summary().size() < UPLOAD_LIMIT,
+        "under the upload limit"
     );
     for (kind, min) in [
         (Kind::Commodities, MIN_COMMODITIES),

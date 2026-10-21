@@ -5,6 +5,7 @@ mod catalog_crafting;
 mod catalog_crafting_support;
 mod catalog_crafting_tiers;
 mod catalog_failures;
+mod catalog_file;
 mod catalog_fixture;
 mod catalog_groups;
 mod catalog_items;

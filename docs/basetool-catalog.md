@@ -50,12 +50,16 @@ p4kx catalog schema
 ### Compressed form
 
 An output name ending in `.zst` (any case) writes the catalog as one zstd frame; any other name
-writes plain JSON, which stays the default. The frame is written while the JSON is serialised, so
-the catalog is never held a second time, uncompressed, for the compression. It uses zstd level 19,
-a long-distance window of 2^27 bytes (`zstd -19 --long=27`) and a content checksum. The decoded
-bytes are exactly the plain catalog: `zstd -d --long=27 basetool-catalog.json.zst` and any zstd
-decoder with a window of at least 2^27 give the file `--out basetool-catalog.json` writes for the
-same Archive and export time (a test checks both with the Rust decoder).
+writes plain JSON, which stays the default. The JSON is serialised straight into the encoder and
+never held in memory; it is serialised twice, the first time only to count its length. The frame
+uses zstd level 19, long-distance matching, a content checksum, and declares the content size
+(`Frame_Content_Size`), so the window it needs is the content size, about 26.5 MB for LIVE, and not
+the 2^27 maximum the encoder is allowed. A plain `zstd -d basetool-catalog.json.zst` is enough, no
+`--long` option is needed, and a decoder's memory is about the size of the catalog. The decoded
+bytes are exactly the plain catalog for the same Archive and export time (tests check this with the
+Rust decoder and read the window and content size from the frame header). The file is written to a
+temporary file next to the target and renamed on success, so a failure or Ctrl+C leaves an
+existing catalog as it was.
 
 The Basetool detects `.json`, `.json.gz` and `.json.zst` by magic bytes, not by name. Its limits
 apply to two sizes, and `p4kx catalog` and the desktop window check both:
@@ -65,7 +69,8 @@ apply to two sizes, and `p4kx catalog` and the desktop window check both:
 | The file as uploaded, compressed if it is | 64,000,000 bytes (64 MB) | `UPLOAD_LIMIT` |
 | The decompressed content | 1,000,000,000 bytes (1 GB) | `DECOMPRESSED_LIMIT` |
 
-Each warns from 90 % and fails above the limit. The summary (`--json`: `size`, `compressed_size`,
+The Basetool rejects a file above either limit; `p4kx catalog` and the desktop window only warn,
+from 90 % of a limit and again above it. The summary (`--json`: `size`, `compressed_size`,
 `upload_limit`, `decompressed_limit`, `size_warning`, `decompressed_warning`) carries the
 uncompressed size, the compressed size (`null` for plain JSON) and the warnings of both.
 

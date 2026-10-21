@@ -12,8 +12,8 @@ pub(crate) struct CatalogArgs {
     #[arg(required = true)]
     pub(crate) archive: Option<PathBuf>,
     /// The catalog file to write; an existing file is replaced. A name ending in `.zst`, e.g.
-    /// `basetool-catalog.json.zst`, writes one zstd frame (level 19, window log 27, as `zstd -19
-    /// --long=27`); any other name writes plain JSON. The Basetool takes both.
+    /// `basetool-catalog.json.zst`, writes one zstd frame (level 19, content size declared, so a
+    /// plain `zstd -d` decodes it); any other name writes plain JSON. The Basetool takes both.
     #[arg(long, value_name = "FILE", required = true)]
     pub(crate) out: Option<PathBuf>,
     /// Selects only the Records whose record path matches, with the rules of `p4kx search`; every

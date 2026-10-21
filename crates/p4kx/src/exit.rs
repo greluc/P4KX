@@ -16,6 +16,7 @@ use crate::cryxml::{JsonNeedsOut, UnreadableInput};
 use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
+use crate::entity_glb::GlbOutputIsArchive;
 use crate::extract::NoMatch;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
@@ -178,4 +179,5 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<JsonWithTable>().is_some()
         || error.downcast_ref::<UnknownRecord>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
+        || error.downcast_ref::<GlbOutputIsArchive>().is_some()
 }

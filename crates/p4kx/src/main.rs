@@ -37,6 +37,7 @@ mod dcb_refs_table;
 mod diff;
 mod entity;
 mod entity_audio;
+mod entity_glb;
 mod entity_json;
 mod exit;
 mod extract;

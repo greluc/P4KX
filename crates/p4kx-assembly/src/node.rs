@@ -78,6 +78,7 @@ impl LoadoutResolver<'_> {
             name: spec.name.clone(),
             ports,
             issues,
+            geometry: spec.geometry.clone(),
         }
     }
 

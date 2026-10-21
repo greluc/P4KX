@@ -4,7 +4,76 @@ use json::{Accessor, Index, Root};
 use p4kx_model::{Bone, Model};
 
 use crate::axes::{Trs, decompose};
+use crate::instance::{Instance, Wrapper};
 use crate::skin::bone_trs;
+
+struct Planned {
+    name: String,
+    parent: Option<usize>,
+    trs: Trs,
+    mesh: Option<Index<json::Mesh>>,
+}
+
+/// Writes the `wrappers` as nodes, then the nodes of every model instance below its wrapper, and
+/// the scene that holds the roots.
+pub(crate) fn push_scene_nodes(
+    root: &mut Root,
+    wrappers: &[Wrapper<'_>],
+    instances: &[Instance<'_>],
+    meshes: &[Vec<Option<Index<json::Mesh>>>],
+) {
+    let mut planned: Vec<Planned> = wrappers
+        .iter()
+        .map(|wrapper| Planned {
+            name: wrapper.name.to_owned(),
+            parent: wrapper.parent,
+            trs: decompose(wrapper.transform),
+            mesh: None,
+        })
+        .collect();
+    for (instance, instance_meshes) in instances.iter().zip(meshes) {
+        let base = planned.len();
+        for (position, node) in instance.model.nodes.iter().enumerate() {
+            planned.push(Planned {
+                name: node.name.clone(),
+                parent: node
+                    .parent
+                    .filter(|parent| *parent < instance.model.nodes.len())
+                    .map(|parent| base.saturating_add(parent))
+                    .or(instance.wrapper),
+                trs: decompose(&node.transform),
+                mesh: instance_meshes.get(position).copied().flatten(),
+            });
+        }
+    }
+    let mut children: Vec<Vec<Index<json::Node>>> = vec![Vec::new(); planned.len()];
+    let mut roots = Vec::new();
+    for (position, node) in planned.iter().enumerate() {
+        match node.parent.and_then(|parent| children.get_mut(parent)) {
+            Some(siblings) => siblings.push(index_of(position)),
+            None => roots.push(index_of(position)),
+        }
+    }
+    for (node, children) in planned.into_iter().zip(children) {
+        push_node(
+            root,
+            Part {
+                name: &node.name,
+                children,
+                mesh: node.mesh,
+                skin: None,
+                trs: node.trs,
+            },
+        );
+    }
+    let scene = root.push(json::Scene {
+        name: None,
+        nodes: roots,
+        extensions: None,
+        extras: json::extras::Void::default(),
+    });
+    root.scene = Some(scene);
+}
 
 /// The skeleton a document writes next to the model's nodes.
 pub(crate) struct Skeleton<'a> {

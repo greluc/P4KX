@@ -130,6 +130,9 @@ pub enum LodSelection {
     All,
     /// Only this level; reading fails when the model lacks it.
     Only(u32),
+    /// Every level up to and including this one that the model has; reading fails when it has
+    /// none of them.
+    AtMost(u32),
 }
 
 impl LodSelection {
@@ -139,6 +142,7 @@ impl LodSelection {
         match self {
             Self::All => true,
             Self::Only(only) => only == level,
+            Self::AtMost(most) => level <= most,
         }
     }
 }
@@ -195,16 +199,43 @@ impl Model {
     /// # Errors
     ///
     /// As [`Self::read`], and [`ModelError::NoSuchLod`] when `lods` is [`LodSelection::Only`]
-    /// and the model lacks that level.
+    /// and the model lacks that level, or [`LodSelection::AtMost`] and it has none up to it.
     pub fn read_with<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, true)
+    }
+
+    /// Reads the levels of detail `lods` of the model `file` like [`Self::read_with`], but leaves
+    /// the material library the model names unread: [`Self::materials`] is
+    /// [`MaterialStatus::Skipped`] and [`Self::material_library`] still holds the name, for a
+    /// caller that chooses and caches the library itself, see [`MaterialStatus::load`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read_with`].
+    pub fn read_without_materials<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+    ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, false)
+    }
+
+    fn read_selecting<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+        load_materials: bool,
+    ) -> Result<Self, ModelError> {
         match file.container() {
-            Container::Ivo => build(name, file, companions, lods),
-            Container::CrCh => build_crch(name, file, companions, lods),
+            Container::Ivo => build(name, file, companions, lods, load_materials),
+            Container::CrCh => build_crch(name, file, companions, lods, load_materials),
         }
     }
 

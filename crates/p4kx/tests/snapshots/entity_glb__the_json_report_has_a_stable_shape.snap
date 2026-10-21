@@ -1,0 +1,47 @@
+---
+source: crates/p4kx/tests/entity_glb.rs
+expression: "serde_json::to_string_pretty(&shaped)?"
+---
+{
+  "archive": "<archive>",
+  "bytes": 9064,
+  "default_material_ids": 0,
+  "entity": "TEST_Ship",
+  "guid": "00000000-0000-0000-0000-000000000001",
+  "hidden_primitives": 0,
+  "issues": [
+    {
+      "kind": "unresolved",
+      "name": "00000000-0000-0000-0000-0000000000ff",
+      "path": "hardpoint_cargo",
+      "reason": "the attachment cannot be resolved: the Reference refers to the Record 00000000-0000-0000-0000-0000000000ff, which does not exist",
+      "skipped": true
+    },
+    {
+      "kind": "no_geometry",
+      "name": "TEST_Seat",
+      "path": "hardpoint_seat",
+      "reason": "the Entity names no geometry",
+      "skipped": false
+    },
+    {
+      "kind": "geometry_missing",
+      "name": "TEST_Door",
+      "path": "hardpoint_door",
+      "reason": "the geometry Objects/Test/door.cgf does not exist",
+      "skipped": true
+    }
+  ],
+  "lod": 1,
+  "lod_fallbacks": 3,
+  "materials": 4,
+  "meshes": 4,
+  "modelled_parts": 4,
+  "nodes": 17,
+  "out": "<out>",
+  "parts": 6,
+  "primitives": 8,
+  "skipped": 2,
+  "triangles": 48,
+  "vertices": 96
+}

@@ -105,9 +105,23 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
         "the item class stays a string"
     );
 
-    let mut no_class = catalog;
+    let mut no_class = catalog.clone();
     no_class["items"][0]["itemClass"] = json!(null);
     assert!(validator.is_valid(&no_class), "the item class may be null");
+
+    let mut unknown_playability = catalog.clone();
+    unknown_playability["ships"][0]["playability"] = json!("event");
+    assert!(
+        validator.is_valid(&unknown_playability),
+        "a new playability is valid"
+    );
+
+    let mut no_playability = catalog;
+    no_playability["items"][0]["playability"] = json!(null);
+    assert!(
+        validator.is_valid(&no_playability),
+        "the playability may be null"
+    );
     Ok(())
 }
 

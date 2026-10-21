@@ -48,7 +48,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "manufacturerGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
             "tags": ["flightReady"],
             "displayType": {"key": null, "en": null, "de": null},
-            "itemClass": "Military"
+            "itemClass": "Military",
+            "playability": "player"
         }],
         "ships": [{
             "guid": "90000000-0000-4000-8000-000000000001",
@@ -60,7 +61,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "career": {"key": null, "en": null, "de": null},
             "crewSize": 2,
             "manufacturerGuid": null,
-            "vehicleDefinition": null
+            "vehicleDefinition": null,
+            "playability": "ai"
         }],
         "commodities": [{
             "guid": "a1000000-0000-4000-8000-000000000001",

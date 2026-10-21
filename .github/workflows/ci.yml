@@ -54,8 +54,23 @@ jobs:
         if: runner.os == 'Linux'
         run: df -h /
 
-  test:
-    name: Test (${{ matrix.os }})
+  tests-windows:
+    name: Tests (windows-latest)
+    uses: ./.github/workflows/tests.yml
+    with:
+      os: windows-latest
+      partitions: "[1, 2, 3, 4]"
+      count: 4
+
+  tests-ubuntu:
+    name: Tests (ubuntu-latest)
+    uses: ./.github/workflows/tests.yml
+    with:
+      os: ubuntu-latest
+      partitions: "[1, 2]"
+      count: 2
+  doctests:
+    name: Doctests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -70,16 +85,12 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust
         with:
-          cache-key: test
-          nextest: "true"
-      - name: Tests with nextest, one process per test
-        run: cargo nextest run --workspace --locked
+          cache-key: doctests
       - name: Doctests, which nextest does not run
         run: cargo test --workspace --locked --doc
       - name: Disk space after the build
         if: runner.os == 'Linux'
         run: df -h /
-
   focused:
     name: Schemas and concurrency (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -114,7 +125,7 @@ jobs:
 
   check:
     name: Check (${{ matrix.os }})
-    needs: [lint, test, focused]
+    needs: [lint, tests-windows, tests-ubuntu, doctests, focused]
     if: always()
     runs-on: ubuntu-latest
     strategy:

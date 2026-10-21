@@ -29,14 +29,6 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
           df -h /
-      - name: Put the Cargo home and the target directory on a ReFS Dev Drive
-        if: runner.os == 'Windows'
-        uses: samypr100/setup-dev-drive@v4
-        with:
-          drive-size: 60GB
-          env-mapping: |
-            CARGO_HOME,{{ DEV_DRIVE }}/cargo-home
-            CARGO_TARGET_DIR,{{ DEV_DRIVE }}/target
       - name: Link with rust-lld on Windows
         if: runner.os == 'Windows'
         shell: bash
@@ -50,12 +42,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Mount a ReFS Dev Drive as the target directory
+        if: runner.os == 'Windows'
+        uses: samypr100/setup-dev-drive@v4
+        with:
+          drive-size: 60GB
+          mount-path: target
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: ". -> ${{ env.CARGO_TARGET_DIR || 'target' }}"
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:

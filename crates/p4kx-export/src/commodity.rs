@@ -1,8 +1,10 @@
-use p4kx_extraction::{RecordTree, Value, is_placeholder_key};
+use p4kx_extraction::{RecordTree, StructValue, Value, is_placeholder_key};
 
 use crate::contract::Commodity;
 use crate::guid_text::CatalogGuid;
-use crate::record_fields::{class_name, component, element, elements, locale_key, reference};
+use crate::record_fields::{
+    class_name, component, element, elements, locale_key, reference, single, structure,
+};
 use crate::resource_group::Groups;
 use crate::texts::Texts;
 
@@ -54,7 +56,17 @@ pub(crate) fn commodity<'f>(
         type_guid: subtype.and_then(|subtype| groups.of_resource(&subtype.0)),
         subtype_guid: subtype,
         display_type: texts.localised(locale_key(purchasable, "displayType")),
+        density_grams_per_cubic_centimetre: density(resource),
+        refined_subtype_guid: reference(resource, "refinedVersion"),
     }
+}
+
+/// Returns the density in grams per cubic centimetre the `densityType` of the `ResourceType`
+/// struct `resource` holds.
+fn density(resource: Option<&StructValue<'_>>) -> Option<f32> {
+    let density = structure(resource, "densityType");
+    let unit = structure(density, "densityUnit");
+    single(unit, "gramsPerCubicCentimeter")
 }
 
 fn usable<'f>(own: Option<&'f str>, fallback: Option<&'f str>) -> Option<&'f str> {
@@ -82,5 +94,7 @@ pub(crate) fn resource_commodity<'f>(
         type_guid: groups.of_resource(&guid),
         subtype_guid: Some(CatalogGuid(guid)),
         display_type: texts.localised(None),
+        density_grams_per_cubic_centimetre: density(Some(tree.root())),
+        refined_subtype_guid: reference(Some(tree.root()), "refinedVersion"),
     }
 }

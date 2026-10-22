@@ -82,10 +82,30 @@ fn items_without_a_component_besides_the_cosmetic_ones_are_ungrouped() -> TestRe
     assert_eq!(
         built.summary().variants().items,
         VariantCounts {
-            groups: 1,
-            variants: 1
+            groups: 2,
+            variants: 2
         }
     );
+    Ok(())
+}
+
+#[test]
+fn items_that_differ_only_in_material_and_palette_are_variants() -> TestResult {
+    let (_, catalog) = build()?;
+    assert_eq!(base_of(&catalog, "items", "PROP_Chair_Blue")?, None);
+    assert_eq!(
+        base_of(&catalog, "items", "PROP_Chair_Red")?.as_deref(),
+        Some("PROP_Chair_Blue")
+    );
+    Ok(())
+}
+
+#[test]
+fn items_that_differ_in_their_model_are_not_variants() -> TestResult {
+    let (_, catalog) = build()?;
+    for class in ["PROP_Table", "PROP_Bench"] {
+        assert_eq!(base_of(&catalog, "items", class)?, None, "{class}");
+    }
     Ok(())
 }
 

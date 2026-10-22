@@ -614,7 +614,9 @@ player ship is grouped with it.
 The ship Record has no armour component on LIVE (no component struct name contains `armor` or
 `armour`; checked on build 4.10), so no armour term enters the rule. The default loadout, the
 names, the paints and the livery do not count: editions that differ only
-in their loadout or a paint are variants. A ship without a `vehicleDefinition`, or whose vehicle
+in their loadout or a paint are variants. On LIVE `AEGS_Idris_P` therefore groups under
+`AEGS_Idris_M` and `AEGS_Sabre_Comet` under `AEGS_Sabre`, because they differ only in their
+default loadout. A ship without a `vehicleDefinition`, or whose vehicle
 implementation cannot be read in full (a missing file or patch file, a broken document), is
 ungrouped, because equality cannot be shown.
 
@@ -624,12 +626,14 @@ ungrouped, because equality cannot be shown.
 - the stat blocks (`stats`, ADR-0065), including `resourceStates`;
 - the other components: every component of the Record is compared with all its fields, except the
   components whose struct name contains `attachable` (the `AttachDef` fields above are compared
-  one by one), `purchasable`, `geometry`, `material`, `display`, `interact`, `carryable` or
-  `usable` (the interaction, carrying and actor-usage components hold per-item Records of equal
-  content), and the fields `Tags`, `RequiredTags`, `Skin`, `Tint`, `Color`, `Colour`, `Palette`
-  and every field whose name contains `interaction`. Localisation keys are never compared. On LIVE
-  the clothing and armour colour variants differ in exactly these: name, tags, material path,
-  palette and the per-item interaction Records.
+  one by one), `purchasable`, `material`, `display`, `interact`, `carryable` or `usable` (the
+  interaction, carrying and actor-usage components hold per-item Records of equal content), and
+  the fields `Material`, `Materials`, `Tags`, `RequiredTags`, `Skin`, `Tint`, `Color`, `Colour`,
+  `Palette` and every field whose name contains `interaction`. Localisation keys are never
+  compared. The geometry component is compared, so the model (the geometry file of every node)
+  must be equal; only its material and palette are left out. A different model is not cosmetic.
+  On LIVE the clothing and armour colour variants differ in exactly these: name, tags, material
+  path, palette and the per-item interaction Records.
 
 An item with no component besides those excluded, or without an `AttachDef` type, is ungrouped.
 Names, descriptions, tags and the display type may therefore differ inside a group.

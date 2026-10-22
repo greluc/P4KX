@@ -45,6 +45,15 @@ fn builder() -> DataForgeBuilder {
             .field("PhysType", TestType::Class("SEntityPhysicsType".to_owned())),
         TestStruct::new("SEntityPhysicsType").field("Mass", TestType::Single),
         component("SEntityComponentCarryableParams").field("carryInteraction", TestType::String),
+        component("SGeometryResourceParams").field(
+            "Geometry",
+            TestType::Class("SGeometryNodeParams".to_owned()),
+        ),
+        TestStruct::new("SGeometryNodeParams")
+            .field("Geometry", TestType::Class("SPathRef".to_owned()))
+            .field("Material", TestType::Class("SPathRef".to_owned()))
+            .field("Palette", TestType::String),
+        TestStruct::new("SPathRef").field("path", TestType::String),
     ]
     .into_iter()
     .fold(
@@ -64,44 +73,65 @@ struct Item {
     mass: Option<f32>,
     grade: i32,
     tags: &'static str,
+    model: Option<(&'static str, &'static str)>,
 }
 
-const ITEMS: [Item; 6] = [
+const fn prop(class: &'static str, model: &'static str, material: &'static str) -> Item {
+    Item {
+        class,
+        mass: None,
+        grade: 1,
+        tags: "red",
+        model: Some((model, material)),
+    }
+}
+
+const ITEMS: [Item; 10] = [
+    prop("PROP_Chair_Red", "chair.cgf", "red.mtl"),
+    prop("PROP_Chair_Blue", "chair.cgf", "blue.mtl"),
+    prop("PROP_Table", "table.cgf", "red.mtl"),
+    prop("PROP_Bench", "bench.cgf", "red.mtl"),
     Item {
         class: "POWR_Alpha",
         mass: Some(10.0),
         grade: 1,
         tags: "red",
+        model: None,
     },
     Item {
         class: "POWR_Alpha_Blue",
         mass: Some(10.0),
         grade: 1,
         tags: "blue",
+        model: None,
     },
     Item {
         class: "POWR_Heavy",
         mass: Some(11.0),
         grade: 1,
         tags: "red",
+        model: None,
     },
     Item {
         class: "POWR_Grade2",
         mass: Some(10.0),
         grade: 2,
         tags: "red",
+        model: None,
     },
     Item {
         class: "POWR_Bare_One",
         mass: None,
         grade: 1,
         tags: "red",
+        model: None,
     },
     Item {
         class: "POWR_Bare_Two",
         mass: None,
         grade: 1,
         tags: "blue",
+        model: None,
     },
 ];
 
@@ -132,6 +162,22 @@ fn item_record(index: usize, item: &Item) -> TestRecord {
                 .value("carryInteraction", TestValue::text(item.tags)),
         ),
     ];
+    if let Some((model, material)) = item.model {
+        let path = |value: &str| {
+            TestValue::Struct(TestInstance::new("SPathRef").value("path", TestValue::text(value)))
+        };
+        components.push(TestValue::Struct(
+            TestInstance::new("SGeometryResourceParams").value(
+                "Geometry",
+                TestValue::Struct(
+                    TestInstance::new("SGeometryNodeParams")
+                        .value("Geometry", path(model))
+                        .value("Material", path(material))
+                        .value("Palette", TestValue::text(material)),
+                ),
+            ),
+        ));
+    }
     if let Some(mass) = item.mass {
         components.push(TestValue::Struct(
             TestInstance::new("SEntityPhysicsControllerParams").value(

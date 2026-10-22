@@ -18,10 +18,14 @@ ship under two definitions).
   LIVE, so armour is not part of the rule. The default loadout does not count, so editions that
   differ only in it are grouped; paints, livery and names never count. Items: equal `AttachDef`
   type, subtype, size, grade and manufacturer, equal stat blocks including `resourceStates`, and
-  equal other components, leaving out the display, geometry, material, purchasable, interaction,
-  carrying and actor-usage components and the tag, colour and palette fields. The exact lists,
-  taken from the field differences between colour siblings on LIVE, are in
-  `docs/basetool-catalog.md`.
+  equal other components, leaving out the display, material, purchasable, interaction, carrying
+  and actor-usage components and the tag, colour, material and palette fields. The 3D model stays
+  compared: a different model is not cosmetic, and without it unrelated props collapsed into
+  groups of hundreds on LIVE. The exact lists, taken from the field differences between colour
+  siblings on LIVE, are in `docs/basetool-catalog.md`.
+- **Ships that differ only in the default loadout group together** (owner rule "without
+  loadout"). On LIVE `AEGS_Idris_P` groups under `AEGS_Idris_M` and `AEGS_Sabre_Comet` under
+  `AEGS_Sabre`.
 - **No name enters the rule, and playability does not either.** AI and mission variants follow
   the same rule as player ships.
 - **The base** is the member with `playability` `player`, then the smallest `className`, then

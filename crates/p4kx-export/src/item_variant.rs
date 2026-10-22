@@ -8,17 +8,18 @@ use crate::digest::{Digest, Wide, hash_value};
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{component, integer, reference, structure, text};
 
-const COSMETIC_COMPONENTS: [&str; 8] = [
+const COSMETIC_COMPONENTS: [&str; 7] = [
     "attachable",
     "purchasable",
-    "geometry",
     "material",
     "display",
     "interact",
     "carryable",
     "usable",
 ];
-const COSMETIC_FIELDS: [&str; 7] = [
+const COSMETIC_FIELDS: [&str; 9] = [
+    "Material",
+    "Materials",
     "Tags",
     "RequiredTags",
     "Skin",

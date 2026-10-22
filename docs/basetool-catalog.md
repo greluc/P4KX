@@ -35,9 +35,10 @@ The rule is ADR-0054 (amending ADR-0002):
 ### Game texts
 
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
-The game texts of the catalog are every `description` and every `displayType`, each with its `key`,
-`en` and `de`. `name`, `role`, `career` and the other fields are identifiers, short names or fact
-values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
+The game texts of the catalog are every `description` and every `displayType`, and the `name` of a
+starmap object (a place name that comes from localisation, by the owner's decision for #321), each
+with its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
+identifiers, short names or fact values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
 Basetool keeps them, and `displayType`, away from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 
@@ -103,6 +104,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
 | `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
+| `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -705,6 +707,94 @@ the port's `requiredTags`, compared as stored (case-sensitive, a leading `$` is 
 The tag tree rule of the paints (a tag below a required tag also counts) applies only to the
 `Tag` Records that paints and Tags fields refer to (see "Paints").
 
+### Starmap objects
+
+A starmap object (`starmapObjects`) is a `StarMapObject` Record under `starmap/pu` (ADR-0054: a
+new kind, so `schemaVersion` stays 1). The kind is facts only: no description, no lore, no media.
+The `name` is a game text, the localisation key with its English and German text, and carries
+`"x-gameText": true` like a description; the Basetool keeps it from third parties.
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | The Record, as for every entity |
+| `name` | `name`, a localisation key |
+| `type`, `typeGuid` | The `StarMapObjectType` Record the Reference `type` links to: `type` is its `name` when that is a plain string, else its Record name without the type, and `typeGuid` its GUID; `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
+| `parentGuid` | The Reference `parent`, the `guid` of another entry unless that Record is missing or left out; `null` for none |
+| `hideInStarmap` | `hideInStarmap`; `null` when the Record states none |
+| `system` | The folder of the star system below `Data/ObjectContainers/PU/system` that places the object, e.g. `stanton`; `null` when no container places it |
+| `entityName` | The `entityName` of the Child element that places the object, e.g. `jumppoint_stanton_pyro`; `null` when it is not placed or the Child names none |
+| `placedUnderGuid` | The `guid` of the nearest object above this one in the container hierarchy; `null` when it is not placed or hangs directly below the system. It is a fact of the containers; `parentGuid` is the Record's own and the two need not agree |
+| `position` | `[x, y, z]` in metres in the frame of the system container, rounded to a millimetre; `null` when no container places the object |
+
+**Where a position comes from.** The main container of a star system is
+`Data/ObjectContainers/PU/system/<folder>/<folder>system.socpak` (else the first `*system.socpak`
+of the folder). It is a container (ZIP) whose XML, named like the container, lists
+`ChildObjectContainers/Child` elements. A Child places an object with `starMapRecord` (the GUID of
+a `StarMapObject`), `pos` (`x,y,z`) and `rot` (a quaternion `w,x,y,z`), may nest further
+`ChildObjectContainers`, and with `external="1"` names another container (`name`) whose Children
+are placed in the frame of this Child. Positions compose from the top: the position of a child is
+rotated by the rotation of its container before it is added, and the rotations multiply, so
+`world = parent.position + parent.rotation * child.pos` and `rotation = parent.rotation *
+child.rot`. A Child without `rot` has the identity rotation, one without `pos` the origin. Children
+without a `starMapRecord` only take part in the composition. ScDataDumper adds the child positions
+without rotating them by the container rotation (`Commands/LoadStarmap.php`); the catalog does
+not.
+
+A record that more than one Child places keeps its position when every placement lies within 1 m
+of the first (the same place reached twice); when two lie further apart the record has no position,
+because no placement is the place (`StarmapSummary::ambiguous` counts these records; on LIVE
+all are asteroids and wreck sets of the Nyx ring segments, whose containers are instanced several
+times). A Child whose `pos` or `rot` is malformed (not numbers, not three or four parts, a
+quaternion without length), or whose composed position is not a finite number or lies beyond
+1e15 m on an axis (about a tenth of a light year, far outside any star system), and everything
+below it are not placed. The same holds for the walk limits: Children nested deeper than 64,
+more than 4,194,304 Children in one system, an external container reached through more than 32
+others, and an external container that is already open above the Child that names it (a cycle) are
+counted and not followed. All of these, and a container that cannot be read, are warned about by
+`p4kx catalog` (exit code 1); the counts `unreadable_containers` and `malformed_children` are
+counted per reference, not per distinct container, so one container named by ten Children
+counts ten times. A container that a Child names and the Archive does
+not hold (`missing_containers`, also counted per reference; LIVE: two, an event container and a
+module of a Lorville entry) is a fact of the game data, like a patch file the Archive lacks: it is
+counted and listed in `CatalogSummary::starmap_report()` but is no warning. The report keeps at
+most 300 lines of containers and 300 of issues per star system, each at most 300 characters.
+**Rotation order.** `rot` is read as `w,x,y,z`. The raw values of LIVE settle it: the identity occurs as
+`1,0,0,0`, the rotations of the Nyx ring segments are `a,0,0,b` (about the z axis, the axis of the
+ring) and the small tilts of surface structures `0.98,~0,~0,0.17`; read as `x,y,z,w` the identity would
+be a half turn about x and the ring segments rotations about x. Everus Harbor lies 1.04e6 m from
+Hurston.
+
+**What no container places.** On LIVE (2026-10-22) 2,093 objects are selected, 1,239 have a
+position and 854 have none. Searching all 9,668 object containers of the Archive for the 854 GUIDs gives:
+
+- **816 appear in no object container at all.** No container places them, so no position exists to
+  export. By type: Outpost 416 (350 hidden), Asteroid 279 (249 hidden), Asteroid_ValidQT 57 (34
+  hidden), Manmade 49, Manmade_VisibleOnInteraction 12, Anomaly 12 (8 hidden; the
+  jump point records of Pyro and Nyx), PointOfInterest 23, the 3
+  SolarSystem records, and one each of Moon, Planet and Outpost_InvalidQT; 666 of the 854 are
+  `hideInStarmap`. They are the Nyx and Pyro points of interest (`Nyx_Kaboos_*`, the Pyro Lagrange
+  `*_Enterance` points), mining and quantum-travel markers, rest-stop records, quantum beacons of
+  players and missions (`PARTY_MEMBER_QT_Beacon`, `MISSION_QT_*`) and the star systems themselves:
+  the game positions them at run time or by other data than an object container.
+- **9 appear more than 1 m apart** in the system containers (the instanced Nyx ring segments, see
+  above) and are left without a position on purpose.
+- **29 appear only in containers that no system container reaches**: `nyx/delamar/delamar.socpak`
+  (the private mining points and asteroid clusters of Delamar), the Pyro rest-stop modules under
+  `loc/mod/pyro/station/ser/reststop_ext` (the clinics), the Orison Fleet Week 2022 platforms, the
+  New Babbage IAE 2023 lobby, and the Early Access maps (`EA/...`, which place `Ellis3` and
+  `Stanton4_L1_02`). Their own position in the star system is unknown, because no `external`
+  Child of a system container names them, so the position of what they place cannot be composed.
+
+These objects keep `position` `null`; the catalog never guesses a place from the parent.
+The kind is selected by the prefix `libs/foundry/records/starmap/pu/` and the type `StarMapObject`
+like the others, with the development leftovers left out. The positions do not depend on the
+Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, amenity and radar
+Records are not kinds; the type enters as `type` and `typeGuid`.
+
+Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON (570 bytes each), 4.5 % of the 26.5 MB of the
+catalog, and a smaller share compressed. The released marker of a starmap object
+(#417) will be another additive field.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -807,6 +897,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
 | `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
+| `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

@@ -17,6 +17,7 @@ p4kx-channels.workspace = true
 p4kx-extraction.workspace = true
 crc32c.workspace = true
 rayon.workspace = true
+roxmltree.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true

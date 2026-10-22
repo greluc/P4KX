@@ -83,6 +83,7 @@ mod ship;
 mod ship_base;
 mod starmap;
 mod starmap_containers;
+mod starmap_index;
 mod starmap_transform;
 mod starmap_xml;
 mod summary;

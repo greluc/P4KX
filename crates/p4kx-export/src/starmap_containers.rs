@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry as MapEntry;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
@@ -9,12 +9,10 @@ use p4kx_extraction::{Archive, CancelToken, Entry, Guid};
 use rayon::prelude::*;
 
 use crate::CatalogError;
+use crate::starmap_index::{Index, SOCPAK, SYSTEM_FOLDER, key};
 use crate::starmap_transform::{Rotation, Transform};
-use crate::starmap_xml::{Node, attribute, first_below};
+use crate::starmap_xml::{Node, attribute, first_below, pose};
 
-const SYSTEM_FOLDER: &str = "data\\objectcontainers\\pu\\system\\";
-const SOCPAK: &str = ".socpak";
-const SYSTEM_SUFFIX: &str = "system.socpak";
 const CHILDREN: &str = "ChildObjectContainers";
 const CHILD: &str = "Child";
 
@@ -147,76 +145,6 @@ impl Placements {
         placements.report.unreferenced = unreferenced;
         Ok(placements)
     }
-}
-
-/// The socpak Entries of an Archive by normalised path.
-struct Index<'a> {
-    entries: &'a [Entry],
-    by_path: HashMap<String, usize>,
-}
-
-impl<'a> Index<'a> {
-    fn new(archive: &'a Archive) -> Self {
-        let entries = archive.entries();
-        let by_path = entries
-            .iter()
-            .enumerate()
-            .map(|(at, entry)| (key(entry.path()), at))
-            .filter(|(path, _)| path.ends_with(SOCPAK))
-            .collect();
-        Self { entries, by_path }
-    }
-
-    fn find(&self, path: &str) -> Option<usize> {
-        let mut wanted = key(path);
-        if !wanted.starts_with("data\\") {
-            wanted.insert_str(0, "data\\");
-        }
-        self.by_path.get(&wanted).copied()
-    }
-
-    /// Returns the folder name and the Entry of the main container of every star system, ordered
-    /// by folder name: `<folder>system.socpak` of a folder below `ObjectContainers\PU\system`,
-    /// else the first `*system.socpak` of the folder by path.
-    fn systems(&self) -> Vec<(Arc<str>, usize)> {
-        let mut folders: BTreeMap<&str, BTreeMap<&str, usize>> = BTreeMap::new();
-        for (path, at) in &self.by_path {
-            let Some(rest) = path.strip_prefix(SYSTEM_FOLDER) else {
-                continue;
-            };
-            if let Some((folder, file)) = rest.split_once('\\')
-                && !file.contains('\\')
-                && file.ends_with(SYSTEM_SUFFIX)
-            {
-                folders.entry(folder).or_default().insert(file, *at);
-            }
-        }
-        folders
-            .into_iter()
-            .filter_map(|(folder, files)| {
-                let own = format!("{folder}{SYSTEM_SUFFIX}");
-                let at = files
-                    .get(own.as_str())
-                    .or_else(|| files.values().next())
-                    .copied()?;
-                Some((Arc::from(folder), at))
-            })
-            .collect()
-    }
-}
-
-/// Returns `path` in lower case with `\` as separator and no leading separator.
-fn key(path: &str) -> String {
-    path.trim_start_matches(['/', '\\'])
-        .chars()
-        .map(|c| {
-            if c == '/' {
-                '\\'
-            } else {
-                c.to_ascii_lowercase()
-            }
-        })
-        .collect()
 }
 
 #[derive(Default)]
@@ -467,31 +395,4 @@ impl<'a> System<'a> {
         ));
         Some(record)
     }
-}
-
-/// Returns the position and the rotation of a Child: `pos` as `x,y,z` (zero when absent) and
-/// `rot` as the quaternion `w,x,y,z` (none when absent); `None` for a value that is malformed.
-fn pose<'d>(child: impl Node<'d>) -> Option<([f64; 3], Rotation)> {
-    let position = match attribute(child, "pos") {
-        Some(text) => numbers::<3>(text)?,
-        None => [0.0; 3],
-    };
-    let rotation = match attribute(child, "rot") {
-        Some(text) => Rotation::from_parts(numbers::<4>(text)?)?,
-        None => Rotation::IDENTITY,
-    };
-    Some((position, rotation))
-}
-
-fn numbers<const N: usize>(text: &str) -> Option<[f64; N]> {
-    let mut parts = text.split(',');
-    let mut values = [0.0; N];
-    for slot in &mut values {
-        let value: f64 = parts.next()?.trim().parse().ok()?;
-        if !value.is_finite() {
-            return None;
-        }
-        *slot = value;
-    }
-    parts.next().is_none().then_some(values)
 }

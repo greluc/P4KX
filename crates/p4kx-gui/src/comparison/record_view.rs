@@ -17,6 +17,8 @@ pub enum ComparisonList {
     Entries,
     /// The Records added, removed, moved, changed and unreadable.
     Records,
+    /// The structs, properties, enums and enum options of the schema that differ.
+    Schema,
 }
 
 /// The Record changes of a finished Comparison as the Record list shows them: filtered, sorted

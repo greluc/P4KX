@@ -257,6 +257,13 @@ Early development (milestone M1). Available today:
   [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---json)). Every level is compared when
   none is given; the Record level needs a DataForge in both Archives (exit code 5 otherwise). The
   exit code is 0 without and 1 with differences.
+- `p4kx compare <old> <new> --schema` compares the schema of both DataForges instead of their
+  contents: the structs, properties (data type, conversion type, target), enums and enum options
+  added, removed or changed, each struct and enum with the number of Records it concerns on both
+  sides. `--json` prints the report (see
+  [docs/cli-json.md](docs/cli-json.md#p4kx-compare-old-new---schema---json)); the Comparison tab
+  of the window shows it in the Schema list once the Record level was compared. The exit code is 0
+  without and 1 with differences.
 - `p4kx compare <old> <new> --diff <entry>` prints the line diff of one Entry between both Archives
   as a unified diff: CryXml is converted to XML first, UTF-16 with a byte order mark is decoded,
   other text and text XML are compared byte for byte, and an Entry on one side only is diffed

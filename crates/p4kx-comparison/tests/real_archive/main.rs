@@ -3,3 +3,4 @@
 mod archive;
 mod nested;
 mod real_pair;
+mod schema;

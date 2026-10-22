@@ -27,6 +27,7 @@ mod comparison_record_fields;
 mod comparison_record_scrolling;
 mod comparison_record_window;
 mod comparison_records;
+mod comparison_schema_window;
 mod comparison_window;
 mod containers;
 mod content_search_window;

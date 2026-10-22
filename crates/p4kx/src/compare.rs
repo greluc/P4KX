@@ -10,7 +10,7 @@ use p4kx_comparison::{
 use thiserror::Error;
 
 use crate::cli::CompareArgs;
-use crate::{dataforges, diff, exit, json};
+use crate::{compare_schema as schema, dataforges, diff, exit, json};
 
 const UNKNOWN: &str = "unknown";
 const ROOT: &str = "(root)";
@@ -35,6 +35,9 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
             diff::print(&diff, &old, &new, as_json),
             diff.has_differences(),
         );
+    }
+    if args.schema {
+        return schema::run(&old, &new, as_json);
     }
     let filter = args.filter.as_deref().map(Filter::new);
     let options = CompareOptions {
@@ -70,7 +73,7 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
 }
 
 /// Returns the exit code for a printed result, ignoring a closed stdout.
-fn finish(printed: io::Result<()>, differs: bool) -> Result<ExitCode> {
+pub(crate) fn finish(printed: io::Result<()>, differs: bool) -> Result<ExitCode> {
     if let Err(error) = printed
         && error.kind() != io::ErrorKind::BrokenPipe
     {
@@ -151,7 +154,7 @@ fn print_summary(comparison: &Comparison<'_>) -> io::Result<()> {
     out.flush()
 }
 
-fn write_side(out: &mut impl Write, label: &str, side: &Side<'_>) -> io::Result<()> {
+pub(crate) fn write_side(out: &mut impl Write, label: &str, side: &Side<'_>) -> io::Result<()> {
     write_line(out, label, &json::path(side.archive()))?;
     write_line(
         out,
@@ -172,7 +175,7 @@ fn write_side(out: &mut impl Write, label: &str, side: &Side<'_>) -> io::Result<
     write_line(out, &format!("{label} Build"), &build)
 }
 
-fn write_line(out: &mut impl Write, label: &str, value: &str) -> io::Result<()> {
+pub(crate) fn write_line(out: &mut impl Write, label: &str, value: &str) -> io::Result<()> {
     writeln!(out, "{:<16} {value}", format!("{label}:"))
 }
 

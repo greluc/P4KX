@@ -4,8 +4,8 @@ use fluent_bundle::FluentValue;
 use super::archive_picker::{self, Picked};
 use super::search::eyebrow;
 use super::{
-    Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_lists, comparison_summary,
-    comparison_table, record_fields,
+    Dialog, RESIZE_GAP, Requests, comparison_diff, comparison_lists, comparison_schema,
+    comparison_summary, comparison_table, record_fields,
 };
 use crate::theme::desktop::{
     COMPARISON_PROGRESS_WIDTH, PREVIEW_MIN_HEIGHT, SPINNER, TOOLBAR_PADDING,
@@ -39,6 +39,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         let Some(view) = model.comparison().view() else {
             return;
         };
+        if comparison_lists::schema_shown(view) {
+            frames::panel().show(ui, |ui| comparison_schema::show(ui, model));
+            return;
+        }
         let records = comparison_lists::records_shown(view);
         let selected = if records {
             view.records().and_then(RecordChangeView::selected)

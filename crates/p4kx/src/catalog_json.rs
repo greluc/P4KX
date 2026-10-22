@@ -2,7 +2,8 @@ use std::path::Path;
 
 use p4kx_export::{
     CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, KindSummary, LoadoutSummary, PaintSummary,
-    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, StarmapSummary, UPLOAD_LIMIT,
+    Playability, PlayabilityCounts, SCHEMA_VERSION, ShopSummary, SizeWarning, StarmapSummary,
+    UPLOAD_LIMIT,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -28,9 +29,53 @@ pub(super) struct SummaryJson<'a> {
     paints: PaintsJson,
     loadouts: LoadoutsJson,
     starmap: StarmapJson,
+    shops: ShopsJson<'a>,
     playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+#[derive(Serialize)]
+struct ShopsJson<'a> {
+    shops: usize,
+    registry_entries: usize,
+    registry_unreadable: bool,
+    malformed: usize,
+    duplicate: usize,
+    containers_listed: usize,
+    containers_unreadable: usize,
+    containers_with_shop: usize,
+    with_kind: usize,
+    mixed_kind: usize,
+    without_container: usize,
+    commodity_exchanges: usize,
+    linked: usize,
+    unlinked: usize,
+    ambiguous_link: usize,
+    unlinked_locations: &'a [String],
+}
+
+impl<'a> From<&'a ShopSummary> for ShopsJson<'a> {
+    fn from(summary: &'a ShopSummary) -> Self {
+        Self {
+            shops: summary.shops,
+            registry_entries: summary.registry_entries,
+            registry_unreadable: summary.registry_unreadable,
+            malformed: summary.malformed,
+            duplicate: summary.duplicate,
+            containers_listed: summary.containers_listed,
+            containers_unreadable: summary.containers_unreadable,
+            containers_with_shop: summary.containers_with_shop,
+            with_kind: summary.with_kind,
+            mixed_kind: summary.mixed_kind,
+            without_container: summary.without_container,
+            commodity_exchanges: summary.commodity_exchanges,
+            linked: summary.linked,
+            unlinked: summary.unlinked,
+            ambiguous_link: summary.ambiguous_link,
+            unlinked_locations: &summary.unlinked_locations,
+        }
+    }
 }
 
 impl From<PaintSummary> for PaintsJson {
@@ -251,6 +296,7 @@ pub(super) fn summary_json<'a>(
         paints: summary.paints().into(),
         loadouts: summary.loadouts().into(),
         starmap: summary.starmap().into(),
+        shops: summary.shops().into(),
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),

@@ -13,6 +13,7 @@ pub(crate) use crate::contract_loadout::Loadout;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
+pub(crate) use crate::contract_shops::Shop;
 pub(crate) use crate::contract_starmap::StarmapObject;
 
 /// The version of the catalog shape.
@@ -65,6 +66,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) loadouts: Vec<Loadout>,
     /// The starmap objects with their world positions, ordered by GUID.
     pub(crate) starmap_objects: Vec<StarmapObject<'a>>,
+    /// The shops of the shop registry with kind, brand and place, ordered by `key`.
+    pub(crate) shops: Vec<Shop>,
 }
 
 /// Where a catalog came from.
@@ -137,6 +140,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) loadouts: KindCompleteness<'a>,
     /// The completeness of `starmapObjects`.
     pub(crate) starmap_objects: KindCompleteness<'a>,
+    /// The completeness of `shops`.
+    pub(crate) shops: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -157,6 +162,7 @@ impl<'a> Completeness<'a> {
             paints: completeness,
             loadouts: completeness,
             starmap_objects: completeness,
+            shops: completeness,
         }
     }
 }

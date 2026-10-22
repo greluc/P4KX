@@ -50,11 +50,14 @@ pub enum Kind {
     /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
     /// system containers place it at.
     StarmapObjects,
+    /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
+    /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
+    Shops,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -69,6 +72,7 @@ impl Kind {
         Self::Paints,
         Self::Loadouts,
         Self::StarmapObjects,
+        Self::Shops,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -89,6 +93,7 @@ impl Kind {
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
+            Self::Shops => "shops",
         }
     }
 
@@ -108,7 +113,8 @@ impl Kind {
     /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
     /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
     /// [`Kind::Loadouts`] has no rule of its own either: it takes the Records of [`Kind::Ships`]
-    /// and of [`Kind::Items`] and reports the rule of the items.
+    /// and of [`Kind::Items`] and reports the rule of the items. [`Kind::Shops`] reads Archive
+    /// files, not Records, and reports an empty rule.
     #[must_use]
     pub const fn rule(self) -> KindRule {
         match self {
@@ -166,6 +172,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/starmap/pu/"],
                 type_name: "StarMapObject",
             },
+            Self::Shops => KindRule {
+                prefixes: &[],
+                type_name: "",
+            },
         }
     }
 
@@ -196,6 +206,7 @@ impl Kind {
             Self::Paints => 11,
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
+            Self::Shops => 14,
         }
     }
 
@@ -203,7 +214,7 @@ impl Kind {
     /// of its own.
     #[must_use]
     pub const fn is_derived(self) -> bool {
-        matches!(self, Self::Paints | Self::Loadouts)
+        matches!(self, Self::Paints | Self::Loadouts | Self::Shops)
     }
 }
 

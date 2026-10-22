@@ -6,7 +6,7 @@ use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
     GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
-    StarmapObject,
+    Shop, StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -81,7 +81,8 @@ impl<'f> Picked<'f> {
             | Kind::DismantleProcesses
             | Kind::Paints
             | Kind::Loadouts
-            | Kind::StarmapObjects => return None,
+            | Kind::StarmapObjects
+            | Kind::Shops => return None,
         })
     }
 }
@@ -104,6 +105,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) loadouts: Vec<Loadout>,
     pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
+    pub(crate) shops: Vec<Shop>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -115,6 +117,10 @@ pub(crate) struct Collected<'f> {
 impl<'f> Collected<'f> {
     /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
     /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one initialiser and one arm per kind of the catalog"
+    )]
     pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
         let mut skipped = [0; Kind::ALL.len()];
         for (kind, count) in &crafting.skipped {
@@ -139,6 +145,7 @@ impl<'f> Collected<'f> {
             loadouts: Vec::new(),
             port_items: Vec::new(),
             starmap_objects: Vec::new(),
+            shops: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -229,6 +236,7 @@ impl<'f> Collected<'f> {
                     Kind::Paints => self.paints.len(),
                     Kind::Loadouts => self.loadouts.len(),
                     Kind::StarmapObjects => self.starmap_objects.len(),
+                    Kind::Shops => self.shops.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

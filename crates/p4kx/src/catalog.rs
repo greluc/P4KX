@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
-    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, Playability, SizeWarning,
-    StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, Playability, ShopSummary,
+    SizeWarning, StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -194,6 +194,22 @@ fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()
     )
 }
 
+fn print_shops(out: &mut impl Write, shops: &ShopSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "shops: {} of {} registry entries, {} malformed, {} repeated, {} with a kind, {} linked to a starmap object, {} not, {} commodity exchanges, {} containers unreadable",
+        shops.shops,
+        shops.registry_entries,
+        shops.malformed,
+        shops.duplicate,
+        shops.with_kind,
+        shops.linked,
+        shops.unlinked,
+        shops.commodity_exchanges,
+        shops.containers_unreadable
+    )
+}
+
 fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
     for kind in summary.kinds() {
@@ -220,6 +236,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     )?;
     print_loadouts(&mut stdout, summary.loadouts())?;
     print_starmap(&mut stdout, summary.starmap())?;
+    print_shops(&mut stdout, summary.shops())?;
     let playability = summary.playability();
     for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
         writeln!(

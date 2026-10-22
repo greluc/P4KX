@@ -105,6 +105,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
 | `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
 | `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
+| `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -800,6 +801,54 @@ object from an unreleased one (ADR-0067, #417): the three star system Records ca
 (`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
 Basetool decides from `system`, `position`, `hideInStarmap` and `type`.
 
+### Shops
+
+A shop (`shops`) is one `ShopBackup` entry of the shop registry `Data\Libs\CosmoTools\
+LayerRecovery\LayerBackups.xml` (a CryXml file), one placement of an `SCShop` Entity in the world
+(ADR-0069; a new kind, so `schemaVersion` stays 1). The kind is facts only: identifiers, internal
+names and places. It carries no price, no stock, no description and no item list. The names in it
+are names of containers and entities, not localisation keys, so no field is a game text.
+
+| Field | Source |
+|-------|--------|
+| `key` | The `ID` attribute of the entry: the CryGUIDs of the containers from the system root down to the `SCShop` Entity, comma separated, as stored. Unique (1,184 distinct on LIVE) and the identity of the shop |
+| `entityGuid` | The last element of `key`, the CryGUID of the `SCShop` Entity, lower case. A shop module placed in several places keeps it (235 distinct for 1,184 shops on LIVE), so it is no identity; it is the CryGUID that `metadata\entitycomponentshop.xml` of the shop container names |
+| `system` | `PlatformName` of the `LayerBackup` without the suffix `system`, lower case: `stanton`, `pyro` |
+| `entityName` | The last element of `SuperName`, the name of the `SCShop` Entity, e.g. `SCShop_CommEx_TDD_NewBabbage` |
+| `registryName` | `ShopName`, e.g. `Pharmacy_RestStop_ARC-LEO1`; `null` when empty. A name, not a localisation key; many shops share one (361 distinct on LIVE) |
+| `defaultValue` | `DefaultValue`, a GUID; `null` when empty. Shops with the same `registryName` share it (1 to 1 on LIVE). What it refers to is not known |
+| `containers` | The elements of `SuperName` before the entity, each without its `_{GUID}` suffix and surrounding blanks, from the system root down |
+| `body`, `location` | The second and third element of `containers` (`OOC_Stanton_4_Microtech`, `Area18_City_objectContainer`; Pyro: `pyro5`, `rs_ext_pyro6_l3`); `null` when the chain is shorter |
+| `starmapObjectGuid` | The `guid` of the `starmapObjects` entry whose `entityName` or `className` equals `location` ignoring ASCII case; `null` when none does or when more than one object does |
+| `kind`, `brand` | From the path of the shop container whose `entitycomponentshop.xml` names `entityGuid`: below `Data\ObjectContainers\PU\Shops` the first folder is the kind (`commex`, `clothing`, ...), the second the brand (`tdd`, `mcraes`), the brand `null` when the file lies directly in the kind folder; a container in a `shopcomm` or `shopfood` folder below `PU\loc` has that folder as kind and no brand. `null` for both when no container names the Entity or containers that differ in kind or brand do. The kind is a closed set the game may extend; a reader maps an unknown value to `null` |
+| `commodityExchange` | `true` when `entityName` starts with `SCShop_CommEx_TDD_`, or starts with `SCShop_Platinumbay` and ends with `_Commodity` (ignoring case): the commodity exchanges and terminals |
+
+**What the registry holds.** LIVE has two `LayerBackup` elements in the one file: `stantonsystem`
+(813 shops) and `pyrosystem` (371), 1,184 entries in all. An entry whose `ID` and `SuperName` chains
+differ in length or hold an empty element is left out, and so is an entry whose `ID` an earlier one
+already has (`ShopSummary::malformed` and `duplicate`; on LIVE the 1,184 `ID`s are distinct and the two chains
+agree in length everywhere). The chains have 4 to 9 elements.
+
+**The link to the starmap** goes by the name of the location container, as the spike (#398)
+found. The summary lists the distinct location names without a link (up to 200) in
+`CatalogSummary::shops()`. A shop's exact position inside the interior is not exported: it needs the
+`.soc` of the container.
+
+**Kind and brand** need the shop containers: the catalog opens every socpak below `PU\Shops` and
+the `shopcomm` and `shopfood` folders below `PU\loc` and reads `metadata\entitycomponentshop.xml`
+(CryXml or text). A container that cannot be read is counted, not an error
+(`containers_unreadable`).
+
+**No items.** The inventory files `Data\Scripts\ShopInventories\Inv_*.json` list item GUIDs of
+`EntityClassDefinition` Records, but no rule assigns a file to a shop (ADR-0069): of the 87 files
+that have a `ShopID` (32 have none), the chain equals a registry `ID` for 4, and the last element
+equals the `entityGuid` of some shop for 39 but often of a shop of another name and place. The
+catalog therefore carries no item list. Prices, stock and demand stay server-side and are never
+exported.
+
+**Filter.** Shops are selected by no record path. With a Filter no shop is read and `shops` is empty
+with the status `partial`.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -903,6 +952,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
 | `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
 | `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
+| `shops` | None: the `ShopBackup` entries of `LayerBackups.xml`, no Records | |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

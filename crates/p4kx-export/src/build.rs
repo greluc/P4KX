@@ -17,12 +17,13 @@ use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::paint::paints;
 use crate::scan::Scan;
+use crate::shops::shops;
 use crate::starmap_containers::Placements;
 use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
-    PaintSummary, StarmapSummary,
+    PaintSummary, ShopSummary, StarmapSummary,
 };
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
@@ -141,6 +142,7 @@ pub(crate) struct Parts {
     loadouts: LoadoutSummary,
     starmap: StarmapSummary,
     starmap_report: Box<StarmapReport>,
+    shops: Box<ShopSummary>,
     playability: crate::PlayabilitySummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
@@ -157,6 +159,7 @@ impl Parts {
             loadouts: self.loadouts,
             starmap: self.starmap,
             starmap_report: self.starmap_report,
+            shops: self.shops,
             playability: Box::new(self.playability),
             failures: self.failures,
             warnings: self.warnings,
@@ -167,6 +170,10 @@ impl Parts {
 }
 
 /// Builds the catalog and hands it to `emit`, which serialises it.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one step and one field per kind of the catalog"
+)]
 fn assemble<R>(
     archive: &Archive,
     entry: &DataForgeEntry,
@@ -190,6 +197,7 @@ fn assemble<R>(
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let starmap_summary = add_starmap(&mut collected, counts);
+    let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let (item_classes, playability) = (collected.item_classes, collected.playability);
@@ -213,6 +221,7 @@ fn assemble<R>(
         paints: collected.paints,
         loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
+        shops: collected.shops,
     };
     let output = emit(&catalog)?;
     Ok((
@@ -225,6 +234,7 @@ fn assemble<R>(
             loadouts: loadout_summary,
             starmap: starmap_summary,
             starmap_report: Box::new(report),
+            shops: Box::new(shop_summary),
             playability,
             failures,
             warnings,
@@ -357,6 +367,22 @@ fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> Starma
             ));
     }
     summary
+}
+
+/// Reads the shop registry and the shop containers into `collected` and returns the counts. With
+/// a Filter no shop is read: shops are selected by no record path.
+fn add_shops(
+    archive: &Archive,
+    files: &ArchiveFiles<'_>,
+    collected: &mut Collected<'_>,
+    options: &CatalogOptions<'_>,
+) -> Result<ShopSummary, CatalogError> {
+    if options.filter.is_some() {
+        return Ok(ShopSummary::default());
+    }
+    let built = shops(archive, files, &collected.starmap_objects, options.cancel)?;
+    collected.shops = built.shops;
+    Ok(built.summary)
 }
 
 pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

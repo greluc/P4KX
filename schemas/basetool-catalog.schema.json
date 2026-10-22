@@ -431,6 +431,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `items`."
         },
+        "loadouts": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `loadouts`."
+        },
         "manufacturers": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
@@ -460,6 +464,7 @@
         "dismantleProcesses",
         "gameplayProperties",
         "items",
+        "loadouts",
         "manufacturers",
         "paints",
         "qualityDistributions",
@@ -1199,6 +1204,164 @@
         }
       ]
     },
+    "Loadout": {
+      "description": "The ports of a ship or of an item that has ports, and what the Default Loadout puts into them.",
+      "properties": {
+        "entityGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `guid` of the entry in `ships` or `items` the ports belong to; loadouts are ordered by\nit."
+        },
+        "entityKind": {
+          "description": "Which kind `entityGuid` is an entry of, `ship` or `item`; a closed set the game may\nextend, so the schema keeps a string.",
+          "type": "string"
+        },
+        "issues": {
+          "description": "The codes of the problems that kept part of the Loadout from being read, e.g.\n`xml_loadout`, sorted and without duplicates; empty when everything was read.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ports": {
+          "description": "The ports of the Entity: those a Loadout names in Loadout order, then the other defined\nports in definition order, then the item ports of the vehicle implementation no Record\nport names.",
+          "items": {
+            "$ref": "#/$defs/LoadoutPort"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "entityGuid",
+        "entityKind",
+        "issues",
+        "ports"
+      ],
+      "type": "object"
+    },
+    "LoadoutPort": {
+      "description": "One item port and what the Default Loadout attaches to it.",
+      "properties": {
+        "displayNameKey": {
+          "description": "The localisation key of the port's display name; `null` for none or a placeholder key.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dockedVehicle": {
+          "description": "Whether the attached Entity is a docked vehicle, e.g. a snub craft in a hangar port. Its\nports are not listed.",
+          "type": "boolean"
+        },
+        "flags": {
+          "description": "The flags of the port as stored, split at white space, without a leading `$`, e.g.\n`invisible`, `uneditable`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "itemClassName": {
+          "description": "The class name of the attached Entity, or the class name the Loadout names; `null` for an\nempty port or an unresolved Reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "itemGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `guid` of the entry in `items` (or, for a docked vehicle, in `ships`) the port holds\nby default; `null` for an empty port. For an attachment that cannot be resolved it is the\nGUID the Loadout names, which may belong to no entry, or `null` when the Loadout names a\nclass name only."
+        },
+        "maxSize": {
+          "description": "The largest item size the port takes, `null` when the data gives none.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minSize": {
+          "description": "The smallest item size the port takes, `null` when the data gives none.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The port name, as the Loadout or the port definition spells it.",
+          "type": "string"
+        },
+        "portTags": {
+          "description": "The tags the port offers: the words of the stored value, split at white space and\notherwise unchanged, like `tags` of an item.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ports": {
+          "description": "The ports of the attached Entity under this Loadout, or the ports of the nested Loadout of\nan empty port; empty for a port without either.",
+          "items": {
+            "$ref": "#/$defs/LoadoutPort"
+          },
+          "type": "array"
+        },
+        "requiredTags": {
+          "description": "The tags an item must carry to fit the port: the words of the stored value, split at white\nspace and otherwise unchanged, like `tags` of an item.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "source": {
+          "description": "Where the attachment comes from: `loadout` (the Entity's own Default Loadout), `override`\n(the Loadout of the entry that attached the Entity), `port_default` (the default item of\nthe port definition), `unset` (the port is defined and holds nothing) or `vehicle` (the\nport is known only from the vehicle implementation and holds nothing). A closed set the\ngame may extend, so the schema keeps a string.",
+          "type": "string"
+        },
+        "types": {
+          "description": "The item types the port takes, in stored order; empty when the data names none.",
+          "items": {
+            "$ref": "#/$defs/PortType"
+          },
+          "type": "array"
+        },
+        "unresolved": {
+          "description": "The code of the error that kept the attachment from being resolved, e.g.\n`dangling_reference` or `unknown_class`; `null` otherwise.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visibility": {
+          "description": "Whether the vehicle implementation shows the port: `visible`, `invisible` or\n`unspecified` when it names no part of that name. A closed set the game may extend, so the\nschema keeps a string.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "displayNameKey",
+        "dockedVehicle",
+        "flags",
+        "itemClassName",
+        "itemGuid",
+        "maxSize",
+        "minSize",
+        "name",
+        "portTags",
+        "ports",
+        "requiredTags",
+        "source",
+        "types",
+        "unresolved",
+        "visibility"
+      ],
+      "type": "object"
+    },
     "LocalisedText": {
       "description": "A text the game localises: its localisation key and the resolved English and German texts,\nas the language's `global.ini` stores them with the escape `\\n` decoded to a line feed.",
       "properties": {
@@ -1443,6 +1606,27 @@
       "required": [
         "blueprintGuid",
         "weight"
+      ],
+      "type": "object"
+    },
+    "PortType": {
+      "description": "An item type a port takes.",
+      "properties": {
+        "subTypes": {
+          "description": "The item subtypes the port takes; empty when it takes every subtype or the data gives\nnone.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "description": "The item type, e.g. `WeaponGun`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subTypes",
+        "type"
       ],
       "type": "object"
     },
@@ -2277,6 +2461,13 @@
       },
       "type": "array"
     },
+    "loadouts": {
+      "description": "The ports of every ship and of every item that has ports, with what the Default Loadout\nattaches to each, ordered by the GUID of the entity.",
+      "items": {
+        "$ref": "#/$defs/Loadout"
+      },
+      "type": "array"
+    },
     "manufacturers": {
       "description": "The manufacturers, ordered by GUID.",
       "items": {
@@ -2334,6 +2525,7 @@
     "dismantleProcesses",
     "gameplayProperties",
     "items",
+    "loadouts",
     "manufacturers",
     "paints",
     "qualityDistributions",

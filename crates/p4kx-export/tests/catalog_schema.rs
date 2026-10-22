@@ -183,6 +183,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "blueprintPools",
         "dismantleProcesses",
         "paints",
+        "loadouts",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);
@@ -190,8 +191,8 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
     }
 
     let mut unknown_kind = catalog.clone();
-    unknown_kind["loadouts"] = json!([{"guid": "x"}]);
-    unknown_kind["completeness"]["loadouts"] = json!({"status": "complete"});
+    unknown_kind["starmap"] = json!([{"guid": "x"}]);
+    unknown_kind["completeness"]["starmap"] = json!({"status": "complete"});
     unknown_kind["source"]["extra"] = json!(true);
     unknown_kind["completeness"]["items"]["extra"] = json!(true);
     unknown_kind["items"][0]["name"]["extra"] = json!(true);
@@ -309,6 +310,53 @@ fn every_field_the_schema_lists_is_required() -> TestResult {
         catalog.remove("craftingGlobal");
     }
     assert!(!validator.is_valid(&no_global), "the global parameters");
+    Ok(())
+}
+
+#[test]
+fn the_loadout_fields_accept_additions_and_new_closed_values_but_stay_required() -> TestResult {
+    let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
+    let catalog = minimal_catalog();
+    let mut unknown_port = catalog.clone();
+    unknown_port["loadouts"][0]["ports"][0]["ports"][0]["extra"] = json!(true);
+    unknown_port["loadouts"][0]["ports"][0]["types"] = json!([{"type": "Turret", "extra": 1,
+        "subTypes": []}]);
+    assert!(
+        validator.is_valid(&unknown_port),
+        "unknown fields in a nested port and a port type"
+    );
+
+    let mut new_values = catalog.clone();
+    new_values["loadouts"][0]["entityKind"] = json!("vehicle");
+    new_values["loadouts"][0]["ports"][0]["source"] = json!("modification");
+    new_values["loadouts"][0]["ports"][0]["visibility"] = json!("hidden");
+    assert!(
+        validator.is_valid(&new_values),
+        "a new entity kind, source or visibility is additive: the closed sets stay strings"
+    );
+
+    for (path, field) in [
+        ("entityKind", None),
+        ("issues", None),
+        ("ports", Some("itemGuid")),
+        ("ports", Some("dockedVehicle")),
+        ("ports", Some("unresolved")),
+        ("ports", Some("ports")),
+        ("ports", Some("requiredTags")),
+    ] {
+        let mut missing = catalog.clone();
+        let target = match field {
+            None => missing["loadouts"][0].as_object_mut(),
+            Some(_) => missing["loadouts"][0][path][0].as_object_mut(),
+        };
+        if let Some(target) = target {
+            target.remove(field.unwrap_or(path));
+        }
+        assert!(
+            !validator.is_valid(&missing),
+            "{path} {field:?} stays required"
+        );
+    }
     Ok(())
 }
 

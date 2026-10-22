@@ -90,7 +90,7 @@ fn the_summary_shows_the_kinds_the_texts_the_size_and_the_file() -> TestResult {
     harness.get_by_label(&format!("File: {}", file.display()));
     assert!(
         harness
-            .query_by_label_contains("close to the basetool upload limit")
+            .query_by_label_contains("is close to the basetool upload limit")
             .is_none(),
         "no size warning"
     );
@@ -162,7 +162,7 @@ fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
 
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label("The catalog is close to the basetool upload limit of 64 MB.");
+    harness.get_by_label("The plain JSON catalog is close to the basetool upload limit of 64 MB. Write the catalog as .json.zst for the upload; plain .json is for inspection.");
     Ok(())
 }
 
@@ -175,11 +175,11 @@ fn a_catalog_over_the_upload_limit_shows_the_danger_alert() -> TestResult {
     wait_for_the_end(&mut harness)?;
 
     harness.get_by_label(
-        "The catalog is over the basetool upload limit of 64 MB; the basetool will reject the upload.",
+        "The plain JSON catalog is over the basetool upload limit of 64 MB; the basetool will reject it. Write the catalog as .json.zst for the upload; plain .json is for inspection.",
     );
     assert!(
         harness
-            .query_by_label_contains("close to the basetool upload limit")
+            .query_by_label_contains("is close to the basetool upload limit")
             .is_none(),
         "no warning besides the danger alert"
     );

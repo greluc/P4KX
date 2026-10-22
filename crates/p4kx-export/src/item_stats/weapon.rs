@@ -101,23 +101,22 @@ pub(super) fn weapon<'f>(
             collect(action, &mut fire_actions);
         }
     }
-    let (ammo_capacity, ammo) = match component(tree, CONTAINER) {
-        Some(container) => loaded(Some(container), forge, trees),
-        None => {
-            let magazine = linked(
-                reference(Some(weapon), "ammoContainerRecord"),
-                ENTITY,
-                forge,
-                trees,
-            );
-            loaded(
-                magazine
-                    .as_ref()
-                    .and_then(|magazine| component(magazine, CONTAINER)),
-                forge,
-                trees,
-            )
-        }
+    let (ammo_capacity, ammo) = if let Some(container) = component(tree, CONTAINER) {
+        loaded(Some(container), forge, trees)
+    } else {
+        let magazine = linked(
+            reference(Some(weapon), "ammoContainerRecord"),
+            ENTITY,
+            forge,
+            trees,
+        );
+        loaded(
+            magazine
+                .as_ref()
+                .and_then(|magazine| component(magazine, CONTAINER)),
+            forge,
+            trees,
+        )
     };
     Some(WeaponStats {
         fire_actions,

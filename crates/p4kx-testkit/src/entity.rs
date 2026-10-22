@@ -25,6 +25,7 @@ pub struct TestEntity {
     landing_system: Option<u128>,
     attach_type: Option<String>,
     size: Option<i32>,
+    tags: Option<String>,
     mass: Option<f32>,
     container: Option<u128>,
 }
@@ -47,6 +48,7 @@ impl TestEntity {
             landing_system: None,
             attach_type: None,
             size: None,
+            tags: None,
             mass: None,
             container: None,
         }
@@ -56,6 +58,14 @@ impl TestEntity {
     #[must_use]
     pub const fn size(mut self, size: i32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    /// Sets the Entity's `AttachDef.Tags`, words separated by white space; the database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn tags(mut self, tags: impl Into<String>) -> Self {
+        self.tags = Some(tags.into());
         self
     }
 
@@ -169,10 +179,11 @@ impl TestEntity {
         components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
             vehicle_component(definition, modification, self.landing_system)
         }));
-        if self.attach_type.is_some() || self.size.is_some() {
+        if self.attach_type.is_some() || self.size.is_some() || self.tags.is_some() {
             components.push(attachable_component(
                 self.attach_type.as_deref().unwrap_or_default(),
                 self.size,
+                self.tags.as_deref(),
             ));
         }
         components.extend(self.mass.map(physics_component));

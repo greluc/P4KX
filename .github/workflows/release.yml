@@ -61,20 +61,23 @@ jobs:
           Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
       - name: Install WiX Toolset
-        run: dotnet tool install wix --version 7.0.0 --tool-path target\wix-tool
+        run: |
+          $toolPath = Join-Path $env:RUNNER_TEMP 'wix-tool'
+          dotnet tool install wix --version 7.0.0 --tool-path $toolPath
+          "WIX_EXE=$(Join-Path $toolPath 'wix.exe')" >> $env:GITHUB_ENV
       - name: MSI
         env:
           VERSION: ${{ steps.version.outputs.version }}
           MSI_VERSION: ${{ steps.version.outputs.msi_version }}
         run: |
-          .github\scripts\build-msi.ps1 -Wix target\wix-tool\wix.exe -Version $env:MSI_VERSION -Output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
+          .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:MSI_VERSION -Output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
       - name: Install, upgrade and uninstall
         env:
           VERSION: ${{ steps.version.outputs.version }}
           NEXT_MSI_VERSION: ${{ steps.version.outputs.next_msi_version }}
         run: |
           New-Item -ItemType Directory -Force target\wix-check | Out-Null
-          .github\scripts\build-msi.ps1 -Wix target\wix-tool\wix.exe -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
+          .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
           $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Package.UpgradeCode
           .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode
       - uses: actions/upload-artifact@v7

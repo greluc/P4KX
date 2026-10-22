@@ -892,7 +892,7 @@ are names of containers and entities, not localisation keys, so no field is a ga
 | `entityName` | The last element of `SuperName`, the name of the `SCShop` Entity, e.g. `SCShop_CommEx_TDD_NewBabbage` |
 | `registryName` | `ShopName`, e.g. `Pharmacy_RestStop_ARC-LEO1`; `null` when empty. A name, not a localisation key; many shops share one (361 distinct on LIVE) |
 | `defaultValue` | `DefaultValue`, a GUID; `null` when empty. Shops with the same `registryName` share it (1 to 1 on LIVE). What it refers to is not known |
-| `containers` | The elements of `SuperName` before the entity, each without its `_{GUID}` suffix and surrounding blanks, from the system root down |
+| `containers` | The elements of `SuperName` before the entity, each without its `_{GUID}` or `_{GUID}_socpak` suffix and surrounding blanks, from the system root down |
 | `body`, `location` | The second and third element of `containers` (`OOC_Stanton_4_Microtech`, `Area18_City_objectContainer`; Pyro: `pyro5`, `rs_ext_pyro6_l3`); `null` when the chain is shorter |
 | `starmapObjectGuid` | The `guid` of the `starmapObjects` entry whose `entityName` or `className` equals `location` ignoring ASCII case; `null` when none does or when more than one object does |
 | `kind`, `brand` | From the path of the shop container whose `entitycomponentshop.xml` names `entityGuid`: below `Data\ObjectContainers\PU\Shops` the first folder is the kind (`commex`, `clothing`, ...), the second the brand (`tdd`, `mcraes`), the brand `null` when the file lies directly in the kind folder; a container in a `shopcomm` or `shopfood` folder below `PU\loc` has that folder as kind and no brand. `null` for both when no container names the Entity or containers that differ in kind or brand do. The kind is a closed set the game may extend; a reader maps an unknown value to `null` |
@@ -903,6 +903,15 @@ are names of containers and entities, not localisation keys, so no field is a ga
 differ in length or hold an empty element is left out, and so is an entry whose `ID` an earlier one
 already has (`ShopSummary::malformed` and `duplicate`; on LIVE the 1,184 `ID`s are distinct and the two chains
 agree in length everywhere). The chains have 4 to 9 elements.
+
+**On LIVE (Build 4.10.197)** 1,000 of the 1,184 shops link to a starmap object (Pyro: 307 of 371)
+and 184 do not; 54 of those have a location name that more than one object carries. The unlinked
+locations are mostly Pyro asteroid-cluster and stash containers (`pbay_cluster_001_sand`,
+`ab_pyro_asmbl_01_enctr_001a`) and some Stanton ones (`ObjectContainer_RestStop`,
+`Jumptown_EchoIsle`) that no starmap record names. 590 shops have a kind and a brand, 60 have a
+`null` kind because containers of different kinds name their Entity, and 534 because no container
+below `PU\Shops` or the `shopcomm`/`shopfood` folders names it. 16 are commodity exchanges. The 360
+distinct `defaultValue`s are no DataForge Record GUIDs.
 
 **The link to the starmap** goes by the name of the location container, as the spike (#398)
 found. The summary lists the distinct location names without a link (up to 200) in
@@ -916,7 +925,7 @@ the `shopcomm` and `shopfood` folders below `PU\loc` and reads `metadata\entityc
 
 **No items.** The inventory files `Data\Scripts\ShopInventories\Inv_*.json` list item GUIDs of
 `EntityClassDefinition` Records, but no rule assigns a file to a shop (ADR-0069): of the 87 files
-that have a `ShopID` (32 have none), the chain equals a registry `ID` for 4, and the last element
+that have a `ShopID` (31 have none), the chain equals a registry `ID` for 4, and the last element
 equals the `entityGuid` of some shop for 39 but often of a shop of another name and place. The
 catalog therefore carries no item list. Prices, stock and demand stay server-side and are never
 exported.

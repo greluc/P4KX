@@ -54,10 +54,12 @@ fn collect<'d, N: Node<'d>>(root: N) -> Vec<RegistryShop> {
     shops
 }
 
-/// Returns `name` without a trailing `_{GUID}` and without surrounding blanks.
+/// Returns `name` without a trailing `_{GUID}` (or `_{GUID}_socpak`) and without surrounding
+/// blanks.
 pub(crate) fn clean(name: &str) -> &str {
     let name = name.trim();
-    match name
+    let base = name.strip_suffix("_socpak").unwrap_or(name);
+    match base
         .strip_suffix('}')
         .and_then(|rest| rest.rsplit_once("_{"))
     {
@@ -85,5 +87,10 @@ mod tests {
             "SCShop_Bar_Drlct_Stanton"
         );
         assert_eq!(clean("odd_{not a guid"), "odd_{not a guid");
+        assert_eq!(
+            clean("pbay_cluster_001_sand_{04E2D380-091E-449D-8B48-08CB81FBCC08}_socpak"),
+            "pbay_cluster_001_sand"
+        );
+        assert_eq!(clean("plain_socpak"), "plain_socpak");
     }
 }

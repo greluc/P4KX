@@ -49,15 +49,21 @@ LIVE, Build 4.10.197, 2026-10-22.
   `SCShop_CommEx_TDD_NewBabbage` equals the CryGUID in `tdd_newbab`'s `entitycomponentshop.xml`,
   which confirms the link from the registry to the shop container.
 - **The inventories are not assignable.** `Data\Scripts\ShopInventories` holds 120 files. 119 are
-  JSON (the 120th is an XML test file); 87 of them have a `ShopID` chain and 32 have none (the event
+  JSON (the 120th is an XML test file); 87 of them have a `ShopID` chain and 31 have none (the event
   sales and some rental offices). Of the 87:
   the chain equals a registry `ID` for 4; the last element equals the `entityGuid` of some shop for
   39, and then often of a shop of another name and place (`Inv_Aparelli_NewBabbage` and
   `Inv_CenterMass_NewBabbage` end in the `SCShop` of `DumpersDepot_GrimHEX`; `Inv_Admin_Area18` and
   `Inv_Admin_NewBabbage` carry the same chain); 48 match nothing. No `DefaultValue` occurs in any
-  inventory. The file names carry brand and place (`Inv_Mining_Lorville`), but the registry
+  inventory, and none of the 360 distinct `DefaultValue`s is the GUID of a DataForge Record. The file names carry brand and place (`Inv_Mining_Lorville`), but the registry
   `ShopName`s do not follow that scheme (`L_AdminOffice_Area18`, `CasabaOutlet_Stanton3_L2`), so no
   rule on names assigns a file to a shop either.
+- **Coverage of the exported fields.** 1,000 of the 1,184 shops link to a starmap object (Pyro 307
+  of 371); the 184 others have location names no starmap record carries (Pyro asteroid clusters and
+  stashes, `ObjectContainer_RestStop`, `Jumptown_EchoIsle`) or names that more than one object
+  carries (54 shops). 590 shops have a kind and brand, 60 none because containers of different
+  kinds name their Entity, 534 none because no container below `PU\Shops` or the `shopcomm` and
+  `shopfood` folders names it; 16 are commodity exchanges.
 - **What the exported fields would invent.** Giving a shop the items of an inventory whose last
   element equals its `entityGuid` would give a shop in Grim HEX the items of a New Babbage clothing
   store. A wrong item list is worse than none for a consumer that matches it with UEX data.

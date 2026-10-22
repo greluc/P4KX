@@ -564,8 +564,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "unreadable_containers": 0, "missing_containers": 2, "malformed_children": 0},
  "shops": {"shops": 1184, "registry_entries": 1184, "registry_unreadable": false, "malformed": 0,
  "duplicate": 0, "containers_listed": 317, "containers_unreadable": 0, "containers_with_shop": 164,
- "with_kind": 1100, "mixed_kind": 0, "without_container": 84, "commodity_exchanges": 16,
- "linked": 900, "unlinked": 284, "ambiguous_link": 0, "unlinked_locations": ["…"]},
+ "with_kind": 590, "mixed_kind": 60, "without_container": 534, "commodity_exchanges": 16,
+ "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -616,7 +616,7 @@ the shops whose Entity exactly one container kind names (`with_kind`), several d
 (`mixed_kind`) or none (`without_container`), the commodity exchanges, the shops linked to a
 starmap object (`linked`) and not (`unlinked`, `ambiguous_link` of them because several objects
 carry the name) and the distinct location names without a link, up to 200; the numbers in the
-example are illustrative. `playability` counts the
+example are those of LIVE (Build 4.10.197). `playability` counts the
 items and the ships per value of their `playability`, and the ones no rule classifies
 (`unclassified`, `null` in the catalog). `variants` counts per kind the variant groups of at
 least two members (`groups`) and the entities with a `variantOf` (`variants`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and

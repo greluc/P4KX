@@ -92,7 +92,7 @@ the converted registry and all 120 inventories.
 
 Settled in #462 (ADR-0069): no rule assigns an inventory to a shop. Of 87 inventories with a
 `ShopID`, 4 equal a registry `ID`; the last element matches the `SCShop` of some shop for 39, often
-a shop of another place; 32 have no `ShopID`.
+a shop of another place; 31 have no `ShopID`. The registry `DefaultValue`s (360 distinct) are no DataForge Record GUIDs.
 
 ## Terminals
 

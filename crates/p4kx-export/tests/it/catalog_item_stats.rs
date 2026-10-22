@@ -161,6 +161,24 @@ fn a_power_plant_and_a_cooler_carry_the_rate_of_their_own_resource() -> TestResu
     assert!(plant["stats"]["cooler"].is_null());
     assert_eq!(cooler["stats"]["cooler"], json!({"coolingRate": 40.0}));
     assert!(cooler["stats"]["powerPlant"].is_null());
+    assert_eq!(
+        cooler["stats"]["resourceStates"],
+        json!([{
+            "name": "Online",
+            "emSignature": {"nominal": 500.0, "decayRate": 0.15},
+            "irSignature": {"nominal": 80.0, "decayRate": 0.5},
+            "flows": [
+                {
+                    "kind": "ItemResourceDeltaConversion", "direction": "consumption",
+                    "resource": "Power", "amount": 2.0, "unit": "SPowerSegmentResourceUnit"
+                },
+                {
+                    "kind": "ItemResourceDeltaConversion", "direction": "generation",
+                    "resource": "Coolant", "amount": 40.0, "unit": "SStandardResourceUnit"
+                }
+            ]
+        }])
+    );
     Ok(())
 }
 

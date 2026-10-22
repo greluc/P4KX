@@ -158,7 +158,8 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
                 "missile": null,
                 "power": null,
                 "heat": null,
-                "health": null
+                "health": null,
+                "resourceStates": []
             },
         }),
         "the item fields"

@@ -101,11 +101,23 @@ fn components() -> Vec<TestStruct> {
             ],
         ),
         component("ItemResourceComponentParams").array("states", class("ItemResourceState")),
-        TestStruct::new("ItemResourceState").array("deltas", pointer("ItemResourceDelta")),
+        TestStruct::new("ItemResourceState")
+            .field("name", TestType::String)
+            .field("signatureParams", class("SignatureParams"))
+            .array("deltas", pointer("ItemResourceDelta")),
+        TestStruct::new("SignatureParams")
+            .field("EMSignature", class("Signature"))
+            .field("IRSignature", class("Signature")),
+        singles("Signature", &["nominalSignature", "decayRate"]),
         TestStruct::new("ItemResourceDelta"),
         TestStruct::new("ItemResourceDeltaGeneration")
             .parent("ItemResourceDelta")
             .field("generation", class("ItemResourceGeneration")),
+        TestStruct::new("ItemResourceDeltaConversion")
+            .parent("ItemResourceDelta")
+            .field("consumption", class("ItemResourceGeneration"))
+            .field("generation", class("ItemResourceGeneration")),
+        singles("SStandardResourceUnit", &["standardResourceUnits"]),
         TestStruct::new("ItemResourceGeneration")
             .field("resource", TestType::String)
             .field(
@@ -121,7 +133,7 @@ fn others() -> Vec<TestStruct> {
         component("SCItemMissileParams")
             .field("explosionParams", class("ExplosionParams"))
             .field("targetingParams", class("MissileTargetingParams"))
-            .field("gcsParams", class("MissileGcsParams")),
+            .field("GCSParams", class("MissileGcsParams")),
         singles("MissileGcsParams", &["linearSpeed"]),
         singles(
             "MissileTargetingParams",

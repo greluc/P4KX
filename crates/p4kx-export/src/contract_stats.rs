@@ -31,6 +31,53 @@ pub(crate) struct ItemStats<'a> {
     pub(crate) heat: Option<HeatConnection>,
     /// The hit points, from `SHealthComponentParams.Health`.
     pub(crate) health: Option<f32>,
+    /// The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.
+    pub(crate) resource_states: Vec<ResourceState<'a>>,
+}
+
+/// One state of the resource component: its signatures and the resources it generates and uses.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ResourceState<'a> {
+    /// The `name` of the state, e.g. `Online`.
+    pub(crate) name: Option<&'a str>,
+    /// `signatureParams.EMSignature`.
+    pub(crate) em_signature: Option<Signature>,
+    /// `signatureParams.IRSignature`.
+    pub(crate) ir_signature: Option<Signature>,
+    /// The `generation` and `consumption` of the state's `deltas`, in stored order.
+    pub(crate) flows: Vec<ResourceFlow<'a>>,
+}
+
+/// A signature of a state.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct Signature {
+    /// `nominalSignature`.
+    pub(crate) nominal: Option<f32>,
+    /// `decayRate`.
+    pub(crate) decay_rate: Option<f32>,
+}
+
+/// One generation or consumption of a resource, per second, in the unit the Archive states.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ResourceFlow<'a> {
+    /// The struct of the delta, e.g. `ItemResourceDeltaGeneration`. A closed set the game may
+    /// extend; the schema keeps a string.
+    pub(crate) kind: &'a str,
+    /// `generation` or `consumption`: the field of the delta that holds the flow.
+    pub(crate) direction: &'a str,
+    /// The `resource`, e.g. `Power`. A closed set the game may extend; the schema keeps a string.
+    pub(crate) resource: Option<&'a str>,
+    /// The first number of `resourceAmountPerSecond`, in the unit named by `unit`.
+    pub(crate) amount: Option<f32>,
+    /// The struct that holds the amount, e.g. `SPowerSegmentResourceUnit`; the units of two
+    /// structs differ and are not converted.
+    pub(crate) unit: Option<&'a str>,
 }
 
 /// A weapon: its fire modes and the ammunition it fires.

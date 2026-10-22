@@ -238,9 +238,26 @@ text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode 
 | `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pellets` and `ammoCost` of `launchParams`, `heatPerShot`, and for a charged mode `chargeTime`, `overchargeTime`, `cooldownTime`; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `Components[SAmmoContainerComponentParams].maxAmmoCount`. `ammo`: the `AmmoParams` Record that `SAmmoContainerComponentParams.ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
 | `shield` | `Components[SCItemShieldGeneratorParams]` | `maxHealth` (`MaxShieldHealth`), `maxRegen` (`MaxShieldRegen`), `decayRatio` (`DecayRatio`), `downedRegenDelay` (`DownedRegenDelay`), `damagedRegenDelay` (`DamagedRegenDelay`) |
 | `quantumDrive` | `Components[SCItemQuantumDriveParams]` | `fuelRequirement` (`quantumFuelRequirement`, as stored), `jumpRange`, `disconnectRange`, and of `params`: `driveSpeed`, `cooldownTime`, `spoolUpTime`, `stageOneAccelRate`, `stageTwoAccelRate`, `engageSpeed` |
-| `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the amount per second of the first `ItemResourceDeltaGeneration` of `Components[ItemResourceComponentParams]` whose `resource` is `Power` |
-| `cooler` | `AttachDef.Type` is `Cooler`, ignoring case | `coolingRate`: as `powerOutput`, for the resource `Coolant` |
-| `missile` | `Components[SCItemMissileParams]` | `damage` (the damage types of `explosionParams.damage`), `explosionMinRadius`, `explosionMaxRadius`, `trackingSignalType`, `lockTime`, `lockingAngle`, `lockRangeMin`, `lockRangeMax` (of `targetingParams`) and `linearSpeed` (of `gcsParams`) |
+| `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, in that flow's `unit` |
+| `cooler` | `AttachDef.Type` is `Cooler`, ignoring case | `coolingRate`: as `powerOutput`, for the resource `Coolant` (a cooler's flow is usually an `ItemResourceDeltaConversion`) |
+| `missile` | `Components[SCItemMissileParams]` | `damage` (the damage types of `explosionParams.damage`), `explosionMinRadius`, `explosionMaxRadius`, `trackingSignalType`, `lockTime`, `lockingAngle`, `lockRangeMin`, `lockRangeMax` (of `targetingParams`) and `linearSpeed` (of `GCSParams`) |
+
+`resourceStates` lists the states of `Components[ItemResourceComponentParams].states` in stored
+order: `name`, `emSignature` and `irSignature` (`signatureParams`: `nominal` is `nominalSignature`,
+`decayRate`), and `flows`. A flow is one `generation` or `consumption` of a delta of the state:
+`kind` (the struct of the delta, e.g. `ItemResourceDeltaGeneration`, `ItemResourceDeltaConversion`,
+`ItemResourceDeltaConsumption`, `ItemResourceDeltaStorage`), `direction`, `resource`, `amount` (the
+first number of `resourceAmountPerSecond`) and `unit` (the struct holding it:
+`SPowerSegmentResourceUnit`, `SStandardResourceUnit`, `SMicroResourceUnit`, `SCentiResourceUnit`).
+Units differ between structs and are not converted. A delta without a `generation` or
+`consumption` (a network reflection) gives no flow.
+
+Two raw values need care. `quantumDrive.jumpRange` is `f32::MAX` (3.4028235e38) on a drive the
+Archive leaves unbounded (a development drive of the Idris); it is exported as stored and a reader
+treats a value at that magnitude as unlimited. `weapon.ammoCapacity` and `weapon.ammo` are `null`
+for a weapon without `Components[SAmmoContainerComponentParams]`, which is the case for energy
+weapons (487 of 866 weapon components on LIVE carry one); their ammunition is not stated in the
+ammo container.
 
 A damage object has `physical`, `energy`, `distortion`, `thermal`, `biochemical` and `stun`
 (`DamagePhysical` and so on); a type the struct does not hold is `null`. An item with at least one

@@ -1,9 +1,8 @@
 use p4kx_extraction::{RecordTree, StructValue};
 
-use super::walk::{owner_of, structs_of};
+use super::walk::owner_of;
 use crate::contract_stats::{
-    CoolerStats, Damage, HeatConnection, MissileStats, PowerConnection, PowerPlantStats,
-    QuantumDriveStats, ShieldStats,
+    Damage, HeatConnection, MissileStats, PowerConnection, QuantumDriveStats, ShieldStats,
 };
 use crate::record_fields::{component, number, structure, text};
 
@@ -62,41 +61,12 @@ pub(super) fn quantum_drive(tree: &RecordTree<'_>) -> Option<QuantumDriveStats> 
     })
 }
 
-/// Returns the amount per second of the first `ItemResourceDeltaGeneration` of the item whose
-/// resource is `resource`, ignoring case.
-fn generation(tree: &RecordTree<'_>, resource: &str) -> Option<f32> {
-    let resources = component(tree, "ItemResourceComponentParams")?;
-    let mut found = Vec::new();
-    structs_of(resources, "ItemResourceDeltaGeneration", &mut found);
-    found.into_iter().find_map(|delta| {
-        let named = owner_of(delta, "resource")?;
-        text(Some(named), "resource").filter(|name| name.eq_ignore_ascii_case(resource))?;
-        let rate = owner_of(delta, "resourceAmountPerSecond")?;
-        number(Some(rate), "resourceAmountPerSecond").or_else(|| {
-            let amount = structure(Some(rate), "resourceAmountPerSecond")?;
-            number(Some(owner_of(amount, "units")?), "units")
-        })
-    })
-}
-
-pub(super) fn power_plant(tree: &RecordTree<'_>) -> PowerPlantStats {
-    PowerPlantStats {
-        power_output: generation(tree, "Power"),
-    }
-}
-
-pub(super) fn cooler(tree: &RecordTree<'_>) -> CoolerStats {
-    CoolerStats {
-        cooling_rate: generation(tree, "Coolant"),
-    }
-}
-
 pub(super) fn missile<'f>(tree: &RecordTree<'f>) -> Option<MissileStats<'f>> {
     let missile = component(tree, "SCItemMissileParams")?;
     let explosion = owner_of(missile, "explosionParams")
         .and_then(|owner| structure(Some(owner), "explosionParams"));
     let targeting = structure(Some(missile), "targetingParams");
-    let guidance = structure(Some(missile), "gcsParams");
+    let guidance = structure(Some(missile), "GCSParams");
     Some(MissileStats {
         damage: damage(explosion),
         explosion_min_radius: number(explosion, "minRadius"),

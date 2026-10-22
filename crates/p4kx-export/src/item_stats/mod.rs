@@ -4,6 +4,7 @@ use crate::contract_stats::ItemStats;
 use crate::record_fields::{component, structure, text};
 
 mod parts;
+mod resources;
 mod walk;
 mod weapon;
 
@@ -30,8 +31,9 @@ pub(crate) fn read<'f>(
     let weapon = weapon::weapon(tree, forge, trees)?;
     let shield = parts::shield(tree);
     let quantum_drive = parts::quantum_drive(tree);
-    let power_plant = is(POWER_PLANT).then(|| parts::power_plant(tree));
-    let cooler = is(COOLER).then(|| parts::cooler(tree));
+    let resource_states = resources::states(tree);
+    let power_plant = is(POWER_PLANT).then(|| resources::power_plant(&resource_states));
+    let cooler = is(COOLER).then(|| resources::cooler(&resource_states));
     let missile = parts::missile(tree);
     if weapon.is_none()
         && shield.is_none()
@@ -52,5 +54,6 @@ pub(crate) fn read<'f>(
         power: parts::power_connection(tree),
         heat: parts::heat_connection(tree),
         health: parts::health(tree),
+        resource_states,
     }))
 }

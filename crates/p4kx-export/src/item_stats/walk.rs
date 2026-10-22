@@ -25,51 +25,14 @@ fn owner_below<'t, 'f>(
         .find_map(|field| owner_in(field.value(), name, depth))
 }
 
-fn owner_in<'t, 'f>(value: &'t Value<'f>, name: &str, depth: usize) -> Option<&'t StructValue<'f>> {
+fn owner_in<'t, 'f>(
+    value: &'t Value<'f>,
+    name: &str,
+    depth: usize,
+) -> Option<&'t StructValue<'f>> {
     match value {
         Value::Struct(inner) => owner_below(inner, name, depth),
         Value::Array(items) => items.iter().find_map(|item| owner_in(item, name, depth)),
         _ => None,
-    }
-}
-
-/// Collects the structs of type `type_name` below `root`, depth first in stored order.
-pub(super) fn structs_of<'t, 'f>(
-    root: &'t StructValue<'f>,
-    type_name: &str,
-    found: &mut Vec<&'t StructValue<'f>>,
-) {
-    structs_below(root, type_name, DEPTH, found);
-}
-
-fn structs_below<'t, 'f>(
-    root: &'t StructValue<'f>,
-    type_name: &str,
-    depth: usize,
-    found: &mut Vec<&'t StructValue<'f>>,
-) {
-    let Some(depth) = depth.checked_sub(1) else {
-        return;
-    };
-    for field in root.fields() {
-        match field.value() {
-            Value::Struct(inner) => {
-                if inner.type_name() == type_name {
-                    found.push(inner);
-                }
-                structs_below(inner, type_name, depth, found);
-            }
-            Value::Array(items) => {
-                for item in items {
-                    if let Value::Struct(inner) = item {
-                        if inner.type_name() == type_name {
-                            found.push(inner);
-                        }
-                        structs_below(inner, type_name, depth, found);
-                    }
-                }
-            }
-            _ => {}
-        }
     }
 }

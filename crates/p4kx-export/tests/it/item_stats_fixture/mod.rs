@@ -165,36 +165,89 @@ fn ammo() -> TestRecord {
     )
 }
 
-fn generation(resource: &str, units: f32) -> TestValue {
+fn side(resource: &str, unit: TestValue) -> TestValue {
+    instance(
+        "ItemResourceGeneration",
+        vec![
+            ("resource".to_owned(), TestValue::text(resource)),
+            ("resourceAmountPerSecond".to_owned(), unit),
+        ],
+    )
+}
+
+fn signature(nominal: f32, decay: f32) -> TestValue {
+    instance(
+        "Signature",
+        vec![single("nominalSignature", nominal), single("decayRate", decay)],
+    )
+}
+
+fn resource_state(name: &str, deltas: Vec<TestValue>) -> TestValue {
     instance(
         "ItemResourceComponentParams",
         vec![(
             "states".to_owned(),
             TestValue::Array(vec![instance(
                 "ItemResourceState",
-                vec![(
-                    "deltas".to_owned(),
-                    TestValue::Array(vec![instance(
-                        "ItemResourceDeltaGeneration",
-                        vec![(
-                            "generation".to_owned(),
-                            instance(
-                                "ItemResourceGeneration",
-                                vec![
-                                    ("resource".to_owned(), TestValue::text(resource)),
-                                    (
-                                        "resourceAmountPerSecond".to_owned(),
-                                        instance(
-                                            "SPowerSegmentResourceUnit",
-                                            vec![single("units", units)],
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        )],
-                    )]),
-                )],
+                vec![
+                    ("name".to_owned(), TestValue::text(name)),
+                    (
+                        "signatureParams".to_owned(),
+                        instance(
+                            "SignatureParams",
+                            vec![
+                                ("EMSignature".to_owned(), signature(500.0, 0.15)),
+                                ("IRSignature".to_owned(), signature(80.0, 0.5)),
+                            ],
+                        ),
+                    ),
+                    ("deltas".to_owned(), TestValue::Array(deltas)),
+                ],
             )]),
+        )],
+    )
+}
+
+fn plant_resources(units: f32) -> TestValue {
+    resource_state(
+        "Online",
+        vec![instance(
+            "ItemResourceDeltaGeneration",
+            vec![(
+                "generation".to_owned(),
+                side(
+                    "Power",
+                    instance("SPowerSegmentResourceUnit", vec![single("units", units)]),
+                ),
+            )],
+        )],
+    )
+}
+
+fn cooler_resources(standard: f32) -> TestValue {
+    resource_state(
+        "Online",
+        vec![instance(
+            "ItemResourceDeltaConversion",
+            vec![
+                (
+                    "consumption".to_owned(),
+                    side(
+                        "Power",
+                        instance("SPowerSegmentResourceUnit", vec![single("units", 2.0)]),
+                    ),
+                ),
+                (
+                    "generation".to_owned(),
+                    side(
+                        "Coolant",
+                        instance(
+                            "SStandardResourceUnit",
+                            vec![single("standardResourceUnits", standard)],
+                        ),
+                    ),
+                ),
+            ],
         )],
     )
 }
@@ -266,7 +319,7 @@ fn missile() -> TestValue {
                 ),
             ),
             (
-                "gcsParams".to_owned(),
+                "GCSParams".to_owned(),
                 instance("MissileGcsParams", vec![single("linearSpeed", 300.0)]),
             ),
         ],
@@ -313,13 +366,13 @@ fn database() -> DataForgeBuilder {
             PLANT,
             "plant",
             "PowerPlant",
-            vec![generation("Power", 12.0)],
+            vec![plant_resources(12.0)],
         ))
         .record(entity(
             COOLER,
             "cooler",
             "Cooler",
-            vec![generation("Coolant", 40.0)],
+            vec![cooler_resources(40.0)],
         ))
         .record(entity(MISSILE, "missile", "Missile", vec![missile()]));
     base.record(entity(PLAIN, "plain", "Misc", connections()))

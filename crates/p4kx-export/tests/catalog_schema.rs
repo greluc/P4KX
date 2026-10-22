@@ -230,7 +230,14 @@ fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() ->
             "trackingSignalType": "NewSignal", "lockTime": null, "lockingAngle": null,
             "lockRangeMin": null, "lockRangeMax": null, "linearSpeed": null
         },
-        "power": null, "heat": null, "health": 1.5, "extra": true
+        "power": null, "heat": null, "health": 1.5, "extra": true,
+        "resourceStates": [{
+            "name": null, "emSignature": null, "irSignature": {"nominal": 1.0, "decayRate": null},
+            "flows": [{
+                "kind": "ItemResourceDeltaNew", "direction": "generation", "resource": "New",
+                "amount": 1.0, "unit": null
+            }]
+        }]
     });
     assert!(
         validator.is_valid(&stats),

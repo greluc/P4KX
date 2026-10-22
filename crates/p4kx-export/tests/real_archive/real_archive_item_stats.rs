@@ -11,9 +11,29 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const BLOCKS: [(&str, &[&str]); 6] = [
-    ("weapon", &["fireActions", "ammoCapacity", "ammo"]),
-    (
+struct Block {
+    name: &'static str,
+    fields: &'static [&'static str],
+    min_share: f64,
+    required: bool,
+}
+
+const fn block(name: &'static str, fields: &'static [&'static str]) -> Block {
+    Block {
+        name,
+        fields,
+        min_share: 0.8,
+        required: true,
+    }
+}
+
+const BLOCKS: [Block; 9] = [
+    Block {
+        min_share: 0.4,
+        ..block("weapon", &["ammoCapacity", "ammo"])
+    },
+    block("weapon", &["fireActions"]),
+    block(
         "shield",
         &[
             "maxHealth",
@@ -22,19 +42,28 @@ const BLOCKS: [(&str, &[&str]); 6] = [
             "damagedRegenDelay",
         ],
     ),
-    (
+    block(
         "quantumDrive",
         &["fuelRequirement", "jumpRange", "driveSpeed", "spoolUpTime"],
     ),
-    ("powerPlant", &["powerOutput"]),
-    ("cooler", &["coolingRate"]),
-    (
+    block("powerPlant", &["powerOutput"]),
+    block("cooler", &["coolingRate"]),
+    block(
         "missile",
         &["damage", "explosionMaxRadius", "lockTime", "linearSpeed"],
     ),
+    Block {
+        required: false,
+        ..block("power", &["powerBase", "powerDraw", "powerToEm"])
+    },
+    Block {
+        required: false,
+        ..block(
+            "heat",
+            &["thermalEnergyBase", "thermalEnergyDraw", "temperatureToIr"],
+        )
+    },
 ];
-
-const MIN_SHARE: f64 = 0.8;
 
 const fn present(value: &Value) -> bool {
     match value {
@@ -64,14 +93,30 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
     let with_stats = items.iter().filter(|item| !item["stats"].is_null()).count();
     report(&format!("{with_stats} of {} items have stats", items.len()));
     let mut problems = Vec::new();
-    for (block, fields) in BLOCKS {
+    let with_states = items
+        .iter()
+        .filter(|item| present(&item["stats"]["resourceStates"]))
+        .count();
+    report(&format!("resourceStates: {with_states} items"));
+    if with_states == 0 {
+        problems.push("no item has resource states".to_owned());
+    }
+    for Block {
+        name: block,
+        fields,
+        min_share,
+        required,
+    } in BLOCKS
+    {
         let holders: Vec<&Value> = items
             .iter()
             .filter(|item| !item["stats"][block].is_null())
             .collect();
         report(&format!("{block}: {} items", holders.len()));
         if holders.is_empty() {
-            problems.push(format!("no item has a {block} block"));
+            if required {
+                problems.push(format!("no item has a {block} block"));
+            }
             continue;
         }
         for field in fields {
@@ -82,7 +127,7 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
             #[expect(clippy::cast_precision_loss, reason = "counts far below 2^52")]
             let share = filled as f64 / holders.len() as f64;
             report(&format!("  {field}: {filled} of {} filled", holders.len()));
-            if share < MIN_SHARE {
+            if share < min_share {
                 problems.push(format!("{block}.{field}: {filled} of {}", holders.len()));
             }
         }
@@ -98,7 +143,7 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
             ));
         }
     }
-    assert!(problems.is_empty(), "blocks below 80 %: {problems:?}");
+    assert!(problems.is_empty(), "blocks below their share: {problems:?}");
     Ok(())
 }
 

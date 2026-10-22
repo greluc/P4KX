@@ -8,7 +8,7 @@ use crate::contract::{Shop, StarmapObject};
 use crate::guid_text::CatalogGuid;
 use crate::shop_containers::{Containers, Found};
 use crate::shop_registry::{self, RegistryShop, clean};
-use crate::summary::ShopSummary;
+use crate::shop_summary::ShopSummary;
 use crate::{CatalogError, CatalogOptions};
 
 /// The shop registry of the layer recovery data.

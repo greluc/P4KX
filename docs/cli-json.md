@@ -569,6 +569,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
+ "variants": {"items": {"groups": 1108, "variants": 4732},
+ "ships": {"groups": 196, "variants": 850}},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
@@ -616,7 +618,8 @@ starmap object (`linked`) and not (`unlinked`, `ambiguous_link` of them because 
 carry the name) and the distinct location names without a link, up to 200; the numbers in the
 example are illustrative. `playability` counts the
 items and the ships per value of their `playability`, and the ones no rule classifies
-(`unclassified`, `null` in the catalog). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
+(`unclassified`, `null` in the catalog). `variants` counts per kind the variant groups of at
+least two members (`groups`) and the entities with a `variantOf` (`variants`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for
 each: `resolved` texts, `unresolved` texts (a key the file lacks or holds empty, or every key in a
 language that is not available; `null` in the catalog) and `placeholder` texts, whose key stands

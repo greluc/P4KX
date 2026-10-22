@@ -6,6 +6,7 @@ mod locate;
 mod origin;
 mod patch;
 mod read;
+mod structure;
 mod totals;
 
 use std::collections::HashMap;
@@ -271,6 +272,7 @@ pub struct VehicleImplementation {
     pub(crate) parts: Vec<VehiclePart>,
     pub(crate) visibility: HashMap<String, PortVisibility>,
     pub(crate) issues: Vec<LoadoutError>,
+    pub(crate) structure: [u8; 16],
 }
 
 impl VehicleImplementation {

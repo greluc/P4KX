@@ -144,6 +144,7 @@ pub(crate) struct Parts {
     starmap_report: Box<StarmapReport>,
     shops: Box<ShopSummary>,
     playability: crate::PlayabilitySummary,
+    variants: crate::VariantSummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
 }
@@ -161,6 +162,7 @@ impl Parts {
             starmap_report: self.starmap_report,
             shops: self.shops,
             playability: Box::new(self.playability),
+            variants: self.variants,
             failures: self.failures,
             warnings: self.warnings,
             size,
@@ -196,6 +198,7 @@ fn assemble<R>(
     let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let completeness = completeness_of(options);
@@ -236,6 +239,7 @@ fn assemble<R>(
             starmap_report: Box::new(report),
             shops: Box::new(shop_summary),
             playability,
+            variants,
             failures,
             warnings,
         },

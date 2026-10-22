@@ -180,6 +180,30 @@ const fn relation(warning: SizeWarning) -> &'static str {
     }
 }
 
+fn print_classification(stdout: &mut impl Write, summary: &CatalogSummary) -> io::Result<()> {
+    let playability = summary.playability();
+    for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
+        writeln!(
+            stdout,
+            "{kind} playability: {} player, {} ai, {} mission, {} special, {} unclassified",
+            counts.of(Playability::Player),
+            counts.of(Playability::Ai),
+            counts.of(Playability::Mission),
+            counts.of(Playability::Special),
+            counts.unclassified()
+        )?;
+    }
+    let variants = summary.variants();
+    for (kind, counts) in [("items", variants.items), ("ships", variants.ships)] {
+        writeln!(
+            stdout,
+            "{kind} variants: {} in {} groups",
+            counts.variants, counts.groups
+        )?;
+    }
+    Ok(())
+}
+
 fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()> {
     writeln!(
         out,
@@ -240,18 +264,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     print_loadouts(&mut stdout, summary.loadouts())?;
     print_starmap(&mut stdout, summary.starmap())?;
     print_shops(&mut stdout, summary.shops())?;
-    let playability = summary.playability();
-    for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
-        writeln!(
-            stdout,
-            "{kind} playability: {} player, {} ai, {} mission, {} special, {} unclassified",
-            counts.of(Playability::Player),
-            counts.of(Playability::Ai),
-            counts.of(Playability::Mission),
-            counts.of(Playability::Special),
-            counts.unclassified()
-        )?;
-    }
+    print_classification(&mut stdout, summary)?;
     for text in summary.texts() {
         writeln!(
             stdout,

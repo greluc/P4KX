@@ -9,7 +9,6 @@ use rayon::prelude::*;
 use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
-use crate::item_stats;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
@@ -18,6 +17,7 @@ use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
+use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
@@ -257,6 +257,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         );
         if let Some(Picked::Item(item, _, _)) = &mut picked {
             item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
+            item.variant_key = item_variant::key(&tree, item.stats.as_deref());
         }
         Ok(picked)
     }

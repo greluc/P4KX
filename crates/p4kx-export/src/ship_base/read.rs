@@ -10,6 +10,7 @@ use super::model::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
+use crate::digest::Digest;
 use crate::record_fields::{class_name, component, integer, number, structure};
 
 const SIZE_FIELD: &str = "Components/SAttachableComponentParams/AttachDef/Size";
@@ -92,6 +93,9 @@ impl<'f> ShipReader<'f> {
             class_name: class_name(tree).to_owned(),
             record_path: tree.record_path().to_owned(),
             implementation: vehicle.map(implementation),
+            implementation_digest: vehicle
+                .filter(|v| v.issues().is_empty())
+                .map(structure_digest),
             vehicle_kind: vehicle_kind(tree.record_path(), vehicle),
             size: size(tree),
             mass: mass(tree, vehicle, totals.as_ref()),
@@ -106,6 +110,10 @@ impl<'f> ShipReader<'f> {
             issues,
         })
     }
+}
+
+const fn structure_digest(vehicle: &VehicleImplementation) -> Digest {
+    Digest::from_bytes(vehicle.structure_digest())
 }
 
 const SPACESHIP_FOLDER: &str = "/entities/spaceships/";

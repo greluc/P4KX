@@ -67,6 +67,7 @@ mod crafting_sources;
 mod crafting_tier;
 mod crafting_types;
 mod crafting_warning;
+mod digest;
 mod error;
 mod failure;
 mod form;
@@ -74,6 +75,7 @@ mod guid_text;
 mod item;
 mod item_class;
 mod item_stats;
+mod item_variant;
 mod loadout;
 mod loadout_port;
 mod localization_table;
@@ -94,6 +96,7 @@ mod ship;
 mod ship_base;
 mod shop_containers;
 mod shop_registry;
+mod shop_summary;
 mod shops;
 mod starmap;
 mod starmap_containers;
@@ -106,6 +109,7 @@ mod starmap_transform;
 mod starmap_xml;
 mod summary;
 mod texts;
+mod variants;
 
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
 pub use catalog_file::CatalogFile;
@@ -140,9 +144,10 @@ pub use ship_base::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
     build_ship_base_from,
 };
+pub use shop_summary::ShopSummary;
 pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    LoadoutSummary, PaintSummary, ShopSummary, SizeWarning, StarmapSummary, TextSummary,
-    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
+    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
+    UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };

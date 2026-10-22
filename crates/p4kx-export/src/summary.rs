@@ -1,6 +1,8 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
-use crate::{CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary};
+use crate::{
+    CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary, StarmapReport,
+};
 
 /// The largest catalog file the basetool accepts for upload, in bytes, compressed if it is; it
 /// must match the basetool's upload limit (`docs/basetool-catalog.md`).
@@ -126,6 +128,7 @@ pub struct CatalogSummary {
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) paints: PaintSummary,
     pub(crate) starmap: StarmapSummary,
+    pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
@@ -146,6 +149,14 @@ impl CatalogSummary {
     #[must_use]
     pub const fn starmap(&self) -> StarmapSummary {
         self.starmap
+    }
+
+    /// Returns what the reading of the system containers saw: the containers read with their
+    /// Child counts, the ones that failed and why, the records placed twice, sample rotations and
+    /// the containers no Child names.
+    #[must_use]
+    pub fn starmap_report(&self) -> &StarmapReport {
+        &self.starmap_report
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,

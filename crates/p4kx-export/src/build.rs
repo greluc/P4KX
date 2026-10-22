@@ -15,7 +15,7 @@ use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::paint::paints;
 use crate::scan::Scan;
-use crate::starmap_containers::{ContainerCounts, Placements};
+use crate::starmap_containers::{ContainerCounts, Placements, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, PaintSummary,
@@ -136,6 +136,7 @@ pub(crate) struct Parts {
     item_classes: crate::ItemClassSummary,
     paints: PaintSummary,
     starmap: StarmapSummary,
+    starmap_report: Box<StarmapReport>,
     playability: crate::PlayabilitySummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
@@ -150,6 +151,7 @@ impl Parts {
             item_classes: self.item_classes,
             paints: self.paints,
             starmap: self.starmap,
+            starmap_report: self.starmap_report,
             playability: Box::new(self.playability),
             failures: self.failures,
             warnings: self.warnings,
@@ -179,7 +181,7 @@ fn assemble<R>(
         options.filter,
     );
     let files = ArchiveFiles::new(archive);
-    let (mut collected, counts) = scan(archive, &forge, &files, options, &texts, crafting)?;
+    let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
@@ -217,6 +219,7 @@ fn assemble<R>(
             item_classes,
             paints: paint_summary,
             starmap: starmap_summary,
+            starmap_report: Box::new(report),
             playability,
             failures,
             warnings,
@@ -233,7 +236,7 @@ fn scan<'f>(
     options: &CatalogOptions<'_>,
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
-) -> Result<(Collected<'f>, ContainerCounts), CatalogError> {
+) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
     let placements = Placements::read(archive, options.cancel)?;
     let picked = Scan::run(
         forge,
@@ -243,7 +246,11 @@ fn scan<'f>(
         &crafting.blueprints,
         &placements,
     )?;
-    Ok((Collected::new(picked, crafting), placements.counts))
+    Ok((
+        Collected::new(picked, crafting),
+        placements.counts,
+        placements.report,
+    ))
 }
 
 fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> {

@@ -121,6 +121,7 @@ pub use ship_base::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
     build_ship_base_from,
 };
+pub use starmap_containers::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
     PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,

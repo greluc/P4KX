@@ -169,6 +169,7 @@ impl Parts {
 }
 
 /// Builds the catalog and hands it to `emit`, which serialises it.
+#[expect(clippy::too_many_lines, reason = "one field per kind of the catalog")]
 fn assemble<R>(
     archive: &Archive,
     entry: &DataForgeEntry,

@@ -90,10 +90,7 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
         assert_eq!(carries, game_text, "x-gameText on {name}");
         marked += usize::from(carries);
     }
-    assert_eq!(
-        marked, 7,
-        "four descriptions, two display types and the process name"
-    );
+    assert_eq!(marked, 7, "descriptions, display types, process name");
     let mut starmap_properties = Vec::new();
     collect_properties(&starmap, &mut starmap_properties);
     for (name, value) in starmap_properties {

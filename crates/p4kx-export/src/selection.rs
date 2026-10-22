@@ -50,6 +50,9 @@ pub enum Kind {
     /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
     /// system containers place it at.
     StarmapObjects,
+    /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
+    /// `contracts/contractgenerator`, one entry each.
+    Contracts,
     /// Mineable elements: `MineableElement` Records under `mining/mineableelements`.
     MineableElements,
     /// Refining processes: `RefiningProcess` Records under `refiningprocess`.
@@ -58,7 +61,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -73,6 +76,7 @@ impl Kind {
         Self::Paints,
         Self::Loadouts,
         Self::StarmapObjects,
+        Self::Contracts,
         Self::MineableElements,
         Self::RefiningProcesses,
     ];
@@ -95,13 +99,14 @@ impl Kind {
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
+            Self::Contracts => "contracts",
             Self::MineableElements => "mineableElements",
             Self::RefiningProcesses => "refiningProcesses",
         }
     }
 
-    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) rather than
-    /// by the generic selection of the catalog build.
+    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) or by the
+    /// contract reader rather than by the generic selection of the catalog build.
     pub(crate) const fn is_crafting(self) -> bool {
         matches!(
             self,
@@ -110,6 +115,7 @@ impl Kind {
                 | Self::QualityDistributions
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
+                | Self::Contracts
         )
     }
 
@@ -175,6 +181,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/starmap/pu/"],
                 type_name: "StarMapObject",
             },
+            Self::Contracts => KindRule {
+                prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
+                type_name: "ContractGenerator",
+            },
             Self::MineableElements => KindRule {
                 prefixes: &["libs/foundry/records/mining/mineableelements/"],
                 type_name: "MineableElement",
@@ -213,8 +223,9 @@ impl Kind {
             Self::Paints => 11,
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
-            Self::MineableElements => 14,
-            Self::RefiningProcesses => 15,
+            Self::Contracts => 14,
+            Self::MineableElements => 15,
+            Self::RefiningProcesses => 16,
         }
     }
 

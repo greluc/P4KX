@@ -19,7 +19,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 13] = [
+const MINIMUM: [(Kind, usize); 15] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -33,6 +33,8 @@ const MINIMUM: [(Kind, usize); 13] = [
     (Kind::DismantleProcesses, 1),
     (Kind::Paints, 900),
     (Kind::Loadouts, 1_000),
+    (Kind::MineableElements, 20),
+    (Kind::RefiningProcesses, 9),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;

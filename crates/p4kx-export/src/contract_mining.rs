@@ -16,8 +16,9 @@ pub(crate) struct MineableElement<'a> {
     pub(crate) class_name: &'a str,
     /// The record path, without `.xml`.
     pub(crate) record_path: &'a str,
-    /// The GUID of the `ResourceType` Record the Reference `resourceType` links to; equals the
-    /// `subtypeGuid` of a commodity. `null` for a null Reference.
+    /// The GUID of the `ResourceType` Record the Reference `resourceType` links to. It equals a
+    /// commodity's `subtypeGuid` only when the catalog has that commodity (20 of the 41 linked
+    /// `ResourceType`s on LIVE). `null` for a null or dangling Reference.
     pub(crate) resource_type_guid: Option<CatalogGuid>,
     /// `elementInstability`, from 0 to 1000 on LIVE; `null` when the Record states none.
     pub(crate) instability: Option<f32>,

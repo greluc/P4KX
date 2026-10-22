@@ -15,6 +15,7 @@ use crate::contract::{
 use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
+use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
 use crate::starmap_containers::Placements;
@@ -169,15 +170,13 @@ impl Parts {
 }
 
 /// Builds the catalog and hands it to `emit`, which serialises it.
-#[expect(clippy::too_many_lines, reason = "one field per kind of the catalog")]
 fn assemble<R>(
     archive: &Archive,
     entry: &DataForgeEntry,
     options: &CatalogOptions<'_>,
     emit: impl FnOnce(&Catalog<'_>) -> Result<R, CatalogError>,
 ) -> Result<(Parts, R), CatalogError> {
-    let cancelled = || options.cancel.is_some_and(CancelToken::is_cancelled);
-    if cancelled() {
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
         return Err(CatalogError::Cancelled);
     }
     let forge = entry.open().map_err(CatalogError::DataForge)?;
@@ -194,14 +193,12 @@ fn assemble<R>(
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
-    let completeness = completeness_of(options);
-    let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
-    let (item_classes, playability) = (collected.item_classes, collected.playability);
-    let (failures, warnings) = (collected.failures, collected.warnings);
+    add_contracts(&forge, &texts, options, &mut collected)?;
+    let kinds = collected.summary(options.filter.is_none());
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness::of_every_kind(completeness),
+        completeness: Completeness::of_every_kind(completeness_of(options)),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
@@ -217,6 +214,7 @@ fn assemble<R>(
         paints: collected.paints,
         loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
+        contracts: collected.contracts,
         mineable_elements: collected.mineable_elements,
         refining_processes: collected.refining_processes,
     };
@@ -226,15 +224,15 @@ fn assemble<R>(
             kinds,
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
-            item_classes,
+            item_classes: collected.item_classes,
             paints: paint_summary,
             loadouts: loadout_summary,
             starmap: starmap_summary,
             starmap_report: Box::new(report),
-            playability,
+            playability: collected.playability,
             variants,
-            failures,
-            warnings,
+            failures: collected.failures,
+            warnings: collected.warnings,
         },
         output,
     ))
@@ -284,6 +282,24 @@ fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> 
             filter: filter.as_str(),
         }
     })
+}
+
+/// Reads the contracts and sub contracts into `collected`.
+fn add_contracts<'f>(
+    forge: &'f DataForge<'f>,
+    texts: &Texts<'f>,
+    options: &CatalogOptions<'_>,
+    collected: &mut Collected<'f>,
+) -> Result<(), CatalogError> {
+    let missions = missions::read(
+        forge,
+        texts,
+        &collected.starmap_objects,
+        options.filter,
+        options.cancel,
+    )?;
+    collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
+    Ok(())
 }
 
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.

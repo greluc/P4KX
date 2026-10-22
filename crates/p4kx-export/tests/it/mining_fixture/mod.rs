@@ -12,6 +12,9 @@ const AGRICIUM: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0003;
 const AGRICIUM_DEPOSIT: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const BEXALITE: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0002;
 const LEFTOVER_ELEMENT: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const UNLINKED: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0005;
+pub(crate) const DANGLING: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0006;
+const MISSING_RESOURCE: u128 = 0x5000_0000_0000_4000_8000_0000_0000_00ff;
 pub(crate) const FAST_CAREFUL: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const SLOW_WASTEFUL: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0001;
 const LEFTOVER_PROCESS: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0003;
@@ -107,6 +110,13 @@ fn database() -> DataForgeBuilder {
         ))
         .record(element(BEXALITE, "bexalite_ore", 0.0, Some(OTHER_RESOURCE)))
         .record(element(LEFTOVER_ELEMENT, "mineable_test", 1.0, None))
+        .record(element(UNLINKED, "unlinked_ore", 12.0, None))
+        .record(element(
+            DANGLING,
+            "dangling_ore",
+            13.0,
+            Some(MISSING_RESOURCE),
+        ))
         .record(process(
             FAST_CAREFUL,
             "processingtype-fastcareful",

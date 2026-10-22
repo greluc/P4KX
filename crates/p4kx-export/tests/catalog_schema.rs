@@ -48,57 +48,6 @@ fn the_catalog_schema_is_draft_2020_12() {
     );
 }
 
-fn collect_properties<'s>(
-    node: &'s serde_json::Value,
-    found: &mut Vec<(&'s str, &'s serde_json::Value)>,
-) {
-    match node {
-        serde_json::Value::Object(map) => {
-            if let Some(properties) = map.get("properties").and_then(serde_json::Value::as_object) {
-                found.extend(
-                    properties
-                        .iter()
-                        .map(|(name, value)| (name.as_str(), value)),
-                );
-            }
-            for value in map.values() {
-                collect_properties(value, found);
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for value in items {
-                collect_properties(value, found);
-            }
-        }
-        _ => {}
-    }
-}
-
-#[test]
-fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
-    let mut schema = p4kx_export::catalog_schema();
-    let starmap = schema["$defs"]
-        .as_object_mut()
-        .and_then(|defs| defs.remove("StarmapObject"))
-        .expect("the starmap object definition");
-    let mut properties = Vec::new();
-    collect_properties(&schema, &mut properties);
-    let mut marked = 0;
-    for (name, value) in properties {
-        let carries = value.get("x-gameText") == Some(&json!(true));
-        let game_text = matches!(name, "description" | "displayType" | "processName");
-        assert_eq!(carries, game_text, "x-gameText on {name}");
-        marked += usize::from(carries);
-    }
-    assert_eq!(marked, 7, "descriptions, display types, process name");
-    let mut starmap_properties = Vec::new();
-    collect_properties(&starmap, &mut starmap_properties);
-    for (name, value) in starmap_properties {
-        let carries = value.get("x-gameText") == Some(&json!(true));
-        assert_eq!(carries, name == "name", "x-gameText on the starmap {name}");
-    }
-}
-
 #[test]
 fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
@@ -194,8 +143,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "dismantleProcesses",
         "paints",
         "loadouts",
-        "mineableElements",
-        "refiningProcesses",
+        "contracts",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);

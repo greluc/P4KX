@@ -1,7 +1,8 @@
 //! Mineable elements and refining processes in the Basetool catalog, through the public API.
 
 use crate::mining_fixture::{
-    BEXALITE, FAST_CAREFUL, OTHER_RESOURCE, SHARED_RESOURCE, SLOW_WASTEFUL, write_archive,
+    BEXALITE, DANGLING, FAST_CAREFUL, OTHER_RESOURCE, SHARED_RESOURCE, SLOW_WASTEFUL, UNLINKED,
+    write_archive,
 };
 
 use std::error::Error;
@@ -50,7 +51,13 @@ fn every_element_is_exported_even_when_several_share_a_resource_type() -> TestRe
     let (built, catalog) = build(None)?;
     assert_eq!(
         class_names(&catalog, "mineableElements"),
-        ["agricium_deposit", "bexalite_ore", "agricium_ore"],
+        [
+            "agricium_deposit",
+            "bexalite_ore",
+            "agricium_ore",
+            "unlinked_ore",
+            "dangling_ore"
+        ],
         "ordered by GUID, the leftover counted as skipped"
     );
     let shared = guid(SHARED_RESOURCE);
@@ -72,9 +79,29 @@ fn every_element_is_exported_even_when_several_share_a_resource_type() -> TestRe
     let kind = built.summary().kind(Kind::MineableElements);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((3, 1, true)),
+        Some((5, 1, true)),
         "counts"
     );
+    Ok(())
+}
+
+#[test]
+fn a_null_or_dangling_resource_type_gives_a_null_guid_and_keeps_the_element() -> TestResult {
+    let (_, catalog) = build(None)?;
+    for (record, class, instability) in [
+        (UNLINKED, "unlinked_ore", 12.0),
+        (DANGLING, "dangling_ore", 13.0),
+    ] {
+        let entry = catalog["mineableElements"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|entry| entry["guid"] == guid(record).as_str())
+            .ok_or("the element")?;
+        assert_eq!(entry["className"], class);
+        assert_eq!(entry["resourceTypeGuid"], Value::Null, "{class}");
+        assert_eq!(entry["instability"], instability, "{class} keeps its facts");
+    }
     Ok(())
 }
 

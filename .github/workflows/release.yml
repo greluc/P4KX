@@ -75,11 +75,14 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           NEXT_MSI_VERSION: ${{ steps.version.outputs.next_msi_version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          New-Item -ItemType Directory -Force target\wix-check | Out-Null
+          New-Item -ItemType Directory -Force target\wix-check, target\wix-previous | Out-Null
+          gh release download v0.2.0 --repo greluc/P4KX --pattern "*.msi" --dir target\wix-previous
+          $previous = (Get-ChildItem target\wix-previous -Filter *.msi | Select-Object -First 1).FullName
           .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
           $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Package.UpgradeCode
-          .github\scripts\check-msi.ps1 -Msi "target\package\P4KX-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode
+          .github\scripts\check-msi.ps1 -Msi "target\package\P4KX-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode -PreviousMsi $previous
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

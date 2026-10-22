@@ -18,7 +18,7 @@
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="UserPrograms" Name="Programs">
         <Directory Id="APPLICATIONFOLDER" Name="P4KX">
-          <Component Id="Application" Guid="9C73F6D4-7407-4BDB-A3F1-105F2206BAE2">
+          <Component Id="Application" Guid="63EEC150-779C-40C1-B6D0-5CDB0F649CBA">
             <File Id="GuiExe" Name="p4kx-gui.exe" Source="$(var.BinaryFolder)\p4kx-gui.exe" />
             <File Id="CliExe" Name="p4kx.exe" Source="$(var.BinaryFolder)\p4kx.exe" />
             <File Id="McpExe" Name="p4kx-mcp.exe" Source="$(var.BinaryFolder)\p4kx-mcp.exe" />
@@ -48,7 +48,7 @@
     </StandardDirectory>
 
     <StandardDirectory Id="ProgramMenuFolder">
-      <Component Id="StartMenuShortcut" Guid="8540214F-7191-4490-A64B-29CA4A0520F5">
+      <Component Id="StartMenuShortcut" Guid="A0168EBF-245F-4907-BB41-58C1B5F456B9">
         <Shortcut
             Id="GuiShortcut"
             Name="P4KX"

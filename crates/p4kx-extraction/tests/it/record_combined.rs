@@ -102,7 +102,7 @@ fn an_empty_selection_gives_an_empty_root_element() -> TestResult {
     assert_eq!(
         fs::read_to_string(&file)?,
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-         <p4kx:records xmlns:p4kx=\"https://github.com/greluc/P4KX/record-xml\"/>\n",
+         <p4kx:records xmlns:p4kx=\"https://github.com/greluc/p4kx/record-xml\"/>\n",
         "a self-closing root"
     );
     Ok(())

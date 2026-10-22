@@ -7,7 +7,7 @@ expression: tree(&first)?
 <Manufacturer guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" code="WOOD"/>
 == libs/foundry/records/vehicles/cart.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Vehicle xmlns:p4kx="https://github.com/greluc/P4KX/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart">
+<Vehicle xmlns:p4kx="https://github.com/greluc/p4kx/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart">
   <maker>
     <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
   </maker>

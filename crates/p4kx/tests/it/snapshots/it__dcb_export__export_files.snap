@@ -7,7 +7,7 @@ expression: tree(&out)?
 <Item guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/items/boxes" mass="1" size="Small" label="@item_NameBox"/>
 == libs/foundry/records/items/boxes/Item.Crate.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Item xmlns:p4kx="https://github.com/greluc/P4KX/record-xml" guid="00000001-0002-0003-0004-000000000005" path="libs/foundry/records/items/boxes" mass="2.5" label="@item_NameCrate">
+<Item xmlns:p4kx="https://github.com/greluc/p4kx/record-xml" guid="00000001-0002-0003-0004-000000000005" path="libs/foundry/records/items/boxes" mass="2.5" label="@item_NameCrate">
   <p4kx:error field="size" reason="offset 4294967295 in the text table is not a valid string"/>
 </Item>
 == libs/foundry/records/ships/avenger.xml

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 use p4kx_assembly::{ArchiveFiles, LoadoutResolver};
 use p4kx_extraction::{Archive, CancelToken, DataForge, Guid, RecordTree, Value};
@@ -35,6 +36,35 @@ pub(crate) fn carries_ports(tree: &RecordTree<'_>) -> bool {
     })
 }
 
+/// The resolvers and port readers not in use. A resolver keeps the Records it has read, so one
+/// taken for an entity and given back for the next keeps its caches across the splits of the
+/// parallel run.
+struct Pool<'f, 'a> {
+    forge: &'f DataForge<'f>,
+    files: &'a ArchiveFiles<'a>,
+    tags: &'a TagNames,
+    idle: Mutex<Vec<(LoadoutResolver<'f>, PortReader<'a>)>>,
+}
+
+impl<'f> Pool<'f, 'f> {
+    fn read(&self, want: Wanted) -> Result<Option<Loadout>, CatalogFailure> {
+        let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
+        let (mut resolver, mut reader) = taken.unwrap_or_else(|| {
+            (
+                LoadoutResolver::new(self.forge)
+                    .with_files(self.files)
+                    .stopping_at_docked_vehicles(),
+                PortReader::new(self.tags),
+            )
+        });
+        let result = read_with(&mut resolver, &mut reader, self.forge, want);
+        if let Ok(mut idle) = self.idle.lock() {
+            idle.push((resolver, reader));
+        }
+        result
+    }
+}
+
 /// An entry of `ships` or `items` whose ports are wanted.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Wanted {
@@ -68,24 +98,20 @@ pub(crate) fn loadouts<'f>(
     cancel: Option<&CancelToken>,
 ) -> Result<Loadouts, CatalogError> {
     let files = ArchiveFiles::new(archive);
+    let pool = Pool {
+        forge,
+        files: &files,
+        tags,
+        idle: Mutex::new(Vec::new()),
+    };
     let read: Vec<Option<Result<Option<Loadout>, CatalogFailure>>> = wanted
         .par_iter()
-        .map_init(
-            || {
-                (
-                    LoadoutResolver::new(forge)
-                        .with_files(&files)
-                        .stopping_at_docked_vehicles(),
-                    PortReader::new(tags),
-                )
-            },
-            |(resolver, reader), want| {
-                if cancel.is_some_and(CancelToken::is_cancelled) {
-                    return None;
-                }
-                Some(read(resolver, reader, forge, *want))
-            },
-        )
+        .map(|want| {
+            if cancel.is_some_and(CancelToken::is_cancelled) {
+                return None;
+            }
+            Some(pool.read(*want))
+        })
         .collect();
     let mut entries = Vec::with_capacity(read.len());
     let mut failures = Vec::new();
@@ -105,7 +131,7 @@ pub(crate) fn loadouts<'f>(
     })
 }
 
-fn read<'f>(
+fn read_with<'f>(
     resolver: &mut LoadoutResolver<'f>,
     reader: &mut PortReader<'_>,
     forge: &'f DataForge<'f>,

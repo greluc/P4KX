@@ -42,6 +42,7 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         )),
         class: line.class(),
         playability: playability_rules::item(tree, name_key),
+        stats: None,
     };
     (item, line)
 }

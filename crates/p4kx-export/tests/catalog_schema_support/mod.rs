@@ -50,7 +50,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "tags": ["flightReady"],
             "displayType": {"key": null, "en": null, "de": null},
             "itemClass": "Military",
-            "playability": "player"
+            "playability": "player",
+            "stats": null
         }],
         "ships": [{
             "guid": "90000000-0000-4000-8000-000000000001",

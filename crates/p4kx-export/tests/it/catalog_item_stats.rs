@@ -1,0 +1,195 @@
+//! The typed stat blocks of items in the Basetool catalog, through the public API.
+
+use crate::item_stats_fixture;
+
+use std::error::Error;
+use std::time::{Duration, UNIX_EPOCH};
+
+use item_stats_fixture::{COOLER, DANGLING_GUN, DRIVE, GUN, MISSILE, PLAIN, PLANT, SHIELD};
+use p4kx_export::{CatalogOptions, build_catalog};
+use p4kx_extraction::Archive;
+use serde_json::{Value, json};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+fn catalog() -> Result<Value, Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archive = Archive::open_with_key(
+        item_stats_fixture::write_archive(dir.path())?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let options = CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000));
+    let built = build_catalog(&archive, &options)?;
+    Ok(serde_json::from_slice(built.json())?)
+}
+
+fn item(catalog: &Value, guid: u128) -> Result<Value, Box<dyn Error>> {
+    let text = format!("{guid:032x}");
+    let wanted = format!(
+        "{}-{}-{}-{}-{}",
+        &text[0..8],
+        &text[8..12],
+        &text[12..16],
+        &text[16..20],
+        &text[20..32]
+    );
+    catalog["items"]
+        .as_array()
+        .and_then(|items| items.iter().find(|item| item["guid"] == wanted.as_str()))
+        .cloned()
+        .ok_or_else(|| format!("item {wanted}").into())
+}
+
+#[test]
+fn a_weapon_carries_its_fire_modes_and_ammunition_as_stored() -> TestResult {
+    let gun = item(&catalog()?, GUN)?;
+    let weapon = &gun["stats"]["weapon"];
+    assert_eq!(
+        weapon["fireActions"],
+        json!([
+            {
+                "kind": "SWeaponActionFireRapidParams",
+                "name": "rapid",
+                "fireRate": 600.0,
+                "pellets": 1,
+                "ammoCost": 1,
+                "heatPerShot": 0.5,
+                "chargeTime": null,
+                "overchargeTime": null,
+                "cooldownTime": null
+            },
+            {
+                "kind": "SWeaponActionFireChargedParams",
+                "name": "rapid",
+                "fireRate": 120.0,
+                "pellets": 1,
+                "ammoCost": 1,
+                "heatPerShot": 0.5,
+                "chargeTime": 1.5,
+                "overchargeTime": 3.0,
+                "cooldownTime": 0.25
+            }
+        ])
+    );
+    assert_eq!(weapon["ammoCapacity"], 200);
+    assert_eq!(
+        weapon["ammo"],
+        json!({
+            "speed": 1100.0,
+            "lifetime": 2.5,
+            "damage": {
+                "physical": 30.0, "energy": 2.0, "distortion": null,
+                "thermal": null, "biochemical": null, "stun": null
+            },
+            "detonationDamage": {
+                "physical": 7.0, "energy": 0.0, "distortion": null,
+                "thermal": null, "biochemical": null, "stun": null
+            },
+            "detonationMinRadius": 1.0,
+            "detonationMaxRadius": 4.0
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn a_weapon_whose_ammunition_record_is_missing_has_null_ammo() -> TestResult {
+    let gun = item(&catalog()?, DANGLING_GUN)?;
+    assert!(gun["stats"]["weapon"]["ammo"].is_null());
+    assert_eq!(gun["stats"]["weapon"]["ammoCapacity"], 200);
+    Ok(())
+}
+
+#[test]
+fn a_shield_carries_its_values_and_the_connections() -> TestResult {
+    let shield = item(&catalog()?, SHIELD)?;
+    let stats = &shield["stats"];
+    assert_eq!(
+        stats["shield"],
+        json!({
+            "maxHealth": 8000.0,
+            "maxRegen": 160.0,
+            "decayRatio": 0.25,
+            "downedRegenDelay": 5.0,
+            "damagedRegenDelay": 2.5
+        })
+    );
+    assert_eq!(
+        stats["power"],
+        json!({"powerBase": 1.0, "powerDraw": 4.0, "powerToEm": 3.0, "decayRateOfEm": 0.5})
+    );
+    assert_eq!(
+        stats["heat"],
+        json!({
+            "thermalEnergyBase": 2.0,
+            "thermalEnergyDraw": 6.0,
+            "temperatureToIr": 0.75,
+            "overheatTemperature": 90.0
+        })
+    );
+    assert_eq!(stats["health"], 450.0);
+    assert!(stats["weapon"].is_null() && stats["missile"].is_null());
+    Ok(())
+}
+
+#[test]
+fn a_quantum_drive_carries_its_range_and_drive_parameters() -> TestResult {
+    let drive = item(&catalog()?, DRIVE)?;
+    assert_eq!(
+        drive["stats"]["quantumDrive"],
+        json!({
+            "fuelRequirement": 0.5,
+            "jumpRange": 5.0e10,
+            "disconnectRange": 20000.0,
+            "driveSpeed": 2.0e8,
+            "cooldownTime": 6.0,
+            "spoolUpTime": 10.0,
+            "stageOneAccelRate": 1000.0,
+            "stageTwoAccelRate": 2000.0,
+            "engageSpeed": 20.0
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn a_power_plant_and_a_cooler_carry_the_rate_of_their_own_resource() -> TestResult {
+    let catalog = catalog()?;
+    let plant = item(&catalog, PLANT)?;
+    let cooler = item(&catalog, COOLER)?;
+    assert_eq!(plant["stats"]["powerPlant"], json!({"powerOutput": 12.0}));
+    assert!(plant["stats"]["cooler"].is_null());
+    assert_eq!(cooler["stats"]["cooler"], json!({"coolingRate": 40.0}));
+    assert!(cooler["stats"]["powerPlant"].is_null());
+    Ok(())
+}
+
+#[test]
+fn a_missile_carries_its_explosion_and_targeting() -> TestResult {
+    let missile = item(&catalog()?, MISSILE)?;
+    assert_eq!(
+        missile["stats"]["missile"],
+        json!({
+            "damage": {
+                "physical": 1500.0, "energy": 0.0, "distortion": null,
+                "thermal": null, "biochemical": null, "stun": null
+            },
+            "explosionMinRadius": 2.0,
+            "explosionMaxRadius": 12.0,
+            "trackingSignalType": "Infrared",
+            "lockTime": 2.0,
+            "lockingAngle": 45.0,
+            "lockRangeMin": 100.0,
+            "lockRangeMax": 5000.0,
+            "linearSpeed": 300.0
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn an_item_without_a_stat_block_has_null_stats_whatever_connections_it_has() -> TestResult {
+    let plain = item(&catalog()?, PLAIN)?;
+    assert!(plain["stats"].is_null());
+    Ok(())
+}

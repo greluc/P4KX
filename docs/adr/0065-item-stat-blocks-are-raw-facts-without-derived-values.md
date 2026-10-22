@@ -1,0 +1,65 @@
+# Item stat blocks are raw facts without derived values
+
+Decided for issue #317. Builds on ADR-0054 and ADR-0063.
+
+The Basetool wants the typed stats of weapons, shields, quantum drives, power plants, coolers and
+missiles from the Archive. The community tools it replaces compute derived values on top of the
+raw fields: a weapon's damage per second, a charged weapon's cycle time, a ship's acceleration, a
+quantum drive's fuel rate. The issue asks which stat blocks are exported raw and which derived
+values, if any, `p4kx` computes.
+
+## Decision
+
+- **Raw facts only.** Every number in a stat block is a field of the Archive, in the unit and
+  scale the game stores it. `p4kx` computes no derived value: no damage per second, no charge or
+  burst cycle, no acceleration, no fuel rate, no sum of damage types. A unit conversion is left
+  to the consumer too (the reference tools divide `quantumFuelRequirement` by 1e6; the catalog
+  carries it as stored), and each field is named after the stored field.
+- **Why.** A derived value is a model of the game's rules, not a fact of the Archive. The
+  formulas depend on the fire-mode type, on how a charged mode ends and on which ammunition a
+  weapon holds, and CIG changes them between patches. A model that is wrong would reach the
+  Basetool as if it were data, and a correction would be a change of meaning, which version 1
+  forbids (ADR-0054). Raw facts are stable under that rule; the Basetool owns the formulas and
+  can change them without a new catalog.
+- **The blocks.** An item has `stats`, `null` unless it has at least one of six blocks. The
+  blocks are `weapon` (fire modes and ammunition), `shield`, `quantumDrive`, `powerPlant`,
+  `cooler` and `missile`. A block follows from the item's components (`SCItemWeaponComponentParams`,
+  `SCItemShieldGeneratorParams`, `SCItemQuantumDriveParams`, `SCItemMissileParams`) or, for the
+  power plant and the cooler, from `AttachDef.Type`, because the resource component they share
+  does not tell them apart. No class name or record name enters the rule. A block that is `null`
+  is absent from the item; a field inside a present block is `null` when the Archive does not
+  state it, never 0.
+- **Shared blocks.** An item with at least one of the six blocks also carries `power`
+  (`EntityComponentPowerConnection`: base, draw, EM signature factor and decay), `heat`
+  (`EntityComponentHeatConnection`: thermal energy, IR signature factor, overheat temperature) and
+  `health` (`SHealthComponentParams.Health`). They are the signature and durability inputs; an
+  item without a stat block does not carry them, which keeps doors, props and clothing out of the
+  kind.
+- **Flat and nullable, on the item.** The stats are a field of the item, not a new kind: the item
+  is the key, the import already joins on it, `completeness.items` already states whether the list
+  is complete, and no second GUID list has to stay in step with `items`. This is ADR-0063's
+  reasoning for the ship base values. The field is additive in version 1.
+- **Closed sets are strings.** `kind` of a fire mode (the struct of the mode) and
+  `trackingSignalType` of a missile are strings in the schema, so a new value is additive and a
+  reader maps an unknown one to nothing.
+- **Facts, no game text.** A stat block holds numbers, struct names and enum names. None carries
+  `x-gameText`, and none is a description. The identifier `name` of a fire mode is a debug name
+  of the DataForge, not a game text.
+- **Sources.** Each field's source path is in `docs/basetool-catalog.md`. The catalog leaves out
+  the per-value file and field of `p4kx ships`; the table is the audit trail.
+- **Ammunition is followed once.** A weapon's ammunition is the `AmmoParams` Record that its
+  `SAmmoContainerComponentParams` links to. It is read while the weapon is scanned; a dangling
+  Reference leaves `ammo` `null` and is not a failure.
+
+## Considered Options
+
+- Computing damage per second, cycle time and similar values in the catalog, marked as derived:
+  rejected. The consumer cannot tell a corrected formula from changed data, and the Basetool
+  already owns the game rules it displays. The issue's formulas stay documented as the reference
+  for a consumer, not implemented.
+- A separate `itemStats` kind keyed by item GUID, like `paints`: rejected for the reason above;
+  it would duplicate the key and split `completeness`. The size cost is one `null` per item
+  without stats, about 0.3 MB uncompressed on LIVE.
+- Nesting each value as `{value, source}`: rejected as in ADR-0063.
+- Exporting every component of the item as raw trees: rejected; that is the Record export, and
+  the Basetool needs a stable typed shape, not the DataForge's.

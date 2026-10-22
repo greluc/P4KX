@@ -1,5 +1,73 @@
 {
   "$defs": {
+    "AmmoStats": {
+      "description": "The ammunition of a weapon.",
+      "properties": {
+        "damage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Damage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The damage on impact, from `projectileParams.damage`."
+        },
+        "detonationDamage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Damage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The damage of the detonation, from the `damage` of `explosionParams`."
+        },
+        "detonationMaxRadius": {
+          "description": "`explosionParams.maxRadius`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "detonationMinRadius": {
+          "description": "`explosionParams.minRadius`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lifetime": {
+          "description": "`lifetime`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "speed": {
+          "description": "`speed`, in metres per second.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damage",
+        "detonationDamage",
+        "detonationMaxRadius",
+        "detonationMinRadius",
+        "lifetime",
+        "speed"
+      ],
+      "type": "object"
+    },
     "Blueprint": {
       "description": "A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.",
       "properties": {
@@ -400,6 +468,23 @@
       ],
       "type": "object"
     },
+    "CoolerStats": {
+      "description": "A cooler.",
+      "properties": {
+        "coolingRate": {
+          "description": "The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Coolant`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "coolingRate"
+      ],
+      "type": "object"
+    },
     "CostLine": {
       "description": "One cost of a tier: a selection (\"choose n\") of costs, a resource line or an item line.\n\nThe fields of the other lines are `null`, or empty for `options` and `modifiers`.",
       "properties": {
@@ -546,6 +631,68 @@
       ],
       "type": "object"
     },
+    "Damage": {
+      "description": "Damage by type, as the Archive states it.",
+      "properties": {
+        "biochemical": {
+          "description": "`DamageBiochemical`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "distortion": {
+          "description": "`DamageDistortion`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "energy": {
+          "description": "`DamageEnergy`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "physical": {
+          "description": "`DamagePhysical`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stun": {
+          "description": "`DamageStun`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "thermal": {
+          "description": "`DamageThermal`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "biochemical",
+        "distortion",
+        "energy",
+        "physical",
+        "stun",
+        "thermal"
+      ],
+      "type": "object"
+    },
     "DismantleProcess": {
       "description": "A generic dismantle process: a `CraftingBlueprintRecord` under `crafting/blueprints/dismantle`\nwhose process is a `GenericCraftingProcess_Dismantle`.",
       "properties": {
@@ -587,6 +734,90 @@
       ],
       "type": "object"
     },
+    "FireAction": {
+      "description": "One fire mode of a weapon.",
+      "properties": {
+        "ammoCost": {
+          "description": "`launchParams.ammoCost`, the rounds one shot uses.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "chargeTime": {
+          "description": "`chargeTime` of a charged fire mode, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cooldownTime": {
+          "description": "`cooldownTime` of a charged fire mode, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fireRate": {
+          "description": "`fireRate`, in rounds per minute.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "heatPerShot": {
+          "description": "`heatPerShot`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "The struct of the fire mode, e.g. `SWeaponActionFireRapidParams`. A closed set the game\nmay extend; the schema keeps a string.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The `name` of the fire mode.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "overchargeTime": {
+          "description": "`overchargeTime` of a charged fire mode, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pellets": {
+          "description": "`launchParams.pellets`, the projectiles of one shot.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "ammoCost",
+        "chargeTime",
+        "cooldownTime",
+        "fireRate",
+        "heatPerShot",
+        "kind",
+        "name",
+        "overchargeTime",
+        "pellets"
+      ],
+      "type": "object"
+    },
     "GameplayProperty": {
       "description": "A gameplay property definition: a `CraftingGameplayPropertyDef` Record under\n`crafting/craftedproperties`, the target of the `propertyGuid` of a modifier.",
       "properties": {
@@ -620,6 +851,50 @@
       "format": "uuid",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "type": "string"
+    },
+    "HeatConnection": {
+      "description": "The heat connection of an item.",
+      "properties": {
+        "overheatTemperature": {
+          "description": "`OverheatTemperature`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperatureToIr": {
+          "description": "`TemperatureToIR`, the infrared signature per temperature.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "thermalEnergyBase": {
+          "description": "`ThermalEnergyBase`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "thermalEnergyDraw": {
+          "description": "`ThermalEnergyDraw`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "overheatTemperature",
+        "temperatureToIr",
+        "thermalEnergyBase",
+        "thermalEnergyDraw"
+      ],
+      "type": "object"
     },
     "Ingredient": {
       "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
@@ -774,6 +1049,17 @@
             "null"
           ]
         },
+        "stats": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler or missile,\nraw facts without derived values (ADR-0065); `null` for any other item."
+        },
         "subType": {
           "description": "The item subtype of `AttachDef.SubType`, e.g. `Power`, `null` without one.",
           "type": [
@@ -809,9 +1095,123 @@
         "playability",
         "recordPath",
         "size",
+        "stats",
         "subType",
         "tags",
         "type"
+      ],
+      "type": "object"
+    },
+    "ItemStats": {
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`\nand `missile`. No value is derived: a number is what the Archive states, in the unit the game\nstores it.",
+      "properties": {
+        "cooler": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoolerStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The cooler block, for an item of the type `Cooler`."
+        },
+        "health": {
+          "description": "The hit points, from `SHealthComponentParams.Health`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "heat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeatConnection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The heat connection, from `EntityComponentHeatConnection`."
+        },
+        "missile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MissileStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The missile block, from `SCItemMissileParams`."
+        },
+        "power": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PowerConnection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The power connection, from `EntityComponentPowerConnection`."
+        },
+        "powerPlant": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PowerPlantStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The power plant block, for an item of the type `PowerPlant`."
+        },
+        "quantumDrive": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantumDriveStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The quantum drive block, from `SCItemQuantumDriveParams`."
+        },
+        "shield": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShieldStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The shield generator block, from `SCItemShieldGeneratorParams`."
+        },
+        "weapon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeaponStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The weapon block, from `SCItemWeaponComponentParams`."
+        }
+      },
+      "required": [
+        "cooler",
+        "health",
+        "heat",
+        "missile",
+        "power",
+        "powerPlant",
+        "quantumDrive",
+        "shield",
+        "weapon"
       ],
       "type": "object"
     },
@@ -957,6 +1357,97 @@
       ],
       "type": "object"
     },
+    "MissileStats": {
+      "description": "A missile.",
+      "properties": {
+        "damage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Damage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The damage of the explosion, from the `damage` of `explosionParams`."
+        },
+        "explosionMaxRadius": {
+          "description": "`explosionParams.maxRadius`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "explosionMinRadius": {
+          "description": "`explosionParams.minRadius`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "linearSpeed": {
+          "description": "`gcsParams.linearSpeed`, in metres per second.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lockRangeMax": {
+          "description": "`targetingParams.lockRangeMax`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lockRangeMin": {
+          "description": "`targetingParams.lockRangeMin`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lockTime": {
+          "description": "`targetingParams.lockTime`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lockingAngle": {
+          "description": "`targetingParams.lockingAngle`, in degrees.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "trackingSignalType": {
+          "description": "`targetingParams.trackingSignalType`. A closed set the game may extend; the schema keeps a\nstring.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damage",
+        "explosionMaxRadius",
+        "explosionMinRadius",
+        "linearSpeed",
+        "lockRangeMax",
+        "lockRangeMin",
+        "lockTime",
+        "lockingAngle",
+        "trackingSignalType"
+      ],
+      "type": "object"
+    },
     "Paint": {
       "description": "A paint: an item of the type `Paints` and the ships it fits.",
       "properties": {
@@ -1004,6 +1495,67 @@
       "required": [
         "blueprintGuid",
         "weight"
+      ],
+      "type": "object"
+    },
+    "PowerConnection": {
+      "description": "The power connection of an item.",
+      "properties": {
+        "decayRateOfEm": {
+          "description": "`DecayRateOfEM`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "powerBase": {
+          "description": "`PowerBase`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "powerDraw": {
+          "description": "`PowerDraw`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "powerToEm": {
+          "description": "`PowerToEM`, the electromagnetic signature per power.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "decayRateOfEm",
+        "powerBase",
+        "powerDraw",
+        "powerToEm"
+      ],
+      "type": "object"
+    },
+    "PowerPlantStats": {
+      "description": "A power plant.",
+      "properties": {
+        "powerOutput": {
+          "description": "The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Power`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "powerOutput"
       ],
       "type": "object"
     },
@@ -1127,6 +1679,95 @@
       ],
       "type": "object"
     },
+    "QuantumDriveStats": {
+      "description": "A quantum drive.",
+      "properties": {
+        "cooldownTime": {
+          "description": "`params.cooldownTime`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "disconnectRange": {
+          "description": "`disconnectRange`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "driveSpeed": {
+          "description": "`params.driveSpeed`, in metres per second.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "engageSpeed": {
+          "description": "`params.engageSpeed`, in metres per second.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fuelRequirement": {
+          "description": "`quantumFuelRequirement`, as stored.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "jumpRange": {
+          "description": "`jumpRange`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "spoolUpTime": {
+          "description": "`params.spoolUpTime`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stageOneAccelRate": {
+          "description": "`params.stageOneAccelRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stageTwoAccelRate": {
+          "description": "`params.stageTwoAccelRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "cooldownTime",
+        "disconnectRange",
+        "driveSpeed",
+        "engageSpeed",
+        "fuelRequirement",
+        "jumpRange",
+        "spoolUpTime",
+        "stageOneAccelRate",
+        "stageTwoAccelRate"
+      ],
+      "type": "object"
+    },
     "ResourceGroup": {
       "description": "A resource group: a `ResourceTypeGroup` Record under `resourcetypedatabase`, the type the\n`typeGuid` of a commodity points at.",
       "properties": {
@@ -1211,6 +1852,59 @@
         "contractName",
         "recordGuid",
         "recordPath"
+      ],
+      "type": "object"
+    },
+    "ShieldStats": {
+      "description": "A shield generator.",
+      "properties": {
+        "damagedRegenDelay": {
+          "description": "`DamagedRegenDelay`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "decayRatio": {
+          "description": "`DecayRatio`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "downedRegenDelay": {
+          "description": "`DownedRegenDelay`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxHealth": {
+          "description": "`MaxShieldHealth`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxRegen": {
+          "description": "`MaxShieldRegen`, in hit points per second.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damagedRegenDelay",
+        "decayRatio",
+        "downedRegenDelay",
+        "maxHealth",
+        "maxRegen"
       ],
       "type": "object"
     },
@@ -1453,6 +2147,43 @@
         "endQuality",
         "kind",
         "startQuality"
+      ],
+      "type": "object"
+    },
+    "WeaponStats": {
+      "description": "A weapon: its fire modes and the ammunition it fires.",
+      "properties": {
+        "ammo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AmmoStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The ammunition, from the `AmmoParams` Record that\n`SAmmoContainerComponentParams.ammoParamsRecord` links to; `null` without a readable one."
+        },
+        "ammoCapacity": {
+          "description": "The rounds the weapon holds, from `SAmmoContainerComponentParams.maxAmmoCount`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "fireActions": {
+          "description": "The fire modes of `fireActions` in stored order; a sequence is flattened to its entries.",
+          "items": {
+            "$ref": "#/$defs/FireAction"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ammo",
+        "ammoCapacity",
+        "fireActions"
       ],
       "type": "object"
     }

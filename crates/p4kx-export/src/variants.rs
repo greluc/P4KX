@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 use crate::collected::Collected;
 use crate::guid_text::CatalogGuid;
+use crate::item_variant::ItemKey;
 use crate::paint_port::ShipKey;
 use crate::{Playability, VariantCounts, VariantSummary};
 
@@ -29,9 +30,23 @@ impl Collected<'_> {
         for (ship, base) in self.ships.iter_mut().zip(bases) {
             ship.variant_of = base;
         }
+        let candidates: Vec<Candidate<'_, ItemKey<'_>>> = self
+            .items
+            .iter()
+            .map(|item| Candidate {
+                guid: item.guid,
+                class_name: item.class_name,
+                playability: item.playability,
+                key: item.variant_key,
+            })
+            .collect();
+        let (bases, item_counts) = group(&candidates);
+        for (item, base) in self.items.iter_mut().zip(bases) {
+            item.variant_of = base;
+        }
         VariantSummary {
             ships: counts,
-            items: VariantCounts::default(),
+            items: item_counts,
         }
     }
 }
@@ -88,4 +103,37 @@ pub(crate) fn group<K: Hash + Eq>(
         }
     }
     (bases, counts)
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_extraction::Guid;
+
+    use super::*;
+
+    fn candidate(class_name: &str, playability: Option<Playability>) -> Candidate<'_, u8> {
+        Candidate {
+            guid: CatalogGuid(Guid::default()),
+            class_name,
+            playability,
+            key: Some(1),
+        }
+    }
+
+    #[test]
+    fn a_player_member_is_the_base_before_a_smaller_class_name() {
+        let ai = candidate("A_Ai", Some(Playability::Ai));
+        let mut player = candidate("B_Player", Some(Playability::Player));
+        player.guid = CatalogGuid(Guid::from_stored([1; 16]));
+        let player_guid = player.guid;
+        let (bases, counts) = group(&[ai, player]);
+        assert_eq!(bases, vec![Some(player_guid), None]);
+        assert_eq!(
+            counts,
+            VariantCounts {
+                groups: 1,
+                variants: 1
+            }
+        );
+    }
 }

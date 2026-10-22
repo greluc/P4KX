@@ -163,6 +163,10 @@ impl Parts {
 }
 
 /// Builds the catalog and hands it to `emit`, which serialises it.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one sequence of build steps that reads best in order"
+)]
 fn assemble<R>(
     archive: &Archive,
     entry: &DataForgeEntry,

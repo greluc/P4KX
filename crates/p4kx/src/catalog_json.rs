@@ -2,7 +2,7 @@ use std::path::Path;
 
 use p4kx_export::{
     CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, LoadoutSummary, PaintSummary, Playability,
-    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT,
+    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, VariantCounts,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -28,6 +28,7 @@ pub(super) struct SummaryJson<'a> {
     paints: PaintsJson,
     loadouts: LoadoutsJson,
     playability: PlayabilityJson,
+    variants: VariantsJson,
     texts: Vec<TextJson>,
     unresolved: usize,
 }
@@ -129,6 +130,27 @@ struct PlayabilityJson {
 }
 
 #[derive(Serialize)]
+struct VariantsJson {
+    items: VariantCountsJson,
+    ships: VariantCountsJson,
+}
+
+#[derive(Serialize)]
+struct VariantCountsJson {
+    groups: usize,
+    variants: usize,
+}
+
+impl From<VariantCounts> for VariantCountsJson {
+    fn from(counts: VariantCounts) -> Self {
+        Self {
+            groups: counts.groups,
+            variants: counts.variants,
+        }
+    }
+}
+
+#[derive(Serialize)]
 struct PlayabilityCountsJson {
     player: usize,
     ai: usize,
@@ -219,6 +241,10 @@ pub(super) fn summary_json<'a>(
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),
+        },
+        variants: VariantsJson {
+            items: summary.variants().items.into(),
+            ships: summary.variants().ships.into(),
         },
         texts: summary
             .texts()

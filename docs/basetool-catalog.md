@@ -169,6 +169,8 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
+| `variantOf` | The `guid` of the base of the item's variant group, `null` for a base and an ungrouped item; see "Variant groups" below |
+| `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler or missile, `null` for any other item; see "Item stats" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
 DataForge field carries it: it is read from the first line of the English `description` that
@@ -223,6 +225,69 @@ Distribution of `grade` over the 23280 items of LIVE 4.10.2:
 `WeaponAttachment` parts (`Barrel`, `FiringMechanism`, `PowerArray`, `Ventilation`), 3 and 4 on
 those parts too. No value is below 1 or above 7.
 
+#### Item stats
+
+`stats` holds raw facts of the Archive and no derived value (ADR-0065): every number is the stored
+field in the stored unit, `p4kx` computes no damage per second, no cycle time, no acceleration and
+no fuel rate. The Basetool owns those formulas. `stats` is `null` unless the item has at least one
+of the six blocks; every block is `null` when the item does not have it, and a field inside a
+present block is `null` when the Archive does not state it, never 0. None of the fields is a game
+text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode and
+`trackingSignalType` are closed sets that the schema keeps as strings.
+
+| Block | Present when | Fields and sources |
+|-------|--------------|--------------------|
+| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pellets` and `ammoCost` of `launchParams`, `heatPerShot`, and for a charged mode `chargeTime`, `overchargeTime`, `cooldownTime`; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
+| `shield` | `Components[SCItemShieldGeneratorParams]` | `maxHealth` (`MaxShieldHealth`), `maxRegen` (`MaxShieldRegen`), `decayRatio` (`DecayRatio`), `downedRegenDelay` (`DownedRegenDelay`), `damagedRegenDelay` (`DamagedRegenDelay`) |
+| `quantumDrive` | `Components[SCItemQuantumDriveParams]` | `fuelRequirement` (`quantumFuelRequirement`, as stored), `jumpRange`, `disconnectRange`, and of `params`: `driveSpeed`, `cooldownTime`, `spoolUpTime`, `stageOneAccelRate`, `stageTwoAccelRate`, `engageSpeed` |
+| `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, and `unit`: the `unit` of that flow |
+| `cooler` | `AttachDef.Type` is `Cooler`, ignoring case | `coolingRate` and `unit`: as for the power plant, for the resource `Coolant` (a cooler's flow is an `ItemResourceDeltaConversion`) |
+| `missile` | `Components[SCItemMissileParams]` | `damage` (the damage types of `explosionParams.damage`), `explosionMinRadius`, `explosionMaxRadius`, `trackingSignalType`, `lockTime`, `lockingAngle`, `lockRangeMin`, `lockRangeMax` (of `targetingParams`) and `linearSpeed` (of `GCSParams`) |
+
+`resourceStates` lists the states of `Components[ItemResourceComponentParams].states` in stored
+order: `name`, `emSignature` and `irSignature` (`signatureParams`: `nominal` is `nominalSignature`,
+`decayRate`), and `flows`. A flow is one `generation` or `consumption` of a delta of the state:
+`kind` (the struct of the delta, e.g. `ItemResourceDeltaGeneration`, `ItemResourceDeltaConversion`,
+`ItemResourceDeltaConsumption`, `ItemResourceDeltaStorage`), `direction`, `resource`, `amount` (the
+first number of `resourceAmountPerSecond`) and `unit` (the struct holding it:
+`SPowerSegmentResourceUnit`, `SStandardResourceUnit`, `SMicroResourceUnit`, `SCentiResourceUnit`).
+Units differ between structs and are not converted. A delta without a `generation` or
+`consumption` (a network reflection) gives no flow.
+
+Raw values that need care:
+
+- `quantumDrive.jumpRange` is `f32::MAX` (3.4028235e38) on a drive the Archive leaves unbounded (a
+  development drive of the Idris). It is exported as stored; a reader treats a value at that
+  magnitude as unlimited.
+- A number that is not finite (NaN, infinity) is `null`, never written.
+- `weapon.ammoCapacity` is the capacity of the ammo container, which is the magazine and not the
+  weapon body: a ship weapon holds `Components[SAmmoContainerComponentParams]` itself; a weapon
+  without one (the personal weapons, ballistic and energy alike) links its magazine entity by
+  `Components[SCItemWeaponComponentParams].ammoContainerRecord`, and the container of that entity,
+  one hop, is read instead. `weapon.ammo` is read from the `AmmoParams` Record of that container's
+  `ammoParamsRecord`. A Reference to a missing Record, to a Record of another struct, or to a
+  Record that cannot be built leaves `ammo` `null`; the item stays in the catalog.
+- The fire-mode fields `name`, `fireRate`, `heatPerShot`, `chargeTime`, `overchargeTime`,
+  `cooldownTime` and `launchParams` are read from the fire mode and, where it has none of its own,
+  from its `weaponAction`.
+
+A damage object has `physical`, `energy`, `distortion`, `thermal`, `biochemical` and `stun`
+(`DamagePhysical` and so on); a type the struct does not hold is `null`. An item with at least one
+of the six blocks also carries `health` (`SHealthComponentParams.Health`) and `resourceStates`;
+the signature and power draw inputs are in `resourceStates`, not in separate blocks. Items without a
+block carry neither.
+
+The block of a power plant or a cooler follows from the type because both share the resource
+component; every other block follows from its component, and no class name or record name enters
+a rule. A damage object is read from the first struct below the named parent that states a damage
+type, and a generation from the structs of its type below the resource component, so a field the
+game moves turns into `null` rather than into a wrong number; the real-Archive test
+(`real_archive_item_stats`) counts the filled fields of each block.
+
+Size: an item without stats adds `"stats":null` (14 bytes, about 0.3 MB for the 23,280 items of
+LIVE); an item with a block adds a few hundred bytes, two to three thousand items about 1 MB,
+which compresses well because the keys repeat.
+
 A ship takes its fields from `VehicleComponentParams`:
 
 | Field | Source |
@@ -233,6 +298,7 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 | `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+| `variantOf` | The `guid` of the base of the ship's variant group, `null` for a base and an ungrouped ship; see "Variant groups" below |
 | `vehicleKind` | `spaceship` or `groundVehicle`, or `null`; see "Ship base data" below |
 | `size` | `Components/SAttachableComponentParams/AttachDef/Size`, an integer, `null` without an `AttachDef` |
 | `mass` | The hull mass in kilograms; `null` when unknown, never 0; see "Ship base data" below |
@@ -523,6 +589,50 @@ returns, `null` for a blueprint without a tier. `craftingGlobal` holds
   consumer applies the `count` itself. The `quantityMultiplier` is not applied.
 
 These are assumptions of the library, not verified against the game.
+
+#### Variant groups
+
+Many ships and items exist in cosmetic variants with the same function. `variantOf` is the `guid`
+of the entry of the same kind that is the base of the entity's group, and `null` for the base
+itself and for an entity that is alone in its group. Every `variantOf` resolves to an entry of the
+same kind. The grouping is a derived fact (ADR-0066): it reads Record data and the vehicle
+implementation, never a name, and it ignores `playability`, so an AI variant that is structurally a
+player ship is grouped with it.
+
+**Ships** share a group when all of these are equal:
+
+- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`);
+- the vehicle implementation after the Modification the ship selects (ADR-0050): every part with
+  its name, `class`, numbers (`mass`, `damageMax`, detach and destroy ratios), attributes, item
+  port (sizes, flags, id, tags, types), wheels and children, in file order. The path of the file,
+  the names of the Modification and its patch file and the attributes `material`, `materials`,
+  `filename` and `geometry` are not compared. Because the Modification and its `Elem` overrides are
+  applied before the comparison, an `Elem` override is part of it;
+- the armour: every component of the Record whose struct name contains `armor` or `armour`.
+
+The default loadout, the names, the paints and the livery do not count: editions that differ only
+in their loadout or a paint are variants. A ship without a `vehicleDefinition`, or whose vehicle
+implementation cannot be read in full (a missing file or patch file, a broken document), is
+ungrouped, because equality cannot be shown.
+
+**Items** share a group when all of these are equal:
+
+- `type`, `subType`, `size`, `grade` and `manufacturerGuid` of the `AttachDef`;
+- the stat blocks (`stats`, ADR-0065), including `resourceStates`;
+- the other components: every component of the Record is compared with all its fields, except the
+  components whose struct name contains `attachable` (the `AttachDef` fields above are compared
+  one by one), `purchasable`, `geometry`, `material` or `display`, and the fields `Tags`,
+  `RequiredTags`, `Skin`, `Tint`, `Color` and `Colour`. Localisation keys are never compared.
+
+An item with no component besides those excluded, or without an `AttachDef` type, is ungrouped.
+Names, descriptions, tags and the display type may therefore differ inside a group.
+
+**Base.** The member with `playability` `player`, then the member with the smallest `className`
+(compared byte-wise), then the smallest `guid`. A group holds at least two members;
+`p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
+
+Size: one `variantOf` per ship and item, 4 bytes (`null`) or 38 bytes (a GUID) uncompressed; the
+GUIDs repeat and compress well.
 
 ### Paints
 

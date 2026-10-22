@@ -1,0 +1,220 @@
+//! The variant groups of ships and items in the Basetool catalog of a real Archive; runs with
+//! `--ignored` when `P4KX_DATA_P4K` names one.
+
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::error::Error;
+use std::time::SystemTime;
+
+use p4kx_export::{CatalogOptions, build_catalog};
+use p4kx_extraction::Archive;
+use p4kx_testkit::real_archive_path;
+use serde_json::Value;
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+const BIGGEST: usize = 15;
+const MEMBERS: usize = 14;
+const SAMPLES: usize = 40;
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the diagnostics are the result of the run"
+)]
+fn print_line(line: &str) {
+    println!("{line}");
+}
+
+struct Kind<'c> {
+    name: &'static str,
+    entries: &'c [Value],
+}
+
+impl Kind<'_> {
+    fn class(entry: &Value) -> &str {
+        entry["className"].as_str().unwrap_or_default()
+    }
+
+    fn groups(&self) -> BTreeMap<&str, Vec<&Value>> {
+        let by_guid: HashMap<&str, &Value> = self
+            .entries
+            .iter()
+            .filter_map(|entry| Some((entry["guid"].as_str()?, entry)))
+            .collect();
+        let mut groups: BTreeMap<&str, Vec<&Value>> = BTreeMap::new();
+        for entry in self.entries {
+            if let Some(base) = entry["variantOf"].as_str() {
+                groups.entry(base).or_default().push(entry);
+            }
+        }
+        for (base, members) in &mut groups {
+            if let Some(entry) = by_guid.get(base) {
+                members.insert(0, entry);
+            }
+        }
+        groups
+    }
+
+    fn print(&self) {
+        let groups = self.groups();
+        let variants: usize = groups.values().map(|members| members.len() - 1).sum();
+        print_line(&format!(
+            "{}: {} entries, {} groups, {} variants",
+            self.name,
+            self.entries.len(),
+            groups.len(),
+            variants
+        ));
+        let mut sizes: BTreeMap<usize, usize> = BTreeMap::new();
+        for members in groups.values() {
+            *sizes.entry(members.len()).or_default() += 1;
+        }
+        print_line(&format!(
+            "{} group sizes (size: groups): {sizes:?}",
+            self.name
+        ));
+        let mut biggest: Vec<_> = groups.values().collect();
+        biggest.sort_by_key(|members| std::cmp::Reverse(members.len()));
+        for members in biggest.into_iter().take(BIGGEST) {
+            let classes: Vec<&str> = members
+                .iter()
+                .take(MEMBERS)
+                .map(|m| Self::class(m))
+                .collect();
+            print_line(&format!(
+                "  {} members, base {}: {}",
+                members.len(),
+                classes.first().copied().unwrap_or_default(),
+                classes.join(", ")
+            ));
+        }
+        self.print_near_misses(&groups);
+    }
+
+    fn print_near_misses(&self, groups: &BTreeMap<&str, Vec<&Value>>) {
+        let grouped: HashSet<&str> = groups
+            .values()
+            .flatten()
+            .filter_map(|entry| entry["guid"].as_str())
+            .collect();
+        let stem = |class: &str| {
+            class
+                .rsplit_once('_')
+                .map_or_else(|| class.to_owned(), |(s, _)| s.to_owned())
+        };
+        let mut stems: HashMap<String, usize> = HashMap::new();
+        for entry in self.entries {
+            *stems.entry(stem(Self::class(entry))).or_default() += 1;
+        }
+        let singles: Vec<&str> = self
+            .entries
+            .iter()
+            .filter(|entry| entry["guid"].as_str().is_some_and(|g| !grouped.contains(g)))
+            .map(Self::class)
+            .filter(|class| stems.get(&stem(class)).is_some_and(|count| *count > 1))
+            .take(SAMPLES)
+            .collect();
+        print_line(&format!(
+            "{} singletons that share a name stem with another entry (first {SAMPLES}): {}",
+            self.name,
+            singles.join(", ")
+        ));
+    }
+
+    fn assert_resolves(&self) {
+        let guids: HashSet<&str> = self
+            .entries
+            .iter()
+            .filter_map(|entry| entry["guid"].as_str())
+            .collect();
+        for entry in self.entries {
+            let value = &entry["variantOf"];
+            assert!(
+                value.is_null() || value.is_string(),
+                "{} variantOf",
+                Self::class(entry)
+            );
+            if let Some(base) = value.as_str() {
+                assert!(
+                    guids.contains(base),
+                    "{} {} variantOf resolves to another kind or nothing",
+                    self.name,
+                    Self::class(entry)
+                );
+                assert_ne!(
+                    Some(base),
+                    entry["guid"].as_str(),
+                    "{} is its own base",
+                    Self::class(entry)
+                );
+            }
+        }
+    }
+}
+
+fn print_family(catalog: &Value, needle: &str) {
+    let ships = catalog["ships"].as_array().map_or(&[][..], Vec::as_slice);
+    let by_guid: HashMap<&str, &str> = ships
+        .iter()
+        .filter_map(|ship| Some((ship["guid"].as_str()?, ship["className"].as_str()?)))
+        .collect();
+    for ship in ships {
+        let class = Kind::class(ship);
+        if class.to_ascii_lowercase().contains(needle) {
+            let base = ship["variantOf"]
+                .as_str()
+                .and_then(|guid| by_guid.get(guid));
+            print_line(&format!(
+                "  {class}: definition {}, playability {}, variantOf {}",
+                ship["vehicleDefinition"],
+                ship["playability"],
+                base.copied().unwrap_or("-")
+            ));
+        }
+    }
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_variant_groups_of_a_real_archive_resolve_within_their_kind() -> TestResult {
+    let archive =
+        Archive::open_with_key(real_archive_path()?, p4kx_testkit::real_archive_key().ok())?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    let summary = built.summary().variants();
+    print_line(&format!(
+        "summary ships {:?}, items {:?}",
+        summary.ships, summary.items
+    ));
+    let kinds = [
+        Kind {
+            name: "ships",
+            entries: catalog["ships"].as_array().map_or(&[][..], Vec::as_slice),
+        },
+        Kind {
+            name: "items",
+            entries: catalog["items"].as_array().map_or(&[][..], Vec::as_slice),
+        },
+    ];
+    for kind in &kinds {
+        kind.print();
+    }
+    for needle in ["cutlass", "hornet", "constellation"] {
+        print_line(&format!("family {needle}:"));
+        print_family(&catalog, needle);
+    }
+    for kind in &kinds {
+        kind.assert_resolves();
+    }
+    assert!(summary.ships.groups > 0, "ship groups");
+    assert_eq!(
+        summary.ships.groups,
+        kinds[0].groups().len(),
+        "summary matches the entries"
+    );
+    assert_eq!(
+        summary.items.groups,
+        kinds[1].groups().len(),
+        "summary matches the entries"
+    );
+    Ok(())
+}

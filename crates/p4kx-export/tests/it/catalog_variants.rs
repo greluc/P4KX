@@ -24,24 +24,69 @@ fn build() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     Ok((built, json))
 }
 
-fn entry<'c>(catalog: &'c Value, class: &str) -> Result<&'c Value, String> {
-    catalog["ships"]
+fn entry<'c>(catalog: &'c Value, kind: &str, class: &str) -> Result<&'c Value, String> {
+    catalog[kind]
         .as_array()
-        .and_then(|ships| ships.iter().find(|ship| ship["className"] == class))
-        .ok_or_else(|| format!("ship {class} missing"))
+        .and_then(|list| list.iter().find(|entry| entry["className"] == class))
+        .ok_or_else(|| format!("{kind} {class} missing"))
 }
 
-fn base_class(catalog: &Value, class: &str) -> Result<Option<String>, String> {
-    let base = &entry(catalog, class)?["variantOf"];
+fn base_of(catalog: &Value, kind: &str, class: &str) -> Result<Option<String>, String> {
+    let base = &entry(catalog, kind, class)?["variantOf"];
     if base.is_null() {
         return Ok(None);
     }
-    catalog["ships"]
+    catalog[kind]
         .as_array()
-        .and_then(|ships| ships.iter().find(|ship| ship["guid"] == *base))
-        .and_then(|ship| ship["className"].as_str())
+        .and_then(|list| list.iter().find(|entry| entry["guid"] == *base))
+        .and_then(|entry| entry["className"].as_str())
         .map(|name| Some(name.to_owned()))
-        .ok_or_else(|| format!("variantOf of {class} resolves to no ship"))
+        .ok_or_else(|| format!("variantOf of {class} resolves to no {kind} entry"))
+}
+
+fn base_class(catalog: &Value, class: &str) -> Result<Option<String>, String> {
+    base_of(catalog, "ships", class)
+}
+
+#[test]
+fn items_that_differ_only_in_tags_and_name_are_variants() -> TestResult {
+    let (_, catalog) = build()?;
+    for (class, base) in [
+        ("POWR_Alpha", None),
+        ("POWR_Alpha_Blue", Some("POWR_Alpha")),
+    ] {
+        assert_eq!(
+            base_of(&catalog, "items", class)?.as_deref(),
+            base,
+            "{class}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn items_that_differ_in_a_component_or_the_grade_are_not_variants() -> TestResult {
+    let (_, catalog) = build()?;
+    for class in ["POWR_Heavy", "POWR_Grade2"] {
+        assert_eq!(base_of(&catalog, "items", class)?, None, "{class}");
+    }
+    Ok(())
+}
+
+#[test]
+fn items_without_a_component_besides_the_cosmetic_ones_are_ungrouped() -> TestResult {
+    let (built, catalog) = build()?;
+    for class in ["POWR_Bare_One", "POWR_Bare_Two"] {
+        assert_eq!(base_of(&catalog, "items", class)?, None, "{class}");
+    }
+    assert_eq!(
+        built.summary().variants().items,
+        VariantCounts {
+            groups: 1,
+            variants: 1
+        }
+    );
+    Ok(())
 }
 
 #[test]
@@ -95,7 +140,11 @@ fn every_ship_carries_the_field_and_it_is_a_guid_or_null() -> TestResult {
     assert_eq!(ships.len(), 11);
     for ship in ships {
         let value = ship.get("variantOf").ok_or("variantOf missing")?;
-        assert!(value.is_null() || value.is_string(), "{}", ship["className"]);
+        assert!(
+            value.is_null() || value.is_string(),
+            "{}",
+            ship["className"]
+        );
     }
     Ok(())
 }

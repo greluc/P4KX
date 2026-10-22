@@ -29,21 +29,122 @@ fn builder() -> DataForgeBuilder {
             .field("modification", TestType::String)
             .field("vehicleName", TestType::Locale),
         component("SCItemVehicleArmorParams").field("damageMultiplier", TestType::Single),
+        TestStruct::new("SCItemLocalization").field("Name", TestType::Locale),
+        component("SAttachableComponentParams")
+            .field("AttachDef", TestType::Class("SItemDefinition".to_owned())),
+        TestStruct::new("SItemDefinition")
+            .field("Type", TestType::Enum("EItemType".to_owned()))
+            .field("Size", TestType::Int32)
+            .field("Grade", TestType::Int32)
+            .field("Tags", TestType::String)
+            .field(
+                "Localization",
+                TestType::Class("SCItemLocalization".to_owned()),
+            ),
+        component("SEntityPhysicsControllerParams")
+            .field("PhysType", TestType::Class("SEntityPhysicsType".to_owned())),
+        TestStruct::new("SEntityPhysicsType").field("Mass", TestType::Single),
     ]
     .into_iter()
-    .fold(DataForgeBuilder::new().version(8), DataForgeBuilder::structure)
+    .fold(
+        DataForgeBuilder::new()
+            .version(8)
+            .enumeration("EItemType", ["PowerPlant"]),
+        DataForgeBuilder::structure,
+    )
 }
 
-fn guid(index: u128) -> u128 {
+const fn guid(index: u128) -> u128 {
     0x2000_0000_0000_4000_8000_0000_0000_0000 + index
 }
 
-/// The GUID of the ship `class` of the fixture.
-pub(crate) fn ship_guid(class: &str) -> Option<u128> {
-    SHIPS
-        .iter()
-        .position(|ship| ship.class == class)
-        .map(|index| guid(index as u128 + 1))
+struct Item {
+    class: &'static str,
+    mass: Option<f32>,
+    grade: i32,
+    tags: &'static str,
+}
+
+const ITEMS: [Item; 6] = [
+    Item {
+        class: "POWR_Alpha",
+        mass: Some(10.0),
+        grade: 1,
+        tags: "red",
+    },
+    Item {
+        class: "POWR_Alpha_Blue",
+        mass: Some(10.0),
+        grade: 1,
+        tags: "blue",
+    },
+    Item {
+        class: "POWR_Heavy",
+        mass: Some(11.0),
+        grade: 1,
+        tags: "red",
+    },
+    Item {
+        class: "POWR_Grade2",
+        mass: Some(10.0),
+        grade: 2,
+        tags: "red",
+    },
+    Item {
+        class: "POWR_Bare_One",
+        mass: None,
+        grade: 1,
+        tags: "red",
+    },
+    Item {
+        class: "POWR_Bare_Two",
+        mass: None,
+        grade: 1,
+        tags: "blue",
+    },
+];
+
+fn item_record(index: usize, item: &Item) -> TestRecord {
+    let attach = TestValue::Struct(
+        TestInstance::new("SAttachableComponentParams").value(
+            "AttachDef",
+            TestValue::Struct(
+                TestInstance::new("SItemDefinition")
+                    .value("Type", TestValue::text("PowerPlant"))
+                    .value("Size", TestValue::Int32(1))
+                    .value("Grade", TestValue::Int32(item.grade))
+                    .value("Tags", TestValue::text(item.tags))
+                    .value(
+                        "Localization",
+                        TestValue::Struct(
+                            TestInstance::new("SCItemLocalization")
+                                .value("Name", TestValue::text(format!("@item_Name{index}"))),
+                        ),
+                    ),
+            ),
+        ),
+    );
+    let mut components = vec![attach];
+    if let Some(mass) = item.mass {
+        components.push(TestValue::Struct(
+            TestInstance::new("SEntityPhysicsControllerParams").value(
+                "PhysType",
+                TestValue::Struct(
+                    TestInstance::new("SEntityPhysicsType").value("Mass", TestValue::Single(mass)),
+                ),
+            ),
+        ));
+    }
+    TestRecord::new(
+        guid(0x100 + index as u128),
+        "EntityClassDefinition",
+        format!("EntityClassDefinition.{}", item.class),
+        format!(
+            "libs/foundry/records/entities/scitem/ships/powerplant/{}.xml",
+            item.class
+        ),
+    )
+    .value("Components", TestValue::Array(components))
 }
 
 struct Ship {
@@ -77,7 +178,12 @@ const SHIPS: [Ship; 11] = [
     ship("ACAS_Other", OTHER_XML, "", None),
     ship("ACAS_Lonely", "", "", None),
     ship("ACAS_Broken", BROKEN_XML, "", None),
-    ship("ACAS_Missing", "scripts/entities/vehicles/implementations/xml/none.xml", "", None),
+    ship(
+        "ACAS_Missing",
+        "scripts/entities/vehicles/implementations/xml/none.xml",
+        "",
+        None,
+    ),
     ship("ACAS_Solo", OTHER_XML, "Beta", None),
 ];
 
@@ -86,7 +192,10 @@ fn record(index: usize, ship: &Ship) -> TestRecord {
         TestInstance::new("VehicleComponentParams")
             .value("vehicleDefinition", TestValue::text(ship.definition))
             .value("modification", TestValue::text(ship.modification))
-            .value("vehicleName", TestValue::text(format!("@vehicle_Name{index}"))),
+            .value(
+                "vehicleName",
+                TestValue::text(format!("@vehicle_Name{index}")),
+            ),
     )];
     if let Some(multiplier) = ship.armour {
         components.push(TestValue::Struct(
@@ -98,7 +207,10 @@ fn record(index: usize, ship: &Ship) -> TestRecord {
         guid(index as u128 + 1),
         "EntityClassDefinition",
         format!("EntityClassDefinition.{}", ship.class),
-        format!("libs/foundry/records/entities/spaceships/{}.xml", ship.class),
+        format!(
+            "libs/foundry/records/entities/spaceships/{}.xml",
+            ship.class
+        ),
     )
     .value("Components", TestValue::Array(components))
 }
@@ -146,6 +258,12 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .enumerate()
         .fold(builder(), |database, (index, ship)| {
             database.record(record(index, ship))
+        });
+    let database = ITEMS
+        .iter()
+        .enumerate()
+        .fold(database, |database, (index, item)| {
+            database.record(item_record(index, item))
         });
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()).encrypted())

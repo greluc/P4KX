@@ -7,7 +7,7 @@ use p4kx_extraction::Value;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct Digest(u128);
 
-/// Two SipHash states fed the same bytes; the second starts salted.
+/// Two `SipHash` states fed the same bytes; the second starts salted.
 pub(crate) struct Wide {
     low: DefaultHasher,
     high: DefaultHasher,

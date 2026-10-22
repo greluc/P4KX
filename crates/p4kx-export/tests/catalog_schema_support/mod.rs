@@ -51,7 +51,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "tags": ["flightReady"],
             "displayType": {"key": null, "en": null, "de": null},
             "itemClass": "Military",
-            "playability": "player"
+            "playability": "player",
+            "stats": null,
+            "variantOf": null
         }],
         "ships": [{
             "guid": "90000000-0000-4000-8000-000000000001",
@@ -71,7 +73,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "hullHealth": 600.0,
             "cargoScu": 18.5,
             "cargoGridsWithIssue": 0,
-            "playability": "ai"
+            "playability": "ai",
+            "variantOf": "a0000000-0000-4000-8000-000000000001"
         }],
         "commodities": [{
             "guid": "a1000000-0000-4000-8000-000000000001",

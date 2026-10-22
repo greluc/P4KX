@@ -15,6 +15,7 @@ use crate::selection::is_leftover;
 use crate::ship_base::{ShipBase, ShipReader};
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
+use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
@@ -232,7 +233,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             },
             _ => None,
         };
-        Ok(Picked::entity(
+        let mut picked = Picked::entity(
             kind,
             &tree,
             self.texts,
@@ -240,7 +241,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             &self.groups,
             &self.evidence,
             ship_base.as_ref(),
-        ))
+        );
+        if let Some(Picked::Item(item, _, _)) = &mut picked {
+            item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
+            item.variant_key = item_variant::key(&tree, item.stats.as_deref());
+        }
+        Ok(picked)
     }
 
     fn resource_type(

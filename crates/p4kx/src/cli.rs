@@ -273,6 +273,15 @@ pub(crate) struct CompareArgs {
     /// or not. With --json, the hunks are printed as JSON.
     #[arg(long, value_name = "ENTRY", conflicts_with_all = ["entries", "filter", "report"])]
     pub(crate) diff: Option<String>,
+    /// Compares the schema of both DataForges instead of their contents: the structs, properties
+    /// (data type, conversion type, target), enums and enum options added, removed or changed,
+    /// each with the number of Records it concerns on both sides. With --json, the report is
+    /// printed as JSON.
+    #[arg(
+        long,
+        conflicts_with_all = ["entries", "records", "filter", "report", "diff"]
+    )]
+    pub(crate) schema: bool,
 }
 
 /// Arguments of `p4kx info`.

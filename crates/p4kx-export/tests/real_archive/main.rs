@@ -19,4 +19,5 @@ mod real_archive_records;
 mod real_archive_ship_base;
 mod real_archive_starmap;
 mod real_archive_tags;
+mod real_archive_variants;
 mod real_archive_verification;

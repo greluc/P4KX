@@ -27,6 +27,7 @@ mod cli_ui;
 mod cli_verify;
 mod cli_wwise;
 mod compare;
+mod compare_schema;
 mod cryxml;
 mod dataforges;
 mod dcb;

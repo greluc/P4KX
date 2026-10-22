@@ -143,6 +143,7 @@ pub(crate) struct Parts {
     starmap: StarmapSummary,
     starmap_report: Box<StarmapReport>,
     playability: crate::PlayabilitySummary,
+    variants: crate::VariantSummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
 }
@@ -159,6 +160,7 @@ impl Parts {
             starmap: self.starmap,
             starmap_report: self.starmap_report,
             playability: Box::new(self.playability),
+            variants: self.variants,
             failures: self.failures,
             warnings: self.warnings,
             size,
@@ -190,15 +192,15 @@ fn assemble<R>(
     let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
     add_contracts(&forge, &texts, options, &mut collected)?;
-    let completeness = completeness_of(options);
-    let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
+    let kinds = collected.summary(options.filter.is_none());
     let (item_classes, playability) = (collected.item_classes, collected.playability);
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness::of_every_kind(completeness),
+        completeness: Completeness::of_every_kind(completeness_of(options)),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
@@ -228,6 +230,7 @@ fn assemble<R>(
             starmap: starmap_summary,
             starmap_report: Box::new(report),
             playability,
+            variants,
             failures: collected.failures,
             warnings: collected.warnings,
         },

@@ -240,6 +240,8 @@ fn every_field_the_schema_lists_is_required() -> TestResult {
         ),
         ("resourceGroups", "parentGuid", "a resource group"),
         ("ships", "crewSize", "a ship"),
+        ("ships", "variantOf", "a ship states its variant base"),
+        ("items", "variantOf", "an item states its variant base"),
         ("items", "stats", "an item states its stat blocks"),
         ("blueprintPools", "rewardSources", "a pool"),
     ] {

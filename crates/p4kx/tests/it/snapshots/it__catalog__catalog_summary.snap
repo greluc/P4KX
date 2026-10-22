@@ -23,6 +23,8 @@ loadouts: 1 ships and 0 items, 0 ports, 0 hold an Entity (0 docked vehicles), 0 
 starmap placement: 0 of 0 objects have a position, 0 are placed apart, 0 systems, 0 containers unreadable, 0 missing, 0 children malformed
 items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
+items variants: 0 in 0 groups
+ships variants: 0 in 0 groups
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 2 texts resolved, 11 unresolved, 0 placeholders
-wrote [DIR]/basetool-catalog.json: 5167 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/basetool-catalog.json: 5201 bytes, 1 Records skipped, 0 failed

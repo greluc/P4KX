@@ -87,6 +87,12 @@ impl<'f> Property<'f> {
         }
     }
 
+    /// Returns the conversion type: `0` for one value, any other code for an array of values.
+    #[must_use]
+    pub const fn conversion(&self) -> u16 {
+        self.def.conversion
+    }
+
     /// Returns whether the field holds an array of values instead of one.
     #[must_use]
     pub const fn is_array(&self) -> bool {

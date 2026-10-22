@@ -1241,6 +1241,17 @@
             "string",
             "null"
           ]
+        },
+        "variantOf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the base of the variant group the item belongs to, `null` for a base and for an\nitem that is alone in its group. It is the `guid` of an entry of `items`."
         }
       },
       "required": [
@@ -1259,7 +1270,8 @@
         "stats",
         "subType",
         "tags",
-        "type"
+        "type",
+        "variantOf"
       ],
       "type": "object"
     },
@@ -2474,6 +2486,17 @@
             "null"
           ]
         },
+        "variantOf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the base of the variant group the ship belongs to: the ships that share the\nvehicle definition and the vehicle implementation after the Modification. `null` for a base\nand for a ship that is alone in its group. It is the `guid` of an entry of `ships`."
+        },
         "vehicleDefinition": {
           "description": "The path of the vehicle definition XML, `null` without one.",
           "type": [
@@ -2506,6 +2529,7 @@
         "recordPath",
         "role",
         "size",
+        "variantOf",
         "vehicleDefinition",
         "vehicleKind"
       ],

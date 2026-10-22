@@ -135,6 +135,23 @@ const ITEMS: [Item; 10] = [
     },
 ];
 
+fn geometry(model: &str, material: &str) -> TestValue {
+    let path = |value: &str| {
+        TestValue::Struct(TestInstance::new("SPathRef").value("path", TestValue::text(value)))
+    };
+    TestValue::Struct(
+        TestInstance::new("SGeometryResourceParams").value(
+            "Geometry",
+            TestValue::Struct(
+                TestInstance::new("SGeometryNodeParams")
+                    .value("Geometry", path(model))
+                    .value("Material", path(material))
+                    .value("Palette", TestValue::text(material)),
+            ),
+        ),
+    )
+}
+
 fn item_record(index: usize, item: &Item) -> TestRecord {
     let attach = TestValue::Struct(
         TestInstance::new("SAttachableComponentParams").value(
@@ -163,20 +180,7 @@ fn item_record(index: usize, item: &Item) -> TestRecord {
         ),
     ];
     if let Some((model, material)) = item.model {
-        let path = |value: &str| {
-            TestValue::Struct(TestInstance::new("SPathRef").value("path", TestValue::text(value)))
-        };
-        components.push(TestValue::Struct(
-            TestInstance::new("SGeometryResourceParams").value(
-                "Geometry",
-                TestValue::Struct(
-                    TestInstance::new("SGeometryNodeParams")
-                        .value("Geometry", path(model))
-                        .value("Material", path(material))
-                        .value("Palette", TestValue::text(material)),
-                ),
-            ),
-        ));
+        components.push(geometry(model, material));
     }
     if let Some(mass) = item.mass {
         components.push(TestValue::Struct(

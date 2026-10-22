@@ -11,6 +11,7 @@ use super::orders::{ChangeColumn, ChangeOrders, ChangeSort};
 use super::record_list::RecordChangeList;
 use super::record_view::{ComparisonList, RecordChangeView};
 use super::report::{self, ReportJob, ReportStatus};
+use super::schema_view::SchemaView;
 use super::selection::{ChangeSelection, selected_len};
 use crate::SortDirection;
 
@@ -69,6 +70,7 @@ pub struct ComparisonView {
     reveal: bool,
     report: Option<ReportJob>,
     records: Option<RecordChangeView>,
+    schema: Option<SchemaView>,
     list: ComparisonList,
 }
 
@@ -78,7 +80,7 @@ impl ComparisonView {
     /// thread.
     pub(crate) fn new(
         comparison: Arc<OwnedComparison>,
-        records: Option<RecordChangeList>,
+        (records, schema): (Option<RecordChangeList>, Option<SchemaView>),
         cancel: &CancelToken,
     ) -> Option<Self> {
         let orders = ChangeOrders::build(&comparison);
@@ -93,6 +95,7 @@ impl ComparisonView {
         };
         let mut view = Self {
             records: records.map(RecordChangeView::new),
+            schema,
             list,
             generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
             revision: 0,
@@ -335,18 +338,31 @@ impl ComparisonView {
         self.list
     }
 
-    /// Shows `list`; the Record list only when the Record level was compared.
+    /// Shows `list`; the Record and the schema list only when the Record level was compared.
     pub const fn show_list(&mut self, list: ComparisonList) {
-        if matches!(list, ComparisonList::Entries) || self.records.is_some() {
+        let available = match list {
+            ComparisonList::Entries => true,
+            ComparisonList::Records => self.records.is_some(),
+            ComparisonList::Schema => self.schema.is_some(),
+        };
+        if available {
             self.list = list;
         }
+    }
+
+    /// Returns the schema drift between both DataForges, `None` when the Record level was not
+    /// compared or the schemas could not be compared.
+    #[must_use]
+    pub const fn schema(&self) -> Option<&SchemaView> {
+        self.schema.as_ref()
     }
 
     /// Returns the number of rows the shown list holds.
     #[must_use]
     pub fn shown_len(&self) -> usize {
-        match (self.list, &self.records) {
-            (ComparisonList::Records, Some(records)) => records.shown().len(),
+        match (self.list, &self.records, &self.schema) {
+            (ComparisonList::Records, Some(records), _) => records.shown().len(),
+            (ComparisonList::Schema, _, Some(schema)) => schema.rows().len(),
             _ => self.shown.len(),
         }
     }

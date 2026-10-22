@@ -182,6 +182,26 @@ comparison-no-matches = No change matches the filter.
 comparison-shown = { $number } shown
 comparison-row = { $change }: { $path }
 
+schema-tab = Schema
+schema-label-structs = Structs
+schema-label-properties = Properties
+schema-label-enums = Enums
+schema-label-options = Enum options
+schema-counts = { $label }: { $added } added, { $removed } removed, { $changed } changed
+schema-column-kind = Kind
+schema-column-name = Name
+schema-column-old = Old
+schema-column-new = New
+schema-column-old-records = Old Records
+schema-column-new-records = New Records
+schema-kind-struct = Struct
+schema-kind-parent = Parent
+schema-kind-property = Property
+schema-kind-enum = Enum
+schema-kind-option = Option
+schema-no-differences = The schema does not differ between the DataForges.
+schema-row = { $change }: { $kind } { $name }
+
 diff-previous = Previous difference
 diff-next = Next difference
 diff-position = Difference { $current } of { $total }

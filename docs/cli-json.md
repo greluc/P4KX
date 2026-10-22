@@ -1270,6 +1270,36 @@ References compare by target GUID, so a target that moved is no change, and weak
 all share the GUID of their own Record, by their `at` as well. Values that cannot be read compare
 by their reason.
 
+## `p4kx compare <old> <new> --schema --json`
+
+The schema drift between the DataForges of both Archives. Its JSON Schema (draft 2020-12) is
+generated from the report types and checked in as
+[`schemas/schema-drift-report.schema.json`](../schemas/schema-drift-report.schema.json); a test fails
+when the two drift apart, and `P4KX_BLESS=1 cargo test -p p4kx-comparison --test
+schema_report_schema` regenerates it. Structs and enums are joined by name and listed ordered by
+name; the exit code is 0 without and 1 with differences.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `format_version` | number | Version of the report shape, now `1` |
+| `source.old`, `source.new` | object | `archive` (path), `channel` (string or `null`) and `build` (a [Build](#build) or `null`) of each side |
+| `counts` | object | `structs`, `properties`, `enums` and `options`, each with `added`, `removed` and `changed` counts; `properties` counts the property changes of the changed structs and `options` the option changes of the changed enums |
+| `structs` | array | One object per added, removed or changed struct: `name`, `change` (`added`, `removed` or `changed`), `records`, `parent` and `properties` |
+| `structs[].records` | object | `old` and `new`: the Records of the struct and of the structs inheriting from it on each side, `0` on a side that lacks the struct |
+| `structs[].parent` | object | `old` and `new` parent struct name (`null` for none); present only when a changed struct inherits from another struct than before |
+| `structs[].properties` | array | The properties the struct declares itself that differ, ordered by name, empty for an added or removed struct: `name`, `change`, `aspects`, and `old` and `new` for the sides that have it |
+| `structs[].properties[].aspects` | array | What differs in a changed property, in this order: `data_type`, `conversion`, `target`; empty for an added or removed property |
+| `structs[].properties[].old`, `.new` | object | `data_type` (e.g. `Reference`, `String`, `Class`; `Unknown(0x…)` for an unknown code), `conversion` (`0` for one value, any other code for an array) and `target` (the struct or enum name, or `null`) |
+| `enums` | array | One object per added, removed or changed enum: `name`, `change`, `records` and `options` |
+| `enums[].records` | object | `old` and `new`: the Records of the structs that declare a property of the enum, and of the structs inheriting from them, on each side |
+| `enums[].options` | array | The options added or removed from a changed enum, ordered by name: `name` and `change` (`added` or `removed`) |
+| `unreadable` | object | `old` and `new`: the definitions whose name cannot be read; they are left out |
+
+A property is joined by name within its struct, and differs in its data type, conversion type or
+target. A struct also differs in its parent. The Records of a struct are counted through the data
+mappings of the DataForge, so a property change is counted for every Record that carries the
+property, the Records of inheriting structs included.
+
 ## `p4kx compare <old> <new> --diff <entry> --json`
 
 The line diff of one Entry, with three unchanged lines of context around each change:

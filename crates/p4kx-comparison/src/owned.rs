@@ -7,7 +7,7 @@ use crate::record_compare::{compare_record, compare_records};
 use crate::{
     Archive, CancelToken, CompareOptions, Comparison, ComparisonError, ComparisonProgress,
     DataForgeEntry, DataForgeError, DataForges, EntryChange, Filter, Levels, RecordChange,
-    RecordKey, Side, compare,
+    RecordKey, SchemaDiff, Side, compare, compare_schema,
 };
 
 /// The DataForge Entries of the old and the new Archive, owned.
@@ -251,6 +251,22 @@ impl OwnedComparison {
             },
         };
         Ok(use_it(&lookup))
+    }
+
+    /// Compares the schema of both DataForges, like [`compare_schema`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RecompareError::Comparison`] with [`ComparisonError::NoDataForge`] when the
+    /// Record level was not compared and [`RecompareError::DataForge`] when a DataForge cannot be
+    /// opened.
+    pub fn schema_diff(&self) -> Result<SchemaDiff, RecompareError> {
+        let entries = self
+            .dataforges
+            .as_ref()
+            .ok_or(ComparisonError::NoDataForge)?;
+        let (old, new) = (entries.old.open()?, entries.new.open()?);
+        Ok(compare_schema(&old, &new))
     }
 
     fn without_changes(&self) -> Comparison<'_> {

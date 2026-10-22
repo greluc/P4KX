@@ -12,6 +12,7 @@ use p4kx_comparison::{
 use p4kx_extraction::ArchiveKey;
 
 use super::record_list::RecordChangeList;
+use super::schema_view::SchemaView;
 use super::{ComparisonStage, ComparisonView};
 use crate::model::describe;
 
@@ -187,7 +188,12 @@ fn run(
         return Outcome::Cancelled;
     }
     set(ComparisonStage::Preparing);
-    ComparisonView::new(Arc::new(comparison), records, cancel)
+    let schema = records
+        .is_some()
+        .then(|| comparison.schema_diff().ok())
+        .flatten()
+        .map(|diff| SchemaView::new(&diff));
+    ComparisonView::new(Arc::new(comparison), (records, schema), cancel)
         .map_or(Outcome::Cancelled, |view| Outcome::Finished(Box::new(view)))
 }
 

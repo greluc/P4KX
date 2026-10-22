@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "EnumChange": {
+      "description": "One added, removed or changed enum.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/SchemaChangeKind",
+          "description": "How the enum differs."
+        },
+        "name": {
+          "description": "The enum name.",
+          "type": "string"
+        },
+        "options": {
+          "description": "The options added or removed, ordered by name; empty for an added or removed enum.",
+          "items": {
+            "$ref": "#/$defs/OptionChange"
+          },
+          "type": "array"
+        },
+        "records": {
+          "$ref": "#/$defs/SideCounts",
+          "description": "The Records of the structs that declare a property of this enum, and of the structs\ninheriting from them, on each side."
+        }
+      },
+      "required": [
+        "name",
+        "change",
+        "records",
+        "options"
+      ],
+      "type": "object"
+    },
+    "KindCounts": {
+      "description": "The number of definitions per change kind.",
+      "properties": {
+        "added": {
+          "description": "Definitions only the new side has.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "changed": {
+          "description": "Definitions both sides have that differ.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "removed": {
+          "description": "Definitions only the old side has.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "added",
+        "removed",
+        "changed"
+      ],
+      "type": "object"
+    },
+    "OptionChange": {
+      "description": "One added or removed option of a changed enum.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/SchemaChangeKind",
+          "description": "`added` or `removed`."
+        },
+        "name": {
+          "description": "The option name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "change"
+      ],
+      "type": "object"
+    },
+    "ParentChange": {
+      "description": "The parent of a struct on each side.",
+      "properties": {
+        "new": {
+          "description": "The parent on the new side, `null` for none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "old": {
+          "description": "The parent on the old side, `null` for none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "PropertyAspect": {
+      "description": "An aspect of a property that differs.",
+      "oneOf": [
+        {
+          "const": "data_type",
+          "description": "The data type.",
+          "type": "string"
+        },
+        {
+          "const": "conversion",
+          "description": "The conversion type.",
+          "type": "string"
+        },
+        {
+          "const": "target",
+          "description": "The target struct or enum.",
+          "type": "string"
+        }
+      ]
+    },
+    "PropertyChange": {
+      "description": "One added, removed or changed property of a changed struct.",
+      "properties": {
+        "aspects": {
+          "description": "What differs, in the order data type, conversion, target; empty for an added or removed\nproperty.",
+          "items": {
+            "$ref": "#/$defs/PropertyAspect"
+          },
+          "type": "array"
+        },
+        "change": {
+          "$ref": "#/$defs/SchemaChangeKind",
+          "description": "How the property differs."
+        },
+        "name": {
+          "description": "The property name.",
+          "type": "string"
+        },
+        "new": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PropertyShape"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The property on the new side, absent when it was removed."
+        },
+        "old": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PropertyShape"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The property on the old side, absent when it was added."
+        }
+      },
+      "required": [
+        "name",
+        "change",
+        "aspects"
+      ],
+      "type": "object"
+    },
+    "PropertyShape": {
+      "description": "What a property is: its type, conversion and target.",
+      "properties": {
+        "conversion": {
+          "description": "The conversion type: `0` for one value, any other code for an array of values.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "data_type": {
+          "description": "The data type, e.g. `Reference`, `String` or `Class`; `Unknown(0x…)` for an unknown code.",
+          "type": "string"
+        },
+        "target": {
+          "description": "The name of the struct or enum the values are of, point to or refer to; `null` for a\nproperty without a target.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "data_type",
+        "conversion"
+      ],
+      "type": "object"
+    },
+    "SchemaChangeKind": {
+      "description": "How a struct, property, enum or enum option differs between the two sides.",
+      "oneOf": [
+        {
+          "const": "added",
+          "description": "Only the new side has it.",
+          "type": "string"
+        },
+        {
+          "const": "removed",
+          "description": "Only the old side has it.",
+          "type": "string"
+        },
+        {
+          "const": "changed",
+          "description": "Both sides have it and it differs.",
+          "type": "string"
+        }
+      ]
+    },
+    "SchemaCounts": {
+      "description": "The number of changes per kind and level of the schema.",
+      "properties": {
+        "enums": {
+          "$ref": "#/$defs/KindCounts",
+          "description": "The enum changes."
+        },
+        "options": {
+          "$ref": "#/$defs/KindCounts",
+          "description": "The option changes of the changed enums."
+        },
+        "properties": {
+          "$ref": "#/$defs/KindCounts",
+          "description": "The property changes of the changed structs."
+        },
+        "structs": {
+          "$ref": "#/$defs/KindCounts",
+          "description": "The struct changes."
+        }
+      },
+      "required": [
+        "structs",
+        "properties",
+        "enums",
+        "options"
+      ],
+      "type": "object"
+    },
+    "SideCounts": {
+      "description": "A count for each side.",
+      "properties": {
+        "new": {
+          "description": "The count on the new side.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "old": {
+          "description": "The count on the old side.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "old",
+        "new"
+      ],
+      "type": "object"
+    },
+    "SourceSide": {
+      "description": "One Archive of a Comparison.",
+      "properties": {
+        "archive": {
+          "description": "The path the Archive was opened from.",
+          "type": "string"
+        },
+        "build": {
+          "description": "The Build from the Channel's build manifest, `null` when it is unknown.",
+          "properties": {
+            "branch": {
+              "description": "The branch, e.g. `sc-alpha-4.10.2`.",
+              "type": "string"
+            },
+            "build_id": {
+              "description": "The `BuildId` GUID.",
+              "type": "string"
+            },
+            "change_number": {
+              "description": "The Perforce change number the Build was made from.",
+              "type": "string"
+            },
+            "version": {
+              "description": "The version, e.g. `4.10.197.2878`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "branch",
+            "version",
+            "change_number",
+            "build_id"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "channel": {
+          "description": "The Channel: the name of the folder holding the Archive, `null` when there is none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "archive",
+        "channel",
+        "build"
+      ],
+      "type": "object"
+    },
+    "Sources": {
+      "description": "The two Archives of a Comparison.",
+      "properties": {
+        "new": {
+          "$ref": "#/$defs/SourceSide",
+          "description": "The Archive the changes lead to."
+        },
+        "old": {
+          "$ref": "#/$defs/SourceSide",
+          "description": "The Archive the changes start from."
+        }
+      },
+      "required": [
+        "old",
+        "new"
+      ],
+      "type": "object"
+    },
+    "StructChange": {
+      "description": "One added, removed or changed struct.",
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/SchemaChangeKind",
+          "description": "How the struct differs."
+        },
+        "name": {
+          "description": "The struct name.",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParentChange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The parents, present when a changed struct inherits from another struct than before."
+        },
+        "properties": {
+          "description": "The properties the struct declares itself that differ, ordered by name; empty for an added\nor removed struct.",
+          "items": {
+            "$ref": "#/$defs/PropertyChange"
+          },
+          "type": "array"
+        },
+        "records": {
+          "$ref": "#/$defs/SideCounts",
+          "description": "The Records of the struct and of the structs inheriting from it, on each side; `0` on the\nside that lacks the struct."
+        }
+      },
+      "required": [
+        "name",
+        "change",
+        "records",
+        "properties"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The JSON report of the schema drift between the DataForges of an old and a new Archive.",
+  "properties": {
+    "counts": {
+      "$ref": "#/$defs/SchemaCounts",
+      "description": "The number of changes per kind and level."
+    },
+    "enums": {
+      "description": "Every added, removed or changed enum, ordered by name.",
+      "items": {
+        "$ref": "#/$defs/EnumChange"
+      },
+      "type": "array"
+    },
+    "format_version": {
+      "description": "The version of the report shape.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/Sources",
+      "description": "The two Archives compared."
+    },
+    "structs": {
+      "description": "Every added, removed or changed struct, ordered by name.",
+      "items": {
+        "$ref": "#/$defs/StructChange"
+      },
+      "type": "array"
+    },
+    "unreadable": {
+      "$ref": "#/$defs/SideCounts",
+      "description": "The definitions whose name cannot be read and that were left out, on each side."
+    }
+  },
+  "required": [
+    "format_version",
+    "source",
+    "counts",
+    "structs",
+    "enums",
+    "unreadable"
+  ],
+  "title": "P4K-Extractor schema drift report",
+  "type": "object"
+}

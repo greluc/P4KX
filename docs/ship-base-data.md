@@ -66,7 +66,8 @@ supplied; only the origins that supplied a value appear.
 
 `groundVehicle` for a Record under `entities/groundvehicles`, `spaceship` for one under
 `entities/spaceships` whose vehicle implementation has no wheel (`class="SubPartWheel"`) or tread
-(`class="Tread"`) part. A wheeled or tracked Record under `entities/spaceships` gives `null`: the
+(`class="Tread"`) part. A missing or unreadable vehicle implementation counts as no wheels, so such
+a Record under `entities/spaceships` is a `spaceship`. A wheeled or tracked Record under `entities/spaceships` gives `null`: the
 folder and the implementation disagree, and the kind is not guessed. The Basetool catalog carries
 the value as `vehicleKind` (`basetool-catalog.md`, "Ship base data").
 

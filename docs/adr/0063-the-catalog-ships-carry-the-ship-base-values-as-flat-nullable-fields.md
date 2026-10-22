@@ -25,10 +25,14 @@ ADR-0061 reads them for `p4kx ships` with a source per value; this decision puts
   is a `groundVehicle`. A Record under `entities/spaceships` is a `spaceship` only when its
   vehicle implementation has no wheel (`SubPartWheel`) and no tread (`Tread`) part; with one the
   folder and the implementation disagree and the kind is `null` rather than guessed.
-- **One walk.** The catalog scan keeps one `ShipReader` per worker thread beside its tree builder
-  and reads a ship's base data from the Record tree it has already built
+- **One walk.** The catalog scan reads a ship's base data from the Record tree it has already built
   (`ShipReader::read_tree`). The ship base walk is not run a second time, and Entities and
-  containers that ships share are read once per worker.
+  containers that ships share are read once per reader.
+- **A pool of readers, not one per thread.** The scan keeps the `ShipReader`s in a mutex-guarded
+  pool and a job takes one for the duration of a ship. `LoadoutResolver::prefetch` runs its own
+  rayon `par_iter`, so while a worker waits there, rayon can steal another ship's job onto that
+  thread; a per-thread `RefCell` reader would be entered twice. The pool hands the stolen job a
+  separate reader.
 - **Docked vehicles** are not entered (ADR-0061), so they are in neither `mass`, `hullHealth`
   nor `cargoScu`.
 

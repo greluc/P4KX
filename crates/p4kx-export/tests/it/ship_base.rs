@@ -49,7 +49,7 @@ fn near(left: f64, right: f64) -> bool {
 #[test]
 fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
     let built = build(None)?;
-    assert_eq!(built.ships().len(), 8, "failures: {:?}", built.failures());
+    assert_eq!(built.ships().len(), 9, "failures: {:?}", built.failures());
     assert_eq!(built.skipped(), 1, "ACME_Dummy_Ship holds the token dummy");
     assert!(built.is_complete(), "failures: {:?}", built.failures());
     let order: Vec<_> = built
@@ -67,7 +67,8 @@ fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
             "ACME_Mixed",
             "ACME_Unknown",
             "ACME_Rolling",
-            "ACME_Car"
+            "ACME_Car",
+            "ACME_Huge"
         ],
         "ordered by the text of the GUID"
     );

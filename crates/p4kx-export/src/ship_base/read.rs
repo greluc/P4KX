@@ -163,9 +163,11 @@ fn mass(
     if let (Some(vehicle), Some(totals)) = (vehicle, totals)
         && totals.mass_parts() > 0
         && totals.mass() > 0.0
+        && let kg = rounded(totals.mass())
+        && kg.is_finite()
     {
         return Some(Mass {
-            kg: rounded(totals.mass()),
+            kg,
             basis: MassBasis::Parts,
             parts: totals.mass_parts(),
             sources: shares(vehicle, totals.mass_origins(), PARTS_MASS),
@@ -178,8 +180,12 @@ fn mass(
         "PhysType",
     );
     let kg = number(physics, "Mass").filter(|kg| *kg > 0.0)?;
+    let kg = rounded(f64::from(kg));
+    if !kg.is_finite() {
+        return None;
+    }
     Some(Mass {
-        kg: rounded(f64::from(kg)),
+        kg,
         basis: MassBasis::Physics,
         parts: 0,
         sources: vec![SourceShare {
@@ -199,8 +205,12 @@ fn hull(vehicle: &VehicleImplementation, totals: &VehicleTotals) -> Option<Hull>
     if totals.health_parts() == 0 {
         return None;
     }
+    let health = rounded(totals.health());
+    if !health.is_finite() {
+        return None;
+    }
     Some(Hull {
-        health: rounded(totals.health()),
+        health,
         parts: totals.health_parts(),
         sources: shares(vehicle, totals.health_origins(), PARTS_DAMAGE),
         destruction: thresholds(totals.destruction()),

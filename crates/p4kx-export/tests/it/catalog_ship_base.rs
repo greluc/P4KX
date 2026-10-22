@@ -1,7 +1,7 @@
 //! The ship base data in the `ships` kind of the Basetool catalog, through the public API.
 
 use crate::ship_base_fixture::{
-    ALPHA, BETA, BROKEN, CAR, GROUND, MIXED, ROLLING, UNKNOWN, write_archive,
+    ALPHA, BETA, BROKEN, CAR, GROUND, HUGE, MIXED, ROLLING, UNKNOWN, write_archive,
 };
 
 use std::error::Error;
@@ -128,6 +128,19 @@ fn a_value_that_cannot_be_determined_is_null_and_never_zero() -> TestResult {
     assert_eq!(unknown["cargoGridsWithIssue"], 2);
     assert!(unknown["hullHealth"].is_null());
     assert!(unknown["mass"].is_number());
+    Ok(())
+}
+
+#[test]
+fn a_part_value_too_large_to_round_is_unknown_and_never_null_with_a_basis() -> TestResult {
+    let built = build()?;
+    let huge = ship(&built, HUGE)?;
+    assert_eq!(huge["mass"], 3000.0, "falls through to the physics mass");
+    assert_eq!(huge["massBasis"], "physics");
+    assert!(huge["hullHealth"].is_null());
+    for ship in ships(&built)? {
+        assert_eq!(ship["mass"].is_null(), ship["massBasis"].is_null());
+    }
     Ok(())
 }
 

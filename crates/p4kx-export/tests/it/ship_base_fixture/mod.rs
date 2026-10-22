@@ -17,6 +17,7 @@ pub(crate) const MIXED: u128 = 0x15;
 pub(crate) const UNKNOWN: u128 = 0x16;
 pub(crate) const ROLLING: u128 = 0x17;
 pub(crate) const CAR: u128 = 0x18;
+pub(crate) const HUGE: u128 = 0x19;
 const GRID_HUGE: u128 = 0x25;
 const GRID_NEGATIVE: u128 = 0x26;
 const CONTAINER_HUGE: u128 = 0x32;
@@ -116,6 +117,9 @@ fn entities() -> Vec<TestEntity> {
         ship(ROLLING, "ACME_Rolling").vehicle(definition("ACME_Roller"), ""),
         ground(CAR, "ACME_Car").vehicle(definition("ACME_Roller"), ""),
         ship(BROKEN, "ACME_Broken").vehicle(definition("ACME_Broken"), ""),
+        ship(HUGE, "ACME_Huge")
+            .physics_mass(3000.0)
+            .vehicle(definition("ACME_Huge"), ""),
         ship(DUMMY, "ACME_Dummy_Ship"),
         ship(MIXED, "ACME_Mixed").loadout(TestLoadout::Manual(vec![
             TestLoadoutEntry::class("grid_huge", "ACME_Grid_Huge"),
@@ -200,6 +204,10 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::zstd(
             format!("{XML_DIR}ACME_Flat.xml"),
             br#"<Vehicle name="ACME_Flat"><Parts><Part name="hull" class="Animated" mass="10"/></Parts></Vehicle>"#.to_vec(),
+        ))
+        .entry(TestEntry::zstd(
+            format!("{XML_DIR}ACME_Huge.xml"),
+            br#"<Vehicle name="ACME_Huge"><Parts><Part name="hull" class="Animated" mass="1e305" damageMax="1e305"/></Parts></Vehicle>"#.to_vec(),
         ))
         .entry(TestEntry::zstd(
             format!("{XML_DIR}ACME_Broken.xml"),

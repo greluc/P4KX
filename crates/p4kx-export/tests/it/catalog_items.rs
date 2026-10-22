@@ -310,6 +310,8 @@ fn every_kind_states_its_completeness() -> TestResult {
             "loadouts": {"status": "complete"},
             "starmapObjects": {"status": "complete"},
             "contracts": {"status": "complete"},
+            "mineableElements": {"status": "complete"},
+            "refiningProcesses": {"status": "complete"},
         }),
         "complete"
     );

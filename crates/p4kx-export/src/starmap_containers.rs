@@ -1,24 +1,20 @@
 use std::collections::hash_map::Entry as MapEntry;
 use std::collections::{HashMap, HashSet};
-use std::io::Read;
-use std::path::Path;
 use std::sync::Arc;
 
 use p4kx_extraction::cryxml::{self, Xml};
-use p4kx_extraction::{Archive, CancelToken, Entry, Guid};
+use p4kx_extraction::{Archive, CancelToken, Guid};
 use rayon::prelude::*;
 
 use crate::CatalogError;
-use crate::starmap_index::{Index, SOCPAK, key, unreferenced};
+use crate::starmap_index::{Index, unreferenced};
+use crate::starmap_read::main_xml;
 use crate::starmap_report::{ContainerCounts, Placement, StarmapReport, apart, clip};
 use crate::starmap_transform::Transform;
 use crate::starmap_xml::{Node, attribute, first_below, pose};
 
 const CHILDREN: &str = "ChildObjectContainers";
 const CHILD: &str = "Child";
-
-/// The largest container XML that is read, 128 MiB.
-const MAX_XML_LEN: u64 = 128 << 20;
 
 /// The most lines the report keeps per star system of the containers read, and of the issues.
 const REPORT_LINES: usize = 300;
@@ -227,7 +223,13 @@ impl<'a> System<'a> {
             self.skipped(&format!("{label}: names a container that is open above it"));
             return;
         }
-        let bytes = match self.xml(entry) {
+        let bytes = match self
+            .index
+            .entries
+            .get(entry)
+            .ok_or_else(|| "no such entry".to_owned())
+            .and_then(|socpak| main_xml(self.archive, socpak))
+        {
             Ok(bytes) => bytes,
             Err(reason) => {
                 self.read.unreadable += 1;
@@ -268,58 +270,6 @@ impl<'a> System<'a> {
                 ));
             }
         }
-    }
-
-    fn xml(&self, entry: usize) -> Result<Vec<u8>, String> {
-        let socpak = self.index.entries.get(entry).ok_or("no such entry")?;
-        let container = self
-            .archive
-            .open_container(socpak)
-            .map_err(|error| format!("cannot be opened as a container: {error:#}"))?;
-        let stem = key(socpak.path());
-        let stem = stem
-            .rsplit('\\')
-            .next()
-            .and_then(|name| name.strip_suffix(SOCPAK))
-            .ok_or("not a socpak name")?;
-        let main = format!("{stem}.xml");
-        let xml = container
-            .entries()
-            .iter()
-            .find(|inner| key(inner.path()).rsplit('\\').next() == Some(main.as_str()))
-            .or_else(|| {
-                container.entries().iter().find(|inner| {
-                    let name = key(inner.path());
-                    Path::new(&name)
-                        .extension()
-                        .is_some_and(|extension| extension.eq_ignore_ascii_case("xml"))
-                        && !name.contains("_editor")
-                        && !name.contains("metadata")
-                })
-            })
-            .ok_or_else(|| {
-                let names: Vec<&str> = container
-                    .entries()
-                    .iter()
-                    .map(Entry::path)
-                    .take(8)
-                    .collect();
-                format!("holds no main XML; its entries start with {names:?}")
-            })?;
-        if xml.uncompressed_size() > MAX_XML_LEN {
-            return Err(format!(
-                "its XML holds {} bytes, over the limit",
-                xml.uncompressed_size()
-            ));
-        }
-        let mut bytes = Vec::new();
-        container
-            .open_entry(xml)
-            .map_err(|error| format!("its XML cannot be opened: {error:#}"))?
-            .take(MAX_XML_LEN)
-            .read_to_end(&mut bytes)
-            .map_err(|error| format!("its XML cannot be read: {error}"))?;
-        Ok(bytes)
     }
 
     fn children<'d, N: Node<'d>>(

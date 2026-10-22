@@ -343,6 +343,14 @@
           "description": "The Record name without its type, e.g. `Gold`.",
           "type": "string"
         },
+        "densityGramsPerCubicCentimetre": {
+          "description": "The density of the `ResourceType` in grams per cubic centimetre (game field\n`gramsPerCubicCentimeter`), `null` without a `ResourceType`, a density or a density in\nanother unit.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "description": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity.",
@@ -364,6 +372,17 @@
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
+        },
+        "refinedSubtypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record `refinedVersion` of the `ResourceType` links to; `null`\nwithout a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined\ncommodity only when the catalog has that commodity."
         },
         "subtypeGuid": {
           "anyOf": [
@@ -390,11 +409,13 @@
       },
       "required": [
         "className",
+        "densityGramsPerCubicCentimetre",
         "description",
         "displayType",
         "guid",
         "name",
         "recordPath",
+        "refinedSubtypeGuid",
         "subtypeGuid",
         "typeGuid"
       ],
@@ -534,7 +555,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the `MissionType` Record: the override of the sub contract, else of the\ncontract, else of the handler, else the type of the template; `null` when there is none."
+          "description": "The GUID of the `MissionType` Record: the override of the sub contract, else of the\ncontract, else of the handler, else the type of the template, else the type of the\ncontract's `MissionBrokerEntry`; `null` when there is none."
         },
         "notForRelease": {
           "description": "Whether the contract is marked `notForRelease`, `null` when the flag is absent.",
@@ -544,7 +565,7 @@
           ]
         },
         "pickupPlaces": {
-          "description": "Where the contract is offered or picked up, at most five starmap objects: those of the\n`MissionLocality` and location prerequisites of the sub contract (else of the contract and\nits handler), a star left out, the star system first, then planets and moons, then the\nrest, each group in stored order. Empty when the prerequisites name none or the starmap\nobjects are not part of the catalog build.",
+          "description": "Where the contract is offered or picked up, at most five starmap objects: those of the\n`MissionLocality` and location prerequisites of the sub contract (else of the contract and\nits handler), a star left out, the star system first, then planets and moons, then the\nrest, each group in stored order. When none of those is left (nothing named, or only stars\nor objects missing from `starmapObjects`), the `locationMissionAvailable` of the contract's\n`MissionBrokerEntry`. Empty when that names none either or the starmap objects are not part\nof the catalog build.",
           "items": {
             "$ref": "#/$defs/PickupPlace"
           },
@@ -589,7 +610,7 @@
         },
         "title": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The title: the `Title` of the sub contract, else of the contract, else of the handler, else\nthe first display string of the template. A `~mission(Token)` in it is replaced by the text\nthe first of sub contract, contract, handler and template states for the token, or by a\nplaceholder such as `[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the\nmission starts. Trailing and leading blanks are removed.",
+          "description": "The title: the `Title` of the sub contract, else of the contract, else of the handler, else\nthe first display string of the template, else the title of the contract's\n`MissionBrokerEntry`. A `~mission(Token)` in it is replaced by the text the first of sub\ncontract, contract, handler and template states for the token, or by a placeholder such as\n`[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the mission starts, or\n`[TOKEN]` when nothing states it. Trailing and leading blanks are removed.",
           "x-gameText": true
         },
         "workInProgress": {

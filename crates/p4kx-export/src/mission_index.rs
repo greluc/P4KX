@@ -34,7 +34,7 @@ pub(crate) struct Template<'f> {
     pub(crate) properties: Vec<Property<'f>>,
 }
 
-/// A `MissionType` Record: its name and the key of its localised name.
+/// A `MissionType` Record: the key of its localised name.
 #[derive(Debug)]
 pub(crate) struct MissionType<'f> {
     pub(crate) name_key: Option<&'f str>,
@@ -54,7 +54,8 @@ enum Piece<'f> {
 }
 
 /// The Records a contract refers to, read once: templates, mission types, mission
-/// organisations, reputation rewards and the tag tree.
+/// organisations, reputation rewards, mission localities, broker entries, faction reputations
+/// and the tag tree.
 pub(crate) struct MissionIndex<'f> {
     templates: HashMap<Guid, Template<'f>>,
     types: HashMap<Guid, MissionType<'f>>,

@@ -74,7 +74,7 @@ fn a_contract_and_each_sub_contract_is_an_entry_ordered_by_guid() -> TestResult 
     let kind = built.summary().kind(Kind::Contracts);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((7, 2, true)),
+        Some((7, 4, true)),
         "counts"
     );
     Ok(())

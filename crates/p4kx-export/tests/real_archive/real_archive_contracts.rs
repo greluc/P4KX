@@ -187,14 +187,15 @@ fn the_contracts_of_a_real_archive_resolve_titles_types_and_success_reputation()
             .all(|entry| !text(entry, "title").contains("~mission(")),
         "every token is replaced"
     );
-    assert!(
-        contracts
-            .iter()
-            .filter(|entry| !entry["missionTypeGuid"].is_null())
-            .count()
-            * 10
-            >= contracts.len() * 9,
-        "most contracts have a mission type"
-    );
+    let untitled = contracts
+        .iter()
+        .filter(|entry| text(entry, "title").is_empty())
+        .count();
+    let untyped = contracts
+        .iter()
+        .filter(|entry| entry["missionTypeGuid"].is_null())
+        .count();
+    assert!(untitled * 100 < contracts.len(), "{untitled} untitled");
+    assert!(untyped * 100 < contracts.len(), "{untyped} untyped");
     Ok(())
 }

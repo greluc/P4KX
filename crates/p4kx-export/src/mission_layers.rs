@@ -28,7 +28,8 @@ pub(crate) struct Property<'f> {
     pub(crate) value: Prop<'f>,
 }
 
-/// What one level of a contract overrides: the title, the mission type and the properties.
+/// What one level of a contract overrides: the title, the mission type, the contractor and the
+/// properties.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Layer<'f> {
     pub(crate) title: Option<&'f str>,

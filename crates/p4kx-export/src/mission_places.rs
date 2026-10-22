@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use p4kx_extraction::{Guid, StructValue};
 
@@ -75,8 +75,8 @@ impl<'s, 'f> Places<'s, 'f> {
         index: &MissionIndex<'f>,
         levels: &[&Where],
     ) -> Vec<PickupPlace<'f>> {
-        let mut seen: Vec<Guid> = Vec::new();
-        let mut ranked: Vec<(u8, PickupPlace<'f>)> = Vec::new();
+        let mut seen: HashSet<Guid> = HashSet::new();
+        let mut ranked: Vec<(u8, Guid, &StarmapObject<'f>)> = Vec::new();
         let listed = levels.iter().flat_map(|level| {
             level
                 .localities
@@ -85,11 +85,10 @@ impl<'s, 'f> Places<'s, 'f> {
                 .chain(level.locations.iter().copied())
         });
         for guid in listed {
-            if seen.contains(&guid) {
+            if !seen.insert(guid) {
                 continue;
             }
-            seen.push(guid);
-            let Some(object) = self.objects.get(&guid) else {
+            let Some(object) = self.objects.get(&guid).copied() else {
                 continue;
             };
             let kind = object.r#type;
@@ -105,24 +104,21 @@ impl<'s, 'f> Places<'s, 'f> {
                 }
                 _ => 2,
             };
-            ranked.push((
-                rank,
-                PickupPlace {
-                    starmap_object_guid: CatalogGuid(guid),
-                    object_type: kind,
-                    place: LocalisedText {
-                        key: object.name.key,
-                        en: object.name.en.clone(),
-                        de: object.name.de.clone(),
-                    },
-                },
-            ));
+            ranked.push((rank, guid, object));
         }
-        ranked.sort_by_key(|(rank, _)| *rank);
+        ranked.sort_by_key(|(rank, _, _)| *rank);
         ranked
             .into_iter()
             .take(MAX_PICKUP_PLACES)
-            .map(|(_, place)| place)
+            .map(|(_, guid, object)| PickupPlace {
+                starmap_object_guid: CatalogGuid(guid),
+                object_type: object.r#type,
+                place: LocalisedText {
+                    key: object.name.key,
+                    en: object.name.en.clone(),
+                    de: object.name.de.clone(),
+                },
+            })
             .collect()
     }
 }

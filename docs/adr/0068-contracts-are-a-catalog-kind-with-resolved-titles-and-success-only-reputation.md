@@ -33,7 +33,13 @@ asks whether that belongs in the Basetool catalog or in a command of its own.
 
 - The Rust types, the schema and `docs/basetool-catalog.md` change in one commit; version 1 stays.
 - Pickup places are the starmap objects of the locality and location prerequisites, system first,
-  then planets and moons, stars left out, at most five; they need the starmap kind in the same build.
+  then planets and moons, stars left out, at most five; they need the starmap kind in the same
+  build. They are the one exception to "the first level that states a value wins": the
+  prerequisites of the contract and of its handler are combined (a sub contract's own replace
+  them), and a contract that is left with none takes the location of its broker entry.
+- A contract without a template takes title, type and location from its `MissionBrokerEntry`.
+- Token expansion has a budget (depth 3, 64 replacements, about 4 KiB per title and language): a
+  replacement that holds its own token cannot grow a title without bound.
 - The layer and property layout is read as the reference tools read it (`paramOverrides`,
   `contractParams`, `propertyOverrides`, `contractDisplayInfo`); a Build that moves a field leaves
   that part `null` or a placeholder, never a failed Record.

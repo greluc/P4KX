@@ -30,14 +30,16 @@ pub(crate) struct ContractEntry<'a> {
     /// Whether the contract is marked `workInProgress`, `null` when the flag is absent.
     pub(crate) work_in_progress: Option<bool>,
     /// The title: the `Title` of the sub contract, else of the contract, else of the handler, else
-    /// the first display string of the template. A `~mission(Token)` in it is replaced by the text
-    /// the first of sub contract, contract, handler and template states for the token, or by a
-    /// placeholder such as `[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the
-    /// mission starts. Trailing and leading blanks are removed.
+    /// the first display string of the template, else the title of the contract's
+    /// `MissionBrokerEntry`. A `~mission(Token)` in it is replaced by the text the first of sub
+    /// contract, contract, handler and template states for the token, or by a placeholder such as
+    /// `[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the mission starts, or
+    /// `[TOKEN]` when nothing states it. Trailing and leading blanks are removed.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) title: LocalisedText<'a>,
     /// The GUID of the `MissionType` Record: the override of the sub contract, else of the
-    /// contract, else of the handler, else the type of the template; `null` when there is none.
+    /// contract, else of the handler, else the type of the template, else the type of the
+    /// contract's `MissionBrokerEntry`; `null` when there is none.
     pub(crate) mission_type_guid: Option<CatalogGuid>,
     /// The localised name of the mission type.
     #[schemars(extend("x-gameText" = true))]
@@ -53,8 +55,10 @@ pub(crate) struct ContractEntry<'a> {
     /// Where the contract is offered or picked up, at most five starmap objects: those of the
     /// `MissionLocality` and location prerequisites of the sub contract (else of the contract and
     /// its handler), a star left out, the star system first, then planets and moons, then the
-    /// rest, each group in stored order. Empty when the prerequisites name none or the starmap
-    /// objects are not part of the catalog build.
+    /// rest, each group in stored order. When none of those is left (nothing named, or only stars
+    /// or objects missing from `starmapObjects`), the `locationMissionAvailable` of the contract's
+    /// `MissionBrokerEntry`. Empty when that names none either or the starmap objects are not part
+    /// of the catalog build.
     pub(crate) pickup_places: Vec<PickupPlace<'a>>,
     /// The reputation the contract grants on success, one entry per amount: the results whose
     /// first mission result (success) is set. A result that fires on failure only is left out; an

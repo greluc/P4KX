@@ -51,6 +51,7 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("contractResults", class("ContractResultBlock")),
         TestStruct::new("SubContract")
             .field("id", TestType::Guid)
+            .field("debugName", TestType::String)
             .array("additionalPrerequisites", pointer("ContractPrerequisite"))
             .field("paramOverrides", class("ContractParamOverrides")),
         TestStruct::new("ContractPrerequisite"),

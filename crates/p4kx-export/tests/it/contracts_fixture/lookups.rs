@@ -1,10 +1,28 @@
-use p4kx_testkit::{DataForgeBuilder, TestRecord, TestValue};
+use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
     AFFINITY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET, OBJ_STAR,
     OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR, TYPE_STATION,
     TYPE_SYSTEM,
 };
+
+fn flags(set: [bool; 5]) -> TestValue {
+    TestValue::Array(
+        set.into_iter()
+            .map(|value| {
+                TestValue::Struct(TestInstance::new("Bool").value("value", TestValue::Bool(value)))
+            })
+            .collect(),
+    )
+}
+
+pub(super) fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractResult_LegacyReputation")
+            .value("missionResults", flags(set))
+            .value("contractResultReputationAmounts", TestValue::Array(amounts)),
+    )
+}
 
 pub(super) fn plain_record(guid: u128, kind: &str, path: &str) -> TestRecord {
     let name = path.rsplit('/').next().unwrap_or(path);

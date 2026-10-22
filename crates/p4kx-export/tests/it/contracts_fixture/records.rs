@@ -1,6 +1,6 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
-use super::lookups::{mission_type, plain_record};
+use super::lookups::{legacy, mission_type, plain_record};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
     CONTRACT_E, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS,
@@ -80,30 +80,12 @@ fn overrides(
     )
 }
 
-fn flags(set: [bool; 5]) -> TestValue {
-    TestValue::Array(
-        set.into_iter()
-            .map(|value| {
-                TestValue::Struct(TestInstance::new("Bool").value("value", TestValue::Bool(value)))
-            })
-            .collect(),
-    )
-}
-
 fn amount(scope: u128, reward: u128) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ReputationAmount")
             .value("factionReputation", reference(FACTION))
             .value("reputationScope", reference(scope))
             .value("reward", reference(reward)),
-    )
-}
-
-fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ContractResult_LegacyReputation")
-            .value("missionResults", flags(set))
-            .value("contractResultReputationAmounts", TestValue::Array(amounts)),
     )
 }
 
@@ -250,6 +232,17 @@ fn delivery_handler() -> TestValue {
     .value(
         "additionalPrerequisites",
         TestValue::Array(vec![locality(LOC_B)]),
+    )
+    .value(
+        "subContracts",
+        TestValue::Array(vec![
+            TestValue::Struct(
+                TestInstance::new("SubContract")
+                    .value("id", TestValue::Guid(SUB_ONE + 1))
+                    .value("debugName", TestValue::text("Test_Sub")),
+            ),
+            TestValue::Struct(TestInstance::new("SubContract")),
+        ]),
     );
     let nested = contract(
         CONTRACT_D,

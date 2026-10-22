@@ -441,6 +441,12 @@ from the entity:
 | `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+| `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
+| `refinedSubtypeGuid` | The GUID `refinedVersion` of the `ResourceType` links to; `null` without a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined commodity only when the catalog has that commodity |
+
+The refining fields are described in [commodity-refining.md](commodity-refining.md), with what the
+DataForge does not hold (instability per commodity, yields, counting in SCU or units). The refined
+`ResourceType` may have no commodity of its own; then `refinedSubtypeGuid` matches no `subtypeGuid`.
 
 A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
 `subtypeGuid` links to (`displayName`, `description`) instead. The game holds no field named type
@@ -722,7 +728,8 @@ then `recordGuid`; of two entries with the same `guid` and `subContractGuid` the
 A contract is an element of the arrays `contracts`, `introContracts`, `legacyContracts` and
 `PVPBountyContract` of a handler in `generators`. One without an `id` (or with a nil one), and one
 whose debug name or Record is a development leftover, is left out and counted in `skipped`; so is a
-sub contract without an `id`, which cannot be told apart.
+sub contract without an `id` (it cannot be told apart) or with a leftover debug name, and an entry
+that the rule on equal `guid` and `subContractGuid` above drops.
 
 | Field | Meaning |
 |-------|---------|
@@ -756,14 +763,16 @@ replaced, in each language, by what the first layer (sub contract, contract, han
 - anything else, a token no layer states and a text the language lacks: the token in upper case in
   brackets, e.g. `[CARGO]`.
 
-A replacement that itself holds a `~mission(…)` is expanded up to three levels deep. Leading and trailing blanks are removed from the result; the
-`key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
+A replacement that itself holds a `~mission(…)` is expanded up to three levels deep; below that,
+and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`. Leading and
+trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
 
 **Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
 `Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
-template leave open from that `MissionBrokerEntry` Record: its `title`, its `type` and, when the
-prerequisites name no place, its `locationMissionAvailable` as the pickup place.
+template leave open from that `MissionBrokerEntry` Record: its `title`, its `type` and, when no
+pickup place is left from the prerequisites (none named, or only stars or objects that are not in
+`starmapObjects`), its `locationMissionAvailable` as the pickup place.
 
 **Mission type.** `missionTypeOverride` of the first layer that states one, else the `type` of the
 template's `contractDisplayInfo`, else of the broker entry; `missionType` is the
@@ -794,10 +803,13 @@ at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGui
 and the `place` name (game text). The places come from the starmap objects of the same build: a
 Filter that leaves them out leaves `pickupPlaces` empty.
 
-**Known gaps (LIVE, 2026-10-22).** A title keeps a `[TOKEN]` where no property of the layers
-states the token: 22 titles (racing, one HeadHunters hijack contract, a few Rough and Ready and
-Ruto contracts) and the run-time tokens such as `[CLAIMNUMBER]`. 891 entries have no pickup place
-because their prerequisites name no locality or location.
+**Known gaps (LIVE, 2026-10-22, 5,175 entries).** 27 entries have no title and 4 no mission type
+(templates that state none). A title keeps a `[TOKEN]` where no property of the layers states the
+token: 22 entries (racing, one HeadHunters hijack contract, a few Rough and Ready and Ruto
+contracts), and the run-time tokens such as `[CARGOGRADETOKEN]` and `[REPUTATIONRANK]` (411
+entries each), `[CLAIMNUMBER]`, `[TARGETNAME]`, `[RACETYPE]` and `[ITEM]` stay as placeholders.
+642 entries have no pickup place because neither their prerequisites nor their broker entry name
+one.
 
 Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
 descriptions.

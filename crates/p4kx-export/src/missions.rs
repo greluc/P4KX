@@ -48,8 +48,8 @@ struct Context<'x, 'f> {
 /// entry, and one for each of its sub contracts, ordered by the text of the GUIDs. The pickup
 /// places are the starmap objects `starmap` lists.
 ///
-/// A contract whose debug name or Record is a development leftover, and one without an `id`, is
-/// left out and counted.
+/// A contract or sub contract whose debug name or Record is a development leftover, one without an
+/// `id`, and an entry whose `id` pair an earlier entry already has, is left out and counted.
 ///
 /// # Errors
 ///
@@ -109,17 +109,29 @@ pub(crate) fn read<'f>(
             Piece::Failed(failure) => missions.failures.push(failure),
         }
     }
-    missions.contracts.sort_by_cached_key(|entry| {
-        (
-            entry.guid.text(),
-            entry.sub_contract_guid.map(CatalogGuid::text),
-            entry.record_guid.text(),
-        )
-    });
-    missions.contracts.dedup_by(|later, earlier| {
-        later.guid.0 == earlier.guid.0 && later.sub_contract_guid == earlier.sub_contract_guid
-    });
+    missions.order();
     Ok(missions)
+}
+
+impl Missions<'_> {
+    /// Orders the entries by the text of their GUIDs and drops an entry whose `guid` and
+    /// `subContractGuid` an earlier one has, counting it as skipped.
+    fn order(&mut self) {
+        self.contracts.sort_by_cached_key(|entry| {
+            (
+                entry.guid.text(),
+                entry.sub_contract_guid.map(CatalogGuid::text),
+                entry.record_guid.text(),
+            )
+        });
+        let listed = self.contracts.len();
+        self.contracts.dedup_by(|later, earlier| {
+            later.guid.0 == earlier.guid.0 && later.sub_contract_guid == earlier.sub_contract_guid
+        });
+        self.skipped = self
+            .skipped
+            .saturating_add(listed.saturating_sub(self.contracts.len()));
+    }
 }
 
 fn piece<'f>(
@@ -162,7 +174,7 @@ fn piece<'f>(
                     id: CatalogGuid(id),
                     name,
                 };
-                parent.entries(context, &mut contracts);
+                skipped = skipped.saturating_add(parent.entries(context, &mut contracts));
             }
         }
     }
@@ -180,7 +192,9 @@ struct Parent<'t, 'f> {
 }
 
 impl<'f> Parent<'_, 'f> {
-    fn entries(&self, context: &Context<'_, 'f>, out: &mut Vec<ContractEntry<'f>>) {
+    /// Appends the entries of the contract and its sub contracts and returns how many sub
+    /// contracts were left out.
+    fn entries(&self, context: &Context<'_, 'f>, out: &mut Vec<ContractEntry<'f>>) -> usize {
         let index = context.index;
         let contract_where = Where::read(Some(self.contract), "additionalPrerequisites");
         let template = reference(Some(self.contract), "template").map(|guid| guid.0);
@@ -222,13 +236,19 @@ impl<'f> Parent<'_, 'f> {
             )
         };
         out.push(make(None));
-        let subs = items(Some(self.contract), "subContracts")
+        let mut skipped = 0_usize;
+        for sub in items(Some(self.contract), "subContracts")
             .iter()
-            .filter_map(as_struct);
-        out.extend(
-            subs.filter(|sub| identity(sub).is_some())
-                .map(|sub| make(Some(sub))),
-        );
+            .filter_map(as_struct)
+        {
+            let name = text(Some(sub), "debugName").unwrap_or_default();
+            if identity(sub).is_none() || is_leftover(self.tree.record_path(), name) {
+                skipped = skipped.saturating_add(1);
+            } else {
+                out.push(make(Some(sub)));
+            }
+        }
+        skipped
     }
 
     fn entry(

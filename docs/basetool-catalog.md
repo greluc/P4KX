@@ -902,8 +902,14 @@ unchanged, `null` when it states none, and unitless factors except where noted:
 A refining process (`refiningProcesses`) is a `RefiningProcess` Record under `refiningprocess`
 (9 on LIVE, one per pair of speed and quality). `refiningSpeed` (`Slow`, `Normal`, `Fast`) and
 `refiningQuality` (`Wasteful`, `Normal`, `Careful`) are closed sets kept as strings, so a new value
-is additive; `processName` is the localised label of the method. The DataForge holds no yield per
-commodity and method: yields are not in the Archive and stay with other sources.
+is additive; `processName` is the localised label of the method, a game text. On LIVE (2026-10-22)
+the English `global.ini` holds all 9 keys and the German one none, so `de` is `null` there. The
+DataForge holds no yield per commodity and method: yields are not in the Archive and stay with
+other sources.
+
+The 46 element Records of LIVE give 43 entries: the development-leftover rule leaves out
+`MinableElement_Ship_template`, `MinableElement_GroundVehicle_template` and
+`MinableElement_FPS_template`, counted as skipped. The 43 link to 41 distinct `ResourceType`s.
 
 ### Crafting data
 

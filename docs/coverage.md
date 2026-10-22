@@ -56,6 +56,82 @@ definitions (`vehicles` area).
 
 ## Counts on LIVE
 
-Run `p4kx coverage <LIVE Data.p4k>` for the counts of a Build; they change with every patch and are
-not kept in this file. Types, components or folders that are missing or fail are filed as their own
-issues.
+LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives those of a Build.
+
+**Record types** (Records, including derived types; error values in brackets)
+
+| Area | Type | Records |
+| --- | --- | --- |
+| `missions` | `MissionOrganization` | 69 |
+| | `MissionItem` | 228 (2) |
+| | `AIWaveCollection` | 184 (35) |
+| | `ContractGenerator` | 110 (2) |
+| | `ContractDifficultyProfile` | 7 |
+| | `MissionBrokerEntry` | 2584 (13) |
+| | `ContractTemplate` | 496 |
+| | `MissionLocationTemplate` (candidate) | 2105 (10) |
+| `reputation` | `Faction` | 60 (1) |
+| | `FactionReputation` | 39 |
+| | `SReputationRewardAmount` | 58 |
+| | `SReputationScopeParams` | 46 |
+| | `SReputationStandingParams` | 380 |
+| `crafting` | `BlueprintPoolRecord` | 160 |
+| | `CraftingBlueprintRecord` | 1619 (1) |
+| | `BlueprintCategoryRecord` | 21 |
+| | `CraftingGameplayPropertyDef` | 29 |
+| `mining` | `MineableComposition` | 249 |
+| | `MineableElement` | 46 |
+| | `MiningGlobalParams` | 7 |
+| | `ResourceType` | 207 (7) |
+| | `ResourceTypeGroup` | 19 |
+| | `SubHarvestableMultiConfigRecord` (candidate) | 103 |
+| `consumables` | `ConsumableSubtype` | 83 |
+| | `ConsumableType` | 6 |
+| `law` | `InfractionDefinition` | 43 |
+| | `Jurisdiction` | 13 |
+| `cargo` | `CargoManifest` | 82 |
+| | `InventoryContainer` | 585 |
+| `starmap` | `StarMapObject` | 2132 (3) |
+| | `StarMapObjectType` | 21 |
+| | `StarMapAmenityTypeEntry` | 25 |
+| | `SolarSystem` | not a struct (0) |
+| `vehicles` | `VehicleCareer` | 11 |
+| | `VehicleRole` | 60 |
+| | `SLoadoutAssortment` | 321 (107) |
+| `items` | `AmmoParams` | 243 |
+| | `SCItemManufacturer` | 1203 (1) |
+| | `Tag` | 18891 |
+
+`SolarSystem` is not a DataForge struct on LIVE 4.10; Nyx, Pyro and Stanton are `StarMapObject`
+Records whose `StarMapObjectType` is named `SolarSystem` (#465). The error values are tracked in
+#464. No Record failed to build and every sample exported as Record XML and Record JSON.
+
+**Components** (`EntityClassDefinition` Records with the component; instances are equal)
+
+| Area | Component | Records |
+| --- | --- | --- |
+| `mining` | `MineableParams` | 274 |
+| | `SEntityComponentMiningLaserParams` | 51 |
+| `consumables` | `SCItemConsumableParams` | 308 |
+| `cargo` | `ResourceContainer` | 2336 |
+| | `SCItemInventoryContainerComponentParams` | 2499 |
+| | `SItemPortContainerComponentParams` | 16919 |
+| `vehicles` | `VehicleComponentParams` | 1151 |
+| | `SEntityComponentDefaultLoadoutParams` | 8463 |
+| | `SEntityPhysicsControllerParams` | 21274 |
+| | `SCItemVehicleArmorParams` | 220 |
+| | `SCItemQuantumDriveParams` | 63 |
+| | `SCItemShieldGeneratorParams` | 73 |
+| `items` | `ItemResourceComponentParams` | 4360 |
+| | `SAmmoContainerComponentParams` | 487 |
+| | `SAttachableComponentParams` | 26531 |
+| | `SCItemBombParams` | 3 |
+| | `SCItemMissileParams` | 69 |
+| | `SCItemWeaponComponentParams` | 866 |
+| | `SSCSignatureSystemParams` | 7008 |
+| | `EntityComponentAttachableModifierParams` | 94 |
+
+All components are reachable by a Component selector Query.
+
+**Entries**: 177 under `Data/Scripts/Entities/Vehicles/Implementations/Xml/` (the issue counted 172
+at the time of writing); all 177 convert from CryXml.

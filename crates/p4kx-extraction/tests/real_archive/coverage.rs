@@ -5,6 +5,23 @@ use p4kx_testkit::real_archive_path;
 
 use super::{TestResult, report};
 
+/// Types without Records on LIVE 4.10 (#465).
+const MISSING_GAPS: [&str; 1] = ["SolarSystem"];
+/// Types whose Records hold error values on LIVE 4.10 (#464).
+const ERROR_GAPS: [&str; 11] = [
+    "SLoadoutAssortment",
+    "AIWaveCollection",
+    "MissionBrokerEntry",
+    "MissionLocationTemplate",
+    "ResourceType",
+    "StarMapObject",
+    "MissionItem",
+    "ContractGenerator",
+    "Faction",
+    "CraftingBlueprintRecord",
+    "SCItemManufacturer",
+];
+
 fn print(coverage: &CoverageReport) {
     report("Record types");
     for found in &coverage.types {
@@ -71,12 +88,12 @@ fn the_companion_app_reference_list_is_covered() -> TestResult {
             .sample
             .as_ref()
             .is_none_or(|sample| sample.error.is_some());
-        if found.records == 0
-            || found.unreadable_records > 0
-            || found.error_values > 0
-            || sample_failed
-        {
+        let missing = found.records == 0 || found.unreadable_records > 0 || sample_failed;
+        if missing && !MISSING_GAPS.contains(&found.name.as_str()) {
             problems.push(format!("type {}", found.name));
+        }
+        if found.error_values > 0 && !ERROR_GAPS.contains(&found.name.as_str()) {
+            problems.push(format!("error values in {}", found.name));
         }
     }
     for found in &coverage.components {

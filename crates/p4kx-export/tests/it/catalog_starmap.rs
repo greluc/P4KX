@@ -200,6 +200,7 @@ fn the_summary_counts_the_placed_objects_and_what_the_containers_lacked() -> Tes
     );
     Ok(())
 }
+
 #[test]
 fn a_development_leftover_is_skipped_and_the_kind_is_counted() -> TestResult {
     let (built, catalog) = build(None)?;

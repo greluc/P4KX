@@ -559,7 +559,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,
  "docked_vehicles": 65, "unresolved": 505, "outside": 61, "with_issues": 193},
- "starmap": {"objects": 1500, "placed": 1400, "unplaced": 100, "ambiguous": 0, "systems": 3,
+ "starmap": {"objects": 2093, "placed": 1239, "unplaced": 854, "ambiguous": 9, "systems": 3,
  "unreadable_containers": 0, "missing_containers": 2, "malformed_children": 0},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
@@ -583,8 +583,10 @@ all the same, and the exit code is 1 when `failed` or `warnings` is not empty. `
 makes the crafting data incomplete or ambiguous although every Record was read, each as an object
 with a `kind`: `reward_sources_truncated` (the reference index is truncated),
 `unreadable_reference_records` with a `count` (Records the index could not read) and
-`ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one); a
-reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
+`ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
+`unreadable_vehicle_files` with a `count` (ships whose vehicle file cannot be read, so they have no paints) and
+`unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
+limits that left starmap objects without a position); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit

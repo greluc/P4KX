@@ -90,6 +90,8 @@ mod starmap;
 mod starmap_containers;
 mod starmap_index;
 mod starmap_report;
+#[cfg(test)]
+mod starmap_tests;
 mod starmap_transform;
 mod starmap_xml;
 mod summary;

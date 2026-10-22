@@ -16,6 +16,5 @@ mod real_archive_playability;
 mod real_archive_records;
 mod real_archive_ship_base;
 mod real_archive_starmap;
-mod real_archive_starmap_probe;
 mod real_archive_tags;
 mod real_archive_verification;

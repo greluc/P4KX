@@ -187,8 +187,8 @@ impl CatalogSummary {
     }
 
     /// Returns what the reading of the system containers saw: the containers read with their
-    /// Child counts, the ones that failed and why, the records placed twice, sample rotations and
-    /// the containers no Child names.
+    /// Child counts, the ones that failed and why, the records placed twice and the containers no Child
+    /// names.
     #[must_use]
     pub fn starmap_report(&self) -> &StarmapReport {
         &self.starmap_report

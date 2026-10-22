@@ -97,46 +97,16 @@ fn print_unplaced(objects: &[Value]) {
 
 fn print_types(objects: &[Value]) {
     let mut counts: BTreeMap<&str, (usize, usize)> = BTreeMap::new();
-    let mut names: BTreeMap<&str, &str> = BTreeMap::new();
     for object in objects {
-        names.insert(text(object, "/type"), text(object, "/typeName/en"));
         let slot = counts.entry(text(object, "/type")).or_default();
         slot.0 += 1;
         slot.1 += usize::from(position(object).is_some());
     }
     let lines: Vec<String> = counts
         .iter()
-        .map(|(kind, (all, with))| {
-            format!(
-                "{kind}: {all} objects, {with} placed, name {:?}",
-                names.get(kind)
-            )
-        })
+        .map(|(kind, (all, with))| format!("{kind}: {all} objects, {with} placed"))
         .collect();
     print_lines("objects by type", &lines);
-}
-
-fn print_rotation_shape(rotations: &[String]) {
-    let mut largest = [0_usize; 4];
-    for line in rotations {
-        let Some((_, raw)) = line.split_once(": rot ") else {
-            continue;
-        };
-        let raw = raw.split_whitespace().next().unwrap_or_default();
-        let parts: Vec<f64> = raw.split(',').filter_map(|p| p.parse().ok()).collect();
-        let at = parts
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
-            .map(|(at, _)| at);
-        if let Some(slot) = at.and_then(|at| largest.get_mut(at)) {
-            *slot += 1;
-        }
-    }
-    let lines = [format!(
-        "index of the largest |component| of the sampled rot values (0 = first): {largest:?}"
-    )];
-    print_lines("rotation order hint", &lines);
 }
 
 #[expect(
@@ -149,8 +119,6 @@ fn report(built: &BuiltCatalog, catalog: &Value, objects: &[Value]) {
     print_lines("containers read", &seen.containers);
     print_lines("containers that failed", &seen.issues);
     print_lines("records placed twice", &seen.repeated);
-    print_lines("sample rotations", &seen.rotations);
-    print_rotation_shape(&seen.rotations);
     print_lines("containers no Child names", &seen.unreferenced);
     print_types(objects);
     print_unplaced(objects);

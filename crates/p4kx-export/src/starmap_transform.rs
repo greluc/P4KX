@@ -1,3 +1,7 @@
+/// The largest coordinate of a position that is kept, in metres: a light year is 9.5e15 m, far
+/// beyond any star system, so a larger value is data that cannot be a place.
+pub(crate) const MAX_COORDINATE: f64 = 1.0e15;
+
 /// A rotation as a unit quaternion in the order `w, x, y, z`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Rotation {
@@ -79,6 +83,13 @@ impl Transform {
         rotation: Rotation::IDENTITY,
     };
 
+    /// Returns whether every coordinate is a finite number of at most [`MAX_COORDINATE`] metres.
+    pub(crate) fn is_sane(self) -> bool {
+        self.position
+            .iter()
+            .all(|coordinate| coordinate.abs() <= MAX_COORDINATE)
+    }
+
     /// Returns the transform of a child placed at `position` with `rotation` in the frame of
     /// `self`: its position is rotated by the rotation of `self` before it is added, and the
     /// rotations multiply.
@@ -96,7 +107,7 @@ impl Transform {
 mod tests {
     use std::f64::consts::FRAC_1_SQRT_2;
 
-    use super::{Rotation, Transform};
+    use super::{MAX_COORDINATE, Rotation, Transform};
 
     const QUARTER_TURN_Z: [f64; 4] = [FRAC_1_SQRT_2, 0.0, 0.0, FRAC_1_SQRT_2];
 
@@ -129,6 +140,38 @@ mod tests {
             .place([0.0; 3], turn)
             .place([1.0, 0.0, 0.0], Rotation::IDENTITY);
         near(twice.position, [-1.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn rotations_do_not_commute() {
+        let about_x =
+            Rotation::from_parts([FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0, 0.0]).expect("a quaternion");
+        let about_z = Rotation::from_parts(QUARTER_TURN_Z).expect("a quaternion");
+        let x_then_z = about_z.then_after(about_x).rotate([0.0, 1.0, 0.0]);
+        let z_then_x = about_x.then_after(about_z).rotate([0.0, 1.0, 0.0]);
+        near(x_then_z, [0.0, 0.0, 1.0]);
+        near(z_then_x, [-1.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn a_position_beyond_the_limit_or_not_a_number_is_not_sane() {
+        let at = |x: f64| Transform::IDENTITY.place([x, 0.0, 0.0], Rotation::IDENTITY);
+        assert!(at(MAX_COORDINATE).is_sane(), "exactly the limit");
+        assert!(!at(MAX_COORDINATE * 2.0).is_sane(), "beyond the limit");
+        assert!(
+            !at(1.0e308)
+                .place([1.0e308; 3], Rotation::IDENTITY)
+                .is_sane(),
+            "overflow to infinity"
+        );
+        let turned = Rotation::from_parts(QUARTER_TURN_Z).expect("a quaternion");
+        let huge = Transform::IDENTITY
+            .place([0.0; 3], turned)
+            .place([f64::MAX; 3], turned);
+        assert!(
+            !huge.is_sane(),
+            "a huge vector gives infinity or not a number"
+        );
     }
 
     #[test]

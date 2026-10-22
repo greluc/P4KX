@@ -17,8 +17,9 @@ pub enum CraftingWarning {
     /// This many ships have a vehicle implementation file or Modification patch file that exists
     /// but cannot be read, so no paint is assigned through it.
     UnreadableVehicleFiles(usize),
-    /// This many system containers cannot be read or are missing, or hold Child elements with a
-    /// malformed placement, so the starmap objects below them have no position.
+    /// This many references to containers that cannot be read, Child elements with a malformed or
+    /// out-of-range placement and walk limits were hit, so the starmap objects below them have no
+    /// position. A container the Archive lacks is not counted.
     UnplacedStarmapContainers(usize),
 }
 

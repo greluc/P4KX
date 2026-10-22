@@ -745,14 +745,19 @@ of the first (the same place reached twice); when two lie further apart the reco
 because no placement is the place (`StarmapSummary::ambiguous` counts these records; on LIVE
 all are asteroids and wreck sets of the Nyx ring segments, whose containers are instanced several
 times). A Child whose `pos` or `rot` is malformed (not numbers, not three or four parts, a
-quaternion without length) and everything below it are not placed; so are the Children beyond a
-nesting of 64 or beyond 4,194,304 Children of one system, and the Children of a container that
-cannot be read. `p4kx catalog` reports them as `starmap placement`, and the unreadable containers and
-malformed Children as a warning (exit code 1). A container that a Child names and the Archive does
-not hold (`missing_containers`; LIVE: two, an event container and a module of a Lorville
-entry) is a fact of the game data, like a patch file the Archive lacks: it is counted and listed in
-`CatalogSummary::starmap_report()` but is no warning.
-
+quaternion without length), or whose composed position is not a finite number or lies beyond
+1e15 m on an axis (about a tenth of a light year, far outside any star system), and everything
+below it are not placed. The same holds for the walk limits: Children nested deeper than 64,
+more than 4,194,304 Children in one system, an external container reached through more than 8
+others, and an external container that is already open above the Child that names it (a cycle) are
+counted and not followed. All of these, and a container that cannot be read, are warned about by
+`p4kx catalog` (exit code 1); the counts `unreadable_containers` and `malformed_children` are
+counted per reference, not per distinct container, so one container named by ten Children
+counts ten times. A container that a Child names and the Archive does
+not hold (`missing_containers`, also counted per reference; LIVE: two, an event container and a
+module of a Lorville entry) is a fact of the game data, like a patch file the Archive lacks: it is
+counted and listed in `CatalogSummary::starmap_report()` but is no warning. The report keeps at
+most 300 lines of containers and 300 of issues per star system, each at most 300 characters.
 **Rotation order.** `rot` is read as `w,x,y,z`. The raw values of LIVE settle it: the identity occurs as
 `1,0,0,0`, the rotations of the Nyx ring segments are `a,0,0,b` (about the z axis, the axis of the
 ring) and the small tilts of surface structures `0.98,~0,~0,0.17`; read as `x,y,z,w` the identity would
@@ -760,8 +765,7 @@ be a half turn about x and the ring segments rotations about x. Everus Harbor li
 Hurston.
 
 **What no container places.** On LIVE (2026-10-22) 2,093 objects are selected, 1,239 have a
-position and 854 have none. The probe test `real_archive_starmap_probe` searched all 9,668 object
-containers of the Archive for the 854 GUIDs:
+position and 854 have none. Searching all 9,668 object containers of the Archive for the 854 GUIDs gives:
 
 - **816 appear in no object container at all.** No container places them, so no position exists to
   export. By type: Outpost 416 (350 hidden), Asteroid 279 (249 hidden), Asteroid_ValidQT 57 (34

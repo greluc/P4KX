@@ -242,7 +242,17 @@ fn scan<'f>(
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
 ) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
-    let placements = Placements::read(archive, options.cancel)?;
+    let rule = crate::Kind::StarmapObjects.rule();
+    let wanted = forge.records().any(|record| {
+        record.record_path().is_ok_and(|path| {
+            rule.matches_path(path) && options.filter.is_none_or(|filter| filter.matches(path))
+        })
+    });
+    let placements = if wanted {
+        Placements::read(archive, options.cancel)?
+    } else {
+        Placements::default()
+    };
     let picked = Scan::run(
         forge,
         files,

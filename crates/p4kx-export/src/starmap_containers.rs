@@ -10,8 +10,8 @@ use rayon::prelude::*;
 
 use crate::CatalogError;
 use crate::starmap_index::{Index, SOCPAK, key, unreferenced};
-use crate::starmap_report::{ContainerCounts, Placement, StarmapReport, apart};
-use crate::starmap_transform::{Rotation, Transform};
+use crate::starmap_report::{ContainerCounts, Placement, StarmapReport, apart, clip};
+use crate::starmap_transform::Transform;
 use crate::starmap_xml::{Node, attribute, first_below, pose};
 
 const CHILDREN: &str = "ChildObjectContainers";
@@ -20,20 +20,32 @@ const CHILD: &str = "Child";
 /// The largest container XML that is read, 128 MiB.
 const MAX_XML_LEN: u64 = 128 << 20;
 
-/// The most Child elements one star system may place, itself and its external containers.
-const MAX_CHILDREN: usize = 1 << 22;
+/// The most lines the report keeps per star system of the containers read, and of the issues.
+const REPORT_LINES: usize = 300;
 
-/// The deepest chain of Child elements that is followed.
-const MAX_DEPTH: usize = 64;
+/// The longest line the report keeps.
+const LINE_LEN: usize = 300;
 
-/// The most lines the report keeps of the containers read.
-const CONTAINER_LINES: usize = 300;
+/// What bounds the walk through a star system.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Limits {
+    /// The most Child elements one star system may place, itself and its external containers.
+    pub(crate) children: usize,
+    /// The deepest chain of Child elements that is followed.
+    pub(crate) depth: usize,
+    /// The deepest chain of external containers that is opened.
+    pub(crate) external: usize,
+}
 
-/// The most rotations the report quotes.
-const ROTATION_SAMPLES: usize = 40;
-
-/// The deepest chain of external containers that is opened.
-const MAX_EXTERNAL_DEPTH: usize = 8;
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            children: 1 << 22,
+            depth: 64,
+            external: 8,
+        }
+    }
+}
 
 /// The placements of the Starmap Records in the system containers of an Archive.
 #[derive(Debug, Default)]
@@ -57,11 +69,19 @@ impl Placements {
         archive: &Archive,
         cancel: Option<&CancelToken>,
     ) -> Result<Self, CatalogError> {
+        Self::read_within(archive, cancel, Limits::default())
+    }
+
+    pub(crate) fn read_within(
+        archive: &Archive,
+        cancel: Option<&CancelToken>,
+        limits: Limits,
+    ) -> Result<Self, CatalogError> {
         let index = Index::new(archive);
         let systems = index.systems();
         let read: Vec<SystemRead> = systems
             .par_iter()
-            .map(|(name, entry)| System::run(archive, &index, name, *entry, cancel))
+            .map(|(name, entry)| System::run(archive, &index, name, *entry, cancel, limits))
             .collect();
         if cancel.is_some_and(CancelToken::is_cancelled) {
             return Err(CatalogError::Cancelled);
@@ -70,8 +90,10 @@ impl Placements {
         placements.counts.systems = systems.len();
         let mut repeated: HashSet<Guid> = HashSet::new();
         let mut opened: HashSet<usize> = HashSet::new();
+        let mut named = 0;
         for system in read {
             opened.extend(system.opened.iter().copied());
+            named += system.named;
             placements.counts.unreadable += system.unreadable;
             placements.counts.missing += system.missing;
             placements.counts.malformed += system.malformed;
@@ -80,14 +102,11 @@ impl Placements {
                 .containers
                 .extend(system.report.containers);
             placements.report.issues.extend(system.report.issues);
-            placements.report.rotations.extend(system.report.rotations);
             for (record, placement) in system.placed {
                 placements.add(record, placement, &mut repeated);
             }
         }
         placements.counts.ambiguous = repeated.len();
-        let named = placements.report.containers.len();
-        placements.report.containers.truncate(CONTAINER_LINES);
         placements
             .report
             .containers
@@ -119,10 +138,10 @@ impl Placements {
                     "same place:"
                 },
                 held.get().system,
-                held.get().entity_name,
+                clip(&held.get().entity_name),
                 held.get().position,
                 placement.system,
-                placement.entity_name,
+                clip(&placement.entity_name),
                 placement.position
             ));
         }
@@ -135,6 +154,7 @@ struct SystemRead {
     unreadable: usize,
     missing: usize,
     malformed: usize,
+    named: usize,
     opened: Vec<usize>,
     report: StarmapReport,
 }
@@ -146,6 +166,7 @@ struct System<'a> {
     cancel: Option<&'a CancelToken>,
     name: Arc<str>,
     read: SystemRead,
+    limits: Limits,
     budget: usize,
     open: Vec<usize>,
     seen: [usize; 3],
@@ -158,6 +179,7 @@ impl<'a> System<'a> {
         name: &Arc<str>,
         entry: usize,
         cancel: Option<&'a CancelToken>,
+        limits: Limits,
     ) -> SystemRead {
         let mut system = Self {
             archive,
@@ -165,7 +187,8 @@ impl<'a> System<'a> {
             cancel,
             name: Arc::clone(name),
             read: SystemRead::default(),
-            budget: MAX_CHILDREN,
+            limits,
+            budget: limits.children,
             open: Vec::new(),
             seen: [0; 3],
         };
@@ -173,10 +196,26 @@ impl<'a> System<'a> {
         system.read
     }
 
+    /// Keeps `line` in the report of the issues while there is room.
+    fn issue(&mut self, line: &str) {
+        if self.read.report.issues.len() < REPORT_LINES {
+            self.read
+                .report
+                .issues
+                .push(line.chars().take(LINE_LEN).collect());
+        }
+    }
+
+    /// Counts a Child, or a limit, that left objects without a position, and reports it.
+    fn skipped(&mut self, line: &str) {
+        self.read.malformed += 1;
+        self.issue(line);
+    }
+
     /// Reads the container at `entry` placed at `at`; its Children name `under` as the record
     /// they hang below.
     fn container(&mut self, entry: usize, at: Transform, under: Option<Guid>, external: usize) {
-        if self.cancel.is_some_and(CancelToken::is_cancelled) || self.open.contains(&entry) {
+        if self.cancel.is_some_and(CancelToken::is_cancelled) {
             return;
         }
         let label = self
@@ -184,11 +223,15 @@ impl<'a> System<'a> {
             .entries
             .get(entry)
             .map_or_else(String::new, |socpak| socpak.path().to_owned());
+        if self.open.contains(&entry) {
+            self.skipped(&format!("{label}: names a container that is open above it"));
+            return;
+        }
         let bytes = match self.xml(entry) {
             Ok(bytes) => bytes,
             Err(reason) => {
                 self.read.unreadable += 1;
-                self.read.report.issues.push(format!("{label}: {reason}"));
+                self.issue(&format!("{label}: {reason}"));
                 return;
             }
         };
@@ -211,19 +254,19 @@ impl<'a> System<'a> {
             Err(_) => false,
         };
         self.open.pop();
-        if walked && self.seen[1] > before[1] {
-            self.read.report.containers.push(format!(
-                "{label}: {} children, {} name a record, {} external",
-                self.seen[0] - before[0],
-                self.seen[1] - before[1],
-                self.seen[2] - before[2]
-            ));
-        } else if !walked {
+        if !walked {
             self.read.unreadable += 1;
-            self.read
-                .report
-                .issues
-                .push(format!("{label}: the XML cannot be parsed"));
+            self.issue(&format!("{label}: the XML cannot be parsed"));
+        } else if self.seen[1] > before[1] {
+            self.read.named += 1;
+            if self.read.report.containers.len() < REPORT_LINES {
+                self.read.report.containers.push(format!(
+                    "{label}: {} children, {} name a record, {} external",
+                    self.seen[0] - before[0],
+                    self.seen[1] - before[1],
+                    self.seen[2] - before[2]
+                ));
+            }
         }
     }
 
@@ -288,12 +331,9 @@ impl<'a> System<'a> {
         depth: usize,
         label: &str,
     ) {
-        if depth >= MAX_DEPTH {
-            self.read.malformed += 1;
-            self.read
-                .report
-                .issues
-                .push(format!("{label}: Children nested deeper than {MAX_DEPTH}"));
+        if depth >= self.limits.depth {
+            let limit = self.limits.depth;
+            self.skipped(&format!("{label}: Children nested deeper than {limit}"));
             return;
         }
         let Some(list) = first_below(node, CHILDREN) else {
@@ -304,63 +344,69 @@ impl<'a> System<'a> {
             .filter(|child| child.name().eq_ignore_ascii_case(CHILD))
         {
             if self.budget == 0 {
-                self.read.malformed += 1;
+                let limit = self.limits.children;
+                self.skipped(&format!("{label}: more than {limit} Children in a system"));
                 return;
             }
             self.budget -= 1;
             self.seen[0] += 1;
-            let Some((position, rotation)) = pose(child) else {
-                self.read.malformed += 1;
-                self.read.report.issues.push(format!(
-                    "{label}: malformed pos {:?} or rot {:?} of {:?}",
-                    attribute(child, "pos"),
-                    attribute(child, "rot"),
-                    attribute(child, "entityName")
+            let Some(world) = pose(child)
+                .map(|(position, rotation)| parent.place(position, rotation))
+                .filter(|world| world.is_sane())
+            else {
+                self.skipped(&format!(
+                    "{label}: malformed or out of range pos {} rot {} of {}",
+                    clip(attribute(child, "pos").unwrap_or_default()),
+                    clip(attribute(child, "rot").unwrap_or_default()),
+                    clip(attribute(child, "entityName").unwrap_or_default())
                 ));
                 continue;
             };
-            let world = parent.place(position, rotation);
-            let record = self.note(child, rotation != Rotation::IDENTITY, world, under, label);
+            let record = self.note(child, world, under);
             let below = record.or(under);
             if attribute(child, "external") == Some("1")
-                && external < MAX_EXTERNAL_DEPTH
                 && let Some(path) = attribute(child, "name").filter(|path| !path.is_empty())
             {
-                self.seen[2] += 1;
-                if let Some(entry) = self.index.find(path) {
-                    self.container(entry, world, below, external + 1);
-                } else {
-                    self.read.missing += 1;
-                    self.read
-                        .report
-                        .issues
-                        .push(format!("{label}: the Archive holds no container {path}"));
-                }
+                self.follow(path, world, below, external, label);
             }
             self.children(child, world, below, external, depth + 1, label);
         }
     }
 
-    /// Records the placement of `child` when it names a starmap record, and a sample of its
-    /// rotation for the report; returns the record.
+    /// Opens the external container `path` below a Child placed at `world`.
+    fn follow(
+        &mut self,
+        path: &str,
+        world: Transform,
+        below: Option<Guid>,
+        external: usize,
+        label: &str,
+    ) {
+        self.seen[2] += 1;
+        if external >= self.limits.external {
+            let limit = self.limits.external;
+            self.skipped(&format!(
+                "{label}: external containers nested deeper than {limit}: {}",
+                clip(path)
+            ));
+        } else if let Some(entry) = self.index.find(path) {
+            self.container(entry, world, below, external + 1);
+        } else {
+            self.read.missing += 1;
+            self.issue(&format!(
+                "{label}: the Archive holds no container {}",
+                clip(path)
+            ));
+        }
+    }
+
+    /// Records the placement of `child` when it names a starmap record and returns the record.
     fn note<'d>(
         &mut self,
         child: impl Node<'d>,
-        turned: bool,
         world: Transform,
         under: Option<Guid>,
-        label: &str,
     ) -> Option<Guid> {
-        if turned
-            && let Some(raw) = attribute(child, "rot")
-            && self.read.report.rotations.len() < ROTATION_SAMPLES
-        {
-            self.read.report.rotations.push(format!(
-                "{label} {:?}: rot {raw} pos {:?}",
-                attribute(child, "entityName"),
-                attribute(child, "pos")
-            ));
-        }
         let record = attribute(child, "starMapRecord")
             .and_then(|text| text.trim().parse::<Guid>().ok())
             .filter(|guid| guid.stored() != [0; 16])?;

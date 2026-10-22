@@ -19,8 +19,8 @@ impl<'a> Index<'a> {
         let by_path = entries
             .iter()
             .enumerate()
+            .filter(|(_, entry)| is_socpak(entry.path()))
             .map(|(at, entry)| (key(entry.path()), at))
-            .filter(|(path, _)| path.ends_with(SOCPAK))
             .collect();
         Self { entries, by_path }
     }
@@ -61,6 +61,14 @@ impl<'a> Index<'a> {
             })
             .collect()
     }
+}
+
+/// Returns whether `path` ends in `.socpak`, ignoring ASCII case.
+fn is_socpak(path: &str) -> bool {
+    path.len()
+        .checked_sub(SOCPAK.len())
+        .and_then(|from| path.as_bytes().get(from..))
+        .is_some_and(|tail| tail.eq_ignore_ascii_case(SOCPAK.as_bytes()))
 }
 
 /// Returns `path` in lower case with `\` as separator and no leading separator.

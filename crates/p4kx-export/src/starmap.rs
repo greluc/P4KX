@@ -51,6 +51,7 @@ fn type_of<'f>(forge: &'f DataForge<'f>, guid: CatalogGuid) -> Option<&'f str> {
     let plain = text(Some(tree.root()), "name").filter(|name| !name.starts_with('@'));
     Some(plain.unwrap_or_else(|| class_name(&tree)))
 }
+
 fn millimetres(metres: f64) -> f64 {
     (metres * MILLI).round() / MILLI + 0.0
 }

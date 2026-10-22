@@ -24,16 +24,16 @@ pub(crate) struct ContainerCounts {
 /// What reading the system containers saw, for a person to check the placements by.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StarmapReport {
-    /// One line per container read: its path, the Child elements below it (nested external
-    /// containers included), those naming a starmap record and those naming an external container.
+    /// One line per container read that names starmap records, up to 300 per star system, then
+    /// a line with the total: its path, the Child elements below it (nested external containers
+    /// included), those naming a starmap record and those naming an external container.
     pub containers: Vec<String>,
-    /// One line per container or placement that could not be used, with the reason.
+    /// One line per container, placement or limit that left objects without a position, with
+    /// the reason, up to 300 per star system. A missing or unreadable container is counted once
+    /// per Child that names it, not once per distinct container.
     pub issues: Vec<String>,
     /// One line per record that more than one Child element places, up to 100.
     pub repeated: Vec<String>,
-    /// The raw `rot` values of the first Children with a rotation other than the identity, up to
-    /// 40, each with its container and entity name.
-    pub rotations: Vec<String>,
     /// The socpak containers below ObjectContainers/PU/system that no Child names, up to 200,
     /// the last line giving the total.
     pub unreferenced: Vec<String>,
@@ -41,6 +41,18 @@ pub struct StarmapReport {
 
 /// Placements of one record closer than this, in metres, are one place.
 const SAME_PLACE: f64 = 1.0;
+
+/// The longest quoted attribute value in a report line.
+const QUOTE_LEN: usize = 64;
+
+/// Returns `value` quoted for a report line, cut to 64 characters.
+pub(crate) fn clip(value: &str) -> String {
+    let mut quoted: String = value.chars().take(QUOTE_LEN).collect();
+    if value.chars().count() > QUOTE_LEN {
+        quoted.push('…');
+    }
+    format!("{quoted:?}")
+}
 
 pub(crate) fn apart(a: [f64; 3], b: [f64; 3]) -> bool {
     a.iter()

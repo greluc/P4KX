@@ -16,7 +16,7 @@ const MIN_OBJECTS: usize = 100;
 const PLANET: &str = "Hurston";
 const STATION: &str = "Everus Harbor";
 const EXAMPLES: usize = 10;
-const MAX_UNREADABLE: usize = 5;
+const MAX_MISSING: usize = 5;
 const NEAREST_PLANET_FROM_STAR: f64 = 1.0e9;
 const FARTHEST_PLANET_FROM_STAR: f64 = 1.0e11;
 const NEAREST_STATION_FROM_PLANET: f64 = 1.0e5;
@@ -74,7 +74,14 @@ fn print_unplaced(objects: &[Value]) {
     }
     let mut lines = Vec::new();
     for (kind, unplaced) in &by_type {
-        lines.push(format!("{kind}: {} unplaced", unplaced.len()));
+        let hidden = unplaced
+            .iter()
+            .filter(|object| object["hideInStarmap"] == true)
+            .count();
+        lines.push(format!(
+            "{kind}: {} unplaced, {hidden} hidden",
+            unplaced.len()
+        ));
         for object in unplaced.iter().take(EXAMPLES) {
             lines.push(format!(
                 "    {} | {} | hidden {} | parent {}",
@@ -90,14 +97,21 @@ fn print_unplaced(objects: &[Value]) {
 
 fn print_types(objects: &[Value]) {
     let mut counts: BTreeMap<&str, (usize, usize)> = BTreeMap::new();
+    let mut names: BTreeMap<&str, &str> = BTreeMap::new();
     for object in objects {
+        names.insert(text(object, "/type"), text(object, "/typeName/en"));
         let slot = counts.entry(text(object, "/type")).or_default();
         slot.0 += 1;
         slot.1 += usize::from(position(object).is_some());
     }
     let lines: Vec<String> = counts
         .iter()
-        .map(|(kind, (all, with))| format!("{kind}: {all} objects, {with} placed"))
+        .map(|(kind, (all, with))| {
+            format!(
+                "{kind}: {all} objects, {with} placed, name {:?}",
+                names.get(kind)
+            )
+        })
         .collect();
     print_lines("objects by type", &lines);
 }
@@ -175,10 +189,8 @@ fn the_starmap_of_a_real_archive_places_a_planet_and_a_station() -> TestResult {
         "placed and unplaced add up"
     );
     assert!(summary.systems >= 1, "{summary:?}");
-    assert!(
-        summary.unreadable_containers <= MAX_UNREADABLE,
-        "{summary:?}"
-    );
+    assert_eq!(summary.unreadable_containers, 0, "{summary:?}");
+    assert!(summary.missing_containers <= MAX_MISSING, "{summary:?}");
     assert_eq!(summary.malformed_children, 0, "{summary:?}");
     assert_eq!(
         built.summary().kind(Kind::StarmapObjects).map(|k| k.count),

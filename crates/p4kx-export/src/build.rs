@@ -15,7 +15,8 @@ use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::paint::paints;
 use crate::scan::Scan;
-use crate::starmap_containers::{ContainerCounts, Placements, StarmapReport};
+use crate::starmap_containers::Placements;
+use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, PaintSummary,
@@ -295,6 +296,7 @@ fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> Starma
         ambiguous: counts.ambiguous,
         systems: counts.systems,
         unreadable_containers: counts.unreadable,
+        missing_containers: counts.missing,
         malformed_children: counts.malformed,
     };
     let unplaced_containers = counts.unreadable.saturating_add(counts.malformed);

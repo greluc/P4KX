@@ -9,7 +9,8 @@ use p4kx_extraction::{Archive, CancelToken, Entry, Guid};
 use rayon::prelude::*;
 
 use crate::CatalogError;
-use crate::starmap_index::{Index, SOCPAK, SYSTEM_FOLDER, key};
+use crate::starmap_index::{Index, SOCPAK, key, unreferenced};
+use crate::starmap_report::{ContainerCounts, Placement, StarmapReport, apart};
 use crate::starmap_transform::{Rotation, Transform};
 use crate::starmap_xml::{Node, attribute, first_below, pose};
 
@@ -25,47 +26,14 @@ const MAX_CHILDREN: usize = 1 << 22;
 /// The deepest chain of Child elements that is followed.
 const MAX_DEPTH: usize = 64;
 
+/// The most lines the report keeps of the containers read.
+const CONTAINER_LINES: usize = 300;
+
 /// The most rotations the report quotes.
 const ROTATION_SAMPLES: usize = 40;
 
 /// The deepest chain of external containers that is opened.
 const MAX_EXTERNAL_DEPTH: usize = 8;
-
-/// Where one Starmap Record is placed: the first Child element that names it.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Placement {
-    pub(crate) system: Arc<str>,
-    pub(crate) position: [f64; 3],
-    pub(crate) entity_name: String,
-    pub(crate) placed_under: Option<Guid>,
-}
-
-/// What reading the system containers found, besides the placements.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) struct ContainerCounts {
-    pub(crate) systems: usize,
-    pub(crate) unreadable: usize,
-    pub(crate) malformed: usize,
-    pub(crate) ambiguous: usize,
-}
-
-/// What reading the system containers saw, for a person to check the placements by.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct StarmapReport {
-    /// One line per container read: its path, the Child elements below it (nested external
-    /// containers included), those naming a starmap record and those naming an external container.
-    pub containers: Vec<String>,
-    /// One line per container or placement that could not be used, with the reason.
-    pub issues: Vec<String>,
-    /// One line per record that more than one Child element places, up to 100.
-    pub repeated: Vec<String>,
-    /// The raw `rot` values of the first Children with a rotation other than the identity, up to
-    /// 40, each with its container and entity name.
-    pub rotations: Vec<String>,
-    /// The socpak containers below ObjectContainers/PU/system that no Child names, up to 200,
-    /// the last line giving the total.
-    pub unreferenced: Vec<String>,
-}
 
 /// The placements of the Starmap Records in the system containers of an Archive.
 #[derive(Debug, Default)]
@@ -83,7 +51,8 @@ impl Placements {
     /// Reads the container of every star system of `archive` and the external containers it
     /// names, composing each Child's position with the positions and rotations of the Children
     /// above it. A record placed more than once keeps its first placement in document order,
-    /// the systems taken in the order of their folder names.
+    /// the systems taken in the order of their folder names; one that more than one Child places
+    /// at places more than `SAME_PLACE` metres apart has no position.
     pub(crate) fn read(
         archive: &Archive,
         cancel: Option<&CancelToken>,
@@ -104,6 +73,7 @@ impl Placements {
         for system in read {
             opened.extend(system.opened.iter().copied());
             placements.counts.unreadable += system.unreadable;
+            placements.counts.missing += system.missing;
             placements.counts.malformed += system.malformed;
             placements
                 .report
@@ -112,38 +82,50 @@ impl Placements {
             placements.report.issues.extend(system.report.issues);
             placements.report.rotations.extend(system.report.rotations);
             for (record, placement) in system.placed {
-                match placements.by_record.entry(record) {
-                    MapEntry::Occupied(held) => {
-                        if repeated.insert(record) && placements.report.repeated.len() < 100 {
-                            placements.report.repeated.push(format!(
-                                "{record}: kept {}/{} {:?}, also {}/{}",
-                                held.get().system,
-                                held.get().entity_name,
-                                held.get().position,
-                                placement.system,
-                                placement.entity_name
-                            ));
-                        }
-                    }
-                    MapEntry::Vacant(slot) => {
-                        slot.insert(placement);
-                    }
-                }
+                placements.add(record, placement, &mut repeated);
             }
         }
         placements.counts.ambiguous = repeated.len();
-        let mut unreferenced: Vec<String> = index
-            .by_path
-            .iter()
-            .filter(|(path, at)| path.starts_with(SYSTEM_FOLDER) && !opened.contains(at))
-            .map(|(path, _)| path.clone())
-            .collect();
-        unreferenced.sort_unstable();
-        let total = unreferenced.len();
-        unreferenced.truncate(200);
-        unreferenced.push(format!("{total} in total"));
-        placements.report.unreferenced = unreferenced;
+        let named = placements.report.containers.len();
+        placements.report.containers.truncate(CONTAINER_LINES);
+        placements
+            .report
+            .containers
+            .push(format!("{named} containers name starmap records"));
+        for record in &repeated {
+            placements.by_record.remove(record);
+        }
+        placements.report.unreferenced = unreferenced(&index, &opened);
         Ok(placements)
+    }
+
+    /// Keeps the first placement of `record`; a later one more than `SAME_PLACE` metres from it
+    /// puts the record into `repeated`, to be left unplaced.
+    fn add(&mut self, record: Guid, placement: Placement, repeated: &mut HashSet<Guid>) {
+        let MapEntry::Occupied(held) = self.by_record.entry(record) else {
+            self.by_record.insert(record, placement);
+            return;
+        };
+        let moved = apart(held.get().position, placement.position);
+        if moved {
+            repeated.insert(record);
+        }
+        if self.report.repeated.len() < 100 {
+            self.report.repeated.push(format!(
+                "{record}: {} {}/{} {:?}, also {}/{} {:?}",
+                if moved {
+                    "left unplaced:"
+                } else {
+                    "same place:"
+                },
+                held.get().system,
+                held.get().entity_name,
+                held.get().position,
+                placement.system,
+                placement.entity_name,
+                placement.position
+            ));
+        }
     }
 }
 
@@ -151,6 +133,7 @@ impl Placements {
 struct SystemRead {
     placed: Vec<(Guid, Placement)>,
     unreadable: usize,
+    missing: usize,
     malformed: usize,
     opened: Vec<usize>,
     report: StarmapReport,
@@ -228,14 +211,14 @@ impl<'a> System<'a> {
             Err(_) => false,
         };
         self.open.pop();
-        if walked {
+        if walked && self.seen[1] > before[1] {
             self.read.report.containers.push(format!(
                 "{label}: {} children, {} name a record, {} external",
                 self.seen[0] - before[0],
                 self.seen[1] - before[1],
                 self.seen[2] - before[2]
             ));
-        } else {
+        } else if !walked {
             self.read.unreadable += 1;
             self.read
                 .report
@@ -347,7 +330,7 @@ impl<'a> System<'a> {
                 if let Some(entry) = self.index.find(path) {
                     self.container(entry, world, below, external + 1);
                 } else {
-                    self.read.unreadable += 1;
+                    self.read.missing += 1;
                     self.read
                         .report
                         .issues

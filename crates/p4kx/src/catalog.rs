@@ -177,12 +177,13 @@ const fn relation(warning: SizeWarning) -> &'static str {
 fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()> {
     writeln!(
         out,
-        "starmap placement: {} of {} objects have a position, {} are placed more than once, {} systems, {} containers unreadable, {} children malformed",
+        "starmap placement: {} of {} objects have a position, {} are placed apart, {} systems, {} containers unreadable, {} missing, {} children malformed",
         starmap.placed,
         starmap.objects,
         starmap.ambiguous,
         starmap.systems,
         starmap.unreadable_containers,
+        starmap.missing_containers,
         starmap.malformed_children
     )
 }

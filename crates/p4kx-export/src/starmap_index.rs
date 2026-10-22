@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_extraction::{Archive, Entry};
@@ -75,4 +75,19 @@ pub(crate) fn key(path: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Returns the system containers that were not opened, up to 200, and the total.
+pub(crate) fn unreferenced(index: &Index<'_>, opened: &HashSet<usize>) -> Vec<String> {
+    let mut paths: Vec<String> = index
+        .by_path
+        .iter()
+        .filter(|(path, at)| path.starts_with(SYSTEM_FOLDER) && !opened.contains(at))
+        .map(|(path, _)| path.clone())
+        .collect();
+    paths.sort_unstable();
+    let total = paths.len();
+    paths.truncate(200);
+    paths.push(format!("{total} in total"));
+    paths
 }

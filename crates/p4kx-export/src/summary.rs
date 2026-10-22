@@ -90,13 +90,16 @@ pub struct StarmapSummary {
     pub placed: usize,
     /// The objects no system container places; their position is `null`.
     pub unplaced: usize,
-    /// The records that more than one Child element places; the first placement is kept.
+    /// The records that Child elements place more than 1 m apart; they have no position.
     pub ambiguous: usize,
     /// The star systems whose main container the Archive holds.
     pub systems: usize,
-    /// The containers that are named or listed but cannot be opened or parsed, and the external
-    /// containers the Archive lacks; the objects below them have no position.
+    /// The containers that are named or listed but cannot be opened or parsed; the objects below
+    /// them have no position.
     pub unreadable_containers: usize,
+    /// The external containers a Child names that the Archive does not hold, a fact of the game
+    /// data; the objects below them have no position.
+    pub missing_containers: usize,
     /// The Child elements skipped for a malformed `pos` or `rot`, for a nesting beyond the limit
     /// or beyond the budget of one system; the objects below them have no position.
     pub malformed_children: usize,

@@ -49,6 +49,7 @@ struct StarmapJson {
     ambiguous: usize,
     systems: usize,
     unreadable_containers: usize,
+    missing_containers: usize,
     malformed_children: usize,
 }
 
@@ -61,6 +62,7 @@ impl From<StarmapSummary> for StarmapJson {
             ambiguous: summary.ambiguous,
             systems: summary.systems,
             unreadable_containers: summary.unreadable_containers,
+            missing_containers: summary.missing_containers,
             malformed_children: summary.malformed_children,
         }
     }

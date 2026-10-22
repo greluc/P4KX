@@ -9,7 +9,8 @@ use p4kx_export::{BuiltCatalog, CatalogOptions, CraftingWarning, Filter, Kind, b
 use p4kx_extraction::Archive;
 use serde_json::Value;
 use starmap_fixture::{
-    BAD, BELT, JUMP, MARKER_TEST, MOON, ORPHAN, PLANET, PLANET_TYPE, STAR, STATION, write_archive,
+    BAD, BELT, DOUBLE, JUMP, MARKER_TEST, MOON, ORPHAN, PLANET, PLANET_TYPE, STAR, STATION,
+    write_archive,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -151,14 +152,19 @@ fn an_object_no_container_places_has_no_position_and_a_malformed_child_places_no
 }
 
 #[test]
-fn a_record_placed_twice_keeps_the_first_placement_in_the_order_of_the_systems() -> TestResult {
+fn a_record_placed_twice_keeps_one_place_but_none_when_the_places_are_apart() -> TestResult {
     let (_, catalog) = build(None)?;
     assert_eq!(
-        position(&catalog, PLANET)?,
-        Some([1000.0, 0.0, 0.0]),
-        "terra places it at (5, 5, 5) after stanton"
+        position(&catalog, JUMP)?,
+        Some([0.0, 0.0, 50.0]),
+        "terra places it half a metre away: one place, the first is kept"
     );
-    assert_eq!(object(&catalog, PLANET)?["system"], "stanton", "system");
+    assert_eq!(object(&catalog, JUMP)?["system"], "stanton", "system");
+    assert_eq!(
+        position(&catalog, DOUBLE)?,
+        None,
+        "stanton and terra place it two metres apart: no position"
+    );
     Ok(())
 }
 
@@ -168,29 +174,32 @@ fn the_summary_counts_the_placed_objects_and_what_the_containers_lacked() -> Tes
     let summary = built.summary().starmap();
     assert_eq!(
         (summary.objects, summary.placed, summary.unplaced),
-        (8, 5, 3),
+        (9, 5, 4),
         "objects, placed, unplaced"
     );
     assert_eq!(summary.systems, 3, "broken, stanton and terra");
-    assert_eq!(summary.ambiguous, 1, "the planet is placed twice");
+    assert_eq!(summary.ambiguous, 1, "the double is placed apart");
     assert_eq!(
         summary.malformed_children, 1,
         "the child with the position a,b,c"
     );
     assert_eq!(
-        summary.unreadable_containers, 2,
-        "the system that is no container and the external container the Archive lacks"
+        summary.unreadable_containers, 1,
+        "the system that is no container"
+    );
+    assert_eq!(
+        summary.missing_containers, 1,
+        "the external container the Archive lacks"
     );
     assert!(
         built
             .summary()
             .warnings()
-            .contains(&CraftingWarning::UnplacedStarmapContainers(3)),
-        "a warning for the three"
+            .contains(&CraftingWarning::UnplacedStarmapContainers(2)),
+        "a warning for the unreadable container and the malformed child, not the missing one"
     );
     Ok(())
 }
-
 #[test]
 fn a_development_leftover_is_skipped_and_the_kind_is_counted() -> TestResult {
     let (built, catalog) = build(None)?;
@@ -200,7 +209,7 @@ fn a_development_leftover_is_skipped_and_the_kind_is_counted() -> TestResult {
         .ok_or("the kind")?;
     assert_eq!(
         (kind.count, kind.skipped, kind.complete),
-        (8, 1, true),
+        (9, 1, true),
         "kind"
     );
     assert!(

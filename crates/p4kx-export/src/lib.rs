@@ -84,6 +84,7 @@ mod ship_base;
 mod starmap;
 mod starmap_containers;
 mod starmap_index;
+mod starmap_report;
 mod starmap_transform;
 mod starmap_xml;
 mod summary;
@@ -122,7 +123,7 @@ pub use ship_base::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
     build_ship_base_from,
 };
-pub use starmap_containers::StarmapReport;
+pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
     PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,

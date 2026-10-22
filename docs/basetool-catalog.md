@@ -582,7 +582,7 @@ The `name` is a game text, the localisation key with its English and German text
 |-------|--------|
 | `guid`, `className`, `recordPath` | The Record, as for every entity |
 | `name` | `name`, a localisation key |
-| `type`, `typeGuid` | The `StarMapObjectType` Record the Reference `type` links to: its Record name without the type, e.g. `Planet`, and its GUID; `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
+| `type`, `typeGuid`, `typeName` | The `StarMapObjectType` Record the Reference `type` links to: `type` is its `name` when that is a plain string, else its Record name without the type (LIVE gives these Records a GUID as name, so `type` is then that GUID text), `typeGuid` its GUID, `typeName` its `name` as a localisation key with the texts (a game text); `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
 | `parentGuid` | The Reference `parent`, the `guid` of another entry unless that Record is missing or left out; `null` for none |
 | `hideInStarmap` | `hideInStarmap`; `null` when the Record states none |
 | `system` | The folder of the star system below `Data/ObjectContainers/PU/system` that places the object, e.g. `stanton`; `null` when no container places it |
@@ -604,23 +604,40 @@ without a `starMapRecord` only take part in the composition. ScDataDumper adds t
 without rotating them by the container rotation (`Commands/LoadStarmap.php`); the catalog does
 not.
 
-A record that more than one Child places keeps the first placement, the systems taken in the
-order of their folder names and the Children in document order (`StarmapSummary::ambiguous`
-counts them). A Child whose `pos` or `rot` is malformed (not numbers, not three or four parts, a
+A record that more than one Child places keeps its position when every placement lies within 1 m
+of the first (the same place reached twice); when two lie further apart the record has no position,
+because no placement is the place (`StarmapSummary::ambiguous` counts these records; on LIVE
+all are asteroids and wreck sets of the Nyx ring segments, whose containers are instanced several
+times). A Child whose `pos` or `rot` is malformed (not numbers, not three or four parts, a
 quaternion without length) and everything below it are not placed; so are the Children beyond a
-nesting of 64 or beyond 4,194,304 Children of one system, and the Children of a container the
-Archive lacks or that cannot be read. `p4kx catalog` reports them as `starmap placement`, and the
-containers as a warning (exit code 1).
+nesting of 64 or beyond 4,194,304 Children of one system, and the Children of a container that
+cannot be read. `p4kx catalog` reports them as `starmap placement`, and the unreadable containers and
+malformed Children as a warning (exit code 1). A container that a Child names and the Archive does
+not hold (`missing_containers`; LIVE: two, an event container and a module of a Lorville
+entry) is a fact of the game data, like a patch file the Archive lacks: it is counted and listed in
+`CatalogSummary::starmap_report()` but is no warning.
+
+**Rotation order.** `rot` is read as `w,x,y,z`. The raw values of LIVE settle it: the identity occurs as
+`1,0,0,0`, the rotations of the Nyx ring segments are `a,0,0,b` (about the z axis, the axis of the
+ring) and the small tilts of surface structures `0.98,~0,~0,0.17`; read as `x,y,z,w` the identity would
+be a half turn about x and the ring segments rotations about x. Everus Harbor lies 1.04e6 m from
+Hurston.
+
+**What no container places.** On LIVE (2026-10-22) 2,093 objects are selected and 1,248 have a
+position. The others are not in the three system containers (Stanton, Pyro, Nyx) under a
+`starMapRecord`: the three `SolarSystem` records, the quantum beacons of players and missions, objects the
+game places at run time or only through a container it streams on demand (the `ugf`, `outpost`,
+`derelict` and Lagrange `overlays` containers that no Child names), and many objects that are
+`hideInStarmap`. They keep `position` `null`; the catalog never guesses a place from the parent. The
+probe test `real_archive_starmap_probe` looks for each of them in every object container.
 
 The kind is selected by the prefix `libs/foundry/records/starmap/pu/` and the type `StarMapObject`
 like the others, with the development leftovers left out. The positions do not depend on the
 Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, amenity and radar
 Records are not kinds; the type enters as `type` and `typeGuid`.
 
-Size (an estimate from the synthetic fixture, not yet measured on LIVE): a starmap object is one
-JSON object of about 550 bytes, mostly the record path, four GUIDs and the key names, so 5,000
-objects add about 2.7 MB uncompressed, 10 % of the 26.5 MB of LIVE, and a smaller share compressed
-because the key names and the shared path prefixes repeat. The released marker of a starmap object
+Size, measured on LIVE (2026-10-22): the 2,093 objects are 1,166,164 bytes of JSON (557 bytes each),
+about 4 % of the 26.5 MB of the catalog, and a smaller share compressed. The released marker of a starmap object
 (#417) will be another additive field.
 
 ### Crafting data

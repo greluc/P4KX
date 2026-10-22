@@ -17,6 +17,7 @@ pub(crate) const BELT: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0006;
 pub(crate) const ORPHAN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0007;
 pub(crate) const BAD: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0008;
 pub(crate) const MARKER_TEST: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0009;
+pub(crate) const DOUBLE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000a;
 pub(crate) const PLANET_TYPE: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const STATION_TYPE: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 
@@ -60,6 +61,7 @@ fn database() -> DataForgeBuilder {
         object(ORPHAN, "Orphan", None, None),
         object(BAD, "Bad", None, None),
         object(MARKER_TEST, "Marker_Test", None, None),
+        object(DOUBLE, "Double", None, None),
     ]
     .into_iter()
     .fold(builder, DataForgeBuilder::record)
@@ -131,6 +133,7 @@ fn stanton_system() -> Vec<u8> {
         .child(children(vec![
             planet,
             child("0,0,50", Some(JUMP), "jumppoint_stanton_pyro"),
+            child("7,0,0", Some(DOUBLE), "double_a"),
             group,
         ]))
         .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
@@ -151,7 +154,8 @@ fn terra_system() -> String {
         );
     TestElement::new("ObjectContainer")
         .child(children(vec![
-            child("5,5,5", Some(PLANET), "planet_again"),
+            child("0,0,50.5", Some(JUMP), "jumppoint_again"),
+            child("9,0,0", Some(DOUBLE), "double_b"),
             child("a,b,c", Some(BAD), "bad"),
             missing,
         ]))

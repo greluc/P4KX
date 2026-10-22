@@ -557,7 +557,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "starmap": {"objects": 1500, "placed": 1400, "unplaced": 100, "ambiguous": 0, "systems": 3,
- "unreadable_containers": 0, "malformed_children": 0},
+ "unreadable_containers": 0, "missing_containers": 2, "malformed_children": 0},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -587,11 +587,12 @@ holds another value (`other`) or is missing, also for an item without an English
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
 implementation is not read in full (`unreadable_vehicles`). `starmap` counts the starmap objects
-(`objects`), those with a position (`placed`) and without (`unplaced`), the records more than one
-Child element places (`ambiguous`), the star systems found (`systems`), the containers that cannot
-be read or are missing (`unreadable_containers`) and the Child elements skipped for a malformed
-placement or a limit (`malformed_children`); the last two together are also the warning
-`unplaced_starmap_containers` with their `count`. `playability` counts the
+(`objects`), those with a position (`placed`) and without (`unplaced`), the records that Child
+elements place more than 1 m apart (`ambiguous`, no position), the star systems found (`systems`),
+the containers that cannot be read (`unreadable_containers`), the external containers the Archive
+lacks (`missing_containers`, no warning) and the Child elements skipped for a malformed placement
+or a limit (`malformed_children`); the unreadable containers and the malformed Children together
+are also the warning `unplaced_starmap_containers` with their `count`. `playability` counts the
 items and the ships per value of their `playability`, and the ones no rule classifies
 (`unclassified`, `null` in the catalog). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and
 counts per text occurrence, so a key that several names or descriptions share counts once for

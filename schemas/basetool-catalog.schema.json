@@ -1489,7 +1489,7 @@
           ]
         },
         "type": {
-          "description": "The type of the object, the Record name without its type of the `StarMapObjectType` the\nReference `type` links to, e.g. `Planet`; `null` for a null or dangling Reference. The\nschema keeps a string, as a new type is additive.",
+          "description": "The type of the object: the `name` of the `StarMapObjectType` Record the Reference `type`\nlinks to when that is a plain string, else the Record name without its type (which the game\nsometimes gives as a GUID); `null` for a null or dangling Reference. The schema keeps a\nstring, as a new type is additive.",
           "type": [
             "string",
             "null"
@@ -1505,6 +1505,11 @@
             }
           ],
           "description": "The GUID the Reference `type` links to, `null` for a null Reference."
+        },
+        "typeName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `name` of the type Record when it is a localisation key; the key and the texts are\ngame texts.",
+          "x-gameText": true
         }
       },
       "required": [
@@ -1519,7 +1524,8 @@
         "recordPath",
         "system",
         "type",
-        "typeGuid"
+        "typeGuid",
+        "typeName"
       ],
       "type": "object"
     },

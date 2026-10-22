@@ -35,11 +35,14 @@ The rule is ADR-0054 (amending ADR-0002):
 ### Game texts
 
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
-The game texts of the catalog are every `description` and every `displayType`, and the `name` of a
-starmap object (a place name that comes from localisation, by the owner's decision for #321), each
-with its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
-identifiers, short names or fact values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
-Basetool keeps them, and `displayType`, away from third parties. Every such field carries
+The game texts of the catalog are every `description` and every `displayType`, the `name` of a
+starmap object (a place name that comes from localisation, by the owner's decision for #321), and
+the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
+of a pickup place of a contract, each with
+its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
+identifiers, short names or fact values. The catalog keeps the `description` fields for the
+Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
+from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 
 ```powershell
@@ -105,6 +108,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
 | `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
 | `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
+| `contracts` | The contracts and sub contracts with resolved title, mission type, pickup places and the reputation granted on success, ordered by `guid` and then `subContractGuid` |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -782,6 +786,103 @@ the port's `requiredTags`, compared as stored (case-sensitive, a leading `$` is 
 The tag tree rule of the paints (a tag below a required tag also counts) applies only to the
 `Tag` Records that paints and Tags fields refer to (see "Paints").
 
+### Contracts
+
+`contracts` lists every contract of the `ContractGenerator` Records and every sub contract of a
+contract, one entry each (issue #416). A contract with sub contracts has its own entry and one
+more per sub contract; the entries of a contract share its `guid`, a sub contract's entry names its
+`id` in `subContractGuid`. Entries are ordered by `guid`, then `subContractGuid` (`null` first),
+then `recordGuid`; of two entries with the same `guid` and `subContractGuid` the first is kept.
+
+A contract is an element of the arrays `contracts`, `introContracts`, `legacyContracts` and
+`PVPBountyContract` of a handler in `generators`. One without an `id` (or with a nil one), and one
+whose debug name or Record is a development leftover, is left out and counted in `skipped`; so is a
+sub contract without an `id` (it cannot be told apart) or with a leftover debug name, and an entry
+that the rule on equal `guid` and `subContractGuid` above drops.
+
+| Field | Meaning |
+|-------|---------|
+| `guid`, `subContractGuid` | The `id` of the contract and of the sub contract |
+| `recordGuid`, `recordPath` | The `ContractGenerator` Record |
+| `debugName`, `handler` | The `debugName` of the contract and of its handler |
+| `templateGuid` | The `ContractTemplate` Record the contract names |
+| `notForRelease`, `workInProgress` | The flags as stored, `null` when absent; the catalog does not filter on them |
+| `title` | The resolved title (game text) |
+| `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
+| `contractor` | The `Contractor` string parameter (game text) |
+| `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
+| `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
+| `reputationGains` | The reputation granted on success; an amount may be negative |
+
+**Layers.** Sub contract, contract and handler each override the template: the first of them that
+states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
+contract and contract) or `contractParams` (handler); a sub contract that has no `paramOverrides`
+is read for the same fields directly.
+
+**Title.** The `Title` string parameter of the layers, else the first display string of the
+template's `contractDisplayInfo`. A `~mission(Token)` or `~mission(Token|Variant)` in it is
+replaced, in each language, by what the first layer (sub contract, contract, handler, template
+`contractProperties`) with that `extendedTextToken` says:
+
+- a string-hash property: the text of the first option's `textId`;
+- an organisation property: the first organisation's `stringVariants` entry, with a variant the one
+  whose tag's `tagName` equals it, without a variant the first;
+- a location, AI name or ship spawn property, which the game picks when the mission starts:
+  `[LOCATION]`, `[TARGET]` or `[SHIP]`;
+- anything else, a token no layer states and a text the language lacks: the token in upper case in
+  brackets, e.g. `[CARGO]`.
+
+A replacement that itself holds a `~mission(…)` is expanded up to three levels deep; below that,
+and past 64 replacements or about 4 KiB in one title, a token becomes `[TOKEN]`. Leading and
+trailing blanks are removed from the result; the `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
+the placeholders are the catalog's own convention.
+
+**Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
+`Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
+template leave open from that `MissionBrokerEntry` Record: its `title`, its `type` and, when no
+pickup place is left from the prerequisites (none named, or only stars or objects that are not in
+`starmapObjects`), its `locationMissionAvailable` as the pickup place.
+
+**Mission type.** `missionTypeOverride` of the first layer that states one, else the `type` of the
+template's `contractDisplayInfo`, else of the broker entry; `missionType` is the
+`LocalisedTypeName` of that Record.
+
+**Reputation.** Of the results of the contract (`contractResults.contractResults`), those of type
+`ContractResult_LegacyReputation` whose first `missionResults` entry (success) is set, one
+`reputationGains` entry per `contractResultReputationAmounts` element, in stored order: the
+faction and scope Records with their Record names (the last part of the record path) and the
+`reputationAmount` of the reward Record. A result that does not fire on success is not listed. An
+amount can be negative: on LIVE the 48 negative amounts all belong to the `CFP_OOS`, `HH_OOS` and
+their `_Intro` handlers, whose success results deduct standing, and they are listed as stored. The catalog does not add the amounts up (ADR-0065): a faction
+scope and an affinity scope are separate entries. All sub contracts of a contract list the
+contract's results.
+
+**Contractor.** The `Contractor` string parameter of the first layer (sub contract, contract,
+handler) that states one: the text the game shows as the giver, e.g. of an agency that has no
+faction reputation (game text).
+
+**Pickup places.** The starmap objects named by the prerequisites of the sub contract
+(`additionalPrerequisites`), or, when it names none, of the contract and then of the handler
+(`defaultAvailability.prerequisites`): the `availableLocations` of each
+`ContractPrerequisite_Locality` (a `MissionLocality` Record) and the object of each
+`ContractPrerequisite_Location`, in stored order, none twice. A star (`type` `Star`) is left out and
+what is not in `starmapObjects` is skipped. The list is ordered by rank, stably: the star system
+(`SolarSystem`) first, then planets and moons (`Planet`, `Moon`), then every other type, and holds
+at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGuid`, its `objectType`
+and the `place` name (game text). The places come from the starmap objects of the same build: a
+Filter that leaves them out leaves `pickupPlaces` empty.
+
+**Known gaps (LIVE, 2026-10-22, 5,175 entries).** 27 entries have no title and 4 no mission type
+(templates that state none). A title keeps a `[TOKEN]` where no property of the layers states the
+token: 22 entries (racing, one HeadHunters hijack contract, a few Rough and Ready and Ruto
+contracts), and the run-time tokens such as `[CARGOGRADETOKEN]` and `[REPUTATIONRANK]` (411
+entries each), `[CLAIMNUMBER]`, `[TARGETNAME]`, `[RACETYPE]` and `[ITEM]` stay as placeholders.
+642 entries have no pickup place because neither their prerequisites nor their broker entry name
+one.
+
+Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
+descriptions.
+
 ### Starmap objects
 
 A starmap object (`starmapObjects`) is a `StarMapObject` Record under `starmap/pu` (ADR-0054: a
@@ -978,6 +1079,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
 | `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
 | `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
+| `contracts` | `libs/foundry/records/contracts/contractgenerator/` | `ContractGenerator` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

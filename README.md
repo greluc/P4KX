@@ -13,7 +13,7 @@ All content not authored by the P4KX contributors or its users is the property o
 respective owners. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered
 trademarks of Cloud Imperium Rights LLC.
 
-Copyright (c) 2026 KRT and the P4KX contributors
+Copyright (c) 2026 P4KX contributors
 
 ## Status
 

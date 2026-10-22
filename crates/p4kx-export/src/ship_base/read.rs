@@ -10,7 +10,7 @@ use super::model::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
-use crate::digest::{Digest, Wide};
+use crate::digest::Digest;
 use crate::record_fields::{class_name, component, integer, number, structure};
 
 const SIZE_FIELD: &str = "Components/SAttachableComponentParams/AttachDef/Size";
@@ -112,10 +112,8 @@ impl<'f> ShipReader<'f> {
     }
 }
 
-fn structure_digest(vehicle: &VehicleImplementation) -> Digest {
-    let mut state = Wide::new();
-    vehicle.hash_structure(&mut state);
-    state.digest()
+const fn structure_digest(vehicle: &VehicleImplementation) -> Digest {
+    Digest::from_bytes(vehicle.structure_digest())
 }
 
 const SPACESHIP_FOLDER: &str = "/entities/spaceships/";

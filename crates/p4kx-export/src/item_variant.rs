@@ -8,34 +8,18 @@ use crate::digest::{Digest, Wide, hash_value};
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{component, integer, reference, structure, text};
 
-const COSMETIC_COMPONENTS: [&str; 7] = [
-    "attachable",
-    "purchasable",
-    "material",
-    "display",
-    "interact",
-    "carryable",
-    "usable",
-];
-const COSMETIC_FIELDS: [&str; 9] = [
-    "Material",
-    "Materials",
-    "Tags",
-    "RequiredTags",
-    "Skin",
-    "Tint",
-    "Color",
-    "Colour",
-    "Palette",
-];
-const COSMETIC_FIELD_PART: &str = "interaction";
+const ATTACHABLE: &str = "SAttachableComponentParams";
+const GEOMETRY: &str = "SGeometryResourceParams";
+const INVENTORY: &str = "SCItemInventoryContainerComponentParams";
 
-fn is_cosmetic_field(name: &str) -> bool {
-    COSMETIC_FIELDS
-        .iter()
-        .any(|cosmetic| name.eq_ignore_ascii_case(cosmetic))
-        || name.to_ascii_lowercase().contains(COSMETIC_FIELD_PART)
-}
+/// The components whose data is per-item Records of equal content (interaction, carrying and
+/// actor-usage setups); they are not compared.
+const PER_ITEM_COMPONENTS: [&str; 4] = [
+    "SEntityInteractableParams",
+    "SInteractionStateMachineParams",
+    "SEntityComponentCarryableParams",
+    "SActorUsableParams",
+];
 
 /// What the items of one variant group share (`docs/basetool-catalog.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -49,24 +33,41 @@ pub(crate) struct ItemKey<'f> {
     stats: Digest,
 }
 
+/// Returns the field names of the component `type_name` that are left out of the comparison.
+fn skipped_fields(type_name: &str) -> &'static [&'static str] {
+    match type_name {
+        ATTACHABLE => &["Tags"],
+        GEOMETRY => &["Material", "Materials", "Palette"],
+        INVENTORY => &["openInventoryInteraction", "openLootingInteraction"],
+        _ => &[],
+    }
+}
+
 /// Returns the key of the item `tree` with the stat blocks `stats`; `None` for an item without
-/// an `AttachDef` type or without a component besides the cosmetic ones.
+/// an `AttachDef` type, without a compared component besides `SAttachableComponentParams`, or
+/// whose data holds an error.
 pub(crate) fn key<'f>(tree: &RecordTree<'f>, stats: Option<&ItemStats<'_>>) -> Option<ItemKey<'f>> {
-    let definition = structure(component(tree, "SAttachableComponentParams"), "AttachDef");
+    let definition = structure(component(tree, ATTACHABLE), "AttachDef");
     let kind = text(definition, "Type")?;
     let mut hasher = Wide::new();
-    let mut any_compared = false;
+    let mut beyond_attach = false;
     if let Some(Value::Array(components)) = tree.field("Components") {
         for entry in components {
-            if let Value::Struct(inner) = entry
-                && !is_cosmetic_component(inner.type_name())
-            {
-                any_compared = true;
-                hash_value(&mut hasher, entry, &is_cosmetic_field);
+            let Value::Struct(inner) = entry else {
+                continue;
+            };
+            let name = inner.type_name();
+            if PER_ITEM_COMPONENTS.contains(&name) {
+                continue;
+            }
+            beyond_attach |= name != ATTACHABLE;
+            let skipped = skipped_fields(name);
+            if !hash_value(&mut hasher, entry, &|field| skipped.contains(&field)) {
+                return None;
             }
         }
     }
-    if !any_compared {
+    if !beyond_attach {
         return None;
     }
     Some(ItemKey {
@@ -76,23 +77,16 @@ pub(crate) fn key<'f>(tree: &RecordTree<'f>, stats: Option<&ItemStats<'_>>) -> O
         grade: integer(definition, "Grade"),
         manufacturer: reference(definition, "Manufacturer"),
         components: hasher.digest(),
-        stats: stats_digest(stats),
+        stats: stats_digest(stats)?,
     })
 }
 
-fn is_cosmetic_component(type_name: &str) -> bool {
-    let lower = type_name.to_ascii_lowercase();
-    COSMETIC_COMPONENTS
-        .iter()
-        .any(|cosmetic| lower.contains(cosmetic))
-}
-
-fn stats_digest(stats: Option<&ItemStats<'_>>) -> Digest {
+fn stats_digest(stats: Option<&ItemStats<'_>>) -> Option<Digest> {
     let mut hasher = Wide::new();
     if let Some(stats) = stats {
-        let _written = serde_json::to_writer(HasherWriter(&mut hasher), stats);
+        serde_json::to_writer(HasherWriter(&mut hasher), stats).ok()?;
     }
-    hasher.digest()
+    Some(hasher.digest())
 }
 
 struct HasherWriter<'h, H: Hasher>(&'h mut H);

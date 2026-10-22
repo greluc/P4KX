@@ -564,7 +564,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
- "variants": {"items": {"groups": 0, "variants": 0}, "ships": {"groups": 0, "variants": 0}},
+ "variants": {"items": {"groups": 1108, "variants": 4732},
+ "ships": {"groups": 196, "variants": 850}},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}

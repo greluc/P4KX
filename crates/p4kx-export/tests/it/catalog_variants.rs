@@ -118,6 +118,7 @@ fn ships_with_the_same_definition_and_implementation_are_variants_of_the_smalles
         ("ACAS_Alpha_Edition", Some("ACAS_Alpha")),
         ("ACAS_Alpha_Zulu", Some("ACAS_Alpha")),
         ("ACAS_Alpha_Plated", Some("ACAS_Alpha")),
+        ("ACAS_Alpha_Skin", Some("ACAS_Alpha")),
     ] {
         assert_eq!(base_class(&catalog, class)?.as_deref(), base, "{class}");
     }
@@ -132,6 +133,15 @@ fn a_modification_that_changes_the_implementation_starts_a_group_of_its_own() ->
         ("ACAS_Beta_Edition", Some("ACAS_Beta")),
     ] {
         assert_eq!(base_class(&catalog, class)?.as_deref(), base, "{class}");
+    }
+    Ok(())
+}
+
+#[test]
+fn an_elem_override_of_a_nested_element_or_a_vehicle_child_splits_the_group() -> TestResult {
+    let (_, catalog) = build()?;
+    for class in ["ACAS_Aim", "ACAS_Move"] {
+        assert_eq!(base_class(&catalog, class)?, None, "{class}");
     }
     Ok(())
 }
@@ -158,7 +168,7 @@ fn a_ship_without_a_readable_implementation_is_ungrouped() -> TestResult {
 fn every_ship_carries_the_field_and_it_is_a_guid_or_null() -> TestResult {
     let (_, catalog) = build()?;
     let ships = catalog["ships"].as_array().ok_or("ships")?;
-    assert_eq!(ships.len(), 11);
+    assert_eq!(ships.len(), 14);
     for ship in ships {
         let value = ship.get("variantOf").ok_or("variantOf missing")?;
         assert!(
@@ -177,7 +187,7 @@ fn the_summary_counts_groups_and_variants() -> TestResult {
         built.summary().variants().ships,
         VariantCounts {
             groups: 2,
-            variants: 4
+            variants: 5
         }
     );
     Ok(())

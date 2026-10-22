@@ -225,8 +225,11 @@ const fn ship(
     }
 }
 
-const SHIPS: [Ship; 11] = [
+const SHIPS: [Ship; 14] = [
     ship("ACAS_Alpha", ALPHA_XML, "", None),
+    ship("ACAS_Alpha_Skin", ALPHA_XML, "Skin", None),
+    ship("ACAS_Aim", ALPHA_XML, "Aim", None),
+    ship("ACAS_Move", ALPHA_XML, "Move", None),
     ship("ACAS_Alpha_Edition", ALPHA_XML, "", None),
     ship("ACAS_Alpha_Zulu", ALPHA_XML, "", None),
     ship("ACAS_Beta", ALPHA_XML, "Beta", None),
@@ -283,26 +286,56 @@ fn port(tags: &str) -> TestElement {
                 .child(
                     TestElement::new("Types")
                         .child(TestElement::new("Type").attribute("type", "Paints")),
+                )
+                .child(
+                    TestElement::new("Pitch")
+                        .attribute("id", "pitch")
+                        .attribute("speed", "1"),
                 ),
+        )
+}
+
+fn modification(name: &str, id_ref: &str, attribute: &str, value: &str) -> TestElement {
+    TestElement::new("Modification")
+        .attribute("name", name)
+        .child(
+            TestElement::new("Elems").child(
+                TestElement::new("Elem")
+                    .attribute("idRef", id_ref)
+                    .attribute("name", attribute)
+                    .attribute("value", value),
+            ),
         )
 }
 
 fn vehicle_xml(tags: &str) -> Vec<u8> {
     TestElement::new("Vehicle")
-        .child(TestElement::new("Parts").child(port(tags)))
         .child(
-            TestElement::new("Modifications").child(
-                TestElement::new("Modification")
-                    .attribute("name", "Beta")
-                    .child(
-                        TestElement::new("Elems").child(
-                            TestElement::new("Elem")
-                                .attribute("idRef", "modPaint")
-                                .attribute("name", "requiredTags")
-                                .attribute("value", "Paint_Beta"),
-                        ),
-                    ),
-            ),
+            TestElement::new("Parts")
+                .child(
+                    TestElement::new("Part")
+                        .attribute("id", "hull")
+                        .attribute("class", "Animated")
+                        .attribute("material", "a.mtl"),
+                )
+                .child(port(tags)),
+        )
+        .child(
+            TestElement::new("MovementParams")
+                .attribute("id", "movement")
+                .attribute("maxSpeed", "100"),
+        )
+        .child(
+            TestElement::new("Modifications")
+                .child(modification(
+                    "Beta",
+                    "modPaint",
+                    "requiredTags",
+                    "Paint_Beta",
+                ))
+                .child(modification("Skin", "hull", "material", "b.mtl"))
+                .child(modification("Aim", "pitch", "speed", "2"))
+                .child(modification("Move", "movement", "maxSpeed", "200")),
         )
         .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
 }

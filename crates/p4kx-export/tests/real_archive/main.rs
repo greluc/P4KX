@@ -3,6 +3,7 @@
 
 mod real_archive;
 mod real_archive_catalog_ships;
+mod real_archive_commodity_refining;
 mod real_archive_compression;
 mod real_archive_crafting;
 mod real_archive_crafting_catalog;
@@ -17,6 +18,5 @@ mod real_archive_records;
 mod real_archive_ship_base;
 mod real_archive_starmap;
 mod real_archive_tags;
-mod real_archive_variant_diagnostics;
 mod real_archive_variants;
 mod real_archive_verification;

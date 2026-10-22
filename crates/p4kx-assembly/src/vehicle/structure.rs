@@ -1,67 +1,78 @@
-use std::hash::{Hash, Hasher};
+use sha2::{Digest, Sha256};
 
-use super::{VehicleImplementation, VehicleItemPort, VehiclePart};
+use super::VehicleImplementation;
+use crate::markup::Element;
 
 const COSMETIC_ATTRIBUTES: [&str; 4] = ["material", "materials", "filename", "geometry"];
+const MODIFICATIONS: &str = "Modifications";
+const VEHICLE_NAME: &str = "name";
 
 impl VehicleImplementation {
-    /// Feeds the structure of the implementation into `state`: every part with its attributes,
-    /// numbers, item port and children, in file order, after the Modification is applied.
+    /// Returns a 128-bit digest of the whole `Vehicle` element after the Modification is applied:
+    /// every element below the root except `Modifications`, with all its attributes sorted by
+    /// name, and the children in file order.
     ///
-    /// The file path, the Modification and patch file names, the vehicle name and the issues are
-    /// left out, as are the attributes `material`, `materials`, `filename` and `geometry`, so
-    /// that two ships differing only in paint or model file feed the same bytes.
-    pub fn hash_structure<H: Hasher>(&self, state: &mut H) {
-        self.parts.len().hash(state);
-        for part in &self.parts {
-            part.hash_structure(state);
-        }
+    /// Not compared are the file path, the names of the Modification and its patch file, the
+    /// `name` of the root, the issues, and the attributes `material`, `materials`, `filename`
+    /// and `geometry` anywhere, so that ships differing only in paint or model file digest
+    /// equally.
+    #[must_use]
+    pub const fn structure_digest(&self) -> [u8; 16] {
+        self.structure
     }
 }
 
-impl VehiclePart {
-    fn hash_structure<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        self.class.hash(state);
-        self.kind.hash(state);
-        for number in [
-            self.mass,
-            self.damage_max,
-            self.detach_ratio,
-            self.destroy_ratio,
-        ] {
-            number.map(f64::to_bits).hash(state);
-        }
-        for (key, value) in &self.attributes {
-            if COSMETIC_ATTRIBUTES
-                .iter()
-                .any(|cosmetic| key.eq_ignore_ascii_case(cosmetic))
-            {
-                continue;
-            }
-            key.hash(state);
-            value.hash(state);
-        }
-        self.item_port.is_some().hash(state);
-        if let Some(port) = &self.item_port {
-            port.hash_structure(state);
-        }
-        self.tread_wheels.hash(state);
-        self.children.len().hash(state);
-        for child in &self.children {
-            child.hash_structure(state);
-        }
+/// Returns the digest of the patched `Vehicle` element `root`.
+pub(super) fn digest(root: &Element) -> [u8; 16] {
+    let mut sha = Sha256::new();
+    write_element(&mut sha, root, true);
+    let full = sha.finalize();
+    let mut out = [0_u8; 16];
+    for (slot, byte) in out.iter_mut().zip(full.iter()) {
+        *slot = *byte;
     }
+    out
 }
 
-impl VehicleItemPort {
-    fn hash_structure<H: Hasher>(&self, state: &mut H) {
-        self.min_size.hash(state);
-        self.max_size.hash(state);
-        self.flags.hash(state);
-        self.id.hash(state);
-        self.port_tags.hash(state);
-        self.required_tags.hash(state);
-        self.types.hash(state);
+fn write_count(sha: &mut Sha256, count: usize) {
+    sha.update((count as u64).to_le_bytes());
+}
+
+fn write_text(sha: &mut Sha256, text: &str) {
+    write_count(sha, text.len());
+    sha.update(text.as_bytes());
+}
+
+fn is_compared(name: &str, root: bool) -> bool {
+    if root && name.eq_ignore_ascii_case(VEHICLE_NAME) {
+        return false;
+    }
+    !COSMETIC_ATTRIBUTES
+        .iter()
+        .any(|cosmetic| name.eq_ignore_ascii_case(cosmetic))
+}
+
+fn write_element(sha: &mut Sha256, element: &Element, root: bool) {
+    write_text(sha, &element.name.to_ascii_lowercase());
+    let mut attributes: Vec<(String, &str)> = element
+        .attributes
+        .iter()
+        .filter(|(name, _)| is_compared(name, root))
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.as_str()))
+        .collect();
+    attributes.sort_unstable();
+    write_count(sha, attributes.len());
+    for (name, value) in &attributes {
+        write_text(sha, name);
+        write_text(sha, value);
+    }
+    let children: Vec<&Element> = element
+        .children
+        .iter()
+        .filter(|child| !child.name.eq_ignore_ascii_case(MODIFICATIONS))
+        .collect();
+    write_count(sha, children.len());
+    for child in children {
+        write_element(sha, child, false);
     }
 }

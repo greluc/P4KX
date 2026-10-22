@@ -151,6 +151,50 @@ impl Kind<'_> {
     }
 }
 
+/// Returns the class name (lower case) of the base of the ship `class`, itself for a base.
+fn base_class(catalog: &Value, class: &str) -> Option<String> {
+    let ships = catalog["ships"].as_array()?;
+    let ship = ships
+        .iter()
+        .find(|ship| Kind::class(ship).eq_ignore_ascii_case(class))?;
+    let Some(base) = ship["variantOf"].as_str() else {
+        return Some(class.to_ascii_lowercase());
+    };
+    ships
+        .iter()
+        .find(|ship| ship["guid"].as_str() == Some(base))
+        .map(|ship| Kind::class(ship).to_ascii_lowercase())
+}
+
+fn assert_cutlass_family(catalog: &Value) {
+    let bases: Vec<Option<String>> = [
+        "DRAK_Cutlass_Black",
+        "DRAK_Cutlass_Steel",
+        "DRAK_Cutlass_Red",
+        "DRAK_Cutlass_Blue",
+    ]
+    .iter()
+    .map(|class| base_class(catalog, class))
+    .collect();
+    assert!(
+        bases.iter().all(Option::is_some),
+        "the four Cutlass ships exist"
+    );
+    let distinct: HashSet<&Option<String>> = bases.iter().collect();
+    assert_eq!(distinct.len(), 4, "Black, Steel, Red and Blue stay apart");
+    let black = Some("drak_cutlass_black".to_owned());
+    for class in [
+        "DRAK_Cutlass_Black_Exec_Stealth",
+        "DRAK_Cutlass_Black_PU_AI_CRIM",
+    ] {
+        assert_eq!(
+            base_class(catalog, class),
+            black,
+            "{class} groups under Black"
+        );
+    }
+}
+
 fn print_family(catalog: &Value, needle: &str) {
     let ships = catalog["ships"].as_array().map_or(&[][..], Vec::as_slice);
     let by_guid: HashMap<&str, &str> = ships
@@ -205,6 +249,7 @@ fn the_variant_groups_of_a_real_archive_resolve_within_their_kind() -> TestResul
     for kind in &kinds {
         kind.assert_resolves();
     }
+    assert_cutlass_family(&catalog);
     assert!(summary.ships.groups > 0, "ship groups");
     assert_eq!(
         summary.ships.groups,

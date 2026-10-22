@@ -136,4 +136,32 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn equal_class_names_and_playability_fall_back_to_the_smaller_guid() {
+        let mut high = candidate("Same", None);
+        high.guid = CatalogGuid(Guid::from_stored([9; 16]));
+        let mut low = candidate("Same", None);
+        low.guid = CatalogGuid(Guid::from_stored([1; 16]));
+        let (low_text, high_text) = (low.guid.text(), high.guid.text());
+        let low_guid = low.guid;
+        let (bases, _) = group(&[high, low]);
+        let expected = if low_text < high_text {
+            low_guid
+        } else {
+            CatalogGuid(Guid::from_stored([9; 16]))
+        };
+        assert_eq!(bases.iter().flatten().next(), Some(&expected));
+    }
+
+    #[test]
+    fn a_candidate_without_a_key_stays_ungrouped() {
+        let keyless = Candidate {
+            key: None,
+            ..candidate("A", None)
+        };
+        let (bases, counts) = group(&[keyless, candidate("B", None)]);
+        assert_eq!(bases, vec![None, None]);
+        assert_eq!(counts, VariantCounts::default());
+    }
 }

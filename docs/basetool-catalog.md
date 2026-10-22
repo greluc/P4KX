@@ -439,6 +439,12 @@ from the entity:
 | `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+| `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
+| `refinedSubtypeGuid` | The GUID `refinedVersion` of the `ResourceType` links to; `null` without a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined commodity only when the catalog has that commodity |
+
+The refining fields are described in [commodity-refining.md](commodity-refining.md), with what the
+DataForge does not hold (instability per commodity, yields, counting in SCU or units). The refined
+`ResourceType` may have no commodity of its own; then `refinedSubtypeGuid` matches no `subtypeGuid`.
 
 A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
 `subtypeGuid` links to (`displayName`, `description`) instead. The game holds no field named type
@@ -604,17 +610,19 @@ player ship is grouped with it.
 **Ships** share a group when all of these are equal:
 
 - `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`);
-- the vehicle implementation after the Modification the ship selects (ADR-0050): every part with
-  its name, `class`, numbers (`mass`, `damageMax`, detach and destroy ratios), attributes, item
-  port (sizes, flags, id, tags, types), wheels and children, in file order. The path of the file,
-  the names of the Modification and its patch file and the attributes `material`, `materials`,
-  `filename` and `geometry` are not compared. Because the Modification and its `Elem` overrides are
-  applied before the comparison, an `Elem` override is part of it.
+- the vehicle implementation after the Modification the ship selects (ADR-0050), compared as a
+  whole: the digest covers every element of the patched `Vehicle` tree (parts, item ports and
+  their children such as `Pitch` or `Yaw`, the other children of `Vehicle` such as
+  `MovementParams`) with all its attributes, sorted by name, and the children in file order. The
+  `Modifications` element, the path of the file, the names of the Modification and its patch file,
+  the `name` of the root and the attributes `material`, `materials`, `filename` and `geometry`
+  anywhere are not compared. Because the patch file and the `Elem` overrides are applied before
+  the comparison, whatever they change is part of it. The item ports that take paints are part of
+  it too, so a Modification that changes only the paints a ship accepts starts a group of its own.
 
 The ship Record has no armour component on LIVE (no component struct name contains `armor` or
-`armour`; checked on build 4.10), so no armour term enters the rule. The default loadout, the
-names, the paints and the livery do not count: editions that differ only
-in their loadout or a paint are variants. On LIVE `AEGS_Idris_P` therefore groups under
+`armour`; build 4.10), so no armour term enters the rule. The default loadout and the names do not
+count: editions that differ only in their loadout, or in a material, are variants. On LIVE `AEGS_Idris_P` therefore groups under
 `AEGS_Idris_M` and `AEGS_Sabre_Comet` under `AEGS_Sabre`, because they differ only in their
 default loadout. A ship without a `vehicleDefinition`, or whose vehicle
 implementation cannot be read in full (a missing file or patch file, a broken document), is
@@ -624,24 +632,31 @@ ungrouped, because equality cannot be shown.
 
 - `type`, `subType`, `size`, `grade` and `manufacturerGuid` of the `AttachDef`;
 - the stat blocks (`stats`, ADR-0065), including `resourceStates`;
-- the other components: every component of the Record is compared with all its fields, except the
-  components whose struct name contains `attachable` (the `AttachDef` fields above are compared
-  one by one), `purchasable`, `material`, `display`, `interact`, `carryable` or `usable` (the
-  interaction, carrying and actor-usage components hold per-item Records of equal content), and
-  the fields `Material`, `Materials`, `Tags`, `RequiredTags`, `Skin`, `Tint`, `Color`, `Colour`,
-  `Palette` and every field whose name contains `interaction`. Localisation keys are never
-  compared. The geometry component is compared, so the model (the geometry file of every node)
-  must be equal; only its material and palette are left out. A different model is not cosmetic.
-  On LIVE the clothing and armour colour variants differ in exactly these: name, tags, material
-  path, palette and the per-item interaction Records.
+- the components: every component of the Record is compared with all its fields, including
+  `SAttachableComponentParams` (without its `Tags`), the physics, the default loadout of an item
+  that has ports (`SEntityComponentDefaultLoadoutParams`, unlike ships) and the geometry, whose
+  model (the geometry file of every node) must be equal: a different model is not cosmetic.
+  Left out are exactly these components: `SEntityInteractableParams`,
+  `SInteractionStateMachineParams`, `SEntityComponentCarryableParams` and `SActorUsableParams`
+  (per-item Records of equal content), and these fields: `Tags` of `SAttachableComponentParams`,
+  `Material`, `Materials` and `Palette` of `SGeometryResourceParams`, and `openInventoryInteraction`
+  and `openLootingInteraction` of `SCItemInventoryContainerComponentParams`. Localisation keys
+  (names, descriptions, display names) are never compared. On LIVE the clothing and armour
+  colour variants differ in exactly these: name, tags, material path, palette and the per-item
+  interaction Records.
 
-An item with no component besides those excluded, or without an `AttachDef` type, is ungrouped.
-Names, descriptions, tags and the display type may therefore differ inside a group.
+An item with no compared component besides `SAttachableComponentParams`, without an `AttachDef`
+type, or whose data holds a value the reader could not read, is ungrouped. Names, descriptions,
+tags and the display type may therefore differ inside a group.
 
-`variantOf` means "structurally identical", not only "cosmetic": per-ship functional duplicates
-that differ in their name alone are grouped too. On LIVE the largest item groups are such
-duplicates (96 `Controller_Shield_<ship>`, 39 `Engineering_Buff_Modifier_<ship>`). A consumer
-that wants only what a player sees or fits combines `variantOf` with `playability`.
+`variantOf` means "structurally identical", not only "cosmetic". Per-ship functional duplicates
+that differ in their name alone are grouped too (e.g. the `Controller_Shield_<ship>` and
+`Engineering_Buff_Modifier_<ship>` items), and so can fitment such as ATC managers, docking tubes,
+intakes or quantum tanks, depending on whether the Records of the ships differ in a compared field
+(LIVE, build 4.10: groups of 117 ATC managers, 75 docking tubes, 54 intakes and 38 quantum tanks
+were measured under an earlier version of the rule; the counts shift with the rule and the
+build). Fitment differences may or may not split a group. A consumer that wants only what a player
+sees or fits combines `variantOf` with `playability`.
 
 **Base.** The member with `playability` `player`, then the member with the smallest `className`
 (compared byte-wise), then the smallest `guid`. A group holds at least two members;
@@ -852,8 +867,13 @@ Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, 
 Records are not kinds; the type enters as `type` and `typeGuid`.
 
 Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON (570 bytes each), 4.5 % of the 26.5 MB of the
-catalog, and a smaller share compressed. The released marker of a starmap object
-(#417) will be another additive field.
+catalog, and a smaller share compressed.
+
+**No released marker.** The Archive states no structural marker that tells a released starmap
+object from an unreleased one (ADR-0067, #417): the three star system Records carry the same flags,
+`hideInStarmap` is set on helper content of the released systems too, and the type suffixes
+(`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
+Basetool decides from `system`, `position`, `hideInStarmap` and `type`.
 
 ### Crafting data
 

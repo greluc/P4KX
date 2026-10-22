@@ -26,7 +26,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
-            "loadouts": {"status": "complete"}
+            "loadouts": {"status": "complete"},
+            "contracts": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -168,7 +169,28 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "itemGuid": "30000000-0000-4000-8000-000000000001",
             "shipGuids": ["90000000-0000-4000-8000-000000000001"]
         }],
-        "loadouts": loadouts()
+        "loadouts": loadouts(),
+        "contracts": [{
+            "guid": "20000000-0000-4000-8000-000000000001",
+            "subContractGuid": "30000000-0000-4000-8000-000000000002",
+            "recordGuid": "10000000-0000-4000-8000-000000000001",
+            "recordPath": "libs/foundry/records/contracts/contractgenerator/delivery",
+            "debugName": "Deliver_A",
+            "handler": "Delivery_Career",
+            "templateGuid": "40000000-0000-4000-8000-000000000001",
+            "notForRelease": false,
+            "workInProgress": null,
+            "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
+            "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
+            "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
+            "reputationGains": [{
+                "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
+                "factionReputationName": "acme",
+                "scopeGuid": "60000000-0000-4000-8000-000000000002",
+                "scopeName": "faction",
+                "amount": 200
+            }]
+        }]
     })
 }
 

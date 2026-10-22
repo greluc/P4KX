@@ -10,6 +10,7 @@ pub(crate) use crate::contract_crafting::{
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_loadout::Loadout;
+pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -62,6 +63,9 @@ pub(crate) struct Catalog<'a> {
     /// The ports of every ship and of every item that has ports, with what the Default Loadout
     /// attaches to each, ordered by the GUID of the entity.
     pub(crate) loadouts: Vec<Loadout>,
+    /// The contracts and sub contracts with resolved titles, mission types and the reputation they
+    /// grant on success, ordered by the GUID of the contract and then of the sub contract.
+    pub(crate) contracts: Vec<ContractEntry<'a>>,
 }
 
 /// Where a catalog came from.
@@ -132,6 +136,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) paints: KindCompleteness<'a>,
     /// The completeness of `loadouts`.
     pub(crate) loadouts: KindCompleteness<'a>,
+    /// The completeness of `contracts`.
+    pub(crate) contracts: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -151,6 +157,7 @@ impl<'a> Completeness<'a> {
             dismantle_processes: completeness,
             paints: completeness,
             loadouts: completeness,
+            contracts: completeness,
         }
     }
 }

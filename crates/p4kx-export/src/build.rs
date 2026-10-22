@@ -15,6 +15,7 @@ use crate::contract::{
 use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
+use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
 use crate::texts::{TextSources, Texts};
@@ -187,12 +188,11 @@ fn assemble<R>(
     }
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    add_contracts(&forge, &texts, options, &mut collected)?;
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
     let playability = collected.playability;
-    let failures = collected.failures;
-    let warnings = collected.warnings;
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
@@ -211,6 +211,7 @@ fn assemble<R>(
         crafting_global: collected.crafting_global,
         paints: collected.paints,
         loadouts: collected.loadouts,
+        contracts: collected.contracts,
     };
     let output = emit(&catalog)?;
     Ok((
@@ -222,8 +223,8 @@ fn assemble<R>(
             paints: paint_summary,
             loadouts: loadout_summary,
             playability,
-            failures,
-            warnings,
+            failures: collected.failures,
+            warnings: collected.warnings,
         },
         output,
     ))
@@ -235,6 +236,18 @@ fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> 
             filter: filter.as_str(),
         }
     })
+}
+
+/// Reads the contracts and sub contracts into `collected`.
+fn add_contracts<'f>(
+    forge: &'f DataForge<'f>,
+    texts: &Texts<'f>,
+    options: &CatalogOptions<'_>,
+    collected: &mut Collected<'f>,
+) -> Result<(), CatalogError> {
+    let missions = missions::read(forge, texts, options.filter, options.cancel)?;
+    collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
+    Ok(())
 }
 
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.

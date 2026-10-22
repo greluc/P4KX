@@ -82,11 +82,14 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
     let mut marked = 0;
     for (name, value) in properties {
         let carries = value.get("x-gameText") == Some(&json!(true));
-        let game_text = name == "description" || name == "displayType";
+        let game_text = ["description", "displayType", "title", "missionType"].contains(&name);
         assert_eq!(carries, game_text, "x-gameText on {name}");
         marked += usize::from(carries);
     }
-    assert_eq!(marked, 6, "four descriptions and two display types");
+    assert_eq!(
+        marked, 8,
+        "four descriptions, two display types, the contract title and the mission type"
+    );
 }
 
 #[test]
@@ -184,6 +187,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "dismantleProcesses",
         "paints",
         "loadouts",
+        "contracts",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);

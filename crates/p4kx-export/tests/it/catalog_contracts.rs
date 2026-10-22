@@ -1,0 +1,205 @@
+//! Contracts and sub contracts in the Basetool catalog, through the public API.
+
+use crate::contracts_fixture;
+
+use std::error::Error;
+use std::time::{Duration, UNIX_EPOCH};
+
+use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog};
+use p4kx_extraction::Archive;
+use serde_json::{Value, json};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+fn build(filter: Option<&Filter>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archive = Archive::open_with_key(
+        contracts_fixture::write_archive(dir.path())?,
+        Some(p4kx_testkit::test_key()),
+    )?;
+    let mut options = CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000));
+    options.filter = filter;
+    let built = build_catalog(&archive, &options)?;
+    let json = serde_json::from_slice(built.json())?;
+    Ok((built, json))
+}
+
+fn entry<'a>(catalog: &'a Value, contract: &str, sub: Option<&str>) -> Result<&'a Value, String> {
+    catalog["contracts"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|entry| {
+            entry["guid"] == contract
+                && entry["subContractGuid"] == sub.map_or(Value::Null, Value::from)
+        })
+        .ok_or_else(|| format!("{contract} {sub:?}"))
+}
+
+const A: &str = "20000000-0000-4000-8000-000000000001";
+const B: &str = "20000000-0000-4000-8000-000000000002";
+const C: &str = "20000000-0000-4000-8000-000000000003";
+const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
+const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
+
+#[test]
+fn a_contract_and_each_sub_contract_is_an_entry_ordered_by_guid() -> TestResult {
+    let (built, catalog) = build(None)?;
+    let keys: Vec<(&str, Option<&str>)> = catalog["contracts"]
+        .as_array()
+        .ok_or("contracts")?
+        .iter()
+        .map(|entry| {
+            (
+                entry["guid"].as_str().unwrap_or_default(),
+                entry["subContractGuid"].as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            (A, None),
+            (A, Some(SUB_ONE)),
+            (A, Some(SUB_TWO)),
+            (B, None),
+            (C, None)
+        ],
+        "the contract, then its sub contracts; the leftover and the contract without an id are out"
+    );
+    let kind = built.summary().kind(Kind::Contracts);
+    assert_eq!(
+        kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
+        Some((5, 2, true)),
+        "counts"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_title_resolves_tokens_and_writes_placeholders_for_what_the_game_picks() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["title"],
+        json!({
+            "key": "@title_a",
+            "en": "Deliver Scrap to [LOCATION] for Acme Corp [MISSING]",
+            "de": "Liefere [CARGO] nach [LOCATION] fuer Acme GmbH",
+        }),
+        "the contract's property wins over the template's; the variant picks the tagged string; \
+         an unknown token and a key without a text become [TOKEN]; blanks are trimmed"
+    );
+    assert_eq!(
+        entry(&catalog, A, Some(SUB_ONE))?["title"],
+        json!({"key": "@title_sub", "en": "Stop [TARGET] in [SHIP]", "de": null}),
+        "the sub contract's own title"
+    );
+    assert_eq!(
+        entry(&catalog, A, Some(SUB_TWO))?["title"],
+        entry(&catalog, A, None)?["title"],
+        "a sub contract without a title takes the contract's"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_title_falls_back_to_the_handler_and_then_the_template() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, B, None)?["title"],
+        json!({"key": "@title_template", "en": "Plain Delivery", "de": null}),
+        "the template's first display string, trimmed"
+    );
+    assert_eq!(
+        entry(&catalog, C, None)?["title"]["en"],
+        "Handler Title",
+        "the handler's title wins over the template's"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_mission_type_is_the_nearest_override_else_the_template_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["missionType"],
+        json!({"key": "@type_delivery", "en": "Delivery", "de": "Lieferung"}),
+        "the template's type"
+    );
+    assert_eq!(
+        entry(&catalog, A, Some(SUB_ONE))?["missionType"]["en"],
+        "Escort",
+        "the sub contract's override"
+    );
+    assert_eq!(
+        entry(&catalog, C, None)?["missionType"]["en"],
+        "Bounty",
+        "the handler's override"
+    );
+    assert_eq!(
+        entry(&catalog, C, None)?["missionTypeGuid"],
+        "50000000-0000-4000-8000-000000000002"
+    );
+    Ok(())
+}
+
+#[test]
+fn only_the_reputation_a_contract_grants_on_success_is_listed() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["reputationGains"],
+        json!([
+            {
+                "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
+                "factionReputationName": "acme",
+                "scopeGuid": "60000000-0000-4000-8000-000000000002",
+                "scopeName": "faction",
+                "amount": 200,
+            },
+            {
+                "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
+                "factionReputationName": "acme",
+                "scopeGuid": "60000000-0000-4000-8000-000000000003",
+                "scopeName": "affinity",
+                "amount": 50,
+            },
+        ]),
+        "faction and affinity scope; the failure result with -100 is not listed"
+    );
+    assert_eq!(entry(&catalog, B, None)?["reputationGains"], json!([]));
+    Ok(())
+}
+
+#[test]
+fn an_entry_carries_its_record_template_handler_and_flags() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let first = entry(&catalog, A, None)?;
+    assert_eq!(first["recordGuid"], "10000000-0000-4000-8000-000000000001");
+    assert_eq!(
+        first["recordPath"],
+        "libs/foundry/records/contracts/contractgenerator/delivery"
+    );
+    assert_eq!(first["debugName"], "Deliver_A");
+    assert_eq!(first["handler"], "Delivery_Career");
+    assert_eq!(
+        first["templateGuid"],
+        "40000000-0000-4000-8000-000000000001"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_filter_that_matches_no_generator_leaves_no_contract_and_marks_the_kind_partial() -> TestResult
+{
+    let filter = Filter::new("no_such_generator");
+    let (built, catalog) = build(Some(&filter))?;
+    assert_eq!(catalog["contracts"], json!([]));
+    assert_eq!(
+        built
+            .summary()
+            .kind(Kind::Contracts)
+            .map(|kind| kind.complete),
+        Some(false)
+    );
+    Ok(())
+}

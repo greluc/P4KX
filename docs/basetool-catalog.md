@@ -35,10 +35,11 @@ The rule is ADR-0054 (amending ADR-0002):
 ### Game texts
 
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
-The game texts of the catalog are every `description` and every `displayType`, each with its `key`,
-`en` and `de`. `name`, `role`, `career` and the other fields are identifiers, short names or fact
-values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
-Basetool keeps them, and `displayType`, away from third parties. Every such field carries
+The game texts of the catalog are every `description` and every `displayType`, the `title` and
+`missionType` of a contract, each with its `key`, `en` and `de`. `name`, `role`, `career` and the
+other fields are identifiers, short names or fact values. The catalog keeps the `description`
+fields for the Basetool's logged-in members; the Basetool keeps them, `displayType` and the
+contract texts away from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 
 ```powershell
@@ -103,6 +104,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
 | `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
+| `contracts` | The contracts and sub contracts with resolved title and mission type and the reputation granted on success, ordered by `guid` and then `subContractGuid` |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -705,6 +707,67 @@ the port's `requiredTags`, compared as stored (case-sensitive, a leading `$` is 
 The tag tree rule of the paints (a tag below a required tag also counts) applies only to the
 `Tag` Records that paints and Tags fields refer to (see "Paints").
 
+### Contracts
+
+`contracts` lists every contract of the `ContractGenerator` Records and every sub contract of a
+contract, one entry each (issue #416). A contract with sub contracts has its own entry and one
+more per sub contract; the entries of a contract share its `guid`, a sub contract's entry names its
+`id` in `subContractGuid`. Entries are ordered by `guid`, then `subContractGuid` (`null` first),
+then `recordGuid`; of two entries with the same `guid` and `subContractGuid` the first is kept.
+
+A contract is an element of the arrays `contracts`, `introContracts`, `legacyContracts` and
+`PVPBountyContract` of a handler in `generators`. One without an `id` (or with a nil one), and one
+whose debug name or Record is a development leftover, is left out and counted in `skipped`; so is a
+sub contract without an `id`, which cannot be told apart.
+
+| Field | Meaning |
+|-------|---------|
+| `guid`, `subContractGuid` | The `id` of the contract and of the sub contract |
+| `recordGuid`, `recordPath` | The `ContractGenerator` Record |
+| `debugName`, `handler` | The `debugName` of the contract and of its handler |
+| `templateGuid` | The `ContractTemplate` Record the contract names |
+| `notForRelease`, `workInProgress` | The flags as stored, `null` when absent; the catalog does not filter on them |
+| `title` | The resolved title (game text) |
+| `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
+| `reputationGains` | The reputation granted on success |
+
+**Layers.** Sub contract, contract and handler each override the template: the first of them that
+states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
+contract and contract) or `contractParams` (handler); a sub contract that has no `paramOverrides`
+is read for the same fields directly.
+
+**Title.** The `Title` string parameter of the layers, else the first display string of the
+template's `contractDisplayInfo`. A `~mission(Token)` or `~mission(Token|Variant)` in it is
+replaced, in each language, by what the first layer (sub contract, contract, handler, template
+`contractProperties`) with that `extendedTextToken` says:
+
+- a string-hash property: the text of the first option's `textId`;
+- an organisation property: the first organisation's `stringVariants` entry, with a variant the one
+  whose tag's `tagName` equals it, without a variant the first;
+- a location, AI name or ship spawn property, which the game picks when the mission starts:
+  `[LOCATION]`, `[TARGET]` or `[SHIP]`;
+- anything else, a token no layer states and a text the language lacks: the token in upper case in
+  brackets, e.g. `[CARGO]`.
+
+A replacement is not expanded again. Leading and trailing blanks are removed from the result; the
+`key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
+the placeholders are the catalog's own convention.
+
+**Mission type.** `missionTypeOverride` of the first layer that states one, else the `type` of the
+template's `contractDisplayInfo`; `missionType` is the `LocalisedTypeName` of that Record.
+
+**Reputation.** Of the results of the contract (`contractResults.contractResults`), those of type
+`ContractResult_LegacyReputation` whose first `missionResults` entry (success) is set, one
+`reputationGains` entry per `contractResultReputationAmounts` element, in stored order: the
+faction and scope Records with their Record names (the last part of the record path) and the
+`reputationAmount` of the reward Record. A result that fires on another outcome, such as a failure
+with a negative amount, is not listed. The catalog does not add the amounts up (ADR-0065): a faction
+scope and an affinity scope are separate entries. All sub contracts of a contract list the
+contract's results.
+
+Not exported: the places a contract picks up at (the StarMapObject types come with the starmap
+kind), a computed reward (`ContractResult_CalculatedReward`, ADR-0065), descriptions.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -807,6 +870,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
 | `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
+| `contracts` | `libs/foundry/records/contracts/contractgenerator/` | `ContractGenerator` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

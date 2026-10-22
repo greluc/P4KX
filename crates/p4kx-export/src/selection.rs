@@ -47,11 +47,14 @@ pub enum Kind {
     /// Default Loadout attaches to each. Derived from the items and ships, so no record-path rule
     /// of its own.
     Loadouts,
+    /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
+    /// `contracts/contractgenerator`, one entry each.
+    Contracts,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -65,6 +68,7 @@ impl Kind {
         Self::DismantleProcesses,
         Self::Paints,
         Self::Loadouts,
+        Self::Contracts,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -84,11 +88,12 @@ impl Kind {
             Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
+            Self::Contracts => "contracts",
         }
     }
 
-    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) rather than
-    /// by the generic selection of the catalog build.
+    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) or by the
+    /// contract reader rather than by the generic selection of the catalog build.
     pub(crate) const fn is_crafting(self) -> bool {
         matches!(
             self,
@@ -97,6 +102,7 @@ impl Kind {
                 | Self::QualityDistributions
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
+                | Self::Contracts
         )
     }
 
@@ -157,6 +163,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
                 type_name: "CraftingBlueprintRecord",
             },
+            Self::Contracts => KindRule {
+                prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
+                type_name: "ContractGenerator",
+            },
         }
     }
 
@@ -186,6 +196,7 @@ impl Kind {
             Self::DismantleProcesses => 10,
             Self::Paints => 11,
             Self::Loadouts => 12,
+            Self::Contracts => 13,
         }
     }
 

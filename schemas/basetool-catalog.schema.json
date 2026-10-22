@@ -419,6 +419,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
         },
+        "contracts": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `contracts`."
+        },
         "dismantleProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `dismantleProcesses`."
@@ -461,6 +465,7 @@
         "blueprintPools",
         "blueprints",
         "commodities",
+        "contracts",
         "dismantleProcesses",
         "gameplayProperties",
         "items",
@@ -470,6 +475,117 @@
         "qualityDistributions",
         "resourceGroups",
         "ships"
+      ],
+      "type": "object"
+    },
+    "ContractEntry": {
+      "description": "A contract or one of its sub contracts, with the overrides of sub contract, contract and\nhandler laid over the template.",
+      "properties": {
+        "debugName": {
+          "description": "The `debugName` of the contract, `null` when it has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `id` of the contract."
+        },
+        "handler": {
+          "description": "The `debugName` of the handler that holds the contract, `null` when it has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "missionType": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The localised name of the mission type.",
+          "x-gameText": true
+        },
+        "missionTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MissionType` Record: the override of the sub contract, else of the\ncontract, else of the handler, else the type of the template; `null` when there is none."
+        },
+        "notForRelease": {
+          "description": "Whether the contract is marked `notForRelease`, `null` when the flag is absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recordGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the `ContractGenerator` Record that holds the contract."
+        },
+        "recordPath": {
+          "description": "The record path of the `ContractGenerator` Record, without `.xml`.",
+          "type": "string"
+        },
+        "reputationGains": {
+          "description": "The reputation the contract grants on success, one entry per amount: the results whose\nfirst mission result (success) is set. A result that fires on failure is left out.",
+          "items": {
+            "$ref": "#/$defs/ReputationGain"
+          },
+          "type": "array"
+        },
+        "subContractGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `id` of the sub contract; `null` for the contract itself. A contract with sub\ncontracts has its own entry and one entry per sub contract."
+        },
+        "templateGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ContractTemplate` Record the contract names, `null` when it names none."
+        },
+        "title": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The title: the `Title` of the sub contract, else of the contract, else of the handler, else\nthe first display string of the template. A `~mission(Token)` in it is replaced by the text\nthe first of sub contract, contract, handler and template states for the token, or by a\nplaceholder such as `[LOCATION]`, `[TARGET]` or `[SHIP]` for what the game picks when the\nmission starts. Trailing and leading blanks are removed.",
+          "x-gameText": true
+        },
+        "workInProgress": {
+          "description": "Whether the contract is marked `workInProgress`, `null` when the flag is absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "debugName",
+        "guid",
+        "handler",
+        "missionType",
+        "missionTypeGuid",
+        "notForRelease",
+        "recordGuid",
+        "recordPath",
+        "reputationGains",
+        "subContractGuid",
+        "templateGuid",
+        "title",
+        "workInProgress"
       ],
       "type": "object"
     },
@@ -1864,6 +1980,63 @@
       ],
       "type": "object"
     },
+    "ReputationGain": {
+      "description": "One reputation amount a contract grants on success.",
+      "properties": {
+        "amount": {
+          "description": "The `reputationAmount` of the reward Record, `null` when it cannot be read.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the faction reputation Record, `null` when the result names none."
+        },
+        "factionReputationName": {
+          "description": "The Record name of the faction reputation, `null` when the result names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the reputation scope Record, `null` when the result names none."
+        },
+        "scopeName": {
+          "description": "The Record name of the reputation scope, e.g. the faction or the affinity scope, `null`\nwhen the result names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "amount",
+        "factionReputationGuid",
+        "factionReputationName",
+        "scopeGuid",
+        "scopeName"
+      ],
+      "type": "object"
+    },
     "ResourceFlow": {
       "description": "One generation or consumption of a resource, per second, in the unit the Archive states.",
       "properties": {
@@ -2436,6 +2609,13 @@
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
     },
+    "contracts": {
+      "description": "The contracts and sub contracts with resolved titles, mission types and the reputation they\ngrant on success, ordered by the GUID of the contract and then of the sub contract.",
+      "items": {
+        "$ref": "#/$defs/ContractEntry"
+      },
+      "type": "array"
+    },
     "craftingGlobal": {
       "$ref": "#/$defs/CraftingGlobal",
       "description": "The global crafting parameters that apply to every dismantle."
@@ -2521,6 +2701,7 @@
     "blueprints",
     "commodities",
     "completeness",
+    "contracts",
     "craftingGlobal",
     "dismantleProcesses",
     "gameplayProperties",

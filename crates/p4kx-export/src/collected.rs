@@ -4,8 +4,9 @@ use crate::blueprint_category::blueprint_category;
 use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
-    Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
-    GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
+    Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
+    DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution,
+    ResourceGroup, Ship,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -77,7 +78,8 @@ impl<'f> Picked<'f> {
             | Kind::BlueprintPools
             | Kind::DismantleProcesses
             | Kind::Paints
-            | Kind::Loadouts => return None,
+            | Kind::Loadouts
+            | Kind::Contracts => return None,
         })
     }
 }
@@ -98,6 +100,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) crafting_global: CraftingGlobal,
     pub(crate) paints: Vec<Paint>,
     pub(crate) loadouts: Vec<Loadout>,
+    pub(crate) contracts: Vec<ContractEntry<'f>>,
     pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
@@ -132,6 +135,7 @@ impl<'f> Collected<'f> {
             crafting_global: crafting.global,
             paints: Vec::new(),
             loadouts: Vec::new(),
+            contracts: Vec::new(),
             port_items: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
@@ -169,6 +173,20 @@ impl<'f> Collected<'f> {
         }
         collected.order();
         collected
+    }
+
+    /// Stores the contracts, counts the entries left out as `skipped` and adds the failures.
+    pub(crate) fn add_contracts(
+        &mut self,
+        contracts: Vec<ContractEntry<'f>>,
+        skipped: usize,
+        failures: Vec<CatalogFailure>,
+    ) {
+        self.contracts = contracts;
+        if let Some(slot) = self.skipped.get_mut(Kind::Contracts.index()) {
+            *slot = skipped;
+        }
+        self.add_failures(failures);
     }
 
     /// Adds `failures` and orders all of them by the text of the GUID, one per Record.
@@ -219,6 +237,7 @@ impl<'f> Collected<'f> {
                     Kind::DismantleProcesses => self.dismantle_processes.len(),
                     Kind::Paints => self.paints.len(),
                     Kind::Loadouts => self.loadouts.len(),
+                    Kind::Contracts => self.contracts.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

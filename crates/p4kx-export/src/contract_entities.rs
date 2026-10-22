@@ -134,8 +134,7 @@ pub(crate) struct Ship<'a> {
     #[schemars(with = "Option<String>")]
     pub(crate) playability: Option<Playability>,
     /// The GUID of the base of the variant group the ship belongs to: the ships that share the
-    /// vehicle definition, the vehicle implementation after the Modification and the armour. `null`
-    /// for a base and for a ship that is alone in its group. It is the `guid` of an entry of
-    /// `ships`.
+    /// vehicle definition and the vehicle implementation after the Modification. `null` for a base
+    /// and for a ship that is alone in its group. It is the `guid` of an entry of `ships`.
     pub(crate) variant_of: Option<CatalogGuid>,
 }

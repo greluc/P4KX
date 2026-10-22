@@ -44,6 +44,7 @@ fn builder() -> DataForgeBuilder {
         component("SEntityPhysicsControllerParams")
             .field("PhysType", TestType::Class("SEntityPhysicsType".to_owned())),
         TestStruct::new("SEntityPhysicsType").field("Mass", TestType::Single),
+        component("SEntityComponentCarryableParams").field("carryInteraction", TestType::String),
     ]
     .into_iter()
     .fold(
@@ -124,7 +125,13 @@ fn item_record(index: usize, item: &Item) -> TestRecord {
             ),
         ),
     );
-    let mut components = vec![attach];
+    let mut components = vec![
+        attach,
+        TestValue::Struct(
+            TestInstance::new("SEntityComponentCarryableParams")
+                .value("carryInteraction", TestValue::text(item.tags)),
+        ),
+    ];
     if let Some(mass) = item.mass {
         components.push(TestValue::Struct(
             TestInstance::new("SEntityPhysicsControllerParams").value(
@@ -174,7 +181,7 @@ const SHIPS: [Ship; 11] = [
     ship("ACAS_Alpha_Zulu", ALPHA_XML, "", None),
     ship("ACAS_Beta", ALPHA_XML, "Beta", None),
     ship("ACAS_Beta_Edition", ALPHA_XML, "Beta", None),
-    ship("ACAS_Armoured", ALPHA_XML, "", Some(0.5)),
+    ship("ACAS_Alpha_Plated", ALPHA_XML, "", Some(0.5)),
     ship("ACAS_Other", OTHER_XML, "", None),
     ship("ACAS_Lonely", "", "", None),
     ship("ACAS_Broken", BROKEN_XML, "", None),

@@ -49,7 +49,6 @@ pub(crate) struct VehicleFacts<'f> {
 pub(crate) struct ShipKey<'f> {
     pub(crate) definition: &'f str,
     pub(crate) implementation: Digest,
-    pub(crate) armour: Digest,
 }
 
 /// The paint ports of a vehicle implementation and whether it was not read in full. A patch file

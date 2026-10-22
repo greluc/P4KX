@@ -90,13 +90,14 @@ fn items_without_a_component_besides_the_cosmetic_ones_are_ungrouped() -> TestRe
 }
 
 #[test]
-fn ships_with_the_same_definition_implementation_and_armour_are_variants_of_the_smallest_class_name()
+fn ships_with_the_same_definition_and_implementation_are_variants_of_the_smallest_class_name()
 -> TestResult {
     let (_, catalog) = build()?;
     for (class, base) in [
         ("ACAS_Alpha", None),
         ("ACAS_Alpha_Edition", Some("ACAS_Alpha")),
         ("ACAS_Alpha_Zulu", Some("ACAS_Alpha")),
+        ("ACAS_Alpha_Plated", Some("ACAS_Alpha")),
     ] {
         assert_eq!(base_class(&catalog, class)?.as_deref(), base, "{class}");
     }
@@ -116,9 +117,9 @@ fn a_modification_that_changes_the_implementation_starts_a_group_of_its_own() ->
 }
 
 #[test]
-fn a_ship_that_differs_in_armour_definition_or_modification_is_not_a_variant() -> TestResult {
+fn a_ship_that_differs_in_definition_or_modification_is_not_a_variant() -> TestResult {
     let (_, catalog) = build()?;
-    for class in ["ACAS_Armoured", "ACAS_Other", "ACAS_Solo"] {
+    for class in ["ACAS_Other", "ACAS_Solo"] {
         assert_eq!(base_class(&catalog, class)?, None, "{class}");
     }
     Ok(())
@@ -156,7 +157,7 @@ fn the_summary_counts_groups_and_variants() -> TestResult {
         built.summary().variants().ships,
         VariantCounts {
             groups: 2,
-            variants: 3
+            variants: 4
         }
     );
     Ok(())

@@ -2,7 +2,6 @@ use p4kx_extraction::{RecordTree, StructValue, Value};
 
 use crate::ShipBase;
 use crate::contract::Ship;
-use crate::digest::{Digest, Wide, hash_value};
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, ShipKey, VehicleFacts};
 use crate::playability_rules::{self, Evidence};
@@ -36,38 +35,14 @@ fn takes_paints(port: &StructValue<'_>) -> bool {
     })
 }
 
-/// Returns the key the ships of one variant group share: the vehicle definition, the digest of
-/// the vehicle implementation after the Modification and the digest of the armour components.
-/// `None` for a ship without a definition or whose vehicle implementation was not read.
-fn variant_key<'f>(
-    tree: &RecordTree<'f>,
-    definition: Option<&'f str>,
-    base: &ShipBase,
-) -> Option<ShipKey<'f>> {
+/// Returns the key the ships of one variant group share: the vehicle definition and the digest of
+/// the vehicle implementation after the Modification. `None` for a ship without a definition or
+/// whose vehicle implementation was not read.
+fn variant_key<'f>(definition: Option<&'f str>, base: &ShipBase) -> Option<ShipKey<'f>> {
     Some(ShipKey {
         definition: definition?,
         implementation: base.implementation_digest?,
-        armour: armour_digest(tree),
     })
-}
-
-fn armour_digest(tree: &RecordTree<'_>) -> Digest {
-    let mut state = Wide::new();
-    if let Some(Value::Array(components)) = tree.field("Components") {
-        for component in components {
-            if let Value::Struct(inner) = component
-                && is_armour(inner.type_name())
-            {
-                hash_value(&mut state, component, &|_| false);
-            }
-        }
-    }
-    state.digest()
-}
-
-fn is_armour(type_name: &str) -> bool {
-    let lower = type_name.to_ascii_lowercase();
-    lower.contains("armor") || lower.contains("armour")
 }
 
 /// Returns the ship the Record tree `tree` describes, its texts resolved by `texts` and its
@@ -108,7 +83,7 @@ pub(crate) fn ship<'f>(
         definition: ship.vehicle_definition,
         modification: text(vehicle, "modification"),
         paint_ports: paint_ports(tree),
-        variant_key: variant_key(tree, ship.vehicle_definition, base),
+        variant_key: variant_key(ship.vehicle_definition, base),
     };
     (ship, facts)
 }

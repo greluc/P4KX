@@ -14,11 +14,13 @@ ship under two definitions).
   an entity alone in its group. Every value resolves to an entry of the same kind. Version 1 stays
   open and additive.
 - **Cosmetic means structurally equal without the loadout.** Ships: equal `vehicleDefinition`,
-  equal vehicle implementation after the Modification, equal armour components. The default
-  loadout does not count, so editions that differ only in it are grouped; paints, livery and names
-  never count. Items: equal `AttachDef` type, subtype, size, grade and manufacturer, equal stat
-  blocks including `resourceStates`, and equal other components, leaving out the display, geometry,
-  material and purchasable components and the tag and colour fields. The exact lists are in
+  equal vehicle implementation after the Modification. Ship Records carry no armour component on
+  LIVE, so armour is not part of the rule. The default loadout does not count, so editions that
+  differ only in it are grouped; paints, livery and names never count. Items: equal `AttachDef`
+  type, subtype, size, grade and manufacturer, equal stat blocks including `resourceStates`, and
+  equal other components, leaving out the display, geometry, material, purchasable, interaction,
+  carrying and actor-usage components and the tag, colour and palette fields. The exact lists,
+  taken from the field differences between colour siblings on LIVE, are in
   `docs/basetool-catalog.md`.
 - **No name enters the rule, and playability does not either.** AI and mission variants follow
   the same rule as player ships.
@@ -32,7 +34,7 @@ ship under two definitions).
 
 ## Consequences
 
-- A ship family whose members differ in the implementation or the armour splits into several
+- A ship family whose members differ in the implementation splits into several
   groups; the Basetool may match them by the Modification and class name.
 - Matching a pledge to a ship type needs a mapping of its own; it is not part of this decision.
 - `variantOf` means "structurally identical", not "cosmetic" in the shop sense. On LIVE it also

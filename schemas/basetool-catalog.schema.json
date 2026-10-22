@@ -2224,7 +2224,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the base of the variant group the ship belongs to: the ships that share the\nvehicle definition, the vehicle implementation after the Modification and the armour. `null`\nfor a base and for a ship that is alone in its group. It is the `guid` of an entry of\n`ships`."
+          "description": "The GUID of the base of the variant group the ship belongs to: the ships that share the\nvehicle definition and the vehicle implementation after the Modification. `null` for a base\nand for a ship that is alone in its group. It is the `guid` of an entry of `ships`."
         },
         "vehicleDefinition": {
           "description": "The path of the vehicle definition XML, `null` without one.",

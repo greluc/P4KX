@@ -8,14 +8,33 @@ use crate::digest::{Digest, Wide, hash_value};
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::{component, integer, reference, structure, text};
 
-const COSMETIC_COMPONENTS: [&str; 5] = [
+const COSMETIC_COMPONENTS: [&str; 8] = [
     "attachable",
     "purchasable",
     "geometry",
     "material",
     "display",
+    "interact",
+    "carryable",
+    "usable",
 ];
-const COSMETIC_FIELDS: [&str; 6] = ["Tags", "RequiredTags", "Skin", "Tint", "Color", "Colour"];
+const COSMETIC_FIELDS: [&str; 7] = [
+    "Tags",
+    "RequiredTags",
+    "Skin",
+    "Tint",
+    "Color",
+    "Colour",
+    "Palette",
+];
+const COSMETIC_FIELD_PART: &str = "interaction";
+
+fn is_cosmetic_field(name: &str) -> bool {
+    COSMETIC_FIELDS
+        .iter()
+        .any(|cosmetic| name.eq_ignore_ascii_case(cosmetic))
+        || name.to_ascii_lowercase().contains(COSMETIC_FIELD_PART)
+}
 
 /// What the items of one variant group share (`docs/basetool-catalog.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,11 +61,7 @@ pub(crate) fn key<'f>(tree: &RecordTree<'f>, stats: Option<&ItemStats<'_>>) -> O
                 && !is_cosmetic_component(inner.type_name())
             {
                 any_compared = true;
-                hash_value(&mut hasher, entry, &|name| {
-                    COSMETIC_FIELDS
-                        .iter()
-                        .any(|cosmetic| name.eq_ignore_ascii_case(cosmetic))
-                });
+                hash_value(&mut hasher, entry, &is_cosmetic_field);
             }
         }
     }

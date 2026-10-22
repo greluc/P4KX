@@ -3,6 +3,7 @@
 
 mod real_archive;
 mod real_archive_catalog_ships;
+mod real_archive_commodity_refining;
 mod real_archive_compression;
 mod real_archive_crafting;
 mod real_archive_crafting_catalog;

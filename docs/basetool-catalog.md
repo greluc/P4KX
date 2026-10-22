@@ -437,6 +437,12 @@ from the entity:
 | `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+| `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
+| `refinedSubtypeGuid` | The GUID `refinedVersion` of the `ResourceType` links to; `null` without a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined commodity only when the catalog has that commodity |
+
+The refining fields are described in [commodity-refining.md](commodity-refining.md), with what the
+DataForge does not hold (instability per commodity, yields, counting in SCU or units). The refined
+`ResourceType` may have no commodity of its own; then `refinedSubtypeGuid` matches no `subtypeGuid`.
 
 A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
 `subtypeGuid` links to (`displayName`, `description`) instead. The game holds no field named type
@@ -792,8 +798,13 @@ Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, 
 Records are not kinds; the type enters as `type` and `typeGuid`.
 
 Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON (570 bytes each), 4.5 % of the 26.5 MB of the
-catalog, and a smaller share compressed. The released marker of a starmap object
-(#417) will be another additive field.
+catalog, and a smaller share compressed.
+
+**No released marker.** The Archive states no structural marker that tells a released starmap
+object from an unreleased one (ADR-0067, #417): the three star system Records carry the same flags,
+`hideInStarmap` is set on helper content of the released systems too, and the type suffixes
+(`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
+Basetool decides from `system`, `position`, `hideInStarmap` and `type`.
 
 ### Crafting data
 

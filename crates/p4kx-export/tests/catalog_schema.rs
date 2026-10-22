@@ -116,6 +116,37 @@ fn a_new_value_of_a_closed_value_set_is_additive() -> TestResult {
         "a new playability is valid"
     );
 
+    let mut unknown_kind = catalog.clone();
+    unknown_kind["ships"][0]["vehicleKind"] = json!("hoverVehicle");
+    unknown_kind["ships"][0]["massBasis"] = json!("estimate");
+    assert!(
+        validator.is_valid(&unknown_kind),
+        "a new vehicle kind and mass basis are valid"
+    );
+
+    let mut kind_number = catalog.clone();
+    kind_number["ships"][0]["vehicleKind"] = json!(1);
+    assert!(
+        !validator.is_valid(&kind_number),
+        "the vehicle kind stays a string"
+    );
+
+    let mut unknown_values = catalog.clone();
+    for field in [
+        "vehicleKind",
+        "size",
+        "mass",
+        "massBasis",
+        "hullHealth",
+        "cargoScu",
+    ] {
+        unknown_values["ships"][0][field] = json!(null);
+    }
+    assert!(
+        validator.is_valid(&unknown_values),
+        "every ship base value may be null"
+    );
+
     let mut no_playability = catalog;
     no_playability["items"][0]["playability"] = json!(null);
     assert!(

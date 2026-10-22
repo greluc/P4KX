@@ -65,6 +65,13 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "crewSize": 2,
             "manufacturerGuid": null,
             "vehicleDefinition": null,
+            "vehicleKind": "spaceship",
+            "size": 3,
+            "mass": 1210.0,
+            "massBasis": "parts",
+            "hullHealth": 600.0,
+            "cargoScu": 18.5,
+            "cargoGridsWithIssue": 0,
             "playability": "ai"
         }],
         "commodities": [{

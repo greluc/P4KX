@@ -1450,6 +1450,20 @@
           "$ref": "#/$defs/LocalisedText",
           "description": "The career, from `vehicleCareer`, e.g. `@vehicle_focus_transporter`."
         },
+        "cargoGridsWithIssue": {
+          "description": "How many cargo grids of the default Loadout have no readable capacity, e.g. because their\ncontainer Record does not exist.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cargoScu": {
+          "description": "The cargo capacity in standard cargo units (SCU) of the cargo grids the default Loadout\nreaches, rounded to four decimals: 0 for a ship without a cargo grid, `null` when it has\ngrids and none can be read. With `cargoGridsWithIssue` above 0 the value is a lower bound.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "className": {
           "description": "The Record name without its type, e.g. `AEGS_Avenger_Titan`.",
           "type": "string"
@@ -1471,6 +1485,14 @@
           "$ref": "#/$defs/Guid",
           "description": "The GUID of the Record."
         },
+        "hullHealth": {
+          "description": "The hull hit points: the sum of the positive `damageMax` of the structural parts of the\nvehicle implementation, rounded to four decimals. `null` without a vehicle implementation\nor when no part states a `damageMax`.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "manufacturerGuid": {
           "anyOf": [
             {
@@ -1481,6 +1503,21 @@
             }
           ],
           "description": "The GUID of the manufacturer the Reference `manufacturer` links to, `null` for a null\nReference."
+        },
+        "mass": {
+          "description": "The hull mass in kilograms, without the Loadout, the docked vehicles and the landing gear:\nthe sum of the `mass` of the parts of the vehicle implementation after the Modification\nthe ship selects, rounded to four decimals. `null` when neither the parts nor the physics\ncontroller state one, never 0.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "massBasis": {
+          "description": "What `mass` is the sum of. Today one of `parts` and `physics`; the schema keeps a string,\nas a new value is additive. `null` exactly when `mass` is.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
           "$ref": "#/$defs/LocalisedText",
@@ -1501,8 +1538,23 @@
           "$ref": "#/$defs/LocalisedText",
           "description": "The role, from `vehicleRole`, e.g. `@vehicle_class_lightfreight`."
         },
+        "size": {
+          "description": "The item size of `AttachDef.Size`, `null` without one.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "vehicleDefinition": {
           "description": "The path of the vehicle definition XML, `null` without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vehicleKind": {
+          "description": "Spaceship or ground vehicle, `null` when the record path and the vehicle implementation\ndo not settle it. Today one of `spaceship` and `groundVehicle`; the schema keeps a string,\nas a new value is additive.",
           "type": [
             "string",
             "null"
@@ -1511,16 +1563,23 @@
       },
       "required": [
         "career",
+        "cargoGridsWithIssue",
+        "cargoScu",
         "className",
         "crewSize",
         "description",
         "guid",
+        "hullHealth",
         "manufacturerGuid",
+        "mass",
+        "massBasis",
         "name",
         "playability",
         "recordPath",
         "role",
-        "vehicleDefinition"
+        "size",
+        "vehicleDefinition",
+        "vehicleKind"
       ],
       "type": "object"
     },

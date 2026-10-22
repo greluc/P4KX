@@ -6,6 +6,7 @@ use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
     GameplayProperty, Item, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
+    StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -36,6 +37,8 @@ pub(crate) enum Picked<'f> {
     ResourceGroup(ResourceGroup<'f>),
     /// A blueprint category.
     BlueprintCategory(BlueprintCategory<'f>),
+    /// A starmap object.
+    Starmap(StarmapObject<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
     /// A Record that could not be read.
@@ -75,7 +78,8 @@ impl<'f> Picked<'f> {
             | Kind::QualityDistributions
             | Kind::BlueprintPools
             | Kind::DismantleProcesses
-            | Kind::Paints => return None,
+            | Kind::Paints
+            | Kind::StarmapObjects => return None,
         })
     }
 }
@@ -95,6 +99,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
     pub(crate) crafting_global: CraftingGlobal,
     pub(crate) paints: Vec<Paint>,
+    pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -127,6 +132,7 @@ impl<'f> Collected<'f> {
             dismantle_processes: crafting.dismantle,
             crafting_global: crafting.global,
             paints: Vec::new(),
+            starmap_objects: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -150,6 +156,7 @@ impl<'f> Collected<'f> {
                 Picked::Commodity(entity) => collected.commodities.push(entity),
                 Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
                 Picked::BlueprintCategory(entity) => collected.blueprint_categories.push(entity),
+                Picked::Starmap(entity) => collected.starmap_objects.push(entity),
                 Picked::Skipped(kind) => {
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
@@ -178,6 +185,8 @@ impl<'f> Collected<'f> {
             .sort_by_cached_key(|entity| entity.guid.text());
         self.blueprint_categories
             .sort_by_cached_key(|entity| entity.guid.text());
+        self.starmap_objects
+            .sort_by_cached_key(|entity| entity.guid.text());
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -199,6 +208,7 @@ impl<'f> Collected<'f> {
                     Kind::BlueprintPools => self.blueprint_pools.len(),
                     Kind::DismantleProcesses => self.dismantle_processes.len(),
                     Kind::Paints => self.paints.len(),
+                    Kind::StarmapObjects => self.starmap_objects.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

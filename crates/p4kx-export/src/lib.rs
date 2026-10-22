@@ -16,6 +16,10 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
+//! The starmap objects of the catalog take their world positions from the system containers
+//! (`ObjectContainers/PU/system`): the position of every `Child` element is composed with the
+//! positions and rotations of the Children above it ([`StarmapSummary`] counts the result).
+//!
 //! [`build_ship_base`] reads the base data of every ship: hull mass and hit points from the
 //! vehicle implementation, cargo capacity from the cargo grids of the default Loadout, size and
 //! the Loadout itself, each value with its source file and field (`docs/ship-base-data.md`);
@@ -48,6 +52,7 @@ mod contract_crafting;
 mod contract_entities;
 mod contract_recipe;
 mod contract_rewards;
+mod contract_starmap;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;
@@ -76,6 +81,10 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod starmap;
+mod starmap_containers;
+mod starmap_transform;
+mod starmap_xml;
 mod summary;
 mod texts;
 
@@ -114,5 +123,5 @@ pub use ship_base::{
 };
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    PaintSummary, SizeWarning, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
+    PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
 };

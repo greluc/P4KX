@@ -43,11 +43,14 @@ pub enum Kind {
     /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
     /// the items and ships, so no record-path rule of its own.
     Paints,
+    /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
+    /// system containers place it at.
+    StarmapObjects,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -60,6 +63,7 @@ impl Kind {
         Self::BlueprintPools,
         Self::DismantleProcesses,
         Self::Paints,
+        Self::StarmapObjects,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -78,6 +82,7 @@ impl Kind {
             Self::BlueprintPools => "blueprintPools",
             Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
+            Self::StarmapObjects => "starmapObjects",
         }
     }
 
@@ -149,6 +154,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
                 type_name: "CraftingBlueprintRecord",
             },
+            Self::StarmapObjects => KindRule {
+                prefixes: &["libs/foundry/records/starmap/pu/"],
+                type_name: "StarMapObject",
+            },
         }
     }
 
@@ -176,6 +185,7 @@ impl Kind {
             Self::BlueprintPools => 9,
             Self::DismantleProcesses => 10,
             Self::Paints => 11,
+            Self::StarmapObjects => 12,
         }
     }
 }

@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
-    CraftingWarning, DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, UPLOAD_LIMIT,
-    catalog_schema, write_catalog,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, StarmapSummary,
+    UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -174,6 +174,19 @@ const fn relation(warning: SizeWarning) -> &'static str {
     }
 }
 
+fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "starmap placement: {} of {} objects have a position, {} are placed more than once, {} systems, {} containers unreadable, {} children malformed",
+        starmap.placed,
+        starmap.objects,
+        starmap.ambiguous,
+        starmap.systems,
+        starmap.unreadable_containers,
+        starmap.malformed_children
+    )
+}
+
 fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
     for kind in summary.kinds() {
@@ -198,6 +211,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
         paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
+    print_starmap(&mut stdout, summary.starmap())?;
     let playability = summary.playability();
     for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
         writeln!(

@@ -12,6 +12,7 @@ pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
+pub(crate) use crate::contract_starmap::StarmapObject;
 
 /// The version of the catalog shape.
 ///
@@ -58,6 +59,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) crafting_global: CraftingGlobal,
     /// The paints with the ships they fit, ordered by the GUID of the item.
     pub(crate) paints: Vec<Paint>,
+    /// The starmap objects with their world positions, ordered by GUID.
+    pub(crate) starmap_objects: Vec<StarmapObject<'a>>,
 }
 
 /// Where a catalog came from.
@@ -126,6 +129,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) dismantle_processes: KindCompleteness<'a>,
     /// The completeness of `paints`.
     pub(crate) paints: KindCompleteness<'a>,
+    /// The completeness of `starmapObjects`.
+    pub(crate) starmap_objects: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -144,6 +149,7 @@ impl<'a> Completeness<'a> {
             blueprint_pools: completeness,
             dismantle_processes: completeness,
             paints: completeness,
+            starmap_objects: completeness,
         }
     }
 }

@@ -13,6 +13,8 @@ use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
 use crate::ship_base::{ShipBase, ShipReader};
+use crate::starmap::starmap_object;
+use crate::starmap_containers::Placements;
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
 
@@ -47,6 +49,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     ships: ShipPool<'f>,
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
+    placements: &'o Placements,
     groups: Groups,
     evidence: Evidence,
     done: AtomicUsize,
@@ -62,6 +65,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
         blueprints: &[Blueprint<'f>],
+        placements: &'o Placements,
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records);
@@ -75,6 +79,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             },
             options,
             texts,
+            placements,
             groups,
             evidence,
             done: AtomicUsize::new(0),
@@ -221,6 +226,14 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             return Ok(Some(Picked::Skipped(kind)));
         }
         let tree = trees.build(record)?;
+        if kind == Kind::StarmapObjects {
+            return Ok(Some(Picked::Starmap(starmap_object(
+                &tree,
+                self.texts,
+                self.forge,
+                self.placements,
+            ))));
+        }
         let resource_type = match kind {
             Kind::Commodities => self.resource_type(trees, &tree)?,
             _ => None,

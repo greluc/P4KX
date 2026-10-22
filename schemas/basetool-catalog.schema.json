@@ -382,6 +382,10 @@
         "ships": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `ships`."
+        },
+        "starmapObjects": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `starmapObjects`."
         }
       },
       "required": [
@@ -396,7 +400,8 @@
         "paints",
         "qualityDistributions",
         "resourceGroups",
-        "ships"
+        "ships",
+        "starmapObjects"
       ],
       "type": "object"
     },
@@ -1407,6 +1412,117 @@
       ],
       "type": "object"
     },
+    "StarmapObject": {
+      "description": "A starmap object: a `StarMapObject` Record under `starmap/pu`, a star system, planet, moon,\nstation, jump point or other place, with its world position when a system container places it.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Stanton1_Hurston`.",
+          "type": "string"
+        },
+        "entityName": {
+          "description": "The `entityName` of the Child element that places the object, e.g. `jumppoint_stanton_pyro`;\n`null` when it is not placed or the Child names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hideInStarmap": {
+          "description": "Whether the starmap hides the object, from `hideInStarmap`; `null` when the Record states\nnone.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name of the place, from `name` of the Record. The localisation key and the texts are\ngame texts.",
+          "x-gameText": true
+        },
+        "parentGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the object the Reference `parent` links to, `null` for a null Reference. Each\nis the `guid` of an entry of `starmapObjects` unless its Record is missing or left out."
+        },
+        "placedUnderGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the nearest object above this one in the container hierarchy, `null` when it\nis not placed or hangs directly below the system. Each is a `guid` of `starmapObjects`\nunless its Record is missing or left out."
+        },
+        "position": {
+          "description": "The position `[x, y, z]` in metres in the frame of the system container, the position of\neach Child composed with the positions and the full rotations of the Children above it;\n`null` when no system container places the object.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "system": {
+          "description": "The star system that places the object: the folder below `ObjectContainers/PU/system`,\ne.g. `stanton`; `null` when no system container places it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "The type of the object, the Record name without its type of the `StarMapObjectType` the\nReference `type` links to, e.g. `Planet`; `null` for a null or dangling Reference. The\nschema keeps a string, as a new type is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "typeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID the Reference `type` links to, `null` for a null Reference."
+        }
+      },
+      "required": [
+        "className",
+        "entityName",
+        "guid",
+        "hideInStarmap",
+        "name",
+        "parentGuid",
+        "placedUnderGuid",
+        "position",
+        "recordPath",
+        "system",
+        "type",
+        "typeGuid"
+      ],
+      "type": "object"
+    },
     "ValueRange": {
       "description": "One linear range of a modifier: the value at the quality `startQuality` and at `endQuality`.",
       "properties": {
@@ -1562,6 +1678,13 @@
     "source": {
       "$ref": "#/$defs/Source",
       "description": "The Archive and Build the catalog was made from."
+    },
+    "starmapObjects": {
+      "description": "The starmap objects with their world positions, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/StarmapObject"
+      },
+      "type": "array"
     }
   },
   "required": [
@@ -1580,7 +1703,8 @@
     "resourceGroups",
     "schemaVersion",
     "ships",
-    "source"
+    "source",
+    "starmapObjects"
   ],
   "title": "P4K-Extractor Basetool catalog",
   "type": "object"

@@ -79,6 +79,27 @@ pub struct PaintSummary {
     pub unreadable_vehicles: usize,
 }
 
+/// What a catalog holds of starmap objects and where the system containers place them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StarmapSummary {
+    /// The starmap objects in the catalog.
+    pub objects: usize,
+    /// The objects with a position.
+    pub placed: usize,
+    /// The objects no system container places; their position is `null`.
+    pub unplaced: usize,
+    /// The records that more than one Child element places; the first placement is kept.
+    pub ambiguous: usize,
+    /// The star systems whose main container the Archive holds.
+    pub systems: usize,
+    /// The containers that are named or listed but cannot be opened or parsed, and the external
+    /// containers the Archive lacks; the objects below them have no position.
+    pub unreadable_containers: usize,
+    /// The Child elements skipped for a malformed `pos` or `rot`, for a nesting beyond the limit
+    /// or beyond the budget of one system; the objects below them have no position.
+    pub malformed_children: usize,
+}
+
 /// How the localisation keys of a catalog resolved in one language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextSummary {
@@ -104,6 +125,7 @@ pub struct CatalogSummary {
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) paints: PaintSummary,
+    pub(crate) starmap: StarmapSummary,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
@@ -117,6 +139,13 @@ impl CatalogSummary {
     #[must_use]
     pub const fn paints(&self) -> PaintSummary {
         self.paints
+    }
+
+    /// Returns the counts of the starmap objects: how many the catalog holds, how many have a
+    /// position, and what the reading of the system containers found.
+    #[must_use]
+    pub const fn starmap(&self) -> StarmapSummary {
+        self.starmap
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,

@@ -35,9 +35,10 @@ The rule is ADR-0054 (amending ADR-0002):
 ### Game texts
 
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
-The game texts of the catalog are every `description` and every `displayType`, each with its `key`,
-`en` and `de`. `name`, `role`, `career` and the other fields are identifiers, short names or fact
-values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
+The game texts of the catalog are every `description` and every `displayType`, and the `name` of a
+starmap object (a place name that comes from localisation, by the owner's decision for #321), each
+with its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
+identifiers, short names or fact values. The catalog keeps the `description` fields for the Basetool's logged-in members; the
 Basetool keeps them, and `displayType`, away from third parties. Every such field carries
 `"x-gameText": true` in the JSON Schema, and no other field does; a test checks this.
 
@@ -102,6 +103,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
+| `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -569,6 +571,58 @@ a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballis
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
 both filtered, so a paint lists only ships the filter selected; both kinds are partial.
 
+### Starmap objects
+
+A starmap object (`starmapObjects`) is a `StarMapObject` Record under `starmap/pu` (ADR-0054: a
+new kind, so `schemaVersion` stays 1). The kind is facts only: no description, no lore, no media.
+The `name` is a game text, the localisation key with its English and German text, and carries
+`"x-gameText": true` like a description; the Basetool keeps it from third parties.
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | The Record, as for every entity |
+| `name` | `name`, a localisation key |
+| `type`, `typeGuid` | The `StarMapObjectType` Record the Reference `type` links to: its Record name without the type, e.g. `Planet`, and its GUID; `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
+| `parentGuid` | The Reference `parent`, the `guid` of another entry unless that Record is missing or left out; `null` for none |
+| `hideInStarmap` | `hideInStarmap`; `null` when the Record states none |
+| `system` | The folder of the star system below `Data/ObjectContainers/PU/system` that places the object, e.g. `stanton`; `null` when no container places it |
+| `entityName` | The `entityName` of the Child element that places the object, e.g. `jumppoint_stanton_pyro`; `null` when it is not placed or the Child names none |
+| `placedUnderGuid` | The `guid` of the nearest object above this one in the container hierarchy; `null` when it is not placed or hangs directly below the system. It is a fact of the containers; `parentGuid` is the Record's own and the two need not agree |
+| `position` | `[x, y, z]` in metres in the frame of the system container, rounded to a millimetre; `null` when no container places the object |
+
+**Where a position comes from.** The main container of a star system is
+`Data/ObjectContainers/PU/system/<folder>/<folder>system.socpak` (else the first `*system.socpak`
+of the folder). It is a container (ZIP) whose XML, named like the container, lists
+`ChildObjectContainers/Child` elements. A Child places an object with `starMapRecord` (the GUID of
+a `StarMapObject`), `pos` (`x,y,z`) and `rot` (a quaternion `w,x,y,z`), may nest further
+`ChildObjectContainers`, and with `external="1"` names another container (`name`) whose Children
+are placed in the frame of this Child. Positions compose from the top: the position of a child is
+rotated by the rotation of its container before it is added, and the rotations multiply, so
+`world = parent.position + parent.rotation * child.pos` and `rotation = parent.rotation *
+child.rot`. A Child without `rot` has the identity rotation, one without `pos` the origin. Children
+without a `starMapRecord` only take part in the composition. ScDataDumper adds the child positions
+without rotating them by the container rotation (`Commands/LoadStarmap.php`); the catalog does
+not.
+
+A record that more than one Child places keeps the first placement, the systems taken in the
+order of their folder names and the Children in document order (`StarmapSummary::ambiguous`
+counts them). A Child whose `pos` or `rot` is malformed (not numbers, not three or four parts, a
+quaternion without length) and everything below it are not placed; so are the Children beyond a
+nesting of 64 or beyond 4,194,304 Children of one system, and the Children of a container the
+Archive lacks or that cannot be read. `p4kx catalog` reports them as `starmap placement`, and the
+containers as a warning (exit code 1).
+
+The kind is selected by the prefix `libs/foundry/records/starmap/pu/` and the type `StarMapObject`
+like the others, with the development leftovers left out. The positions do not depend on the
+Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, amenity and radar
+Records are not kinds; the type enters as `type` and `typeGuid`.
+
+Size (an estimate from the synthetic fixture, not yet measured on LIVE): a starmap object is one
+JSON object of about 550 bytes, mostly the record path, four GUIDs and the key names, so 5,000
+objects add about 2.7 MB uncompressed, 10 % of the 26.5 MB of LIVE, and a smaller share compressed
+because the key names and the shared path prefixes repeat. The released marker of a starmap object
+(#417) will be another additive field.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -670,6 +724,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
+| `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

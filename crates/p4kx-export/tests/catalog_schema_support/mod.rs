@@ -27,7 +27,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
             "loadouts": {"status": "complete"},
-            "starmapObjects": {"status": "complete"}
+            "starmapObjects": {"status": "complete"},
+            "mineableElements": {"status": "complete"},
+            "refiningProcesses": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -183,6 +185,31 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "entityName": "planet_hurston",
             "placedUnderGuid": "a2000000-0000-4000-8000-000000000003",
             "position": [12_850_000_000.0, 1250.5, -3.0]
+        }],
+        "mineableElements": [{
+            "guid": "a3000000-0000-4000-8000-000000000001",
+            "className": "agricium_ore",
+            "recordPath": "libs/foundry/records/mining/mineableelements/agricium_ore",
+            "resourceTypeGuid": "b1000000-0000-4000-8000-000000000001",
+            "instability": 350.0,
+            "resistance": 0.5,
+            "optimalWindowMidpoint": 0.5,
+            "optimalWindowMidpointRandomness": 0.15,
+            "optimalWindowThinness": 2.0,
+            "explosionMultiplier": 4.0,
+            "clusterFactor": 0.2
+        }],
+        "refiningProcesses": [{
+            "guid": "a4000000-0000-4000-8000-000000000001",
+            "className": "processingtype-fastcareful",
+            "recordPath": "libs/foundry/records/refiningprocess/processingtype-fastcareful",
+            "processName": {
+                "key": "@refinery_ui_ProcessingType_FastCareful",
+                "en": null,
+                "de": null
+            },
+            "refiningSpeed": "Fast",
+            "refiningQuality": "Careful"
         }]
     })
 }

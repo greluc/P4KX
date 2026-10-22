@@ -194,6 +194,8 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "dismantleProcesses",
         "paints",
         "loadouts",
+        "mineableElements",
+        "refiningProcesses",
     ] {
         let mut unknown = catalog.clone();
         unknown[kind][0]["extra"] = json!(true);

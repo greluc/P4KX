@@ -439,6 +439,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "mineableElements": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `mineableElements`."
+        },
         "paints": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `paints`."
@@ -446,6 +450,10 @@
         "qualityDistributions": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `qualityDistributions`."
+        },
+        "refiningProcesses": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `refiningProcesses`."
         },
         "resourceGroups": {
           "$ref": "#/$defs/KindCompleteness",
@@ -470,8 +478,10 @@
         "items",
         "loadouts",
         "manufacturers",
+        "mineableElements",
         "paints",
         "qualityDistributions",
+        "refiningProcesses",
         "resourceGroups",
         "ships",
         "starmapObjects"
@@ -1473,6 +1483,104 @@
       ],
       "type": "object"
     },
+    "MineableElement": {
+      "description": "A mineable element: a `MineableElement` Record under `mining/mineableelements`. Several\nelements may link to the same `ResourceType`, so none is picked for a commodity.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `agricium_ore`.",
+          "type": "string"
+        },
+        "clusterFactor": {
+          "description": "`elementClusterFactor`, from 0 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "explosionMultiplier": {
+          "description": "`elementExplosionMultiplier`, from -1000 to 260 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "instability": {
+          "description": "`elementInstability`, from 0 to 1000 on LIVE; `null` when the Record states none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowMidpoint": {
+          "description": "`elementOptimalWindowMidpoint`, from 0.3 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowMidpointRandomness": {
+          "description": "`elementOptimalWindowMidpointRandomness`, from 0 to 0.3 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowThinness": {
+          "description": "`elementOptimalWindowThinness`, from -1 to 10 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "resistance": {
+          "description": "`elementResistance`, from -1 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "resourceTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record the Reference `resourceType` links to; equals the\n`subtypeGuid` of a commodity. `null` for a null Reference."
+        }
+      },
+      "required": [
+        "className",
+        "clusterFactor",
+        "explosionMultiplier",
+        "guid",
+        "instability",
+        "optimalWindowMidpoint",
+        "optimalWindowMidpointRandomness",
+        "optimalWindowThinness",
+        "recordPath",
+        "resistance",
+        "resourceTypeGuid"
+      ],
+      "type": "object"
+    },
     "MissileStats": {
       "description": "A missile.",
       "properties": {
@@ -1866,6 +1974,50 @@
         "spoolUpTime",
         "stageOneAccelRate",
         "stageTwoAccelRate"
+      ],
+      "type": "object"
+    },
+    "RefiningProcess": {
+      "description": "A refining process: a `RefiningProcess` Record under `refiningprocess`, one method of a\nrefinery. The DataForge holds no yields.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `processingtype-fastcareful`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "processName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The name of the method, from `processName`: a short label, like the `name` of a commodity."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "refiningQuality": {
+          "description": "`refiningQuality`, one of `Wasteful`, `Normal` and `Careful` on LIVE; `null` when the Record\nstates none. The schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "refiningSpeed": {
+          "description": "`refiningSpeed`, one of `Slow`, `Normal` and `Fast` on LIVE; `null` when the Record states\nnone. The schema keeps a string, as a new value is additive.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "processName",
+        "recordPath",
+        "refiningQuality",
+        "refiningSpeed"
       ],
       "type": "object"
     },
@@ -2591,6 +2743,13 @@
       },
       "type": "array"
     },
+    "mineableElements": {
+      "description": "The mineable elements, ordered by GUID. Several may link to one `ResourceType`.",
+      "items": {
+        "$ref": "#/$defs/MineableElement"
+      },
+      "type": "array"
+    },
     "paints": {
       "description": "The paints with the ships they fit, ordered by the GUID of the item.",
       "items": {
@@ -2602,6 +2761,13 @@
       "description": "The quality distributions and their location overrides, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/QualityDistribution"
+      },
+      "type": "array"
+    },
+    "refiningProcesses": {
+      "description": "The refining processes, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/RefiningProcess"
       },
       "type": "array"
     },
@@ -2650,8 +2816,10 @@
     "items",
     "loadouts",
     "manufacturers",
+    "mineableElements",
     "paints",
     "qualityDistributions",
+    "refiningProcesses",
     "resourceGroups",
     "schemaVersion",
     "ships",

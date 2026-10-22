@@ -189,6 +189,8 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "paints",
             "loadouts",
             "starmapObjects",
+            "mineableElements",
+            "refiningProcesses",
         ],
         "order of the catalog"
     );

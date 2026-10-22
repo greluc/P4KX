@@ -213,6 +213,8 @@ fn assemble<R>(
         paints: collected.paints,
         loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
+        mineable_elements: collected.mineable_elements,
+        refining_processes: collected.refining_processes,
     };
     let output = emit(&catalog)?;
     Ok((

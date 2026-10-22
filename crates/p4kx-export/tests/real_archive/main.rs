@@ -11,6 +11,7 @@ mod real_archive_grade;
 mod real_archive_item_stats;
 mod real_archive_items;
 mod real_archive_loadouts;
+mod real_archive_mining;
 mod real_archive_paints;
 mod real_archive_playability;
 mod real_archive_records;

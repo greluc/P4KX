@@ -3,12 +3,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use p4kx_assembly::{ArchiveFiles, LoadoutFileError, LoadoutFiles};
 use p4kx_extraction::{Archive, CancelToken};
 
-use crate::CatalogError;
+use crate::collected::Collected;
 use crate::contract::{Shop, StarmapObject};
 use crate::guid_text::CatalogGuid;
 use crate::shop_containers::{Containers, Found};
 use crate::shop_registry::{self, RegistryShop, clean};
 use crate::summary::ShopSummary;
+use crate::{CatalogError, CatalogOptions};
 
 /// The shop registry of the layer recovery data.
 pub(crate) const REGISTRY: &str = "Data\\Libs\\CosmoTools\\LayerRecovery\\LayerBackups.xml";
@@ -25,6 +26,22 @@ const LISTED_LOCATIONS: usize = 200;
 pub(crate) struct Built {
     pub(crate) shops: Vec<Shop>,
     pub(crate) summary: ShopSummary,
+}
+
+/// Reads the shop registry and the shop containers into `collected` and returns the counts. With
+/// a Filter no shop is read: shops are selected by no record path.
+pub(crate) fn add_shops(
+    archive: &Archive,
+    files: &ArchiveFiles<'_>,
+    collected: &mut Collected<'_>,
+    options: &CatalogOptions<'_>,
+) -> Result<ShopSummary, CatalogError> {
+    if options.filter.is_some() {
+        return Ok(ShopSummary::default());
+    }
+    let built = shops(archive, files, &collected.starmap_objects, options.cancel)?;
+    collected.shops = built.shops;
+    Ok(built.summary)
 }
 
 /// Reads the shop registry of `archive` and the shop containers, and links each shop's location

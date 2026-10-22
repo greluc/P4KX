@@ -76,8 +76,14 @@ mod tests {
             clean("OOC_Stanton_4_Microtech_{B4795269-F681-4CE1-AFCC-FD027F3D3605}"),
             "OOC_Stanton_4_Microtech"
         );
-        assert_eq!(clean("Drlct_Stlmnt_008_Megaton_RastarLE "), "Drlct_Stlmnt_008_Megaton_RastarLE");
-        assert_eq!(clean("SCShop_Bar_Drlct_Stanton"), "SCShop_Bar_Drlct_Stanton");
+        assert_eq!(
+            clean("Drlct_Stlmnt_008_Megaton_RastarLE "),
+            "Drlct_Stlmnt_008_Megaton_RastarLE"
+        );
+        assert_eq!(
+            clean("SCShop_Bar_Drlct_Stanton"),
+            "SCShop_Bar_Drlct_Stanton"
+        );
         assert_eq!(clean("odd_{not a guid"), "odd_{not a guid");
     }
 }

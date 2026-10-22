@@ -17,7 +17,7 @@ use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::paint::paints;
 use crate::scan::Scan;
-use crate::shops::shops;
+use crate::shops::add_shops;
 use crate::starmap_containers::Placements;
 use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
@@ -367,22 +367,6 @@ fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> Starma
             ));
     }
     summary
-}
-
-/// Reads the shop registry and the shop containers into `collected` and returns the counts. With
-/// a Filter no shop is read: shops are selected by no record path.
-fn add_shops(
-    archive: &Archive,
-    files: &ArchiveFiles<'_>,
-    collected: &mut Collected<'_>,
-    options: &CatalogOptions<'_>,
-) -> Result<ShopSummary, CatalogError> {
-    if options.filter.is_some() {
-        return Ok(ShopSummary::default());
-    }
-    let built = shops(archive, files, &collected.starmap_objects, options.cancel)?;
-    collected.shops = built.shops;
-    Ok(built.summary)
 }
 
 pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

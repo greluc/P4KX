@@ -56,8 +56,9 @@ fn commodity(
     )
 }
 
-fn resource_type(guid: u128, class: &str) -> TestRecord {
-    TestRecord::new(
+fn resource_type(guid: u128, class: &str, facts: (Option<f32>, Option<u128>)) -> TestRecord {
+    let (density, refined) = facts;
+    let mut record = TestRecord::new(
         guid,
         "ResourceType",
         format!("ResourceType.{class}"),
@@ -70,7 +71,18 @@ fn resource_type(guid: u128, class: &str) -> TestRecord {
     .value(
         "description",
         TestValue::text(format!("@items_commodities_{class}_desc")),
-    )
+    );
+    if let Some(grams) = density {
+        let unit = TestInstance::new("GramsPerCubicCentimeter")
+            .value("gramsPerCubicCentimeter", TestValue::Single(grams));
+        let density =
+            TestInstance::new("ResourceTypeDensity").value("densityUnit", TestValue::Struct(unit));
+        record = record.value("densityType", TestValue::Struct(density));
+    }
+    if let Some(refined) = refined {
+        record = record.value("refinedVersion", TestValue::Reference(refined));
+    }
+    record
 }
 
 fn group(guid: u128, class: &str, name: &str, listed: (&[u128], &[u128])) -> TestRecord {
@@ -112,12 +124,20 @@ pub(super) fn prop(guid: u128, class: &str) -> TestRecord {
     .value("Components", TestValue::Array(Vec::new()))
 }
 
-pub(super) fn commodity_records(builder: DataForgeBuilder) -> DataForgeBuilder {
+fn resource_type_records(builder: DataForgeBuilder) -> DataForgeBuilder {
     builder
-        .record(resource_type(RESOURCE_GOLD, "gold"))
-        .record(resource_type(RESOURCE_IRON, "iron"))
-        .record(resource_type(RESOURCE_EMBER, "ember"))
-        .record(resource_type(RESOURCE_COPPER, "copper"))
+        .record(resource_type(RESOURCE_GOLD, "gold", (Some(19.25), None)))
+        .record(resource_type(RESOURCE_IRON, "iron", (None, None)))
+        .record(resource_type(
+            RESOURCE_EMBER,
+            "ember",
+            (Some(2.5), Some(RESOURCE_COPPER)),
+        ))
+        .record(resource_type(RESOURCE_COPPER, "copper", (Some(8.5), None)))
+}
+
+pub(super) fn commodity_records(builder: DataForgeBuilder) -> DataForgeBuilder {
+    resource_type_records(builder)
         .record(group(
             GROUP_METAL,
             "Metal",

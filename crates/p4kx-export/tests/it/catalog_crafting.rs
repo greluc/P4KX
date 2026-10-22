@@ -72,6 +72,8 @@ fn a_commodity_carries_its_guids_texts_and_display_type() -> TestResult {
             "typeGuid": "c1000000-0000-4000-8000-000000000001",
             "subtypeGuid": "b1000000-0000-4000-8000-000000000001",
             "displayType": {"key": "@items_commodities_type_metal", "en": "Metal", "de": "Metall"},
+            "densityGramsPerCubicCentimetre": 19.25,
+            "refinedSubtypeGuid": null,
         }),
         "the type is the group, the subtype the ResourceType; the description of a placeholder comes from the ResourceType"
     );
@@ -258,6 +260,23 @@ fn a_placeholder_name_and_description_fall_back_to_the_resource_type() -> TestRe
 }
 
 #[test]
+fn a_commodity_carries_the_density_and_the_refined_version_of_its_resource_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let ember = &catalog["commodities"][2];
+    assert_eq!(ember["densityGramsPerCubicCentimetre"], 2.5, "density");
+    assert_eq!(
+        ember["refinedSubtypeGuid"], "b4000000-0000-4000-8000-000000000004",
+        "the refined ResourceType"
+    );
+    assert_eq!(
+        catalog["commodities"][1]["densityGramsPerCubicCentimetre"],
+        Value::Null,
+        "no ResourceType, no density"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_used_resource_type_without_a_commodity_record_is_a_commodity_of_its_group() -> TestResult {
     let (_, catalog) = build(None)?;
     assert_eq!(
@@ -271,6 +290,8 @@ fn a_used_resource_type_without_a_commodity_record_is_a_commodity_of_its_group()
             "typeGuid": "c1000000-0000-4000-8000-000000000001",
             "subtypeGuid": "b2000000-0000-4000-8000-000000000002",
             "displayType": {"key": null, "en": null, "de": null},
+            "densityGramsPerCubicCentimetre": null,
+            "refinedSubtypeGuid": null,
         }),
         "the ResourceType and its group"
     );

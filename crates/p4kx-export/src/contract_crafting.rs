@@ -34,6 +34,12 @@ pub(crate) struct Commodity<'a> {
     /// without a key for a `ResourceType` entry.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) display_type: LocalisedText<'a>,
+    /// The density of the `ResourceType` in grams per cubic centimetre, `null` without a
+    /// `ResourceType` or a density.
+    pub(crate) density_grams_per_cubic_centimetre: Option<f32>,
+    /// The GUID of the `ResourceType` Record `refinedVersion` of the `ResourceType` links to, the
+    /// `subtypeGuid` of the refined commodity; `null` for a commodity that is not a raw one.
+    pub(crate) refined_subtype_guid: Option<CatalogGuid>,
 }
 
 /// A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.

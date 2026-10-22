@@ -83,7 +83,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "description": {"key": null, "en": null, "de": null},
             "typeGuid": "b1000000-0000-4000-8000-000000000001",
             "subtypeGuid": null,
-            "displayType": {"key": null, "en": null, "de": null}
+            "displayType": {"key": null, "en": null, "de": null},
+            "densityGramsPerCubicCentimetre": null,
+            "refinedSubtypeGuid": null
         }],
         "blueprints": [{
             "guid": "11000000-0000-4000-8000-000000000001",

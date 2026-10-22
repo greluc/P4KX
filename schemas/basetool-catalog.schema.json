@@ -343,6 +343,14 @@
           "description": "The Record name without its type, e.g. `Gold`.",
           "type": "string"
         },
+        "densityGramsPerCubicCentimetre": {
+          "description": "The density of the `ResourceType` in grams per cubic centimetre, `null` without a\n`ResourceType` or a density.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "description": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The description, from the entity's display parameters or, without one, from the\n`ResourceType` Record of the commodity.",
@@ -364,6 +372,17 @@
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
+        },
+        "refinedSubtypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record `refinedVersion` of the `ResourceType` links to, the\n`subtypeGuid` of the refined commodity; `null` for a commodity that is not a raw one."
         },
         "subtypeGuid": {
           "anyOf": [
@@ -390,11 +409,13 @@
       },
       "required": [
         "className",
+        "densityGramsPerCubicCentimetre",
         "description",
         "displayType",
         "guid",
         "name",
         "recordPath",
+        "refinedSubtypeGuid",
         "subtypeGuid",
         "typeGuid"
       ],

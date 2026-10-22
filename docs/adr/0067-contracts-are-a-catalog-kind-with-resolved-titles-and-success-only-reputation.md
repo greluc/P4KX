@@ -32,7 +32,8 @@ asks whether that belongs in the Basetool catalog or in a command of its own.
 ## Consequences
 
 - The Rust types, the schema and `docs/basetool-catalog.md` change in one commit; version 1 stays.
-- Pickup places need the starmap kind and are added to the entry when it lands.
+- Pickup places are the starmap objects of the locality and location prerequisites, system first,
+  then planets and moons, stars left out, at most five; they need the starmap kind in the same build.
 - The layer and property layout is read as the reference tools read it (`paramOverrides`,
   `contractParams`, `propertyOverrides`, `contractDisplayInfo`); a Build that moves a field leaves
   that part `null` or a placeholder, never a failed Record.

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, Filter, Kind, build_catalog};
+use p4kx_export::{CatalogOptions, Kind, build_catalog};
 use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value;
@@ -63,6 +63,9 @@ fn gaps(contracts: &[Value]) {
         let title = text(entry, "title");
         title.contains("[CONTRACTOR]") || title.contains("[RACETYPE]") || title.contains("[ITEM]")
     });
+    describe("no pickup places", &|entry| {
+        entry["pickupPlaces"].as_array().is_none_or(Vec::is_empty)
+    });
     describe("negative gains", &|entry| {
         entry["reputationGains"].as_array().is_some_and(|gains| {
             gains
@@ -108,11 +111,12 @@ fn report(contracts: &[Value]) {
     gaps(contracts);
     for entry in contracts.iter().take(SAMPLES) {
         println!(
-            "{} | {:?} | {} | {} | {}",
+            "{} | {:?} | {} | {} | {} | {}",
             entry["debugName"],
             entry["subContractGuid"],
             text(entry, "title"),
             text(entry, "missionType"),
+            entry["pickupPlaces"],
             entry["reputationGains"]
         );
     }
@@ -145,10 +149,7 @@ fn report(contracts: &[Value]) {
 )]
 fn the_contracts_of_a_real_archive_resolve_titles_types_and_success_reputation() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
-    let filter = Filter::new("*/contractgenerator/*");
-    let mut options = CatalogOptions::new(SystemTime::now());
-    options.filter = Some(&filter);
-    let built = build_catalog(&archive, &options)?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog: Value = serde_json::from_slice(built.json())?;
     let contracts = catalog["contracts"].as_array().ok_or("contracts")?;
     report(contracts);

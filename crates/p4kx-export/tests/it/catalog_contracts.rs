@@ -100,6 +100,51 @@ fn a_replacement_that_holds_a_token_is_expanded_and_the_contractor_is_the_neares
     Ok(())
 }
 
+fn places(entry: &Value) -> Vec<(&str, &str)> {
+    entry["pickupPlaces"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|place| {
+            (
+                place["objectType"].as_str().unwrap_or_default(),
+                place
+                    .get("place")
+                    .and_then(|name| name.get("en"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_pickup_places_put_the_system_and_planets_first_skip_stars_and_stop_at_five() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        places(entry(&catalog, A, None)?),
+        [
+            ("SolarSystem", "Stanton"),
+            ("Planet", "Hurston"),
+            ("Station", "Everus"),
+        ],
+        "the star is skipped, the system comes first, then the planet, then the rest"
+    );
+    assert_eq!(
+        places(entry(&catalog, A, Some(SUB_ONE))?),
+        [("Planet", "Hurston")],
+        "a sub contract's own location replaces the contract's"
+    );
+    assert_eq!(
+        entry(&catalog, A, Some(SUB_TWO))?["pickupPlaces"],
+        entry(&catalog, A, None)?["pickupPlaces"],
+        "a sub contract without places takes the contract's"
+    );
+    assert_eq!(places(entry(&catalog, B, None)?).len(), 5, "at most five");
+    assert_eq!(places(entry(&catalog, C, None)?), [], "none named");
+    Ok(())
+}
+
 #[test]
 fn the_title_resolves_tokens_and_writes_placeholders_for_what_the_game_picks() -> TestResult {
     let (_, catalog) = build(None)?;

@@ -6,7 +6,7 @@ use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
-use crate::catalog_crafting::kinds;
+use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
 use crate::collected::Collected;
 use crate::contract::{
@@ -18,10 +18,12 @@ use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
+use crate::starmap_containers::Placements;
+use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
-    PaintSummary,
+    PaintSummary, StarmapSummary,
 };
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
@@ -138,6 +140,8 @@ pub(crate) struct Parts {
     item_classes: crate::ItemClassSummary,
     paints: PaintSummary,
     loadouts: LoadoutSummary,
+    starmap: StarmapSummary,
+    starmap_report: Box<StarmapReport>,
     playability: crate::PlayabilitySummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
@@ -152,6 +156,8 @@ impl Parts {
             item_classes: self.item_classes,
             paints: self.paints,
             loadouts: self.loadouts,
+            starmap: self.starmap,
+            starmap_report: self.starmap_report,
             playability: Box::new(self.playability),
             failures: self.failures,
             warnings: self.warnings,
@@ -181,18 +187,14 @@ fn assemble<R>(
         options.filter,
     );
     let files = ArchiveFiles::new(archive);
-    let picked = Scan::run(&forge, &files, options, &texts, &crafting.blueprints)?;
-    let mut collected = Collected::new(picked, crafting);
-    if cancelled() {
-        return Err(CatalogError::Cancelled);
-    }
+    let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    let starmap_summary = add_starmap(&mut collected, counts);
     add_contracts(&forge, &texts, options, &mut collected)?;
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
-    let item_classes = collected.item_classes;
-    let playability = collected.playability;
+    let (item_classes, playability) = (collected.item_classes, collected.playability);
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
@@ -211,6 +213,7 @@ fn assemble<R>(
         crafting_global: collected.crafting_global,
         paints: collected.paints,
         loadouts: collected.loadouts,
+        starmap_objects: collected.starmap_objects,
         contracts: collected.contracts,
     };
     let output = emit(&catalog)?;
@@ -222,11 +225,51 @@ fn assemble<R>(
             item_classes,
             paints: paint_summary,
             loadouts: loadout_summary,
+            starmap: starmap_summary,
+            starmap_report: Box::new(report),
             playability,
             failures: collected.failures,
             warnings: collected.warnings,
         },
         output,
+    ))
+}
+
+/// Places the starmap objects, checks every Record of `forge` and sorts what the kinds selected.
+fn scan<'f>(
+    archive: &Archive,
+    forge: &'f DataForge<'f>,
+    files: &'f ArchiveFiles<'f>,
+    options: &CatalogOptions<'_>,
+    texts: &Texts<'f>,
+    crafting: CraftingKinds<'f>,
+) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
+    let rule = crate::Kind::StarmapObjects.rule();
+    let wanted = forge.records().any(|record| {
+        record.record_path().is_ok_and(|path| {
+            rule.matches_path(path) && options.filter.is_none_or(|filter| filter.matches(path))
+        })
+    });
+    let placements = if wanted {
+        Placements::read(archive, options.cancel)?
+    } else {
+        Placements::default()
+    };
+    let picked = Scan::run(
+        forge,
+        files,
+        options,
+        texts,
+        &crafting.blueprints,
+        &placements,
+    )?;
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
+        return Err(CatalogError::Cancelled);
+    }
+    Ok((
+        Collected::new(picked, crafting),
+        placements.counts,
+        placements.report,
     ))
 }
 
@@ -245,7 +288,13 @@ fn add_contracts<'f>(
     options: &CatalogOptions<'_>,
     collected: &mut Collected<'f>,
 ) -> Result<(), CatalogError> {
-    let missions = missions::read(forge, texts, options.filter, options.cancel)?;
+    let missions = missions::read(
+        forge,
+        texts,
+        &collected.starmap_objects,
+        options.filter,
+        options.cancel,
+    )?;
     collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
     Ok(())
 }
@@ -298,6 +347,36 @@ fn add_loadouts(
     collected.loadouts = built.entries;
     collected.add_failures(built.failures);
     Ok(built.summary)
+}
+
+/// Counts the starmap objects of `collected` and what reading their containers found, and warns
+/// about containers that left objects without a position.
+fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> StarmapSummary {
+    let objects = collected.starmap_objects.len();
+    let placed = collected
+        .starmap_objects
+        .iter()
+        .filter(|object| object.position.is_some())
+        .count();
+    let summary = StarmapSummary {
+        objects,
+        placed,
+        unplaced: objects.saturating_sub(placed),
+        ambiguous: counts.ambiguous,
+        systems: counts.systems,
+        unreadable_containers: counts.unreadable,
+        missing_containers: counts.missing,
+        malformed_children: counts.malformed,
+    };
+    let unplaced_containers = counts.unreadable.saturating_add(counts.malformed);
+    if objects > 0 && unplaced_containers > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::UnplacedStarmapContainers(
+                unplaced_containers,
+            ));
+    }
+    summary
 }
 
 pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

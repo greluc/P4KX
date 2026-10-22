@@ -5,10 +5,12 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
-use crate::contract_missions::{ContractEntry, ReputationGain};
+use crate::contract_missions::{ContractEntry, PickupPlace, ReputationGain};
+use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::mission_index::{MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
+use crate::mission_places::{Places, Where};
 use crate::mission_title::{Token, title};
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
@@ -35,8 +37,16 @@ enum Piece<'f> {
     Failed(CatalogFailure),
 }
 
+/// What an entry is resolved against: the Records it refers to, the texts and the starmap.
+struct Context<'x, 'f> {
+    index: &'x MissionIndex<'f>,
+    texts: &'x Texts<'f>,
+    places: &'x Places<'x, 'f>,
+}
+
 /// Reads the contracts of the `ContractGenerator` Records `filter` matches: for each contract an
-/// entry, and one for each of its sub contracts, ordered by the text of the GUIDs.
+/// entry, and one for each of its sub contracts, ordered by the text of the GUIDs. The pickup
+/// places are the starmap objects `starmap` lists.
 ///
 /// A contract whose debug name or Record is a development leftover, and one without an `id`, is
 /// left out and counted.
@@ -47,6 +57,7 @@ enum Piece<'f> {
 pub(crate) fn read<'f>(
     forge: &'f DataForge<'f>,
     texts: &Texts<'f>,
+    starmap: &[StarmapObject<'f>],
     filter: Option<&Filter>,
     cancel: Option<&CancelToken>,
 ) -> Result<Missions<'f>, CatalogError> {
@@ -67,13 +78,19 @@ pub(crate) fn read<'f>(
         });
     }
     let index = MissionIndex::read(forge);
+    let places = Places::new(starmap);
+    let context = Context {
+        index: &index,
+        texts,
+        places: &places,
+    };
     let pieces: Vec<Piece<'f>> = records
         .par_iter()
         .map_init(TreeBuilder::new, |trees, record| {
             if cancel.is_some_and(CancelToken::is_cancelled) {
                 return Err(CatalogError::Cancelled);
             }
-            Ok(piece(trees, record, filter, &index, texts)
+            Ok(piece(trees, record, filter, &context)
                 .unwrap_or_else(|source| Some(Piece::Failed(CatalogFailure::of(record, &source)))))
         })
         .filter_map(Result::transpose)
@@ -109,8 +126,7 @@ fn piece<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
     filter: Option<&Filter>,
-    index: &MissionIndex<'f>,
-    texts: &Texts<'f>,
+    context: &Context<'_, 'f>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
     let rule = Kind::Contracts.rule();
     let path = record.record_path()?;
@@ -125,6 +141,7 @@ fn piece<'f>(
         .filter_map(as_struct)
     {
         let handler_layer = Layer::read(one(Some(handler), "contractParams"));
+        let handler_where = Where::read(one(Some(handler), "defaultAvailability"), "prerequisites");
         for container in CONTAINERS {
             for contract in items(Some(handler), container).iter().filter_map(as_struct) {
                 let name = text(Some(contract), "debugName");
@@ -140,11 +157,12 @@ fn piece<'f>(
                     tree: &tree,
                     handler,
                     handler_layer: &handler_layer,
+                    handler_where: &handler_where,
                     contract,
                     id: CatalogGuid(id),
                     name,
                 };
-                parent.entries(index, texts, &mut contracts);
+                parent.entries(context, &mut contracts);
             }
         }
     }
@@ -155,18 +173,16 @@ struct Parent<'t, 'f> {
     tree: &'t RecordTree<'f>,
     handler: &'t StructValue<'f>,
     handler_layer: &'t Layer<'f>,
+    handler_where: &'t Where,
     contract: &'t StructValue<'f>,
     id: CatalogGuid,
     name: Option<&'f str>,
 }
 
 impl<'f> Parent<'_, 'f> {
-    fn entries(
-        &self,
-        index: &MissionIndex<'f>,
-        texts: &Texts<'f>,
-        out: &mut Vec<ContractEntry<'f>>,
-    ) {
+    fn entries(&self, context: &Context<'_, 'f>, out: &mut Vec<ContractEntry<'f>>) {
+        let index = context.index;
+        let contract_where = Where::read(Some(self.contract), "additionalPrerequisites");
         let template = reference(Some(self.contract), "template").map(|guid| guid.0);
         let template_data = template.and_then(|guid| index.template(guid));
         let contract_layer = Layer::read(one(Some(self.contract), "paramOverrides"));
@@ -178,7 +194,21 @@ impl<'f> Parent<'_, 'f> {
                 .iter()
                 .chain([&contract_layer, self.handler_layer])
                 .collect();
-            self.entry(sub, &levels, template, template_data, &gains, index, texts)
+            let own = sub.map(|sub| Where::read(Some(sub), "additionalPrerequisites"));
+            let inherited = [&contract_where, self.handler_where];
+            let wheres: Vec<&Where> = own
+                .as_ref()
+                .filter(|own| !own.is_empty())
+                .map_or_else(|| inherited.to_vec(), |own| vec![own]);
+            let pickup = context.places.pickup(index, &wheres);
+            self.entry(
+                sub,
+                &levels,
+                template,
+                template_data,
+                (&gains, pickup),
+                context,
+            )
         };
         out.push(make(None));
         let subs = items(Some(self.contract), "subContracts")
@@ -190,20 +220,16 @@ impl<'f> Parent<'_, 'f> {
         );
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the levels, template, gains and lookups are one entry's inputs"
-    )]
     fn entry(
         &self,
         sub: Option<&StructValue<'f>>,
         levels: &[&Layer<'f>],
         template: Option<p4kx_extraction::Guid>,
         template_data: Option<&Template<'f>>,
-        gains: &[ReputationGain<'f>],
-        index: &MissionIndex<'f>,
-        texts: &Texts<'f>,
+        (gains, pickup): (&[ReputationGain<'f>], Vec<PickupPlace<'f>>),
+        context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
+        let (index, texts) = (context.index, context.texts);
         let property = |token: &str| -> Option<&Property<'f>> {
             levels
                 .iter()
@@ -245,6 +271,7 @@ impl<'f> Parent<'_, 'f> {
                     .and_then(|kind| kind.name_key),
             ),
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
+            pickup_places: pickup,
             reputation_gains: gains.to_vec(),
         }
     }

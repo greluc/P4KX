@@ -1,6 +1,7 @@
 //! A synthetic Archive with contracts, sub contracts, templates, mission types, a mission
 //! organisation with tagged string variants and reputation rewards.
 
+mod lookups;
 mod records;
 mod structures;
 
@@ -33,10 +34,21 @@ pub(crate) const DATABASE: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const TAG_TITLE: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const TAG_OTHER: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0003;
 
+pub(crate) const LOC_A: u128 = 0xa000_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const LOC_B: u128 = 0xa000_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const TYPE_SYSTEM: u128 = 0xb000_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const TYPE_PLANET: u128 = 0xb000_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const TYPE_STAR: u128 = 0xb000_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const TYPE_STATION: u128 = 0xb000_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const OBJ_SYSTEM: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0001;
+pub(crate) const OBJ_PLANET: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const OBJ_STAR: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const OBJ_STATION: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0000;
+
 fn database() -> DataForgeBuilder {
-    records::generator(records::reputation(records::referenced(
+    records::generator(lookups::places(lookups::reputation(records::referenced(
         structures::structures(DataForgeBuilder::new().version(8)),
-    )))
+    ))))
 }
 
 fn english() -> TestEntry {
@@ -53,6 +65,10 @@ fn english() -> TestEntry {
             .text("title_nested", "Pre ~mission(Wrap)")
             .text("wrap_text", "Wrapped ~mission(Location)")
             .text("contractor_acme", "Acme Agency")
+            .text("place_stanton", "Stanton")
+            .text("place_hurston", "Hurston")
+            .text("place_sol", "Sol")
+            .text("place_station0", "Everus")
             .text("title_plain", "Plain Title")
             .text("cargo_scrap", "Scrap")
             .text("cargo_gold", "Gold")

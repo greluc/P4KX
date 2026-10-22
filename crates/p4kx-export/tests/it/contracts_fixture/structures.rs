@@ -45,10 +45,26 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("template", TestType::Reference)
             .field("paramOverrides", class("ContractParamOverrides"))
             .array("subContracts", class("SubContract"))
+            .array("additionalPrerequisites", pointer("ContractPrerequisite"))
             .field("contractResults", class("ContractResultBlock")),
         TestStruct::new("SubContract")
             .field("id", TestType::Guid)
+            .array("additionalPrerequisites", pointer("ContractPrerequisite"))
             .field("paramOverrides", class("ContractParamOverrides")),
+        TestStruct::new("ContractPrerequisite"),
+        TestStruct::new("ContractPrerequisite_Locality")
+            .parent("ContractPrerequisite")
+            .field("localityAvailable", TestType::Reference),
+        TestStruct::new("ContractPrerequisite_Location")
+            .parent("ContractPrerequisite")
+            .field("locationAvailable", TestType::Reference),
+        TestStruct::new("MissionLocality").array("availableLocations", TestType::Reference),
+        TestStruct::new("StarMapObjectType").field("name", TestType::String),
+        TestStruct::new("StarMapObject")
+            .field("name", TestType::Locale)
+            .field("type", TestType::Reference)
+            .field("parent", TestType::Reference)
+            .field("hideInStarmap", TestType::Bool),
         TestStruct::new("ContractResultBlock").array("contractResults", pointer("ContractResult")),
         TestStruct::new("ContractResult"),
         TestStruct::new("ContractResult_LegacyReputation")

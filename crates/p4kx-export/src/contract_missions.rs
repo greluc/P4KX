@@ -47,9 +47,29 @@ pub(crate) struct ContractEntry<'a> {
     /// agency, when the contract has no faction reputation.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) contractor: LocalisedText<'a>,
+    /// Where the contract is offered or picked up, at most five starmap objects: those of the
+    /// `MissionLocality` and location prerequisites of the sub contract (else of the contract and
+    /// its handler), a star left out, the star system first, then planets and moons, then the
+    /// rest, each group in stored order. Empty when the prerequisites name none or the starmap
+    /// objects are not part of the catalog build.
+    pub(crate) pickup_places: Vec<PickupPlace<'a>>,
     /// The reputation the contract grants on success, one entry per amount: the results whose
     /// first mission result (success) is set. A result that fires on failure is left out.
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,
+}
+
+/// A place a contract is picked up at: an object of the starmap.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct PickupPlace<'a> {
+    /// The `guid` of the entry of `starmapObjects`.
+    pub(crate) starmap_object_guid: CatalogGuid,
+    /// The type of the starmap object, e.g. `Planet`.
+    pub(crate) object_type: Option<&'a str>,
+    /// The name of the place, as the starmap object states it.
+    #[schemars(extend("x-gameText" = true))]
+    pub(crate) place: LocalisedText<'a>,
 }
 
 /// One reputation amount a contract grants on success.

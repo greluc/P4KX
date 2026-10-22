@@ -1,9 +1,11 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
+use super::lookups::plain_record;
 use super::{
     AFFINITY, BOUNTY, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV, DATABASE,
-    DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOSS, ORGANIZATION, PLAIN_TEMPLATE,
-    RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER, TAG_TITLE, TEMPLATE,
+    DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS, OBJ_PLANET,
+    ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER,
+    TAG_TITLE, TEMPLATE,
 };
 
 const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
@@ -120,11 +122,26 @@ fn contract(id: u128, name: &str, template: u128, params: TestValue) -> TestInst
         .value("paramOverrides", params)
 }
 
-fn sub(id: u128, params: TestValue) -> TestValue {
+fn sub(id: u128, params: TestValue, prerequisites: Vec<TestValue>) -> TestValue {
     TestValue::Struct(
         TestInstance::new("SubContract")
             .value("id", TestValue::Guid(id))
+            .value("additionalPrerequisites", TestValue::Array(prerequisites))
             .value("paramOverrides", params),
+    )
+}
+
+fn locality(guid: u128) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractPrerequisite_Locality")
+            .value("localityAvailable", reference(guid)),
+    )
+}
+
+fn location(guid: u128) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractPrerequisite_Location")
+            .value("locationAvailable", reference(guid)),
     )
 }
 
@@ -160,9 +177,14 @@ fn delivery_contract() -> TestInstance {
             sub(
                 SUB_ONE,
                 overrides(Some("@title_sub"), Some(ESCORT), Vec::new()),
+                vec![location(OBJ_PLANET)],
             ),
-            sub(SUB_TWO, overrides(None, None, Vec::new())),
+            sub(SUB_TWO, overrides(None, None, Vec::new()), Vec::new()),
         ]),
+    )
+    .value(
+        "additionalPrerequisites",
+        TestValue::Array(vec![locality(LOC_A)]),
     )
     .value(
         "contractResults",
@@ -190,14 +212,7 @@ fn contractor_params(key: &str) -> TestValue {
     ))
 }
 
-pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
-    let delivery = delivery_contract();
-    let bare = contract(
-        CONTRACT_B,
-        "Deliver_B",
-        TEMPLATE,
-        overrides(None, None, Vec::new()),
-    );
+fn bounty_handler() -> TestValue {
     let bounty = contract(
         CONTRACT_C,
         "Bounty_C",
@@ -210,6 +225,29 @@ pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
         TEMPLATE,
         overrides(Some("@title_a"), None, Vec::new()),
     );
+    let without_id = TestInstance::new("CareerContract")
+        .value("debugName", TestValue::text("Deliver_NoId"))
+        .value("template", reference(TEMPLATE));
+    handler(
+        "Bounty_Career",
+        overrides(Some("@title_handler"), Some(BOUNTY), Vec::new()),
+        vec![TestValue::Struct(bounty)],
+        vec![TestValue::Struct(leftover), TestValue::Struct(without_id)],
+    )
+}
+
+fn delivery_handler() -> TestValue {
+    let delivery = delivery_contract();
+    let bare = contract(
+        CONTRACT_B,
+        "Deliver_B",
+        TEMPLATE,
+        overrides(None, None, Vec::new()),
+    )
+    .value(
+        "additionalPrerequisites",
+        TestValue::Array(vec![locality(LOC_B)]),
+    );
     let nested = contract(
         CONTRACT_D,
         "Deliver_D",
@@ -220,9 +258,19 @@ pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
             vec![property("Wrap", string_hash("@wrap_text"))],
         ),
     );
-    let without_id = TestInstance::new("CareerContract")
-        .value("debugName", TestValue::text("Deliver_NoId"))
-        .value("template", reference(TEMPLATE));
+    handler(
+        "Delivery_Career",
+        contractor_params("@contractor_acme"),
+        vec![
+            TestValue::Struct(delivery),
+            TestValue::Struct(bare),
+            TestValue::Struct(nested),
+        ],
+        Vec::new(),
+    )
+}
+
+pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
     builder.record(
         TestRecord::new(
             GENERATOR,
@@ -232,24 +280,7 @@ pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
         )
         .value(
             "generators",
-            TestValue::Array(vec![
-                handler(
-                    "Delivery_Career",
-                    contractor_params("@contractor_acme"),
-                    vec![
-                        TestValue::Struct(delivery),
-                        TestValue::Struct(bare),
-                        TestValue::Struct(nested),
-                    ],
-                    Vec::new(),
-                ),
-                handler(
-                    "Bounty_Career",
-                    overrides(Some("@title_handler"), Some(BOUNTY), Vec::new()),
-                    vec![TestValue::Struct(bounty)],
-                    vec![TestValue::Struct(leftover), TestValue::Struct(without_id)],
-                ),
-            ]),
+            TestValue::Array(vec![delivery_handler(), bounty_handler()]),
         ),
     )
 }
@@ -293,25 +324,6 @@ fn mission_type(guid: u128, name: &str, key: &str) -> TestRecord {
     .value("LocalisedTypeName", TestValue::text(key))
 }
 
-fn plain_record(guid: u128, kind: &str, path: &str) -> TestRecord {
-    let name = path.rsplit('/').next().unwrap_or(path);
-    TestRecord::new(
-        guid,
-        kind,
-        format!("{kind}.{name}"),
-        format!("libs/foundry/records/{path}.xml"),
-    )
-}
-
-fn reward(guid: u128, name: &str, value: i32) -> TestRecord {
-    plain_record(
-        guid,
-        "ReputationReward",
-        &format!("reputation/rewards/missionrewards_reputation/{name}"),
-    )
-    .value("reputationAmount", TestValue::Int32(value))
-}
-
 fn tag(guid: u128, name: &str) -> TestRecord {
     TestRecord::new(guid, "Tag", format!("Tag.{name}"), TAG_PATH)
         .value("tagName", TestValue::text(name))
@@ -324,27 +336,6 @@ fn variant(tag: u128, key: &str) -> TestValue {
             .value("tag", reference(tag))
             .value("string", TestValue::text(key)),
     )
-}
-
-pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
-    [
-        plain_record(
-            FACTION,
-            "FactionReputation",
-            "factions/factionreputation/acme",
-        ),
-        plain_record(
-            FACTION_SCOPE,
-            "ReputationScope",
-            "reputation/scopes/faction",
-        ),
-        plain_record(AFFINITY, "ReputationScope", "reputation/scopes/affinity"),
-        reward(RANK_TWO_HUNDRED, "gain_200", 200),
-        reward(RANK_FIFTY, "gain_50", 50),
-        reward(LOSS, "loss_100", -100),
-    ]
-    .into_iter()
-    .fold(builder, DataForgeBuilder::record)
 }
 
 pub(super) fn referenced(builder: DataForgeBuilder) -> DataForgeBuilder {

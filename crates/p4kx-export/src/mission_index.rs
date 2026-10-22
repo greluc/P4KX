@@ -13,6 +13,7 @@ const TEMPLATES: &str = "libs/foundry/records/contracts/contracttemplates/";
 const TYPES: &str = "libs/foundry/records/missiontype/";
 const ORGANIZATIONS: &str = "libs/foundry/records/missiondata/pu_organizations/";
 const REWARDS: &str = "libs/foundry/records/reputation/rewards/missionrewards_reputation/";
+const LOCALITIES: &str = "libs/foundry/records/missiondata/pu_missionlocality/";
 
 /// What a `ContractTemplate` Record contributes to a contract: the title and the mission type of
 /// its display info and its properties.
@@ -37,6 +38,7 @@ enum Piece<'f> {
     Type(Guid, MissionType<'f>),
     Organization(Guid, Variants<'f>),
     Reward(Guid, i64),
+    Locality(Guid, Vec<Guid>),
 }
 
 /// The Records a contract refers to, read once: templates, mission types, mission
@@ -46,6 +48,7 @@ pub(crate) struct MissionIndex<'f> {
     types: HashMap<Guid, MissionType<'f>>,
     organizations: HashMap<Guid, Variants<'f>>,
     rewards: HashMap<Guid, i64>,
+    localities: HashMap<Guid, Vec<Guid>>,
     tags: TagTree,
 }
 
@@ -66,6 +69,7 @@ impl<'f> MissionIndex<'f> {
             types: HashMap::new(),
             organizations: HashMap::new(),
             rewards: HashMap::new(),
+            localities: HashMap::new(),
             tags: TagTree::build(forge),
         };
         for piece in pieces {
@@ -82,6 +86,9 @@ impl<'f> MissionIndex<'f> {
                 Piece::Reward(guid, amount) => {
                     index.rewards.insert(guid, amount);
                 }
+                Piece::Locality(guid, locations) => {
+                    index.localities.insert(guid, locations);
+                }
             }
         }
         index
@@ -97,6 +104,12 @@ impl<'f> MissionIndex<'f> {
 
     pub(crate) fn reward(&self, guid: Guid) -> Option<i64> {
         self.rewards.get(&guid).copied()
+    }
+
+    /// Returns the starmap objects the `MissionLocality` Record `guid` lists as available
+    /// locations, in stored order.
+    pub(crate) fn locality(&self, guid: Guid) -> &[Guid] {
+        self.localities.get(&guid).map_or(&[], Vec::as_slice)
     }
 
     /// Returns the localisation key of the string variant of organisation `organization` whose
@@ -122,7 +135,7 @@ fn piece<'f>(
         path.get(..prefix.len())
             .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
     };
-    let wanted = [TEMPLATES, TYPES, ORGANIZATIONS, REWARDS]
+    let wanted = [TEMPLATES, TYPES, ORGANIZATIONS, REWARDS, LOCALITIES]
         .into_iter()
         .any(starts);
     if !wanted {
@@ -150,6 +163,17 @@ fn piece<'f>(
         )
     } else if starts(ORGANIZATIONS) {
         Piece::Organization(guid, organization_variants(root))
+    } else if starts(LOCALITIES) {
+        Piece::Locality(
+            guid,
+            items(root, "availableLocations")
+                .iter()
+                .filter_map(|location| match location {
+                    Value::Reference(target) if target.location().is_none() => Some(target.guid()),
+                    _ => None,
+                })
+                .collect(),
+        )
     } else {
         match integer(root, "reputationAmount") {
             Some(amount) => Piece::Reward(guid, amount),

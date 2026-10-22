@@ -47,6 +47,9 @@ pub enum Kind {
     /// Default Loadout attaches to each. Derived from the items and ships, so no record-path rule
     /// of its own.
     Loadouts,
+    /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
+    /// system containers place it at.
+    StarmapObjects,
     /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
     /// `contracts/contractgenerator`, one entry each.
     Contracts,
@@ -54,7 +57,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -68,6 +71,7 @@ impl Kind {
         Self::DismantleProcesses,
         Self::Paints,
         Self::Loadouts,
+        Self::StarmapObjects,
         Self::Contracts,
     ];
 
@@ -88,6 +92,7 @@ impl Kind {
             Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
+            Self::StarmapObjects => "starmapObjects",
             Self::Contracts => "contracts",
         }
     }
@@ -163,6 +168,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
                 type_name: "CraftingBlueprintRecord",
             },
+            Self::StarmapObjects => KindRule {
+                prefixes: &["libs/foundry/records/starmap/pu/"],
+                type_name: "StarMapObject",
+            },
             Self::Contracts => KindRule {
                 prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
                 type_name: "ContractGenerator",
@@ -196,7 +205,8 @@ impl Kind {
             Self::DismantleProcesses => 10,
             Self::Paints => 11,
             Self::Loadouts => 12,
-            Self::Contracts => 13,
+            Self::StarmapObjects => 13,
+            Self::Contracts => 14,
         }
     }
 

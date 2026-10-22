@@ -12,6 +12,7 @@ mod catalog_items;
 mod catalog_paints;
 mod catalog_playability;
 mod catalog_selection;
+mod catalog_ship_base;
 mod catalog_texts;
 mod common;
 mod crafting_detail;

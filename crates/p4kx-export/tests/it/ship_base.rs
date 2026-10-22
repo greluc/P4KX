@@ -1,14 +1,15 @@
 //! The base data of ships through the public API.
 
 use crate::ship_base_fixture::{
-    ALPHA, ALPHA_XML, BETA, BROKEN, GROUND, MIXED, UNKNOWN, write_archive,
+    ALPHA, ALPHA_XML, BETA, BROKEN, CAR, GROUND, MIXED, ROLLING, UNKNOWN, write_archive,
 };
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
 use p4kx_export::{
-    BuiltShipBase, Filter, MassBasis, ShipBase, ShipBaseOptions, SourceKind, build_ship_base,
+    BuiltShipBase, Filter, MassBasis, ShipBase, ShipBaseOptions, SourceKind, VehicleKind,
+    build_ship_base,
 };
 use p4kx_extraction::Archive;
 use serde_json::Value;
@@ -48,7 +49,7 @@ fn near(left: f64, right: f64) -> bool {
 #[test]
 fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
     let built = build(None)?;
-    assert_eq!(built.ships().len(), 6, "failures: {:?}", built.failures());
+    assert_eq!(built.ships().len(), 9, "failures: {:?}", built.failures());
     assert_eq!(built.skipped(), 1, "ACME_Dummy_Ship holds the token dummy");
     assert!(built.is_complete(), "failures: {:?}", built.failures());
     let order: Vec<_> = built
@@ -64,10 +65,38 @@ fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
             "ACME_Ground",
             "ACME_Broken",
             "ACME_Mixed",
-            "ACME_Unknown"
+            "ACME_Unknown",
+            "ACME_Rolling",
+            "ACME_Car",
+            "ACME_Huge"
         ],
         "ordered by the text of the GUID"
     );
+    Ok(())
+}
+
+#[test]
+fn the_vehicle_kind_follows_the_folder_and_the_wheels_of_the_implementation() -> TestResult {
+    let built = build(None)?;
+    assert_eq!(
+        ship(&built, ALPHA)?.vehicle_kind,
+        Some(VehicleKind::Spaceship)
+    );
+    assert_eq!(
+        ship(&built, GROUND)?.vehicle_kind,
+        Some(VehicleKind::GroundVehicle),
+        "the ground folder is enough without an implementation"
+    );
+    assert_eq!(
+        ship(&built, CAR)?.vehicle_kind,
+        Some(VehicleKind::GroundVehicle)
+    );
+    assert_eq!(
+        ship(&built, ROLLING)?.vehicle_kind,
+        None,
+        "wheels in a spaceship folder: the evidence disagrees"
+    );
+    assert_eq!(VehicleKind::GroundVehicle.code(), "groundVehicle");
     Ok(())
 }
 

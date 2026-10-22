@@ -1,6 +1,8 @@
 use std::collections::HashSet;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use p4kx_assembly::ArchiveFiles;
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
 use rayon::prelude::*;
 
@@ -10,6 +12,7 @@ use crate::contract::Blueprint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
+use crate::ship_base::{ShipBase, ShipReader};
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
 
@@ -17,9 +20,31 @@ const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
 const RESOURCE_TYPE: &str = "ResourceType";
 
+/// The ship readers not in use. A reader keeps the shared Entities and containers it has read, so
+/// a reader taken for one ship and given back for the next keeps its caches across the splits of
+/// the parallel scan.
+struct ShipPool<'f> {
+    forge: &'f DataForge<'f>,
+    files: &'f ArchiveFiles<'f>,
+    idle: Mutex<Vec<ShipReader<'f>>>,
+}
+
+impl<'f> ShipPool<'f> {
+    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipBase, CatalogFailure> {
+        let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
+        let mut reader = taken.unwrap_or_else(|| ShipReader::new(self.forge, self.files));
+        let result = reader.read_tree(record, tree);
+        if let Ok(mut idle) = self.idle.lock() {
+            idle.push(reader);
+        }
+        result
+    }
+}
+
 /// The parallel check of every Record, with its progress.
 pub(crate) struct Scan<'o, 'a, 'f> {
     forge: &'f DataForge<'f>,
+    ships: ShipPool<'f>,
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     groups: Groups,
@@ -29,9 +54,11 @@ pub(crate) struct Scan<'o, 'a, 'f> {
 }
 
 impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
-    /// Checks every Record of `forge` in parallel and returns those a kind selected.
+    /// Checks every Record of `forge` in parallel and returns those a kind selected; a ship's base
+    /// data is read here, once, by the worker that checks it.
     pub(crate) fn run(
-        forge: &'f DataForge<'_>,
+        forge: &'f DataForge<'f>,
+        files: &'f ArchiveFiles<'f>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
         blueprints: &[Blueprint<'f>],
@@ -41,6 +68,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
+            ships: ShipPool {
+                forge,
+                files,
+                idle: Mutex::new(Vec::new()),
+            },
             options,
             texts,
             groups,
@@ -193,6 +225,13 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             Kind::Commodities => self.resource_type(trees, &tree)?,
             _ => None,
         };
+        let ship_base = match kind {
+            Kind::Ships => match self.ships.read(record, &tree) {
+                Ok(base) => Some(base),
+                Err(failure) => return Ok(Some(Picked::Failed(failure))),
+            },
+            _ => None,
+        };
         Ok(Picked::entity(
             kind,
             &tree,
@@ -200,6 +239,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             resource_type.as_ref(),
             &self.groups,
             &self.evidence,
+            ship_base.as_ref(),
         ))
     }
 

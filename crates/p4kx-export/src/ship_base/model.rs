@@ -206,6 +206,27 @@ pub struct Implementation {
     pub patch_file: Option<String>,
 }
 
+/// Whether a vehicle is a spaceship or a ground vehicle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VehicleKind {
+    /// A vehicle of the folder `entities/spaceships` without wheels or treads.
+    Spaceship,
+    /// A vehicle of the folder `entities/groundvehicles`.
+    GroundVehicle,
+}
+
+impl VehicleKind {
+    /// Returns the stable code of the kind, e.g. `groundVehicle`.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Spaceship => "spaceship",
+            Self::GroundVehicle => "groundVehicle",
+        }
+    }
+}
+
 /// The base data of one ship: mass, hull, cargo, size and default Loadout, each with its source.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -219,6 +240,9 @@ pub struct ShipBase {
     pub record_path: String,
     /// The vehicle implementation file, `null` when the ship names none or it cannot be read.
     pub implementation: Option<Implementation>,
+    /// Spaceship or ground vehicle, `null` when the record path and the vehicle implementation
+    /// disagree or the path names neither folder.
+    pub vehicle_kind: Option<VehicleKind>,
     /// The item size from `AttachDef.Size`.
     pub size: Option<Sourced<i64>>,
     /// The hull mass, `null` when neither the parts nor the physics controller state one.

@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::time::SystemTime;
 
+use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc3339};
 
@@ -173,7 +174,8 @@ fn assemble<R>(
         &texts,
         options.filter,
     );
-    let picked = Scan::run(&forge, options, &texts, &crafting.blueprints)?;
+    let files = ArchiveFiles::new(archive);
+    let picked = Scan::run(&forge, &files, options, &texts, &crafting.blueprints)?;
     let mut collected = Collected::new(picked, crafting);
     if cancelled() {
         return Err(CatalogError::Cancelled);

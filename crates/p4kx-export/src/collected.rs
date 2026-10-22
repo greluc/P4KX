@@ -18,7 +18,7 @@ use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, resource_group};
 use crate::ship::ship;
 use crate::texts::Texts;
-use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
+use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, ShipBase};
 
 /// A Record a kind selected: its entity, or a development leftover of the kind.
 ///
@@ -45,8 +45,9 @@ pub(crate) enum Picked<'f> {
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
     /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
-    /// type from `groups`, a ship its playability from `evidence`. `None` for a kind that
-    /// [`read_crafting`](crate::read_crafting) fills.
+    /// type from `groups`, a ship its playability from `evidence` and its base data from
+    /// `ship_base`. `None` for a kind that [`read_crafting`](crate::read_crafting) fills, and for
+    /// a ship without `ship_base`.
     pub(crate) fn entity(
         kind: Kind,
         tree: &RecordTree<'f>,
@@ -54,6 +55,7 @@ impl<'f> Picked<'f> {
         resource_type: Option<&RecordTree<'f>>,
         groups: &Groups,
         evidence: &Evidence,
+        ship_base: Option<&ShipBase>,
     ) -> Option<Self> {
         Some(match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
@@ -62,7 +64,7 @@ impl<'f> Picked<'f> {
                 Self::Item(item, line)
             }
             Kind::Ships => {
-                let (ship, vehicle) = ship(tree, texts, evidence);
+                let (ship, vehicle) = ship(tree, texts, evidence, ship_base?);
                 Self::Ship(ship, vehicle)
             }
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),

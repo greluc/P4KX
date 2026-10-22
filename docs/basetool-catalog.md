@@ -232,6 +232,58 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 | `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+| `vehicleKind` | `spaceship` or `groundVehicle`, or `null`; see "Ship base data" below |
+| `size` | `Components/SAttachableComponentParams/AttachDef/Size`, an integer, `null` without an `AttachDef` |
+| `mass` | The hull mass in kilograms; `null` when unknown, never 0; see "Ship base data" below |
+| `massBasis` | What `mass` is the sum of: `parts` or `physics`; `null` exactly when `mass` is |
+| `hullHealth` | The hull hit points, `null` when unknown; see "Ship base data" below |
+| `cargoScu` | The cargo capacity in SCU: 0 without a cargo grid, `null` when unknown; see "Ship base data" below |
+| `cargoGridsWithIssue` | How many cargo grids have no readable capacity; above 0, `cargoScu` is a lower bound |
+
+#### Ship base data
+
+`mass`, `massBasis`, `hullHealth`, `cargoScu`, `cargoGridsWithIssue`, `size` and `vehicleKind` are
+facts only (no game text) and come from the ship base data of `p4kx ships`
+([ship-base-data.md](ship-base-data.md), ADR-0061): the catalog build reads each ship once with
+`p4kx_export::ShipReader` in the same pass that reads the other ship fields, so the ship base walk
+runs once, not twice. Every value is `null` when the Archive does not state it, and a reader never
+sees 0 for unknown. The exports agree value for value; the catalog leaves out the per-value
+sources (file and field), the thresholds, the Loadout and the cells, which stay in `p4kx ships`.
+The shapes are additive within version 1 (ADR-0054, ADR-0063); `vehicleKind` and `massBasis` are
+closed sets that the schema keeps as strings.
+
+| Field | Rule and source |
+|-------|-----------------|
+| `mass` | The sum of the `mass` of every part of the vehicle implementation (`vehicleDefinition`) after the ship's Modification is applied, rounded to four decimals; a sum too large to round to a finite number counts as unknown (so does `hullHealth`). Landing gear, Loadout items and docked vehicles are not part of it (#305). Without part masses, the mass of the rigid physics controller (`Components/SEntityPhysicsControllerParams/PhysType/Mass`, `massBasis` `physics`) |
+| `hullHealth` | The sum of the positive `damageMax` of the parts, except parts holding an item port flagged `uneditable` or `invisible`; `null` without a vehicle implementation or when no part states one |
+| `cargoScu` | The sum of the capacity of the `CargoGrid` Entities of the default Loadout (docked vehicles and templates are not entered): an open container is `x * y * z / 1.953125` of its `interiorDimensions`, a closed one its `capacity` in standard cargo units. 0 for a ship with no grid, `null` when it has grids and none is readable |
+| `cargoGridsWithIssue` | The grids whose capacity cannot be read, e.g. a dangling Reference to the `InventoryContainer`. Above 0, `cargoScu` counts only the readable grids and is a lower bound |
+| `vehicleKind` | `groundVehicle` for a Record under `entities/groundvehicles`, `spaceship` for one under `entities/spaceships` whose vehicle implementation has no wheel (`SubPartWheel`) or tread (`Tread`) part; a missing or unreadable vehicle implementation counts as no wheels, so such a Record under `entities/spaceships` is a `spaceship`. `null` when the evidence disagrees (a wheeled or tracked Record under `entities/spaceships`) or the path names neither folder |
+
+LIVE anchors, read by the real-Archive test: Harbinger 230,404 kg, 48,490 hull, 0 SCU; Freelancer
+MAX 341,408 kg, 35,650 hull, 120 SCU; Carrack 3,275,858 kg, 88,000 hull, 456 SCU; Constellation
+Andromeda 386,857 kg, 180,844 hull, 96 SCU (without the docked snub craft). The Javelin and the
+Hornet F7C have `cargoScu` `null`: their cargo grids refer to `InventoryContainer` Records that do
+not exist.
+
+A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more than the number
+says.
+
+On LIVE the 1,087 catalog ships split into 1,048 `spaceship` and 39 `groundVehicle`, none `null`:
+no Record under `entities/spaceships` has a wheel or tread. The folder `entities/groundvehicles`
+holds 40 Records; the 40th, `RSI_Ursa_Rover_Unmanned_Template`, is left out of the catalog as a
+development leftover (the whole word `template`, see "Selection").
+
+**Minimum crew.** The game has none. A survey of the field names of all 1,144 ship Records on LIVE
+finds only `crewSize` (on `VehicleComponentParams` and on `StaticEntityClassData/displayParams`) and
+`crewManifest` (the NPC crew of AI variants, used by `playability`). No field named minimum, seat
+or crew minimum exists, so `crewSize` stays the only crew value.
+
+**Outer dimensions.** No field states the outer size of a ship in metres. The survey finds the
+item-inventory fields `AttachDef/inventoryOccupancyDimensions` and
+`inventoryOccupancyLocalBoundsMin` / `Max` on every ship Record, plus `maxBoundingBoxSize` and
+`hasLocalBounds`. They describe how a ship takes up inventory space, not its hull, and their values
+for ships are not verified, so the catalog exports no dimensions.
 
 #### Playability
 
@@ -676,21 +728,22 @@ German texts):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 26,505,107 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 26,132,678 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 25,702,421 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 26,505,109 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 26,558,647 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| LIVE | 26,648,375 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 26,271,532 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 25,840,617 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 26,648,377 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 26,695,043 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
-Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21:
+The ship base fields (#395) added 143,268 bytes on LIVE (0.5 %). Written as `.json.zst` (level 19,
+window log 27, `--exported-at 1`), measured on 2026-10-21 with the ship base fields:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 26,505,107 | 1,700,139 | 15.6 |
-| PTU | 26,132,678 | 1,678,351 | 15.6 |
-| EPTU | 25,702,421 | 1,653,664 | 15.5 |
-| HOTFIX | 26,505,109 | 1,699,663 | 15.6 |
-| TECH-PREVIEW | 26,558,647 | 1,718,856 | 15.5 |
+| LIVE | 26,648,375 | 1,702,931 | 15.6 |
+| PTU | 26,271,532 | 1,681,150 | 15.6 |
+| EPTU | 25,840,617 | 1,656,576 | 15.6 |
+| HOTFIX | 26,648,377 | 1,702,646 | 15.6 |
+| TECH-PREVIEW | 26,695,043 | 1,721,630 | 15.5 |
 
 The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
 1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
@@ -706,9 +759,13 @@ Level 19 stays: 12.7 s is acceptable and it saves 15 % over level 15.
 Of the 26.5 MB of LIVE, the paints take 0.5 MB (the ship lists), the blueprints take 5.5 MB (4.4 MB more than before: the `tiers` repeat
 the cost tree, every line with its null fields), the pools 0.43 MB (824 entries, 1,039 reward
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
-unchanged: items 16.9 MB, ships 1.4 MB, manufacturers 1.1 MB.
+unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 5.5 s). Left out as development leftovers on
+A catalog builds in 4 to 7 seconds (LIVE 5.5 s) before the ship base fields. With them LIVE builds
+in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version that gave
+every split of the parallel scan its own ship reader took 10.5 s, because each reader began with
+empty Entity caches; the scan now keeps the readers in a pool, so a reader keeps its caches across
+splits. Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

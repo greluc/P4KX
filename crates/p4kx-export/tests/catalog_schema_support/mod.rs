@@ -183,6 +183,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
             "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
             "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
+            "contractor": {"key": null, "en": null, "de": null},
             "reputationGains": [{
                 "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
                 "factionReputationName": "acme",

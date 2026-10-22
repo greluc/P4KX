@@ -27,6 +27,55 @@ fn text<'c>(entry: &'c Value, field: &str) -> &'c str {
     clippy::print_stdout,
     reason = "the figures are the result of the verification"
 )]
+fn gaps(contracts: &[Value]) {
+    let describe = |label: &str, gap: &dyn Fn(&Value) -> bool| {
+        let missing: Vec<&Value> = contracts.iter().filter(|entry| gap(entry)).collect();
+        let no_template = missing
+            .iter()
+            .filter(|entry| entry["templateGuid"].is_null())
+            .count();
+        let mut by_handler: BTreeMap<&str, usize> = BTreeMap::new();
+        let mut by_template: BTreeMap<&str, usize> = BTreeMap::new();
+        for entry in &missing {
+            *by_handler
+                .entry(entry["handler"].as_str().unwrap_or_default())
+                .or_default() += 1;
+            *by_template
+                .entry(entry["templateGuid"].as_str().unwrap_or("none"))
+                .or_default() += 1;
+        }
+        println!(
+            "{label}: {} entries, {no_template} without a template; handlers {:?}; templates {:?}",
+            missing.len(),
+            by_handler.iter().take(15).collect::<Vec<_>>(),
+            by_template.iter().take(15).collect::<Vec<_>>()
+        );
+        for entry in missing.iter().take(8) {
+            println!(
+                "  {} | {} | {} | {}",
+                entry["debugName"], entry["handler"], entry["templateGuid"], entry["recordPath"]
+            );
+        }
+    };
+    describe("untitled", &|entry| text(entry, "title").is_empty());
+    describe("untyped", &|entry| entry["missionTypeGuid"].is_null());
+    describe("unresolved tokens", &|entry| {
+        let title = text(entry, "title");
+        title.contains("[CONTRACTOR]") || title.contains("[RACETYPE]") || title.contains("[ITEM]")
+    });
+    describe("negative gains", &|entry| {
+        entry["reputationGains"].as_array().is_some_and(|gains| {
+            gains
+                .iter()
+                .any(|gain| gain["amount"].as_i64().is_some_and(|amount| amount < 0))
+        })
+    });
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the figures are the result of the verification"
+)]
 fn report(contracts: &[Value]) {
     let subs = contracts
         .iter()
@@ -56,6 +105,7 @@ fn report(contracts: &[Value]) {
     println!("{untitled} without a title, {untyped} without a mission type");
     println!("{gained} with reputation gains, {negative} negative amounts among them");
     println!("placeholders in titles: {placeholders:?}");
+    gaps(contracts);
     for entry in contracts.iter().take(SAMPLES) {
         println!(
             "{} | {:?} | {} | {} | {}",

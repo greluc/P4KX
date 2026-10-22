@@ -42,6 +42,11 @@ pub(crate) struct ContractEntry<'a> {
     /// The localised name of the mission type.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) mission_type: LocalisedText<'a>,
+    /// The `Contractor` string parameter of the first level that states one (sub contract,
+    /// contract, handler): the text the game shows as the giver of the contract, e.g. the
+    /// agency, when the contract has no faction reputation.
+    #[schemars(extend("x-gameText" = true))]
+    pub(crate) contractor: LocalisedText<'a>,
     /// The reputation the contract grants on success, one entry per amount: the results whose
     /// first mission result (success) is set. A result that fires on failure is left out.
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,

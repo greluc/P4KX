@@ -4,6 +4,7 @@ use crate::contract::LocalisedText;
 use crate::texts::Texts;
 
 const OPEN: &str = "~mission(";
+const MAX_DEPTH: usize = 3;
 
 /// What a `~mission(Token)` in a text is replaced by.
 pub(crate) enum Token<'a> {
@@ -52,7 +53,19 @@ fn render<'a>(
         return trimmed(text);
     }
     let mut out = String::with_capacity(text.len());
-    let mut rest: &str = &text;
+    substitute(&mut out, &text, 0, pick, texts, resolve);
+    trimmed(Cow::Owned(out))
+}
+
+fn substitute<'a>(
+    out: &mut String,
+    text: &str,
+    depth: usize,
+    pick: for<'x> fn(&'x LocalisedText<'a>) -> Option<&'x str>,
+    texts: &Texts<'a>,
+    resolve: &dyn Fn(&str, Option<&str>) -> Option<Token<'a>>,
+) {
+    let mut rest: &str = text;
     while let Some((before, after)) = rest.split_once(OPEN) {
         out.push_str(before);
         if let Some((content, tail)) = after.split_once(')') {
@@ -62,7 +75,7 @@ fn render<'a>(
                 }
                 None => (content, None),
             };
-            expand(&mut out, name, variant, pick, texts, resolve);
+            expand(out, name, variant, depth, pick, texts, resolve);
             rest = tail;
         } else {
             out.push_str(OPEN);
@@ -70,13 +83,13 @@ fn render<'a>(
         }
     }
     out.push_str(rest);
-    trimmed(Cow::Owned(out))
 }
 
 fn expand<'a>(
     out: &mut String,
     name: &str,
     variant: Option<&str>,
+    depth: usize,
     pick: for<'x> fn(&'x LocalisedText<'a>) -> Option<&'x str>,
     texts: &Texts<'a>,
     resolve: &dyn Fn(&str, Option<&str>) -> Option<Token<'a>>,
@@ -85,7 +98,12 @@ fn expand<'a>(
         Some(Token::Key(key)) => {
             let text = texts.localised(Some(key));
             if let Some(found) = pick(&text).filter(|found| !found.is_empty()) {
-                out.push_str(found.trim());
+                let found = found.trim();
+                if depth < MAX_DEPTH && found.contains(OPEN) {
+                    substitute(out, found, depth + 1, pick, texts, resolve);
+                } else {
+                    out.push_str(found);
+                }
                 return;
             }
         }

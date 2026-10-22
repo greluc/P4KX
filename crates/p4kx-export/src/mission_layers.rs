@@ -6,6 +6,7 @@ use crate::record_fields::{reference, text};
 const STRING_HASH: &str = "MissionPropertyValue_StringHash";
 const ORGANIZATION: &str = "MissionPropertyValue_Organization";
 const TITLE: &str = "Title";
+const CONTRACTOR: &str = "Contractor";
 
 /// What a mission property says a `~mission(Token)` in a text stands for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +33,7 @@ pub(crate) struct Property<'f> {
 pub(crate) struct Layer<'f> {
     pub(crate) title: Option<&'f str>,
     pub(crate) mission_type: Option<Guid>,
+    pub(crate) contractor: Option<&'f str>,
     pub(crate) properties: Vec<Property<'f>>,
 }
 
@@ -39,12 +41,16 @@ impl<'f> Layer<'f> {
     /// Reads the overrides in `params`, the `paramOverrides` of a contract or sub contract or
     /// the `contractParams` of a handler.
     pub(crate) fn read(params: Option<&StructValue<'f>>) -> Self {
-        Self {
-            title: items(params, "stringParamOverrides")
+        let string_param = |name: &str| {
+            items(params, "stringParamOverrides")
                 .iter()
                 .filter_map(as_struct)
-                .find(|param| text(Some(param), "param") == Some(TITLE))
-                .and_then(|param| key(Some(param), "value")),
+                .find(|param| text(Some(param), "param") == Some(name))
+                .and_then(|param| key(Some(param), "value"))
+        };
+        Self {
+            title: string_param(TITLE),
+            contractor: string_param(CONTRACTOR),
             mission_type: reference(params, "missionTypeOverride").map(|guid| guid.0),
             properties: properties(params, "propertyOverrides"),
         }

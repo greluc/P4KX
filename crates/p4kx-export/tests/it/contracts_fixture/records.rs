@@ -1,9 +1,9 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::{
-    AFFINITY, BOUNTY, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_DEV, DATABASE, DELIVERY, ESCORT,
-    FACTION, FACTION_SCOPE, GENERATOR, LOSS, ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY,
-    RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER, TAG_TITLE, TEMPLATE,
+    AFFINITY, BOUNTY, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV, DATABASE,
+    DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOSS, ORGANIZATION, PLAIN_TEMPLATE,
+    RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER, TAG_TITLE, TEMPLATE,
 };
 
 const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
@@ -183,6 +183,13 @@ fn delivery_contract() -> TestInstance {
     )
 }
 
+fn contractor_params(key: &str) -> TestValue {
+    TestValue::Struct(TestInstance::new("ContractParamOverrides").value(
+        "stringParamOverrides",
+        TestValue::Array(vec![param("Contractor", key)]),
+    ))
+}
+
 pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
     let delivery = delivery_contract();
     let bare = contract(
@@ -203,6 +210,16 @@ pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
         TEMPLATE,
         overrides(Some("@title_a"), None, Vec::new()),
     );
+    let nested = contract(
+        CONTRACT_D,
+        "Deliver_D",
+        TEMPLATE,
+        overrides(
+            Some("@title_nested"),
+            None,
+            vec![property("Wrap", string_hash("@wrap_text"))],
+        ),
+    );
     let without_id = TestInstance::new("CareerContract")
         .value("debugName", TestValue::text("Deliver_NoId"))
         .value("template", reference(TEMPLATE));
@@ -218,8 +235,12 @@ pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
             TestValue::Array(vec![
                 handler(
                     "Delivery_Career",
-                    overrides(None, None, Vec::new()),
-                    vec![TestValue::Struct(delivery), TestValue::Struct(bare)],
+                    contractor_params("@contractor_acme"),
+                    vec![
+                        TestValue::Struct(delivery),
+                        TestValue::Struct(bare),
+                        TestValue::Struct(nested),
+                    ],
                     Vec::new(),
                 ),
                 handler(

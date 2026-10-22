@@ -244,6 +244,7 @@ impl<'f> Parent<'_, 'f> {
                     .and_then(|guid| index.mission_type(guid))
                     .and_then(|kind| kind.name_key),
             ),
+            contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
             reputation_gains: gains.to_vec(),
         }
     }

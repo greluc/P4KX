@@ -82,13 +82,20 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
     let mut marked = 0;
     for (name, value) in properties {
         let carries = value.get("x-gameText") == Some(&json!(true));
-        let game_text = ["description", "displayType", "title", "missionType"].contains(&name);
+        let game_text = [
+            "description",
+            "displayType",
+            "title",
+            "missionType",
+            "contractor",
+        ]
+        .contains(&name);
         assert_eq!(carries, game_text, "x-gameText on {name}");
         marked += usize::from(carries);
     }
     assert_eq!(
-        marked, 8,
-        "four descriptions, two display types, the contract title and the mission type"
+        marked, 9,
+        "four descriptions, two display types, the contract title, mission type and contractor"
     );
 }
 

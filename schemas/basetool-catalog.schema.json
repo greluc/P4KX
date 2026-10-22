@@ -481,6 +481,11 @@
     "ContractEntry": {
       "description": "A contract or one of its sub contracts, with the overrides of sub contract, contract and\nhandler laid over the template.",
       "properties": {
+        "contractor": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `Contractor` string parameter of the first level that states one (sub contract,\ncontract, handler): the text the game shows as the giver of the contract, e.g. the\nagency, when the contract has no faction reputation.",
+          "x-gameText": true
+        },
         "debugName": {
           "description": "The `debugName` of the contract, `null` when it has none.",
           "type": [
@@ -573,6 +578,7 @@
         }
       },
       "required": [
+        "contractor",
         "debugName",
         "guid",
         "handler",

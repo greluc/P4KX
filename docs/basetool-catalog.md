@@ -748,7 +748,7 @@ times). A Child whose `pos` or `rot` is malformed (not numbers, not three or fou
 quaternion without length), or whose composed position is not a finite number or lies beyond
 1e15 m on an axis (about a tenth of a light year, far outside any star system), and everything
 below it are not placed. The same holds for the walk limits: Children nested deeper than 64,
-more than 4,194,304 Children in one system, an external container reached through more than 8
+more than 4,194,304 Children in one system, an external container reached through more than 32
 others, and an external container that is already open above the Child that names it (a cycle) are
 counted and not followed. All of these, and a container that cannot be read, are warned about by
 `p4kx catalog` (exit code 1); the counts `unreadable_containers` and `malformed_children` are

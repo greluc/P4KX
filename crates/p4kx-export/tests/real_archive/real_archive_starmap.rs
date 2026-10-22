@@ -116,6 +116,10 @@ fn print_types(objects: &[Value]) {
 fn report(built: &BuiltCatalog, catalog: &Value, objects: &[Value]) {
     let seen = built.summary().starmap_report();
     println!("== summary {:?}", built.summary().starmap());
+    println!(
+        "== deepest external chain {} (limit 32), reading the system containers took {:?}",
+        seen.deepest_external, seen.elapsed
+    );
     print_lines("containers read", &seen.containers);
     print_lines("containers that failed", &seen.issues);
     print_lines("records placed twice", &seen.repeated);

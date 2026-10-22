@@ -37,6 +37,11 @@ pub struct StarmapReport {
     /// The socpak containers below ObjectContainers/PU/system that no Child names, up to 200,
     /// the last line giving the total.
     pub unreferenced: Vec<String>,
+    /// The longest chain of external containers the walk followed, counted from the system
+    /// container (0); the limit is 32.
+    pub deepest_external: usize,
+    /// How long reading the system containers took.
+    pub elapsed: std::time::Duration,
 }
 
 /// Placements of one record closer than this, in metres, are one place.

@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry as MapEntry;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 
 use p4kx_extraction::cryxml::{self, Xml};
 use p4kx_extraction::{Archive, CancelToken, Guid};
@@ -38,7 +39,7 @@ impl Default for Limits {
         Self {
             children: 1 << 22,
             depth: 64,
-            external: 8,
+            external: 32,
         }
     }
 }
@@ -73,6 +74,7 @@ impl Placements {
         cancel: Option<&CancelToken>,
         limits: Limits,
     ) -> Result<Self, CatalogError> {
+        let started = Instant::now();
         let index = Index::new(archive);
         let systems = index.systems();
         let read: Vec<SystemRead> = systems
@@ -89,6 +91,8 @@ impl Placements {
         let mut named = 0;
         for system in read {
             opened.extend(system.opened.iter().copied());
+            placements.report.deepest_external =
+                placements.report.deepest_external.max(system.deepest);
             named += system.named;
             placements.counts.unreadable += system.unreadable;
             placements.counts.missing += system.missing;
@@ -111,6 +115,7 @@ impl Placements {
             placements.by_record.remove(record);
         }
         placements.report.unreferenced = unreferenced(&index, &opened);
+        placements.report.elapsed = started.elapsed();
         Ok(placements)
     }
 
@@ -152,6 +157,7 @@ struct SystemRead {
     malformed: usize,
     named: usize,
     opened: Vec<usize>,
+    deepest: usize,
     report: StarmapReport,
 }
 
@@ -239,6 +245,7 @@ impl<'a> System<'a> {
         };
         let before = self.seen;
         self.read.opened.push(entry);
+        self.read.deepest = self.read.deepest.max(external);
         self.open.push(entry);
         let walked = match cryxml::read(&bytes) {
             Ok(Xml::CryXml(document)) => {

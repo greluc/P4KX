@@ -211,6 +211,64 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
 }
 
 #[test]
+fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() -> TestResult {
+    let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
+    let mut stats = minimal_catalog();
+    stats["items"][0]["stats"] = json!({
+        "weapon": {
+            "fireActions": [{
+                "kind": "SWeaponActionFireNewParams", "name": null, "fireRate": 600.0,
+                "pellets": 1, "ammoCost": 1, "heatPerShot": null, "chargeTime": null,
+                "overchargeTime": null, "cooldownTime": null, "extra": true
+            }],
+            "ammoCapacity": null,
+            "ammo": null,
+            "extra": true
+        },
+        "shield": null, "quantumDrive": null, "powerPlant": null, "cooler": null,
+        "missile": {
+            "damage": null, "explosionMinRadius": null, "explosionMaxRadius": null,
+            "trackingSignalType": "NewSignal", "lockTime": null, "lockingAngle": null,
+            "lockRangeMin": null, "lockRangeMax": null, "linearSpeed": null
+        },
+        "health": 1.5, "extra": true,
+        "resourceStates": [{
+            "name": null, "emSignature": null, "irSignature": {"nominal": 1.0, "decayRate": null},
+            "flows": [{
+                "kind": "ItemResourceDeltaNew", "direction": "generation", "resource": "New",
+                "amount": 1.0, "unit": null
+            }]
+        }]
+    });
+    assert!(
+        validator.is_valid(&stats),
+        "stat blocks with additions and new values"
+    );
+    let mut no_block = stats.clone();
+    if let Some(block) = no_block["items"][0]["stats"].as_object_mut() {
+        block.remove("cooler");
+    }
+    assert!(!validator.is_valid(&no_block), "every block is present");
+    let mut no_action_field = stats.clone();
+    if let Some(action) =
+        no_action_field["items"][0]["stats"]["weapon"]["fireActions"][0].as_object_mut()
+    {
+        action.remove("fireRate");
+    }
+    assert!(
+        !validator.is_valid(&no_action_field),
+        "every field of a fire mode is present"
+    );
+    let mut number_kind = stats;
+    number_kind["items"][0]["stats"]["weapon"]["fireActions"][0]["kind"] = json!(3);
+    assert!(
+        !validator.is_valid(&number_kind),
+        "the kind of a fire mode stays a string"
+    );
+    Ok(())
+}
+
+#[test]
 fn every_field_the_schema_lists_is_required() -> TestResult {
     let validator = jsonschema::validator_for(&p4kx_export::catalog_schema())?;
     for (kind, field, what) in [
@@ -222,6 +280,7 @@ fn every_field_the_schema_lists_is_required() -> TestResult {
         ),
         ("resourceGroups", "parentGuid", "a resource group"),
         ("ships", "crewSize", "a ship"),
+        ("items", "stats", "an item states its stat blocks"),
         ("blueprintPools", "rewardSources", "a pool"),
     ] {
         let mut catalog = minimal_catalog();

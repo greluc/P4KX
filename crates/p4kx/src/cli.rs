@@ -9,6 +9,7 @@ pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
+pub(crate) use crate::cli_coverage::CoverageArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, DcbRefsArgs, DcbTagsArgs,
     QueryFormat, RecordFormat, RefsFormat, TagsFormat,
@@ -95,6 +96,11 @@ pub(crate) enum Command {
         subcommand_negates_reqs = true
     )]
     Catalog(CatalogArgs),
+    /// Checks the game data a companion app reads against the Archive: whether each listed Record
+    /// type, `EntityClassDefinition` component and vehicle folder exists, how many it has and
+    /// whether it reads, exports and converts; exits with 1 when something listed fails.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Coverage(CoverageArgs),
     /// Writes the base data of every ship as JSON or NDJSON: hull mass and hit points from the
     /// vehicle implementation XML, cargo capacity from the cargo grids of the default Loadout,
     /// size and the Loadout as class names per port path, each value with the file and field it

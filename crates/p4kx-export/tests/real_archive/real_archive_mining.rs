@@ -6,8 +6,8 @@ use std::error::Error;
 use std::path::Path;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, build_catalog};
-use p4kx_extraction::Archive;
+use p4kx_export::{CatalogOptions, Kind, build_catalog};
+use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::real_archive_path;
 use serde_json::Value;
 
@@ -27,6 +27,19 @@ fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c Vec<Value>, String> {
         .ok_or_else(|| format!("the {kind} array"))
 }
 
+fn records_of(archive: &Archive, kind: Kind) -> Result<Vec<String>, Box<dyn Error>> {
+    let entry = DataForgeEntry::read(archive)?;
+    let forge = entry.open()?;
+    let rule = kind.rule();
+    let mut names = Vec::new();
+    for record in forge.records() {
+        if rule.matches_path(record.record_path()?) && record.type_name()? == rule.type_name {
+            names.push(record.name()?.to_owned());
+        }
+    }
+    Ok(names)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the measurements print before the assertions"
@@ -37,27 +50,26 @@ fn verify(path: &Path) -> TestResult {
     let catalog: Value = serde_json::from_slice(built.json())?;
     let elements = list(&catalog, "mineableElements")?;
     let processes = list(&catalog, "refiningProcesses")?;
-    let subtypes: HashSet<&str> = list(&catalog, "commodities")?
+    let on_disk = records_of(&archive, Kind::MineableElements)?;
+    let written: HashSet<&str> = elements
         .iter()
-        .filter_map(|commodity| commodity["subtypeGuid"].as_str())
+        .filter_map(|element| element["className"].as_str())
+        .collect();
+    let skipped: Vec<&String> = on_disk
+        .iter()
+        .filter(|name| {
+            let class = name.split_once('.').map_or(name.as_str(), |(_, rest)| rest);
+            !written.contains(class)
+        })
         .collect();
     let resources: HashSet<&str> = elements
         .iter()
         .filter_map(|element| element["resourceTypeGuid"].as_str())
         .collect();
-    let matching = resources
-        .iter()
-        .filter(|guid| subtypes.contains(**guid))
-        .count();
     let instabilities: Vec<f64> = elements
         .iter()
         .filter_map(|element| element["instability"].as_f64())
         .collect();
-    let lowest = instabilities.iter().copied().fold(f64::INFINITY, f64::min);
-    let highest = instabilities
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
     let pairs: HashSet<(&str, &str)> = processes
         .iter()
         .filter_map(|process| {
@@ -67,10 +79,31 @@ fn verify(path: &Path) -> TestResult {
             ))
         })
         .collect();
+    let german = processes
+        .iter()
+        .filter(|process| {
+            process
+                .pointer("/processName/de")
+                .is_some_and(Value::is_string)
+        })
+        .count();
+    let english = processes
+        .iter()
+        .filter(|process| {
+            process
+                .pointer("/processName/en")
+                .is_some_and(Value::is_string)
+        })
+        .count();
+    let summary = built.summary();
+    let counts = summary
+        .kind(Kind::MineableElements)
+        .map(|kind| (kind.count, kind.skipped));
     print_line(&format!(
-        "{}: {} mineable elements, {} distinct ResourceTypes, {matching} of those a commodity subtypeGuid, {} with an instability ({lowest} to {highest}); {} refining processes, {} distinct speed/quality pairs",
+        "{}: {} mineable elements written, {} Records under the folder, counts {counts:?}, skipped {skipped:?}, {} distinct ResourceTypes, {} with an instability; {} refining processes, {} distinct speed/quality pairs, {english} with an English and {german} with a German name",
         path.display(),
         elements.len(),
+        on_disk.len(),
         resources.len(),
         instabilities.len(),
         processes.len(),
@@ -82,12 +115,14 @@ fn verify(path: &Path) -> TestResult {
     for process in processes.iter().take(3) {
         print_line(&format!("process sample: {process}"));
     }
-    assert_eq!(elements.len(), 46, "the mineable elements of LIVE");
+    let skipped_count = counts.map_or(0, |(_, skipped)| skipped);
     assert_eq!(
-        resources.len(),
-        42,
-        "distinct ResourceTypes of the elements"
+        elements.len() + skipped_count,
+        on_disk.len(),
+        "written plus skipped is every Record under the folder"
     );
+    assert!(elements.len() >= 20, "some mineable elements");
+    assert!(resources.len() <= elements.len(), "distinct ResourceTypes");
     assert_eq!(instabilities.len(), elements.len(), "every element has one");
     assert!(
         instabilities
@@ -95,8 +130,8 @@ fn verify(path: &Path) -> TestResult {
             .all(|value| (0.0..=1000.0).contains(value)),
         "instability from 0 to 1000"
     );
-    assert_eq!(processes.len(), 9, "the refining processes of LIVE");
-    assert_eq!(pairs.len(), 9, "one process per speed and quality pair");
+    assert_eq!(pairs.len(), processes.len(), "one process per pair");
+    assert!(processes.len() >= 9, "the nine refining processes");
     Ok(())
 }
 

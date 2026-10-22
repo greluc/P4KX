@@ -47,7 +47,9 @@ pub(crate) struct RefiningProcess<'a> {
     pub(crate) class_name: &'a str,
     /// The record path, without `.xml`.
     pub(crate) record_path: &'a str,
-    /// The name of the method, from `processName`: a short label, like the `name` of a commodity.
+    /// The name of the method, from `processName`. The localisation key and the texts are game
+    /// texts.
+    #[schemars(extend("x-gameText" = true))]
     pub(crate) process_name: LocalisedText<'a>,
     /// `refiningSpeed`, one of `Slow`, `Normal` and `Fast` on LIVE; `null` when the Record states
     /// none. The schema keeps a string, as a new value is additive.

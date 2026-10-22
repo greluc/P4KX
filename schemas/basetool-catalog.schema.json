@@ -2011,7 +2011,8 @@
         },
         "processName": {
           "$ref": "#/$defs/LocalisedText",
-          "description": "The name of the method, from `processName`: a short label, like the `name` of a commodity."
+          "description": "The name of the method, from `processName`. The localisation key and the texts are game\ntexts.",
+          "x-gameText": true
         },
         "recordPath": {
           "description": "The record path, without `.xml`.",

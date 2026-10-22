@@ -86,11 +86,14 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
     let mut marked = 0;
     for (name, value) in properties {
         let carries = value.get("x-gameText") == Some(&json!(true));
-        let game_text = name == "description" || name == "displayType";
+        let game_text = matches!(name, "description" | "displayType" | "processName");
         assert_eq!(carries, game_text, "x-gameText on {name}");
         marked += usize::from(carries);
     }
-    assert_eq!(marked, 6, "four descriptions and two display types");
+    assert_eq!(
+        marked, 7,
+        "four descriptions, two display types and the process name"
+    );
     let mut starmap_properties = Vec::new();
     collect_properties(&starmap, &mut starmap_properties);
     for (name, value) in starmap_properties {

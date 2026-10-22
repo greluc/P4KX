@@ -799,16 +799,16 @@ the limit and advise `.json.zst`. The real-Archive tests write the catalog as `.
 that the compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame
 and compare it with the plain catalog, and print both sizes and the time per zstd level.
 
-Measured on 2026-10-21, with `loadouts`, on every installed Channel (complete catalog of every
-kind, English and German texts); the other kinds are unchanged by it:
+Measured on 2026-10-22, with the ship base fields and `loadouts`, on every installed Channel (complete catalog of every
+kind, English and German texts); the counts of the other kinds are unchanged:
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 131,969,336 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 127,711,590 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 126,618,302 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 131,969,338 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 127,031,082 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| LIVE | 132,117,714 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 127,855,466 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 126,761,438 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 132,117,716 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 127,172,638 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
 LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
 for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
@@ -817,16 +817,16 @@ Entities have no entry in `items` or `ships` (templates of doors, screens, beds 
 HUD projectors); 193 loadouts list an issue (`unknown_class` 153, `dangling_reference` 30,
 `xml_loadout` 4, `cycle` 3, `vehicle_implementation` 3; a loadout can list several).
 
-Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-21 with
-the loadouts, before the ship base fields:
+Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-22 with
+the ship base fields and the loadouts:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 131,969,336 | 2,239,646 | 58.9 |
-| PTU | 127,711,590 | 2,205,012 | 57.9 |
-| EPTU | 126,618,302 | 2,176,157 | 58.2 |
-| HOTFIX | 131,969,338 | 2,239,882 | 58.9 |
-| TECH-PREVIEW | 127,031,082 | 2,238,826 | 56.7 |
+| LIVE | 132,117,714 | 2,242,345 | 58.9 |
+| PTU | 127,855,466 | 2,208,554 | 57.9 |
+| EPTU | 126,761,438 | 2,179,735 | 58.2 |
+| HOTFIX | 132,117,716 | 2,242,683 | 58.9 |
+| TECH-PREVIEW | 127,172,638 | 2,241,272 | 56.7 |
 
 The compressed catalog is 3.5 % of the 64 MB upload limit; the decompressed one is 13.2 % of the
 1 GB cap. The level trades time for size (measured before the loadouts, LIVE, window log 27; the
@@ -845,9 +845,8 @@ the cost tree, every line with its null fields), the pools 0.43 MB (824 entries,
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-The loadouts take about 105 MB of the 132 MB of LIVE; the figures above were measured before the
-ship base fields of #395, which add 0.14 MB. A catalog builds on LIVE in 6.4 s with the loadouts
-(5.5 s before them and before the ship base fields). Without the loadouts, with the ship base fields,
+The loadouts take about 105 MB of the 132 MB of LIVE. A catalog builds on LIVE in 4.7 s with the
+ship base fields and the loadouts (5.5 s before both). Without the loadouts, with the ship base fields,
 LIVE builds in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version
 of the ship base fields that gave every split of the parallel scan its own ship reader took
 10.5 s, because each reader began with empty Entity caches; the scan now keeps the readers in a

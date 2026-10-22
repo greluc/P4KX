@@ -14,6 +14,16 @@ const TYPES: &str = "libs/foundry/records/missiontype/";
 const ORGANIZATIONS: &str = "libs/foundry/records/missiondata/pu_organizations/";
 const REWARDS: &str = "libs/foundry/records/reputation/rewards/missionrewards_reputation/";
 const LOCALITIES: &str = "libs/foundry/records/missiondata/pu_missionlocality/";
+const BROKERS: &str = "libs/foundry/records/missionbroker/";
+const FACTIONS: &str = "libs/foundry/records/factions/factionreputation/";
+
+/// A `MissionBrokerEntry` Record: what a contract without a template states about itself.
+#[derive(Debug, Default)]
+pub(crate) struct Broker<'f> {
+    pub(crate) title: Option<&'f str>,
+    pub(crate) mission_type: Option<Guid>,
+    pub(crate) location: Option<Guid>,
+}
 
 /// What a `ContractTemplate` Record contributes to a contract: the title and the mission type of
 /// its display info and its properties.
@@ -39,6 +49,8 @@ enum Piece<'f> {
     Organization(Guid, Variants<'f>),
     Reward(Guid, i64),
     Locality(Guid, Vec<Guid>),
+    Broker(Guid, Broker<'f>),
+    Faction(Guid, Option<&'f str>),
 }
 
 /// The Records a contract refers to, read once: templates, mission types, mission
@@ -49,6 +61,8 @@ pub(crate) struct MissionIndex<'f> {
     organizations: HashMap<Guid, Variants<'f>>,
     rewards: HashMap<Guid, i64>,
     localities: HashMap<Guid, Vec<Guid>>,
+    brokers: HashMap<Guid, Broker<'f>>,
+    factions: HashMap<Guid, Option<&'f str>>,
     tags: TagTree,
 }
 
@@ -70,6 +84,8 @@ impl<'f> MissionIndex<'f> {
             organizations: HashMap::new(),
             rewards: HashMap::new(),
             localities: HashMap::new(),
+            brokers: HashMap::new(),
+            factions: HashMap::new(),
             tags: TagTree::build(forge),
         };
         for piece in pieces {
@@ -89,6 +105,12 @@ impl<'f> MissionIndex<'f> {
                 Piece::Locality(guid, locations) => {
                     index.localities.insert(guid, locations);
                 }
+                Piece::Broker(guid, broker) => {
+                    index.brokers.insert(guid, broker);
+                }
+                Piece::Faction(guid, name) => {
+                    index.factions.insert(guid, name);
+                }
             }
         }
         index
@@ -104,6 +126,15 @@ impl<'f> MissionIndex<'f> {
 
     pub(crate) fn reward(&self, guid: Guid) -> Option<i64> {
         self.rewards.get(&guid).copied()
+    }
+
+    pub(crate) fn broker(&self, guid: Guid) -> Option<&Broker<'f>> {
+        self.brokers.get(&guid)
+    }
+
+    /// Returns the localisation key of the display name of the `FactionReputation` Record `guid`.
+    pub(crate) fn faction_name(&self, guid: Guid) -> Option<&'f str> {
+        self.factions.get(&guid).copied().flatten()
     }
 
     /// Returns the starmap objects the `MissionLocality` Record `guid` lists as available
@@ -135,9 +166,17 @@ fn piece<'f>(
         path.get(..prefix.len())
             .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
     };
-    let wanted = [TEMPLATES, TYPES, ORGANIZATIONS, REWARDS, LOCALITIES]
-        .into_iter()
-        .any(starts);
+    let wanted = [
+        TEMPLATES,
+        TYPES,
+        ORGANIZATIONS,
+        REWARDS,
+        LOCALITIES,
+        BROKERS,
+        FACTIONS,
+    ]
+    .into_iter()
+    .any(starts);
     if !wanted {
         return Ok(None);
     }
@@ -174,6 +213,17 @@ fn piece<'f>(
                 })
                 .collect(),
         )
+    } else if starts(BROKERS) {
+        Piece::Broker(
+            guid,
+            Broker {
+                title: key(root, "title"),
+                mission_type: reference(root, "type").map(|guid| guid.0),
+                location: reference(root, "locationMissionAvailable").map(|guid| guid.0),
+            },
+        )
+    } else if starts(FACTIONS) {
+        Piece::Faction(guid, key(root, "displayName"))
     } else {
         match integer(root, "reputationAmount") {
             Some(amount) => Piece::Reward(guid, amount),

@@ -2,10 +2,10 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::lookups::plain_record;
 use super::{
-    AFFINITY, BOUNTY, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV, DATABASE,
-    DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS, OBJ_PLANET,
-    ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER,
-    TAG_TITLE, TEMPLATE,
+    AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
+    CONTRACT_E, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS,
+    OBJ_PLANET, ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO,
+    TAG_OTHER, TAG_TITLE, TEMPLATE,
 };
 
 const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
@@ -150,10 +150,12 @@ fn handler(
     params: TestValue,
     contracts: Vec<TestValue>,
     intro: Vec<TestValue>,
+    faction: u128,
 ) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractGeneratorHandler_Career")
             .value("debugName", TestValue::text(name))
+            .value("factionReputation", reference(faction))
             .value("contractParams", params)
             .value("contracts", TestValue::Array(contracts))
             .value("introContracts", TestValue::Array(intro)),
@@ -233,6 +235,7 @@ fn bounty_handler() -> TestValue {
         overrides(Some("@title_handler"), Some(BOUNTY), Vec::new()),
         vec![TestValue::Struct(bounty)],
         vec![TestValue::Struct(leftover), TestValue::Struct(without_id)],
+        0,
     )
 }
 
@@ -258,6 +261,10 @@ fn delivery_handler() -> TestValue {
             vec![property("Wrap", string_hash("@wrap_text"))],
         ),
     );
+    let brokered = TestInstance::new("CareerContract")
+        .value("id", TestValue::Guid(CONTRACT_E))
+        .value("debugName", TestValue::text("Haul_E"))
+        .value("missionBrokerEntry", reference(BROKER));
     handler(
         "Delivery_Career",
         contractor_params("@contractor_acme"),
@@ -265,8 +272,10 @@ fn delivery_handler() -> TestValue {
             TestValue::Struct(delivery),
             TestValue::Struct(bare),
             TestValue::Struct(nested),
+            TestValue::Struct(brokered),
         ],
         Vec::new(),
+        FACTION,
     )
 }
 

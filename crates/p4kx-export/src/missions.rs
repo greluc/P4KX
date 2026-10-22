@@ -5,10 +5,10 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::blueprint::as_struct;
-use crate::contract_missions::{ContractEntry, PickupPlace, ReputationGain};
+use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
-use crate::mission_index::{MissionIndex, Template};
+use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
 use crate::mission_places::{Places, Where};
 use crate::mission_title::{Token, title};
@@ -186,6 +186,8 @@ impl<'f> Parent<'_, 'f> {
         let template = reference(Some(self.contract), "template").map(|guid| guid.0);
         let template_data = template.and_then(|guid| index.template(guid));
         let contract_layer = Layer::read(one(Some(self.contract), "paramOverrides"));
+        let broker = reference(Some(self.contract), "missionBrokerEntry")
+            .and_then(|guid| index.broker(guid.0));
         let gains = gains(self.contract, index);
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
@@ -200,12 +202,21 @@ impl<'f> Parent<'_, 'f> {
                 .as_ref()
                 .filter(|own| !own.is_empty())
                 .map_or_else(|| inherited.to_vec(), |own| vec![own]);
-            let pickup = context.places.pickup(index, &wheres);
+            let mut pickup = context.places.pickup(index, &wheres);
+            if pickup.is_empty()
+                && let Some(location) = broker.and_then(|broker| broker.location)
+            {
+                let at_broker = Where {
+                    localities: Vec::new(),
+                    locations: vec![location],
+                };
+                pickup = context.places.pickup(index, &[&at_broker]);
+            }
             self.entry(
                 sub,
                 &levels,
                 template,
-                template_data,
+                (template_data, broker),
                 (&gains, pickup),
                 context,
             )
@@ -225,7 +236,7 @@ impl<'f> Parent<'_, 'f> {
         sub: Option<&StructValue<'f>>,
         levels: &[&Layer<'f>],
         template: Option<p4kx_extraction::Guid>,
-        template_data: Option<&Template<'f>>,
+        (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
         (gains, pickup): (&[ReputationGain<'f>], Vec<PickupPlace<'f>>),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
@@ -248,11 +259,18 @@ impl<'f> Parent<'_, 'f> {
         let title_key = levels
             .iter()
             .find_map(|level| level.title)
-            .or_else(|| template_data.and_then(|data| data.title));
+            .or_else(|| template_data.and_then(|data| data.title))
+            .or_else(|| broker.and_then(|broker| broker.title));
         let mission_type = levels
             .iter()
             .find_map(|level| level.mission_type)
-            .or_else(|| template_data.and_then(|data| data.mission_type));
+            .or_else(|| template_data.and_then(|data| data.mission_type))
+            .or_else(|| broker.and_then(|broker| broker.mission_type));
+        let faction = link(self.handler, "factionReputation").map(|(guid, name)| ContractFaction {
+            guid,
+            name,
+            display_name: texts.localised(index.faction_name(guid.0)),
+        });
         ContractEntry {
             guid: self.id,
             sub_contract_guid: sub.and_then(identity).map(CatalogGuid),
@@ -271,6 +289,7 @@ impl<'f> Parent<'_, 'f> {
                     .and_then(|kind| kind.name_key),
             ),
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
+            faction,
             pickup_places: pickup,
             reputation_gains: gains.to_vec(),
         }

@@ -47,6 +47,9 @@ pub(crate) struct ContractEntry<'a> {
     /// agency, when the contract has no faction reputation.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) contractor: LocalisedText<'a>,
+    /// The `factionReputation` of the handler, as stored: the faction of a contract that has no
+    /// reputation result, e.g. the collector's. `null` when the handler names none.
+    pub(crate) faction: Option<ContractFaction<'a>>,
     /// Where the contract is offered or picked up, at most five starmap objects: those of the
     /// `MissionLocality` and location prerequisites of the sub contract (else of the contract and
     /// its handler), a star left out, the star system first, then planets and moons, then the
@@ -54,8 +57,23 @@ pub(crate) struct ContractEntry<'a> {
     /// objects are not part of the catalog build.
     pub(crate) pickup_places: Vec<PickupPlace<'a>>,
     /// The reputation the contract grants on success, one entry per amount: the results whose
-    /// first mission result (success) is set. A result that fires on failure is left out.
+    /// first mission result (success) is set. A result that fires on failure only is left out; an
+    /// amount may be negative (a success that costs standing with a rival, as stored).
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,
+}
+
+/// The faction a handler names for its contracts.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ContractFaction<'a> {
+    /// The GUID of the faction reputation Record.
+    pub(crate) guid: CatalogGuid,
+    /// The Record name of the faction reputation, e.g. `factionreputation_wikelo`.
+    pub(crate) name: &'a str,
+    /// The `displayName` of the faction reputation, e.g. `Wikelo Emporium`.
+    #[schemars(extend("x-gameText" = true))]
+    pub(crate) display_name: LocalisedText<'a>,
 }
 
 /// A place a contract is picked up at: an object of the starmap.

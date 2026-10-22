@@ -28,6 +28,7 @@ fn generator_structs() -> Vec<TestStruct> {
         TestStruct::new("ContractGeneratorHandler_Career")
             .parent("ContractGeneratorHandler")
             .field("debugName", TestType::String)
+            .field("factionReputation", TestType::Reference)
             .field("contractParams", class("ContractParamOverrides"))
             .array("contracts", class("CareerContract"))
             .array("introContracts", class("CareerContract")),
@@ -43,6 +44,7 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("debugName", TestType::String)
             .field("notForRelease", TestType::Bool)
             .field("template", TestType::Reference)
+            .field("missionBrokerEntry", TestType::Reference)
             .field("paramOverrides", class("ContractParamOverrides"))
             .array("subContracts", class("SubContract"))
             .array("additionalPrerequisites", pointer("ContractPrerequisite"))
@@ -121,7 +123,11 @@ fn record_structs() -> Vec<TestStruct> {
         TestStruct::new("MissionStringVariant")
             .field("tag", TestType::Reference)
             .field("string", TestType::Locale),
-        TestStruct::new("FactionReputation"),
+        TestStruct::new("FactionReputation").field("displayName", TestType::Locale),
+        TestStruct::new("MissionBrokerEntry")
+            .field("title", TestType::Locale)
+            .field("type", TestType::Reference)
+            .field("locationMissionAvailable", TestType::Reference),
         TestStruct::new("ReputationScope"),
         TestStruct::new("ReputationReward").field("reputationAmount", TestType::Int32),
         TestStruct::new("Tag")

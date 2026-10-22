@@ -40,6 +40,7 @@ const A: &str = "20000000-0000-4000-8000-000000000001";
 const B: &str = "20000000-0000-4000-8000-000000000002";
 const C: &str = "20000000-0000-4000-8000-000000000003";
 const D: &str = "20000000-0000-4000-8000-000000000005";
+const E: &str = "20000000-0000-4000-8000-000000000006";
 const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
 const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
 
@@ -65,14 +66,15 @@ fn a_contract_and_each_sub_contract_is_an_entry_ordered_by_guid() -> TestResult 
             (A, Some(SUB_TWO)),
             (B, None),
             (C, None),
-            (D, None)
+            (D, None),
+            (E, None)
         ],
         "the contract, then its sub contracts; the leftover and the contract without an id are out"
     );
     let kind = built.summary().kind(Kind::Contracts);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((6, 2, true)),
+        Some((7, 2, true)),
         "counts"
     );
     Ok(())
@@ -97,6 +99,32 @@ fn a_replacement_that_holds_a_token_is_expanded_and_the_contractor_is_the_neares
         json!({"key": null, "en": null, "de": null}),
         "a handler without one"
     );
+    Ok(())
+}
+
+#[test]
+fn a_contract_without_a_template_takes_title_type_and_place_from_its_broker_entry() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let brokered = entry(&catalog, E, None)?;
+    assert_eq!(brokered["templateGuid"], Value::Null);
+    assert_eq!(brokered["title"]["en"], "Broker Haul");
+    assert_eq!(brokered["missionType"]["en"], "Delivery");
+    assert_eq!(places(brokered), [("Planet", "Hurston")]);
+    Ok(())
+}
+
+#[test]
+fn the_faction_of_the_handler_is_exported_as_stored() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, A, None)?["faction"],
+        json!({
+            "guid": "60000000-0000-4000-8000-000000000001",
+            "name": "acme",
+            "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null},
+        })
+    );
+    assert_eq!(entry(&catalog, C, None)?["faction"], Value::Null);
     Ok(())
 }
 

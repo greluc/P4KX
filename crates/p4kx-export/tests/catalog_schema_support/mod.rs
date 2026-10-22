@@ -216,6 +216,11 @@ fn contracts() -> serde_json::Value {
         "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
         "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
         "contractor": {"key": null, "en": null, "de": null},
+        "faction": {
+            "guid": "60000000-0000-4000-8000-000000000001",
+            "name": "acme",
+            "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
+        },
         "pickupPlaces": places,
         "reputationGains": gains
     }])

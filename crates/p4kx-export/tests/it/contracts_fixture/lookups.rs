@@ -1,8 +1,9 @@
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestValue};
 
 use super::{
-    AFFINITY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET, OBJ_STAR, OBJ_STATION,
-    OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR, TYPE_STATION, TYPE_SYSTEM,
+    AFFINITY, BROKER, DELIVERY, FACTION, FACTION_SCOPE, LOC_A, LOC_B, LOSS, OBJ_PLANET, OBJ_STAR,
+    OBJ_STATION, OBJ_SYSTEM, RANK_FIFTY, RANK_TWO_HUNDRED, TYPE_PLANET, TYPE_STAR, TYPE_STATION,
+    TYPE_SYSTEM,
 };
 
 pub(super) fn plain_record(guid: u128, kind: &str, path: &str) -> TestRecord {
@@ -85,7 +86,12 @@ pub(super) fn reputation(builder: DataForgeBuilder) -> DataForgeBuilder {
             FACTION,
             "FactionReputation",
             "factions/factionreputation/acme",
-        ),
+        )
+        .value("displayName", TestValue::text("@faction_acme")),
+        plain_record(BROKER, "MissionBrokerEntry", "missionbroker/haul")
+            .value("title", TestValue::text("@title_broker"))
+            .value("type", TestValue::Reference(DELIVERY))
+            .value("locationMissionAvailable", TestValue::Reference(OBJ_PLANET)),
         plain_record(
             FACTION_SCOPE,
             "ReputationScope",

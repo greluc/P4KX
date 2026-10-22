@@ -16,6 +16,8 @@ pub(crate) const CONTRACT_B: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const CONTRACT_C: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const CONTRACT_DEV: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const CONTRACT_D: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0005;
+pub(crate) const CONTRACT_E: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0006;
+pub(crate) const BROKER: u128 = 0xd000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SUB_ONE: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SUB_TWO: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const TEMPLATE: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0001;
@@ -65,6 +67,8 @@ fn english() -> TestEntry {
             .text("title_nested", "Pre ~mission(Wrap)")
             .text("wrap_text", "Wrapped ~mission(Location)")
             .text("contractor_acme", "Acme Agency")
+            .text("title_broker", "Broker Haul")
+            .text("faction_acme", "Acme Emporium")
             .text("place_stanton", "Stanton")
             .text("place_hurston", "Hurston")
             .text("place_sol", "Sol")

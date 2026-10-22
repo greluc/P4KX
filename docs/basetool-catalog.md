@@ -37,7 +37,8 @@ The rule is ADR-0054 (amending ADR-0002):
 Identifiers, short names and fact values may reach third parties; descriptions and lore may not.
 The game texts of the catalog are every `description` and every `displayType`, the `name` of a
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
-the `title`, `missionType`, `contractor` and the `place` of a pickup place of a contract, each with
+the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
+of a pickup place of a contract, each with
 its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
 identifiers, short names or fact values. The catalog keeps the `description` fields for the
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
@@ -734,7 +735,8 @@ sub contract without an `id`, which cannot be told apart.
 | `missionTypeGuid`, `missionType` | The `MissionType` Record and its localised name (game text) |
 | `contractor` | The `Contractor` string parameter (game text) |
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
-| `reputationGains` | The reputation granted on success |
+| `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
+| `reputationGains` | The reputation granted on success; an amount may be negative |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -758,15 +760,22 @@ A replacement that itself holds a `~mission(…)` is expanded up to three levels
 `key` is that of the title text. The tokens are free text of the game, not facts of the Archive;
 the placeholders are the catalog's own convention.
 
+**Broker entry.** A contract that names a `missionBrokerEntry` and has no template (on LIVE the 419
+`Covalex_HaulCargo_Career` contracts and their two sub contracts) takes what the layers and the
+template leave open from that `MissionBrokerEntry` Record: its `title`, its `type` and, when the
+prerequisites name no place, its `locationMissionAvailable` as the pickup place.
+
 **Mission type.** `missionTypeOverride` of the first layer that states one, else the `type` of the
-template's `contractDisplayInfo`; `missionType` is the `LocalisedTypeName` of that Record.
+template's `contractDisplayInfo`, else of the broker entry; `missionType` is the
+`LocalisedTypeName` of that Record.
 
 **Reputation.** Of the results of the contract (`contractResults.contractResults`), those of type
 `ContractResult_LegacyReputation` whose first `missionResults` entry (success) is set, one
 `reputationGains` entry per `contractResultReputationAmounts` element, in stored order: the
 faction and scope Records with their Record names (the last part of the record path) and the
-`reputationAmount` of the reward Record. A result that fires on another outcome, such as a failure
-with a negative amount, is not listed. The catalog does not add the amounts up (ADR-0065): a faction
+`reputationAmount` of the reward Record. A result that does not fire on success is not listed. An
+amount can be negative: on LIVE the 48 negative amounts all belong to the `CFP_OOS`, `HH_OOS` and
+their `_Intro` handlers, whose success results deduct standing, and they are listed as stored. The catalog does not add the amounts up (ADR-0065): a faction
 scope and an affinity scope are separate entries. All sub contracts of a contract list the
 contract's results.
 
@@ -784,6 +793,11 @@ what is not in `starmapObjects` is skipped. The list is ordered by rank, stably:
 at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGuid`, its `objectType`
 and the `place` name (game text). The places come from the starmap objects of the same build: a
 Filter that leaves them out leaves `pickupPlaces` empty.
+
+**Known gaps (LIVE, 2026-10-22).** A title keeps a `[TOKEN]` where no property of the layers
+states the token: 22 titles (racing, one HeadHunters hijack contract, a few Rough and Ready and
+Ruto contracts) and the run-time tokens such as `[CLAIMNUMBER]`. 891 entries have no pickup place
+because their prerequisites name no locality or location.
 
 Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
 descriptions.

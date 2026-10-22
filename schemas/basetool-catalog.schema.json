@@ -498,6 +498,17 @@
             "null"
           ]
         },
+        "faction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContractFaction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputation` of the handler, as stored: the faction of a contract that has no\nreputation result, e.g. the collector's. `null` when the handler names none."
+        },
         "guid": {
           "$ref": "#/$defs/Guid",
           "description": "The `id` of the contract."
@@ -548,7 +559,7 @@
           "type": "string"
         },
         "reputationGains": {
-          "description": "The reputation the contract grants on success, one entry per amount: the results whose\nfirst mission result (success) is set. A result that fires on failure is left out.",
+          "description": "The reputation the contract grants on success, one entry per amount: the results whose\nfirst mission result (success) is set. A result that fires on failure only is left out; an\namount may be negative (a success that costs standing with a rival, as stored).",
           "items": {
             "$ref": "#/$defs/ReputationGain"
           },
@@ -592,6 +603,7 @@
       "required": [
         "contractor",
         "debugName",
+        "faction",
         "guid",
         "handler",
         "missionType",
@@ -605,6 +617,30 @@
         "templateGuid",
         "title",
         "workInProgress"
+      ],
+      "type": "object"
+    },
+    "ContractFaction": {
+      "description": "The faction a handler names for its contracts.",
+      "properties": {
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName` of the faction reputation, e.g. `Wikelo Emporium`.",
+          "x-gameText": true
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the faction reputation Record."
+        },
+        "name": {
+          "description": "The Record name of the faction reputation, e.g. `factionreputation_wikelo`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "displayName",
+        "guid",
+        "name"
       ],
       "type": "object"
     },

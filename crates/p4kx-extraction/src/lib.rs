@@ -85,7 +85,6 @@ pub use coverage::{
     ComponentCoverage, CoverageReport, EntryCoverage, ReferenceError, ReferenceItem, ReferenceKind,
     ReferenceList, SampleExport, TypeCoverage,
 };
-pub use coverage_forge::CoverageError;
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use entry_content::{
     EntryBytes, EntryReadError, EntryText, MIN_TEXT_LEN, TextEncoding, find_entry, read_bytes,

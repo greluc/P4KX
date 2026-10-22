@@ -10,6 +10,7 @@ use serde::Serialize;
 struct Document<'a> {
     archive: String,
     complete: bool,
+    unreadable_entities: u64,
     types: Vec<TypeJson<'a>>,
     components: Vec<ComponentJson<'a>>,
     entries: Vec<EntryJson<'a>>,
@@ -122,6 +123,7 @@ pub(crate) fn print(archive: &Path, report: &CoverageReport) -> io::Result<()> {
     crate::json::print(&Document {
         archive: crate::json::path(archive),
         complete: report.is_complete(),
+        unreadable_entities: report.unreadable_entities,
         types: report.types.iter().map(TypeJson::from).collect(),
         components: report.components.iter().map(ComponentJson::from).collect(),
         entries: report.entries.iter().map(EntryJson::from).collect(),

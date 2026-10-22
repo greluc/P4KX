@@ -25,9 +25,9 @@ prints the whole table before it asserts, and needs `P4KX_DATA_P4K`.
   derive from it as a Query `from <type>` does; how many Records cannot be built; how many values
   in them are a `Value::Error`; and that the first readable Record writes as Record XML and as
   Record JSON.
-- **Component**: the struct occurs under `Components` of at least one `EntityClassDefinition`,
-  counted as Records (`entities`) and as components (`instances`) with
-  [`FieldStatistics`](query.md#field-statistics); and the Component selector `Components[<name>]`
+- **Component**: the struct, or a struct deriving from it, occurs under `Components` of at least
+  one `EntityClassDefinition`, counted as Records (`entities`) and as components (`instances`);
+  Records that cannot be built are counted apart; and the Component selector `Components[<name>]`
   resolves in a Query over `EntityClassDefinition`. A component is a struct, so a Query has to
   select a field of it, as the examples below do.
 - **Entries**: every Entry under the folder is read and, when it is CryXml, converted to XML
@@ -106,7 +106,8 @@ LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives thos
 Records whose `StarMapObjectType` is named `SolarSystem` (#465). The error values are tracked in
 #464. No Record failed to build and every sample exported as Record XML and Record JSON.
 
-**Components** (`EntityClassDefinition` Records with the component; instances are equal)
+**Components** (`EntityClassDefinition` Records with the component; these counts are from the run
+that counted the exact struct, so a rerun can show more where structs derive from a component)
 
 | Area | Component | Records |
 | --- | --- | --- |

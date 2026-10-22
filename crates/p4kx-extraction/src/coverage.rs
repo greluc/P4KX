@@ -58,9 +58,12 @@ pub struct ReferenceError {
 
 impl ReferenceList<'static> {
     /// Returns the list built into P4K-Extractor.
-    #[must_use]
-    pub fn builtin() -> Self {
-        Self::parse(BUILTIN).unwrap_or(Self { items: Vec::new() })
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ReferenceError`] when the built-in list is malformed, which is a defect.
+    pub fn builtin() -> Result<Self, ReferenceError> {
+        Self::parse(BUILTIN)
     }
 }
 
@@ -174,25 +177,29 @@ pub struct CoverageReport {
     pub components: Vec<ComponentCoverage>,
     /// The Entry folders, in list order.
     pub entries: Vec<EntryCoverage>,
+    /// The `EntityClassDefinition` Records that cannot be built, when components are listed.
+    pub unreadable_entities: u64,
 }
 
 impl CoverageReport {
     /// Returns whether everything listed exists, reads without error and converts.
     #[must_use]
     pub fn is_complete(&self) -> bool {
-        self.types.iter().all(|found| {
-            found.candidate
-                || (found.records > 0
-                    && found.unreadable_records == 0
-                    && found.error_values == 0
-                    && found
-                        .sample
-                        .as_ref()
-                        .is_some_and(|sample| sample.error.is_none()))
-        }) && self
-            .components
-            .iter()
-            .all(|found| found.instances > 0 && found.reachable)
+        self.unreadable_entities == 0
+            && self.types.iter().all(|found| {
+                found.candidate
+                    || (found.records > 0
+                        && found.unreadable_records == 0
+                        && found.error_values == 0
+                        && found
+                            .sample
+                            .as_ref()
+                            .is_some_and(|sample| sample.error.is_none()))
+            })
+            && self
+                .components
+                .iter()
+                .all(|found| found.instances > 0 && found.reachable)
             && self
                 .entries
                 .iter()

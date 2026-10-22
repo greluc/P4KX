@@ -5,21 +5,20 @@ use p4kx_testkit::real_archive_path;
 
 use super::{TestResult, report};
 
-/// Types without Records on LIVE 4.10 (#465).
+/// Types known to have no Records on LIVE 4.10.
 const MISSING_GAPS: [&str; 1] = ["SolarSystem"];
-/// Types whose Records hold error values on LIVE 4.10 (#464).
-const ERROR_GAPS: [&str; 11] = [
-    "SLoadoutAssortment",
-    "AIWaveCollection",
-    "MissionBrokerEntry",
-    "MissionLocationTemplate",
-    "ResourceType",
-    "StarMapObject",
-    "MissionItem",
-    "ContractGenerator",
-    "Faction",
-    "CraftingBlueprintRecord",
-    "SCItemManufacturer",
+/// Types known to hold error values on LIVE 4.10, with the most each may hold.
+const ERROR_GAPS: [(&str, u64); 10] = [
+    ("SLoadoutAssortment", 107),
+    ("AIWaveCollection", 35),
+    ("MissionBrokerEntry", 13),
+    ("ResourceType", 7),
+    ("StarMapObject", 3),
+    ("MissionItem", 2),
+    ("ContractGenerator", 2),
+    ("Faction", 1),
+    ("CraftingBlueprintRecord", 1),
+    ("SCItemManufacturer", 1),
 ];
 
 fn print(coverage: &CoverageReport) {
@@ -79,21 +78,45 @@ fn the_companion_app_reference_list_is_covered() -> TestResult {
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
 
-    let coverage = CoverageReport::of(&archive, &forge, &ReferenceList::builtin())?;
+    let coverage = CoverageReport::of(&archive, &forge, &ReferenceList::builtin()?);
 
     print(&coverage);
     let mut problems = Vec::new();
+    if coverage.unreadable_entities > 0 {
+        problems.push(format!(
+            "{} unreadable entities",
+            coverage.unreadable_entities
+        ));
+    }
     for found in coverage.types.iter().filter(|found| !found.candidate) {
         let sample_failed = found
             .sample
             .as_ref()
             .is_none_or(|sample| sample.error.is_some());
         let missing = found.records == 0 || found.unreadable_records > 0 || sample_failed;
-        if missing && !MISSING_GAPS.contains(&found.name.as_str()) {
-            problems.push(format!("type {}", found.name));
+        let name = found.name.as_str();
+        if MISSING_GAPS.contains(&name) {
+            if !missing {
+                problems.push(format!("stale gap {name}: now present"));
+            }
+        } else if missing {
+            problems.push(format!("type {name}"));
         }
-        if found.error_values > 0 && !ERROR_GAPS.contains(&found.name.as_str()) {
-            problems.push(format!("error values in {}", found.name));
+        let ceiling = ERROR_GAPS
+            .iter()
+            .find(|(gap, _)| *gap == name)
+            .map(|(_, ceiling)| *ceiling);
+        match ceiling {
+            Some(_) if found.error_values == 0 => {
+                problems.push(format!("stale gap {name}: no error values left"));
+            }
+            Some(ceiling) if found.error_values > ceiling => {
+                problems.push(format!("error values in {name} grew past {ceiling}"));
+            }
+            None if found.error_values > 0 => {
+                problems.push(format!("error values in {name}"));
+            }
+            _ => {}
         }
     }
     for found in &coverage.components {

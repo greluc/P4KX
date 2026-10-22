@@ -70,8 +70,10 @@ fn convert(archive: &Archive, entry: &Entry) -> Outcome {
     if let Err(reason) = read {
         return Outcome::Failed(reason);
     }
-    if !matches!(cryxml::detect(&bytes), Some(Format::CryXml(_))) {
-        return Outcome::Text;
+    match cryxml::detect(&bytes) {
+        Some(Format::CryXml(_)) => {}
+        Some(_) => return Outcome::Text,
+        None => return Outcome::Failed("neither CryXml nor text XML".to_owned()),
     }
     match cryxml::parse(&bytes) {
         Ok(document) => match document.write_xml(&mut io::sink()) {

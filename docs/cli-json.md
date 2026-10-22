@@ -617,8 +617,11 @@ The coverage of the reference list in [coverage.md](coverage.md). The exit code 
 listed type (candidates excepted), component or folder is missing, unreadable or does not convert.
 
 ```json
-{"archive": "…", "complete": false, "types": [Type, …], "components": [Component, …], "entries": [Folder, …]}
+{"archive": "…", "complete": false, "unreadable_entities": 0, "types": [Type, …], "components": [Component, …], "entries": [Folder, …]}
 ```
+
+`unreadable_entities` counts the `EntityClassDefinition` Records that cannot be built and so cannot
+be searched for components; above 0 it makes `complete` false.
 
 `types` hold one object per Record type of the list, in list order:
 
@@ -641,8 +644,8 @@ listed type (candidates excepted), component or folder is missing, unreadable or
 |-------|------|---------|
 | `area`, `name` | string | As above |
 | `defined` | bool | The DataForge defines the component struct |
-| `entities` | number | The `EntityClassDefinition` Records with at least one such component |
-| `instances` | number | The components of that type in all of them |
+| `entities` | number | The `EntityClassDefinition` Records with at least one such component, structs deriving from it included |
+| `instances` | number | The components of that type, derived ones included, in all of them |
 | `reachable` | bool | The Component selector `Components[<name>]` resolves in a Query |
 
 `entries` hold one object per Entry folder:

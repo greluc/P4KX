@@ -19,7 +19,7 @@ pub(crate) fn run(args: &CoverageArgs, as_json: bool) -> Result<ExitCode> {
     let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let report = CoverageReport::of(&archive, &forge, &ReferenceList::builtin())?;
+    let report = CoverageReport::of(&archive, &forge, &ReferenceList::builtin()?);
     let written = if json {
         coverage_json::print(&args.archive, &report)
     } else {
@@ -61,7 +61,11 @@ fn table(report: &CoverageReport) -> io::Result<()> {
             found.area, found.name, found.records, found.unreadable_records, found.error_values,
         )?;
     }
-    writeln!(out, "Components of EntityClassDefinition")?;
+    writeln!(
+        out,
+        "Components of EntityClassDefinition ({} Records unreadable)",
+        report.unreadable_entities
+    )?;
     for found in &report.components {
         let state = match (found.defined, found.reachable) {
             (false, _) => "not defined",

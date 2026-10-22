@@ -2,11 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use p4kx_dataforge::query::{Query, QueryErrorKind};
 use p4kx_dataforge::{
-    DataForge, FieldStatistics, FieldStatisticsError, JsonLayout, RecordJson, RecordXml,
-    TreeBuilder,
+    DataForge, JsonLayout, MAX_INHERITANCE_DEPTH, RecordJson, RecordTree, RecordXml, TreeBuilder,
+    Value,
 };
 use rayon::prelude::*;
-use thiserror::Error;
 
 use crate::coverage::{
     ComponentCoverage, ReferenceItem, ReferenceKind, SampleExport, TypeCoverage,
@@ -14,15 +13,6 @@ use crate::coverage::{
 
 const ENTITY_TYPE: &str = "EntityClassDefinition";
 const COMPONENTS: &str = "Components";
-
-/// The coverage cannot be computed.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[non_exhaustive]
-pub enum CoverageError {
-    /// The `EntityClassDefinition` Records have too many distinct field paths to count.
-    #[error("cannot count the components of the entities: {0}")]
-    Components(#[from] FieldStatisticsError),
-}
 
 #[derive(Debug, Clone, Copy, Default)]
 struct Tally {
@@ -44,20 +34,39 @@ impl Tally {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct ComponentTally {
+    entities: u64,
+    instances: u64,
+}
+
+/// The names the scan looks for and the parent of every struct by name.
+struct Context<'a> {
+    types: HashMap<&'a str, usize>,
+    components: HashMap<&'a str, usize>,
+    parents: HashMap<&'a str, &'a str>,
+}
+
 struct Pass<'f> {
     tallies: Vec<Tally>,
-    entities: Vec<u32>,
+    components: Vec<ComponentTally>,
+    entities: u64,
+    unreadable_entities: u64,
     builder: TreeBuilder<'f>,
     matched: Vec<usize>,
+    hits: Vec<usize>,
 }
 
 impl Pass<'_> {
-    fn new(types: usize) -> Self {
+    fn new(types: usize, components: usize) -> Self {
         Self {
             tallies: vec![Tally::default(); types],
-            entities: Vec::new(),
+            components: vec![ComponentTally::default(); components],
+            entities: 0,
+            unreadable_entities: 0,
             builder: TreeBuilder::new(),
             matched: Vec::new(),
+            hits: Vec::new(),
         }
     }
 
@@ -65,104 +74,204 @@ impl Pass<'_> {
         for (tally, other) in self.tallies.iter_mut().zip(other.tallies) {
             tally.merge(other);
         }
-        self.entities.extend(other.entities);
+        for (tally, other) in self.components.iter_mut().zip(other.components) {
+            tally.entities += other.entities;
+            tally.instances += other.instances;
+        }
+        self.entities += other.entities;
+        self.unreadable_entities += other.unreadable_entities;
         self
     }
 }
 
-/// Counts the Records of the listed types, reads them and exports a sample of each, then counts
-/// the listed components in the `EntityClassDefinition` Records and checks that a Query reaches
-/// them.
-pub(crate) fn check(
-    forge: &DataForge<'_>,
-    items: &[ReferenceItem<'_>],
-) -> Result<(Vec<TypeCoverage>, Vec<ComponentCoverage>), CoverageError> {
+/// What the DataForge holds of the listed Record types and components.
+pub(crate) struct ForgeCoverage {
+    pub(crate) types: Vec<TypeCoverage>,
+    pub(crate) components: Vec<ComponentCoverage>,
+    pub(crate) unreadable_entities: u64,
+}
+
+/// Counts the Records of the listed types, reads them and exports a sample of each, and counts
+/// the listed components, derived structs included, in the `EntityClassDefinition` Records.
+pub(crate) fn check(forge: &DataForge<'_>, items: &[ReferenceItem<'_>]) -> ForgeCoverage {
     let defined: HashSet<&str> = forge
         .structs()
         .filter_map(|found| found.name().ok())
         .collect();
-    let types: Vec<&ReferenceItem<'_>> = items
-        .iter()
-        .filter(|item| matches!(item.kind, ReferenceKind::Record | ReferenceKind::Candidate))
-        .collect();
-    let wanted: HashMap<&str, usize> =
-        types
+    let types = of_kind(items, |kind| {
+        matches!(kind, ReferenceKind::Record | ReferenceKind::Candidate)
+    });
+    let components = of_kind(items, |kind| kind == ReferenceKind::Component);
+    let context = Context {
+        types: first_slots(&types),
+        components: first_slots(&components),
+        parents: forge
+            .structs()
+            .filter_map(|found| Some((found.name().ok()?, found.parent()?.name().ok()?)))
+            .collect(),
+    };
+    let pass = scan(forge, &context, types.len(), components.len());
+    ForgeCoverage {
+        types: types
             .iter()
-            .enumerate()
-            .fold(HashMap::new(), |mut wanted, (index, item)| {
-                wanted.entry(item.name).or_insert(index);
-                wanted
-            });
-    let mut pass = scan(forge, &wanted, types.len());
-    pass.entities.sort_unstable();
-    let records = types
-        .iter()
-        .map(|item| {
-            let tally = wanted
-                .get(item.name)
-                .and_then(|first| pass.tallies.get(*first))
-                .copied()
-                .unwrap_or_default();
-            type_coverage(forge, item, &defined, &tally)
-        })
-        .collect();
-    let components = components(forge, items, &defined, &pass.entities)?;
-    Ok((records, components))
+            .map(|item| {
+                let tally = context
+                    .types
+                    .get(item.name)
+                    .and_then(|first| pass.tallies.get(*first))
+                    .copied()
+                    .unwrap_or_default();
+                type_coverage(forge, item, &defined, &tally)
+            })
+            .collect(),
+        components: components
+            .iter()
+            .map(|item| {
+                let tally = context
+                    .components
+                    .get(item.name)
+                    .and_then(|first| pass.components.get(*first))
+                    .copied()
+                    .unwrap_or_default();
+                ComponentCoverage {
+                    area: item.area.to_owned(),
+                    name: item.name.to_owned(),
+                    defined: defined.contains(item.name),
+                    entities: tally.entities,
+                    instances: tally.instances,
+                    reachable: reachable(forge, item.name),
+                }
+            })
+            .collect(),
+        unreadable_entities: pass.unreadable_entities,
+    }
 }
 
-fn scan<'f>(forge: &'f DataForge<'f>, wanted: &HashMap<&str, usize>, types: usize) -> Pass<'f> {
+fn of_kind<'a>(
+    items: &[ReferenceItem<'a>],
+    wanted: impl Fn(ReferenceKind) -> bool,
+) -> Vec<ReferenceItem<'a>> {
+    items
+        .iter()
+        .filter(|item| wanted(item.kind))
+        .copied()
+        .collect()
+}
+
+fn first_slots<'a>(items: &[ReferenceItem<'a>]) -> HashMap<&'a str, usize> {
+    let mut slots = HashMap::new();
+    for (index, item) in items.iter().enumerate() {
+        slots.entry(item.name).or_insert(index);
+    }
+    slots
+}
+
+fn scan<'f>(
+    forge: &'f DataForge<'f>,
+    context: &Context<'_>,
+    types: usize,
+    components: usize,
+) -> Pass<'f> {
     let count = u32::try_from(forge.record_count()).unwrap_or(u32::MAX);
     (0..count)
         .into_par_iter()
         .fold(
-            || Pass::new(types),
+            || Pass::new(types, components),
             |mut pass, index| {
-                visit(forge, wanted, index, &mut pass);
+                visit(forge, context, index, &mut pass);
                 pass
             },
         )
-        .reduce(|| Pass::new(types), Pass::merge)
+        .reduce(|| Pass::new(types, components), Pass::merge)
 }
 
-fn visit<'f>(
-    forge: &'f DataForge<'f>,
-    wanted: &HashMap<&str, usize>,
-    index: u32,
-    pass: &mut Pass<'f>,
-) {
+fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: &mut Pass<'f>) {
     let Some(record) = forge.record(index) else {
         return;
     };
-    let mut current = record.struct_type().ok();
     pass.matched.clear();
     let mut entity = false;
+    let mut cyclic = false;
+    let mut current = record.struct_type().ok();
+    let mut steps = 0;
     while let Some(found) = current {
+        if steps == MAX_INHERITANCE_DEPTH {
+            cyclic = true;
+            break;
+        }
+        steps += 1;
         if let Ok(name) = found.name() {
             entity |= name == ENTITY_TYPE;
-            if let Some(slot) = wanted.get(name) {
+            if let Some(slot) = context.types.get(name) {
                 pass.matched.push(*slot);
             }
         }
         current = found.parent();
     }
-    if entity {
-        pass.entities.push(index);
-    }
-    if pass.matched.is_empty() {
+    pass.matched.sort_unstable();
+    pass.matched.dedup();
+    let entity = entity && !context.components.is_empty();
+    if pass.matched.is_empty() && !entity {
         return;
     }
-    let read = pass.builder.build(&record);
+    if entity {
+        pass.entities += 1;
+    }
+    let read = if cyclic {
+        None
+    } else {
+        pass.builder.build(&record).ok()
+    };
     for slot in &pass.matched {
         let Some(tally) = pass.tallies.get_mut(*slot) else {
             continue;
         };
         tally.records += 1;
         match &read {
-            Ok(tree) => {
+            Some(tree) => {
                 tally.errors += tree.error_count() as u64;
                 tally.sample = Some(tally.sample.map_or(index, |first| first.min(index)));
             }
-            Err(_) => tally.unreadable += 1,
+            None => tally.unreadable += 1,
+        }
+    }
+    if entity {
+        match &read {
+            Some(tree) => count_components(context, tree, pass),
+            None => pass.unreadable_entities += 1,
+        }
+    }
+}
+
+fn count_components(context: &Context<'_>, tree: &RecordTree<'_>, pass: &mut Pass<'_>) {
+    let Some(Value::Array(items)) = tree.field(COMPONENTS) else {
+        return;
+    };
+    pass.hits.clear();
+    for item in items {
+        let Value::Struct(component) = item else {
+            continue;
+        };
+        let mut name = Some(component.type_name());
+        let mut steps = 0;
+        while let Some(current) = name
+            && steps < MAX_INHERITANCE_DEPTH
+        {
+            steps += 1;
+            if let Some(slot) = context.components.get(current) {
+                if let Some(tally) = pass.components.get_mut(*slot) {
+                    tally.instances += 1;
+                }
+                pass.hits.push(*slot);
+            }
+            name = context.parents.get(current).copied();
+        }
+    }
+    pass.hits.sort_unstable();
+    pass.hits.dedup();
+    for slot in &pass.hits {
+        if let Some(tally) = pass.components.get_mut(*slot) {
+            tally.entities += 1;
         }
     }
 }
@@ -214,36 +323,6 @@ const fn failed(record_path: String, error: String) -> SampleExport {
         json_bytes: 0,
         error: Some(error),
     }
-}
-
-fn components(
-    forge: &DataForge<'_>,
-    items: &[ReferenceItem<'_>],
-    defined: &HashSet<&str>,
-    entities: &[u32],
-) -> Result<Vec<ComponentCoverage>, CoverageError> {
-    let listed: Vec<&ReferenceItem<'_>> = items
-        .iter()
-        .filter(|item| item.kind == ReferenceKind::Component)
-        .collect();
-    if listed.is_empty() {
-        return Ok(Vec::new());
-    }
-    let statistics = FieldStatistics::of_records(forge, entities)?;
-    Ok(listed
-        .into_iter()
-        .map(|item| {
-            let found = statistics.get(&format!("{COMPONENTS}/{}", item.name));
-            ComponentCoverage {
-                area: item.area.to_owned(),
-                name: item.name.to_owned(),
-                defined: defined.contains(item.name),
-                entities: found.map_or(0, p4kx_dataforge::FieldStat::records),
-                instances: found.map_or(0, p4kx_dataforge::FieldStat::occurrences),
-                reachable: reachable(forge, item.name),
-            }
-        })
-        .collect())
 }
 
 /// Returns whether the Component selector resolves: the Query compiles, or fails only because

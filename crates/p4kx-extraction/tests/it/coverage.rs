@@ -13,6 +13,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const LIST: &str = "missions record MissionItem
 missions candidate MissionLocationTemplate
 reputation record Faction
+reputation record Loop
 items component WeaponParams
 items component MissileParams
 items component MissingParams
@@ -36,6 +37,8 @@ fn database() -> Vec<u8> {
         .structure(TestStruct::new("Params"))
         .structure(TestStruct::new("WeaponParams").parent("Params"))
         .structure(TestStruct::new("MissileParams").parent("Params"))
+        .structure(TestStruct::new("HeavyWeaponParams").parent("WeaponParams"))
+        .structure(TestStruct::new("Loop").parent("Loop"))
         .structure(
             TestStruct::new("EntityClassDefinition")
                 .array("Components", TestType::StrongPointer("Params".to_owned())),
@@ -55,6 +58,18 @@ fn database() -> Vec<u8> {
             entity(2, "libs/entities/two.xml")
                 .value("Components", TestValue::Array(vec![weapon()])),
         )
+        .record(entity(3, "libs/entities/three.xml").value(
+            "Components",
+            TestValue::Array(vec![TestValue::Struct(TestInstance::new(
+                "HeavyWeaponParams",
+            ))]),
+        ))
+        .record(TestRecord::new(
+            12,
+            "Loop",
+            "Loop.Loop",
+            "libs/loops/loop.xml",
+        ))
         .record(
             TestRecord::new(10, "Faction", "Faction.Good", "libs/factions/good.xml")
                 .value("name", TestValue::text("good")),
@@ -85,6 +100,10 @@ fn archive(dir: &std::path::Path) -> Result<Archive, Box<dyn Error>> {
         ))
         .entry(TestEntry::zstd("Data\\Vehicles\\Broken.xml", broken))
         .entry(TestEntry::zstd(
+            "Data\\Vehicles\\Junk.xml",
+            vec![0, 1, 2, 3, 0xff, 0xfe],
+        ))
+        .entry(TestEntry::zstd(
             "Data\\Other\\Elsewhere.xml",
             vehicle("Else"),
         ))
@@ -104,16 +123,22 @@ fn report() -> Result<CoverageReport, Box<dyn Error>> {
         &archive,
         &forge,
         &ReferenceList::parse(LIST)?,
-    )?)
+    ))
 }
 
 #[test]
 fn record_types_are_counted_with_the_types_deriving_from_them() -> TestResult {
     let report = report()?;
 
-    let [item, candidate, faction] = report.types.as_slice() else {
-        return Err(format!("three types: {:?}", report.types).into());
+    let [item, candidate, faction, looped] = report.types.as_slice() else {
+        return Err(format!("four types: {:?}", report.types).into());
     };
+    assert_eq!(
+        (looped.records, looped.unreadable_records),
+        (1, 1),
+        "a self-parented struct ends the walk and counts as unreadable"
+    );
+    assert!(looped.sample.is_none());
     assert_eq!((item.defined, item.records), (true, 0));
     assert!(item.sample.is_none());
     assert_eq!((candidate.defined, candidate.candidate), (false, true));
@@ -133,7 +158,12 @@ fn components_are_counted_in_the_entities_and_reached_by_a_query() -> TestResult
     let [weapon, missile, missing] = report.components.as_slice() else {
         return Err(format!("three components: {:?}", report.components).into());
     };
-    assert_eq!((weapon.entities, weapon.instances), (2, 3));
+    assert_eq!(
+        (weapon.entities, weapon.instances),
+        (3, 4),
+        "the derived HeavyWeaponParams counts"
+    );
+    assert_eq!(report.unreadable_entities, 0);
     assert!(weapon.defined && weapon.reachable, "{weapon:?}");
     assert_eq!((missile.entities, missile.instances), (0, 0));
     assert!(missile.defined && missile.reachable);
@@ -148,19 +178,21 @@ fn entries_of_a_folder_are_converted_from_cryxml() -> TestResult {
     let [folder] = report.entries.as_slice() else {
         return Err("one folder".into());
     };
-    assert_eq!(folder.entries, 3);
+    assert_eq!(folder.entries, 4);
     assert_eq!((folder.converted, folder.text), (1, 1));
-    let [(path, _reason)] = folder.failures.as_slice() else {
-        return Err(format!("one failure: {:?}", folder.failures).into());
+    let [(broken, _), (junk, reason)] = folder.failures.as_slice() else {
+        return Err(format!("two failures: {:?}", folder.failures).into());
     };
-    assert_eq!(path, "Data\\Vehicles\\Broken.xml");
+    assert_eq!(broken, "Data\\Vehicles\\Broken.xml");
+    assert_eq!(junk, "Data\\Vehicles\\Junk.xml");
+    assert_eq!(reason, "neither CryXml nor text XML");
     assert!(!report.is_complete());
     Ok(())
 }
 
 #[test]
-fn the_built_in_list_is_valid_and_names_every_kind() {
-    let list = ReferenceList::builtin();
+fn the_built_in_list_is_valid_and_names_every_kind() -> TestResult {
+    let list = ReferenceList::builtin()?;
 
     for kind in [
         ReferenceKind::Record,
@@ -187,6 +219,7 @@ fn the_built_in_list_is_valid_and_names_every_kind() {
             .count(),
         20
     );
+    Ok(())
 }
 
 #[test]

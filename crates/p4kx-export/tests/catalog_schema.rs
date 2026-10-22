@@ -230,7 +230,7 @@ fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() ->
             "trackingSignalType": "NewSignal", "lockTime": null, "lockingAngle": null,
             "lockRangeMin": null, "lockRangeMax": null, "linearSpeed": null
         },
-        "power": null, "heat": null, "health": 1.5, "extra": true,
+        "health": 1.5, "extra": true,
         "resourceStates": [{
             "name": null, "emSignature": null, "irSignature": {"nominal": 1.0, "decayRate": null},
             "flows": [{

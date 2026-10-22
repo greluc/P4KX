@@ -472,16 +472,24 @@
       "description": "A cooler.",
       "properties": {
         "coolingRate": {
-          "description": "The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Coolant`.",
+          "description": "The `amount` of the first `generation` flow of `resourceStates` whose resource is\n`Coolant`.",
           "format": "float",
           "type": [
             "number",
             "null"
           ]
+        },
+        "unit": {
+          "description": "The `unit` of that flow.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
-        "coolingRate"
+        "coolingRate",
+        "unit"
       ],
       "type": "object"
     },
@@ -746,7 +754,7 @@
           ]
         },
         "chargeTime": {
-          "description": "`chargeTime` of a charged fire mode, in seconds.",
+          "description": "`chargeTime`, in seconds.",
           "format": "float",
           "type": [
             "number",
@@ -754,7 +762,7 @@
           ]
         },
         "cooldownTime": {
-          "description": "`cooldownTime` of a charged fire mode, in seconds.",
+          "description": "`cooldownTime`, in seconds.",
           "format": "float",
           "type": [
             "number",
@@ -762,7 +770,7 @@
           ]
         },
         "fireRate": {
-          "description": "`fireRate`, in rounds per minute.",
+          "description": "`fireRate`, in rounds per minute. `fireRate`, `heatPerShot`, `chargeTime`,\n`overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,\nwhere it has none of its own, from its `weaponAction`.",
           "format": "float",
           "type": [
             "number",
@@ -789,7 +797,7 @@
           ]
         },
         "overchargeTime": {
-          "description": "`overchargeTime` of a charged fire mode, in seconds.",
+          "description": "`overchargeTime`, in seconds.",
           "format": "float",
           "type": [
             "number",
@@ -851,50 +859,6 @@
       "format": "uuid",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "type": "string"
-    },
-    "HeatConnection": {
-      "description": "The heat connection of an item.",
-      "properties": {
-        "overheatTemperature": {
-          "description": "`OverheatTemperature`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "temperatureToIr": {
-          "description": "`TemperatureToIR`, the infrared signature per temperature.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "thermalEnergyBase": {
-          "description": "`ThermalEnergyBase`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "thermalEnergyDraw": {
-          "description": "`ThermalEnergyDraw`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "overheatTemperature",
-        "temperatureToIr",
-        "thermalEnergyBase",
-        "thermalEnergyDraw"
-      ],
-      "type": "object"
     },
     "Ingredient": {
       "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
@@ -1103,7 +1067,7 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`\nand `missile`. No value is derived: a number is what the Archive states, in the unit the game\nstores it.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`\nand `missile`. No value is derived: a number is what the Archive states, in the unit the game\nstores it; a value that is not a finite number is `null`.",
       "properties": {
         "cooler": {
           "anyOf": [
@@ -1124,17 +1088,6 @@
             "null"
           ]
         },
-        "heat": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/HeatConnection"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The heat connection, from `EntityComponentHeatConnection`."
-        },
         "missile": {
           "anyOf": [
             {
@@ -1145,17 +1098,6 @@
             }
           ],
           "description": "The missile block, from `SCItemMissileParams`."
-        },
-        "power": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PowerConnection"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The power connection, from `EntityComponentPowerConnection`."
         },
         "powerPlant": {
           "anyOf": [
@@ -1212,9 +1154,7 @@
       "required": [
         "cooler",
         "health",
-        "heat",
         "missile",
-        "power",
         "powerPlant",
         "quantumDrive",
         "resourceStates",
@@ -1396,7 +1336,7 @@
           ]
         },
         "linearSpeed": {
-          "description": "`gcsParams.linearSpeed`, in metres per second.",
+          "description": "`GCSParams.linearSpeed`, in metres per second.",
           "format": "float",
           "type": [
             "number",
@@ -1506,64 +1446,28 @@
       ],
       "type": "object"
     },
-    "PowerConnection": {
-      "description": "The power connection of an item.",
-      "properties": {
-        "decayRateOfEm": {
-          "description": "`DecayRateOfEM`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "powerBase": {
-          "description": "`PowerBase`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "powerDraw": {
-          "description": "`PowerDraw`.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "powerToEm": {
-          "description": "`PowerToEM`, the electromagnetic signature per power.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "decayRateOfEm",
-        "powerBase",
-        "powerDraw",
-        "powerToEm"
-      ],
-      "type": "object"
-    },
     "PowerPlantStats": {
       "description": "A power plant.",
       "properties": {
         "powerOutput": {
-          "description": "The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Power`.",
+          "description": "The `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`.",
           "format": "float",
           "type": [
             "number",
             "null"
           ]
+        },
+        "unit": {
+          "description": "The `unit` of that flow.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
-        "powerOutput"
+        "powerOutput",
+        "unit"
       ],
       "type": "object"
     },
@@ -2287,10 +2191,10 @@
               "type": "null"
             }
           ],
-          "description": "The ammunition, from the `AmmoParams` Record that\n`SAmmoContainerComponentParams.ammoParamsRecord` links to; `null` without a readable one."
+          "description": "The ammunition, from the `AmmoParams` Record that `ammoParamsRecord` of that container\nlinks to; `null` without a readable one."
         },
         "ammoCapacity": {
-          "description": "The rounds the weapon holds, from `SAmmoContainerComponentParams.maxAmmoCount`.",
+          "description": "`maxAmmoCount` of the ammo container: the weapon's own `SAmmoContainerComponentParams` or,\nfor a weapon without one, that of the magazine entity `ammoContainerRecord` links to. The\ncapacity of the magazine, not of the weapon body.",
           "format": "int64",
           "type": [
             "integer",

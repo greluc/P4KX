@@ -8,7 +8,7 @@ use crate::contract::every_field_required;
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
 /// has at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`
 /// and `missile`. No value is derived: a number is what the Archive states, in the unit the game
-/// stores it.
+/// stores it; a value that is not a finite number is `null`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -20,15 +20,11 @@ pub(crate) struct ItemStats<'a> {
     /// The quantum drive block, from `SCItemQuantumDriveParams`.
     pub(crate) quantum_drive: Option<QuantumDriveStats>,
     /// The power plant block, for an item of the type `PowerPlant`.
-    pub(crate) power_plant: Option<PowerPlantStats>,
+    pub(crate) power_plant: Option<PowerPlantStats<'a>>,
     /// The cooler block, for an item of the type `Cooler`.
-    pub(crate) cooler: Option<CoolerStats>,
+    pub(crate) cooler: Option<CoolerStats<'a>>,
     /// The missile block, from `SCItemMissileParams`.
     pub(crate) missile: Option<MissileStats<'a>>,
-    /// The power connection, from `EntityComponentPowerConnection`.
-    pub(crate) power: Option<PowerConnection>,
-    /// The heat connection, from `EntityComponentHeatConnection`.
-    pub(crate) heat: Option<HeatConnection>,
     /// The hit points, from `SHealthComponentParams.Health`.
     pub(crate) health: Option<f32>,
     /// The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.
@@ -87,10 +83,12 @@ pub(crate) struct ResourceFlow<'a> {
 pub(crate) struct WeaponStats<'a> {
     /// The fire modes of `fireActions` in stored order; a sequence is flattened to its entries.
     pub(crate) fire_actions: Vec<FireAction<'a>>,
-    /// The rounds the weapon holds, from `SAmmoContainerComponentParams.maxAmmoCount`.
+    /// `maxAmmoCount` of the ammo container: the weapon's own `SAmmoContainerComponentParams` or,
+    /// for a weapon without one, that of the magazine entity `ammoContainerRecord` links to. The
+    /// capacity of the magazine, not of the weapon body.
     pub(crate) ammo_capacity: Option<i64>,
-    /// The ammunition, from the `AmmoParams` Record that
-    /// `SAmmoContainerComponentParams.ammoParamsRecord` links to; `null` without a readable one.
+    /// The ammunition, from the `AmmoParams` Record that `ammoParamsRecord` of that container
+    /// links to; `null` without a readable one.
     pub(crate) ammo: Option<AmmoStats>,
 }
 
@@ -104,7 +102,9 @@ pub(crate) struct FireAction<'a> {
     pub(crate) kind: &'a str,
     /// The `name` of the fire mode.
     pub(crate) name: Option<&'a str>,
-    /// `fireRate`, in rounds per minute.
+    /// `fireRate`, in rounds per minute. `fireRate`, `heatPerShot`, `chargeTime`,
+    /// `overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,
+    /// where it has none of its own, from its `weaponAction`.
     pub(crate) fire_rate: Option<f32>,
     /// `launchParams.pellets`, the projectiles of one shot.
     pub(crate) pellets: Option<i64>,
@@ -112,11 +112,11 @@ pub(crate) struct FireAction<'a> {
     pub(crate) ammo_cost: Option<i64>,
     /// `heatPerShot`.
     pub(crate) heat_per_shot: Option<f32>,
-    /// `chargeTime` of a charged fire mode, in seconds.
+    /// `chargeTime`, in seconds.
     pub(crate) charge_time: Option<f32>,
-    /// `overchargeTime` of a charged fire mode, in seconds.
+    /// `overchargeTime`, in seconds.
     pub(crate) overcharge_time: Option<f32>,
-    /// `cooldownTime` of a charged fire mode, in seconds.
+    /// `cooldownTime`, in seconds.
     pub(crate) cooldown_time: Option<f32>,
 }
 
@@ -204,18 +204,23 @@ pub(crate) struct QuantumDriveStats {
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
-pub(crate) struct PowerPlantStats {
-    /// The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Power`.
+pub(crate) struct PowerPlantStats<'a> {
+    /// The `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`.
     pub(crate) power_output: Option<f32>,
+    /// The `unit` of that flow.
+    pub(crate) unit: Option<&'a str>,
 }
 
 /// A cooler.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
-pub(crate) struct CoolerStats {
-    /// The amount per second of the `ItemResourceDeltaGeneration` whose resource is `Coolant`.
+pub(crate) struct CoolerStats<'a> {
+    /// The `amount` of the first `generation` flow of `resourceStates` whose resource is
+    /// `Coolant`.
     pub(crate) cooling_rate: Option<f32>,
+    /// The `unit` of that flow.
+    pub(crate) unit: Option<&'a str>,
 }
 
 /// A missile.
@@ -240,36 +245,6 @@ pub(crate) struct MissileStats<'a> {
     pub(crate) lock_range_min: Option<f32>,
     /// `targetingParams.lockRangeMax`, in metres.
     pub(crate) lock_range_max: Option<f32>,
-    /// `gcsParams.linearSpeed`, in metres per second.
+    /// `GCSParams.linearSpeed`, in metres per second.
     pub(crate) linear_speed: Option<f32>,
-}
-
-/// The power connection of an item.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(transform = every_field_required)]
-pub(crate) struct PowerConnection {
-    /// `PowerBase`.
-    pub(crate) power_base: Option<f32>,
-    /// `PowerDraw`.
-    pub(crate) power_draw: Option<f32>,
-    /// `PowerToEM`, the electromagnetic signature per power.
-    pub(crate) power_to_em: Option<f32>,
-    /// `DecayRateOfEM`.
-    pub(crate) decay_rate_of_em: Option<f32>,
-}
-
-/// The heat connection of an item.
-#[derive(Debug, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[schemars(transform = every_field_required)]
-pub(crate) struct HeatConnection {
-    /// `ThermalEnergyBase`.
-    pub(crate) thermal_energy_base: Option<f32>,
-    /// `ThermalEnergyDraw`.
-    pub(crate) thermal_energy_draw: Option<f32>,
-    /// `TemperatureToIR`, the infrared signature per temperature.
-    pub(crate) temperature_to_ir: Option<f32>,
-    /// `OverheatTemperature`.
-    pub(crate) overheat_temperature: Option<f32>,
 }

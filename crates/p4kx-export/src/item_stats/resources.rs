@@ -65,7 +65,10 @@ pub(super) fn states<'f>(tree: &RecordTree<'f>) -> Vec<ResourceState<'f>> {
         .collect()
 }
 
-fn generated(states: &[ResourceState<'_>], resource: &str) -> Option<f32> {
+fn generated<'t, 'f>(
+    states: &'t [ResourceState<'f>],
+    resource: &str,
+) -> Option<&'t ResourceFlow<'f>> {
     states
         .iter()
         .flat_map(|state| &state.flows)
@@ -74,17 +77,20 @@ fn generated(states: &[ResourceState<'_>], resource: &str) -> Option<f32> {
             flow.resource
                 .is_some_and(|name| name.eq_ignore_ascii_case(resource))
         })
-        .and_then(|flow| flow.amount)
 }
 
-pub(super) fn power_plant(states: &[ResourceState<'_>]) -> PowerPlantStats {
+pub(super) fn power_plant<'f>(states: &[ResourceState<'f>]) -> PowerPlantStats<'f> {
+    let flow = generated(states, "Power");
     PowerPlantStats {
-        power_output: generated(states, "Power"),
+        power_output: flow.and_then(|flow| flow.amount),
+        unit: flow.and_then(|flow| flow.unit),
     }
 }
 
-pub(super) fn cooler(states: &[ResourceState<'_>]) -> CoolerStats {
+pub(super) fn cooler<'f>(states: &[ResourceState<'f>]) -> CoolerStats<'f> {
+    let flow = generated(states, "Coolant");
     CoolerStats {
-        cooling_rate: generated(states, "Coolant"),
+        cooling_rate: flow.and_then(|flow| flow.amount),
+        unit: flow.and_then(|flow| flow.unit),
     }
 }

@@ -28,13 +28,21 @@ values, if any, `p4kx` computes.
   power plant and the cooler, from `AttachDef.Type`, because the resource component they share
   does not tell them apart. No class name or record name enters the rule. A block that is `null`
   is absent from the item; a field inside a present block is `null` when the Archive does not
-  state it, never 0.
-- **Shared blocks.** An item with at least one of the six blocks also carries `power`
-  (`EntityComponentPowerConnection`: base, draw, EM signature factor and decay), `heat`
-  (`EntityComponentHeatConnection`: thermal energy, IR signature factor, overheat temperature) and
-  `health` (`SHealthComponentParams.Health`). They are the signature and durability inputs; an
-  item without a stat block does not carry them, which keeps doors, props and clothing out of the
-  kind.
+  state it, never 0, and a value that is not a finite number is `null` too.
+- **Shared fields.** An item with at least one of the six blocks also carries `health`
+  (`SHealthComponentParams.Health`) and `resourceStates`: the states of
+  `ItemResourceComponentParams` with their EM and IR signatures and their generation and
+  consumption flows (power draw, coolant, fuel), each with the unit struct the Archive uses and
+  without conversion. They are the signature, power and durability inputs; an item without a stat
+  block does not carry them, which keeps doors, props and clothing out of the kind. The separate
+  power and heat connection components (5 and 3 Records on LIVE, none of them an item with a
+  block) are not exported: version 1 can never remove a field, and `resourceStates` carries the
+  same inputs.
+- **Ammunition.** `ammoCapacity` is the capacity of the ammo container, that is the magazine, not
+  the weapon body. A ship weapon holds the container itself; a personal weapon links its magazine
+  entity through `ammoContainerRecord` and the container is read there, one hop. A linked Record
+  that is missing, has another struct or cannot be built leaves `ammo` `null` and never fails the
+  item. An unbounded quantum range is `f32::MAX` as stored.
 - **Flat and nullable, on the item.** The stats are a field of the item, not a new kind: the item
   is the key, the import already joins on it, `completeness.items` already states whether the list
   is complete, and no second GUID list has to stay in step with `items`. This is ADR-0063's

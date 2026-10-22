@@ -1,9 +1,7 @@
 use p4kx_extraction::{RecordTree, StructValue};
 
 use super::walk::owner_of;
-use crate::contract_stats::{
-    Damage, HeatConnection, MissileStats, PowerConnection, QuantumDriveStats, ShieldStats,
-};
+use crate::contract_stats::{Damage, MissileStats, QuantumDriveStats, ShieldStats};
 use crate::record_fields::{component, number, structure, text};
 
 const DAMAGE_FIELDS: [&str; 6] = [
@@ -77,30 +75,6 @@ pub(super) fn missile<'f>(tree: &RecordTree<'f>) -> Option<MissileStats<'f>> {
         lock_range_min: number(targeting, "lockRangeMin"),
         lock_range_max: number(targeting, "lockRangeMax"),
         linear_speed: number(guidance, "linearSpeed"),
-    })
-}
-
-pub(super) fn power_connection(tree: &RecordTree<'_>) -> Option<PowerConnection> {
-    let power = component(tree, "EntityComponentPowerConnection");
-    power?;
-    let value = |name| number(power, name);
-    Some(PowerConnection {
-        power_base: value("PowerBase"),
-        power_draw: value("PowerDraw"),
-        power_to_em: value("PowerToEM"),
-        decay_rate_of_em: value("DecayRateOfEM"),
-    })
-}
-
-pub(super) fn heat_connection(tree: &RecordTree<'_>) -> Option<HeatConnection> {
-    let heat = component(tree, "EntityComponentHeatConnection");
-    heat?;
-    let value = |name| number(heat, name);
-    Some(HeatConnection {
-        thermal_energy_base: value("ThermalEnergyBase"),
-        thermal_energy_draw: value("ThermalEnergyDraw"),
-        temperature_to_ir: value("TemperatureToIR"),
-        overheat_temperature: value("OverheatTemperature"),
     })
 }
 

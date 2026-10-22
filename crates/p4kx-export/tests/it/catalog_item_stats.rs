@@ -5,7 +5,10 @@ use crate::item_stats_fixture;
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use item_stats_fixture::{COOLER, DANGLING_GUN, DRIVE, GUN, MISSILE, PLAIN, PLANT, SHIELD};
+use item_stats_fixture::{
+    COOLER, DANGLING_GUN, DRIVE, GUN, MISSILE, PERSONAL_GUN, PLAIN, PLANT, SHIELD, UNBOUNDED_DRIVE,
+    WRONG_TYPE_GUN,
+};
 use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::Archive;
 use serde_json::{Value, json};
@@ -101,7 +104,38 @@ fn a_weapon_whose_ammunition_record_is_missing_has_null_ammo() -> TestResult {
 }
 
 #[test]
-fn a_shield_carries_its_values_and_the_connections() -> TestResult {
+fn a_weapon_with_an_ammunition_record_of_another_struct_keeps_the_item_and_has_null_ammo()
+-> TestResult {
+    let gun = item(&catalog()?, WRONG_TYPE_GUN)?;
+    assert!(gun["stats"]["weapon"]["ammo"].is_null());
+    assert_eq!(gun["stats"]["weapon"]["ammoCapacity"], 200);
+    Ok(())
+}
+
+#[test]
+fn a_personal_weapon_takes_capacity_and_ammunition_from_its_magazine() -> TestResult {
+    let gun = item(&catalog()?, PERSONAL_GUN)?;
+    let weapon = &gun["stats"]["weapon"];
+    assert_eq!(weapon["ammoCapacity"], 30);
+    assert_eq!(weapon["ammo"]["speed"], 1100.0);
+    assert_eq!(weapon["ammo"]["damage"]["physical"], 30.0);
+    Ok(())
+}
+
+#[test]
+fn an_unbounded_jump_range_is_exported_as_stored() -> TestResult {
+    let drive = item(&catalog()?, UNBOUNDED_DRIVE)?;
+    assert!(
+        drive["stats"]["quantumDrive"]["jumpRange"]
+            .as_f64()
+            .is_some_and(|range| range > 3.4e38),
+        "the stored f32::MAX"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_shield_carries_its_values_and_its_health() -> TestResult {
     let shield = item(&catalog()?, SHIELD)?;
     let stats = &shield["stats"];
     assert_eq!(
@@ -114,19 +148,7 @@ fn a_shield_carries_its_values_and_the_connections() -> TestResult {
             "damagedRegenDelay": 2.5
         })
     );
-    assert_eq!(
-        stats["power"],
-        json!({"powerBase": 1.0, "powerDraw": 4.0, "powerToEm": 3.0, "decayRateOfEm": 0.5})
-    );
-    assert_eq!(
-        stats["heat"],
-        json!({
-            "thermalEnergyBase": 2.0,
-            "thermalEnergyDraw": 6.0,
-            "temperatureToIr": 0.75,
-            "overheatTemperature": 90.0
-        })
-    );
+    assert!(stats.get("power").is_none() && stats.get("heat").is_none());
     assert_eq!(stats["health"], 450.0);
     assert!(stats["weapon"].is_null() && stats["missile"].is_null());
     Ok(())
@@ -157,9 +179,15 @@ fn a_power_plant_and_a_cooler_carry_the_rate_of_their_own_resource() -> TestResu
     let catalog = catalog()?;
     let plant = item(&catalog, PLANT)?;
     let cooler = item(&catalog, COOLER)?;
-    assert_eq!(plant["stats"]["powerPlant"], json!({"powerOutput": 12.0}));
+    assert_eq!(
+        plant["stats"]["powerPlant"],
+        json!({"powerOutput": 12.0, "unit": "SPowerSegmentResourceUnit"})
+    );
     assert!(plant["stats"]["cooler"].is_null());
-    assert_eq!(cooler["stats"]["cooler"], json!({"coolingRate": 40.0}));
+    assert_eq!(
+        cooler["stats"]["cooler"],
+        json!({"coolingRate": 40.0, "unit": "SStandardResourceUnit"})
+    );
     assert!(cooler["stats"]["powerPlant"].is_null());
     assert_eq!(
         cooler["stats"]["resourceStates"],

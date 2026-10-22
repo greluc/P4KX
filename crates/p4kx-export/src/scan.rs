@@ -243,7 +243,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             ship_base.as_ref(),
         );
         if let Some(Picked::Item(item, _)) = &mut picked {
-            item.stats = item_stats::read(&tree, self.forge, trees)?.map(Box::new);
+            item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
         }
         Ok(picked)
     }

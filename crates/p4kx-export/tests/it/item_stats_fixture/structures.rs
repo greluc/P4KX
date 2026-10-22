@@ -34,7 +34,8 @@ fn weapons() -> Vec<TestStruct> {
         component("SAttachableComponentParams").field("AttachDef", class("SItemDefinition")),
         TestStruct::new("SItemDefinition").field("Type", TestType::Enum("EItemType".to_owned())),
         component("SCItemWeaponComponentParams")
-            .array("fireActions", pointer("SWeaponActionParams")),
+            .array("fireActions", pointer("SWeaponActionParams"))
+            .field("ammoContainerRecord", TestType::Reference),
         TestStruct::new("SWeaponActionParams"),
         TestStruct::new("SWeaponActionFireRapidParams")
             .parent("SWeaponActionParams")
@@ -138,19 +139,6 @@ fn others() -> Vec<TestStruct> {
             &["lockTime", "lockingAngle", "lockRangeMin", "lockRangeMax"],
         )
         .field("trackingSignalType", TestType::String),
-        singles_component(
-            "EntityComponentPowerConnection",
-            &["PowerBase", "PowerDraw", "PowerToEM", "DecayRateOfEM"],
-        ),
-        singles_component(
-            "EntityComponentHeatConnection",
-            &[
-                "ThermalEnergyBase",
-                "ThermalEnergyDraw",
-                "TemperatureToIR",
-                "OverheatTemperature",
-            ],
-        ),
         singles_component("SHealthComponentParams", &["Health"]),
     ]
 }
@@ -171,6 +159,8 @@ pub(super) fn builder() -> DataForgeBuilder {
                     "Cooler",
                     "Missile",
                     "Misc",
+                    "Magazine",
+                    "WeaponPersonal",
                 ],
             ),
             DataForgeBuilder::structure,

@@ -235,11 +235,11 @@ text. The additions are additive in version 1 (ADR-0054); `kind` of a fire mode 
 
 | Block | Present when | Fields and sources |
 |-------|--------------|--------------------|
-| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pellets` and `ammoCost` of `launchParams`, `heatPerShot`, and for a charged mode `chargeTime`, `overchargeTime`, `cooldownTime`; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `Components[SAmmoContainerComponentParams].maxAmmoCount`. `ammo`: the `AmmoParams` Record that `SAmmoContainerComponentParams.ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
+| `weapon` | the item has `Components[SCItemWeaponComponentParams]` (ship weapons and FPS weapons) | `fireActions`: per element of `fireActions`, in stored order, with a sequence (`sequenceEntries`) flattened to its entries: `kind` (the struct, e.g. `SWeaponActionFireRapidParams`), `name`, `fireRate` (rounds per minute), `pellets` and `ammoCost` of `launchParams`, `heatPerShot`, and for a charged mode `chargeTime`, `overchargeTime`, `cooldownTime`; a charged or wrapped mode reads `fireRate`, `launchParams` and `name` from its `weaponAction` when it has none of its own. `ammoCapacity`: `maxAmmoCount` of the ammo container, the magazine's capacity (see below). `ammo`: the `AmmoParams` Record that the container's `ammoParamsRecord` links to, `null` without a readable one: `speed`, `lifetime`, `damage` (the damage types of `projectileParams.damage`), `detonationDamage`, `detonationMinRadius` and `detonationMaxRadius` (from `explosionParams`) |
 | `shield` | `Components[SCItemShieldGeneratorParams]` | `maxHealth` (`MaxShieldHealth`), `maxRegen` (`MaxShieldRegen`), `decayRatio` (`DecayRatio`), `downedRegenDelay` (`DownedRegenDelay`), `damagedRegenDelay` (`DamagedRegenDelay`) |
 | `quantumDrive` | `Components[SCItemQuantumDriveParams]` | `fuelRequirement` (`quantumFuelRequirement`, as stored), `jumpRange`, `disconnectRange`, and of `params`: `driveSpeed`, `cooldownTime`, `spoolUpTime`, `stageOneAccelRate`, `stageTwoAccelRate`, `engageSpeed` |
-| `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, in that flow's `unit` |
-| `cooler` | `AttachDef.Type` is `Cooler`, ignoring case | `coolingRate`: as `powerOutput`, for the resource `Coolant` (a cooler's flow is usually an `ItemResourceDeltaConversion`) |
+| `powerPlant` | `AttachDef.Type` is `PowerPlant`, ignoring case | `powerOutput`: the `amount` of the first `generation` flow of `resourceStates` whose resource is `Power`, and `unit`: the `unit` of that flow |
+| `cooler` | `AttachDef.Type` is `Cooler`, ignoring case | `coolingRate` and `unit`: as for the power plant, for the resource `Coolant` (a cooler's flow is an `ItemResourceDeltaConversion`) |
 | `missile` | `Components[SCItemMissileParams]` | `damage` (the damage types of `explosionParams.damage`), `explosionMinRadius`, `explosionMaxRadius`, `trackingSignalType`, `lockTime`, `lockingAngle`, `lockRangeMin`, `lockRangeMax` (of `targetingParams`) and `linearSpeed` (of `GCSParams`) |
 
 `resourceStates` lists the states of `Components[ItemResourceComponentParams].states` in stored
@@ -252,20 +252,28 @@ first number of `resourceAmountPerSecond`) and `unit` (the struct holding it:
 Units differ between structs and are not converted. A delta without a `generation` or
 `consumption` (a network reflection) gives no flow.
 
-Two raw values need care. `quantumDrive.jumpRange` is `f32::MAX` (3.4028235e38) on a drive the
-Archive leaves unbounded (a development drive of the Idris); it is exported as stored and a reader
-treats a value at that magnitude as unlimited. `weapon.ammoCapacity` and `weapon.ammo` are `null`
-for a weapon without `Components[SAmmoContainerComponentParams]`, which is the case for energy
-weapons (487 of 866 weapon components on LIVE carry one); their ammunition is not stated in the
-ammo container.
+Raw values that need care:
+
+- `quantumDrive.jumpRange` is `f32::MAX` (3.4028235e38) on a drive the Archive leaves unbounded (a
+  development drive of the Idris). It is exported as stored; a reader treats a value at that
+  magnitude as unlimited.
+- A number that is not finite (NaN, infinity) is `null`, never written.
+- `weapon.ammoCapacity` is the capacity of the ammo container, which is the magazine and not the
+  weapon body: a ship weapon holds `Components[SAmmoContainerComponentParams]` itself; a weapon
+  without one (the personal weapons, ballistic and energy alike) links its magazine entity by
+  `Components[SCItemWeaponComponentParams].ammoContainerRecord`, and the container of that entity,
+  one hop, is read instead. `weapon.ammo` is read from the `AmmoParams` Record of that container's
+  `ammoParamsRecord`. A Reference to a missing Record, to a Record of another struct, or to a
+  Record that cannot be built leaves `ammo` `null`; the item stays in the catalog.
+- The fire-mode fields `name`, `fireRate`, `heatPerShot`, `chargeTime`, `overchargeTime`,
+  `cooldownTime` and `launchParams` are read from the fire mode and, where it has none of its own,
+  from its `weaponAction`.
 
 A damage object has `physical`, `energy`, `distortion`, `thermal`, `biochemical` and `stun`
 (`DamagePhysical` and so on); a type the struct does not hold is `null`. An item with at least one
-of the six blocks also carries the inputs of its signatures and durability, each `null` without the
-component: `power` (`EntityComponentPowerConnection`: `powerBase`, `powerDraw`, `powerToEm`,
-`decayRateOfEm`), `heat` (`EntityComponentHeatConnection`: `thermalEnergyBase`, `thermalEnergyDraw`,
-`temperatureToIr`, `overheatTemperature`) and `health` (`SHealthComponentParams.Health`). Items
-without a block carry none of them.
+of the six blocks also carries `health` (`SHealthComponentParams.Health`) and `resourceStates`;
+the signature and power draw inputs are in `resourceStates`, not in separate blocks. Items without a
+block carry neither.
 
 The block of a power plant or a cooler follows from the type because both share the resource
 component; every other block follows from its component, and no class name or record name enters

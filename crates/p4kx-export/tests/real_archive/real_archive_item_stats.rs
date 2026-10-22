@@ -11,29 +11,9 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-struct Block {
-    name: &'static str,
-    fields: &'static [&'static str],
-    min_share: f64,
-    required: bool,
-}
-
-const fn block(name: &'static str, fields: &'static [&'static str]) -> Block {
-    Block {
-        name,
-        fields,
-        min_share: 0.8,
-        required: true,
-    }
-}
-
-const BLOCKS: [Block; 9] = [
-    Block {
-        min_share: 0.4,
-        ..block("weapon", &["ammoCapacity", "ammo"])
-    },
-    block("weapon", &["fireActions"]),
-    block(
+const BLOCKS: [(&str, &[&str]); 7] = [
+    ("weapon", &["fireActions", "ammoCapacity", "ammo"]),
+    (
         "shield",
         &[
             "maxHealth",
@@ -42,28 +22,20 @@ const BLOCKS: [Block; 9] = [
             "damagedRegenDelay",
         ],
     ),
-    block(
+    (
         "quantumDrive",
         &["fuelRequirement", "jumpRange", "driveSpeed", "spoolUpTime"],
     ),
-    block("powerPlant", &["powerOutput"]),
-    block("cooler", &["coolingRate"]),
-    block(
+    ("powerPlant", &["powerOutput", "unit"]),
+    ("cooler", &["coolingRate", "unit"]),
+    (
         "missile",
         &["damage", "explosionMaxRadius", "lockTime", "linearSpeed"],
     ),
-    Block {
-        required: false,
-        ..block("power", &["powerBase", "powerDraw", "powerToEm"])
-    },
-    Block {
-        required: false,
-        ..block(
-            "heat",
-            &["thermalEnergyBase", "thermalEnergyDraw", "temperatureToIr"],
-        )
-    },
+    ("resourceStates", &[]),
 ];
+
+const MIN_SHARE: f64 = 0.8;
 
 const fn present(value: &Value) -> bool {
     match value {
@@ -93,30 +65,14 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
     let with_stats = items.iter().filter(|item| !item["stats"].is_null()).count();
     report(&format!("{with_stats} of {} items have stats", items.len()));
     let mut problems = Vec::new();
-    let state_holders = items
-        .iter()
-        .filter(|item| present(&item["stats"]["resourceStates"]))
-        .count();
-    report(&format!("resourceStates: {state_holders} items"));
-    if state_holders == 0 {
-        problems.push("no item has resource states".to_owned());
-    }
-    for Block {
-        name: block,
-        fields,
-        min_share,
-        required,
-    } in BLOCKS
-    {
+    for (block, fields) in BLOCKS {
         let holders: Vec<&Value> = items
             .iter()
-            .filter(|item| !item["stats"][block].is_null())
+            .filter(|item| present(&item["stats"][block]))
             .collect();
         report(&format!("{block}: {} items", holders.len()));
         if holders.is_empty() {
-            if required {
-                problems.push(format!("no item has a {block} block"));
-            }
+            problems.push(format!("no item has a {block} block"));
             continue;
         }
         for field in fields {
@@ -127,7 +83,7 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
             #[expect(clippy::cast_precision_loss, reason = "counts far below 2^52")]
             let share = filled as f64 / holders.len() as f64;
             report(&format!("  {field}: {filled} of {} filled", holders.len()));
-            if share < min_share {
+            if share < MIN_SHARE {
                 problems.push(format!("{block}.{field}: {filled} of {}", holders.len()));
             }
         }
@@ -143,10 +99,69 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
             ));
         }
     }
+    assert!(problems.is_empty(), "blocks below 80 %: {problems:?}");
+    Ok(())
+}
+
+fn stats_of<'c>(items: &'c [Value], class: &str) -> Result<&'c Value, String> {
+    items
+        .iter()
+        .find(|item| item["className"] == class)
+        .map(|item| &item["stats"])
+        .ok_or_else(|| format!("no item {class}"))
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn known_items_carry_their_known_values() -> TestResult {
+    let catalog = catalog()?;
+    let items = catalog["items"].as_array().ok_or("the items array")?;
+    let shield = stats_of(items, "SHLD_GODI_S01_FR66_SCItem")?;
+    assert_eq!(shield["shield"]["maxHealth"], 3168.0);
+    let missile = stats_of(items, "MISL_S07_IR_TALN_Hellion")?;
+    assert_eq!(missile["missile"]["trackingSignalType"], "Infrared");
+    let cooler = stats_of(items, "COOL_JUST_S02_Snowpack_SCItem")?;
+    assert_eq!(cooler["cooler"]["coolingRate"], 46.0);
+    let plant = stats_of(items, "POWR_JUST_S03_Durango_SCItem")?;
+    assert_eq!(plant["powerPlant"]["powerOutput"], 24.0);
+    let laser = stats_of(items, "VNCL_LaserCannon_S1")?;
+    assert_eq!(laser["weapon"]["fireActions"][0]["fireRate"], 350.0);
+    let drive = stats_of(items, "QDRV_WETK_S04_Idris_TEMP")?;
     assert!(
-        problems.is_empty(),
-        "blocks below their share: {problems:?}"
+        drive["quantumDrive"]["jumpRange"]
+            .as_f64()
+            .is_some_and(|range| range > 3.4e38),
+        "the stored f32::MAX"
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn personal_weapons_take_ammunition_from_their_magazine() -> TestResult {
+    let catalog = catalog()?;
+    let items = catalog["items"].as_array().ok_or("the items array")?;
+    let personal: Vec<&Value> = items
+        .iter()
+        .filter(|item| item["type"] == "WeaponPersonal" && present(&item["stats"]["weapon"]))
+        .collect();
+    let with_ammo = personal
+        .iter()
+        .filter(|item| {
+            present(&item["stats"]["weapon"]["ammo"]["damage"])
+                && item["stats"]["weapon"]["ammoCapacity"]
+                    .as_i64()
+                    .is_some_and(|capacity| capacity > 0)
+        })
+        .count();
+    report(&format!(
+        "personal weapons: {}, with magazine ammunition: {with_ammo}",
+        personal.len()
+    ));
+    assert!(with_ammo > 0, "a personal weapon with magazine ammunition");
+    #[expect(clippy::cast_precision_loss, reason = "counts far below 2^52")]
+    let share = with_ammo as f64 / personal.len() as f64;
+    assert!(share >= MIN_SHARE, "{with_ammo} of {}", personal.len());
     Ok(())
 }
 

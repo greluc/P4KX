@@ -1,4 +1,4 @@
-use p4kx_extraction::{DataForge, DataForgeError, RecordTree, TreeBuilder};
+use p4kx_extraction::{DataForge, RecordTree, TreeBuilder};
 
 use crate::contract_stats::ItemStats;
 use crate::record_fields::{component, structure, text};
@@ -15,20 +15,17 @@ const COOLER: &str = "Cooler";
 ///
 /// A block follows from the components of the item: the weapon, shield, quantum drive and missile
 /// components, and the type `PowerPlant` or `Cooler` of its `AttachDef`. The ammunition of a
-/// weapon is read from the Record the item links to, with `trees`.
-///
-/// # Errors
-///
-/// Returns the error of building a linked Record.
+/// weapon is read from the Records the item links to, with `trees`; one that cannot be read
+/// leaves the ammunition `null` and never fails the item.
 pub(crate) fn read<'f>(
     tree: &RecordTree<'f>,
     forge: &'f DataForge<'f>,
     trees: &mut TreeBuilder<'f>,
-) -> Result<Option<ItemStats<'f>>, DataForgeError> {
+) -> Option<ItemStats<'f>> {
     let attach = structure(component(tree, "SAttachableComponentParams"), "AttachDef");
     let kind = text(attach, "Type");
     let is = |name: &str| kind.is_some_and(|kind| kind.eq_ignore_ascii_case(name));
-    let weapon = weapon::weapon(tree, forge, trees)?;
+    let weapon = weapon::weapon(tree, forge, trees);
     let shield = parts::shield(tree);
     let quantum_drive = parts::quantum_drive(tree);
     let resource_states = resources::states(tree);
@@ -42,18 +39,16 @@ pub(crate) fn read<'f>(
         && cooler.is_none()
         && missile.is_none()
     {
-        return Ok(None);
+        return None;
     }
-    Ok(Some(ItemStats {
+    Some(ItemStats {
         weapon,
         shield,
         quantum_drive,
         power_plant,
         cooler,
         missile,
-        power: parts::power_connection(tree),
-        heat: parts::heat_connection(tree),
         health: parts::health(tree),
         resource_states,
-    }))
+    })
 }

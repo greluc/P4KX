@@ -153,11 +153,9 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
                 "weapon": null,
                 "shield": null,
                 "quantumDrive": null,
-                "powerPlant": {"powerOutput": null},
+                "powerPlant": {"powerOutput": null, "unit": null},
                 "cooler": null,
                 "missile": null,
-                "power": null,
-                "heat": null,
                 "health": null,
                 "resourceStates": []
             },

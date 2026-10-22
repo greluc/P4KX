@@ -96,10 +96,9 @@ pub(crate) enum Command {
         subcommand_negates_reqs = true
     )]
     Catalog(CatalogArgs),
-    /// Checks the game data a companion app reads against the Archive: for each listed Record
-    /// type, component of an `EntityClassDefinition` and vehicle definition folder whether it
-    /// exists, how many Records, instances or Entries it has, and whether they read, export and
-    /// convert; exits with 1 when something listed is missing or fails.
+    /// Checks the game data a companion app reads against the Archive: whether each listed Record
+    /// type, `EntityClassDefinition` component and vehicle folder exists, how many it has and
+    /// whether it reads, exports and converts; exits with 1 when something listed fails.
     #[command(after_help = EXIT_CODES_HELP)]
     Coverage(CoverageArgs),
     /// Writes the base data of every ship as JSON or NDJSON: hull mass and hit points from the
@@ -280,6 +279,15 @@ pub(crate) struct CompareArgs {
     /// or not. With --json, the hunks are printed as JSON.
     #[arg(long, value_name = "ENTRY", conflicts_with_all = ["entries", "filter", "report"])]
     pub(crate) diff: Option<String>,
+    /// Compares the schema of both DataForges instead of their contents: the structs, properties
+    /// (data type, conversion type, target), enums and enum options added, removed or changed,
+    /// each with the number of Records it concerns on both sides. With --json, the report is
+    /// printed as JSON.
+    #[arg(
+        long,
+        conflicts_with_all = ["entries", "records", "filter", "report", "diff"]
+    )]
+    pub(crate) schema: bool,
 }
 
 /// Arguments of `p4kx info`.

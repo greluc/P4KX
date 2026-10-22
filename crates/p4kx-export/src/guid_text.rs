@@ -8,7 +8,7 @@ use serde::{Serialize, Serializer};
 const TEXT_LEN: usize = 36;
 
 /// A GUID written as its canonical lower-case UUID text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct CatalogGuid(pub(crate) Guid);
 
 impl CatalogGuid {

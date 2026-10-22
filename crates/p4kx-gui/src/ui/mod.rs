@@ -16,6 +16,7 @@ mod comparison_extraction;
 mod comparison_list;
 mod comparison_lists;
 mod comparison_rows;
+mod comparison_schema;
 mod comparison_summary;
 mod comparison_table;
 mod container_note;

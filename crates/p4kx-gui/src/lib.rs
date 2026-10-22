@@ -62,7 +62,8 @@ pub use comparison::{
     ComparisonStatus, ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow,
     DiffStatus, DirectorySummary, EntryDiff, FieldName, FieldRow, FieldValue, RecordChangeColumn,
     RecordChangeList, RecordChangeRow, RecordChangeSort, RecordChangeView, RecordDetail,
-    RecordDetailStatus, RecordFields, ReportStatus, SideError, Summary,
+    RecordDetailStatus, RecordFields, ReportStatus, SchemaRow, SchemaRowKind, SchemaView,
+    SideError, Summary,
 };
 pub use containers::{
     ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
@@ -118,7 +119,7 @@ pub use texts::{
     ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,
     ImageText, IncomingText, LocalizationText, ModelExportText, ModelInfoText, ModelText,
     QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
-    RecordText, ScrollText, TagsText, Text, Texts, XmlText,
+    RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

@@ -88,6 +88,7 @@ pub(crate) fn load(
     }
     let parts = read::parts(&root);
     Ok(VehicleImplementation {
+        structure: super::structure::digest(&root),
         path,
         patch_path,
         modification: selected,

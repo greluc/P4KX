@@ -127,8 +127,12 @@ fn items_are_entity_class_definitions_under_scitem_and_legacyitems_ordered_by_gu
 #[test]
 fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
     let (_, catalog) = catalog_with(&options())?;
+    let mut actual = entity(&catalog, "items", "POWR_ACAS_S01")?.clone();
+    if let Some(fields) = actual.as_object_mut() {
+        fields.remove("variantOf");
+    }
     assert_eq!(
-        entity(&catalog, "items", "POWR_ACAS_S01")?,
+        &actual,
         &json!({
             "guid": "30000000-0000-4000-8000-000000000001",
             "className": "POWR_ACAS_S01",
@@ -271,6 +275,7 @@ fn a_ship_carries_names_role_career_crew_manufacturer_and_vehicle_definition() -
             "manufacturerGuid": "10000000-0000-4000-8000-000000000001",
             "vehicleDefinition": "scripts/entities/vehicles/implementations/xml/acas_ship.xml",
             "playability": null,
+            "variantOf": null,
             "vehicleKind": "spaceship",
             "size": null,
             "mass": null,

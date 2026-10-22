@@ -173,6 +173,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
+| `variantOf` | The `guid` of the base of the item's variant group, `null` for a base and an ungrouped item; see "Variant groups" below |
 | `stats` | The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler or missile, `null` for any other item; see "Item stats" below |
 
 `itemClass` takes the options of the DataForge enum `EItemClass` (without `UNDEFINED`). No
@@ -301,6 +302,7 @@ A ship takes its fields from `VehicleComponentParams`:
 | `manufacturerGuid` | The GUID the Reference `manufacturer` links to, `null` for a null Reference |
 | `vehicleDefinition` | `vehicleDefinition`, the path of the vehicle XML |
 | `playability` | `player`, `ai`, `mission` or `special`, or `null`; see "Playability" below |
+| `variantOf` | The `guid` of the base of the ship's variant group, `null` for a base and an ungrouped ship; see "Variant groups" below |
 | `vehicleKind` | `spaceship` or `groundVehicle`, or `null`; see "Ship base data" below |
 | `size` | `Components/SAttachableComponentParams/AttachDef/Size`, an integer, `null` without an `AttachDef` |
 | `mass` | The hull mass in kilograms; `null` when unknown, never 0; see "Ship base data" below |
@@ -597,6 +599,73 @@ returns, `null` for a blueprint without a tier. `craftingGlobal` holds
   consumer applies the `count` itself. The `quantityMultiplier` is not applied.
 
 These are assumptions of the library, not verified against the game.
+
+#### Variant groups
+
+Many ships and items exist in cosmetic variants with the same function. `variantOf` is the `guid`
+of the entry of the same kind that is the base of the entity's group, and `null` for the base
+itself and for an entity that is alone in its group. Every `variantOf` resolves to an entry of the
+same kind. The grouping is a derived fact (ADR-0066): it reads Record data and the vehicle
+implementation, never a name, and it ignores `playability`, so an AI variant that is structurally a
+player ship is grouped with it.
+
+**Ships** share a group when all of these are equal:
+
+- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`);
+- the vehicle implementation after the Modification the ship selects (ADR-0050), compared as a
+  whole: the digest covers every element of the patched `Vehicle` tree (parts, item ports and
+  their children such as `Pitch` or `Yaw`, the other children of `Vehicle` such as
+  `MovementParams`) with all its attributes, sorted by name, and the children in file order. The
+  `Modifications` element, the path of the file, the names of the Modification and its patch file,
+  the `name` of the root and the attributes `material`, `materials`, `filename` and `geometry`
+  anywhere are not compared. Because the patch file and the `Elem` overrides are applied before
+  the comparison, whatever they change is part of it. The item ports that take paints are part of
+  it too, so a Modification that changes only the paints a ship accepts starts a group of its own.
+
+The ship Record has no armour component on LIVE (no component struct name contains `armor` or
+`armour`; build 4.10), so no armour term enters the rule. The default loadout and the names do not
+count: editions that differ only in their loadout, or in a material, are variants. On LIVE `AEGS_Idris_P` therefore groups under
+`AEGS_Idris_M` and `AEGS_Sabre_Comet` under `AEGS_Sabre`, because they differ only in their
+default loadout. A ship without a `vehicleDefinition`, or whose vehicle
+implementation cannot be read in full (a missing file or patch file, a broken document), is
+ungrouped, because equality cannot be shown.
+
+**Items** share a group when all of these are equal:
+
+- `type`, `subType`, `size`, `grade` and `manufacturerGuid` of the `AttachDef`;
+- the stat blocks (`stats`, ADR-0065), including `resourceStates`;
+- the components: every component of the Record is compared with all its fields, including
+  `SAttachableComponentParams` (without its `Tags`), the physics, the default loadout of an item
+  that has ports (`SEntityComponentDefaultLoadoutParams`, unlike ships) and the geometry, whose
+  model (the geometry file of every node) must be equal: a different model is not cosmetic.
+  Left out are exactly these components: `SEntityInteractableParams`,
+  `SInteractionStateMachineParams`, `SEntityComponentCarryableParams` and `SActorUsableParams`
+  (per-item Records of equal content), and these fields: `Tags` of `SAttachableComponentParams`,
+  `Material`, `Materials` and `Palette` of `SGeometryResourceParams`, and `openInventoryInteraction`
+  and `openLootingInteraction` of `SCItemInventoryContainerComponentParams`. Localisation keys
+  (names, descriptions, display names) are never compared. On LIVE the clothing and armour
+  colour variants differ in exactly these: name, tags, material path, palette and the per-item
+  interaction Records.
+
+An item with no compared component besides `SAttachableComponentParams`, without an `AttachDef`
+type, or whose data holds a value the reader could not read, is ungrouped. Names, descriptions,
+tags and the display type may therefore differ inside a group.
+
+`variantOf` means "structurally identical", not only "cosmetic". Per-ship functional duplicates
+that differ in their name alone are grouped too (e.g. the `Controller_Shield_<ship>` and
+`Engineering_Buff_Modifier_<ship>` items), and so can fitment such as ATC managers, docking tubes,
+intakes or quantum tanks, depending on whether the Records of the ships differ in a compared field
+(LIVE, build 4.10: groups of 117 ATC managers, 75 docking tubes, 54 intakes and 38 quantum tanks
+were measured under an earlier version of the rule; the counts shift with the rule and the
+build). Fitment differences may or may not split a group. A consumer that wants only what a player
+sees or fits combines `variantOf` with `playability`.
+
+**Base.** The member with `playability` `player`, then the member with the smallest `className`
+(compared byte-wise), then the smallest `guid`. A group holds at least two members;
+`p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
+
+Size: one `variantOf` per ship and item, 4 bytes (`null`) or 38 bytes (a GUID) uncompressed; the
+GUIDs repeat and compress well.
 
 ### Paints
 

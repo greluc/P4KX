@@ -105,6 +105,24 @@ pub struct LoadoutSummary {
     pub with_issues: usize,
 }
 
+/// How many variant groups one kind has and how many entities are variants of a base.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VariantCounts {
+    /// The groups of at least two members.
+    pub groups: usize,
+    /// The entities with a `variantOf`, every member of a group but its base.
+    pub variants: usize,
+}
+
+/// The variant counts of the ships and of the items.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VariantSummary {
+    /// The ships and ground vehicles.
+    pub ships: VariantCounts,
+    /// The items.
+    pub items: VariantCounts,
+}
+
 /// What a catalog holds of starmap objects and where the system containers place them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StarmapSummary {
@@ -158,6 +176,7 @@ pub struct CatalogSummary {
     pub(crate) starmap: StarmapSummary,
     pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) playability: Box<PlayabilitySummary>,
+    pub(crate) variants: VariantSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
@@ -226,6 +245,12 @@ impl CatalogSummary {
     #[must_use]
     pub fn playability(&self) -> PlayabilitySummary {
         *self.playability
+    }
+
+    /// Returns how many variant groups and variants the ships and the items have.
+    #[must_use]
+    pub const fn variants(&self) -> VariantSummary {
+        self.variants
     }
 
     /// Returns how the texts resolved per language, English first.

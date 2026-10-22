@@ -292,6 +292,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
+            "starmapObjects": {"status": "complete"},
         }),
         "complete"
     );

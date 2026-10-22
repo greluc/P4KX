@@ -20,6 +20,7 @@ mod compare;
 mod compare_diff;
 mod compare_nested;
 mod compare_records;
+mod coverage;
 mod cryxml;
 mod dcb;
 mod dcb_export;

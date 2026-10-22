@@ -611,6 +611,54 @@ language that is not available; `null` in the catalog) and `placeholder` texts, 
 for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
 unresolved texts of every language.
 
+## `p4kx coverage <archive> [--format table|json] --json`
+
+The coverage of the reference list in [coverage.md](coverage.md). The exit code is 1 when a
+listed type (candidates excepted), component or folder is missing, unreadable or does not convert.
+
+```json
+{"archive": "…", "complete": false, "types": [Type, …], "components": [Component, …], "entries": [Folder, …]}
+```
+
+`types` hold one object per Record type of the list, in list order:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area` | string | The topic area, e.g. `missions` |
+| `name` | string | The type name |
+| `candidate` | bool | The type is named as a likely future need and does not count against `complete` |
+| `defined` | bool | The DataForge defines the type |
+| `records` | number | The Records of the type and of the types deriving from it |
+| `unreadable_records` | number | Records whose layout or instance cannot be read |
+| `error_values` | number | Values that cannot be read (`Value::Error`) over all its Records |
+| `sample` | object or null | The first readable Record exported as Record XML and Record JSON; `null` without Records |
+
+`sample` has `record_path`, `xml_bytes`, `json_bytes` and `error` (string or `null`).
+
+`components` hold one object per component of an `EntityClassDefinition`:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area`, `name` | string | As above |
+| `defined` | bool | The DataForge defines the component struct |
+| `entities` | number | The `EntityClassDefinition` Records with at least one such component |
+| `instances` | number | The components of that type in all of them |
+| `reachable` | bool | The Component selector `Components[<name>]` resolves in a Query |
+
+`entries` hold one object per Entry folder:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area` | string | As above |
+| `folder` | string | The folder path as the list spells it |
+| `entries` | number | The Entries in the folder |
+| `converted` | number | The Entries converted from CryXml to XML |
+| `text` | number | The Entries that are text XML already |
+| `failures` | array | `{"path": …, "reason": …}` for each Entry that cannot be read or converted |
+
+`complete` is true when every non-candidate type has Records that read without error and export,
+every component occurs and is reachable, and every folder has Entries that all convert.
+
 ## `p4kx ships <archive> --out <file> --json`
 
 ```json

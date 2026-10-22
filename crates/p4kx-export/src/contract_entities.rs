@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_stats::ItemStats;
 use crate::guid_text::CatalogGuid;
 use crate::{ItemClass, MassBasis, Playability, VehicleKind};
 
@@ -49,6 +50,9 @@ pub(crate) struct Item<'a> {
     /// `special`; the schema keeps a string, as a new value is additive.
     #[schemars(with = "Option<String>")]
     pub(crate) playability: Option<Playability>,
+    /// The typed stat blocks of a weapon, shield, quantum drive, power plant, cooler or missile,
+    /// raw facts without derived values (ADR-0065); `null` for any other item.
+    pub(crate) stats: Option<Box<ItemStats<'a>>>,
 }
 
 /// A paint: an item of the type `Paints` and the ships it fits.

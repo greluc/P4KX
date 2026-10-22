@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
+use crate::item_stats;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
@@ -245,7 +246,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             },
             _ => None,
         };
-        Ok(Picked::entity(
+        let mut picked = Picked::entity(
             kind,
             &tree,
             self.texts,
@@ -253,7 +254,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             &self.groups,
             &self.evidence,
             ship_base.as_ref(),
-        ))
+        );
+        if let Some(Picked::Item(item, _, _)) = &mut picked {
+            item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
+        }
+        Ok(picked)
     }
 
     fn resource_type(

@@ -24,4 +24,4 @@ items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 4801 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 4968 bytes, 1 Records skipped, 0 failed

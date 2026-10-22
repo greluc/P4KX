@@ -149,6 +149,16 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
             "displayType": {"key": "@item_DisplayType_PowerPlant", "en": "Power Plant", "de": null},
             "itemClass": "Military",
             "playability": null,
+            "stats": {
+                "weapon": null,
+                "shield": null,
+                "quantumDrive": null,
+                "powerPlant": {"powerOutput": null, "unit": null},
+                "cooler": null,
+                "missile": null,
+                "health": null,
+                "resourceStates": []
+            },
         }),
         "the item fields"
     );

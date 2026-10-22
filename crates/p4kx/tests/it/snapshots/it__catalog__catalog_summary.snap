@@ -24,4 +24,4 @@ items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 2 texts resolved, 11 unresolved, 0 placeholders
-wrote [DIR]/basetool-catalog.json: 4823 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/basetool-catalog.json: 4990 bytes, 1 Records skipped, 0 failed

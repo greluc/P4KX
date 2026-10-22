@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use p4kx_export::{
-    CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, Playability, PlayabilityCounts,
-    SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT,
+    CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, LoadoutSummary, PaintSummary, Playability,
+    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -26,9 +26,49 @@ pub(super) struct SummaryJson<'a> {
     warnings: Vec<WarningJson>,
     item_classes: ItemClassJson,
     paints: PaintsJson,
+    loadouts: LoadoutsJson,
     playability: PlayabilityJson,
     texts: Vec<TextJson>,
     unresolved: usize,
+}
+
+impl From<PaintSummary> for PaintsJson {
+    fn from(summary: PaintSummary) -> Self {
+        Self {
+            paints: summary.paints,
+            assigned: summary.assigned,
+            unassigned: summary.unassigned,
+            ships: summary.ships,
+            unreadable_vehicles: summary.unreadable_vehicles,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct LoadoutsJson {
+    ships: usize,
+    items: usize,
+    ports: usize,
+    attached: usize,
+    docked_vehicles: usize,
+    unresolved: usize,
+    outside: usize,
+    with_issues: usize,
+}
+
+impl From<LoadoutSummary> for LoadoutsJson {
+    fn from(summary: LoadoutSummary) -> Self {
+        Self {
+            ships: summary.ships,
+            items: summary.items,
+            ports: summary.ports,
+            attached: summary.attached,
+            docked_vehicles: summary.docked_vehicles,
+            unresolved: summary.unresolved,
+            outside: summary.outside,
+            with_issues: summary.with_issues,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -174,13 +214,8 @@ pub(super) fn summary_json<'a>(
             other: summary.item_classes().other,
             missing: summary.item_classes().missing,
         },
-        paints: PaintsJson {
-            paints: summary.paints().paints,
-            assigned: summary.paints().assigned,
-            unassigned: summary.paints().unassigned,
-            ships: summary.paints().ships,
-            unreadable_vehicles: summary.paints().unreadable_vehicles,
-        },
+        paints: summary.paints().into(),
+        loadouts: summary.loadouts().into(),
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),

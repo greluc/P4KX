@@ -8,6 +8,8 @@ pub struct TestPort {
     types: Vec<(String, Vec<String>)>,
     helper: Option<(String, [f32; 3], [f32; 3])>,
     default_item: Option<u128>,
+    flags: String,
+    tags: (String, String),
 }
 
 impl TestPort {
@@ -20,7 +22,24 @@ impl TestPort {
             types: Vec::new(),
             helper: None,
             default_item: None,
+            flags: String::new(),
+            tags: (String::new(), String::new()),
         }
+    }
+
+    /// Sets the flags of the port, words separated by white space.
+    #[must_use]
+    pub fn flags(mut self, flags: impl Into<String>) -> Self {
+        self.flags = flags.into();
+        self
+    }
+
+    /// Sets the tags the port offers and the tags an item needs to fit it, words separated by
+    /// white space.
+    #[must_use]
+    pub fn tags(mut self, port_tags: impl Into<String>, required: impl Into<String>) -> Self {
+        self.tags = (port_tags.into(), required.into());
+        self
     }
 
     /// Sets the smallest and largest item size the port takes.
@@ -65,7 +84,9 @@ impl TestPort {
         let mut instance = TestInstance::new("SItemPortDef")
             .value("Name", TestValue::text(self.name.clone()))
             .value("DisplayName", TestValue::text("@LOC_EMPTY"))
-            .value("Flags", TestValue::text(""))
+            .value("Flags", TestValue::text(self.flags.clone()))
+            .value("PortTags", TestValue::text(self.tags.0.clone()))
+            .value("RequiredPortTags", TestValue::text(self.tags.1.clone()))
             .value("MinSize", TestValue::UInt32(self.sizes.0))
             .value("MaxSize", TestValue::UInt32(self.sizes.1))
             .value(

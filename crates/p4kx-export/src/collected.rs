@@ -5,12 +5,13 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
-    GameplayProperty, Item, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
+    GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::item::item;
 use crate::item_class::ClassLine;
+use crate::loadout::carries_ports;
 use crate::manufacturer::manufacturer;
 use crate::paint_port::VehicleFacts;
 use crate::playability::PlayabilitySummary;
@@ -26,8 +27,8 @@ use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, ShipBase};
 pub(crate) enum Picked<'f> {
     /// A manufacturer.
     Manufacturer(Manufacturer<'f>),
-    /// An item and the `Class:` line of its English description.
-    Item(Item<'f>, ClassLine),
+    /// An item, the `Class:` line of its English description and whether it may have ports.
+    Item(Item<'f>, ClassLine, bool),
     /// A ship and the vehicle facts its paints are derived from.
     Ship(Ship<'f>, VehicleFacts<'f>),
     /// A commodity.
@@ -61,7 +62,7 @@ impl<'f> Picked<'f> {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
             Kind::Items => {
                 let (item, line) = item(tree, texts);
-                Self::Item(item, line)
+                Self::Item(item, line, carries_ports(tree))
             }
             Kind::Ships => {
                 let (ship, vehicle) = ship(tree, texts, evidence, ship_base?);
@@ -75,7 +76,8 @@ impl<'f> Picked<'f> {
             | Kind::QualityDistributions
             | Kind::BlueprintPools
             | Kind::DismantleProcesses
-            | Kind::Paints => return None,
+            | Kind::Paints
+            | Kind::Loadouts => return None,
         })
     }
 }
@@ -95,6 +97,8 @@ pub(crate) struct Collected<'f> {
     pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
     pub(crate) crafting_global: CraftingGlobal,
     pub(crate) paints: Vec<Paint>,
+    pub(crate) loadouts: Vec<Loadout>,
+    pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -127,6 +131,8 @@ impl<'f> Collected<'f> {
             dismantle_processes: crafting.dismantle,
             crafting_global: crafting.global,
             paints: Vec::new(),
+            loadouts: Vec::new(),
+            port_items: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -137,8 +143,11 @@ impl<'f> Collected<'f> {
         for pick in picked {
             match pick {
                 Picked::Manufacturer(entity) => collected.manufacturers.push(entity),
-                Picked::Item(entity, line) => {
+                Picked::Item(entity, line, ports) => {
                     collected.item_classes.count(line);
+                    if ports {
+                        collected.port_items.push(entity.guid);
+                    }
                     collected.playability.items.count(entity.playability);
                     collected.items.push(entity);
                 }
@@ -162,12 +171,22 @@ impl<'f> Collected<'f> {
         collected
     }
 
-    /// Orders the failures and the picked kinds by the text of the GUID.
-    fn order(&mut self) {
+    /// Adds `failures` and orders all of them by the text of the GUID, one per Record.
+    pub(crate) fn add_failures(&mut self, failures: Vec<CatalogFailure>) {
+        self.failures.extend(failures);
+        self.order_failures();
+    }
+
+    fn order_failures(&mut self) {
         self.failures
             .sort_by_cached_key(|failure| CatalogGuid(failure.guid).text());
         self.failures
             .dedup_by(|later, earlier| later.guid == earlier.guid);
+    }
+
+    /// Orders the failures and the picked kinds by the text of the GUID.
+    fn order(&mut self) {
+        self.order_failures();
         self.manufacturers
             .sort_by_cached_key(|entity| entity.guid.text());
         self.items.sort_by_cached_key(|entity| entity.guid.text());
@@ -199,6 +218,7 @@ impl<'f> Collected<'f> {
                     Kind::BlueprintPools => self.blueprint_pools.len(),
                     Kind::DismantleProcesses => self.dismantle_processes.len(),
                     Kind::Paints => self.paints.len(),
+                    Kind::Loadouts => self.loadouts.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

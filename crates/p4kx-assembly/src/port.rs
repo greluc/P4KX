@@ -13,10 +13,25 @@ pub struct PortDefinition {
     pub(crate) min_size: Option<u32>,
     pub(crate) max_size: Option<u32>,
     pub(crate) types: Vec<PortType>,
+    pub(crate) port_tags: String,
+    pub(crate) required_tags: String,
     pub(crate) transform: Option<PortTransform>,
 }
 
 impl PortDefinition {
+    /// Returns the tags the port offers, as stored: words separated by white space.
+    #[must_use]
+    pub fn port_tags(&self) -> &str {
+        &self.port_tags
+    }
+
+    /// Returns the tags an item must carry to fit the port, as stored: words separated by white
+    /// space.
+    #[must_use]
+    pub fn required_tags(&self) -> &str {
+        &self.required_tags
+    }
+
     /// Returns the display name, a localisation key such as `@LOC_EMPTY`.
     #[must_use]
     pub fn display_name(&self) -> &str {
@@ -130,6 +145,8 @@ pub(crate) fn read_definition(port: &StructValue<'_>) -> PortDefinition {
                 sub_types: texts(item_type, "SubTypes"),
             })
             .collect(),
+        port_tags: text(port, "PortTags").to_owned(),
+        required_tags: text(port, "RequiredPortTags").to_owned(),
         transform: struct_field(port, "AttachmentImplementation").and_then(read_transform),
     }
 }

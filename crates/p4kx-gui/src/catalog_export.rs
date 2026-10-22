@@ -10,8 +10,9 @@ pub(crate) use job::{refused, start};
 
 use crate::read_gate::ReadGate;
 
-/// The file name the save dialog of the Basetool catalog suggests.
-pub const CATALOG_FILE: &str = "basetool-catalog.json";
+/// The file name the save dialog of the Basetool catalog suggests: the compressed form the
+/// Basetool takes for upload; plain `.json` stays selectable.
+pub const CATALOG_FILE: &str = "basetool-catalog.json.zst";
 
 /// The step a running Basetool catalog is at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

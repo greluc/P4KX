@@ -14,10 +14,7 @@ fn signature(parent: Option<&StructValue<'_>>, name: &str) -> Option<Signature> 
     })
 }
 
-fn flow<'f>(
-    delta: &StructValue<'f>,
-    direction: &'static str,
-) -> Option<ResourceFlow<'f>> {
+fn flow<'f>(delta: &StructValue<'f>, direction: &'static str) -> Option<ResourceFlow<'f>> {
     let side = structure(Some(delta), direction)?;
     let unit = structure(Some(side), "resourceAmountPerSecond");
     let amount = unit.and_then(|unit| {

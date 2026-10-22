@@ -117,14 +117,12 @@ fn components() -> Vec<TestStruct> {
             .parent("ItemResourceDelta")
             .field("consumption", class("ItemResourceGeneration"))
             .field("generation", class("ItemResourceGeneration")),
-        singles("SStandardResourceUnit", &["standardResourceUnits"]),
+        TestStruct::new("ResourceUnit"),
+        singles("SStandardResourceUnit", &["standardResourceUnits"]).parent("ResourceUnit"),
         TestStruct::new("ItemResourceGeneration")
             .field("resource", TestType::String)
-            .field(
-                "resourceAmountPerSecond",
-                class("SPowerSegmentResourceUnit"),
-            ),
-        singles("SPowerSegmentResourceUnit", &["units"]),
+            .field("resourceAmountPerSecond", pointer("ResourceUnit")),
+        singles("SPowerSegmentResourceUnit", &["units"]).parent("ResourceUnit"),
     ]
 }
 

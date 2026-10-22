@@ -1179,6 +1179,13 @@
           ],
           "description": "The quantum drive block, from `SCItemQuantumDriveParams`."
         },
+        "resourceStates": {
+          "description": "The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.",
+          "items": {
+            "$ref": "#/$defs/ResourceState"
+          },
+          "type": "array"
+        },
         "shield": {
           "anyOf": [
             {
@@ -1210,6 +1217,7 @@
         "power",
         "powerPlant",
         "quantumDrive",
+        "resourceStates",
         "shield",
         "weapon"
       ],
@@ -1768,6 +1776,49 @@
       ],
       "type": "object"
     },
+    "ResourceFlow": {
+      "description": "One generation or consumption of a resource, per second, in the unit the Archive states.",
+      "properties": {
+        "amount": {
+          "description": "The first number of `resourceAmountPerSecond`, in the unit named by `unit`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "direction": {
+          "description": "`generation` or `consumption`: the field of the delta that holds the flow.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "The struct of the delta, e.g. `ItemResourceDeltaGeneration`. A closed set the game may\nextend; the schema keeps a string.",
+          "type": "string"
+        },
+        "resource": {
+          "description": "The `resource`, e.g. `Power`. A closed set the game may extend; the schema keeps a string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unit": {
+          "description": "The struct that holds the amount, e.g. `SPowerSegmentResourceUnit`; the units of two\nstructs differ and are not converted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "amount",
+        "direction",
+        "kind",
+        "resource",
+        "unit"
+      ],
+      "type": "object"
+    },
     "ResourceGroup": {
       "description": "A resource group: a `ResourceTypeGroup` Record under `resourcetypedatabase`, the type the\n`typeGuid` of a commodity points at.",
       "properties": {
@@ -1805,6 +1856,54 @@
         "name",
         "parentGuid",
         "recordPath"
+      ],
+      "type": "object"
+    },
+    "ResourceState": {
+      "description": "One state of the resource component: its signatures and the resources it generates and uses.",
+      "properties": {
+        "emSignature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signature"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`signatureParams.EMSignature`."
+        },
+        "flows": {
+          "description": "The `generation` and `consumption` of the state's `deltas`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/ResourceFlow"
+          },
+          "type": "array"
+        },
+        "irSignature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signature"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`signatureParams.IRSignature`."
+        },
+        "name": {
+          "description": "The `name` of the state, e.g. `Online`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "emSignature",
+        "flows",
+        "irSignature",
+        "name"
       ],
       "type": "object"
     },
@@ -2045,6 +2144,32 @@
         "size",
         "vehicleDefinition",
         "vehicleKind"
+      ],
+      "type": "object"
+    },
+    "Signature": {
+      "description": "A signature of a state.",
+      "properties": {
+        "decayRate": {
+          "description": "`decayRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "nominal": {
+          "description": "`nominalSignature`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "decayRate",
+        "nominal"
       ],
       "type": "object"
     },

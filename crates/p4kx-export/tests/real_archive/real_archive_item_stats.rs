@@ -93,12 +93,12 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
     let with_stats = items.iter().filter(|item| !item["stats"].is_null()).count();
     report(&format!("{with_stats} of {} items have stats", items.len()));
     let mut problems = Vec::new();
-    let with_states = items
+    let state_holders = items
         .iter()
         .filter(|item| present(&item["stats"]["resourceStates"]))
         .count();
-    report(&format!("resourceStates: {with_states} items"));
-    if with_states == 0 {
+    report(&format!("resourceStates: {state_holders} items"));
+    if state_holders == 0 {
         problems.push("no item has resource states".to_owned());
     }
     for Block {
@@ -143,7 +143,10 @@ fn every_stat_block_is_filled_for_the_items_that_have_it() -> TestResult {
             ));
         }
     }
-    assert!(problems.is_empty(), "blocks below their share: {problems:?}");
+    assert!(
+        problems.is_empty(),
+        "blocks below their share: {problems:?}"
+    );
     Ok(())
 }
 

@@ -25,11 +25,7 @@ fn owner_below<'t, 'f>(
         .find_map(|field| owner_in(field.value(), name, depth))
 }
 
-fn owner_in<'t, 'f>(
-    value: &'t Value<'f>,
-    name: &str,
-    depth: usize,
-) -> Option<&'t StructValue<'f>> {
+fn owner_in<'t, 'f>(value: &'t Value<'f>, name: &str, depth: usize) -> Option<&'t StructValue<'f>> {
     match value {
         Value::Struct(inner) => owner_below(inner, name, depth),
         Value::Array(items) => items.iter().find_map(|item| owner_in(item, name, depth)),

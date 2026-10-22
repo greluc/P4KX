@@ -169,12 +169,12 @@ fn a_power_plant_and_a_cooler_carry_the_rate_of_their_own_resource() -> TestResu
             "irSignature": {"nominal": 80.0, "decayRate": 0.5},
             "flows": [
                 {
-                    "kind": "ItemResourceDeltaConversion", "direction": "consumption",
-                    "resource": "Power", "amount": 2.0, "unit": "SPowerSegmentResourceUnit"
-                },
-                {
                     "kind": "ItemResourceDeltaConversion", "direction": "generation",
                     "resource": "Coolant", "amount": 40.0, "unit": "SStandardResourceUnit"
+                },
+                {
+                    "kind": "ItemResourceDeltaConversion", "direction": "consumption",
+                    "resource": "Power", "amount": 2.0, "unit": "SPowerSegmentResourceUnit"
                 }
             ]
         }])

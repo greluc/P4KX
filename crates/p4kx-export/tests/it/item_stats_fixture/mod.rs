@@ -178,7 +178,10 @@ fn side(resource: &str, unit: TestValue) -> TestValue {
 fn signature(nominal: f32, decay: f32) -> TestValue {
     instance(
         "Signature",
-        vec![single("nominalSignature", nominal), single("decayRate", decay)],
+        vec![
+            single("nominalSignature", nominal),
+            single("decayRate", decay),
+        ],
     )
 }
 

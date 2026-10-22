@@ -14,6 +14,7 @@ mod cli_catalog;
 mod cli_channels;
 mod cli_chf;
 mod cli_chunks;
+mod cli_coverage;
 mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;
@@ -27,6 +28,9 @@ mod cli_ui;
 mod cli_verify;
 mod cli_wwise;
 mod compare;
+mod compare_schema;
+mod coverage;
+mod coverage_json;
 mod cryxml;
 mod dataforges;
 mod dcb;
@@ -120,6 +124,7 @@ fn main() -> ExitCode {
         Command::Dcb(args) => dcb::run(&args, json),
         Command::Grep(args) => grep::run(&args, json),
         Command::Catalog(args) => catalog::run(&args, json),
+        Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),

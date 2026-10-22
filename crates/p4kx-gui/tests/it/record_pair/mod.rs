@@ -33,8 +33,24 @@ fn hull(label: TestValue, armor: i32) -> TestValue {
     )
 }
 
+fn drift(new: bool) -> DataForgeBuilder {
+    if new {
+        DataForgeBuilder::new()
+            .enumeration("Rating", ["Low", "High"])
+            .structure(
+                TestStruct::new("Probe")
+                    .field("level", TestType::Single)
+                    .field("tag", TestType::String),
+            )
+    } else {
+        DataForgeBuilder::new()
+            .structure(TestStruct::new("Probe").field("level", TestType::Int32))
+            .structure(TestStruct::new("Legacy").field("flag", TestType::Bool))
+    }
+}
+
 fn schema(new: bool) -> DataForgeBuilder {
-    DataForgeBuilder::new()
+    drift(new)
         .structure(TestStruct::new("Maker").field("rank", TestType::Int32))
         .structure(
             TestStruct::new("Hull")

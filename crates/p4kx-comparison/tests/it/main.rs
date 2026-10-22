@@ -15,4 +15,6 @@ mod record_fields;
 mod record_nested;
 mod record_references;
 mod records;
+mod schema_counts;
+mod schema_diff;
 mod unreadable_records;

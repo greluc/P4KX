@@ -36,7 +36,7 @@ pub struct Report<'a> {
 
 /// The two Archives of a Comparison.
 #[derive(Debug, Serialize, JsonSchema)]
-struct Sources<'a> {
+pub(crate) struct Sources<'a> {
     /// The Archive the changes start from.
     old: SourceSide<'a>,
     /// The Archive the changes lead to.
@@ -50,7 +50,7 @@ struct SourceSide<'a> {
     archive: Cow<'a, str>,
     /// The Channel: the name of the folder holding the Archive, `null` when there is none.
     #[schemars(required, transform = nullable)]
-    channel: Option<&'a str>,
+    channel: Option<Cow<'a, str>>,
     /// The Build from the Channel's build manifest, `null` when it is unknown.
     #[schemars(required, transform = nullable)]
     build: Option<BuildReport<'a>>,
@@ -139,13 +139,20 @@ impl<'a> From<&'a Build> for BuildReport<'a> {
     }
 }
 
-impl<'a> From<&'a Side<'_>> for SourceSide<'a> {
-    fn from(side: &'a Side<'_>) -> Self {
+impl<'a> From<&Side<'a>> for SourceSide<'a> {
+    fn from(side: &Side<'a>) -> Self {
         Self {
             archive: side.archive().to_string_lossy(),
-            channel: side.channel(),
+            channel: side.channel().map(|channel| Cow::Owned(channel.to_owned())),
             build: side.build().map(BuildReport::from),
         }
+    }
+}
+
+pub(crate) fn sources<'a>(old: &Side<'a>, new: &Side<'a>) -> Sources<'a> {
+    Sources {
+        old: SourceSide::from(old),
+        new: SourceSide::from(new),
     }
 }
 
@@ -163,10 +170,7 @@ impl<'a> From<&EntryChange<'a>> for EntryChangeReport<'a> {
 pub(crate) fn to_report<'a>(comparison: &'a Comparison<'_>) -> Report<'a> {
     Report {
         format_version: REPORT_FORMAT_VERSION,
-        source: Sources {
-            old: SourceSide::from(comparison.old_side()),
-            new: SourceSide::from(comparison.new_side()),
-        },
+        source: sources(comparison.old_side(), comparison.new_side()),
         levels: comparison.levels().selected().collect(),
         filter: comparison.filter(),
         entries: comparison.levels().entries.then(|| EntryLevel {
@@ -186,7 +190,7 @@ pub(crate) fn to_report<'a>(comparison: &'a Comparison<'_>) -> Report<'a> {
 }
 
 /// Lets a required field also hold `null`.
-fn nullable(schema: &mut schemars::Schema) {
+pub(crate) fn nullable(schema: &mut schemars::Schema) {
     let Some(object) = schema.as_object_mut() else {
         return;
     };

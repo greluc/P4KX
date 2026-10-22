@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
     CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, Playability, SizeWarning,
-    UPLOAD_LIMIT, catalog_schema, write_catalog,
+    StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -204,6 +204,20 @@ fn print_classification(stdout: &mut impl Write, summary: &CatalogSummary) -> io
     Ok(())
 }
 
+fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "starmap placement: {} of {} objects have a position, {} are placed apart, {} systems, {} containers unreadable, {} missing, {} children malformed",
+        starmap.placed,
+        starmap.objects,
+        starmap.ambiguous,
+        starmap.systems,
+        starmap.unreadable_containers,
+        starmap.missing_containers,
+        starmap.malformed_children
+    )
+}
+
 fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
     for kind in summary.kinds() {
@@ -229,6 +243,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
     print_loadouts(&mut stdout, summary.loadouts())?;
+    print_starmap(&mut stdout, summary.starmap())?;
     print_classification(&mut stdout, summary)?;
     for text in summary.texts() {
         writeln!(

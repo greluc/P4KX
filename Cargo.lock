@@ -3642,6 +3642,7 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-testkit",
  "rayon",
+ "roxmltree",
  "schemars",
  "serde",
  "serde_json",

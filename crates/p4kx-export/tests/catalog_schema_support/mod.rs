@@ -26,7 +26,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
-            "loadouts": {"status": "complete"}
+            "loadouts": {"status": "complete"},
+            "starmapObjects": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -170,7 +171,21 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "itemGuid": "30000000-0000-4000-8000-000000000001",
             "shipGuids": ["90000000-0000-4000-8000-000000000001"]
         }],
-        "loadouts": loadouts()
+        "loadouts": loadouts(),
+        "starmapObjects": [{
+            "guid": "a2000000-0000-4000-8000-000000000001",
+            "className": "Stanton1_Hurston",
+            "recordPath": "libs/foundry/records/starmap/pu/system/stanton/stanton1_hurston",
+            "name": {"key": "@Stanton1_Name", "en": "Hurston", "de": null},
+            "type": "Planet",
+            "typeGuid": "a2000000-0000-4000-8000-000000000002",
+            "parentGuid": "a2000000-0000-4000-8000-000000000003",
+            "hideInStarmap": false,
+            "system": "stanton",
+            "entityName": "planet_hurston",
+            "placedUnderGuid": "a2000000-0000-4000-8000-000000000003",
+            "position": [12_850_000_000.0, 1250.5, -3.0]
+        }]
     })
 }
 

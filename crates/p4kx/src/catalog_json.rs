@@ -1,8 +1,9 @@
 use std::path::Path;
 
 use p4kx_export::{
-    CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, LoadoutSummary, PaintSummary, Playability,
-    PlayabilityCounts, SCHEMA_VERSION, SizeWarning, UPLOAD_LIMIT, VariantCounts,
+    CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, KindSummary, LoadoutSummary, PaintSummary,
+    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, StarmapSummary, UPLOAD_LIMIT,
+    VariantCounts,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
@@ -27,6 +28,7 @@ pub(super) struct SummaryJson<'a> {
     item_classes: ItemClassJson,
     paints: PaintsJson,
     loadouts: LoadoutsJson,
+    starmap: StarmapJson,
     playability: PlayabilityJson,
     variants: VariantsJson,
     texts: Vec<TextJson>,
@@ -82,12 +84,40 @@ struct PaintsJson {
 }
 
 #[derive(Serialize)]
+struct StarmapJson {
+    objects: usize,
+    placed: usize,
+    unplaced: usize,
+    ambiguous: usize,
+    systems: usize,
+    unreadable_containers: usize,
+    missing_containers: usize,
+    malformed_children: usize,
+}
+
+impl From<StarmapSummary> for StarmapJson {
+    fn from(summary: StarmapSummary) -> Self {
+        Self {
+            objects: summary.objects,
+            placed: summary.placed,
+            unplaced: summary.unplaced,
+            ambiguous: summary.ambiguous,
+            systems: summary.systems,
+            unreadable_containers: summary.unreadable_containers,
+            missing_containers: summary.missing_containers,
+            malformed_children: summary.malformed_children,
+        }
+    }
+}
+
+#[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum WarningJson {
     RewardSourcesTruncated,
     UnreadableReferenceRecords { count: usize },
     AmbiguousDismantle { count: usize },
     UnreadableVehicleFiles { count: usize },
+    UnplacedStarmapContainers { count: usize },
     Other { message: String },
 }
 
@@ -101,6 +131,9 @@ impl From<&CraftingWarning> for WarningJson {
             CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
             CraftingWarning::UnreadableVehicleFiles(count) => {
                 Self::UnreadableVehicleFiles { count }
+            }
+            CraftingWarning::UnplacedStarmapContainers(count) => {
+                Self::UnplacedStarmapContainers { count }
             }
             ref other => Self::Other {
                 message: other.to_string(),
@@ -188,6 +221,17 @@ struct KindJson {
     complete: bool,
 }
 
+impl From<&KindSummary> for KindJson {
+    fn from(kind: &KindSummary) -> Self {
+        Self {
+            kind: kind.kind.name(),
+            count: kind.count,
+            skipped: kind.skipped,
+            complete: kind.complete,
+        }
+    }
+}
+
 pub(super) const fn warning_name(warning: SizeWarning) -> &'static str {
     match warning {
         SizeWarning::NearLimit => "near_limit",
@@ -210,16 +254,7 @@ pub(super) fn summary_json<'a>(
         decompressed_limit: DECOMPRESSED_LIMIT,
         size_warning: summary.size_warning().map(warning_name),
         decompressed_warning: summary.decompressed_warning().map(warning_name),
-        kinds: summary
-            .kinds()
-            .iter()
-            .map(|kind| KindJson {
-                kind: kind.kind.name(),
-                count: kind.count,
-                skipped: kind.skipped,
-                complete: kind.complete,
-            })
-            .collect(),
+        kinds: summary.kinds().iter().map(KindJson::from).collect(),
         skipped: summary.skipped(),
         failed: summary
             .failures()
@@ -238,6 +273,7 @@ pub(super) fn summary_json<'a>(
         },
         paints: summary.paints().into(),
         loadouts: summary.loadouts().into(),
+        starmap: summary.starmap().into(),
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),

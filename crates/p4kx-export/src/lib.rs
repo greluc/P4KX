@@ -16,6 +16,10 @@
 //! reported as a [`CatalogFailure`] in the [`CatalogSummary`]. [`catalog_schema`] returns its JSON Schema, generated from
 //! the same types (`docs/basetool-catalog.md`).
 //!
+//! The starmap objects of the catalog take their world positions from the system containers
+//! (`ObjectContainers/PU/system`): the position of every `Child` element is composed with the
+//! positions and rotations of the Children above it ([`StarmapSummary`] counts the result).
+//!
 //! [`build_ship_base`] reads the base data of every ship: hull mass and hit points from the
 //! vehicle implementation, cargo capacity from the cargo grids of the default Loadout, size and
 //! the Loadout itself, each value with its source file and field (`docs/ship-base-data.md`);
@@ -49,6 +53,7 @@ mod contract_entities;
 mod contract_loadout;
 mod contract_recipe;
 mod contract_rewards;
+mod contract_starmap;
 mod contract_stats;
 mod crafting;
 mod crafting_records;
@@ -83,6 +88,15 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod starmap;
+mod starmap_containers;
+mod starmap_index;
+mod starmap_read;
+mod starmap_report;
+#[cfg(test)]
+mod starmap_tests;
+mod starmap_transform;
+mod starmap_xml;
 mod summary;
 mod texts;
 mod variants;
@@ -120,8 +134,9 @@ pub use ship_base::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
     build_ship_base_from,
 };
+pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    LoadoutSummary, PaintSummary, SizeWarning, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
-    VariantCounts, VariantSummary,
+    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
+    UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };

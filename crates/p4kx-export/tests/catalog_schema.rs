@@ -76,7 +76,11 @@ fn collect_properties<'s>(
 
 #[test]
 fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
-    let schema = p4kx_export::catalog_schema();
+    let mut schema = p4kx_export::catalog_schema();
+    let starmap = schema["$defs"]
+        .as_object_mut()
+        .and_then(|defs| defs.remove("StarmapObject"))
+        .expect("the starmap object definition");
     let mut properties = Vec::new();
     collect_properties(&schema, &mut properties);
     let mut marked = 0;
@@ -87,6 +91,12 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
         marked += usize::from(carries);
     }
     assert_eq!(marked, 6, "four descriptions and two display types");
+    let mut starmap_properties = Vec::new();
+    collect_properties(&starmap, &mut starmap_properties);
+    for (name, value) in starmap_properties {
+        let carries = value.get("x-gameText") == Some(&json!(true));
+        assert_eq!(carries, name == "name", "x-gameText on the starmap {name}");
+    }
 }
 
 #[test]

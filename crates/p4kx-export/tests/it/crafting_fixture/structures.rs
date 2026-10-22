@@ -42,7 +42,17 @@ fn commodity_structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             .field("entry", TestType::Reference),
         TestStruct::new("ResourceType")
             .field("displayName", TestType::Locale)
-            .field("description", TestType::Locale),
+            .field("description", TestType::Locale)
+            .field("densityType", pointer("ResourceTypeDensityBase"))
+            .field("refinedVersion", TestType::Reference),
+        TestStruct::new("ResourceTypeDensityBase"),
+        TestStruct::new("ResourceTypeDensity")
+            .parent("ResourceTypeDensityBase")
+            .field("densityUnit", pointer("ResourceTypeDensityUnit")),
+        TestStruct::new("ResourceTypeDensityUnit"),
+        TestStruct::new("GramsPerCubicCentimeter")
+            .parent("ResourceTypeDensityUnit")
+            .field("gramsPerCubicCentimeter", TestType::Single),
         TestStruct::new("ResourceTypeGroup")
             .field("displayName", TestType::Locale)
             .array("groups", TestType::Reference)

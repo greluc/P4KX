@@ -437,6 +437,12 @@ from the entity:
 | `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
+| `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
+| `refinedSubtypeGuid` | The GUID `refinedVersion` of the `ResourceType` links to; `null` without a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined commodity only when the catalog has that commodity |
+
+The refining fields are described in [commodity-refining.md](commodity-refining.md), with what the
+DataForge does not hold (instability per commodity, yields, counting in SCU or units). The refined
+`ResourceType` may have no commodity of its own; then `refinedSubtypeGuid` matches no `subtypeGuid`.
 
 A name or description that is missing or a placeholder key is taken from the `ResourceType` Record
 `subtypeGuid` links to (`displayName`, `description`) instead. The game holds no field named type

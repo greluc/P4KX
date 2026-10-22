@@ -50,11 +50,14 @@ pub enum Kind {
     /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
     /// system containers place it at.
     StarmapObjects,
+    /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
+    /// `contracts/contractgenerator`, one entry each.
+    Contracts,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -69,6 +72,7 @@ impl Kind {
         Self::Paints,
         Self::Loadouts,
         Self::StarmapObjects,
+        Self::Contracts,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -89,11 +93,12 @@ impl Kind {
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
+            Self::Contracts => "contracts",
         }
     }
 
-    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) rather than
-    /// by the generic selection of the catalog build.
+    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) or by the
+    /// contract reader rather than by the generic selection of the catalog build.
     pub(crate) const fn is_crafting(self) -> bool {
         matches!(
             self,
@@ -102,6 +107,7 @@ impl Kind {
                 | Self::QualityDistributions
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
+                | Self::Contracts
         )
     }
 
@@ -166,6 +172,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/starmap/pu/"],
                 type_name: "StarMapObject",
             },
+            Self::Contracts => KindRule {
+                prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
+                type_name: "ContractGenerator",
+            },
         }
     }
 
@@ -196,6 +206,7 @@ impl Kind {
             Self::Paints => 11,
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
+            Self::Contracts => 14,
         }
     }
 

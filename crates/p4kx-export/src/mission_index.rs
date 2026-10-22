@@ -184,15 +184,7 @@ fn piece<'f>(
     let root = Some(tree.root());
     let guid = tree.guid();
     Ok(Some(if starts(TEMPLATES) {
-        let display = one(root, "contractDisplayInfo");
-        Piece::Template(
-            guid,
-            Template {
-                title: title_key(display),
-                mission_type: reference(display, "type").map(|guid| guid.0),
-                properties: properties(root, "contractProperties"),
-            },
-        )
+        Piece::Template(guid, template_of(root))
     } else if starts(TYPES) {
         Piece::Type(
             guid,
@@ -203,16 +195,7 @@ fn piece<'f>(
     } else if starts(ORGANIZATIONS) {
         Piece::Organization(guid, organization_variants(root))
     } else if starts(LOCALITIES) {
-        Piece::Locality(
-            guid,
-            items(root, "availableLocations")
-                .iter()
-                .filter_map(|location| match location {
-                    Value::Reference(target) if target.location().is_none() => Some(target.guid()),
-                    _ => None,
-                })
-                .collect(),
-        )
+        Piece::Locality(guid, available_locations(root))
     } else if starts(BROKERS) {
         Piece::Broker(
             guid,
@@ -230,6 +213,25 @@ fn piece<'f>(
             None => return Ok(None),
         }
     }))
+}
+
+fn template_of<'f>(root: Option<&StructValue<'f>>) -> Template<'f> {
+    let display = one(root, "contractDisplayInfo");
+    Template {
+        title: title_key(display),
+        mission_type: reference(display, "type").map(|guid| guid.0),
+        properties: properties(root, "contractProperties"),
+    }
+}
+
+fn available_locations(locality: Option<&StructValue<'_>>) -> Vec<Guid> {
+    items(locality, "availableLocations")
+        .iter()
+        .filter_map(|location| match location {
+            Value::Reference(target) if target.location().is_none() => Some(target.guid()),
+            _ => None,
+        })
+        .collect()
 }
 
 fn title_key<'f>(display: Option<&StructValue<'f>>) -> Option<&'f str> {

@@ -1,6 +1,6 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
-use super::lookups::plain_record;
+use super::lookups::{mission_type, plain_record};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
     CONTRACT_E, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS,
@@ -321,16 +321,6 @@ fn template(
         ),
     )
     .value("contractProperties", TestValue::Array(properties))
-}
-
-fn mission_type(guid: u128, name: &str, key: &str) -> TestRecord {
-    TestRecord::new(
-        guid,
-        "MissionType",
-        format!("MissionType.{name}"),
-        format!("libs/foundry/records/missiontype/{name}.xml"),
-    )
-    .value("LocalisedTypeName", TestValue::text(key))
 }
 
 fn tag(guid: u128, name: &str) -> TestRecord {

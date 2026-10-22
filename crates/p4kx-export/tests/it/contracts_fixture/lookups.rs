@@ -16,6 +16,16 @@ pub(super) fn plain_record(guid: u128, kind: &str, path: &str) -> TestRecord {
     )
 }
 
+pub(super) fn mission_type(guid: u128, name: &str, key: &str) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "MissionType",
+        format!("MissionType.{name}"),
+        format!("libs/foundry/records/missiontype/{name}.xml"),
+    )
+    .value("LocalisedTypeName", TestValue::text(key))
+}
+
 fn reward(guid: u128, name: &str, value: i32) -> TestRecord {
     plain_record(
         guid,

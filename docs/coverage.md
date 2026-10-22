@@ -106,8 +106,8 @@ LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives thos
 Records whose `StarMapObjectType` is named `SolarSystem` (#465). The error values are tracked in
 #464. No Record failed to build and every sample exported as Record XML and Record JSON.
 
-**Components** (`EntityClassDefinition` Records with the component; these counts are from the run
-that counted the exact struct, so a rerun can show more where structs derive from a component)
+**Components** (`EntityClassDefinition` Records with the component or a struct deriving from it;
+instances equal Records on LIVE 4.10)
 
 | Area | Component | Records |
 | --- | --- | --- |
@@ -119,7 +119,7 @@ that counted the exact struct, so a rerun can show more where structs derive fro
 | | `SItemPortContainerComponentParams` | 16919 |
 | `vehicles` | `VehicleComponentParams` | 1151 |
 | | `SEntityComponentDefaultLoadoutParams` | 8463 |
-| | `SEntityPhysicsControllerParams` | 21274 |
+| | `SEntityPhysicsControllerParams` | 21342 |
 | | `SCItemVehicleArmorParams` | 220 |
 | | `SCItemQuantumDriveParams` | 63 |
 | | `SCItemShieldGeneratorParams` | 73 |
@@ -132,7 +132,8 @@ that counted the exact struct, so a rerun can show more where structs derive fro
 | | `SSCSignatureSystemParams` | 7008 |
 | | `EntityComponentAttachableModifierParams` | 94 |
 
-All components are reachable by a Component selector Query.
+All components are reachable by a Component selector Query, and no `EntityClassDefinition` Record
+is unreadable (`unreadable_entities` is 0).
 
 **Entries**: 177 under `Data/Scripts/Entities/Vehicles/Implementations/Xml/` (the issue counted 172
 at the time of writing); all 177 convert from CryXml.

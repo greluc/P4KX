@@ -49,6 +49,9 @@ pub(crate) struct Item<'a> {
     /// `special`; the schema keeps a string, as a new value is additive.
     #[schemars(with = "Option<String>")]
     pub(crate) playability: Option<Playability>,
+    /// The GUID of the base of the variant group the item belongs to, `null` for a base and for an
+    /// item that is alone in its group. It is the `guid` of an entry of `items`.
+    pub(crate) variant_of: Option<CatalogGuid>,
 }
 
 /// A paint: an item of the type `Paints` and the ships it fits.
@@ -122,4 +125,9 @@ pub(crate) struct Ship<'a> {
     /// and `special`; the schema keeps a string, as a new value is additive.
     #[schemars(with = "Option<String>")]
     pub(crate) playability: Option<Playability>,
+    /// The GUID of the base of the variant group the ship belongs to: the ships that share the
+    /// vehicle definition, the vehicle implementation after the Modification and the armour. `null`
+    /// for a base and for a ship that is alone in its group. It is the `guid` of an entry of
+    /// `ships`.
+    pub(crate) variant_of: Option<CatalogGuid>,
 }

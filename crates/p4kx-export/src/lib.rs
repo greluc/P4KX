@@ -55,6 +55,7 @@ mod crafting_sources;
 mod crafting_tier;
 mod crafting_types;
 mod crafting_warning;
+mod digest;
 mod error;
 mod failure;
 mod form;
@@ -81,6 +82,7 @@ mod ship;
 mod ship_base;
 mod summary;
 mod texts;
+mod variants;
 
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
 pub use catalog_file::CatalogFile;
@@ -118,4 +120,5 @@ pub use ship_base::{
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
     LoadoutSummary, PaintSummary, SizeWarning, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
+    VariantCounts, VariantSummary,
 };

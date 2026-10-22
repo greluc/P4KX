@@ -138,6 +138,7 @@ pub(crate) struct Parts {
     paints: PaintSummary,
     loadouts: LoadoutSummary,
     playability: crate::PlayabilitySummary,
+    variants: crate::VariantSummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
 }
@@ -152,6 +153,7 @@ impl Parts {
             paints: self.paints,
             loadouts: self.loadouts,
             playability: Box::new(self.playability),
+            variants: self.variants,
             failures: self.failures,
             warnings: self.warnings,
             size,
@@ -187,6 +189,7 @@ fn assemble<R>(
     }
     let paint_summary = add_paints(archive, &forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    let variants = collected.group_variants();
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
@@ -222,6 +225,7 @@ fn assemble<R>(
             paints: paint_summary,
             loadouts: loadout_summary,
             playability,
+            variants,
             failures,
             warnings,
         },

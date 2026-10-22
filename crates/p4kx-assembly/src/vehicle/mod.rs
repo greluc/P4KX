@@ -6,6 +6,7 @@ mod locate;
 mod origin;
 mod patch;
 mod read;
+mod structure;
 mod totals;
 
 use std::collections::HashMap;

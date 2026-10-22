@@ -162,7 +162,7 @@ fn a_catalog_near_the_upload_limit_shows_the_warning() -> TestResult {
 
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label("The plain JSON catalog is close to the basetool upload limit of 64 MB. Upload it as .json.zst, which is far smaller; plain .json is for inspection.");
+    harness.get_by_label("The plain JSON catalog is close to the basetool upload limit of 64 MB. Write the catalog as .json.zst for the upload; plain .json is for inspection.");
     Ok(())
 }
 

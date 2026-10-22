@@ -33,9 +33,14 @@ size is handled by `.json.zst`.
   applied (ADR-0050); an `ItemPort` that no port of the tree names is listed last with the source
   `vehicle` and holds nothing. Where both define a port, the Record's definition wins; the
   visibility always comes from the vehicle implementation (#289).
-- **Tags are names.** `portTags` and `requiredTags` are the words as stored, like `tags` of an
-  item, so a consumer matches them against the item's `tags` without a tag lookup. Flags are
-  words without a leading `$`.
+- **Tags are names and GUIDs.** `portTags` and `requiredTags` are the words of the stored value,
+  split at white space and otherwise unchanged, like `tags` of an item. Beside them the owner asked
+  for the tag GUIDs, so `portTagGuids` and `requiredTagGuids` (and `tagGuids` on every item) hold,
+  per name and in the same order, the `guid` of the tag the tag tree has under that name. A name
+  resolves only when exactly one tag has it (ignoring ASCII case); an unknown or ambiguous name
+  gives `null`, so the lists stay aligned and no GUID is guessed. The Basetool can match by name
+  or by GUID. The cost is one 36-character string or `null` per tag word, which compresses well
+  because the tag set is small. Flags are words without a leading `$`.
 - **No texts.** The kind carries identifiers and fact values only: names, sizes, types, flags,
   tags, GUIDs, class names and the localisation key of a port's display name (`null` for a
   placeholder key). No description, no geometry, no media (the owner's legal review of 2026-10-20).

@@ -786,6 +786,20 @@
             "null"
           ]
         },
+        "tagGuids": {
+          "description": "The `guid` of the tag each entry of `tags` names, in the same order and as long; `null`\nwhere the tag tree has no tag of that name (ignoring case) or more than one.",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Guid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "array"
+        },
         "tags": {
           "description": "The words of `AttachDef.Tags`, in stored order.",
           "items": {
@@ -815,6 +829,7 @@
         "recordPath",
         "size",
         "subType",
+        "tagGuids",
         "tags",
         "type"
       ],
@@ -951,8 +966,22 @@
           "description": "The port name, as the Loadout or the port definition spells it.",
           "type": "string"
         },
+        "portTagGuids": {
+          "description": "The `guid` of the tag each entry of `portTags` names, in the same order and as long; `null`\nwhere the tag tree has no tag of that name (ignoring case) or more than one.",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Guid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "array"
+        },
         "portTags": {
-          "description": "The tags the port offers, split at white space, as stored.",
+          "description": "The tags the port offers: the words of the stored value, split at white space and\notherwise unchanged, like `tags` of an item.",
           "items": {
             "type": "string"
           },
@@ -965,8 +994,22 @@
           },
           "type": "array"
         },
+        "requiredTagGuids": {
+          "description": "The `guid` of the tag each entry of `requiredTags` names, in the same order and as long;\n`null` where the tag tree has no tag of that name (ignoring case) or more than one.",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Guid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": "array"
+        },
         "requiredTags": {
-          "description": "The tags an item must carry to fit the port, split at white space, as stored.",
+          "description": "The tags an item must carry to fit the port: the words of the stored value, split at white\nspace and otherwise unchanged, like `tags` of an item.",
           "items": {
             "type": "string"
           },
@@ -1004,8 +1047,10 @@
         "maxSize",
         "minSize",
         "name",
+        "portTagGuids",
         "portTags",
         "ports",
+        "requiredTagGuids",
         "requiredTags",
         "source",
         "types",

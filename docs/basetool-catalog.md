@@ -166,6 +166,7 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `mass` | `SEntityPhysicsControllerParams.PhysType.Mass`, a number |
 | `manufacturerGuid` | The GUID the Reference `AttachDef.Manufacturer` links to, `null` for a null Reference |
 | `tags` | The words of `AttachDef.Tags`, split at white space |
+| `tagGuids` | The `guid` of the tag each entry of `tags` names, in the same order and as long; `null` where the tag tree has no such tag or more than one, see "Tag GUIDs" |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
@@ -547,7 +548,8 @@ so a loadout exists only for the entries the filter selected and the kind is par
 | `minSize`, `maxSize` | `MinSize` and `MaxSize` of the `SItemPortDef`, or `minSize` and `maxSize` of the `ItemPort`; `null` when the data gives none |
 | `types` | `{type, subTypes}` per entry of `Types` of the `SItemPortDef`; for an `ItemPort` the `type` of each `Types/Type` and no subtypes |
 | `flags` | The words of `Flags` as stored, without a leading `$` (`invisible`, `uneditable`) |
-| `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`, as stored. They are tag names like `tags` of an item: an item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
+| `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`: split at white space and otherwise as stored, like `tags` of an item (a leading `$` stays). An item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
+| `portTagGuids`, `requiredTagGuids` | The `guid` of the tag each entry of `portTags` and `requiredTags` names, in the same order and as long; `null` where the tag tree has no such tag or more than one, see "Tag GUIDs" |
 | `displayNameKey` | `DisplayName` of the `SItemPortDef`, a localisation key; `null` for none and for a placeholder key. The key is exported, not its text |
 | `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
 | `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
@@ -577,6 +579,17 @@ may name no Record at all. With a `--filter` the references need not resolve.
 counted for every ship that carries them), the ports that hold an Entity, the docked vehicles, the
 unresolved attachments, the Entities outside the kinds and the loadouts with an issue; `--json`
 lists them under `loadouts`.
+
+#### Tag GUIDs
+
+Records store tags as names, so the catalog carries both forms and the Basetool may match either
+way: the names `tags`, `portTags` and `requiredTags` as stored, and beside them `tagGuids`,
+`portTagGuids` and `requiredTagGuids`, the GUIDs of the Tag Records (`TagTree`, ADR-0052). A GUID
+list is as long as its name list and in the same order. A name resolves when exactly one tag of the
+tree has it, comparing ignoring ASCII case. A name that no tag has, and a name that several tags
+have (the tree holds the same name below different parents), give `null` at its place: a GUID is
+never guessed, and the position keeps the two lists aligned. The names compare as stored, so a
+name with a leading `$` resolves to nothing unless a tag carries it.
 
 ### Crafting data
 

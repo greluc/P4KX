@@ -238,6 +238,7 @@ fn check_known_ship(archive: &Archive, catalog: &Value) -> TestResult {
 fn report_codes(catalog: &Value) -> TestResult {
     let mut unresolved: BTreeMap<&str, usize> = BTreeMap::new();
     let mut issues: BTreeMap<&str, usize> = BTreeMap::new();
+    let (mut tag_words, mut tag_nulls) = (0_usize, 0_usize);
     for entry in list(catalog, "loadouts")? {
         for code in entry["issues"]
             .as_array()
@@ -251,8 +252,26 @@ fn report_codes(catalog: &Value) -> TestResult {
             if let Some(code) = port["unresolved"].as_str() {
                 *unresolved.entry(code).or_default() += 1;
             }
+            for (names, guids) in [
+                ("portTags", "portTagGuids"),
+                ("requiredTags", "requiredTagGuids"),
+            ] {
+                let (words, found) = (
+                    port[names].as_array().map_or(0, Vec::len),
+                    port[guids].as_array().map_or(0, Vec::len),
+                );
+                assert_eq!(
+                    words, found,
+                    "{names} and {guids} are as long as each other"
+                );
+                tag_words += words;
+                tag_nulls += port[guids]
+                    .as_array()
+                    .map_or(0, |list| list.iter().filter(|guid| guid.is_null()).count());
+            }
         });
     }
+    println!("port tag words: {tag_words}, without a tag GUID: {tag_nulls}");
     println!("unresolved ports by code: {unresolved:?}");
     println!("loadouts with an issue, by code: {issues:?}");
     Ok(())

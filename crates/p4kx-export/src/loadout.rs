@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 
 use p4kx_assembly::{ArchiveFiles, LoadoutResolver};
 use p4kx_extraction::{Archive, CancelToken, DataForge, Guid, RecordTree, Value};
@@ -6,8 +6,9 @@ use rayon::prelude::*;
 
 use crate::contract_loadout::{Loadout, LoadoutPort};
 use crate::guid_text::CatalogGuid;
-use crate::loadout_port::ports;
+use crate::loadout_port::PortReader;
 use crate::record_fields::elements;
+use crate::tag_names::TagNames;
 use crate::{CatalogError, CatalogFailure, LoadoutSummary};
 
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
@@ -63,6 +64,7 @@ pub(crate) fn loadouts<'f>(
     forge: &'f DataForge<'f>,
     wanted: &[Wanted],
     known: &HashSet<Guid>,
+    tags: &TagNames,
     cancel: Option<&CancelToken>,
 ) -> Result<Loadouts, CatalogError> {
     let files = ArchiveFiles::new(archive);
@@ -70,15 +72,18 @@ pub(crate) fn loadouts<'f>(
         .par_iter()
         .map_init(
             || {
-                LoadoutResolver::new(forge)
-                    .with_files(&files)
-                    .stopping_at_docked_vehicles()
+                (
+                    LoadoutResolver::new(forge)
+                        .with_files(&files)
+                        .stopping_at_docked_vehicles(),
+                    PortReader::new(tags),
+                )
             },
-            |resolver, want| {
+            |(resolver, reader), want| {
                 if cancel.is_some_and(CancelToken::is_cancelled) {
                     return None;
                 }
-                Some(read(resolver, forge, *want))
+                Some(read(resolver, reader, forge, *want))
             },
         )
         .collect();
@@ -102,6 +107,7 @@ pub(crate) fn loadouts<'f>(
 
 fn read<'f>(
     resolver: &mut LoadoutResolver<'f>,
+    reader: &mut PortReader<'_>,
     forge: &'f DataForge<'f>,
     want: Wanted,
 ) -> Result<Option<Loadout>, CatalogFailure> {
@@ -111,15 +117,15 @@ fn read<'f>(
     let node = resolver
         .resolve(&record)
         .map_err(|error| CatalogFailure::of(&record, &error))?;
-    let mut issues = BTreeSet::new();
-    let ports = ports(&node, &mut issues);
+    let ports = reader.ports(&node);
+    let issues = reader.take_issues();
     if want.kind == ITEM && ports.is_empty() {
         return Ok(None);
     }
     Ok(Some(Loadout {
         entity_guid: want.guid,
         entity_kind: want.kind,
-        issues: issues.into_iter().collect(),
+        issues,
         ports,
     }))
 }

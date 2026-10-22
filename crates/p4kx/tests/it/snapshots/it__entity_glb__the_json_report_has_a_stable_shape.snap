@@ -4,7 +4,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
 ---
 {
   "archive": "<archive>",
-  "bytes": 9064,
+  "bytes": 9056,
   "default_material_ids": 0,
   "entity": "TEST_Ship",
   "guid": "00000000-0000-0000-0000-000000000001",

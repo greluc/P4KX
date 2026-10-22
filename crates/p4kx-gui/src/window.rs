@@ -179,11 +179,11 @@ mod tests {
 
     #[test]
     fn the_viewport_restores_the_saved_geometry() {
-        let builder = viewport(Some(SAVED), "P4K-Extractor");
+        let builder = viewport(Some(SAVED), "P4KX");
 
         assert_eq!(builder.position, Some(pos2(100.0, 50.0)), "position");
         assert_eq!(builder.inner_size, Some(vec2(1000.0, 700.0)), "size");
         assert_eq!(builder.maximized, Some(false), "not maximised");
-        assert_eq!(builder.title.as_deref(), Some("P4K-Extractor"), "title");
+        assert_eq!(builder.title.as_deref(), Some("P4KX"), "title");
     }
 }

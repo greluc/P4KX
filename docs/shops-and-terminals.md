@@ -1,6 +1,6 @@
 # Shops and terminals in the Archive
 
-Result of the spike [#398](https://github.com/greluc/p4k-extractor/issues/398), measured on the LIVE
+Result of the spike [#398](https://github.com/greluc/P4KX/issues/398), measured on the LIVE
 Archive, Build 4.10.197. It answers what the Archive says about shops and terminals for the Basetool
 ([krt-profit/basetool#2823](https://github.com/krt-profit/basetool/issues/2823),
 [#2824](https://github.com/krt-profit/basetool/issues/2824)). Prices, stock and demand are

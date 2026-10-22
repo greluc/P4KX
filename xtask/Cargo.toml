@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Repository checks for P4K-Extractor: layer direction, lints and source-file size."
+description = "Repository checks for P4KX: layer direction, lints and source-file size."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

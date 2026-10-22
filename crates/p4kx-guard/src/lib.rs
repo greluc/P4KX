@@ -1,4 +1,4 @@
-//! Keeps P4K-Extractor read-only towards the game: writes into a Star Citizen installation are
+//! Keeps P4KX read-only towards the game: writes into a Star Citizen installation are
 //! refused, and a running game is noticed from the process list alone.
 
 mod installation;

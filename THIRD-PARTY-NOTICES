@@ -1,7 +1,7 @@
-Third-party notices for P4K-Extractor
+Third-party notices for P4KX
 ======================================
 
-P4K-Extractor is licensed under the MIT licence or the Apache License, Version 2.0, at your
+P4KX is licensed under the MIT licence or the Apache License, Version 2.0, at your
 option. It contains the third-party material listed below, which keeps its own licence.
 
 
@@ -12,7 +12,7 @@ packed_codebooks.bin and packed_codebooks_aoTuV_603.bin come unchanged from ww2o
 Gashlin (hcs), https://github.com/hcs64/ww2ogg. They hold the codebooks of the Vorbis reference
 encoder libvorbis by the Xiph.org Foundation and of the aoTuV Beta 6.03 encoder by Aoyumi, which
 is based on libvorbis and released under the same licence, in the packed form Wwise refers to.
-P4K-Extractor uses them to rebuild the Vorbis headers of Wwise sounds.
+P4KX uses them to rebuild the Vorbis headers of Wwise sounds.
 
 ww2ogg, as stated in its COPYING file (https://github.com/hcs64/ww2ogg):
 

@@ -8,7 +8,7 @@ pub(crate) struct ChannelsArgs {
     /// Adds or removes a manual entry; without one, the Channels are listed.
     #[command(subcommand)]
     pub(crate) action: Option<ChannelsAction>,
-    /// Folder of settings.toml; defaults to the platform config directory, %APPDATA%\P4K-Extractor
+    /// Folder of settings.toml; defaults to the platform config directory, %APPDATA%\P4KX
     /// on Windows.
     #[arg(long, global = true, env = "P4KX_CONFIG_DIR", value_name = "FOLDER")]
     pub(crate) config_dir: Option<PathBuf>,

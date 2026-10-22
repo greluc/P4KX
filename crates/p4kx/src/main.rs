@@ -1,4 +1,4 @@
-//! `p4kx`, the command-line interface of P4K-Extractor.
+//! `p4kx`, the command-line interface of P4KX.
 
 mod audio;
 mod bnk;

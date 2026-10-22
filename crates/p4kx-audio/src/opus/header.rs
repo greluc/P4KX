@@ -12,7 +12,7 @@ const TAG_WWISE: u16 = 0x3041;
 const SWITCH_FMT_LEN: usize = 0x28;
 const WWISE_VERSION: u8 = 1;
 const OPUS_HEAD_LEN: usize = 19;
-const VENDOR: &[u8] = b"P4K-Extractor";
+const VENDOR: &[u8] = b"P4KX";
 
 /// What the `fmt` chunk, the `seek` chunk and an embedded `OpusHead` say about an Opus WEM.
 pub(crate) struct Header<'a> {

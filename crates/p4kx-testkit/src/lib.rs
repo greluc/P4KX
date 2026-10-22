@@ -1,4 +1,4 @@
-//! Writers for synthetic test data in the formats P4K-Extractor reads.
+//! Writers for synthetic test data in the formats P4KX reads.
 //!
 //! The writers reproduce the byte layout of real Star Citizen files so that every reader can be
 //! tested without game files; [`real_archive_path`] locates a real Archive for the opt-in suite.

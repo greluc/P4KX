@@ -10,7 +10,7 @@ pub const REAL_ARCHIVE_KEY_VAR: &str = "P4KX_ARCHIVE_KEY";
 /// The environment variable that names a file holding the key, as `p4kx --key-file` does.
 pub const REAL_ARCHIVE_KEY_FILE_VAR: &str = "P4KX_KEY_FILE";
 
-const PROFILE_FOLDER: &str = "P4K-Extractor";
+const PROFILE_FOLDERS: [&str; 2] = ["P4KX", "P4K-Extractor"];
 const PROFILE_FILE: &str = "archive.key";
 const MAX_KEY_FILE_LEN: u64 = 1024;
 
@@ -66,7 +66,8 @@ impl std::error::Error for MissingRealKey {}
 /// Returns the Archive key of the real-Archive suite, as the CLI and the GUI find it.
 ///
 /// The first valid key wins: `P4KX_ARCHIVE_KEY`, the file named by `P4KX_KEY_FILE`, then the key
-/// stored in the profile (`%APPDATA%\P4K-Extractor\archive.key` on Windows).
+/// stored in the profile (`%APPDATA%\P4KX\archive.key` on Windows, then the old
+/// `%APPDATA%\P4K-Extractor\archive.key`).
 ///
 /// # Errors
 ///
@@ -77,14 +78,35 @@ pub fn real_archive_key() -> Result<ArchiveKey, MissingRealKey> {
     let named = std::env::var_os(REAL_ARCHIVE_KEY_FILE_VAR)
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
-    let profile = dirs::config_dir().map(|dir| dir.join(PROFILE_FOLDER).join(PROFILE_FILE));
-    find_key(variable.as_deref(), named.as_deref(), profile.as_deref())
+    let profile: Vec<PathBuf> = dirs::config_dir()
+        .map(|dir| {
+            PROFILE_FOLDERS
+                .map(|folder| dir.join(folder).join(PROFILE_FILE))
+                .to_vec()
+        })
+        .unwrap_or_default();
+    let profile: Vec<&Path> = profile.iter().map(PathBuf::as_path).collect();
+    find_key(variable.as_deref(), named.as_deref(), &profile)
+}
+
+fn read_profile_files(files: &[&Path]) -> Result<ArchiveKey, Outcome> {
+    let mut outcome = Outcome::Unset;
+    for file in files {
+        match read_key_file(file) {
+            Ok(key) => return Ok(key),
+            Err(error) if outcome == Outcome::Unset || outcome == Outcome::NoFile => {
+                outcome = error;
+            }
+            Err(_) => {}
+        }
+    }
+    Err(outcome)
 }
 
 fn find_key(
     variable: Option<&str>,
     named_file: Option<&Path>,
-    profile_file: Option<&Path>,
+    profile_files: &[&Path],
 ) -> Result<ArchiveKey, MissingRealKey> {
     let from_variable = variable
         .filter(|text| !text.trim().is_empty())
@@ -92,7 +114,7 @@ fn find_key(
             ArchiveKey::from_hex(text).map_err(|_| Outcome::NotThirtyTwoHexDigits)
         });
     let from_named = named_file.map_or(Err(Outcome::Unset), read_key_file);
-    let from_profile = profile_file.map_or(Err(Outcome::Unset), read_key_file);
+    let from_profile = read_profile_files(profile_files);
     let mut found = None;
     let tried = [
         (REAL_ARCHIVE_KEY_VAR, from_variable),
@@ -221,7 +243,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary folder");
         let named = key_file(&directory, "named.key", SECOND);
         let profile = key_file(&directory, "profile.key", SECOND);
-        let found = find_key(Some(FIRST), Some(&named), Some(&profile));
+        let found = find_key(Some(FIRST), Some(&named), &[&profile]);
         assert_eq!(found.ok(), Some(expected(FIRST)), "the variable");
     }
 
@@ -230,7 +252,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary folder");
         let named = key_file(&directory, "named.key", &format!("{FIRST}\n"));
         let profile = key_file(&directory, "profile.key", SECOND);
-        let found = find_key(Some("  "), Some(&named), Some(&profile));
+        let found = find_key(Some("  "), Some(&named), &[&profile]);
         assert_eq!(found.ok(), Some(expected(FIRST)), "the named file");
     }
 
@@ -239,8 +261,26 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary folder");
         let profile = key_file(&directory, "profile.key", SECOND);
         let missing = directory.path().join("absent.key");
-        let found = find_key(Some("not a key"), Some(&missing), Some(&profile));
+        let found = find_key(Some("not a key"), Some(&missing), &[&profile]);
         assert_eq!(found.ok(), Some(expected(SECOND)), "the profile file");
+    }
+
+    #[test]
+    fn the_new_profile_folder_wins_and_the_old_one_is_the_fallback() {
+        let directory = tempfile::tempdir().expect("a temporary folder");
+        let new = key_file(&directory, "new.key", FIRST);
+        let old = key_file(&directory, "old.key", SECOND);
+        let absent = directory.path().join("absent.key");
+        assert_eq!(
+            find_key(None, None, &[&new, &old]).ok(),
+            Some(expected(FIRST)),
+            "both stored"
+        );
+        assert_eq!(
+            find_key(None, None, &[&absent, &old]).ok(),
+            Some(expected(SECOND)),
+            "only the old folder"
+        );
     }
 
     #[test]
@@ -248,7 +288,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary folder");
         let named = key_file(&directory, "named.key", "short");
         let profile = key_file(&directory, "profile.key", FIRST);
-        let found = find_key(None, Some(&named), Some(&profile));
+        let found = find_key(None, Some(&named), &[&profile]);
         assert_eq!(found.ok(), Some(expected(FIRST)), "the profile file");
     }
 
@@ -257,7 +297,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary folder");
         let named = key_file(&directory, "named.key", "short");
         let error: MissingRealKey =
-            find_key(Some(SECOND.get(..31).unwrap_or("")), Some(&named), None)
+            find_key(Some(SECOND.get(..31).unwrap_or("")), Some(&named), &[])
                 .expect_err("no valid key");
         let message = error.to_string();
         assert!(

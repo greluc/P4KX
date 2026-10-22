@@ -17,7 +17,7 @@ const GEOMETRY: WindowGeometry = WindowGeometry {
 #[test]
 fn language_and_window_survive_a_round_trip() -> TestResult {
     let folder = tempfile::tempdir()?;
-    let file = folder.path().join("P4K-Extractor").join("settings.toml");
+    let file = folder.path().join("P4KX").join("settings.toml");
     let settings = Settings {
         language: Some("de-DE".to_owned()),
         window: Some(GEOMETRY),

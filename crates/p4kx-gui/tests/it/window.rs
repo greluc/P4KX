@@ -291,14 +291,14 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
         (
             Language::BritishEnglish,
             "Help",
-            "About P4K-Extractor",
+            "About P4KX",
             "unofficial Star Citizen fan project",
             "Terms of Service",
         ),
         (
             Language::German,
             "Hilfe",
-            "Über P4K-Extractor",
+            "Über P4KX",
             "inoffizielles Star-Citizen-Fanprojekt",
             "Nutzungsbedingungen",
         ),
@@ -315,7 +315,7 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
         for needle in [
             fan_project,
             responsibility,
-            "Copyright (c) 2026 KRT and the P4K-Extractor contributors",
+            "Copyright (c) 2026 KRT and the P4KX contributors",
             "Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC.",
         ] {
             assert!(

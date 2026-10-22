@@ -1,4 +1,4 @@
-//! `p4kx-mcp`: the read-only MCP server of P4K-Extractor, spoken to over stdio.
+//! `p4kx-mcp`: the read-only MCP server of P4KX, spoken to over stdio.
 
 mod archives;
 mod budget;

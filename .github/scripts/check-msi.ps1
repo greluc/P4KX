@@ -13,12 +13,16 @@ The version of NextMsi.
 
 .PARAMETER UpgradeCode
 The UpgradeCode both installers share.
+
+.PARAMETER PreviousMsi
+An MSI of an earlier Release; when given, it is installed first and upgraded with Msi, and the old install folder, PATH entry and registry key must be gone afterwards.
 #>
 param(
     [Parameter(Mandatory)] [string] $Msi,
     [Parameter(Mandatory)] [string] $NextMsi,
     [Parameter(Mandatory)] [string] $NextVersion,
-    [Parameter(Mandatory)] [string] $UpgradeCode
+    [Parameter(Mandatory)] [string] $UpgradeCode,
+    [string] $PreviousMsi
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,8 +30,8 @@ trap {
     $_.ScriptStackTrace | Out-Host
     break
 }
-$folder = Join-Path $env:LOCALAPPDATA 'Programs\P4K-Extractor'
-$shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\P4K-Extractor.lnk'
+$folder = Join-Path $env:LOCALAPPDATA 'Programs\P4KX'
+$shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\P4KX.lnk'
 $logs = Split-Path -Parent (Resolve-Path $NextMsi)
 $installer = New-Object -ComObject WindowsInstaller.Installer
 
@@ -51,6 +55,23 @@ function Get-Installed {
     $related = Get-ComProperty $installer 'RelatedProducts' @("{$UpgradeCode}")
     $count = Get-ComProperty $related 'Count' $null
     , @(for ($index = 0; $index -lt $count; $index++) { Get-ComProperty $related 'Item' @($index) })
+}
+
+if ($PreviousMsi) {
+    $oldFolder = Join-Path $env:LOCALAPPDATA 'Programs\P4K-Extractor'
+    $oldRegistry = 'HKCU:\Software\KRT\P4K-Extractor'
+    Invoke-Msiexec @('/i', $PreviousMsi) 'previous-install.log'
+    if (-not (Test-Path (Join-Path $oldFolder 'p4kx-gui.exe'))) { throw 'the previous release did not install into Programs\P4K-Extractor' }
+    Invoke-Msiexec @('/i', $Msi) 'rename-upgrade.log'
+    if (Test-Path $oldFolder) { throw "left behind after the rename upgrade: $oldFolder" }
+    if (Test-Path $oldRegistry) { throw "left behind after the rename upgrade: $oldRegistry" }
+    $entries = @([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' | Where-Object { $_ })
+    if (@($entries | Where-Object { $_ -like '*Programs\P4K-Extractor*' }).Count -ne 0) { throw 'the user PATH still holds Programs\P4K-Extractor' }
+    if (@($entries | Where-Object { $_.TrimEnd('\') -eq $folder }).Count -ne 1) { throw 'the user PATH does not hold Programs\P4KX exactly once' }
+    $renamed = Get-Installed
+    if ($renamed.Count -ne 1) { throw "the rename upgrade left $($renamed.Count) installations" }
+    Invoke-Msiexec @('/x', $renamed[0]) 'rename-uninstall.log'
+    if ((Get-Installed).Count -ne 0) { throw 'still installed after the rename upgrade check' }
 }
 
 Invoke-Msiexec @('/i', $Msi) 'install.log'

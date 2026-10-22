@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Builds and validates the P4K-Extractor MSI with WiX Toolset 7 from release binaries.
+Builds and validates the P4KX MSI with WiX Toolset 7 from release binaries.
 
 .PARAMETER Wix
 The wix.exe of WiX Toolset 7.

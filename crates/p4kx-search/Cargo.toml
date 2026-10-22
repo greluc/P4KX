@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-search"
-description = "Content search service of P4K-Extractor: text inside Records, localisation and Entries."
+description = "Content search service of P4KX: text inside Records, localisation and Entries."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -4,15 +4,15 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::profile::profile_folder;
 use crate::{ModelExportSettings, RecentArchives, SavedQueries};
 
-const APP_FOLDER: &str = "P4K-Extractor";
 const FILE_NAME: &str = "settings.toml";
 
 /// The largest settings file read, in bytes; a larger one is an error.
 pub const MAX_SETTINGS_SIZE: u64 = 16 * 1024 * 1024;
 
-/// The persistent settings of P4K-Extractor.
+/// The persistent settings of P4KX.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -147,11 +147,12 @@ pub enum SettingsError {
     Serialize(#[from] toml::ser::Error),
 }
 
-/// Returns `settings.toml` in the `P4K-Extractor` folder of the platform config directory,
-/// `%APPDATA%\P4K-Extractor` on Windows.
+/// Returns `settings.toml` in the `P4KX` folder of the platform config directory,
+/// `%APPDATA%\P4KX` on Windows. The first call migrates the old `P4K-Extractor` folder (see
+/// [`migrate_profile`](crate::migrate_profile)).
 #[must_use]
 pub fn default_settings_file() -> Option<PathBuf> {
-    dirs::config_dir().map(|dir| dir.join(APP_FOLDER).join(FILE_NAME))
+    profile_folder().map(|dir| dir.join(FILE_NAME))
 }
 
 impl Settings {

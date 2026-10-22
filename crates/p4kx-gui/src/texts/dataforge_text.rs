@@ -14,7 +14,7 @@ pub enum DataForgeText {
     Tab,
     /// Shown while DataForge loads; takes `path`.
     Loading,
-    /// DataForge has a version this P4K-Extractor does not read; takes `version`.
+    /// DataForge has a version this P4KX does not read; takes `version`.
     Unsupported,
     /// DataForge cannot be read; takes `path` and `reason`.
     Failed,

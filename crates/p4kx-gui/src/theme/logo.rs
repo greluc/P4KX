@@ -1,4 +1,4 @@
-//! The P4K-Extractor glyph of `docs/design/p4kx-glyph.svg`, rasterised from its geometry.
+//! The P4KX glyph of `docs/design/p4kx-glyph.svg`, rasterised from its geometry.
 //!
 //! The glyph is a ring open towards the lower right, a wedge reading through it and a data block
 //! leaving it, on a 240 unit square. It appears only in the design system's logo colours.

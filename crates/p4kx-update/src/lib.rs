@@ -1,4 +1,4 @@
-//! Asks the GitHub API whether a newer Release of P4K-Extractor than the running one exists.
+//! Asks the GitHub API whether a newer Release of P4KX than the running one exists.
 //!
 //! The request is a single anonymous GET of the latest Release; nothing about the user, the
 //! machine or the Archives is sent.
@@ -8,11 +8,11 @@ use std::time::Duration;
 use serde::Deserialize;
 use thiserror::Error;
 
-const GITHUB_LATEST: &str = "https://api.github.com/repos/greluc/p4k-extractor/releases/latest";
+const GITHUB_LATEST: &str = "https://api.github.com/repos/greluc/P4KX/releases/latest";
 const TIMEOUT: Duration = Duration::from_secs(10);
-const USER_AGENT: &str = concat!("P4K-Extractor/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("P4KX/", env!("CARGO_PKG_VERSION"));
 
-/// A published Release of P4K-Extractor.
+/// A published Release of P4KX.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Release {
     /// The version without the leading `v` of its tag, such as `0.2.0`.

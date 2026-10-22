@@ -1,6 +1,6 @@
-# P4K-Extractor help
+# P4KX help
 
-How to use the P4K-Extractor window. Terms follow [CONTEXT.md](../CONTEXT.md).
+How to use the P4KX window. Terms follow [CONTEXT.md](../CONTEXT.md).
 
 ## Preview
 
@@ -114,7 +114,7 @@ named after that part.
 Hovering a Record shows its name, type and GUID.
 
 DataForge is loaded once per open Archive and kept until you reload the Archive or it changes on
-disk. A DataForge version this P4K-Extractor does not read, or a database it cannot read, is named
+disk. A DataForge version this P4KX does not read, or a database it cannot read, is named
 on the node; the rest of the window keeps working.
 
 The **DataForge** tab of the preview shows the version, the numbers of Records, structs and enums,
@@ -305,19 +305,21 @@ The command line behaves the same way: `p4kx extract` stops and exits with code 
 
 Each Release on GitHub offers two downloads:
 
-- **`P4K-Extractor-<version>-x86_64.msi`** installs for the current user only, without
-  administrator rights, into `%LOCALAPPDATA%\Programs\P4K-Extractor`. It adds P4K-Extractor to the
+- **`P4KX-<version>-x86_64.msi`** installs for the current user only, without
+  administrator rights, into `%LOCALAPPDATA%\Programs\P4KX`. It adds P4KX to the
   Start menu and that folder to your `PATH`, so `p4kx` works in a new terminal. A newer MSI
   replaces the installed version in place; uninstall through **Settings › Apps**.
-- **`P4K-Extractor-<version>-x86_64-portable.zip`** holds `p4kx-gui.exe` and `p4kx.exe` to run
+- **`P4KX-<version>-x86_64-portable.zip`** holds `p4kx-gui.exe` and `p4kx.exe` to run
   from any folder, without installing anything.
 
-Both keep their settings in `%APPDATA%\P4K-Extractor\settings.toml`, so switching between them or
-uninstalling keeps them.
+Both keep their settings in `%APPDATA%\P4KX\settings.toml`, so switching between them or
+uninstalling keeps them. Coming from P4K-Extractor, the first start copies its old settings
+folder `%APPDATA%\P4K-Extractor` (settings and stored Archive key) into `%APPDATA%\P4KX` when that
+does not exist yet; the old folder stays as a backup.
 
 ### About
 
-**Help › About P4K-Extractor** shows the version, the licence and the legal notices: P4K-Extractor
+**Help › About P4KX** shows the version, the licence and the legal notices: P4KX
 is an unofficial Star Citizen fan project, not affiliated with or endorsed by the Cloud Imperium
 group of companies. It ships no game data and reads only your own installation, and you are
 responsible for complying with the Star Citizen EULA and Terms of Service.
@@ -325,11 +327,11 @@ responsible for complying with the Star Citizen EULA and Terms of Service.
 ### Checking for a new version
 
 **Help › Check for a new version at start** is off until you switch it on. While it is on, the
-window asks the GitHub API once at start for the latest Release of P4K-Extractor; switching it on
+window asks the GitHub API once at start for the latest Release of P4KX; switching it on
 also asks at once. When a newer Release exists, the status bar shows **Version … is available**,
 which opens its page in your browser.
 
 The request is a plain anonymous GET of
-`https://api.github.com/repos/greluc/p4k-extractor/releases/latest`; it carries only the
+`https://api.github.com/repos/greluc/P4KX/releases/latest`; it carries only the
 program name and version as its user agent and nothing about you, your machine or your Archives.
-It is the only network traffic of P4K-Extractor. A failed request shows nothing.
+It is the only network traffic of P4KX. A failed request shows nothing.

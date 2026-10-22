@@ -1,4 +1,4 @@
-//! The desktop window of P4K-Extractor.
+//! The desktop window of P4KX.
 //!
 //! The window state lives in [`Model`], separate from the egui code in [`ui`] that draws it, so
 //! tests can drive it headless.

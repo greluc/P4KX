@@ -16,7 +16,7 @@ use crate::layout::{Block, Layout, MeshLayout};
 use crate::nodes::{Skeleton, push_nodes, push_scene_nodes};
 use crate::texture_plan::TextureSet;
 
-const GENERATOR: &str = concat!("P4K-Extractor ", env!("CARGO_PKG_VERSION"));
+const GENERATOR: &str = concat!("P4KX ", env!("CARGO_PKG_VERSION"));
 const PNG_MIME: &str = "image/png";
 
 /// Builds the glTF document of the `wrappers` and the model `instances` over the planned binary

@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-update"
-description = "Asks GitHub whether a newer Release of P4K-Extractor exists."
+description = "Asks GitHub whether a newer Release of P4KX exists."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

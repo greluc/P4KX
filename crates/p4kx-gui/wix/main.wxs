@@ -1,24 +1,24 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
-      Name="P4K-Extractor"
+      Name="P4KX"
       Language="1033"
       Codepage="1252"
       Version="$(var.Version)"
       Manufacturer="KRT"
       UpgradeCode="090C8F25-8543-42F0-B40A-1514653149F9"
       Scope="perUser">
-    <SummaryInformation Manufacturer="KRT" Description="P4K-Extractor $(var.Version)" />
+    <SummaryInformation Manufacturer="KRT" Description="P4KX $(var.Version)" />
     <MajorUpgrade
         AllowSameVersionUpgrades="yes"
         DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/greluc/p4k-extractor" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/greluc/P4KX" />
     <Property Id="ARPNOMODIFY" Value="1" />
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="UserPrograms" Name="Programs">
-        <Directory Id="APPLICATIONFOLDER" Name="P4K-Extractor">
-          <Component Id="Application" Guid="9C73F6D4-7407-4BDB-A3F1-105F2206BAE2">
+        <Directory Id="APPLICATIONFOLDER" Name="P4KX">
+          <Component Id="Application" Guid="63EEC150-779C-40C1-B6D0-5CDB0F649CBA">
             <File Id="GuiExe" Name="p4kx-gui.exe" Source="$(var.BinaryFolder)\p4kx-gui.exe" />
             <File Id="CliExe" Name="p4kx.exe" Source="$(var.BinaryFolder)\p4kx.exe" />
             <File Id="McpExe" Name="p4kx-mcp.exe" Source="$(var.BinaryFolder)\p4kx-mcp.exe" />
@@ -27,7 +27,7 @@
             <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES" />
             <RegistryValue
                 Root="HKCU"
-                Key="Software\KRT\P4K-Extractor"
+                Key="Software\KRT\P4KX"
                 Name="Application"
                 Type="integer"
                 Value="1"
@@ -48,16 +48,16 @@
     </StandardDirectory>
 
     <StandardDirectory Id="ProgramMenuFolder">
-      <Component Id="StartMenuShortcut" Guid="8540214F-7191-4490-A64B-29CA4A0520F5">
+      <Component Id="StartMenuShortcut" Guid="A0168EBF-245F-4907-BB41-58C1B5F456B9">
         <Shortcut
             Id="GuiShortcut"
-            Name="P4K-Extractor"
+            Name="P4KX"
             Description="Open, browse and extract Star Citizen Archives"
             Target="[APPLICATIONFOLDER]p4kx-gui.exe"
             WorkingDirectory="APPLICATIONFOLDER" />
         <RegistryValue
             Root="HKCU"
-            Key="Software\KRT\P4K-Extractor"
+            Key="Software\KRT\P4KX"
             Name="StartMenuShortcut"
             Type="integer"
             Value="1"
@@ -65,7 +65,7 @@
       </Component>
     </StandardDirectory>
 
-    <Feature Id="Complete" Title="P4K-Extractor" Level="1">
+    <Feature Id="Complete" Title="P4KX" Level="1">
       <ComponentRef Id="Application" />
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>

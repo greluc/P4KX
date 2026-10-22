@@ -1,19 +1,19 @@
-# P4K-Extractor
+# P4KX
 
 Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. See
 [docs/ROADMAP.md](docs/ROADMAP.md) for the plan, [CONTEXT.md](CONTEXT.md) for the terms and
 [docs/user-help.md](docs/user-help.md) for using the window.
 
-P4K-Extractor is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium
+P4KX is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium
 group of companies and not endorsed by it. It ships no game data and reads only your own Star
 Citizen installation. You are responsible for complying with the Star Citizen End User Licence
 Agreement (EULA) and Terms of Service when you use it.
 
-All content not authored by the P4K-Extractor contributors or its users is the property of its
+All content not authored by the P4KX contributors or its users is the property of its
 respective owners. Star Citizen®, Roberts Space Industries® and Cloud Imperium® are registered
 trademarks of Cloud Imperium Rights LLC.
 
-Copyright (c) 2026 KRT and the P4K-Extractor contributors
+Copyright (c) 2026 KRT and the P4KX contributors
 
 ## Status
 
@@ -212,7 +212,7 @@ Early development (milestone M1). Available today:
   named in the RSI Launcher log (`%APPDATA%\rsilauncher\logs`, see
   [ADR-0005](docs/adr/0005-library-folders-from-the-launcher-log.md)) and in manually added
   folders and Archives. `p4kx channels add <path>` and `p4kx channels remove <path>` manage the
-  manual entries in `settings.toml` in `%APPDATA%\P4K-Extractor` (the platform config directory
+  manual entries in `settings.toml` in `%APPDATA%\P4KX` (the platform config directory
   elsewhere). `--config-dir`, `--launcher-dir` and `--default-library` (or `P4KX_CONFIG_DIR`,
   `P4KX_LAUNCHER_DIR`, `P4KX_DEFAULT_LIBRARY`) override these locations. Launcher credential
   files and the launcher's settings store are never opened.
@@ -374,7 +374,7 @@ Early development (milestone M1). Available today:
   with a message that says the key is missing, or that it does not fit. `--key <hex>` (32
   hexadecimal digits) or the environment variable `P4KX_ARCHIVE_KEY` gives it for one run, with
   the option before the variable before the stored key. `p4kx key set [<hex>] [--archive <archive>]`
-  stores it in your profile (`%APPDATA%\P4K-Extractor\archive.key` on Windows, the platform
+  stores it in your profile (`%APPDATA%\P4KX\archive.key` on Windows, the platform
   config directory elsewhere, readable by your user alone where the platform allows it), after
   checking it against an encrypted Entry of the Archive, an installed Channel when none is named;
   without `<hex>` it reads the first line of stdin, which keeps the key out of the process list
@@ -447,11 +447,11 @@ applies to the next call. A tool that reads an encrypted Entry without a key fai
 that says how to give it. `--key-file` (or `P4KX_KEY_FILE`) names another file for the stored key.
 
 The MSI installs `p4kx-mcp.exe` next to `p4kx.exe` in
-`%LOCALAPPDATA%\Programs\P4K-Extractor`, and the portable ZIP holds it too. Add it to the AI
+`%LOCALAPPDATA%\Programs\P4KX`, and the portable ZIP holds it too. Add it to the AI
 client with its full path. Claude Code:
 
 ```powershell
-claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4K-Extractor\p4kx-mcp.exe" --archive LIVE
+claude mcp add p4kx -- "$env:LOCALAPPDATA\Programs\P4KX\p4kx-mcp.exe" --archive LIVE
 ```
 
 Claude Desktop and other clients that read an `mcpServers` file, with `<user>` your Windows user
@@ -461,7 +461,7 @@ name:
 {
   "mcpServers": {
     "p4kx": {
-      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4K-Extractor\\p4kx-mcp.exe",
+      "command": "C:\\Users\\<user>\\AppData\\Local\\Programs\\P4KX\\p4kx-mcp.exe",
       "args": ["--archive", "LIVE"]
     }
   }

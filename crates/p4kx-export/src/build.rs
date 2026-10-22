@@ -6,6 +6,7 @@ use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
+use crate::build_starmap::add_starmap;
 use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
 use crate::collected::Collected;
@@ -15,6 +16,7 @@ use crate::contract::{
 use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
+use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
 use crate::shops::add_shops;
@@ -200,15 +202,14 @@ fn assemble<R>(
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
+    add_contracts(&forge, &texts, options, &mut collected)?;
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
-    let completeness = completeness_of(options);
-    let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
+    let kinds = collected.summary(options.filter.is_none());
     let (item_classes, playability) = (collected.item_classes, collected.playability);
-    let (failures, warnings) = (collected.failures, collected.warnings);
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
-        completeness: Completeness::of_every_kind(completeness),
+        completeness: Completeness::of_every_kind(completeness_of(options)),
         manufacturers: collected.manufacturers,
         items: collected.items,
         ships: collected.ships,
@@ -224,6 +225,7 @@ fn assemble<R>(
         paints: collected.paints,
         loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
+        contracts: collected.contracts,
         shops: collected.shops,
     };
     let output = emit(&catalog)?;
@@ -240,8 +242,8 @@ fn assemble<R>(
             shops: Box::new(shop_summary),
             playability,
             variants,
-            failures,
-            warnings,
+            failures: collected.failures,
+            warnings: collected.warnings,
         },
         output,
     ))
@@ -293,6 +295,24 @@ fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> 
     })
 }
 
+/// Reads the contracts and sub contracts into `collected`.
+fn add_contracts<'f>(
+    forge: &'f DataForge<'f>,
+    texts: &Texts<'f>,
+    options: &CatalogOptions<'_>,
+    collected: &mut Collected<'f>,
+) -> Result<(), CatalogError> {
+    let missions = missions::read(
+        forge,
+        texts,
+        &collected.starmap_objects,
+        options.filter,
+        options.cancel,
+    )?;
+    collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
+    Ok(())
+}
+
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
 fn add_paints(
     archive: &Archive,
@@ -341,36 +361,6 @@ fn add_loadouts(
     collected.loadouts = built.entries;
     collected.add_failures(built.failures);
     Ok(built.summary)
-}
-
-/// Counts the starmap objects of `collected` and what reading their containers found, and warns
-/// about containers that left objects without a position.
-fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> StarmapSummary {
-    let objects = collected.starmap_objects.len();
-    let placed = collected
-        .starmap_objects
-        .iter()
-        .filter(|object| object.position.is_some())
-        .count();
-    let summary = StarmapSummary {
-        objects,
-        placed,
-        unplaced: objects.saturating_sub(placed),
-        ambiguous: counts.ambiguous,
-        systems: counts.systems,
-        unreadable_containers: counts.unreadable,
-        missing_containers: counts.missing,
-        malformed_children: counts.malformed,
-    };
-    let unplaced_containers = counts.unreadable.saturating_add(counts.malformed);
-    if objects > 0 && unplaced_containers > 0 {
-        collected
-            .warnings
-            .push(CraftingWarning::UnplacedStarmapContainers(
-                unplaced_containers,
-            ));
-    }
-    summary
 }
 
 pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

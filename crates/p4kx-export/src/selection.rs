@@ -50,6 +50,9 @@ pub enum Kind {
     /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
     /// system containers place it at.
     StarmapObjects,
+    /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
+    /// `contracts/contractgenerator`, one entry each.
+    Contracts,
     /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
     /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
     Shops,
@@ -57,7 +60,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -72,6 +75,7 @@ impl Kind {
         Self::Paints,
         Self::Loadouts,
         Self::StarmapObjects,
+        Self::Contracts,
         Self::Shops,
     ];
 
@@ -93,12 +97,13 @@ impl Kind {
             Self::Paints => "paints",
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
+            Self::Contracts => "contracts",
             Self::Shops => "shops",
         }
     }
 
-    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) rather than
-    /// by the generic selection of the catalog build.
+    /// Returns whether the kind is read by [`read_crafting`](crate::read_crafting) or by the
+    /// contract reader rather than by the generic selection of the catalog build.
     pub(crate) const fn is_crafting(self) -> bool {
         matches!(
             self,
@@ -107,6 +112,7 @@ impl Kind {
                 | Self::QualityDistributions
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
+                | Self::Contracts
         )
     }
 
@@ -116,6 +122,7 @@ impl Kind {
     /// and of [`Kind::Items`] and reports the rule of the items. [`Kind::Shops`] reads Archive
     /// files, not Records, and reports an empty rule.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per kind of the catalog")]
     pub const fn rule(self) -> KindRule {
         match self {
             Self::Manufacturers => KindRule {
@@ -172,6 +179,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/starmap/pu/"],
                 type_name: "StarMapObject",
             },
+            Self::Contracts => KindRule {
+                prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
+                type_name: "ContractGenerator",
+            },
             Self::Shops => KindRule {
                 prefixes: &[],
                 type_name: "",
@@ -206,7 +217,8 @@ impl Kind {
             Self::Paints => 11,
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
-            Self::Shops => 14,
+            Self::Contracts => 14,
+            Self::Shops => 15,
         }
     }
 

@@ -4,9 +4,9 @@ use crate::blueprint_category::blueprint_category;
 use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
-    Blueprint, BlueprintCategory, BlueprintPool, Commodity, CraftingGlobal, DismantleProcess,
-    GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution, ResourceGroup, Ship,
-    Shop, StarmapObject,
+    Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
+    DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution,
+    ResourceGroup, Ship, Shop, StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -82,6 +82,7 @@ impl<'f> Picked<'f> {
             | Kind::Paints
             | Kind::Loadouts
             | Kind::StarmapObjects
+            | Kind::Contracts
             | Kind::Shops => return None,
         })
     }
@@ -103,6 +104,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) crafting_global: CraftingGlobal,
     pub(crate) paints: Vec<Paint>,
     pub(crate) loadouts: Vec<Loadout>,
+    pub(crate) contracts: Vec<ContractEntry<'f>>,
     pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
     pub(crate) shops: Vec<Shop>,
@@ -117,17 +119,8 @@ pub(crate) struct Collected<'f> {
 impl<'f> Collected<'f> {
     /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
     /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one initialiser and one arm per kind of the catalog"
-    )]
     pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
-        let mut skipped = [0; Kind::ALL.len()];
-        for (kind, count) in &crafting.skipped {
-            if let Some(slot) = skipped.get_mut(kind.index()) {
-                *slot = *count;
-            }
-        }
+        let skipped = Self::crafting_skipped(&crafting);
         let mut collected = Self {
             manufacturers: Vec::new(),
             items: Vec::new(),
@@ -143,6 +136,7 @@ impl<'f> Collected<'f> {
             crafting_global: crafting.global,
             paints: Vec::new(),
             loadouts: Vec::new(),
+            contracts: Vec::new(),
             port_items: Vec::new(),
             starmap_objects: Vec::new(),
             shops: Vec::new(),
@@ -183,6 +177,30 @@ impl<'f> Collected<'f> {
         }
         collected.order();
         collected
+    }
+
+    fn crafting_skipped(crafting: &CraftingKinds<'f>) -> [usize; Kind::ALL.len()] {
+        let mut skipped = [0; Kind::ALL.len()];
+        for (kind, count) in &crafting.skipped {
+            if let Some(slot) = skipped.get_mut(kind.index()) {
+                *slot = *count;
+            }
+        }
+        skipped
+    }
+
+    /// Stores the contracts, counts the entries left out as `skipped` and adds the failures.
+    pub(crate) fn add_contracts(
+        &mut self,
+        contracts: Vec<ContractEntry<'f>>,
+        skipped: usize,
+        failures: Vec<CatalogFailure>,
+    ) {
+        self.contracts = contracts;
+        if let Some(slot) = self.skipped.get_mut(Kind::Contracts.index()) {
+            *slot = skipped;
+        }
+        self.add_failures(failures);
     }
 
     /// Adds `failures` and orders all of them by the text of the GUID, one per Record.
@@ -236,6 +254,7 @@ impl<'f> Collected<'f> {
                     Kind::Paints => self.paints.len(),
                     Kind::Loadouts => self.loadouts.len(),
                     Kind::StarmapObjects => self.starmap_objects.len(),
+                    Kind::Contracts => self.contracts.len(),
                     Kind::Shops => self.shops.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),

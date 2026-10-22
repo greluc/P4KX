@@ -21,6 +21,15 @@ pub enum CraftingWarning {
     /// out-of-range placement and walk limits were hit, so the starmap objects below them have no
     /// position. A container the Archive lacks is not counted.
     UnplacedStarmapContainers(usize),
+    /// The shop registry exists but cannot be read, so `shops` is empty although the Build has
+    /// shops.
+    UnreadableShopRegistry,
+    /// The Archive holds starmap objects but no shop registry at the known path, so `shops` is
+    /// empty; the registry may have moved in this Build.
+    MissingShopRegistry,
+    /// This many shop containers cannot be opened or their `entitycomponentshop.xml` cannot be
+    /// read, so the shops they hold may lack kind and brand.
+    UnreadableShopContainers(usize),
 }
 
 impl fmt::Display for CraftingWarning {
@@ -44,6 +53,16 @@ impl fmt::Display for CraftingWarning {
             Self::UnplacedStarmapContainers(count) => write!(
                 f,
                 "{count} system containers or placements cannot be read; the starmap objects below them have no position"
+            ),
+            Self::UnreadableShopRegistry => f.write_str(
+                "the shop registry cannot be read; the catalog has no shops although the Build has some",
+            ),
+            Self::MissingShopRegistry => f.write_str(
+                "the Archive holds no shop registry at the known path; the catalog has no shops",
+            ),
+            Self::UnreadableShopContainers(count) => write!(
+                f,
+                "{count} shop containers cannot be read; the shops in them may lack kind and brand"
             ),
         }
     }

@@ -5,6 +5,8 @@ pub struct ShopSummary {
     pub shops: usize,
     /// The `ShopBackup` entries of the registry.
     pub registry_entries: usize,
+    /// Whether the Archive holds no registry Entry at the known path.
+    pub registry_missing: bool,
     /// Whether the registry Entry exists but cannot be read.
     pub registry_unreadable: bool,
     /// The entries left out because their `ID` and `SuperName` chains differ in length or hold an

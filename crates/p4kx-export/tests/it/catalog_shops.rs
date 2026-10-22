@@ -1,12 +1,12 @@
 //! Shops in the Basetool catalog, through the public API.
 
-use crate::shops_fixture::{EXCHANGE, LOOSE, write_archive};
+use crate::shops_fixture::{self, EXCHANGE, LOOSE, write_archive};
 use crate::starmap_fixture;
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog};
+use p4kx_export::{BuiltCatalog, CatalogOptions, CraftingWarning, Filter, Kind, build_catalog};
 use p4kx_extraction::Archive;
 use serde_json::Value;
 
@@ -202,12 +202,68 @@ fn the_summary_counts_what_was_read_and_linked() -> TestResult {
 }
 
 #[test]
-fn an_archive_without_a_registry_has_no_shops() -> TestResult {
+fn an_archive_without_a_registry_but_with_a_starmap_warns() -> TestResult {
     let (built, catalog) = build(starmap_fixture::write_archive, None)?;
     assert_eq!(catalog["shops"], serde_json::json!([]));
-    assert_eq!(catalog["completeness"]["shops"]["status"], "complete");
     assert!(!built.summary().shops().registry_unreadable);
+    assert!(built.summary().shops().registry_missing);
     assert_eq!(built.summary().shops().registry_entries, 0);
+    assert!(
+        built
+            .summary()
+            .warnings()
+            .contains(&CraftingWarning::MissingShopRegistry),
+        "{:?}",
+        built.summary().warnings()
+    );
+    assert!(!built.summary().is_complete());
+    Ok(())
+}
+
+#[test]
+fn an_unreadable_registry_warns_instead_of_looking_like_no_shops() -> TestResult {
+    for bytes in [
+        b"not xml at all".to_vec(),
+        b"<BackupData><LayerBackups".to_vec(),
+        vec![0xff, 0xfe, 0xfd],
+    ] {
+        let (built, catalog) = build(
+            |dir| shops_fixture::write_archive_with_registry(dir, &bytes),
+            None,
+        )?;
+        assert_eq!(catalog["shops"], serde_json::json!([]));
+        assert!(built.summary().shops().registry_unreadable, "{bytes:?}");
+        assert!(!built.summary().shops().registry_missing);
+        assert!(
+            built
+                .summary()
+                .warnings()
+                .contains(&CraftingWarning::UnreadableShopRegistry),
+            "{:?}",
+            built.summary().warnings()
+        );
+        assert!(!built.summary().is_complete());
+    }
+    Ok(())
+}
+
+#[test]
+fn unreadable_shop_containers_warn_with_their_count() -> TestResult {
+    let (built, _) = build(write_archive, None)?;
+    assert!(
+        built
+            .summary()
+            .warnings()
+            .contains(&CraftingWarning::UnreadableShopContainers(1)),
+        "{:?}",
+        built.summary().warnings()
+    );
+    assert!(
+        !built
+            .summary()
+            .warnings()
+            .contains(&CraftingWarning::UnreadableShopRegistry)
+    );
     Ok(())
 }
 

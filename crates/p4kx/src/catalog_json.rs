@@ -40,6 +40,7 @@ pub(super) struct SummaryJson<'a> {
 struct ShopsJson<'a> {
     shops: usize,
     registry_entries: usize,
+    registry_missing: bool,
     registry_unreadable: bool,
     malformed: usize,
     duplicate: usize,
@@ -61,6 +62,7 @@ impl<'a> From<&'a ShopSummary> for ShopsJson<'a> {
         Self {
             shops: summary.shops,
             registry_entries: summary.registry_entries,
+            registry_missing: summary.registry_missing,
             registry_unreadable: summary.registry_unreadable,
             malformed: summary.malformed,
             duplicate: summary.duplicate,
@@ -162,6 +164,9 @@ enum WarningJson {
     AmbiguousDismantle { count: usize },
     UnreadableVehicleFiles { count: usize },
     UnplacedStarmapContainers { count: usize },
+    UnreadableShopRegistry,
+    MissingShopRegistry,
+    UnreadableShopContainers { count: usize },
     Other { message: String },
 }
 
@@ -178,6 +183,11 @@ impl From<&CraftingWarning> for WarningJson {
             }
             CraftingWarning::UnplacedStarmapContainers(count) => {
                 Self::UnplacedStarmapContainers { count }
+            }
+            CraftingWarning::UnreadableShopRegistry => Self::UnreadableShopRegistry,
+            CraftingWarning::MissingShopRegistry => Self::MissingShopRegistry,
+            CraftingWarning::UnreadableShopContainers(count) => {
+                Self::UnreadableShopContainers { count }
             }
             ref other => Self::Other {
                 message: other.to_string(),

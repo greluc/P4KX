@@ -987,11 +987,11 @@ are names of containers and entities, not localisation keys, so no field is a ga
 
 | Field | Source |
 |-------|--------|
-| `key` | The `ID` attribute of the entry: the CryGUIDs of the containers from the system root down to the `SCShop` Entity, comma separated, as stored. Unique (1,184 distinct on LIVE) and the identity of the shop |
+| `key` | The `ID` attribute of the entry: the CryGUIDs of the containers from the system root down to the `SCShop` Entity, comma separated, each element in lower case. Unique (1,184 distinct on LIVE) and the identity of the shop |
 | `entityGuid` | The last element of `key`, the CryGUID of the `SCShop` Entity, lower case. A shop module placed in several places keeps it (235 distinct for 1,184 shops on LIVE), so it is no identity; it is the CryGUID that `metadata\entitycomponentshop.xml` of the shop container names |
 | `system` | `PlatformName` of the `LayerBackup` without the suffix `system`, lower case: `stanton`, `pyro` |
 | `entityName` | The last element of `SuperName`, the name of the `SCShop` Entity, e.g. `SCShop_CommEx_TDD_NewBabbage` |
-| `registryName` | `ShopName`, e.g. `Pharmacy_RestStop_ARC-LEO1`; `null` when empty. A name, not a localisation key; many shops share one (361 distinct on LIVE) |
+| `registryName` | `ShopName`, e.g. `Pharmacy_RestStop_ARC-LEO1`; `null` when empty. A name, not a localisation key; many shops share one (360 distinct non-empty on LIVE) |
 | `defaultValue` | `DefaultValue`, a GUID; `null` when empty. Shops with the same `registryName` share it (1 to 1 on LIVE). What it refers to is not known |
 | `containers` | The elements of `SuperName` before the entity, each without its `_{GUID}` or `_{GUID}_socpak` suffix and surrounding blanks, from the system root down |
 | `body`, `location` | The second and third element of `containers` (`OOC_Stanton_4_Microtech`, `Area18_City_objectContainer`; Pyro: `pyro5`, `rs_ext_pyro6_l3`); `null` when the chain is shorter |
@@ -1001,9 +1001,18 @@ are names of containers and entities, not localisation keys, so no field is a ga
 
 **What the registry holds.** LIVE has two `LayerBackup` elements in the one file: `stantonsystem`
 (813 shops) and `pyrosystem` (371), 1,184 entries in all. An entry whose `ID` and `SuperName` chains
-differ in length or hold an empty element is left out, and so is an entry whose `ID` an earlier one
-already has (`ShopSummary::malformed` and `duplicate`; on LIVE the 1,184 `ID`s are distinct and the two chains
+differ in length, hold an element of `ID` that is no GUID or an empty container name is left out,
+and so is an entry whose `ID` an earlier one already has after lower-casing
+(`ShopSummary::malformed` and `duplicate`; on LIVE the 1,184 `ID`s are distinct and the two chains
 agree in length everywhere). The chains have 4 to 9 elements.
+
+**Warnings.** An empty `shops` must not read as "the shops were removed", so `p4kx catalog` warns
+(exit code 1, `warnings` in the JSON summary) when the registry exists but cannot be read
+(`unreadable_shop_registry`), when the Archive holds starmap objects but no registry at the known
+path (`missing_shop_registry`, the registry may have moved in the Build) and when shop containers
+cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand).
+`ShopSummary::registry_missing` and `registry_unreadable` carry the same facts. With a Filter no
+shop is read and none of these warnings is raised.
 
 **On LIVE (Build 4.10.197)** 1,000 of the 1,184 shops link to a starmap object (Pyro: 307 of 371)
 and 184 do not; 54 of those have a location name that more than one object carries. The unlinked

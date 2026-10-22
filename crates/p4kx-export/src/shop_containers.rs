@@ -110,8 +110,12 @@ pub(crate) fn classify(path: &str) -> Option<Class> {
     }
     if let Some(rest) = path.strip_prefix(SHOPS) {
         let mut parts = rest.split('\\');
-        let kind = parts.next().filter(|_| rest.contains('\\'))?;
-        let brand = parts.next().filter(|_| parts.next().is_some());
+        let kind = parts
+            .next()
+            .filter(|kind| !kind.is_empty() && rest.contains('\\'))?;
+        let brand = parts
+            .next()
+            .filter(|brand| !brand.is_empty() && parts.next().is_some());
         return Some(Class {
             kind: kind.to_owned(),
             brand: brand.map(str::to_owned),
@@ -131,11 +135,10 @@ pub(crate) fn classify(path: &str) -> Option<Class> {
 /// `None` when the container cannot be read.
 fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Vec<String>> {
     let container = archive.open_container(socpak).ok()?;
-    let Some(metadata) = container
-        .entries()
-        .iter()
-        .find(|inner| key(inner.path()).ends_with(SHOP_METADATA))
-    else {
+    let Some(metadata) = container.entries().iter().find(|inner| {
+        let name = key(inner.path());
+        name.ends_with(SHOP_METADATA) || name == SHOP_METADATA.trim_start_matches('\\')
+    }) else {
         return Some(Vec::new());
     };
     if metadata.uncompressed_size() > MAX_METADATA_LEN {

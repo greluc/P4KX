@@ -17,8 +17,9 @@ what it leaves out.
   Entity. It is unique (1,184 distinct for 1,184 entries). The other candidates are not identities:
   the CryGUID of the `SCShop` Entity (last element, `entityGuid`) recurs for a module placed in
   several places (235 distinct), and `DefaultValue` and `ShopName` are shared by shops of the same
-  kind (361 distinct each, one for one). They are exported as facts (`entityGuid`, `defaultValue`,
-  `registryName`).
+  kind (360 distinct non-empty values each, one for one). They are exported as facts
+  (`entityGuid`, `defaultValue`, `registryName`). Every `ID` element must be a GUID and is lower-cased,
+  so `entityGuid` is the last element of `key` and a case-variant duplicate is dropped.
 - **Kind and brand come from the shop container** whose `entitycomponentshop.xml` names the
   Entity's CryGUID, taken from its path (`PU\Shops\<kind>\<brand>\...`; `shopcomm` and `shopfood`
   below `PU\loc` as kind, without a brand). They are `null` when no container or differing
@@ -31,6 +32,11 @@ what it leaves out.
 - **Closed sets are strings:** `kind` and `brand` are strings the game may extend, and a reader maps
   an unknown value to `null`. No field is a game text: `registryName`, `entityName` and the container
   names are names, not localisation keys.
+- **An empty `shops` is never silent.** A registry that exists but cannot be read
+  (`unreadable_shop_registry`), a missing registry while the Archive holds starmap objects
+  (`missing_shop_registry`) and unreadable shop containers (`unreadable_shop_containers`) are
+  warnings: the exit code of `p4kx catalog` is 1 and `warnings` lists them. An importer that treats
+  a vanished Record as removed must not drop the shops on a read failure.
 - **A Filter selects no shop.** Shops have no record path; with a Filter none is read and the kind
   is `partial`.
 

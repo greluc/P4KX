@@ -177,6 +177,19 @@ fn exchange_container() -> Vec<u8> {
         .build()
 }
 
+/// Writes an Archive with the starmap of the starmap fixture and `registry` as the shop registry
+/// into `dir` and returns its path.
+pub(crate) fn write_archive_with_registry(
+    dir: &Path,
+    registry: &[u8],
+) -> Result<PathBuf, Box<dyn Error>> {
+    let path = dir.join("Data.p4k");
+    starmap_fixture::builder()
+        .entry(TestEntry::stored(REGISTRY, registry.to_vec()))
+        .write_to(&path)?;
+    Ok(path)
+}
+
 /// Writes the fixture Archive into `dir` and returns its path.
 pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");

@@ -69,8 +69,8 @@ stations and the Lagrange points. Rest stops and cities enter as containers whos
 the shop kind (`pharmacy_*`, `food_foodcourt_*`, `admin_*`, `service_platinumbay_*`).
 
 Pyro: the same file holds a second platform, `pyrosystem` with 371 shops (#462), so the registry
-has 813 Stanton and 371 Pyro entries. The 14 location containers without a starmap match need a
-manual mapping.
+has 813 Stanton and 371 Pyro entries. The catalog measured it on all 1,184 shops (#462): 184 have
+a location container without a starmap match and need a manual mapping.
 
 The catalog `starmapObjects` carry world positions for 1,239 of 2,093 objects. A shop inherits the
 position of its location object; a position inside the interior needs the `.soc` of the container

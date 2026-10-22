@@ -21,14 +21,9 @@ pub(crate) struct StarmapObject<'a> {
     #[schemars(extend("x-gameText" = true))]
     pub(crate) name: LocalisedText<'a>,
     /// The type of the object: the `name` of the `StarMapObjectType` Record the Reference `type`
-    /// links to when that is a plain string, else the Record name without its type (which the game
-    /// sometimes gives as a GUID); `null` for a null or dangling Reference. The schema keeps a
-    /// string, as a new type is additive.
+    /// links to when that is a plain string, else the Record name without its type; `null` for a
+    /// null or dangling Reference. The schema keeps a string, as a new type is additive.
     pub(crate) r#type: Option<&'a str>,
-    /// The `name` of the type Record when it is a localisation key; the key and the texts are
-    /// game texts.
-    #[schemars(extend("x-gameText" = true))]
-    pub(crate) type_name: LocalisedText<'a>,
     /// The GUID the Reference `type` links to, `null` for a null Reference.
     pub(crate) type_guid: Option<CatalogGuid>,
     /// The GUID of the object the Reference `parent` links to, `null` for a null Reference. Each

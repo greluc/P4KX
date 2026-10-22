@@ -95,11 +95,7 @@ fn exactly_the_game_text_fields_carry_the_game_text_annotation() {
     collect_properties(&starmap, &mut starmap_properties);
     for (name, value) in starmap_properties {
         let carries = value.get("x-gameText") == Some(&json!(true));
-        assert_eq!(
-            carries,
-            name == "name" || name == "typeName",
-            "x-gameText on the starmap {name}"
-        );
+        assert_eq!(carries, name == "name", "x-gameText on the starmap {name}");
     }
 }
 

@@ -175,7 +175,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "recordPath": "libs/foundry/records/starmap/pu/system/stanton/stanton1_hurston",
             "name": {"key": "@Stanton1_Name", "en": "Hurston", "de": null},
             "type": "Planet",
-            "typeName": {"key": "@starmap_type_planet", "en": "Planet", "de": null},
             "typeGuid": "a2000000-0000-4000-8000-000000000002",
             "parentGuid": "a2000000-0000-4000-8000-000000000003",
             "hideInStarmap": false,

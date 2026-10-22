@@ -654,7 +654,7 @@ The `name` is a game text, the localisation key with its English and German text
 |-------|--------|
 | `guid`, `className`, `recordPath` | The Record, as for every entity |
 | `name` | `name`, a localisation key |
-| `type`, `typeGuid`, `typeName` | The `StarMapObjectType` Record the Reference `type` links to: `type` is its `name` when that is a plain string, else its Record name without the type (LIVE gives these Records a GUID as name, so `type` is then that GUID text), `typeGuid` its GUID, `typeName` its `name` as a localisation key with the texts (a game text); `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
+| `type`, `typeGuid` | The `StarMapObjectType` Record the Reference `type` links to: `type` is its `name` when that is a plain string, else its Record name without the type, and `typeGuid` its GUID; `null` for a null or dangling Reference. The schema keeps `type` a string, so a new type is additive |
 | `parentGuid` | The Reference `parent`, the `guid` of another entry unless that Record is missing or left out; `null` for none |
 | `hideInStarmap` | `hideInStarmap`; `null` when the Record states none |
 | `system` | The folder of the star system below `Data/ObjectContainers/PU/system` that places the object, e.g. `stanton`; `null` when no container places it |
@@ -695,21 +695,36 @@ ring) and the small tilts of surface structures `0.98,~0,~0,0.17`; read as `x,y,
 be a half turn about x and the ring segments rotations about x. Everus Harbor lies 1.04e6 m from
 Hurston.
 
-**What no container places.** On LIVE (2026-10-22) 2,093 objects are selected and 1,248 have a
-position. The others are not in the three system containers (Stanton, Pyro, Nyx) under a
-`starMapRecord`: the three `SolarSystem` records, the quantum beacons of players and missions, objects the
-game places at run time or only through a container it streams on demand (the `ugf`, `outpost`,
-`derelict` and Lagrange `overlays` containers that no Child names), and many objects that are
-`hideInStarmap`. They keep `position` `null`; the catalog never guesses a place from the parent. The
-probe test `real_archive_starmap_probe` looks for each of them in every object container.
+**What no container places.** On LIVE (2026-10-22) 2,093 objects are selected, 1,239 have a
+position and 854 have none. The probe test `real_archive_starmap_probe` searched all 9,668 object
+containers of the Archive for the 854 GUIDs:
 
+- **816 appear in no object container at all.** No container places them, so no position exists to
+  export. By type: Outpost 416 (350 hidden), Asteroid 279 (249 hidden), Asteroid_ValidQT 57 (34
+  hidden), Manmade 49, Manmade_VisibleOnInteraction 12, Anomaly 12 (8 hidden; the
+  jump point records of Pyro and Nyx), PointOfInterest 23, the 3
+  SolarSystem records, and one each of Moon, Planet and Outpost_InvalidQT; 666 of the 854 are
+  `hideInStarmap`. They are the Nyx and Pyro points of interest (`Nyx_Kaboos_*`, the Pyro Lagrange
+  `*_Enterance` points), mining and quantum-travel markers, rest-stop records, quantum beacons of
+  players and missions (`PARTY_MEMBER_QT_Beacon`, `MISSION_QT_*`) and the star systems themselves:
+  the game positions them at run time or by other data than an object container.
+- **9 appear more than 1 m apart** in the system containers (the instanced Nyx ring segments, see
+  above) and are left without a position on purpose.
+- **29 appear only in containers that no system container reaches**: `nyx/delamar/delamar.socpak`
+  (the private mining points and asteroid clusters of Delamar), the Pyro rest-stop modules under
+  `loc/mod/pyro/station/ser/reststop_ext` (the clinics), the Orison Fleet Week 2022 platforms, the
+  New Babbage IAE 2023 lobby, and the Early Access maps (`EA/...`, which place `Ellis3` and
+  `Stanton4_L1_02`). Their own position in the star system is unknown, because no `external`
+  Child of a system container names them, so the position of what they place cannot be composed.
+
+These objects keep `position` `null`; the catalog never guesses a place from the parent.
 The kind is selected by the prefix `libs/foundry/records/starmap/pu/` and the type `StarMapObject`
 like the others, with the development leftovers left out. The positions do not depend on the
 Filter: the containers are read whole. The `StarMapObjectType`, `Jurisdiction`, amenity and radar
 Records are not kinds; the type enters as `type` and `typeGuid`.
 
-Size, measured on LIVE (2026-10-22): the 2,093 objects are 1,166,164 bytes of JSON (557 bytes each),
-about 4 % of the 26.5 MB of the catalog, and a smaller share compressed. The released marker of a starmap object
+Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON (570 bytes each), 4.5 % of the 26.5 MB of the
+catalog, and a smaller share compressed. The released marker of a starmap object
 (#417) will be another additive field.
 
 ### Crafting data

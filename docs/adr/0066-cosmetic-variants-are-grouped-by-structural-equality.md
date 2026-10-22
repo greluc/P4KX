@@ -35,6 +35,11 @@ ship under two definitions).
 - A ship family whose members differ in the implementation or the armour splits into several
   groups; the Basetool may match them by the Modification and class name.
 - Matching a pledge to a ship type needs a mapping of its own; it is not part of this decision.
+- `variantOf` means "structurally identical", not "cosmetic" in the shop sense. On LIVE it also
+  groups per-ship functional duplicates, e.g. the 96 `Controller_Shield_<ship>` items and the 39
+  `Engineering_Buff_Modifier_<ship>` items, which are equal in every compared field and differ only
+  in their name. They are kept grouped by decision; a consumer that wants only items players
+  see or fit combines `variantOf` with `playability`.
 - The item rule is conservative about components it does not know: an unknown cosmetic component
   keeps two otherwise equal items apart. The real-Archive test prints the groups and the near
   misses so that the lists can be refined.

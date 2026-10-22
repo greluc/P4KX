@@ -16,5 +16,6 @@ mod real_archive_playability;
 mod real_archive_records;
 mod real_archive_ship_base;
 mod real_archive_tags;
+mod real_archive_variant_diagnostics;
 mod real_archive_variants;
 mod real_archive_verification;

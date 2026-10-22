@@ -627,6 +627,11 @@ ungrouped, because equality cannot be shown.
 An item with no component besides those excluded, or without an `AttachDef` type, is ungrouped.
 Names, descriptions, tags and the display type may therefore differ inside a group.
 
+`variantOf` means "structurally identical", not only "cosmetic": per-ship functional duplicates
+that differ in their name alone are grouped too. On LIVE the largest item groups are such
+duplicates (96 `Controller_Shield_<ship>`, 39 `Engineering_Buff_Modifier_<ship>`). A consumer
+that wants only what a player sees or fits combines `variantOf` with `playability`.
+
 **Base.** The member with `playability` `player`, then the member with the smallest `className`
 (compared byte-wise), then the smallest `guid`. A group holds at least two members;
 `p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.

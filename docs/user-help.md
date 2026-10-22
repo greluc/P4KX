@@ -330,6 +330,6 @@ also asks at once. When a newer Release exists, the status bar shows **Version â
 which opens its page in your browser.
 
 The request is a plain anonymous GET of
-`https://api.github.com/repos/krt-profit/p4k-extractor/releases/latest`; it carries only the
+`https://api.github.com/repos/greluc/p4k-extractor/releases/latest`; it carries only the
 program name and version as its user agent and nothing about you, your machine or your Archives.
 It is the only network traffic of P4K-Extractor. A failed request shows nothing.

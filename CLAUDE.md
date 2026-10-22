@@ -139,7 +139,7 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ### Issue tracker
 
-Issues live in GitHub Issues of `krt-profit/p4k-extractor`, accessed with the `gh` CLI. See
+Issues live in GitHub Issues of `greluc/p4k-extractor`, accessed with the `gh` CLI. See
 `docs/agents/issue-tracker.md`.
 
 ### Domain docs

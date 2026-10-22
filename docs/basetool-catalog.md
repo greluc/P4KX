@@ -134,7 +134,7 @@ consumer compares it as a number, never as text.
   counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
   `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
 
-Evidence for the rule is in the pull request that closed krt-profit/p4k-extractor#402: 65 launcher
+Evidence for the rule is in the pull request that closed greluc/p4k-extractor#402: 65 launcher
 log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
 over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
 TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the

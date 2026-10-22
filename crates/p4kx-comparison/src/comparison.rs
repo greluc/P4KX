@@ -19,7 +19,9 @@ pub struct Side<'a> {
 }
 
 impl<'a> Side<'a> {
-    pub(crate) fn of(archive: &'a Archive) -> Self {
+    /// Returns the side of `archive`.
+    #[must_use]
+    pub fn of(archive: &'a Archive) -> Self {
         Self {
             archive: archive.path(),
             channel: p4kx_channels::channel_name(archive.path()),

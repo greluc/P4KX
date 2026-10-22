@@ -16,6 +16,7 @@ mod record_list;
 mod record_view;
 mod report;
 mod run;
+mod schema_view;
 mod selection;
 mod view;
 
@@ -30,6 +31,7 @@ pub(crate) use record_list::kind_rank;
 pub use record_list::{RecordChangeColumn, RecordChangeList, RecordChangeRow, RecordChangeSort};
 pub use record_view::{ComparisonList, RecordChangeView};
 pub use report::ReportStatus;
+pub use schema_view::{SchemaRow, SchemaRowKind, SchemaView};
 pub use view::{ComparisonView, DirectorySummary, Summary};
 
 use run::{Outcome, Run};

@@ -3,6 +3,7 @@
 mod archive_change;
 mod conflict_policy;
 mod conversion;
+mod coverage;
 mod dataforge;
 mod dataforge_conversion;
 mod entry_tree;

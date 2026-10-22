@@ -20,6 +20,7 @@ mod chunk_types;
 mod chunks;
 mod combined;
 mod conversion;
+mod coverage;
 mod crch_models;
 mod crch_survey;
 mod cubemap_alpha;

@@ -24,6 +24,7 @@ mod record_change_text;
 mod record_export_text;
 mod record_language_text;
 mod record_text;
+mod schema_text;
 mod scroll_text;
 mod tags_text;
 mod text_ids;
@@ -53,6 +54,7 @@ pub use record_change_text::RecordChangeText;
 pub use record_export_text::RecordExportText;
 pub use record_language_text::RecordLanguageText;
 pub use record_text::RecordText;
+pub use schema_text::SchemaText;
 pub use scroll_text::ScrollText;
 pub use tags_text::TagsText;
 pub use xml_text::XmlText;
@@ -241,6 +243,8 @@ pub enum Text {
     Localization(LocalizationText),
     /// A text of the Tags tab.
     Tags(TagsText),
+    /// A text of the schema list of the Comparison tab.
+    Schema(SchemaText),
     /// A text of the Search tab.
     ContentSearch(ContentSearchText),
     /// A text of the 3D viewer of the Model tab.

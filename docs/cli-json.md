@@ -626,6 +626,57 @@ language that is not available; `null` in the catalog) and `placeholder` texts, 
 for no text (the same in every language, neither resolved nor unresolved). `unresolved` sums the
 unresolved texts of every language.
 
+## `p4kx coverage <archive> [--format table|json] --json`
+
+The coverage of the reference list in [coverage.md](coverage.md). The exit code is 1 when a
+listed type (candidates excepted), component or folder is missing, unreadable or does not convert.
+
+```json
+{"archive": "…", "complete": false, "unreadable_entities": 0, "types": [Type, …], "components": [Component, …], "entries": [Folder, …]}
+```
+
+`unreadable_entities` counts the `EntityClassDefinition` Records that cannot be built and so cannot
+be searched for components; above 0 it makes `complete` false.
+
+`types` hold one object per Record type of the list, in list order:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area` | string | The topic area, e.g. `missions` |
+| `name` | string | The type name |
+| `candidate` | bool | The type is named as a likely future need and does not count against `complete` |
+| `defined` | bool | The DataForge defines the type |
+| `records` | number | The Records of the type and of the types deriving from it |
+| `unreadable_records` | number | Records whose layout or instance cannot be read |
+| `error_values` | number | Values that cannot be read (`Value::Error`) over all its Records |
+| `sample` | object or null | The first readable Record exported as Record XML and Record JSON; `null` without Records |
+
+`sample` has `record_path`, `xml_bytes`, `json_bytes` and `error` (string or `null`).
+
+`components` hold one object per component of an `EntityClassDefinition`:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area`, `name` | string | As above |
+| `defined` | bool | The DataForge defines the component struct |
+| `entities` | number | The `EntityClassDefinition` Records with at least one such component, structs deriving from it included |
+| `instances` | number | The components of that type, derived ones included, in all of them |
+| `reachable` | bool | The Component selector `Components[<name>]` resolves in a Query |
+
+`entries` hold one object per Entry folder:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area` | string | As above |
+| `folder` | string | The folder path as the list spells it |
+| `entries` | number | The Entries in the folder |
+| `converted` | number | The Entries converted from CryXml to XML |
+| `text` | number | The Entries that are text XML already |
+| `failures` | array | `{"path": …, "reason": …}` for each Entry that cannot be read or converted |
+
+`complete` is true when every non-candidate type has Records that read without error and export,
+every component occurs and is reachable, and every folder has Entries that all convert.
+
 ## `p4kx ships <archive> --out <file> --json`
 
 ```json
@@ -1284,6 +1335,38 @@ Floats compare by their bits, every `NaN` equal to every other, so `-0.0` differ
 References compare by target GUID, so a target that moved is no change, and weak pointers, which
 all share the GUID of their own Record, by their `at` as well. Values that cannot be read compare
 by their reason.
+
+## `p4kx compare <old> <new> --schema --json`
+
+The schema drift between the DataForges of both Archives. Its JSON Schema (draft 2020-12) is
+generated from the report types and checked in as
+[`schemas/schema-drift-report.schema.json`](../schemas/schema-drift-report.schema.json); a test fails
+when the two drift apart, and `P4KX_BLESS=1 cargo test -p p4kx-comparison --test
+schema_report_schema` regenerates it. Structs and enums are joined by name and listed ordered by
+name; the exit code is 0 without and 1 with differences, 5 when an Archive has no DataForge or it
+cannot be read. A different number of definitions left out on each side (`unreadable`) is a
+difference as well.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `format_version` | number | Version of the report shape, now `1` |
+| `source.old`, `source.new` | object | `archive` (path), `channel` (string or `null`) and `build` (a [Build](#build) or `null`) of each side |
+| `counts` | object | `structs`, `properties`, `enums` and `options`, each with `added`, `removed` and `changed` counts; `properties` counts the property changes of the changed structs and `options` the option changes of the changed enums |
+| `structs` | array | One object per added, removed or changed struct: `name`, `change` (`added`, `removed` or `changed`), `records`, `parent` and `properties` |
+| `structs[].records` | object | `old` and `new`: the Records on each side whose struct is this struct or inherits from it, `0` on a side that lacks the struct; instances that are no Record, such as the targets of strong pointers, are not counted |
+| `structs[].parent` | object | `old` and `new` parent struct name (`null` for none); present only when a changed struct inherits from another struct than before |
+| `structs[].properties` | array | The properties the struct declares itself that differ, ordered by name, empty for an added or removed struct: `name`, `change`, `aspects`, and `old` and `new` for the sides that have it |
+| `structs[].properties[].aspects` | array | What differs in a changed property, in this order: `data_type`, `conversion`, `target`; empty for an added or removed property |
+| `structs[].properties[].old`, `.new` | object | `data_type` (e.g. `Reference`, `String`, `Class`; `Unknown(0x…)` for an unknown code), `conversion` (`0` for one value, any other code for an array) and `target` (the struct or enum name, or `null`) |
+| `enums` | array | One object per added, removed or changed enum: `name`, `change`, `records` and `options` |
+| `enums[].records` | object | `old` and `new`: the Records on each side whose struct declares or inherits a property of the enum, each Record counted once |
+| `enums[].options` | array | The options added or removed from a changed enum, ordered by name: `name` and `change` (`added` or `removed`) |
+| `unreadable` | object | `old` and `new`: the structs, enums, properties, options, parents and Records left out on each side because a name or struct cannot be read, or because a struct, enum or property name is defined twice (the first definition wins) |
+
+A property is joined by name within its struct, and differs in its data type, conversion type or
+target. A struct also differs in its parent. Records are counted by the struct they are instances
+of (GUID-addressed Records only), then rolled up to the parents, at most 64 levels and without
+following a cycle.
 
 ## `p4kx compare <old> <new> --diff <entry> --json`
 

@@ -1,5 +1,7 @@
 //! The density and the refined version of the commodities of the Basetool catalog of a real
-//! Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one.
+//! Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one. Only a density in
+//! `GramsPerCubicCentimeter` is read, so a commodity whose `ResourceType` uses another unit
+//! subclass counts as without a density.
 
 use std::collections::HashSet;
 use std::error::Error;

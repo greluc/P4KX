@@ -2,7 +2,7 @@
 
 Result of the spike #397 against the LIVE Archive: what the DataForge holds of the raw to refined
 relation, density, instability, counting in SCU or units, and refining methods and yields. Counts
-are Records of LIVE; the `ResourceType` Records number 207 and the `ResourceTypeGroup` Records 19.
+are Records of LIVE 4.10.197; the `ResourceType` Records number 207 and the `ResourceTypeGroup` Records 19.
 Only facts are used (no description, no media), as the legal review of 2026-10-20 allows.
 
 | Attribute | Found | Where | Coverage on LIVE |
@@ -18,7 +18,7 @@ Only facts are used (no description, no media), as the legal review of 2026-10-2
 
 All 30 targets of `refinedVersion` resolve to a `ResourceType`; none refines into itself and no
 target has a `refinedVersion` of its own, so the relation is one step. One refined `ResourceType`
-(the construction materials) is the target of three raw ones (chunks, powder, scraps). The catalog
+is the target of three raw ones. The catalog
 carries it as `refinedSubtypeGuid` on the commodity of the raw `ResourceType`; the refined
 commodity is the one whose `subtypeGuid` equals it, when the Archive has such a commodity.
 
@@ -35,7 +35,7 @@ window), so it belongs to a mineable element, not to the commodity. 27 of the 46
 a `ResourceType` that has a `refinedVersion`. Several elements may share a `ResourceType`, which
 makes a flat commodity field ambiguous; this stays out of the catalog until a rule picks one
 (follow-up). One `ResourceType` carries `properties/ResourceTypeVolatility` (1 Record,
-`healthDecayPerSecond` 0.0675), a decay of cargo, not the instability of a rock. The mining laser
+with a `healthDecayPerSecond`), a decay of cargo, not the instability of a rock. The mining laser
 `laserInstability` modifiers (names matching `*nstab*`) are item stats, not commodity data.
 
 ## SCU or units
@@ -49,10 +49,9 @@ is a `SStandardCargoUnit` (1,842 of 2,336 containers), `SMicroCargoUnit` (379) o
 
 `RefiningProcess` Records have `refiningSpeed` (`Slow`, `Normal`, `Fast`), `refiningQuality`
 (`Wasteful`, `Normal`, `Careful`) and `processName`, a localisation key. Nine of them exist, one
-for every speed and quality pair (the Normal speed with Wasteful quality one has the record name
-`refinenormal`). They identify a method by GUID and record path. The DataForge holds no
-method names of the UEX kind, no yield per commodity and method, and no price: the only number
-near it is `refiningQualityUnitMultiplier` (2, one Record). Refinery yields stay with UEX.
+for every speed and quality pair. They identify a method by GUID and record path. The DataForge
+holds no method names of the UEX kind, no yield per commodity and method, and no price: the only
+number near it is a `refiningQualityUnitMultiplier` on one Record. Refinery yields stay with UEX.
 
 ## Follow-up
 

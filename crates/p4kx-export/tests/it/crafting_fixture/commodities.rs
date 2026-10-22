@@ -127,7 +127,11 @@ pub(super) fn prop(guid: u128, class: &str) -> TestRecord {
 fn resource_type_records(builder: DataForgeBuilder) -> DataForgeBuilder {
     builder
         .record(resource_type(RESOURCE_GOLD, "gold", (Some(19.25), None)))
-        .record(resource_type(RESOURCE_IRON, "iron", (None, None)))
+        .record(resource_type(
+            RESOURCE_IRON,
+            "iron",
+            (Some(7.5), Some(RESOURCE_GOLD)),
+        ))
         .record(resource_type(
             RESOURCE_EMBER,
             "ember",

@@ -290,8 +290,8 @@ fn a_used_resource_type_without_a_commodity_record_is_a_commodity_of_its_group()
             "typeGuid": "c1000000-0000-4000-8000-000000000001",
             "subtypeGuid": "b2000000-0000-4000-8000-000000000002",
             "displayType": {"key": null, "en": null, "de": null},
-            "densityGramsPerCubicCentimetre": null,
-            "refinedSubtypeGuid": null,
+            "densityGramsPerCubicCentimetre": 7.5,
+            "refinedSubtypeGuid": "b1000000-0000-4000-8000-000000000001",
         }),
         "the ResourceType and its group"
     );

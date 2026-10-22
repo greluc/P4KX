@@ -344,7 +344,7 @@
           "type": "string"
         },
         "densityGramsPerCubicCentimetre": {
-          "description": "The density of the `ResourceType` in grams per cubic centimetre, `null` without a\n`ResourceType` or a density.",
+          "description": "The density of the `ResourceType` in grams per cubic centimetre (game field\n`gramsPerCubicCentimeter`), `null` without a `ResourceType`, a density or a density in\nanother unit.",
           "format": "float",
           "type": [
             "number",
@@ -382,7 +382,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the `ResourceType` Record `refinedVersion` of the `ResourceType` links to, the\n`subtypeGuid` of the refined commodity; `null` for a commodity that is not a raw one."
+          "description": "The GUID of the `ResourceType` Record `refinedVersion` of the `ResourceType` links to; `null`\nwithout a `ResourceType` or a `refinedVersion`. It equals the `subtypeGuid` of the refined\ncommodity only when the catalog has that commodity."
         },
         "subtypeGuid": {
           "anyOf": [

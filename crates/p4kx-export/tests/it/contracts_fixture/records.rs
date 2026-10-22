@@ -108,6 +108,7 @@ fn sub(id: u128, params: TestValue, prerequisites: Vec<TestValue>) -> TestValue 
     TestValue::Struct(
         TestInstance::new("SubContract")
             .value("id", TestValue::Guid(id))
+            .value("debugName", TestValue::text("Sub_Contract"))
             .value("additionalPrerequisites", TestValue::Array(prerequisites))
             .value("paramOverrides", params),
     )

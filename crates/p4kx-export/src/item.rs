@@ -36,7 +36,6 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         tags: text(definition, "Tags")
             .map(|tags| tags.split_whitespace().collect())
             .unwrap_or_default(),
-        tag_guids: Vec::new(),
         display_type: texts.localised(locale_key(
             component(tree, "SCItemPurchasableParams"),
             "displayType",

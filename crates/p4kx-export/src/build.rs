@@ -4,10 +4,7 @@ use std::time::SystemTime;
 
 use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
-use p4kx_extraction::{
-    Archive, CancelToken, DataForge, DataForgeEntry, Guid, TagTree, utc_rfc3339,
-};
-use rayon::prelude::*;
+use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
 use crate::catalog_crafting::kinds;
 use crate::catalog_output::{Compression, emit};
@@ -20,7 +17,6 @@ use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::paint::paints;
 use crate::scan::Scan;
-use crate::tag_names::TagNames;
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
@@ -189,8 +185,8 @@ fn assemble<R>(
     if cancelled() {
         return Err(CatalogError::Cancelled);
     }
-    let (paint_summary, loadout_summary) =
-        add_derived(archive, &forge, &mut collected, options.cancel)?;
+    let paint_summary = add_paints(archive, &forge, &mut collected);
+    let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
     let item_classes = collected.item_classes;
@@ -242,8 +238,12 @@ fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> 
 }
 
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
-fn add_paints(archive: &Archive, tags: &TagTree, collected: &mut Collected<'_>) -> PaintSummary {
-    let derived = paints(archive, tags, &collected.items, &collected.vehicles);
+fn add_paints(
+    archive: &Archive,
+    forge: &DataForge<'_>,
+    collected: &mut Collected<'_>,
+) -> PaintSummary {
+    let derived = paints(archive, forge, &collected.items, &collected.vehicles);
     collected.paints = derived.paints;
     if derived.summary.unreadable_vehicles > 0 {
         collected
@@ -255,37 +255,11 @@ fn add_paints(archive: &Archive, tags: &TagTree, collected: &mut Collected<'_>) 
     derived.summary
 }
 
-/// Gives the items their tag GUIDs and derives the paints and the loadouts of `collected`.
-fn add_derived(
-    archive: &Archive,
-    forge: &DataForge<'_>,
-    collected: &mut Collected<'_>,
-    cancel: Option<&CancelToken>,
-) -> Result<(PaintSummary, LoadoutSummary), CatalogError> {
-    let tree = TagTree::build(forge);
-    let names = TagNames::new(&tree);
-    add_item_tag_guids(&names, collected);
-    let paints = add_paints(archive, &tree, collected);
-    let loadouts = add_loadouts(archive, forge, &names, collected, cancel)?;
-    Ok((paints, loadouts))
-}
-
-/// Gives every item the tag GUIDs of its tag names.
-fn add_item_tag_guids(names: &TagNames, collected: &mut Collected<'_>) {
-    collected
-        .items
-        .par_iter_mut()
-        .for_each_init(String::new, |buffer, item| {
-            item.tag_guids = names.resolve_all(&item.tags, buffer);
-        });
-}
-
 /// Resolves the Default Loadout of every ship and of every item that may have ports, stores the
 /// loadouts in `collected` and returns the counts.
 fn add_loadouts(
     archive: &Archive,
     forge: &DataForge<'_>,
-    tags: &TagNames,
     collected: &mut Collected<'_>,
     cancel: Option<&CancelToken>,
 ) -> Result<LoadoutSummary, CatalogError> {
@@ -307,7 +281,7 @@ fn add_loadouts(
         .map(|item| item.guid.0)
         .chain(collected.ships.iter().map(|ship| ship.guid.0))
         .collect();
-    let built = loadouts(archive, forge, &wanted, &known, tags, cancel)?;
+    let built = loadouts(archive, forge, &wanted, &known, cancel)?;
     collected.loadouts = built.entries;
     collected.add_failures(built.failures);
     Ok(built.summary)

@@ -166,7 +166,6 @@ An item takes its fields from the components of its `EntityClassDefinition`:
 | `mass` | `SEntityPhysicsControllerParams.PhysType.Mass`, a number |
 | `manufacturerGuid` | The GUID the Reference `AttachDef.Manufacturer` links to, `null` for a null Reference |
 | `tags` | The words of `AttachDef.Tags`, split at white space |
-| `tagGuids` | The `guid` of the tag each entry of `tags` names, in the same order and as long; `null` where the tag tree has no such tag or more than one, see "Tag GUIDs" |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@item_displayType_Pants` |
 | `itemClass` | `Civilian`, `Competition`, `Industrial`, `Military` or `Stealth`, or `null` |
 | `playability` | `player`, `mission` or `special`, or `null`; see "Playability" below |
@@ -601,7 +600,6 @@ so a loadout exists only for the entries the filter selected and the kind is par
 | `types` | `{type, subTypes}` per entry of `Types` of the `SItemPortDef`; for an `ItemPort` the `type` of each `Types/Type` and no subtypes |
 | `flags` | The words of `Flags` as stored, without a leading `$` (`invisible`, `uneditable`) |
 | `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`: split at white space and otherwise as stored, like `tags` of an item (a leading `$` stays). An item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
-| `portTagGuids`, `requiredTagGuids` | The `guid` of the tag each entry of `portTags` and `requiredTags` names, in the same order and as long; `null` where the tag tree has no such tag or more than one, see "Tag GUIDs" |
 | `displayNameKey` | `DisplayName` of the `SItemPortDef`, a localisation key; `null` for none and for a placeholder key. The key is exported, not its text |
 | `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
 | `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
@@ -632,16 +630,16 @@ counted for every ship that carries them), the ports that hold an Entity, the do
 unresolved attachments, the Entities outside the kinds and the loadouts with an issue; `--json`
 lists them under `loadouts`.
 
-#### Tag GUIDs
+#### Matching tags
 
-Records store tags as names, so the catalog carries both forms and the Basetool may match either
-way: the names `tags`, `portTags` and `requiredTags` as stored, and beside them `tagGuids`,
-`portTagGuids` and `requiredTagGuids`, the GUIDs of the Tag Records (`TagTree`, ADR-0052). A GUID
-list is as long as its name list and in the same order. A name resolves when exactly one tag of the
-tree has it, comparing ignoring ASCII case. A name that no tag has, and a name that several tags
-have (the tree holds the same name below different parents), give `null` at its place: a GUID is
-never guessed, and the position keeps the two lists aligned. The names compare as stored, so a
-name with a leading `$` resolves to nothing unless a tag carries it.
+`tags` of an item and `portTags` and `requiredTags` of a port are free strings that the game
+matches by name; they are not names of tags in the tag tree, so the catalog carries no tag GUIDs
+for them. Checked on LIVE: of 70,629 port tag words 65,133 name no tag of the tree or several
+(18,891 tags, 1,745 names used more than once), and of 28,575 item tag words 21,146 do not
+resolve; the few unique hits are coincidental. An item fits a port when it carries every word of
+the port's `requiredTags`, compared as stored (case-sensitive, a leading `$` is part of the word).
+The tag tree rule of the paints (a tag below a required tag also counts) applies only to the
+`Tag` Records that paints and Tags fields refer to (see "Paints").
 
 ### Crafting data
 
@@ -848,7 +846,7 @@ sources), the quality distributions 29 kB and the properties 8 kB. The kinds wri
 unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
 The loadouts take about 105 MB of the 132 MB of LIVE; the figures above were measured before the
-ship base fields of #395, which add 0.14 MB. A catalog builds on LIVE in 7.5 s with the loadouts
+ship base fields of #395, which add 0.14 MB. A catalog builds on LIVE in 6.4 s with the loadouts
 (5.5 s before them and before the ship base fields). Without the loadouts, with the ship base fields,
 LIVE builds in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version
 of the ship base fields that gave every split of the parallel scan its own ship reader took

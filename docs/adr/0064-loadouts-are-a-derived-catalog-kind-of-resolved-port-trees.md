@@ -33,14 +33,14 @@ size is handled by `.json.zst`.
   applied (ADR-0050); an `ItemPort` that no port of the tree names is listed last with the source
   `vehicle` and holds nothing. Where both define a port, the Record's definition wins; the
   visibility always comes from the vehicle implementation (#289).
-- **Tags are names and GUIDs.** `portTags` and `requiredTags` are the words of the stored value,
-  split at white space and otherwise unchanged, like `tags` of an item. Beside them the owner asked
-  for the tag GUIDs, so `portTagGuids` and `requiredTagGuids` (and `tagGuids` on every item) hold,
-  per name and in the same order, the `guid` of the tag the tag tree has under that name. A name
-  resolves only when exactly one tag has it (ignoring ASCII case); an unknown or ambiguous name
-  gives `null`, so the lists stay aligned and no GUID is guessed. The Basetool can match by name
-  or by GUID. The cost is one 36-character string or `null` per tag word, which compresses well
-  because the tag set is small. Flags are words without a leading `$`.
+- **Tags are free strings matched by name.** `portTags` and `requiredTags` are the words of the
+  stored value, split at white space and otherwise unchanged (a leading `$` stays), like `tags` of
+  an item; flags are words without a leading `$`. The catalog carries no tag GUIDs for them. They
+  were tried and dropped (owner decision): on LIVE the tag tree has 18,891 tags and 1,745 names
+  occur more than once; of 70,629 port tag words 31,849 are ambiguous names and 33,284 are in no
+  tag at all (`Ship_Dock_Refuel`, `necksock`, `weapon_port_01`, `p_nose`), and of 28,575 item tag
+  words 21,146 do not resolve. The words are free strings the game compares by name, so a unique
+  hit is coincidental and a GUID would be wrong. The names as stored are the matching key.
 - **No texts.** The kind carries identifiers and fact values only: names, sizes, types, flags,
   tags, GUIDs, class names and the localisation key of a port's display name (`null` for a
   placeholder key). No description, no geometry, no media (the owner's legal review of 2026-10-20).

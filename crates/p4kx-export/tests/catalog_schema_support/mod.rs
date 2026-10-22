@@ -49,7 +49,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "mass": 125.5,
             "manufacturerGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
             "tags": ["flightReady"],
-            "tagGuids": ["30000000-0000-4000-8000-000000000002"],
             "displayType": {"key": null, "en": null, "de": null},
             "itemClass": "Military",
             "playability": "player"
@@ -178,8 +177,7 @@ fn loadouts() -> serde_json::Value {
         "minSize": 1, "maxSize": 3,
         "types": [{"type": "WeaponGun", "subTypes": ["Gun"]}],
         "flags": ["uneditable"], "portTags": ["Gun"],
-        "portTagGuids": ["30000000-0000-4000-8000-000000000002"],
-        "requiredTags": ["Mount"], "requiredTagGuids": [null],
+        "requiredTags": ["Mount"],
         "displayNameKey": null, "visibility": "visible",
         "itemGuid": "30000000-0000-4000-8000-000000000001",
         "itemClassName": "POWR_ACAS_S01", "dockedVehicle": false, "unresolved": null,
@@ -192,8 +190,8 @@ fn loadouts() -> serde_json::Value {
         "ports": [{
             "name": "hardpoint_turret", "source": "vehicle",
             "minSize": null, "maxSize": null,
-            "types": [], "flags": [], "portTags": [], "portTagGuids": [],
-            "requiredTags": [], "requiredTagGuids": [],
+            "types": [], "flags": [], "portTags": [],
+            "requiredTags": [],
             "displayNameKey": null, "visibility": "unspecified",
             "itemGuid": null, "itemClassName": null, "dockedVehicle": false,
             "unresolved": null,

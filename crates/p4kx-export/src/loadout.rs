@@ -9,7 +9,6 @@ use crate::contract_loadout::{Loadout, LoadoutPort};
 use crate::guid_text::CatalogGuid;
 use crate::loadout_port::PortReader;
 use crate::record_fields::elements;
-use crate::tag_names::TagNames;
 use crate::{CatalogError, CatalogFailure, LoadoutSummary};
 
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
@@ -42,8 +41,7 @@ pub(crate) fn carries_ports(tree: &RecordTree<'_>) -> bool {
 struct Pool<'f, 'a> {
     forge: &'f DataForge<'f>,
     files: &'a ArchiveFiles<'a>,
-    tags: &'a TagNames,
-    idle: Mutex<Vec<(LoadoutResolver<'f>, PortReader<'a>)>>,
+    idle: Mutex<Vec<(LoadoutResolver<'f>, PortReader)>>,
 }
 
 impl<'f> Pool<'f, 'f> {
@@ -54,7 +52,7 @@ impl<'f> Pool<'f, 'f> {
                 LoadoutResolver::new(self.forge)
                     .with_files(self.files)
                     .stopping_at_docked_vehicles(),
-                PortReader::new(self.tags),
+                PortReader::new(),
             )
         });
         let result = read_with(&mut resolver, &mut reader, self.forge, want);
@@ -94,14 +92,12 @@ pub(crate) fn loadouts<'f>(
     forge: &'f DataForge<'f>,
     wanted: &[Wanted],
     known: &HashSet<Guid>,
-    tags: &TagNames,
     cancel: Option<&CancelToken>,
 ) -> Result<Loadouts, CatalogError> {
     let files = ArchiveFiles::new(archive);
     let pool = Pool {
         forge,
         files: &files,
-        tags,
         idle: Mutex::new(Vec::new()),
     };
     let read: Vec<Option<Result<Option<Loadout>, CatalogFailure>>> = wanted
@@ -133,7 +129,7 @@ pub(crate) fn loadouts<'f>(
 
 fn read_with<'f>(
     resolver: &mut LoadoutResolver<'f>,
-    reader: &mut PortReader<'_>,
+    reader: &mut PortReader,
     forge: &'f DataForge<'f>,
     want: Wanted,
 ) -> Result<Option<Loadout>, CatalogFailure> {

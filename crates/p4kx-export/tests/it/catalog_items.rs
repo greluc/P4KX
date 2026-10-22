@@ -146,7 +146,6 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
             "mass": 125.5,
             "manufacturerGuid": "10000000-0000-4000-8000-000000000001",
             "tags": ["flightReady", "$Small"],
-            "tagGuids": [null, null],
             "displayType": {"key": "@item_DisplayType_PowerPlant", "en": "Power Plant", "de": null},
             "itemClass": "Military",
             "playability": null,

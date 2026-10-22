@@ -18,11 +18,11 @@ const ORIG_100I: &str = "6135a874-4cb1-4f49-9f29-5781e5991f2b";
 const VEHICLE_ONLY: &str = "vehicle";
 const PINNED_100I_TREE_PORTS: usize = 68;
 
-pub(super) fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c [Value], Box<dyn Error>> {
+fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c [Value], Box<dyn Error>> {
     Ok(catalog[kind].as_array().ok_or("the kind is a list")?)
 }
 
-pub(super) fn ports(entry: &Value) -> &[Value] {
+fn ports(entry: &Value) -> &[Value] {
     entry["ports"].as_array().map_or(&[], Vec::as_slice)
 }
 
@@ -40,7 +40,7 @@ fn report(built: &BuiltCatalog, elapsed: std::time::Duration) {
     );
 }
 
-pub(super) fn walk<'c>(ports: &'c [Value], visit: &mut impl FnMut(&'c Value)) {
+fn walk<'c>(ports: &'c [Value], visit: &mut impl FnMut(&'c Value)) {
     for port in ports {
         visit(port);
         walk(self::ports(port), visit);
@@ -238,7 +238,6 @@ fn check_known_ship(archive: &Archive, catalog: &Value) -> TestResult {
 fn report_codes(catalog: &Value) -> TestResult {
     let mut unresolved: BTreeMap<&str, usize> = BTreeMap::new();
     let mut issues: BTreeMap<&str, usize> = BTreeMap::new();
-    let (mut tag_words, mut tag_nulls) = (0_usize, 0_usize);
     for entry in list(catalog, "loadouts")? {
         for code in entry["issues"]
             .as_array()
@@ -252,26 +251,8 @@ fn report_codes(catalog: &Value) -> TestResult {
             if let Some(code) = port["unresolved"].as_str() {
                 *unresolved.entry(code).or_default() += 1;
             }
-            for (names, guids) in [
-                ("portTags", "portTagGuids"),
-                ("requiredTags", "requiredTagGuids"),
-            ] {
-                let (words, found) = (
-                    port[names].as_array().map_or(0, Vec::len),
-                    port[guids].as_array().map_or(0, Vec::len),
-                );
-                assert_eq!(
-                    words, found,
-                    "{names} and {guids} are as long as each other"
-                );
-                tag_words += words;
-                tag_nulls += port[guids]
-                    .as_array()
-                    .map_or(0, |list| list.iter().filter(|guid| guid.is_null()).count());
-            }
         });
     }
-    println!("port tag words: {tag_words}, without a tag GUID: {tag_nulls}");
     println!("unresolved ports by code: {unresolved:?}");
     println!("loadouts with an issue, by code: {issues:?}");
     Ok(())

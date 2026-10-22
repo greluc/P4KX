@@ -8,23 +8,18 @@ use p4kx_extraction::is_placeholder_key;
 
 use crate::contract_loadout::{LoadoutPort, PortType};
 use crate::guid_text::CatalogGuid;
-use crate::tag_names::TagNames;
 
 const VEHICLE_SOURCE: &str = "vehicle";
 
 /// Turns the tree of an Entity into catalog ports and collects the codes of the issues found.
-pub(crate) struct PortReader<'t> {
-    tags: &'t TagNames,
-    buffer: String,
+pub(crate) struct PortReader {
     issues: BTreeSet<&'static str>,
 }
 
-impl<'t> PortReader<'t> {
-    /// Returns a reader whose tag names resolve through `tags`.
-    pub(crate) const fn new(tags: &'t TagNames) -> Self {
+impl PortReader {
+    /// Returns a reader that has found no issue yet.
+    pub(crate) const fn new() -> Self {
         Self {
-            tags,
-            buffer: String::new(),
             issues: BTreeSet::new(),
         }
     }
@@ -63,7 +58,7 @@ impl<'t> PortReader<'t> {
                 if let Some(port) = part.item_port()
                     && !named.contains(&part.name().to_ascii_lowercase())
                 {
-                    ports.push(self.vehicle_port(part.name(), port));
+                    ports.push(vehicle_port(part.name(), port));
                 }
             }
         }
@@ -72,8 +67,8 @@ impl<'t> PortReader<'t> {
 
     fn read_port(&mut self, port: &PortNode, xml: Option<&VehicleItemPort>) -> LoadoutPort {
         let shape = match (port.definition(), xml) {
-            (Some(definition), _) => self.read_definition(definition),
-            (None, Some(xml)) => self.read_vehicle(xml),
+            (Some(definition), _) => read_definition(definition),
+            (None, Some(xml)) => read_vehicle(xml),
             (None, None) => LoadoutPort::default(),
         };
         let mut shape = LoadoutPort {
@@ -110,63 +105,55 @@ impl<'t> PortReader<'t> {
         }
         shape
     }
+}
 
-    fn tagged(&mut self, port_tags: &str, required_tags: &str) -> LoadoutPort {
-        let port_tags = tag_words(port_tags);
-        let required_tags = tag_words(required_tags);
-        LoadoutPort {
-            port_tag_guids: self.tags.resolve_all(&port_tags, &mut self.buffer),
-            required_tag_guids: self.tags.resolve_all(&required_tags, &mut self.buffer),
-            port_tags,
-            required_tags,
-            ..LoadoutPort::default()
-        }
+fn read_definition(definition: &PortDefinition) -> LoadoutPort {
+    LoadoutPort {
+        min_size: definition.min_size(),
+        max_size: definition.max_size(),
+        types: definition
+            .types()
+            .iter()
+            .map(|kind| PortType {
+                r#type: kind.name().to_owned(),
+                sub_types: kind.sub_types().to_vec(),
+            })
+            .collect(),
+        flags: words(definition.flags()),
+        display_name_key: Some(definition.display_name())
+            .filter(|key| !key.is_empty() && !is_placeholder_key(key))
+            .map(str::to_owned),
+        port_tags: tag_words(definition.port_tags()),
+        required_tags: tag_words(definition.required_tags()),
+        ..LoadoutPort::default()
     }
+}
 
-    fn read_definition(&mut self, definition: &PortDefinition) -> LoadoutPort {
-        LoadoutPort {
-            min_size: definition.min_size(),
-            max_size: definition.max_size(),
-            types: definition
-                .types()
-                .iter()
-                .map(|kind| PortType {
-                    r#type: kind.name().to_owned(),
-                    sub_types: kind.sub_types().to_vec(),
-                })
-                .collect(),
-            flags: words(definition.flags()),
-            display_name_key: Some(definition.display_name())
-                .filter(|key| !key.is_empty() && !is_placeholder_key(key))
-                .map(str::to_owned),
-            ..self.tagged(definition.port_tags(), definition.required_tags())
-        }
+fn read_vehicle(port: &VehicleItemPort) -> LoadoutPort {
+    LoadoutPort {
+        min_size: port.min_size(),
+        max_size: port.max_size(),
+        types: port
+            .types()
+            .iter()
+            .map(|kind| PortType {
+                r#type: kind.clone(),
+                sub_types: Vec::new(),
+            })
+            .collect(),
+        flags: words(port.flags()),
+        port_tags: tag_words(port.port_tags()),
+        required_tags: tag_words(port.required_tags()),
+        ..LoadoutPort::default()
     }
+}
 
-    fn read_vehicle(&mut self, port: &VehicleItemPort) -> LoadoutPort {
-        LoadoutPort {
-            min_size: port.min_size(),
-            max_size: port.max_size(),
-            types: port
-                .types()
-                .iter()
-                .map(|kind| PortType {
-                    r#type: kind.clone(),
-                    sub_types: Vec::new(),
-                })
-                .collect(),
-            flags: words(port.flags()),
-            ..self.tagged(port.port_tags(), port.required_tags())
-        }
-    }
-
-    fn vehicle_port(&mut self, name: &str, port: &VehicleItemPort) -> LoadoutPort {
-        LoadoutPort {
-            name: name.to_owned(),
-            source: VEHICLE_SOURCE,
-            visibility: port.visibility().code(),
-            ..self.read_vehicle(port)
-        }
+fn vehicle_port(name: &str, port: &VehicleItemPort) -> LoadoutPort {
+    LoadoutPort {
+        name: name.to_owned(),
+        source: VEHICLE_SOURCE,
+        visibility: port.visibility().code(),
+        ..read_vehicle(port)
     }
 }
 

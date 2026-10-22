@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use p4kx_extraction::{Archive, TagTree};
+use p4kx_extraction::{Archive, DataForge, TagTree};
 use rayon::prelude::*;
 
 use crate::PaintSummary;
@@ -24,7 +24,7 @@ pub(crate) struct Paints {
 /// the `ItemPort` elements of its vehicle implementation.
 pub(crate) fn paints(
     archive: &Archive,
-    tags: &TagTree,
+    forge: &DataForge<'_>,
     items: &[Item<'_>],
     vehicles: &[VehicleFacts<'_>],
 ) -> Paints {
@@ -43,7 +43,8 @@ pub(crate) fn paints(
     }
     let files = read_files(archive, vehicles);
     let (by_ports, unreadable) = group_ships(&files, vehicles);
-    let index = TagIndex::new(tags);
+    let tags = TagTree::build(forge);
+    let index = TagIndex::new(&tags);
     let mut paints: Vec<Paint> = candidates
         .par_iter()
         .map(|item| {

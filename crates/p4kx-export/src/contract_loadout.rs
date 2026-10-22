@@ -49,15 +49,9 @@ pub(crate) struct LoadoutPort {
     /// The tags the port offers: the words of the stored value, split at white space and
     /// otherwise unchanged, like `tags` of an item.
     pub(crate) port_tags: Vec<String>,
-    /// The `guid` of the tag each entry of `portTags` names, in the same order and as long; `null`
-    /// where the tag tree has no tag of that name (ignoring case) or more than one.
-    pub(crate) port_tag_guids: Vec<Option<CatalogGuid>>,
     /// The tags an item must carry to fit the port: the words of the stored value, split at white
     /// space and otherwise unchanged, like `tags` of an item.
     pub(crate) required_tags: Vec<String>,
-    /// The `guid` of the tag each entry of `requiredTags` names, in the same order and as long;
-    /// `null` where the tag tree has no tag of that name (ignoring case) or more than one.
-    pub(crate) required_tag_guids: Vec<Option<CatalogGuid>>,
     /// The localisation key of the port's display name; `null` for none or a placeholder key.
     pub(crate) display_name_key: Option<String>,
     /// Whether the vehicle implementation shows the port: `visible`, `invisible` or

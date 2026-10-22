@@ -80,7 +80,6 @@ mod selection;
 mod ship;
 mod ship_base;
 mod summary;
-mod tag_names;
 mod texts;
 
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};

@@ -36,9 +36,6 @@ pub(crate) struct Item<'a> {
     pub(crate) manufacturer_guid: Option<CatalogGuid>,
     /// The words of `AttachDef.Tags`, in stored order.
     pub(crate) tags: Vec<&'a str>,
-    /// The `guid` of the tag each entry of `tags` names, in the same order and as long; `null`
-    /// where the tag tree has no tag of that name (ignoring case) or more than one.
-    pub(crate) tag_guids: Vec<Option<CatalogGuid>>,
     /// The display type of the purchasable parameters, e.g. `@item_DisplayType_PowerPlant`.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) display_type: LocalisedText<'a>,

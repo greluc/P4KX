@@ -2,8 +2,7 @@
 //! the ports.
 
 use crate::loadouts_fixture::{
-    ALPHA, BROKEN, EMPTY_LOADOUT, GUN, GUN_DEFAULT, GUN_OVERRIDE, RACK, SNUB, TAG_GUN, TAG_MOUNT,
-    TAG_TURRET, TURRET,
+    ALPHA, BROKEN, EMPTY_LOADOUT, GUN, GUN_DEFAULT, GUN_OVERRIDE, RACK, SNUB, TURRET,
 };
 use crate::loadouts_support::{build, guid, loadout, names, port};
 
@@ -153,31 +152,20 @@ fn a_port_the_record_lacks_takes_its_definition_from_the_vehicle_file() -> TestR
 }
 
 #[test]
-fn tag_names_resolve_to_tag_guids_where_exactly_one_tag_has_the_name() -> TestResult {
+fn tags_are_free_strings_kept_as_stored_and_matched_by_name() -> TestResult {
     let (_, catalog) = build(None)?;
     let alpha = loadout(&catalog, ALPHA)?;
-    let gun = port(&alpha["ports"], "hardpoint_gun")?;
-    assert_eq!(
-        gun["requiredTagGuids"],
-        json!([guid(TAG_MOUNT), null, null]),
-        "Mount resolves; Unknown has no tag; Dup names two tags"
-    );
-    assert_eq!(
-        gun["portTagGuids"],
-        json!([null]),
-        "a leading $ is part of the stored name, so no tag has it"
-    );
     let turret = port(&alpha["ports"], "hardpoint_turret")?;
     assert_eq!(
-        (&turret["portTagGuids"], &turret["requiredTagGuids"]),
-        (&json!([guid(TAG_TURRET)]), &json!([guid(TAG_MOUNT)])),
-        "a Record port resolves its tags too"
+        (&turret["portTags"], &turret["requiredTags"]),
+        (&json!(["Turret"]), &json!(["Mount"])),
+        "the tags of a Record port"
     );
     let rack = port(&loadout(&catalog, RACK)?["ports"], "slot_1")?;
     assert_eq!(
-        (&rack["portTagGuids"], &rack["requiredTagGuids"]),
+        (&rack["portTags"], &rack["requiredTags"]),
         (&json!([]), &json!([])),
-        "no tags, no GUIDs"
+        "a port without tags"
     );
     let item = catalog["items"]
         .as_array()
@@ -186,12 +174,14 @@ fn tag_names_resolve_to_tag_guids_where_exactly_one_tag_has_the_name() -> TestRe
         .find(|item| item["guid"] == guid(GUN).as_str())
         .ok_or("the gun")?;
     assert_eq!(
-        (&item["tags"], &item["tagGuids"]),
-        (
-            &json!(["Gun", "Unknown", "Dup", "mount"]),
-            &json!([guid(TAG_GUN), null, null, guid(TAG_MOUNT)])
-        ),
-        "the item's tags resolve ignoring case"
+        item["tags"],
+        json!(["Gun", "Unknown", "Dup", "mount"]),
+        "the words of the item's tags, in case as stored"
+    );
+    let gun = port(&alpha["ports"], "hardpoint_gun")?;
+    assert!(
+        gun.get("portTagGuids").is_none() && item.get("tagGuids").is_none(),
+        "no tag GUIDs: the tags are matched by name"
     );
     Ok(())
 }

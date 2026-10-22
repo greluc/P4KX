@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntity, TestEntry, TestLoadout, TestLoadoutEntry,
-    TestPort, TestRecord, TestStruct, TestType, TestValue, entity_schema,
+    TestPort, entity_schema,
 };
 
 pub(crate) const ALPHA: u128 = 0x10;
@@ -20,15 +20,6 @@ pub(crate) const GUN_OVERRIDE: u128 = 0x24;
 pub(crate) const GUN_TEMPLATE: u128 = 0x25;
 pub(crate) const EMPTY_LOADOUT: u128 = 0x26;
 pub(crate) const MISSING: u128 = 0x99;
-pub(crate) const TAG_MOUNT: u128 = 0x40;
-pub(crate) const TAG_GUN: u128 = 0x41;
-pub(crate) const TAG_TURRET: u128 = 0x42;
-const TAG_ALPHA: u128 = 0x43;
-const TAG_BETA: u128 = 0x44;
-const TAG_DUP_ALPHA: u128 = 0x45;
-const TAG_DUP_BETA: u128 = 0x46;
-const TAG_DATABASE: u128 = 0x47;
-const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
 
 const SHIPS: &str = "libs/foundry/records/entities/spaceships";
 const ITEMS: &str = "libs/foundry/records/entities/scitem/ships";
@@ -124,51 +115,12 @@ fn entities() -> Vec<TestEntity> {
     ]
 }
 
-fn references(guids: &[u128]) -> TestValue {
-    TestValue::Array(guids.iter().map(|g| TestValue::Reference(*g)).collect())
-}
-
-fn tag(guid: u128, name: &str, children: &[u128]) -> TestRecord {
-    TestRecord::new(guid, "Tag", format!("Tag.{name}"), TAG_PATH)
-        .value("tagName", TestValue::text(name))
-        .value("legacyGUID", TestValue::UInt32(u32::MAX))
-        .value("children", references(children))
-}
-
-fn tag_database(builder: DataForgeBuilder) -> DataForgeBuilder {
-    let roots = [TAG_MOUNT, TAG_GUN, TAG_TURRET, TAG_ALPHA, TAG_BETA];
-    [
-        TestStruct::new("Tag")
-            .field("tagName", TestType::String)
-            .field("legacyGUID", TestType::UInt32)
-            .array("children", TestType::ReferenceTo("Tag".into())),
-        TestStruct::new("TagDatabase").array("tags", TestType::ReferenceTo("Tag".into())),
-    ]
-    .into_iter()
-    .fold(builder, DataForgeBuilder::structure)
-    .record(
-        TestRecord::new(
-            TAG_DATABASE,
-            "TagDatabase",
-            "TagDatabase.TagDatabase",
-            TAG_PATH,
-        )
-        .value("tags", references(&roots)),
-    )
-    .record(tag(TAG_MOUNT, "Mount", &[]))
-    .record(tag(TAG_GUN, "Gun", &[]))
-    .record(tag(TAG_TURRET, "Turret", &[]))
-    .record(tag(TAG_ALPHA, "Alpha", &[TAG_DUP_ALPHA]))
-    .record(tag(TAG_BETA, "Beta", &[TAG_DUP_BETA]))
-    .record(tag(TAG_DUP_ALPHA, "Dup", &[]))
-    .record(tag(TAG_DUP_BETA, "Dup", &[]))
-}
-
 fn database() -> DataForgeBuilder {
-    entities().iter().fold(
-        tag_database(entity_schema(DataForgeBuilder::new())),
-        |builder, entity| builder.record(entity.record()),
-    )
+    entities()
+        .iter()
+        .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
+            builder.record(entity.record())
+        })
 }
 
 /// Writes the fixture Archive into `dir` and returns its path.

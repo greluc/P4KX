@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-guard"
-description = "Keeps P4K-Extractor read-only towards the game installation and notices a running game."
+description = "Keeps P4KX read-only towards the game installation and notices a running game."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

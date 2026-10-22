@@ -2,4 +2,4 @@
 source: crates/p4kx/tests/dcb.rs
 expression: stderr
 ---
-error: DataForge version 7 is not supported; this version of P4K-Extractor reads versions 6 and 8
+error: DataForge version 7 is not supported; this version of P4KX reads versions 6 and 8

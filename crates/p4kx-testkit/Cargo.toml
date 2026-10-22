@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-testkit"
-description = "Writers for synthetic test data in the formats P4K-Extractor reads; development only."
+description = "Writers for synthetic test data in the formats P4KX reads; development only."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

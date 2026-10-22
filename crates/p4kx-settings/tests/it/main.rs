@@ -3,6 +3,7 @@
 mod archive_key_store;
 mod extraction_folder;
 mod model_export;
+mod profile_migration;
 mod recent_archives;
 mod record_language;
 mod saved_queries;

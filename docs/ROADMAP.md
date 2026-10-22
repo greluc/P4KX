@@ -1,6 +1,6 @@
 # Roadmap
 
-P4K-Extractor opens, browses, compares and extracts Star Citizen Archives and converts their
+P4KX opens, browses, compares and extracts Star Citizen Archives and converts their
 formats. It replaces the KRT P4K Reader and covers the functionality of unp4k and StarBreaker with
 an own Rust core (ADR-0001). Terms follow [CONTEXT.md](../CONTEXT.md).
 
@@ -13,13 +13,13 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 | Topic | Decision |
 |---|---|
 | Purpose | End-user tool first; the core is a library so Exports for other KRT tools need no rework |
-| Front-ends | `p4kx` (CLI), `p4kx-gui` ("P4K-Extractor", egui/eframe), `p4kx-mcp` (MCP server, stdio, read-only) |
+| Front-ends | `p4kx` (CLI), `p4kx-gui` ("P4KX", egui/eframe), `p4kx-mcp` (MCP server, stdio, read-only) |
 | Platforms | Windows is shipped; the code stays platform-neutral and CI also builds on Linux; no macOS |
 | Distribution | Portable ZIP and MSI (WiX Toolset 7, per-user install to `%LOCALAPPDATA%`, no admin rights, Start menu entry, stable UpgradeCode) from M1 |
 | Licence | `MIT OR Apache-2.0`; the repository becomes public later |
 | UI languages | German (`de-DE`) and British English (`en-GB`) via Fluent, chosen from the system locale, switchable |
 | Look | KRT design system (colours, Lato) in egui, dark only (ADR-0006); native window frame tinted via DWM |
-| State | `%APPDATA%\P4K-Extractor\` (TOML): detected Channels, recent Archives, target folder, language, window |
+| State | `%APPDATA%\P4KX\` (TOML): detected Channels, recent Archives, target folder, language, window |
 | Channel detection | Library folders named in the RSI Launcher log (ADR-0005), the default install path, and manually added folders and Archives; `loginData.json` and the launcher's settings store are never read |
 | Network | Only an optional, switchable check for new GitHub releases, off by default (ADR-0007); no telemetry, no crash reports |
 | Live changes | Archives are opened read-only with shared access; a changed size, timestamp or Build cancels running jobs and offers a reload |

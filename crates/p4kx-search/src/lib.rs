@@ -1,4 +1,4 @@
-//! Content search service of P4K-Extractor: text inside Records, localisation and Entries
+//! Content search service of P4KX: text inside Records, localisation and Entries
 //! (ADR-0044).
 //!
 //! A search is a parallel scan on demand, with no index kept anywhere. [`search_records`] reads

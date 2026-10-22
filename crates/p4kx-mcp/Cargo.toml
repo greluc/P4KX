@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-mcp"
-description = "Read-only MCP server of P4K-Extractor over stdio."
+description = "Read-only MCP server of P4KX over stdio."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

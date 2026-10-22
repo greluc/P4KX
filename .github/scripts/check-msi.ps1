@@ -26,8 +26,8 @@ trap {
     $_.ScriptStackTrace | Out-Host
     break
 }
-$folder = Join-Path $env:LOCALAPPDATA 'Programs\P4K-Extractor'
-$shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\P4K-Extractor.lnk'
+$folder = Join-Path $env:LOCALAPPDATA 'Programs\P4KX'
+$shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\P4KX.lnk'
 $logs = Split-Path -Parent (Resolve-Path $NextMsi)
 $installer = New-Object -ComObject WindowsInstaller.Installer
 

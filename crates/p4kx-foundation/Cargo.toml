@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-foundation"
-description = "Shared binary reading and error vocabulary for the P4K-Extractor format crates."
+description = "Shared binary reading and error vocabulary for the P4KX format crates."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

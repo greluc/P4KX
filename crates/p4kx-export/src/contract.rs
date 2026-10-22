@@ -25,7 +25,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
-#[schemars(title = "P4K-Extractor Basetool catalog")]
+#[schemars(title = "P4KX Basetool catalog")]
 pub(crate) struct Catalog<'a> {
     /// The version of the catalog shape; an import rejects a version it does not know.
     #[schemars(extend("const" = 1))]
@@ -80,7 +80,7 @@ pub(crate) struct Source<'a> {
     pub(crate) archive_size: u64,
     /// The modification time of the Archive file, UTC in RFC 3339 form, `null` when unknown.
     pub(crate) archive_modified: Option<String>,
-    /// The version of P4K-Extractor that wrote the catalog.
+    /// The version of P4KX that wrote the catalog.
     pub(crate) tool_version: &'static str,
     /// When the catalog was written, UTC in RFC 3339 form.
     pub(crate) exported_at: String,

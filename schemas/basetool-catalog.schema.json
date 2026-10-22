@@ -2350,7 +2350,7 @@
           "type": "string"
         },
         "toolVersion": {
-          "description": "The version of P4K-Extractor that wrote the catalog.",
+          "description": "The version of P4KX that wrote the catalog.",
           "type": "string"
         }
       },
@@ -2703,6 +2703,6 @@
     "source",
     "starmapObjects"
   ],
-  "title": "P4K-Extractor Basetool catalog",
+  "title": "P4KX Basetool catalog",
   "type": "object"
 }

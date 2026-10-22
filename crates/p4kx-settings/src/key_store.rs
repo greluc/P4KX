@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 use thiserror::Error;
 
-const APP_FOLDER: &str = "P4K-Extractor";
+use crate::profile::profile_folder;
+
 const FILE_NAME: &str = "archive.key";
 const MAX_KEY_FILE_LEN: u64 = 1024;
 const TEMPORARY_ATTEMPTS: u32 = 8;
@@ -49,12 +50,13 @@ impl KeyStore {
         Self { file: file.into() }
     }
 
-    /// Returns the store in the `P4K-Extractor` folder of the platform config directory,
-    /// `%APPDATA%\P4K-Extractor\archive.key` on Windows, or `None` when the platform has no
-    /// config directory.
+    /// Returns the store in the `P4KX` folder of the platform config directory,
+    /// `%APPDATA%\P4KX\archive.key` on Windows, or `None` when the platform has no config
+    /// directory. The first call migrates the old `P4K-Extractor` folder (see
+    /// [`migrate_profile`](crate::migrate_profile)).
     #[must_use]
     pub fn in_profile() -> Option<Self> {
-        dirs::config_dir().map(|dir| Self::new(dir.join(APP_FOLDER).join(FILE_NAME)))
+        profile_folder().map(|dir| Self::new(dir.join(FILE_NAME)))
     }
 
     /// Returns the path of the key file.
@@ -158,7 +160,7 @@ impl KeyStore {
 }
 
 #[cfg(unix)]
-fn create_private(path: &Path) -> io::Result<std::fs::File> {
+pub(crate) fn create_private(path: &Path) -> io::Result<std::fs::File> {
     use std::os::unix::fs::OpenOptionsExt;
 
     std::fs::OpenOptions::new()
@@ -169,7 +171,7 @@ fn create_private(path: &Path) -> io::Result<std::fs::File> {
 }
 
 #[cfg(not(unix))]
-fn create_private(path: &Path) -> io::Result<std::fs::File> {
+pub(crate) fn create_private(path: &Path) -> io::Result<std::fs::File> {
     std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)

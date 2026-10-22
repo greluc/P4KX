@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-assembly"
-description = "Assembly service of P4K-Extractor: the Loadout tree, the Assembly of placed models and the audio triggers of an Entity and the CHF files of Characters."
+description = "Assembly service of P4KX: the Loadout tree, the Assembly of placed models and the audio triggers of an Entity and the CHF files of Characters."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

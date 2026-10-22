@@ -1,4 +1,4 @@
-# P4K-Extractor
+# P4KX
 
 Opens, browses, compares and extracts the game archives of Star Citizen and turns their internal
 formats into readable or importable data for people and for other KRT tools.
@@ -488,7 +488,7 @@ The set of Entries and Records that were added, removed or changed between two A
 _Avoid_: diff (fine in code), delta
 
 **Release**:
-A published version of P4K-Extractor itself: a `v*` tag with its portable ZIP, its MSI and its
+A published version of P4KX itself: a `v*` tag with its portable ZIP, its MSI and its
 notes from `CHANGELOG.md`.
 _Avoid_: build (a Build is a game version), update
 

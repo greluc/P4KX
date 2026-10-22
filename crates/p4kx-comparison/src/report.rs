@@ -14,7 +14,7 @@ pub const REPORT_FORMAT_VERSION: u32 = 1;
 
 /// The JSON report of a Comparison between an old and a new Archive.
 #[derive(Debug, Serialize, JsonSchema)]
-#[schemars(title = "P4K-Extractor Comparison report")]
+#[schemars(title = "P4KX Comparison report")]
 pub struct Report<'a> {
     /// The version of the report shape.
     format_version: u32,

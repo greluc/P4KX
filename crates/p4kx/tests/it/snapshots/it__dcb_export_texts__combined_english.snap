@@ -4,7 +4,7 @@ expression: text
 ---
 == Game2.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<p4kx:records xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml">
+<p4kx:records xmlns:p4kx="https://github.com/greluc/P4KX/record-xml">
   <Vehicle guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" name="@vehicle_Cart" p4kx:text-name="Cart &amp; &quot;Co&quot;" description="@vehicle_CartDesc" p4kx:text-description="Rolls.&#10;Slowly." unset="@LOC_PLACEHOLDER">
     <labels>
       <p4kx:value value="@vehicle_Cart" text="Cart &amp; &quot;Co&quot;"/>

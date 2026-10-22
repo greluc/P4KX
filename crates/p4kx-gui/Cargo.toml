@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-gui"
-description = "The desktop window of P4K-Extractor."
+description = "The desktop window of P4KX."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-settings"
-description = "The settings file of P4K-Extractor."
+description = "The settings file of P4KX."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

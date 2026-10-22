@@ -1,6 +1,8 @@
 use p4kx_extraction::Guid;
 use serde::{Serialize, Serializer};
 
+use crate::digest::Digest;
+
 fn guid<S: Serializer>(value: &Guid, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.collect_str(value)
 }
@@ -240,6 +242,8 @@ pub struct ShipBase {
     pub record_path: String,
     /// The vehicle implementation file, `null` when the ship names none or it cannot be read.
     pub implementation: Option<Implementation>,
+    #[serde(skip)]
+    pub(crate) implementation_digest: Option<Digest>,
     /// Spaceship or ground vehicle, `null` when the record path and the vehicle implementation
     /// disagree or the path names neither folder.
     pub vehicle_kind: Option<VehicleKind>,

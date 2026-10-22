@@ -1,6 +1,7 @@
 use p4kx_assembly::{ArchiveFiles, LoadoutFileError, VehicleImplementation};
 use p4kx_extraction::Archive;
 
+use crate::digest::Digest;
 use crate::guid_text::CatalogGuid;
 
 const PAINTS: &str = "Paints";
@@ -40,6 +41,14 @@ pub(crate) struct VehicleFacts<'f> {
     pub(crate) definition: Option<&'f str>,
     pub(crate) modification: Option<&'f str>,
     pub(crate) paint_ports: Vec<PaintPort>,
+    pub(crate) variant_key: Option<ShipKey<'f>>,
+}
+
+/// What the ships of one variant group share (`docs/basetool-catalog.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ShipKey<'f> {
+    pub(crate) definition: &'f str,
+    pub(crate) implementation: Digest,
 }
 
 /// The paint ports of a vehicle implementation and whether it was not read in full. A patch file

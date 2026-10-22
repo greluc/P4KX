@@ -3,7 +3,7 @@ source: crates/p4kx/tests/dcb_export_combined.rs
 expression: xml
 ---
 <?xml version="1.0" encoding="UTF-8"?>
-<p4kx:records xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml">
+<p4kx:records xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml">
   <Item guid="00000001-0002-0003-0004-000000000006" path="libs/foundry/records/anchors/anchor" mass="900" size="Large"/>
   <Item guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/Items/boxes" mass="1" size="Small"/>
   <Item guid="00000001-0002-0003-0004-000000000005" path="libs/foundry/records/items/boxes" mass="2.5">

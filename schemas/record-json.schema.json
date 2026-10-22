@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/krt-profit/p4k-extractor/schemas/record-json.schema.json",
+  "$id": "https://github.com/greluc/p4k-extractor/schemas/record-json.schema.json",
   "title": "Record JSON",
   "description": "One Record of DataForge as written by p4kx dcb export --format json|ndjson; see docs/record-json.md.",
   "$ref": "#/$defs/record",

@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use thiserror::Error;
 
-const GITHUB_LATEST: &str = "https://api.github.com/repos/krt-profit/p4k-extractor/releases/latest";
+const GITHUB_LATEST: &str = "https://api.github.com/repos/greluc/p4k-extractor/releases/latest";
 const TIMEOUT: Duration = Duration::from_secs(10);
 const USER_AGENT: &str = concat!("P4K-Extractor/", env!("CARGO_PKG_VERSION"));
 

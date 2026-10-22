@@ -13,7 +13,7 @@ tools.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Vehicle xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5" label="@vehicle_Cart">
+<Vehicle xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5" label="@vehicle_Cart">
   <maker>
     <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
   </maker>
@@ -53,7 +53,7 @@ tools.
 In this order:
 
 1. `xmlns:p4kx`, only when the root has child elements or is a `p4kx:record`, with the value
-   `https://github.com/krt-profit/p4k-extractor/record-xml`.
+   `https://github.com/greluc/p4k-extractor/record-xml`.
 2. `type`, only on a `p4kx:record` root (see [Names](#names)).
 3. `guid`: the Record's GUID, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 4. `path`: the record path without `.xml`, as DataForge stores it.
@@ -200,7 +200,7 @@ named after the DataForge Entry with `.xml`, e.g. `Game2.xml`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<p4kx:records xmlns:p4kx="https://github.com/krt-profit/p4k-extractor/record-xml">
+<p4kx:records xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml">
   <Manufacturer guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" code="WOOD"/>
   <Vehicle guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5">
     <maker>

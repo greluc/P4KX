@@ -50,6 +50,7 @@ mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod contract_loadout;
 mod contract_recipe;
 mod contract_rewards;
 mod contract_starmap;
@@ -65,6 +66,8 @@ mod form;
 mod guid_text;
 mod item;
 mod item_class;
+mod loadout;
+mod loadout_port;
 mod localization_table;
 mod manufacturer;
 mod ndjson;
@@ -126,5 +129,6 @@ pub use ship_base::{
 pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT, UPLOAD_WARNING_SIZE,
+    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
+    UPLOAD_WARNING_SIZE,
 };

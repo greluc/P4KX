@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::io::{self, Write};
 use std::time::SystemTime;
 
 use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
-use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc3339};
+use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
 use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
@@ -13,14 +14,15 @@ use crate::contract::{
 };
 use crate::crafting::read_crafting;
 use crate::crafting_warning::CraftingWarning;
+use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::paint::paints;
 use crate::scan::Scan;
 use crate::starmap_containers::Placements;
 use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
-    BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, PaintSummary,
-    StarmapSummary,
+    BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
+    PaintSummary, StarmapSummary,
 };
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
@@ -136,6 +138,7 @@ pub(crate) struct Parts {
     notes: Vec<p4kx_extraction::LocalizationNote>,
     item_classes: crate::ItemClassSummary,
     paints: PaintSummary,
+    loadouts: LoadoutSummary,
     starmap: StarmapSummary,
     starmap_report: Box<StarmapReport>,
     playability: crate::PlayabilitySummary,
@@ -151,6 +154,7 @@ impl Parts {
             notes: self.notes,
             item_classes: self.item_classes,
             paints: self.paints,
+            loadouts: self.loadouts,
             starmap: self.starmap,
             starmap_report: self.starmap_report,
             playability: Box::new(self.playability),
@@ -183,10 +187,8 @@ fn assemble<R>(
     );
     let files = ArchiveFiles::new(archive);
     let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
-    if cancelled() {
-        return Err(CatalogError::Cancelled);
-    }
     let paint_summary = add_paints(archive, &forge, &mut collected);
+    let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let starmap_summary = add_starmap(&mut collected, counts);
     let completeness = completeness_of(options);
     let kinds = collected.summary(matches!(completeness, KindCompleteness::Complete));
@@ -209,6 +211,7 @@ fn assemble<R>(
         dismantle_processes: collected.dismantle_processes,
         crafting_global: collected.crafting_global,
         paints: collected.paints,
+        loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
     };
     let output = emit(&catalog)?;
@@ -219,6 +222,7 @@ fn assemble<R>(
             notes: texts.notes().to_vec(),
             item_classes,
             paints: paint_summary,
+            loadouts: loadout_summary,
             starmap: starmap_summary,
             starmap_report: Box::new(report),
             playability,
@@ -247,6 +251,9 @@ fn scan<'f>(
         &crafting.blueprints,
         &placements,
     )?;
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
+        return Err(CatalogError::Cancelled);
+    }
     Ok((
         Collected::new(picked, crafting),
         placements.counts,
@@ -278,6 +285,38 @@ fn add_paints(
             ));
     }
     derived.summary
+}
+
+/// Resolves the Default Loadout of every ship and of every item that may have ports, stores the
+/// loadouts in `collected` and returns the counts.
+fn add_loadouts(
+    archive: &Archive,
+    forge: &DataForge<'_>,
+    collected: &mut Collected<'_>,
+    cancel: Option<&CancelToken>,
+) -> Result<LoadoutSummary, CatalogError> {
+    let wanted: Vec<Wanted> = collected
+        .ships
+        .iter()
+        .map(|ship| Wanted {
+            guid: ship.guid,
+            kind: SHIP,
+        })
+        .chain(collected.port_items.iter().map(|guid| Wanted {
+            guid: *guid,
+            kind: ITEM,
+        }))
+        .collect();
+    let known: HashSet<Guid> = collected
+        .items
+        .iter()
+        .map(|item| item.guid.0)
+        .chain(collected.ships.iter().map(|ship| ship.guid.0))
+        .collect();
+    let built = loadouts(archive, forge, &wanted, &known, cancel)?;
+    collected.loadouts = built.entries;
+    collected.add_failures(built.failures);
+    Ok(built.summary)
 }
 
 /// Counts the starmap objects of `collected` and what reading their containers found, and warns

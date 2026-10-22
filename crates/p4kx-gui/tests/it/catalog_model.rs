@@ -8,7 +8,7 @@ use std::io::Read;
 
 use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
 use p4kx_export::{Kind, Language as TextLanguage, SizeWarning};
-use p4kx_gui::{Browser, CatalogExportStage, CatalogExportStatus, Model};
+use p4kx_gui::{Browser, CATALOG_FILE, CatalogExportStage, CatalogExportStatus, Model};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 #[test]
@@ -292,4 +292,9 @@ fn a_catalog_near_the_upload_limit_is_flagged() -> TestResult {
         outcome.summary().size()
     );
     Ok(())
+}
+
+#[test]
+fn the_suggested_catalog_file_is_the_compressed_one() {
+    assert_eq!(CATALOG_FILE, "basetool-catalog.json.zst", "the upload form");
 }

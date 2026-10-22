@@ -9,6 +9,7 @@ pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
+pub(crate) use crate::contract_loadout::Loadout;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -59,6 +60,9 @@ pub(crate) struct Catalog<'a> {
     pub(crate) crafting_global: CraftingGlobal,
     /// The paints with the ships they fit, ordered by the GUID of the item.
     pub(crate) paints: Vec<Paint>,
+    /// The ports of every ship and of every item that has ports, with what the Default Loadout
+    /// attaches to each, ordered by the GUID of the entity.
+    pub(crate) loadouts: Vec<Loadout>,
     /// The starmap objects with their world positions, ordered by GUID.
     pub(crate) starmap_objects: Vec<StarmapObject<'a>>,
 }
@@ -129,6 +133,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) dismantle_processes: KindCompleteness<'a>,
     /// The completeness of `paints`.
     pub(crate) paints: KindCompleteness<'a>,
+    /// The completeness of `loadouts`.
+    pub(crate) loadouts: KindCompleteness<'a>,
     /// The completeness of `starmapObjects`.
     pub(crate) starmap_objects: KindCompleteness<'a>,
 }
@@ -149,6 +155,7 @@ impl<'a> Completeness<'a> {
             blueprint_pools: completeness,
             dismantle_processes: completeness,
             paints: completeness,
+            loadouts: completeness,
             starmap_objects: completeness,
         }
     }

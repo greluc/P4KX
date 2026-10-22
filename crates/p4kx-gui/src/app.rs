@@ -77,8 +77,8 @@ impl App {
                         .set_file_name("comparison.json")
                         .save_file(),
                     Dialog::CatalogFile => picker
-                        .add_filter(catalog_filter, &["json"])
                         .add_filter(catalog_filter_compressed, &["zst"])
+                        .add_filter(catalog_filter, &["json"])
                         .set_file_name(CATALOG_FILE)
                         .save_file(),
                     Dialog::ModelFile => model_file.save(picker),

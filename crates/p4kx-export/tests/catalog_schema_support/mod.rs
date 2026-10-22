@@ -26,6 +26,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
+            "loadouts": {"status": "complete"},
             "starmapObjects": {"status": "complete"}
         },
         "manufacturers": [{
@@ -167,6 +168,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "itemGuid": "30000000-0000-4000-8000-000000000001",
             "shipGuids": ["90000000-0000-4000-8000-000000000001"]
         }],
+        "loadouts": loadouts(),
         "starmapObjects": [{
             "guid": "a2000000-0000-4000-8000-000000000001",
             "className": "Stanton1_Hurston",
@@ -183,6 +185,35 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "position": [12_850_000_000.0, 1250.5, -3.0]
         }]
     })
+}
+
+fn loadouts() -> serde_json::Value {
+    let gun = json!({
+        "name": "hardpoint_gun_left", "source": "loadout",
+        "minSize": 1, "maxSize": 3,
+        "types": [{"type": "WeaponGun", "subTypes": ["Gun"]}],
+        "flags": ["uneditable"], "portTags": ["Gun"],
+        "requiredTags": ["Mount"],
+        "displayNameKey": null, "visibility": "visible",
+        "itemGuid": "30000000-0000-4000-8000-000000000001",
+        "itemClassName": "POWR_ACAS_S01", "dockedVehicle": false, "unresolved": null,
+        "ports": []
+    });
+    json!([{
+        "entityGuid": "90000000-0000-4000-8000-000000000001",
+        "entityKind": "ship",
+        "issues": ["vehicle_implementation"],
+        "ports": [{
+            "name": "hardpoint_turret", "source": "vehicle",
+            "minSize": null, "maxSize": null,
+            "types": [], "flags": [], "portTags": [],
+            "requiredTags": [],
+            "displayNameKey": null, "visibility": "unspecified",
+            "itemGuid": null, "itemClassName": null, "dockedVehicle": false,
+            "unresolved": null,
+            "ports": [gun]
+        }]
+    }])
 }
 
 fn pools() -> serde_json::Value {

@@ -103,6 +103,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
+| `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
 | `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
@@ -571,6 +572,77 @@ a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballis
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
 both filtered, so a paint lists only ships the filter selected; both kinds are partial.
 
+### Loadouts
+
+A loadout (`loadouts`) is the Default Loadout of one ship or of one item that has ports, resolved
+into a tree (ADR-0064). The kind refers to the entity and adds no name, no description and no
+media: name and record stay on the entry in `ships` or `items`, so no GUID occurs twice among the
+`guid` fields of the catalog. Loadouts are ordered by `entityGuid`.
+
+| Field | Source |
+|-------|--------|
+| `entityGuid` | The `guid` of the entry in `ships` or `items` the ports belong to |
+| `entityKind` | `ship` or `item`; a closed set the game may extend, so the schema keeps a string |
+| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A patch file the Archive lacks is a `vehicle_implementation` issue, a fact of the game data |
+| `ports` | The ports of the entity, see below |
+
+**Selection.** Every entry of `ships` has a loadout, also one without ports. An entry of `items`
+has one when its Record defines item ports (`SItemPortContainerComponentParams`) or names a default
+Loadout (`SEntityComponentDefaultLoadoutParams`) and its tree holds at least one port: turrets,
+racks, weapons with attachment ports. With a `--filter` the ships and items are filtered first,
+so a loadout exists only for the entries the filter selected and the kind is partial.
+
+**Ports.** Each port has:
+
+| Field | Source |
+|-------|--------|
+| `name` | The port name as the Loadout or the port definition spells it; port names match ignoring ASCII case |
+| `source` | Where the attachment comes from: `loadout` (the entity's own Default Loadout), `override` (the Loadout of the entry that attached the entity, which replaces the entity's own per port), `port_default` (the default item of the port definition), `unset` (defined, holds nothing) or `vehicle` (known only from the vehicle implementation, holds nothing). Closed set, string |
+| `minSize`, `maxSize` | `MinSize` and `MaxSize` of the `SItemPortDef`, or `minSize` and `maxSize` of the `ItemPort`; `null` when the data gives none |
+| `types` | `{type, subTypes}` per entry of `Types` of the `SItemPortDef`; for an `ItemPort` the `type` of each `Types/Type` and no subtypes |
+| `flags` | The words of `Flags` as stored, without a leading `$` (`invisible`, `uneditable`) |
+| `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`: split at white space and otherwise as stored, like `tags` of an item (a leading `$` stays). An item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
+| `displayNameKey` | `DisplayName` of the `SItemPortDef`, a localisation key; `null` for none and for a placeholder key. The key is exported, not its text |
+| `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
+| `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
+| `itemClassName` | The class name of the attached entity, or the class name the Loadout names; `null` for an empty port and an unresolved Reference |
+| `dockedVehicle` | `true` when the attached entity is a docked vehicle (`AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a hangar port). It is a reference to a ship and is not expanded: `ports` stays empty (#305) |
+| `unresolved` | The code of the error that kept the attachment from being resolved (`issues` lists the codes), otherwise `null` |
+| `ports` | The ports of the attached entity under the Loadout that attached it, or the ports of the nested Loadout of an empty port; empty otherwise |
+
+The ports of an entity are, in this order: those a Loadout names in Loadout order, the other
+ports the Record defines in definition order, and the `ItemPort` elements of the vehicle
+implementation (the Modification applied, ADR-0050) that no port above names, in file order, with
+the source `vehicle`. The definition of a port is the Record's `SItemPortDef`; a port the Record
+does not define takes it from the `ItemPort` of that name. The visibility always comes from the
+vehicle implementation (#289). A ship's Loadout overrides the default Loadout of the turrets and
+racks it carries per port, so the nested ports of a ship are the ones that apply to that ship;
+the entry of the turret itself shows the turret's own defaults. The walk is the one of
+`EntityNode::loadout` (#316).
+
+**References.** Every `entityGuid` is a `guid` of `ships` or `items`. An `itemGuid` is one of
+them too, except for an Entity outside both kinds: a development leftover, or an Entity of another
+folder (`p4kx catalog` counts them as the Entities without an entry in items or ships,
+`CatalogSummary::loadouts().outside`; the key `outside` of `--json`). Such a GUID stays, so the
+Basetool can tell an unknown Entity from an empty port. An `itemGuid` of an unresolved attachment
+may name no Record at all. With a `--filter` the references need not resolve.
+
+`p4kx catalog` counts the loadouts of ships and items, the ports (the nested ports of a ship are
+counted for every ship that carries them), the ports that hold an Entity, the docked vehicles, the
+unresolved attachments, the Entities outside the kinds and the loadouts with an issue; `--json`
+lists them under `loadouts`.
+
+#### Matching tags
+
+`tags` of an item and `portTags` and `requiredTags` of a port are free strings that the game
+matches by name; they are not names of tags in the tag tree, so the catalog carries no tag GUIDs
+for them. Checked on LIVE: of 70,629 port tag words 65,133 name no tag of the tree or several
+(18,891 tags, 1,745 names used more than once), and of 28,575 item tag words 21,146 do not
+resolve; the few unique hits are coincidental. An item fits a port when it carries every word of
+the port's `requiredTags`, compared as stored (case-sensitive, a leading `$` is part of the word).
+The tag tree rule of the paints (a tag below a required tag also counts) applies only to the
+`Tag` Records that paints and Tags fields refer to (see "Paints").
+
 ### Starmap objects
 
 A starmap object (`starmapObjects`) is a `StarMapObject` Record under `starmap/pu` (ADR-0054: a
@@ -741,6 +813,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
+| `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
 | `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
@@ -791,34 +864,45 @@ decompressed content, 1,000,000,000 bytes (1 GB). They must match the basetool's
 changes, the other changes with it. The owner kept the upload limit at 64 MB after the first
 measurement (21.6 MB). The crafting detail (all tiers, quality modifiers, pools and their reward
 sources) grew the largest plain catalog to 26.6 MB, 41 % of the upload limit; compressed it is a
-small fraction of it. The real-Archive tests write the catalog as `.json.zst`, assert that the
-compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame and compare
-it with the plain catalog, and print both sizes and the time per zstd level.
+small fraction of it. The `loadouts` kind (ADR-0064) then grew the plain catalog of LIVE to
+132 MB, which is **over the 64 MB upload limit: the upload must be `.json.zst`** (2.2 MB), and
+plain `.json` is for inspection only. `p4kx catalog` and the window warn about a plain file over
+the limit and advise `.json.zst`. The real-Archive tests write the catalog as `.json.zst`, assert
+that the compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame
+and compare it with the plain catalog, and print both sizes and the time per zstd level.
 
-Measured on 2026-10-21, with `playability` and `paints`, on every installed Channel (complete catalog of every kind, English and
-German texts):
+Measured on 2026-10-22, with the ship base fields and `loadouts`, on every installed Channel (complete catalog of every
+kind, English and German texts); the counts of the other kinds are unchanged:
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 26,648,375 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 26,271,532 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 25,840,617 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 26,648,377 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 26,695,043 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| LIVE | 132,117,714 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| PTU | 127,855,466 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
+| EPTU | 126,761,438 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
+| HOTFIX | 132,117,716 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
+| TECH-PREVIEW | 127,172,638 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
 
-The ship base fields (#395) added 143,268 bytes on LIVE (0.5 %). Written as `.json.zst` (level 19,
-window log 27, `--exported-at 1`), measured on 2026-10-21 with the ship base fields:
+LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
+for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
+unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
+Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and
+HUD projectors); 193 loadouts list an issue (`unknown_class` 153, `dangling_reference` 30,
+`xml_loadout` 4, `cycle` 3, `vehicle_implementation` 3; a loadout can list several).
+
+Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-22 with
+the ship base fields and the loadouts:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 26,648,375 | 1,702,931 | 15.6 |
-| PTU | 26,271,532 | 1,681,150 | 15.6 |
-| EPTU | 25,840,617 | 1,656,576 | 15.6 |
-| HOTFIX | 26,648,377 | 1,702,646 | 15.6 |
-| TECH-PREVIEW | 26,695,043 | 1,721,630 | 15.5 |
+| LIVE | 132,117,714 | 2,242,345 | 58.9 |
+| PTU | 127,855,466 | 2,208,554 | 57.9 |
+| EPTU | 126,761,438 | 2,179,735 | 58.2 |
+| HOTFIX | 132,117,716 | 2,242,683 | 58.9 |
+| TECH-PREVIEW | 127,172,638 | 2,241,272 | 56.7 |
 
-The compressed catalog is 2.7 % of the 64 MB upload limit; the decompressed one is 2.7 % of the
-1 GB cap. The level trades time for size (LIVE, window log 27; the plain build takes 2.1 s):
+The compressed catalog is 3.5 % of the 64 MB upload limit; the decompressed one is 13.2 % of the
+1 GB cap. The level trades time for size (measured before the loadouts, LIVE, window log 27; the
+plain build then took 2.1 s):
 
 | Level | Compressed | Ratio | Compression time |
 |------:|-----------:|------:|-----------------:|
@@ -833,11 +917,13 @@ the cost tree, every line with its null fields), the pools 0.43 MB (824 entries,
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-A catalog builds in 4 to 7 seconds (LIVE 5.5 s) before the ship base fields. With them LIVE builds
-in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version that gave
-every split of the parallel scan its own ship reader took 10.5 s, because each reader began with
-empty Entity caches; the scan now keeps the readers in a pool, so a reader keeps its caches across
-splits. Left out as development leftovers on
+The loadouts take about 105 MB of the 132 MB of LIVE. A catalog builds on LIVE in 4.7 s with the
+ship base fields and the loadouts (5.5 s before both). Without the loadouts, with the ship base fields,
+LIVE builds in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version
+of the ship base fields that gave every split of the parallel scan its own ship reader took
+10.5 s, because each reader began with empty Entity caches; the scan now keeps the readers in a
+pool, so a reader keeps its caches across splits. Writing the `.json.zst` takes 19 to 22 s per
+Channel in all. Left out as development leftovers on
 LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
 
 ### Verification against the live data

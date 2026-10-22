@@ -162,6 +162,16 @@ fn waiting(ui: &mut Ui, text: &str) {
     });
 }
 
+/// Returns the texts of the near and over warning of the upload size; a plain JSON catalog also
+/// advises `.json.zst`.
+const fn size_texts(compressed: bool) -> [T; 2] {
+    if compressed {
+        [T::NearLimit, T::OverLimit]
+    } else {
+        [T::NearLimitPlain, T::OverLimitPlain]
+    }
+}
+
 /// The texts of one summary, formatted once per catalog and language.
 struct Laid {
     key: (u64, Language),
@@ -197,7 +207,11 @@ impl Laid {
         let limit = format::decimal_size(UPLOAD_LIMIT, texts.language());
         let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
         let warnings = [
-            (summary.size_warning(), [T::NearLimit, T::OverLimit], &limit),
+            (
+                summary.size_warning(),
+                size_texts(summary.compressed_size().is_some()),
+                &limit,
+            ),
             (
                 summary.decompressed_warning(),
                 [T::DecompressedNearLimit, T::DecompressedOverLimit],

@@ -43,6 +43,10 @@ pub enum Kind {
     /// Paints: the items whose `AttachDef.Type` is `Paints`, with the ships they fit. Derived from
     /// the items and ships, so no record-path rule of its own.
     Paints,
+    /// Loadouts: the ports of every ship and of every item that has ports, with the Entity the
+    /// Default Loadout attaches to each. Derived from the items and ships, so no record-path rule
+    /// of its own.
+    Loadouts,
     /// Starmap objects: `StarMapObject` Records under `starmap/pu`, each with the position the
     /// system containers place it at.
     StarmapObjects,
@@ -50,7 +54,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -63,6 +67,7 @@ impl Kind {
         Self::BlueprintPools,
         Self::DismantleProcesses,
         Self::Paints,
+        Self::Loadouts,
         Self::StarmapObjects,
     ];
 
@@ -82,6 +87,7 @@ impl Kind {
             Self::BlueprintPools => "blueprintPools",
             Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
+            Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
         }
     }
@@ -101,6 +107,8 @@ impl Kind {
 
     /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
     /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
+    /// [`Kind::Loadouts`] has no rule of its own either: it takes the Records of [`Kind::Ships`]
+    /// and of [`Kind::Items`] and reports the rule of the items.
     #[must_use]
     pub const fn rule(self) -> KindRule {
         match self {
@@ -108,7 +116,7 @@ impl Kind {
                 prefixes: &["libs/foundry/records/scitemmanufacturer/"],
                 type_name: "SCItemManufacturer",
             },
-            Self::Items | Self::Paints => KindRule {
+            Self::Items | Self::Paints | Self::Loadouts => KindRule {
                 prefixes: &[
                     "libs/foundry/records/entities/scitem/",
                     "libs/foundry/records/entities/legacyitems/",
@@ -162,11 +170,12 @@ impl Kind {
     }
 
     /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap, except that the derived [`Kind::Paints`] is never returned.
+    /// kinds do not overlap, except that the derived [`Kind::Paints`] and [`Kind::Loadouts`] are
+    /// never returned.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
-            .filter(|kind| *kind != Self::Paints)
+            .filter(|kind| !kind.is_derived())
             .find(|kind| kind.rule().matches_path(record_path))
     }
 
@@ -185,8 +194,16 @@ impl Kind {
             Self::BlueprintPools => 9,
             Self::DismantleProcesses => 10,
             Self::Paints => 11,
-            Self::StarmapObjects => 12,
+            Self::Loadouts => 12,
+            Self::StarmapObjects => 13,
         }
+    }
+
+    /// Returns whether the kind is derived from the entities of other kinds and selects no Records
+    /// of its own.
+    #[must_use]
+    pub const fn is_derived(self) -> bool {
+        matches!(self, Self::Paints | Self::Loadouts)
     }
 }
 

@@ -81,6 +81,30 @@ pub struct PaintSummary {
     pub unreadable_vehicles: usize,
 }
 
+/// What a catalog holds of loadouts. The port counts run over the whole tree of every loadout, so
+/// a port that several ships carry in their trees is counted once per ship.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LoadoutSummary {
+    /// The loadouts of ships.
+    pub ships: usize,
+    /// The loadouts of items that have ports.
+    pub items: usize,
+    /// The ports of all loadouts, nested ports included.
+    pub ports: usize,
+    /// The ports that hold an Entity, docked vehicles included.
+    pub attached: usize,
+    /// The ports that hold a docked vehicle; its ports are not listed.
+    pub docked_vehicles: usize,
+    /// The ports whose attachment cannot be resolved, e.g. a class name no Entity has.
+    pub unresolved: usize,
+    /// The distinct Entities held by a port that are no entry of `items` or `ships`, e.g.
+    /// development leftovers or Entities outside the item folders; a consumer finds no entry for
+    /// their `itemGuid`.
+    pub outside: usize,
+    /// The loadouts that list at least one issue.
+    pub with_issues: usize,
+}
+
 /// What a catalog holds of starmap objects and where the system containers place them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StarmapSummary {
@@ -130,6 +154,7 @@ pub struct CatalogSummary {
     pub(crate) notes: Vec<LocalizationNote>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) paints: PaintSummary,
+    pub(crate) loadouts: LoadoutSummary,
     pub(crate) starmap: StarmapSummary,
     pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) playability: Box<PlayabilitySummary>,
@@ -145,6 +170,13 @@ impl CatalogSummary {
     #[must_use]
     pub const fn paints(&self) -> PaintSummary {
         self.paints
+    }
+
+    /// Returns the counts of the loadouts: how many ships and items have one, how many ports they
+    /// hold, how many ports hold an Entity and how many of those the catalog has no entry for.
+    #[must_use]
+    pub const fn loadouts(&self) -> LoadoutSummary {
+        self.loadouts
     }
 
     /// Returns the counts of the starmap objects: how many the catalog holds, how many have a

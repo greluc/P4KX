@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
-    CraftingWarning, DECOMPRESSED_LIMIT, Filter, Playability, SizeWarning, StarmapSummary,
-    UPLOAD_LIMIT, catalog_schema, write_catalog,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, Playability, SizeWarning,
+    StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -155,6 +155,12 @@ fn warn_about_size(summary: &CatalogSummary) -> io::Result<()> {
             summary.upload_size(),
             relation(warning)
         )?;
+        if summary.compressed_size().is_none() {
+            writeln!(
+                err,
+                "note: upload the catalog as .json.zst (--out <file>.json.zst); plain .json is for inspection"
+            )?;
+        }
     }
     if let Some(warning) = summary.decompressed_warning() {
         writeln!(
@@ -212,6 +218,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
         paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
     )?;
+    print_loadouts(&mut stdout, summary.loadouts())?;
     print_starmap(&mut stdout, summary.starmap())?;
     let playability = summary.playability();
     for (kind, counts) in [("items", playability.items), ("ships", playability.ships)] {
@@ -247,6 +254,21 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         size_text(summary),
         summary.skipped(),
         summary.failures().len()
+    )
+}
+
+fn print_loadouts(out: &mut impl Write, loadouts: LoadoutSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "loadouts: {} ships and {} items, {} ports, {} hold an Entity ({} docked vehicles), {} unresolved, {} Entities without an entry in items or ships, {} loadouts with issues",
+        loadouts.ships,
+        loadouts.items,
+        loadouts.ports,
+        loadouts.attached,
+        loadouts.docked_vehicles,
+        loadouts.unresolved,
+        loadouts.outside,
+        loadouts.with_issues
     )
 }
 

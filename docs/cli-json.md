@@ -537,9 +537,9 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 26505107, "compressed_size": null,
+{"archive": "…", "out": "…", "schema_version": 1, "size": 131969336, "compressed_size": null,
  "upload_limit": 64000000, "decompressed_limit": 1000000000,
- "size_warning": null, "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
+ "size_warning": "over_limit", "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},
  {"kind": "ships", "count": 1087, "skipped": 57, "complete": true},
  {"kind": "commodities", "count": 145, "skipped": 0, "complete": true},
@@ -551,11 +551,14 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 0, "complete": true},
- {"kind": "starmapObjects", "count": 1500, "skipped": 0, "complete": true}], "skipped": 1205,
+ {"kind": "loadouts", "count": 10708, "skipped": 0, "complete": true},
+ {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
+ "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,
+ "docked_vehicles": 65, "unresolved": 505, "outside": 61, "with_issues": 193},
  "starmap": {"objects": 1500, "placed": 1400, "unplaced": 100, "ambiguous": 0, "systems": 3,
  "unreadable_containers": 0, "missing_containers": 2, "malformed_children": 0},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
@@ -586,7 +589,12 @@ Archive has none (the example shows one). `item_classes` counts the items whose 
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
-implementation is not read in full (`unreadable_vehicles`). `starmap` counts the starmap objects
+implementation is not read in full (`unreadable_vehicles`). `loadouts` counts the loadouts of
+ships (`ships`) and of items that have ports (`items`), the ports of all loadouts with the nested
+ones (`ports`), the ports that hold an Entity (`attached`), the ports that hold a docked vehicle
+(`docked_vehicles`), the attachments that cannot be resolved (`unresolved`), the distinct attached
+Entities that are no entry of `items` or `ships` (`outside`) and the loadouts that list an issue
+(`with_issues`). `starmap` counts the starmap objects
 (`objects`), those with a position (`placed`) and without (`unplaced`), the records that Child
 elements place more than 1 m apart (`ambiguous`, no position), the star systems found (`systems`),
 the containers that cannot be read (`unreadable_containers`), the external containers the Archive

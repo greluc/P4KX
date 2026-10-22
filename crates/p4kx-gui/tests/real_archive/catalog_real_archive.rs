@@ -51,9 +51,9 @@ fn the_catalog_of_a_real_archive_is_written_with_its_summary() -> TestResult {
         .ok_or("no manufacturers")?;
     assert!(makers.count > 50, "many manufacturers: {}", makers.count);
     assert_ne!(
-        summary.size_warning(),
+        summary.decompressed_warning(),
         Some(SizeWarning::OverLimit),
-        "within the upload limit"
+        "within the decompressed limit"
     );
     assert_eq!(
         fs::metadata(&file)?.len(),

@@ -109,6 +109,8 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `loadouts` | The ports of every ship and of every item that has ports, with the Entity the Default Loadout attaches to each, ordered by `entityGuid` |
 | `starmapObjects` | The starmap objects (star systems, planets, moons, stations, jump points) with type, parent, name and world position, ordered by GUID |
 | `contracts` | The contracts and sub contracts with resolved title, mission type, pickup places and the reputation granted on success, ordered by `guid` and then `subContractGuid` |
+| `mineableElements` | The mineable elements with their instability and other plain numbers, each linked to a `ResourceType`, ordered by GUID |
+| `refiningProcesses` | The refining processes (speed and quality pairs of a refinery), ordered by GUID |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -976,6 +978,43 @@ object from an unreleased one (ADR-0067, #417): the three star system Records ca
 (`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
 Basetool decides from `system`, `position`, `hideInStarmap` and `type`.
 
+### Mineable elements and refining processes
+
+The raw facts only (ADR-0065): the catalog states no instability per commodity, because the
+relation is not one to one. The Basetool applies its own rule.
+
+A mineable element (`mineableElements`) is a `MineableElement` Record under `mining/mineableelements`
+(46 Records on LIVE, 43 entries). `resourceTypeGuid` is the `ResourceType` its Reference
+`resourceType` links to; `null` for a null or dangling Reference. It equals a commodity's
+`subtypeGuid` only when the catalog has that commodity: commodities are backfilled only for the
+`ResourceType`s a blueprint ingredient uses, so 20 of the 41 linked `ResourceType`s have one on LIVE.
+Several elements may share one `ResourceType` (41 distinct for the 43 entries), so a commodity can
+have several elements with different values; every element is listed and none is picked. The numbers
+are those of the Record, unchanged, and `null` when it states none. The ranges are those of the 43
+entries on LIVE:
+
+| Field | Record field | LIVE range |
+|-------|--------------|------------|
+| `instability` | `elementInstability` | 0 to 1000 |
+| `resistance` | `elementResistance` | -1 to 1 |
+| `optimalWindowMidpoint` | `elementOptimalWindowMidpoint` | 0.3 to 1 |
+| `optimalWindowMidpointRandomness` | `elementOptimalWindowMidpointRandomness` | 0 to 0.3 |
+| `optimalWindowThinness` | `elementOptimalWindowThinness` | -1 to 10 |
+| `explosionMultiplier` | `elementExplosionMultiplier` | -1000 to 260 |
+| `clusterFactor` | `elementClusterFactor` | 0 to 1 |
+
+A refining process (`refiningProcesses`) is a `RefiningProcess` Record under `refiningprocess`
+(9 on LIVE, one per pair of speed and quality). `refiningSpeed` (`Slow`, `Normal`, `Fast`) and
+`refiningQuality` (`Wasteful`, `Normal`, `Careful`) are closed sets kept as strings, so a new value
+is additive; `processName` is the localised label of the method, a game text. On LIVE (2026-10-22)
+the English `global.ini` holds all 9 keys and the German one none, so `de` is `null` there. The
+DataForge holds no yield per commodity and method: yields are not in the Archive and stay with
+other sources.
+
+The 46 element Records of LIVE give 43 entries: the development-leftover rule leaves out
+`MinableElement_Ship_template`, `MinableElement_GroundVehicle_template` and
+`MinableElement_FPS_template`, counted as skipped. The 9 `RefiningProcess` Records are all entries.
+
 ### Crafting data
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
@@ -1080,6 +1119,8 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `loadouts` | Those of `ships`, and of `items` whose Record defines ports or names a default Loadout | `EntityClassDefinition` |
 | `starmapObjects` | `libs/foundry/records/starmap/pu/` | `StarMapObject` |
 | `contracts` | `libs/foundry/records/contracts/contractgenerator/` | `ContractGenerator` |
+| `mineableElements` | `libs/foundry/records/mining/mineableelements/` | `MineableElement` |
+| `refiningProcesses` | `libs/foundry/records/refiningprocess/` | `RefiningProcess` |
 
 The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
@@ -1093,9 +1134,8 @@ The blueprint prefix leaves out `crafting/blueprints/dismantle/`, whose Record i
 `$templates` folders below it hold 27 real blueprints, each the only recipe for its item, and
 stay: the token `templates` is not `template`.
 
-`mining/mineableelements` is not a kind. Its 46 Records only link a mineable to its `ResourceType`
-and hold no commodity of their own; the `ResourceType` Records enter through the ingredients that
-use them.
+The 46 `mining/mineableelements` Records hold no commodity of their own and are the kind
+`mineableElements`; the `ResourceType` Records enter through the ingredients that use them.
 
 An item without an `SAttachableComponentParams` component, such as a door or a shop counter, is
 still an item; its definition fields are then `null` and `tags` is empty.

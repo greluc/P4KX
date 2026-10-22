@@ -190,6 +190,8 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "loadouts",
             "starmapObjects",
             "contracts",
+            "mineableElements",
+            "refiningProcesses",
         ],
         "order of the catalog"
     );

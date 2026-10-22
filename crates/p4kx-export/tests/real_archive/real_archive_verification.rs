@@ -19,7 +19,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 13] = [
+const MINIMUM: [(Kind, usize); 15] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -33,6 +33,8 @@ const MINIMUM: [(Kind, usize); 13] = [
     (Kind::DismantleProcesses, 1),
     (Kind::Paints, 900),
     (Kind::Loadouts, 1_000),
+    (Kind::MineableElements, 20),
+    (Kind::RefiningProcesses, 9),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -157,10 +159,27 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
 }
 
 /// Checks that no GUID occurs twice; a paint carries no GUID of its own, only the `itemGuid` of
-/// its item.
+/// its item. A contract and its sub contracts share the `guid`, so the identity of a contract is
+/// the pair of `guid` and `subContractGuid`, which is unique and strictly ordered within the kind.
 fn check_unique_guids(catalog: &Value) -> TestResult {
     let mut seen = HashSet::new();
-    for kind in Kind::ALL.into_iter().filter(|kind| !kind.is_derived()) {
+    let identities: Vec<(&str, &str)> = list(catalog, Kind::Contracts)?
+        .iter()
+        .map(|entry| {
+            (
+                entry["guid"].as_str().unwrap_or_default(),
+                entry["subContractGuid"].as_str().unwrap_or_default(),
+            )
+        })
+        .collect();
+    assert!(
+        identities.is_sorted_by(|a, b| a < b),
+        "contracts strictly ordered by guid and subContractGuid, none twice"
+    );
+    let kinds = Kind::ALL
+        .into_iter()
+        .filter(|kind| !kind.is_derived() && *kind != Kind::Contracts);
+    for kind in kinds {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;
             assert!(seen.insert(guid), "{guid} occurs twice, also in {kind}");

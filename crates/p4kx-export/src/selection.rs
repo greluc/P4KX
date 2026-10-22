@@ -53,11 +53,15 @@ pub enum Kind {
     /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
     /// `contracts/contractgenerator`, one entry each.
     Contracts,
+    /// Mineable elements: `MineableElement` Records under `mining/mineableelements`.
+    MineableElements,
+    /// Refining processes: `RefiningProcess` Records under `refiningprocess`.
+    RefiningProcesses,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 17] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -73,6 +77,8 @@ impl Kind {
         Self::Loadouts,
         Self::StarmapObjects,
         Self::Contracts,
+        Self::MineableElements,
+        Self::RefiningProcesses,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -94,6 +100,8 @@ impl Kind {
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
             Self::Contracts => "contracts",
+            Self::MineableElements => "mineableElements",
+            Self::RefiningProcesses => "refiningProcesses",
         }
     }
 
@@ -116,6 +124,7 @@ impl Kind {
     /// [`Kind::Loadouts`] has no rule of its own either: it takes the Records of [`Kind::Ships`]
     /// and of [`Kind::Items`] and reports the rule of the items.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "a table with one entry per kind")]
     pub const fn rule(self) -> KindRule {
         match self {
             Self::Manufacturers => KindRule {
@@ -176,6 +185,14 @@ impl Kind {
                 prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
                 type_name: "ContractGenerator",
             },
+            Self::MineableElements => KindRule {
+                prefixes: &["libs/foundry/records/mining/mineableelements/"],
+                type_name: "MineableElement",
+            },
+            Self::RefiningProcesses => KindRule {
+                prefixes: &["libs/foundry/records/refiningprocess/"],
+                type_name: "RefiningProcess",
+            },
         }
     }
 
@@ -207,6 +224,8 @@ impl Kind {
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
             Self::Contracts => 14,
+            Self::MineableElements => 15,
+            Self::RefiningProcesses => 16,
         }
     }
 

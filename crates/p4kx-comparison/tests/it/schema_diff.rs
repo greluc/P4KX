@@ -3,8 +3,8 @@
 use std::error::Error;
 
 use p4kx_comparison::{
-    DataForge, PropertyAspect, SchemaChangeKind, SchemaDiff, SideCounts, compare_schema,
-    schema_report,
+    DataForge, OptionChangeKind, PropertyAspect, SchemaChangeKind, SchemaDiff, SideCounts,
+    compare_schema, schema_report,
 };
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType};
 
@@ -274,7 +274,7 @@ fn enums_and_options_are_added_removed_and_changed() -> TestResult {
         .iter()
         .find(|change| change.name == "Size")
         .ok_or("Size")?;
-    let options: Vec<(&str, SchemaChangeKind)> = size
+    let options: Vec<(&str, OptionChangeKind)> = size
         .options
         .iter()
         .map(|option| (option.name.as_str(), option.change))
@@ -282,8 +282,8 @@ fn enums_and_options_are_added_removed_and_changed() -> TestResult {
     assert_eq!(
         options,
         [
-            ("Huge", SchemaChangeKind::Added),
-            ("Medium", SchemaChangeKind::Removed)
+            ("Huge", OptionChangeKind::Added),
+            ("Medium", OptionChangeKind::Removed)
         ]
     );
     assert_eq!(

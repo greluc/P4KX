@@ -38,13 +38,15 @@ pub enum SchemaText {
     KindOption,
     /// Shown in the list when the schemas do not differ.
     NoDifferences,
+    /// Shown when the schemas could not be compared; takes `reason`.
+    Failed,
     /// The accessible name of a row; takes `change`, `kind` and `name`.
     Row,
 }
 
 impl SchemaText {
     /// Every text of the schema list.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::Tab,
         Self::LabelStructs,
         Self::LabelProperties,
@@ -63,6 +65,7 @@ impl SchemaText {
         Self::KindEnum,
         Self::KindOption,
         Self::NoDifferences,
+        Self::Failed,
         Self::Row,
     ];
 
@@ -88,6 +91,7 @@ impl SchemaText {
             Self::KindEnum => "schema-kind-enum",
             Self::KindOption => "schema-kind-option",
             Self::NoDifferences => "schema-no-differences",
+            Self::Failed => "schema-failed",
             Self::Row => "schema-row",
         }
     }

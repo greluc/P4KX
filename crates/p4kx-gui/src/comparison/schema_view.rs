@@ -100,7 +100,7 @@ impl SchemaView {
             });
             rows.extend(change.options.iter().map(|option| SchemaRow {
                 kind: SchemaRowKind::Option,
-                change: option.change,
+                change: option.change.into(),
                 name: option.name.clone(),
                 old: String::new(),
                 new: String::new(),
@@ -117,6 +117,12 @@ impl SchemaView {
     #[must_use]
     pub const fn counts(&self) -> SchemaCounts {
         self.counts
+    }
+
+    /// Returns the number of structs and enums that differ.
+    #[must_use]
+    pub const fn changed(&self) -> u64 {
+        self.counts.structs.total() + self.counts.enums.total()
     }
 
     /// Returns the rows in list order.

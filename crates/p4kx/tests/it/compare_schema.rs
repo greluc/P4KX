@@ -55,6 +55,26 @@ fn pair(old: Vec<u8>, new: Vec<u8>) -> Result<tempfile::TempDir, Box<dyn Error>>
     Ok(dir)
 }
 
+#[test]
+fn an_archive_without_a_dataforge_exits_with_code_5() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    write(dir.path(), OLD, old_database())?;
+    let bare = dir.path().join(NEW);
+    std::fs::create_dir_all(bare.parent().ok_or("folder")?)?;
+    ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\readme.txt", b"hi".to_vec()))
+        .write_to(&bare)?;
+
+    let output = schema(dir.path(), &[])?.output()?;
+
+    assert_eq!(output.status.code(), Some(5), "exit code: {output:?}");
+    assert!(
+        String::from_utf8(output.stderr)?.contains("holds no DataForge"),
+        "the error names the missing DataForge"
+    );
+    Ok(())
+}
+
 fn schema(dir: &Path, extra: &[&str]) -> Result<Command, Box<dyn Error>> {
     let mut command = p4kx_testkit::p4kx()?;
     command

@@ -3,11 +3,12 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_comparison::{
-    Archive, EnumChange, KindCounts, PropertyChange, SchemaChangeKind, SchemaDiff, Side,
+    Archive, EnumChange, KindCounts, OptionChangeKind, PropertyChange, SchemaDiff, Side,
     StructChange, compare_schema, schema_report,
 };
 
 use crate::compare::{finish, write_line, write_side};
+use crate::model_text::printable;
 use crate::{dataforges, json};
 
 /// Compares the schema of both DataForges and prints the summary and the changes, or the report
@@ -76,14 +77,17 @@ fn write_struct(out: &mut impl Write, change: &StructChange) -> io::Result<()> {
     writeln!(
         out,
         "{:<48} {:<8} {:>9} {:>9}",
-        change.name, change.change, change.records.old, change.records.new
+        printable(&change.name),
+        change.change,
+        change.records.old,
+        change.records.new
     )?;
     if let Some(parent) = &change.parent {
         writeln!(
             out,
             "  parent: {} -> {}",
-            parent.old.as_deref().unwrap_or("none"),
-            parent.new.as_deref().unwrap_or("none")
+            printable(parent.old.as_deref().unwrap_or("none")),
+            printable(parent.new.as_deref().unwrap_or("none"))
         )?;
     }
     change
@@ -96,24 +100,29 @@ fn write_enum(out: &mut impl Write, change: &EnumChange) -> io::Result<()> {
     writeln!(
         out,
         "{:<48} {:<8} {:>9} {:>9}",
-        change.name, change.change, change.records.old, change.records.new
+        printable(&change.name),
+        change.change,
+        change.records.old,
+        change.records.new
     )?;
     for option in &change.options {
-        let mark = if option.change == SchemaChangeKind::Added {
+        let mark = if option.change == OptionChangeKind::Added {
             '+'
         } else {
             '-'
         };
-        writeln!(out, "  {mark} {}", option.name)?;
+        writeln!(out, "  {mark} {}", printable(&option.name))?;
     }
     Ok(())
 }
 
 fn write_property(out: &mut impl Write, property: &PropertyChange) -> io::Result<()> {
     let describe = |shape: Option<&p4kx_comparison::PropertyShape>| {
-        shape.map_or_else(String::new, ToString::to_string)
+        shape.map_or_else(String::new, |shape| {
+            printable(&shape.to_string()).into_owned()
+        })
     };
-    let name = &property.name;
+    let name = printable(&property.name);
     let (old, new) = (
         describe(property.old.as_ref()),
         describe(property.new.as_ref()),

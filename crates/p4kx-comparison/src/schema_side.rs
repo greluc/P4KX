@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use p4kx_dataforge::{DataForge, DataForgeError, Property, Struct};
+use p4kx_dataforge::{DataForge, DataForgeError, MAX_INHERITANCE_DEPTH, Property, Struct};
 
-use crate::schema_diff::PropertyShape;
+use crate::PropertyShape;
 
 /// The definitions of one DataForge, keyed by name.
 #[derive(Debug, Default)]
@@ -17,6 +17,7 @@ pub(crate) struct SideSchema<'f> {
 pub(crate) struct StructDef<'f> {
     pub(crate) parent: Option<&'f str>,
     pub(crate) properties: BTreeMap<&'f str, PropertyShape>,
+    pub(crate) enums: Vec<&'f str>,
     pub(crate) records: u64,
 }
 
@@ -28,23 +29,21 @@ pub(crate) struct EnumDef<'f> {
 }
 
 impl<'f> SideSchema<'f> {
-    /// Reads the structs and enums of `forge`; a definition whose name cannot be read is counted
-    /// and left out, and the first definition of a name wins.
-    pub(crate) fn read(forge: &'f DataForge<'_>) -> Self {
+    /// Reads the structs and enums of `forge`. The first definition of a name wins; a definition
+    /// whose name cannot be read, a later definition of a name and a parent, property, option or
+    /// Record whose name or struct cannot be read are counted in `unreadable` and left out.
+    pub(crate) fn read(forge: &'f DataForge<'f>) -> Self {
         let mut side = Self::default();
-        let mut own: Vec<(&'f str, u64)> = Vec::new();
-        let mut uses: Vec<(&'f str, Vec<&'f str>)> = Vec::new();
         for structure in forge.structs() {
             let Ok(name) = structure.name() else {
                 side.unreadable += 1;
                 continue;
             };
             if side.structs.contains_key(name) {
+                side.unreadable += 1;
                 continue;
             }
-            let (def, enums) = struct_def(&structure, &mut side.unreadable);
-            own.push((name, u64::from(structure.instance_count())));
-            uses.push((name, enums));
+            let def = struct_def(&structure, &mut side.unreadable);
             side.structs.insert(name, def);
         }
         for enumeration in forge.enums() {
@@ -52,7 +51,11 @@ impl<'f> SideSchema<'f> {
                 side.unreadable += 1;
                 continue;
             };
-            let def = side.enums.entry(name).or_default();
+            if side.enums.contains_key(name) {
+                side.unreadable += 1;
+                continue;
+            }
+            let mut def = EnumDef::default();
             for option in enumeration.options() {
                 match option {
                     Ok(option) => {
@@ -61,58 +64,94 @@ impl<'f> SideSchema<'f> {
                     Err(_) => side.unreadable += 1,
                 }
             }
+            side.enums.insert(name, def);
         }
-        side.count_records(&own, &uses);
+        side.count_records(forge);
         side
     }
 
-    fn count_records(&mut self, own: &[(&'f str, u64)], uses: &[(&'f str, Vec<&'f str>)]) {
-        let mut effective: HashMap<&str, u64> = HashMap::with_capacity(own.len());
-        for &(name, count) in own {
-            let mut at = Some(name);
-            let mut steps = 0;
-            while let Some(current) = at
-                && steps <= own.len()
-            {
-                *effective.entry(current).or_default() += count;
-                at = self.structs.get(current).and_then(|def| def.parent);
-                steps += 1;
+    /// Counts the Records by the struct they are instances of: a struct gets the Records of
+    /// itself and of the structs inheriting from it, an enum those of the structs that declare or
+    /// inherit a property of it, each Record once.
+    fn count_records(&mut self, forge: &'f DataForge<'f>) {
+        let mut own: HashMap<&'f str, u64> = HashMap::new();
+        for record in forge.records() {
+            match record.struct_type().ok().and_then(|s| s.name().ok()) {
+                Some(name) => {
+                    let count = own.entry(name).or_default();
+                    *count = count.saturating_add(1);
+                }
+                None => self.unreadable += 1,
+            }
+        }
+        let mut rolled: HashMap<&str, u64> = HashMap::with_capacity(own.len());
+        let mut enum_records: HashMap<&str, u64> = HashMap::new();
+        for (&name, &count) in &own {
+            let mut enums: Vec<&str> = Vec::new();
+            for member in self.chain(name) {
+                let total = rolled.entry(member).or_default();
+                *total = total.saturating_add(count);
+                let declared = self.structs.get(member).map_or(&[][..], |def| &def.enums);
+                for &enumeration in declared {
+                    if !enums.contains(&enumeration) {
+                        enums.push(enumeration);
+                    }
+                }
+            }
+            for enumeration in enums {
+                let total = enum_records.entry(enumeration).or_default();
+                *total = total.saturating_add(count);
             }
         }
         for (name, def) in &mut self.structs {
-            def.records = effective.get(name).copied().unwrap_or_default();
+            def.records = rolled.get(name).copied().unwrap_or_default();
         }
-        for (name, enums) in uses {
-            let records = effective.get(name).copied().unwrap_or_default();
-            for enumeration in enums {
-                if let Some(def) = self.enums.get_mut(enumeration) {
-                    def.records += records;
-                }
-            }
+        for (name, def) in &mut self.enums {
+            def.records = enum_records.get(name).copied().unwrap_or_default();
         }
+    }
+
+    /// Returns `name` and its ancestors, nearest first, stopping at a repeated struct and after
+    /// [`MAX_INHERITANCE_DEPTH`] ancestors.
+    fn chain(&self, name: &'f str) -> Vec<&'f str> {
+        let mut chain = vec![name];
+        let mut at = self.structs.get(name).and_then(|def| def.parent);
+        while let Some(parent) = at
+            && chain.len() <= MAX_INHERITANCE_DEPTH
+            && !chain.contains(&parent)
+        {
+            chain.push(parent);
+            at = self.structs.get(parent).and_then(|def| def.parent);
+        }
+        chain
     }
 }
 
-fn struct_def<'f>(structure: &Struct<'f>, unreadable: &mut u64) -> (StructDef<'f>, Vec<&'f str>) {
-    let mut def = StructDef {
-        parent: structure.parent().and_then(|parent| parent.name().ok()),
-        ..StructDef::default()
-    };
-    let mut enums: Vec<&'f str> = Vec::new();
+fn struct_def<'f>(structure: &Struct<'f>, unreadable: &mut u64) -> StructDef<'f> {
+    let mut def = StructDef::default();
+    if let Some(parent) = structure.parent() {
+        match parent.name() {
+            Ok(parent) => def.parent = Some(parent),
+            Err(_) => *unreadable += 1,
+        }
+    }
     for property in structure.properties() {
         let Ok(name) = property.name() else {
             *unreadable += 1;
             continue;
         };
-        let shape = shape(&property);
-        if let Some(enumeration) = property.target_enum().and_then(|e| e.name().ok())
-            && !enums.contains(&enumeration)
-        {
-            enums.push(enumeration);
+        if def.properties.contains_key(name) {
+            *unreadable += 1;
+            continue;
         }
-        def.properties.entry(name).or_insert(shape);
+        if let Some(enumeration) = property.target_enum().and_then(|e| e.name().ok())
+            && !def.enums.contains(&enumeration)
+        {
+            def.enums.push(enumeration);
+        }
+        def.properties.insert(name, shape(&property));
     }
-    (def, enums)
+    def
 }
 
 fn shape(property: &Property<'_>) -> PropertyShape {

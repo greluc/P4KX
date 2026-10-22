@@ -190,7 +190,7 @@ pub(crate) fn to_report<'a>(comparison: &'a Comparison<'_>) -> Report<'a> {
 }
 
 /// Lets a required field also hold `null`.
-fn nullable(schema: &mut schemars::Schema) {
+pub(crate) fn nullable(schema: &mut schemars::Schema) {
     let Some(object) = schema.as_object_mut() else {
         return;
     };

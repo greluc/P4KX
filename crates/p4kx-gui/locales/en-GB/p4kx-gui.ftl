@@ -200,7 +200,8 @@ schema-kind-property = Property
 schema-kind-enum = Enum
 schema-kind-option = Option
 schema-no-differences = The schema does not differ between the DataForges.
-schema-row = { $change }: { $kind } { $name }
+schema-failed = The schemas could not be compared: { $reason }
+schema-row ={ $change }: { $kind } { $name }
 
 diff-previous = Previous difference
 diff-next = Next difference

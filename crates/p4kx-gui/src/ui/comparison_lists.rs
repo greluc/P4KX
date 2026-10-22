@@ -5,8 +5,8 @@ use egui::{Id, Ui, UiBuilder};
 use super::record_list::{self, RecordAction};
 use crate::widgets::tab::{self, TabLabel};
 use crate::{
-    ComparisonList, ComparisonText, ComparisonView, Model, RecordChangeView, SchemaText, Text,
-    Texts, format,
+    ComparisonList, ComparisonText, ComparisonView, Model, RecordChangeView, SchemaText,
+    SchemaView, Text, Texts, format,
 };
 
 const LISTS: [ComparisonList; 3] = [
@@ -15,7 +15,7 @@ const LISTS: [ComparisonList; 3] = [
     ComparisonList::Schema,
 ];
 
-/// Shows the `.tab-nav` that switches between the Entry and the Record list once the Record
+/// Shows the `.tab-nav` that switches between the Entry, Record and schema list once the Record
 /// level was compared.
 pub(super) fn tabs(ui: &mut Ui, model: &mut Model) {
     let Some(view) = model.comparison().view() else {
@@ -40,11 +40,13 @@ pub(super) fn tabs(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-/// Returns both tabs with the number of shown Entries and Records, laid out again only when the
-/// language, the Comparison or a number changes.
+/// Returns the tabs with the number of shown Entries and Records and of the structs and enums
+/// that differ, laid out again only when the language, the Comparison or a number changes.
 fn labels(ui: &Ui, texts: &Texts, view: &ComparisonView) -> Arc<[TabLabel]> {
     let records = view.records().map_or(0, |records| records.shown().len());
-    let schema = view.schema().map(|schema| schema.rows().len());
+    let schema = view
+        .schema()
+        .map(|schema| schema.ok().map(SchemaView::changed));
     let key = Id::unique((
         texts.language(),
         view.generation(),
@@ -59,14 +61,19 @@ fn labels(ui: &Ui, texts: &Texts, view: &ComparisonView) -> Arc<[TabLabel]> {
     {
         return labels;
     }
-    let number =
-        |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
-    let tab = |text: Text, count: usize| TabLabel::new(ui, &texts.get(text), Some(&number(count)));
+    let number = |value: u64| format::number(value, texts.language());
+    let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+    let tab = |text: Text, value: Option<u64>| {
+        TabLabel::new(ui, &texts.get(text), value.map(number).as_deref())
+    };
     let mut labels = vec![
-        tab(ComparisonText::LevelEntries.into(), view.shown().len()),
-        tab(ComparisonText::LevelRecords.into(), records),
+        tab(
+            ComparisonText::LevelEntries.into(),
+            Some(count(view.shown().len())),
+        ),
+        tab(ComparisonText::LevelRecords.into(), Some(count(records))),
     ];
-    labels.extend(schema.map(|count| tab(SchemaText::Tab.into(), count)));
+    labels.extend(schema.map(|changed| tab(SchemaText::Tab.into(), changed)));
     let labels: Arc<[TabLabel]> = labels.into();
     ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&labels))));
     labels

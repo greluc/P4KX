@@ -1,11 +1,12 @@
 use egui::{
-    CornerRadius, Frame, Margin, Rect, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo, pos2, vec2,
+    CornerRadius, Frame, Margin, Rect, Role, ScrollArea, Sense, Stroke, Ui, Vec2, WidgetInfo, pos2,
+    vec2,
 };
 use p4kx_comparison::{KindCounts, SchemaChangeKind};
 
 use crate::theme::desktop::{
     CELL_PADDING_X, CHANGE_COLUMN, COUNT_COLUMN, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE,
-    TABLE_HEAD_TRACKING, TOOLBAR_PADDING,
+    TABLE_HEAD_TRACKING, TOOLBAR_PADDING, TREE_INDENT, TREE_RAIL_OFFSET,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, Weight};
@@ -14,40 +15,48 @@ use crate::widgets::frames::px;
 use crate::widgets::rows::{RowState, paint_divider, paint_table_row};
 use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
 use crate::{
-    ComparisonText, Model, SchemaRow, SchemaRowKind, SchemaText, SchemaView, Texts, format,
+    ComparisonText, ComparisonView, Model, SchemaRow, SchemaRowKind, SchemaText, SchemaView, Text,
+    Texts, format,
 };
 
 const KIND_COLUMN: f32 = COUNT_COLUMN;
 const RECORDS_COLUMN: f32 = CHANGE_COLUMN;
 const FIXED: f32 = CHANGE_COLUMN + KIND_COLUMN + 2.0 * RECORDS_COLUMN;
 const NAME_SHARE: f32 = 0.4;
-const INDENT: f32 = 2.0 * CELL_PADDING_X;
+const FIRST_RECORDS_COLUMN: usize = 5;
 
-const HEADS: [SchemaText; 7] = [
-    SchemaText::Tab,
-    SchemaText::ColumnKind,
-    SchemaText::ColumnName,
-    SchemaText::ColumnOld,
-    SchemaText::ColumnNew,
-    SchemaText::ColumnOldRecords,
-    SchemaText::ColumnNewRecords,
+const HEADS: [Text; 7] = [
+    Text::Comparison(ComparisonText::ColumnChange),
+    Text::Schema(SchemaText::ColumnKind),
+    Text::Schema(SchemaText::ColumnName),
+    Text::Schema(SchemaText::ColumnOld),
+    Text::Schema(SchemaText::ColumnNew),
+    Text::Schema(SchemaText::ColumnOldRecords),
+    Text::Schema(SchemaText::ColumnNewRecords),
 ];
 
 /// Shows the schema list: the counts per level and the virtual list of the structs, enums and
-/// their members that differ.
+/// their members that differ, or why the schemas could not be compared.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
-    let Some(schema) = model.comparison().view().and_then(|view| view.schema()) else {
+    let Some(schema) = model.comparison().view().and_then(ComparisonView::schema) else {
         return;
     };
     let texts = model.texts();
+    let schema = match schema {
+        Ok(schema) => schema,
+        Err(reason) => {
+            let text = texts.format(SchemaText::Failed, &[("reason", reason.to_owned().into())]);
+            note(ui, text, palette::DANGER_TEXT);
+            return;
+        }
+    };
     counts(ui, texts, schema);
     if schema.rows().is_empty() {
-        Frame::NONE
-            .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-            .show(ui, |ui| {
-                let text = texts.get(SchemaText::NoDifferences);
-                ui.label(plain(text, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
-            });
+        note(
+            ui,
+            texts.get(SchemaText::NoDifferences),
+            palette::GRAY_2_TEXT,
+        );
         return;
     }
     ui.spacing_mut().item_spacing = Vec2::ZERO;
@@ -63,6 +72,14 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                 }
                 data_row(ui, texts, &labels, (row, index));
             }
+        });
+}
+
+fn note(ui: &mut Ui, text: String, colour: egui::Color32) {
+    Frame::NONE
+        .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
+        .show(ui, |ui| {
+            ui.label(plain(text, FS_XS, Weight::Regular).color(colour));
         });
 }
 
@@ -109,12 +126,8 @@ struct Labels {
 
 impl Labels {
     fn of(ui: &Ui, texts: &Texts) -> Self {
-        let mut heads = HEADS.map(|text| texts.get(text));
-        if let Some(change) = heads.first_mut() {
-            *change = texts.get(ComparisonText::ColumnChange);
-        }
         Self {
-            heads,
+            heads: HEADS.map(|text| texts.get(text)),
             chips: [
                 ComparisonText::Added,
                 ComparisonText::Removed,
@@ -160,7 +173,7 @@ fn head_row(ui: &mut Ui, labels: &Labels) {
         let cell = cell.shrink2(vec2(CELL_PADDING_X, 0.0));
         let text = caps(head, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING);
         let galley = line(ui, text, cell.width());
-        if index >= 5 {
+        if index >= FIRST_RECORDS_COLUMN {
             paint_right(ui, cell, galley, palette::GRAY_1);
         } else {
             paint_left(ui, cell, galley, palette::GRAY_1);
@@ -215,18 +228,18 @@ fn data_row(ui: &mut Ui, texts: &Texts, labels: &Labels, (row, index): (&SchemaR
     } else {
         Weight::Bold
     };
-    let text = |ui: &Ui, value: &str, cell: Rect, weight: Weight| {
-        let galley = line(ui, plain(value, ROW_FONT, weight), cell.width());
-        paint_left(ui, cell, galley, palette::GRAY_1);
-    };
-    let pad = |cell: Rect, indent: f32| {
-        Rect::from_min_max(
-            pos2(cell.left() + CELL_PADDING_X + indent, cell.top()),
-            pos2(cell.right() - CELL_PADDING_X, cell.bottom()),
-        )
-    };
     text(ui, &kind, pad(kind_cell, 0.0), Weight::Regular);
-    let indent = if row.is_member() { INDENT } else { 0.0 };
+    let indent = if row.is_member() {
+        let cell = pad(name, 0.0);
+        ui.painter().vline(
+            cell.left() + TREE_RAIL_OFFSET,
+            cell.y_range(),
+            Stroke::new(1.0, palette::GRAY_3),
+        );
+        TREE_INDENT
+    } else {
+        0.0
+    };
     text(ui, row.name(), pad(name, indent), weight);
     for (value, cell) in [(row.old_text(), old), (row.new_text(), new)] {
         let shown = if value.is_empty() {
@@ -237,11 +250,23 @@ fn data_row(ui: &mut Ui, texts: &Texts, labels: &Labels, (row, index): (&SchemaR
         text(ui, shown, pad(cell, 0.0), Weight::Regular);
     }
     if let Some(records) = row.records() {
-        let number = |value: u64| format::number(value, texts.language());
         for (value, cell) in [(records.old, old_records), (records.new, new_records)] {
             let cell = cell.shrink2(vec2(CELL_PADDING_X, 0.0));
-            let galley = line(ui, plain(number(value), ROW_FONT, weight), cell.width());
+            let number = format::number(value, texts.language());
+            let galley = line(ui, plain(number, ROW_FONT, weight), cell.width());
             paint_right(ui, cell, galley, palette::GRAY_1);
         }
     }
+}
+
+fn text(ui: &Ui, value: &str, cell: Rect, weight: Weight) {
+    let galley = line(ui, plain(value, ROW_FONT, weight), cell.width());
+    paint_left(ui, cell, galley, palette::GRAY_1);
+}
+
+fn pad(cell: Rect, indent: f32) -> Rect {
+    Rect::from_min_max(
+        pos2(cell.left() + CELL_PADDING_X + indent, cell.top()),
+        pos2(cell.right() - CELL_PADDING_X, cell.bottom()),
+    )
 }

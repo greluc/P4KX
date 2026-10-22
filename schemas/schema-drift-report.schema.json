@@ -20,7 +20,7 @@
         },
         "records": {
           "$ref": "#/$defs/SideCounts",
-          "description": "The Records of the structs that declare a property of this enum, and of the structs\ninheriting from them, on each side."
+          "description": "The Records on each side whose struct declares or inherits a property of this enum, each\nRecord counted once."
         }
       },
       "required": [
@@ -64,7 +64,7 @@
       "description": "One added or removed option of a changed enum.",
       "properties": {
         "change": {
-          "$ref": "#/$defs/SchemaChangeKind",
+          "$ref": "#/$defs/OptionChangeKind",
           "description": "`added` or `removed`."
         },
         "name": {
@@ -77,6 +77,21 @@
         "change"
       ],
       "type": "object"
+    },
+    "OptionChangeKind": {
+      "description": "How an enum option differs between the two sides.",
+      "oneOf": [
+        {
+          "const": "added",
+          "description": "Only the new side has the option.",
+          "type": "string"
+        },
+        {
+          "const": "removed",
+          "description": "Only the old side has the option.",
+          "type": "string"
+        }
+      ]
     },
     "ParentChange": {
       "description": "The parent of a struct on each side.",
@@ -96,6 +111,10 @@
           ]
         }
       },
+      "required": [
+        "old",
+        "new"
+      ],
       "type": "object"
     },
     "PropertyAspect": {
@@ -190,12 +209,13 @@
       },
       "required": [
         "data_type",
-        "conversion"
+        "conversion",
+        "target"
       ],
       "type": "object"
     },
     "SchemaChangeKind": {
-      "description": "How a struct, property, enum or enum option differs between the two sides.",
+      "description": "How a struct, property or enum differs between the two sides.",
       "oneOf": [
         {
           "const": "added",
@@ -366,7 +386,7 @@
         },
         "records": {
           "$ref": "#/$defs/SideCounts",
-          "description": "The Records of the struct and of the structs inheriting from it, on each side; `0` on the\nside that lacks the struct."
+          "description": "The Records on each side whose struct is this struct or inherits from it; `0` on the side\nthat lacks the struct."
         }
       },
       "required": [
@@ -411,7 +431,7 @@
     },
     "unreadable": {
       "$ref": "#/$defs/SideCounts",
-      "description": "The definitions whose name cannot be read and that were left out, on each side."
+      "description": "The definitions, properties, options and Records on each side that were left out because a\nname or struct cannot be read or a name is defined twice."
     }
   },
   "required": [

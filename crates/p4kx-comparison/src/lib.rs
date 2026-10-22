@@ -23,6 +23,7 @@ mod report;
 mod schema_diff;
 mod schema_report;
 mod schema_side;
+mod schema_types;
 mod text_diff;
 mod value_report;
 
@@ -47,12 +48,13 @@ pub use record_change::{
     RecordState,
 };
 pub use report::{REPORT_FORMAT_VERSION, Report, report_schema};
-pub use schema_diff::{
-    EnumChange, KindCounts, OptionChange, ParentChange, PropertyAspect, PropertyChange,
-    PropertyShape, SchemaChangeKind, SchemaCounts, SchemaDiff, SideCounts, StructChange,
-    compare_schema,
-};
+pub use schema_diff::compare_schema;
 pub use schema_report::{
     SCHEMA_REPORT_FORMAT_VERSION, SchemaReport, schema_report, schema_report_schema,
+};
+pub use schema_types::{
+    EnumChange, KindCounts, OptionChange, OptionChangeKind, ParentChange, PropertyAspect,
+    PropertyChange, PropertyShape, SchemaChangeKind, SchemaCounts, SchemaDiff, SideCounts,
+    StructChange,
 };
 pub use text_diff::{DEFAULT_CONTEXT, DiffLine, Hunk, LineKind, TextDiff};

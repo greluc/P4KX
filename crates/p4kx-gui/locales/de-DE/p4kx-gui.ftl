@@ -195,12 +195,13 @@ schema-column-new = Neu
 schema-column-old-records = Records alt
 schema-column-new-records = Records neu
 schema-kind-struct = Struct
-schema-kind-parent = Elternteil
+schema-kind-parent = Basis-Struct
 schema-kind-property = Eigenschaft
 schema-kind-enum = Enum
 schema-kind-option = Option
 schema-no-differences = Das Schema unterscheidet sich zwischen den DataForges nicht.
-schema-row = { $change }: { $kind } { $name }
+schema-failed = Die Schemas konnten nicht verglichen werden: { $reason }
+schema-row ={ $change }: { $kind } { $name }
 
 diff-previous = Vorheriger Unterschied
 diff-next = Nächster Unterschied

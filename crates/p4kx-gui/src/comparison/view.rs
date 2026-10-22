@@ -70,7 +70,7 @@ pub struct ComparisonView {
     reveal: bool,
     report: Option<ReportJob>,
     records: Option<RecordChangeView>,
-    schema: Option<SchemaView>,
+    schema: Option<Result<SchemaView, String>>,
     list: ComparisonList,
 }
 
@@ -80,7 +80,7 @@ impl ComparisonView {
     /// thread.
     pub(crate) fn new(
         comparison: Arc<OwnedComparison>,
-        (records, schema): (Option<RecordChangeList>, Option<SchemaView>),
+        (records, schema): (Option<RecordChangeList>, Option<Result<SchemaView, String>>),
         cancel: &CancelToken,
     ) -> Option<Self> {
         let orders = ChangeOrders::build(&comparison);
@@ -350,11 +350,13 @@ impl ComparisonView {
         }
     }
 
-    /// Returns the schema drift between both DataForges, `None` when the Record level was not
-    /// compared or the schemas could not be compared.
+    /// Returns the schema drift between both DataForges, the reason it could not be compared, or
+    /// `None` when the Record level was not compared.
     #[must_use]
-    pub const fn schema(&self) -> Option<&SchemaView> {
-        self.schema.as_ref()
+    pub fn schema(&self) -> Option<Result<&SchemaView, &str>> {
+        self.schema
+            .as_ref()
+            .map(|schema| schema.as_ref().map_err(String::as_str))
     }
 
     /// Returns the number of rows the shown list holds.
@@ -362,7 +364,7 @@ impl ComparisonView {
     pub fn shown_len(&self) -> usize {
         match (self.list, &self.records, &self.schema) {
             (ComparisonList::Records, Some(records), _) => records.shown().len(),
-            (ComparisonList::Schema, _, Some(schema)) => schema.rows().len(),
+            (ComparisonList::Schema, _, Some(Ok(schema))) => schema.rows().len(),
             _ => self.shown.len(),
         }
     }

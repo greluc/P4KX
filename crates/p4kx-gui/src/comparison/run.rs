@@ -188,11 +188,12 @@ fn run(
         return Outcome::Cancelled;
     }
     set(ComparisonStage::Preparing);
-    let schema = records
-        .is_some()
-        .then(|| comparison.schema_diff().ok())
-        .flatten()
-        .map(|diff| SchemaView::new(&diff));
+    let schema = records.is_some().then(|| {
+        comparison
+            .schema_diff()
+            .map(|diff| SchemaView::new(&diff))
+            .map_err(|error| describe(&error))
+    });
     ComparisonView::new(Arc::new(comparison), (records, schema), cancel)
         .map_or(Outcome::Cancelled, |view| Outcome::Finished(Box::new(view)))
 }

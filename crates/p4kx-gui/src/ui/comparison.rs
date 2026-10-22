@@ -40,7 +40,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             return;
         };
         if comparison_lists::schema_shown(view) {
-            comparison_schema::show(ui, model);
+            frames::panel().show(ui, |ui| comparison_schema::show(ui, model));
             return;
         }
         let records = comparison_lists::records_shown(view);
